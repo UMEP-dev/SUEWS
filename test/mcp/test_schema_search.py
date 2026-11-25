@@ -7,7 +7,10 @@ from typing import Any
 
 import pytest
 
-pytestmark = pytest.mark.api
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.hydro import WaterDistribution
+
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
 
 
 def _schema_envelope(schema: dict[str, Any]) -> dict[str, Any]:
@@ -120,3 +123,104 @@ def test_shallow_truncates_long_string_scalars() -> None:
     result = _shallow({"description": "x" * 250})
 
     assert result["description"] == ("x" * 200) + "..."
+
+
+def test_search_schema_surfaces_waterdistribution_rules_without_truncation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MCP ``search_schema`` displays the live WaterDistribution contract clearly."""
+    mcp_schema_search = pytest.importorskip("suews_mcp.tools.schema_search")
+    live_wd_schema = WaterDistribution.model_json_schema()
+    live_schema = {
+        "$defs": {
+            "WaterDistribution": {
+                key: value for key, value in live_wd_schema.items() if key != "$defs"
+            }
+        }
+    }
+    monkeypatch.setattr(mcp_schema_search, "_SCHEMA_CACHE", {})
+    monkeypatch.setattr(
+        mcp_schema_search,
+        "run_suews_cli",
+        lambda *_args, **_kwargs: _schema_envelope(live_schema),
+    )
+
+    for query, suffix in (
+        ("WaterDistribution", "$defs.WaterDistribution"),
+        ("to_soilstore", "$defs.WaterDistribution.properties.to_soilstore"),
+        ("to_runoff", "$defs.WaterDistribution.properties.to_runoff"),
+    ):
+        result = mcp_schema_search.search_schema(query)
+        assert result["status"] == "success"
+        match = next(
+            item for item in result["data"]["matches"] if item["path"] == suffix
+        )
+        desc = match["value"]["description"]
+        assert "sfr > 0" in desc
+        assert "0 normalises to absent at load" in desc
+        assert "non-zero or post-load edits fail" in desc
+        if suffix != "$defs.WaterDistribution":
+            assert not desc.endswith("...")
+
+
+def test_search_schema_surfaces_conditional_unit_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MCP ``search_schema`` summarises ``conditional_unit`` instead of ``"<dict>"``."""
+    mcp_schema_search = pytest.importorskip("suews_mcp.tools.schema_search")
+    live_schema = SUEWSConfig.model_json_schema()
+    monkeypatch.setattr(mcp_schema_search, "_SCHEMA_CACHE", {})
+    monkeypatch.setattr(
+        mcp_schema_search,
+        "run_suews_cli",
+        lambda *_args, **_kwargs: _schema_envelope(live_schema),
+    )
+
+    expectations = (
+        (
+            "drain_coef_1",
+            "$defs.StorageDrainParams.properties.drain_coef_1",
+            "drain_eq",
+            {"1": "formula", "2": "cf", "3": "formula"},
+        ),
+        (
+            "drain_coef_2",
+            "$defs.StorageDrainParams.properties.drain_coef_2",
+            "drain_eq",
+            {"1": "cf", "2": "cf", "3": "cf"},
+        ),
+        (
+            "g_q_base",
+            "$defs.Conductance.properties.g_q_base",
+            "model.physics.surface_conductance",
+            {"1": "cf", "2": "cf"},
+        ),
+        (
+            "g_q_shape",
+            "$defs.Conductance.properties.g_q_shape",
+            "model.physics.surface_conductance",
+            {"1": "cf", "2": "empirical_base"},
+        ),
+        (
+            "traffic_rate",
+            "$defs.CO2Params.properties.traffic_rate",
+            "type_traffic_rate",
+            {"1": "cf", "2": "cf"},
+        ),
+    )
+
+    for query, path, selector, expected_kinds in expectations:
+        result = mcp_schema_search.search_schema(query)
+        assert result["status"] == "success"
+        match = next(
+            item for item in result["data"]["matches"] if item["path"] == path
+        )
+        value = match["value"]
+        assert "unit" not in value
+        cond = value["conditional_unit"]
+        assert isinstance(cond, dict)
+        assert cond["selector"] == selector
+        assert {
+            code: case["kind"] for code, case in cond["cases"].items()
+        } == expected_kinds
+        assert len(json.dumps(value)) < 3_000

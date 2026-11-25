@@ -21,12 +21,17 @@ on:
         description: 'JSON array of [runner, platform_name, arch] triples'
         required: true
         type: string
-      api_python_json:
-        description: 'JSON array of test-time CPython tags (e.g. ["cp312","cp315"])'
+      cells_json:
+        description: >-
+          JSON array of api jobs per platform, each {"python_version", "shard",
+          "tier"}, from scripts/suews/ci_test_layout.py: shard is "" or K-of-N
+          (each shard runs the selected tests whose node id hashes to it,
+          scripts/suews/pytest_shard.py) and tier is the api tier that cell
+          runs (the newer bookend of a ready PR runs core-bookend).
         required: true
         type: string
       test_tier:
-        description: 'Test tier (smoke|core|cfg|standard|all); composed with the `api` marker'
+        description: 'Test tier of the calling run (smoke|core|cfg|standard|physics-full|all); each cell runs its own tier from cells_json'
         required: true
         type: string
       serial_platforms:
@@ -44,18 +49,24 @@ permissions:
 
 jobs:
   api_cross_python:
-    name: ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    # "api | ..." keeps this leaf distinct from the wheel build's "wheel | ..."
+    # leaf under the same caller group in the checks list.
+    name: api | ${{ matrix.cell.python_version }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}
     runs-on: ${{ matrix.buildplat[0] }}
-    # Guardrail: a healthy api-test cell finishes well within this (the `all`
-    # tier is ~15-30 min). The cap exists so a hung test fails fast instead of
-    # running to GitHub's 6h default and serialising the scarce macOS runner
-    # pool into a ~12h zombie run (gh#1522 legacy-table round-trip hang).
-    timeout-minutes: 45
+    # Guardrail: a healthy api-test cell finishes well within this (unsharded
+    # nightly `all`-tier Windows cells run up to ~44 min on slow runners,
+    # gh#2307). The cap exists so a hung test fails fast instead of running to
+    # GitHub's 6h default and serialising the scarce macOS runner pool into a
+    # ~12h zombie run (gh#1522 legacy-table round-trip hang).
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         buildplat: ${{ fromJson(inputs.buildplat_json) }}
-        python_version: ${{ fromJson(inputs.api_python_json) }}
+        # One job per cell; the layout (which Python is sharded and how
+        # many ways, which runs the core-bookend tier) comes from the caller's
+        # layout job, so this file holds no layout rules.
+        cell: ${{ fromJson(inputs.cells_json) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -65,15 +76,22 @@ jobs:
         id: pyver
         shell: bash
         env:
-          PV: ${{ matrix.python_version }}
+          PV: ${{ matrix.cell.python_version }}
         run: |
           echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: ${{ steps.pyver.outputs.spec }}
-          cache: 'pip'
-          cache-dependency-path: pyproject.toml
+
+      # uv with a cache keyed on pyproject.toml: the install was 33-41 s per
+      # job with pip and no cache, paid once per shard.
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          cache-suffix: api-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
 
       - name: Download wheel for this platform
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -91,7 +109,7 @@ jobs:
         id: marker
         shell: bash
         env:
-          TIER: ${{ inputs.test_tier }}
+          TIER: ${{ matrix.cell.tier || inputs.test_tier }}
         run: |
           case "$TIER" in
             smoke)    EXPR='api and smoke and not (medium or slow) and not qgis' ;;
@@ -102,6 +120,10 @@ jobs:
             # slow; the api axis stays identical to standard.
             physics-full) EXPR='api and (core or not slow) and not qgis' ;;
             all)      EXPR='api' ;;
+            # The newer Python bookend on a ready PR: every core api test
+            # (slow included) plus smoke; non-core api tests on it wait for
+            # the nightly. scripts/suews/ci_test_layout.py assigns it.
+            core-bookend) EXPR='api and (smoke or core) and not qgis' ;;
             *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;
           esac
           echo "expr=$EXPR" >> "$GITHUB_OUTPUT"
@@ -142,11 +164,14 @@ jobs:
         env:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
           XDIST_ARGS: ${{ steps.workers.outputs.xdist_args }}
-          SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
+          SHARD: ${{ matrix.cell.shard }}
+          SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}.json
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
-          python -m pip install wheelhouse/*.whl mcp-dist/*.whl
+          # Into the setup-python interpreter itself, as pip did, so the
+          # interpreter-local suews-mcp check below still holds.
+          uv pip install --python "$(python -c 'import sys; print(sys.executable)')" \
+            pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0 \
+            wheelhouse/*.whl mcp-dist/*.whl
           # These imports and the interpreter-local executable are the two
           # conditions that otherwise skip the protocol test at collection or
           # setup time. Make either packaging regression fail this lane first.
@@ -176,16 +201,39 @@ jobs:
           # count is per platform and measured, never taken from the CPU count
           # (see the step above); XDIST_ARGS is empty for a serialised
           # platform. The metrics plugin records worker timings and each
-          # worker's peak RSS beside them (#1786).
+          # worker's peak RSS beside them (#1786). A sharded cell (SHARD is
+          # K-of-N) keeps only its share of the selected tests; the
+          # collection pass above stays unsharded because the protocol test
+          # lands in one shard only.
+          SHARD_ARGS=""
+          if [[ -n "$SHARD" ]]; then
+            SHARD_ARGS="-p scripts.suews.pytest_shard --suews-shard ${SHARD/-of-//}"
+          fi
           # shellcheck disable=SC2086
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
-            -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS
+            -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS $SHARD_ARGS
+
+      # The core-test guard (scripts/suews/check_core_guard.py) compares what
+      # every Linux lane ran against the whole suite, so one Linux cp312 cell
+      # (the unsharded one, or shard 1) records every collected node id and its
+      # markers with no -m and no shard split. It runs after the tests so a
+      # test failure is reported first; it uploads with the metrics below.
+      - name: Record the test inventory for the core-test guard
+        if: >-
+          (success() || failure()) && matrix.buildplat[1] == 'manylinux' &&
+          matrix.cell.python_version == 'cp312' && (matrix.cell.shard == '' || startsWith(matrix.cell.shard, '1-of-'))
+        shell: bash
+        run: |
+          python -m pytest -p scripts.suews.pytest_inventory --collect-only -q \
+            -p no:cacheprovider test \
+            --suews-inventory "ci-metrics/inventory-cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json" \
+            > /dev/null
 
       - name: Upload API test metrics
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          name: ci-metrics-api-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}
           path: ci-metrics/*.json
           if-no-files-found: error
           retention-days: 14

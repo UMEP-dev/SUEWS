@@ -31,12 +31,16 @@ import pytest
 
 import supy
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-RESPONSE", "C-ISOLATION"),
+]
 
 _run_rust = import_module("supy._run_rust")
 
 GRAV = float(np.float32(9.80665))  # single-precision literal in the Fortran
-C2K = float(np.float32(273.15))  # single-precision literal in the Fortran
+C2K = 273.15  # defining Celsius-to-Kelvin offset [K]
 K2 = float(np.float32(0.16))  # single-precision literal in the Fortran
 ZL_RELAX = 0.3  # relax_zl factor for the first passes
 ZL_RELAX_PASSES = 10  # passes at the full factor
@@ -555,6 +559,7 @@ def _run_grids(inputs, grids, max_workers):
     return {grids[result[0]][0]: bytes(result[1]) for result in results}
 
 
+@pytest.mark.medium
 def test_free_convection_carry_does_not_leak_between_grids(leak_inputs):
     """Each grid in a run of four, in parallel and serially and in either
     order, gives the output of that grid run alone: the previous-pass w_f is
@@ -573,6 +578,7 @@ def test_free_convection_carry_does_not_leak_between_grids(leak_inputs):
                 assert _run_grids(leak_inputs, order, max_workers) == alone
 
 
+@pytest.mark.medium
 def test_sample_year_converges_with_free_convection(sample_run_cached):
     """The w_f feedback (QH -> w_f -> r_a -> QE -> QH) two-cycles across
     QH = 0 when undamped; relaxed, no sample step reaches the pass limit."""

@@ -29,6 +29,8 @@ const OUTPUT_BLOCK_FIELD_ORDER: [&str; OUTPUT_BLOCK_FIELD_COUNT] = [
     "data_out_block_nhood",
 ];
 
+/// Schema metadata for [`OutputBlock`], including the per-group runtime column
+/// widths reported by `ffi::suews_output_block_columns`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OutputBlockSchema {
     pub schema_version: u32,
@@ -37,8 +39,10 @@ pub struct OutputBlockSchema {
     pub allocatable_dims: PayloadDims,
 }
 
+/// Dimension-bearing flat payload alias for [`OutputBlock`].
 pub type OutputBlockValuesPayload = ValuesPayloadWithDims;
 
+/// Row-major 2D matrix `(rows, cols)` for one output group inside [`OutputBlock`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputBlockMatrix {
     pub rows: usize,
@@ -47,6 +51,7 @@ pub struct OutputBlockMatrix {
 }
 
 impl OutputBlockMatrix {
+    /// Construct a matrix after verifying `values.len() == rows * cols` without overflow.
     pub fn new(rows: usize, cols: usize, values: Vec<f64>) -> Result<Self, BridgeError> {
         let expected_len = rows.checked_mul(cols).ok_or(BridgeError::BadState)?;
         validate_flat_len(&values, expected_len)?;
@@ -73,6 +78,7 @@ impl OutputBlockMatrix {
     }
 }
 
+/// All 11 multi-timestep output matrices mirroring Fortran `output_block`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OutputBlock {
     pub fields: BTreeMap<String, OutputBlockMatrix>,
@@ -352,6 +358,7 @@ pub fn output_block_to_rows_map(
     Ok(rows_map)
 }
 
+// contract: C-CODEC, C-OUTPUT
 #[cfg(test)]
 mod tests {
     use super::*;

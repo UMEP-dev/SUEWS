@@ -1,3 +1,23 @@
+//! Core surface constants, `OHM_STATE` codec, solar helper and legacy scalar
+//! OHM bindings (`c_api/ohm.f95` and `c_api/sunposition.f95`).
+//!
+//! ## Contents
+//!
+//! - **Canonical surface order**: [`NSURF`] (`7`) and [`SURFACE_NAMES`]
+//!   (`paved`, `bldg`, `evetr`, `dectr`, `grass`, `bsoil`, `water`), shared
+//!   across parameter and state codecs.
+//! - **`OhmState` codec (schema v3)**: marshals Fortran `OHM_STATE`, including
+//!   per-surface dynamic OHM coefficients and ANOHM rolling-window buffers
+//!   (`ANOHM_MAX_SAMPLES = 48`).
+//! - **Solar geometry (`sunposition_calc`, `physics`-gated)**: thin FFI wrapper
+//!   around `module_phys_narp::NARP_cal_SunPosition`.
+//! - **Legacy scalar OHM helpers (`qs_calc`, `dqndt_step`, `ohm_step`,
+//!   `ohm_state_step`, `OhmModel`)**: invoke scalar formulas copied inside
+//!   `c_api/ohm.f95` rather than `module_phys_ohm`. This is a recorded `BR-01`
+//!   deviation retained for existing API compatibility; do not use it as a
+//!   template for new facades (see `dev-ref/RUST_BRIDGE_DESIGN.md` and
+//!   `dev-ref/RUST_BRIDGE_AUDIT.md`).
+
 use crate::codec::{
     field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
     StateCodec, TypeSchema, ValuesPayload,
@@ -6,12 +26,17 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
+/// Number of SUEWS surface land-cover types (`paved` through `water`).
 pub const NSURF: usize = 7;
+/// Maximum number of samples held in each ANOHM rolling-window buffer.
 pub const ANOHM_MAX_SAMPLES: usize = 48;
-pub const OHM_STATE_V1_FLAT_LEN: usize = 53;
-pub const OHM_STATE_FLAT_LEN: usize =
-    OHM_STATE_V1_FLAT_LEN + 5 + 14 * ANOHM_MAX_SAMPLES + 3 * NSURF;
-pub const OHM_STATE_SCHEMA_VERSION: u32 = 2;
+/// Flat buffer length of the pre-AnOHM `OHM_STATE` base section.
+pub const OHM_STATE_BASE_LEN: usize = 52;
+/// Current flat buffer length of schema-version-3 `OHM_STATE` payloads.
+pub const OHM_STATE_FLAT_LEN: usize = OHM_STATE_BASE_LEN + 5 + 14 * ANOHM_MAX_SAMPLES + 3 * NSURF;
+/// Current schema version for [`OhmState`], matching `c_api/ohm.f95`.
+pub const OHM_STATE_SCHEMA_VERSION: u32 = 3;
+/// Canonical ordered names of the 7 SUEWS land-cover surfaces.
 pub const SURFACE_NAMES: [&str; NSURF] =
     ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
 
@@ -46,7 +71,6 @@ pub struct OhmState {
     pub a3: f64,
     pub t2_prev: f64,
     pub ws_rav: f64,
-    pub tair_prev: f64,
     pub qn_rav: [f64; NSURF],
     // Surface order: paved, bldg, evetr, dectr, grass, bsoil, water.
     pub dyn_a1: [f64; NSURF],
@@ -91,12 +115,11 @@ impl Default for OhmState {
             a3: 0.0,
             t2_prev: 0.0,
             ws_rav: 0.0,
-            tair_prev: 0.0,
             qn_rav: [0.0; NSURF],
             dyn_a1: [0.0; NSURF],
             dyn_a2: [0.0; NSURF],
             dyn_a3: [0.0; NSURF],
-            iter_safe: true,
+            iter_safe: false,
             anohm_working_day: -999,
             anohm_working_count: 0,
             anohm_working_t_hr: [-999.0; ANOHM_MAX_SAMPLES],
@@ -152,8 +175,9 @@ fn take_array<const N: usize>(flat: &[f64], idx: &mut usize) -> [f64; N] {
 }
 
 impl OhmState {
-    fn from_v1_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        validate_flat_len(flat, OHM_STATE_V1_FLAT_LEN)?;
+    pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
+        validate_flat_len(flat, OHM_STATE_FLAT_LEN)?;
+
         let mut idx = 0_usize;
         let mut next = || {
             let value = flat[idx];
@@ -167,11 +191,11 @@ impl OhmState {
             ..Self::default()
         };
 
-        for i in 0..NSURF {
-            state.qn_surfs[i] = next();
+        for slot in &mut state.qn_surfs {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dqndt_surf[i] = next();
+        for slot in &mut state.dqndt_surf {
+            *slot = next();
         }
 
         state.qn_s_av = next();
@@ -181,31 +205,22 @@ impl OhmState {
         state.a3 = next();
         state.t2_prev = next();
         state.ws_rav = next();
-        state.tair_prev = next();
 
-        for i in 0..NSURF {
-            state.qn_rav[i] = next();
+        for slot in &mut state.qn_rav {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dyn_a1[i] = next();
+        for slot in &mut state.dyn_a1 {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dyn_a2[i] = next();
+        for slot in &mut state.dyn_a2 {
+            *slot = next();
         }
-        for i in 0..NSURF {
-            state.dyn_a3[i] = next();
+        for slot in &mut state.dyn_a3 {
+            *slot = next();
         }
 
         state.iter_safe = next() >= 0.5;
-
-        Ok(state)
-    }
-
-    pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        validate_flat_len(flat, OHM_STATE_FLAT_LEN)?;
-
-        let mut state = Self::from_v1_flat(&flat[..OHM_STATE_V1_FLAT_LEN])?;
-        let mut idx = OHM_STATE_V1_FLAT_LEN;
+        debug_assert_eq!(idx, OHM_STATE_BASE_LEN);
 
         state.anohm_working_day = decode_int(flat[idx])?;
         idx += 1;
@@ -255,7 +270,6 @@ impl OhmState {
         flat.push(self.a3);
         flat.push(self.t2_prev);
         flat.push(self.ws_rav);
-        flat.push(self.tair_prev);
 
         flat.extend_from_slice(&self.qn_rav);
         flat.extend_from_slice(&self.dyn_a1);
@@ -542,7 +556,6 @@ pub fn ohm_state_field_names() -> Vec<String> {
     names.push("a3".to_string());
     names.push("t2_prev".to_string());
     names.push("ws_rav".to_string());
-    names.push("tair_prev".to_string());
 
     push_surface_fields(&mut names, "qn_rav");
     push_surface_fields(&mut names, "dyn_a1");
@@ -628,9 +641,6 @@ pub fn ohm_state_to_values_payload(state: &OhmState) -> OhmStateValuesPayload {
 pub fn ohm_state_from_values_payload(
     payload: &OhmStateValuesPayload,
 ) -> Result<OhmState, BridgeError> {
-    if payload.schema_version == 1 {
-        return OhmState::from_v1_flat(&payload.values);
-    }
     from_values_payload(payload)
 }
 
@@ -735,6 +745,7 @@ pub fn sunposition_calc(
     Ok((azimuth, zenith))
 }
 
+// contract: C-CODEC, C-RESPONSE
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -799,7 +810,7 @@ mod tests {
     fn default_state_roundtrip_and_step() {
         let mut state =
             ohm_state_default_from_fortran().expect("default state should be available");
-        assert!(state.iter_safe);
+        assert!(!state.iter_safe);
         state.anohm_a1_surf = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17];
         state.anohm_a2_surf = [0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27];
         state.anohm_a3_surf = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
@@ -849,6 +860,7 @@ mod tests {
         assert_eq!(schema.nsurf, NSURF);
         assert_eq!(schema.field_names.len(), OHM_STATE_FLAT_LEN);
         assert_eq!(schema.surface_names.len(), NSURF);
+        assert!(!schema.field_names.iter().any(|name| name == "tair_prev"));
     }
 
     #[test]
@@ -883,24 +895,16 @@ mod tests {
     }
 
     #[test]
-    fn values_payload_restores_v1_with_default_anohm_buffers() {
-        let state = ohm_state_default_from_fortran().expect("default state should be available");
-        let payload = OhmStateValuesPayload {
-            schema_version: 1,
-            values: state.to_flat()[..OHM_STATE_V1_FLAT_LEN].to_vec(),
-        };
-
-        let recovered = ohm_state_from_values_payload(&payload)
-            .expect("version-1 OHM state should remain readable");
-
-        assert_eq!(recovered.qn_av, state.qn_av);
-        assert_eq!(recovered.anohm_working_day, -999);
-        assert_eq!(recovered.anohm_working_count, 0);
-        assert!(!recovered.anohm_coeff_ready);
-        assert_eq!(recovered.anohm_working_sd, [-999.0; ANOHM_MAX_SAMPLES]);
-        assert_eq!(recovered.anohm_a1_surf, [-999.0; NSURF]);
-        assert_eq!(recovered.anohm_a2_surf, [-999.0; NSURF]);
-        assert_eq!(recovered.anohm_a3_surf, [-999.0; NSURF]);
+    fn values_payload_rejects_legacy_versions() {
+        for (schema_version, len) in [(1_u32, 53_usize), (2_u32, OHM_STATE_FLAT_LEN + 1)] {
+            let payload = OhmStateValuesPayload {
+                schema_version,
+                values: vec![0.0_f64; len],
+            };
+            let err = ohm_state_from_values_payload(&payload)
+                .expect_err("legacy OHM_STATE payload should be rejected");
+            assert_eq!(err, BridgeError::BadState);
+        }
     }
 
     #[test]
@@ -921,7 +925,7 @@ mod tests {
     fn from_flat_rejects_anohm_count_outside_buffer() {
         let state = ohm_state_default_from_fortran().expect("default state should be available");
         let mut flat = state.to_flat();
-        flat[OHM_STATE_V1_FLAT_LEN + 1] = (ANOHM_MAX_SAMPLES + 1) as f64;
+        flat[OHM_STATE_BASE_LEN + 1] = (ANOHM_MAX_SAMPLES + 1) as f64;
 
         let err = OhmState::from_flat(&flat).expect_err("oversized sample count should fail");
         assert_eq!(err, BridgeError::BadState);

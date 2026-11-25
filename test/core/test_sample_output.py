@@ -22,6 +22,8 @@ This test is independent of collection order and can run alongside other
 physics validation.
 """
 
+import functools
+import json
 import os
 from pathlib import Path
 import platform
@@ -37,8 +39,9 @@ import pytest
 import yaml
 
 import supy as sp
+from supy.cmd import rust_bridge
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-PARITY", "C-RESPONSE")]
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
@@ -53,6 +56,7 @@ from sample_output_io import (  # noqa: E402
     REFERENCE_FLOAT_FORMAT,
     column_names_sha256,
     read_reference_provenance,
+    reference_file_digest,
     shard_identities,
 )
 
@@ -120,28 +124,39 @@ def _sample_data_dir():
     return trv_supy_module / "sample_data"
 
 
-def _locate_engine() -> Path:
-    """Return the Rust CLI binary, skipping the test if it has not been built.
+def _engine_binary_name(os_name: str | None = None) -> str:
+    """Return the platform-specific Rust CLI binary filename."""
+    return "suews-engine.exe" if (os_name or os.name) == "nt" else "suews-engine"
 
-    Prefers the development build; falls back to the copy bundled inside the
-    installed package, which is what CI and cibuildwheel see.
+
+def _locate_engine(*, repo_root: Path | None = None) -> Path:
+    """Return the Rust CLI binary, skipping the test if none is available.
+
+    Prefers the copy bundled inside the installed ``supy`` package (the
+    artefact tested in wheel CI and ``cibuildwheel``) so a stale local build
+    under ``src/suews_bridge/target/release`` cannot shadow the installed
+    wheel. Falls back to the unpackaged release build only when no bundled
+    binary is present in the installed package.
     """
-    repo_root = Path(__file__).parent.parent.parent
+    try:
+        bundled = Path(rust_bridge._bridge_binary())
+    except FileNotFoundError:
+        bundled = None
+    else:
+        if bundled.is_file():
+            return bundled
+
+    root = Path(__file__).resolve().parents[2] if repo_root is None else repo_root
     dev_binary = (
-        repo_root / "src" / "suews_bridge" / "target" / "release" / "suews-engine"
+        root / "src" / "suews_bridge" / "target" / "release" / _engine_binary_name()
     )
-    if dev_binary.exists():
+    if dev_binary.is_file():
         return dev_binary
 
-    try:
-        from supy.cmd.rust_bridge import _bridge_binary
-
-        return _bridge_binary()
-    except (ImportError, FileNotFoundError):
-        pytest.skip(
-            "Rust CLI binary not found; "
-            "build with: make bridge"
-        )
+    pytest.skip(
+        "Rust CLI binary not found in installed package or target/release; "
+        "build with: make bridge"
+    )
 
 
 def _forcing_filename(control: dict) -> str:
@@ -179,9 +194,10 @@ def _write_run_inputs(
 ) -> tuple[Path, int]:
     """Write a config and forcing prefix into run_dir; return the config and row count.
 
-    The config is redirected to write its output into run_dir. The forcing file is
-    truncated to the rows the requested window needs, because the engine runs the
-    whole forcing file it is given.
+    The config is redirected to write its output into run_dir. When ``truncated``
+    is true, the forcing file keeps one extra row past ``validation_steps`` for
+    boundary-free interpolation and ``model.control.end_time`` is aligned to the
+    exact ``validation_steps`` horizon so the engine enforces a covered period.
 
     The engine expects resolved YAML, so the config written here is the one
     ``suews run`` hands the bridge: validated through the data model, with every
@@ -199,6 +215,11 @@ def _write_run_inputs(
     control = cfg["model"]["control"]
     tstep = int(control.get("tstep", 300))
     control["output"]["dir"] = str(run_dir)
+    if truncated:
+        end_ts = pd.Timestamp(control["start_time"]) + pd.Timedelta(
+            seconds=validation_steps * tstep
+        )
+        control["end_time"] = end_ts.strftime("%Y-%m-%d %H:%M:%S")
 
     config_path = run_dir / "sample_config.yml"
     config_path.write_text(
@@ -481,11 +502,16 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
     actual = np.asarray(actual)
     expected = np.asarray(expected)
 
-    # Handle shape mismatch
+    # Handle shape mismatch or empty arrays (np.all on empty is vacuously True)
     if actual.shape != expected.shape:
         return (
             False,
             f"Shape mismatch for {var_name}: {actual.shape} vs {expected.shape}",
+        )
+    if actual.size == 0:
+        return (
+            False,
+            f"Empty comparison array for {var_name}: expected at least 1 value",
         )
 
     # Calculate differences
@@ -560,6 +586,113 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 # ============================================================================
 
 
+_SUPY_LOAD_CACHE_NAMES = (
+    "load_SUEWS_nml",
+    "load_SUEWS_table",
+    "lookup_code_lib",
+    "lookup_KeySeq_lib",
+    "gen_all_code_df",
+    "build_code_exp_df",
+    "gen_df_siteselect_exp",
+    "gen_df_gridSurfaceChar_exp",
+    "load_SUEWS_SurfaceChar_df",
+)
+
+
+def _clear_supy_load_caches() -> None:
+    """Clear the explicit file/table LRU caches in ``supy._load``."""
+    import supy._load as load_mod
+
+    for name in _SUPY_LOAD_CACHE_NAMES:
+        getattr(load_mod, name).cache_clear()
+
+
+def _slice_aligned_library_parity(
+    df_output: pd.DataFrame,
+    df_ref: pd.DataFrame,
+    expected_timestamps: pd.DatetimeIndex,
+    *,
+    warmup_steps: int,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Validate full grid/timestamp coverage and return aligned post-warmup slices.
+
+    Derives the expected grid and timestamp index strictly from the forcing
+    window and reference output (never from ``len(df_output)``), so truncating
+    model output to the spin-up window fails loudly instead of comparing empty
+    slices.
+    """
+    n_expected = len(expected_timestamps)
+    assert n_expected > warmup_steps, (
+        f"Expected forcing horizon ({n_expected}) must exceed warmup ({warmup_steps})"
+    )
+    assert len(df_ref) >= n_expected, (
+        f"Reference shorter than requested horizon: {len(df_ref)} < {n_expected}"
+    )
+
+    df_ref_window = df_ref.iloc[:n_expected]
+    expected_full_index = df_ref_window.index
+    assert expected_full_index.get_level_values("datetime").equals(
+        expected_timestamps
+    ), "Reference timestamps do not match requested forcing timestamps"
+    assert df_output.index.equals(expected_full_index), (
+        "Library output grid/timestamp index does not match forcing/reference "
+        f"window: got {len(df_output)} rows, expected {len(expected_full_index)}"
+    )
+
+    df_actual_check = df_output.iloc[warmup_steps:]
+    df_expected_check = df_ref_window.iloc[warmup_steps:]
+    n_post_warmup = n_expected - warmup_steps
+    assert len(df_actual_check) == len(df_expected_check) == n_post_warmup > 0, (
+        f"Expected {n_post_warmup} post-warmup rows, got {len(df_actual_check)}"
+    )
+    assert df_actual_check.index.equals(df_expected_check.index)
+    return df_actual_check, df_expected_check
+
+
+def _slice_aligned_stebbs_day2(
+    df_output: pd.DataFrame,
+    df_reference: pd.DataFrame,
+    expected_forcing_index: pd.DatetimeIndex,
+    *,
+    warmup_steps: int,
+    expected_grid: int,
+) -> pd.DataFrame:
+    """Validate full 2-day STEBBS output alignment and return the day-2 slice.
+
+    Enforces expected grid, forcing timestamp index, and non-empty reference
+    timestamp alignment before any per-variable comparison or all-NaN skip.
+    """
+    n_ref = len(df_reference)
+    assert n_ref > 0, "STEBBS reference slice is empty"
+    expected_total = warmup_steps + n_ref
+    assert len(expected_forcing_index) == expected_total, (
+        f"Forcing window ({len(expected_forcing_index)}) does not match "
+        f"warmup ({warmup_steps}) + reference ({n_ref})"
+    )
+
+    expected_full_index = pd.MultiIndex.from_arrays(
+        [[expected_grid] * expected_total, expected_forcing_index],
+        names=["grid", "datetime"],
+    )
+    assert df_output.index.equals(expected_full_index), (
+        "STEBBS output grid/timestamp index does not match expected 2-day "
+        f"window: got {len(df_output)} rows, expected {expected_total}"
+    )
+
+    df_output_day2 = df_output.iloc[warmup_steps : warmup_steps + n_ref]
+    assert len(df_output_day2) == n_ref > 0, (
+        f"STEBBS day-2 output length mismatch: got {len(df_output_day2)}, expected {n_ref}"
+    )
+    assert "datetime" in df_reference.columns, (
+        "STEBBS reference data is missing required 'datetime' column"
+    )
+    expected_day2_dt = pd.DatetimeIndex(pd.to_datetime(df_reference["datetime"]))
+    assert df_output_day2.index.get_level_values("datetime").equals(
+        expected_day2_dt
+    ), "STEBBS day-2 timestamps do not match reference datetime column"
+    return df_output_day2
+
+
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
 
@@ -572,31 +705,8 @@ class TestSampleOutput(TestCase):
         self.df_ref = sample_reference
 
     def setUp(self):
-        """Set up test environment."""
-        # Clear any cached data from previous tests
-        # This prevents test interference when tests run in sequence
-        import functools
-        import gc
-
-        # Clear all LRU caches in the supy module
-        for obj in gc.get_objects():
-            if isinstance(obj, functools._lru_cache_wrapper):
-                try:
-                    obj.cache_clear()
-                except:
-                    pass
-
-        # More aggressive cache clearing for supy._load module
-        try:
-            import supy._load
-
-            # Clear specific caches in _load module
-            for attr_name in dir(supy._load):
-                attr = getattr(supy._load, attr_name)
-                if hasattr(attr, "cache_clear"):
-                    attr.cache_clear()
-        except:
-            pass
+        """Clear explicit ``supy._load`` table caches without a process-wide sweep."""
+        _clear_supy_load_caches()
 
     @pytest.mark.core
     @pytest.mark.rust
@@ -614,9 +724,11 @@ class TestSampleOutput(TestCase):
         sim = sp.SUEWSSimulation.from_sample_data()
         # Run 3 days only: 1 day spin-up + 2 days checked
         n_days = 3
+        end_date = pd.Timestamp("2012-01-01") + pd.Timedelta(days=n_days)
+        expected_timestamps = sim.forcing.df.loc[:end_date].index
         output = sim.run(
             backend="rust",
-            end_date=pd.Timestamp("2012-01-01") + pd.Timedelta(days=n_days),
+            end_date=end_date,
         )
         df_output = output.df
 
@@ -624,18 +736,23 @@ class TestSampleOutput(TestCase):
 
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         failed_variables = []
-        # Skip first day (spin-up), compare remaining timesteps
+        # Skip first day (spin-up), enforcing full forcing/reference alignment first.
         warmup_steps = TIMESTEPS_PER_DAY
-        n_check = len(df_output) - warmup_steps
+        df_actual_check, df_expected_check = _slice_aligned_library_parity(
+            df_output,
+            df_ref,
+            expected_timestamps,
+            warmup_steps=warmup_steps,
+        )
 
         for var in variables_to_test:
             col_key = ("SUEWS", var)
-            if col_key not in df_output.columns or var not in df_ref.columns:
+            if col_key not in df_actual_check.columns or var not in df_expected_check.columns:
                 failed_variables.append(var)
                 continue
 
-            actual = df_output[col_key].values[warmup_steps:]
-            expected = df_ref[var].values[warmup_steps : warmup_steps + n_check]
+            actual = df_actual_check[col_key].values
+            expected = df_expected_check[var].values
             tolerance = get_tolerance_for_variable(var)
             passed, _ = compare_arrays_with_tolerance(
                 actual,
@@ -787,6 +904,288 @@ class TestSampleOutput(TestCase):
 
 
 # ============================================================================
+# ENGINE BINARY PRECEDENCE AND TARGETED CACHE CLEARING
+# ============================================================================
+
+
+def test_engine_binary_name_matches_platform():
+    """Platform helper adds .exe only on Windows."""
+    assert _engine_binary_name("nt") == "suews-engine.exe"
+    assert _engine_binary_name("posix") == "suews-engine"
+
+
+def test_locate_engine_prefers_installed_package_over_target_release(
+    tmp_path, monkeypatch
+):
+    """Installed package binary wins even when a stale target/release artefact exists."""
+    binary_name = _engine_binary_name()
+    pkg_binary = tmp_path / "installed_pkg" / "bin" / binary_name
+    pkg_binary.parent.mkdir(parents=True)
+    pkg_binary.write_bytes(b"installed-wheel-binary")
+
+    repo_root = tmp_path / "repo"
+    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
+    dev_binary.parent.mkdir(parents=True)
+    dev_binary.write_bytes(b"stale-dev-binary")
+
+    monkeypatch.setattr(rust_bridge, "_bridge_binary", lambda: pkg_binary)
+
+    assert _locate_engine(repo_root=repo_root) == pkg_binary
+
+
+def test_locate_engine_falls_back_to_target_release_when_package_missing(
+    tmp_path, monkeypatch
+):
+    """Fallback uses target/release only when no installed package binary exists."""
+    binary_name = _engine_binary_name()
+    repo_root = tmp_path / "repo"
+    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
+    dev_binary.parent.mkdir(parents=True)
+    dev_binary.write_bytes(b"dev-binary")
+
+    def _missing_bundled() -> Path:
+        raise FileNotFoundError("no bundled suews-engine")
+
+    monkeypatch.setattr(rust_bridge, "_bridge_binary", _missing_bundled)
+
+    assert _locate_engine(repo_root=repo_root) == dev_binary
+
+
+def test_locate_engine_skips_when_no_binary_exists(tmp_path, monkeypatch):
+    """Skip with a concrete build hint when neither installed nor dev binary exists."""
+
+    def _missing_bundled() -> Path:
+        raise FileNotFoundError("no bundled suews-engine")
+
+    monkeypatch.setattr(rust_bridge, "_bridge_binary", _missing_bundled)
+
+    with pytest.raises(pytest.skip.Exception, match="make bridge"):
+        _locate_engine(repo_root=tmp_path / "empty_repo")
+
+
+def test_clear_supy_load_caches_is_targeted_not_process_wide():
+    """TestSampleOutput.setUp clears only supy._load caches, never unrelated LRU caches."""
+    import supy._load as load_mod
+
+    @functools.lru_cache(maxsize=4)
+    def unrelated_sentinel(key: str) -> str:
+        return f"cached:{key}"
+
+    assert unrelated_sentinel("keep-me") == "cached:keep-me"
+    assert unrelated_sentinel.cache_info().currsize == 1
+
+    # Verify the explicit list covers every lru_cache wrapper defined in supy._load.
+    discovered = {
+        name
+        for name, obj in vars(load_mod).items()
+        if isinstance(obj, functools._lru_cache_wrapper)
+        and getattr(obj, "__module__", None) == load_mod.__name__
+    }
+    assert set(_SUPY_LOAD_CACHE_NAMES) == discovered
+
+    # Run setUp() on a TestSampleOutput instance (uses _clear_supy_load_caches).
+    TestSampleOutput().setUp()
+
+    # Unrelated process LRU cache must survive untouched (fails under gc.get_objects sweep).
+    assert unrelated_sentinel.cache_info().currsize == 1
+    for name in _SUPY_LOAD_CACHE_NAMES:
+        assert getattr(load_mod, name).cache_info().currsize == 0
+
+
+def test_compare_arrays_with_tolerance_rejects_empty_arrays():
+    """Empty arrays must fail rather than passing vacuously via np.all([])."""
+    passed, report = compare_arrays_with_tolerance(
+        np.array([], dtype=float),
+        np.array([], dtype=float),
+        rtol=0.01,
+        atol=0.1,
+        var_name="QH",
+    )
+    assert passed is False
+    assert "Empty comparison array" in report
+
+
+def test_library_parity_alignment_rejects_spinup_only_truncation():
+    """Truncating 3-day output to 288 spin-up rows, wrong grid, or shifted times fails."""
+    n_days = 3
+    timestamps = pd.date_range(
+        "2012-01-01 00:05", periods=TIMESTEPS_PER_DAY * n_days, freq="5min"
+    )
+    idx = pd.MultiIndex.from_arrays(
+        [[1] * len(timestamps), timestamps], names=["grid", "datetime"]
+    )
+    df_ref = pd.DataFrame({"QH": np.arange(len(timestamps), dtype=float)}, index=idx)
+    df_output = pd.DataFrame(
+        np.arange(len(timestamps), dtype=float),
+        index=idx,
+        columns=pd.MultiIndex.from_tuples([("SUEWS", "QH")], names=["group", "var"]),
+    )
+
+    # Positive control: full 3-day aligned output yields 576 post-warmup rows.
+    actual_ok, expected_ok = _slice_aligned_library_parity(
+        df_output, df_ref, timestamps, warmup_steps=TIMESTEPS_PER_DAY
+    )
+    assert len(actual_ok) == len(expected_ok) == TIMESTEPS_PER_DAY * 2
+
+    # Truncated to only the 288 spin-up rows (0 evaluation rows) must fail.
+    with pytest.raises(AssertionError, match="grid/timestamp index"):
+        _slice_aligned_library_parity(
+            df_output.iloc[:TIMESTEPS_PER_DAY],
+            df_ref,
+            timestamps,
+            warmup_steps=TIMESTEPS_PER_DAY,
+        )
+
+    # Wrong grid ID must fail.
+    wrong_grid_idx = pd.MultiIndex.from_arrays(
+        [[99] * len(timestamps), timestamps], names=["grid", "datetime"]
+    )
+    with pytest.raises(AssertionError, match="grid/timestamp index"):
+        _slice_aligned_library_parity(
+            df_output.set_axis(wrong_grid_idx),
+            df_ref,
+            timestamps,
+            warmup_steps=TIMESTEPS_PER_DAY,
+        )
+
+    # Shifted timestamps must fail.
+    shifted_idx = pd.MultiIndex.from_arrays(
+        [[1] * len(timestamps), timestamps + pd.Timedelta(minutes=5)],
+        names=["grid", "datetime"],
+    )
+    with pytest.raises(AssertionError, match="grid/timestamp index"):
+        _slice_aligned_library_parity(
+            df_output.set_axis(shifted_idx),
+            df_ref,
+            timestamps,
+            warmup_steps=TIMESTEPS_PER_DAY,
+        )
+
+
+def test_stebbs_day2_alignment_rejects_spinup_only_truncation():
+    """Truncating 2-day STEBBS output to spin-up rows or short slices must fail."""
+    forcing_dt = pd.date_range(
+        "2017-08-26 00:00", periods=TIMESTEPS_PER_DAY * 2, freq="5min"
+    )
+    day2_dt = forcing_dt[TIMESTEPS_PER_DAY:]
+    df_ref = pd.DataFrame({
+        "datetime": day2_dt,
+        "QN_bldg_FA": np.linspace(1.0, 2.0, len(day2_dt)),
+    })
+    idx = pd.MultiIndex.from_arrays(
+        [[1] * len(forcing_dt), forcing_dt], names=["grid", "datetime"]
+    )
+    df_output = pd.DataFrame(
+        np.linspace(0.0, 2.0, len(forcing_dt)),
+        index=idx,
+        columns=pd.MultiIndex.from_tuples(
+            [("STEBBS", "QN_bldg_FA")], names=["group", "var"]
+        ),
+    )
+
+    # Positive control: exact 2-day aligned output returns 288 day-2 rows.
+    df_day2 = _slice_aligned_stebbs_day2(
+        df_output,
+        df_ref,
+        forcing_dt,
+        warmup_steps=TIMESTEPS_PER_DAY,
+        expected_grid=1,
+    )
+    assert len(df_day2) == TIMESTEPS_PER_DAY
+
+    # Truncated to only the 288 spin-up rows (0 day-2 rows) must fail.
+    with pytest.raises(AssertionError, match="grid/timestamp index"):
+        _slice_aligned_stebbs_day2(
+            df_output.iloc[:TIMESTEPS_PER_DAY],
+            df_ref,
+            forcing_dt,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=1,
+        )
+
+    # Partial day-2 truncation (10 rows instead of 288) must fail.
+    with pytest.raises(AssertionError, match="grid/timestamp index"):
+        _slice_aligned_stebbs_day2(
+            df_output.iloc[: TIMESTEPS_PER_DAY + 10],
+            df_ref,
+            forcing_dt,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=1,
+        )
+
+    # Wrong grid ID must fail.
+    wrong_grid_idx = pd.MultiIndex.from_arrays(
+        [[2] * len(forcing_dt), forcing_dt], names=["grid", "datetime"]
+    )
+    with pytest.raises(AssertionError, match="grid/timestamp index"):
+        _slice_aligned_stebbs_day2(
+            df_output.set_axis(wrong_grid_idx),
+            df_ref,
+            forcing_dt,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=1,
+        )
+
+    # Mismatched reference day-2 timestamps must fail.
+    df_ref_shifted = df_ref.copy()
+    df_ref_shifted["datetime"] = day2_dt + pd.Timedelta(minutes=5)
+    with pytest.raises(AssertionError, match="reference datetime"):
+        _slice_aligned_stebbs_day2(
+            df_output,
+            df_ref_shifted,
+            forcing_dt,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=1,
+        )
+
+
+def test_stebbs_day2_alignment_rejects_missing_reference_datetime(tmp_path):
+    """Omitting the required 'datetime' column from STEBBS reference data must fail."""
+    forcing_dt = pd.date_range(
+        "2017-08-26 00:00", periods=TIMESTEPS_PER_DAY * 2, freq="5min"
+    )
+    day2_dt = forcing_dt[TIMESTEPS_PER_DAY:]
+    df_ref = pd.DataFrame({
+        "datetime": day2_dt,
+        "QN_bldg_FA": np.linspace(1.0, 2.0, len(day2_dt)),
+    })
+    idx = pd.MultiIndex.from_arrays(
+        [[1] * len(forcing_dt), forcing_dt], names=["grid", "datetime"]
+    )
+    df_output = pd.DataFrame(
+        np.linspace(0.0, 2.0, len(forcing_dt)),
+        index=idx,
+        columns=pd.MultiIndex.from_tuples(
+            [("STEBBS", "QN_bldg_FA")], names=["group", "var"]
+        ),
+    )
+
+    # In-memory DataFrame without 'datetime' must fail.
+    df_ref_no_dt = df_ref.drop(columns=["datetime"])
+    with pytest.raises(AssertionError, match="missing required 'datetime' column"):
+        _slice_aligned_stebbs_day2(
+            df_output,
+            df_ref_no_dt,
+            forcing_dt,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=1,
+        )
+
+    # Round-tripped reference CSV without 'datetime' header/column must also fail.
+    csv_path = tmp_path / "sample_output_stebbs_no_datetime.csv"
+    df_ref_no_dt.to_csv(csv_path, index=False)
+    df_csv_no_dt = pd.read_csv(csv_path)
+    with pytest.raises(AssertionError, match="missing required 'datetime' column"):
+        _slice_aligned_stebbs_day2(
+            df_output,
+            df_csv_no_dt,
+            forcing_dt,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=1,
+        )
+
+
+# ============================================================================
 # REFERENCE PROVENANCE
 # ============================================================================
 
@@ -927,6 +1326,21 @@ class TestSTEBBSOutput(TestCase):
         config_path = stebbs_test_dir / "sample_config.yml"
         reference_output_path = stebbs_test_dir / "sample_output_stebbs.csv"
 
+        provenance = json.loads(
+            (stebbs_test_dir / "provenance.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            provenance["files"],
+            {
+                name: reference_file_digest(stebbs_test_dir / name)[0]
+                for name in (
+                    config_path.name,
+                    "test_2017_data_15_mp.txt",
+                    reference_output_path.name,
+                )
+            },
+        )
+
         print(f"\nLoading STEBBS test configuration from: {config_path}")
 
         # Initialise and run simulation
@@ -993,10 +1407,16 @@ class TestSTEBBSOutput(TestCase):
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")
         print("=" * 70)
 
-        # Extract day-2 validation window from simulation output to match reference.
-        df_output_day2 = df_output.iloc[
-            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY + validation_steps
-        ]
+        # Extract day-2 validation window after enforcing full forcing/reference
+        # grid and timestamp alignment (never truncating silently to min_len).
+        expected_grid = simulation.config.sites[0].gridiv
+        df_output_day2 = _slice_aligned_stebbs_day2(
+            df_output,
+            df_reference,
+            df_forcing.index,
+            warmup_steps=TIMESTEPS_PER_DAY,
+            expected_grid=expected_grid,
+        )
 
         print("\nFiltered output to match reference period (2017-08-27):")
         print(f"  Validation timesteps: {validation_steps}")
@@ -1029,16 +1449,15 @@ class TestSTEBBSOutput(TestCase):
             actual = df_output_day2.STEBBS[var].values
             expected = df_reference[var].values
 
-            # Handle length mismatch (should not occur after filtering)
-            if len(actual) != len(expected):
-                print(
-                    f"\n[WARNING] Length mismatch for {var}: {len(actual)} vs {len(expected)}"
-                )
-                min_len = min(len(actual), len(expected))
-                actual = actual[:min_len]
-                expected = expected[:min_len]
+            # Enforce exact non-empty length match before any all-NaN skip.
+            self.assertEqual(
+                len(actual),
+                len(expected),
+                f"Length mismatch for {var}: {len(actual)} vs {len(expected)}",
+            )
+            self.assertGreater(len(expected), 0, f"Empty reference series for {var}")
 
-            # Skip variables where reference is all NaN (e.g., cooling loads in winter)
+            # Skip variables where non-empty reference is all NaN (e.g., cooling loads in winter)
             if np.all(np.isnan(expected)):
                 report = f"\n[SKIP] {var}: Reference data is all NaN (not tested)"
                 full_report.append(report)

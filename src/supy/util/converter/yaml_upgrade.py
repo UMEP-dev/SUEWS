@@ -10,12 +10,15 @@ See gh#1301, gh#1304.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import calendar
+from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import wraps
 import math
+import numbers
 import sys
 from typing import Callable, Optional, Union
 
@@ -45,8 +48,13 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
+from ...data_model.core.state import validate_sdd_id
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
+from ...data_model.validation.required_fields import (
+    NON_WATER_SURFACES,
+    WATER_DISTRIBUTION_REQUIRED,
+)
 from .._forcing import SOIL_CONVERT_HINT
 
 # Historical rename steps must retain their outgoing dev5 spelling. The new
@@ -587,6 +595,7 @@ def _strip_internal_only_fields(cfg: dict) -> dict:
 
 def _identity(cfg: dict) -> dict:
     """Return the config after the defensive strip (schema version matches)."""
+    validate_active_soil_depth_raw(cfg)
     cfg = _strip_internal_only_fields(cfg)
     for arch in _walk_site_container(cfg, "building_archetype"):
         for name, reason in _ARCH_DROPS_TO_DEV11:
@@ -1624,9 +1633,16 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         physics["soil_moisture"] = entry
         logs.append(f"{key} -> soil_moisture; original method {method}")
     if active:
-        # Validate all sites before returning any current-shaped configuration.
+        # Validate all sites against the current schema using a throwaway copy
+        # stripped of legacy radiation, continuation-state placeholders,
+        # pre-dev16 non-finite sdd_id values, and pre-dev17 non-integer DOYs;
+        # the returned dev9 mapping stays intact for later deltas and
+        # single-pass logging.
         from ...data_model.core.config import SUEWSConfig
-        candidate = deepcopy(result)
+        candidate, _ = _drop_legacy_radiation_memory_zeros(result)
+        candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
+        _clear_nonfinite_sdd_for_dev9_candidate(candidate)
+        _clear_noninteger_doy_for_dev9_candidate(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -1699,6 +1715,298 @@ def _migrate_2026_1_to_current(cfg: dict) -> dict:
     return _migrate_2026_4_to_current(cfg)
 
 
+def _migrate_2026_6_dev9_to_2026_6_dev10(cfg: dict) -> dict:
+    """Stamp the corrected storage-capacity semantics without rewriting user inputs."""
+    return cfg
+
+
+_SOIL_PARAMS_REQUIRED_DEV11: tuple[tuple[str, str], ...] = (
+    ("soil_depth", "soildepth"),
+    ("soil_store_capacity", "soilstorecap"),
+    ("saturated_hydraulic_conductivity", "sathydraulicconduct"),
+)
+
+
+def _format_site_label(site_idx: int, site: dict) -> str:
+    """Return a concise site identifier naming index, name and gridiv."""
+    parts: list[str] = []
+    raw_name = _unwrap_scalar(site.get("name"))
+    if raw_name is not None and str(raw_name).strip():
+        parts.append(str(raw_name).strip())
+    raw_gridiv = _unwrap_scalar(site.get("gridiv"))
+    if raw_gridiv is not None and not isinstance(raw_gridiv, bool):
+        parts.append(f"gridiv={raw_gridiv}")
+    if parts:
+        return f"sites[{site_idx}] ({', '.join(parts)})"
+    return f"sites[{site_idx}]"
+
+
+def _positive_soil_capacity(surface: dict) -> float | None:
+    """Return a finite or infinite positive soil store capacity, or None."""
+    for name in ("soil_store_capacity", "soilstorecap"):
+        if name not in surface:
+            continue
+        raw = _unwrap_scalar(surface.get(name))
+        if raw is None or isinstance(raw, bool):
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        if not math.isnan(value) and value > 0.0:
+            return value
+        return None
+    return None
+
+
+def _active_surface_sfr(surface: dict) -> float | None:
+    """Return finite positive surface fraction for *surface*, or None when inactive."""
+    raw_sfr = (
+        _unwrap_scalar(surface.get("sfr")) if "sfr" in surface else (1.0 / 7.0)
+    )
+    if raw_sfr is None or isinstance(raw_sfr, bool):
+        return None
+    try:
+        sfr_value = float(raw_sfr)
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(sfr_value) and sfr_value > 0.0):
+        return None
+    return sfr_value
+
+
+def _set_zero_soil_param(surface: dict, canonical: str, legacy: str) -> None:
+    """Write explicit 0.0 for a missing/null soil field, preserving ref metadata."""
+    if canonical in surface and isinstance(surface[canonical], dict):
+        surface[canonical]["value"] = 0.0
+        surface.pop(legacy, None)
+    elif legacy in surface and isinstance(surface[legacy], dict):
+        entry = surface.pop(legacy)
+        entry["value"] = 0.0
+        surface[canonical] = entry
+    else:
+        surface.pop(legacy, None)
+        surface[canonical] = {"value": 0.0}
+
+
+def _as_numeric_float(raw: object) -> float | None:
+    """Convert non-bool numeric *raw* to float, returning None otherwise."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _zero_soil_depth_reason(
+    site_label: str,
+    surface_name: str,
+    surface: dict,
+    sfr_value: float,
+    positive_cap: float,
+) -> str | None:
+    """Return an error reason when *surface* supplies explicit zero ``soil_depth``."""
+    for name in ("soil_depth", "soildepth"):
+        if name not in surface:
+            continue
+        raw = _unwrap_scalar(surface.get(name))
+        if raw is None:
+            continue
+        depth_value = _as_numeric_float(raw)
+        if depth_value is not None and depth_value == 0:
+            return (
+                f"{site_label} properties.land_cover.{surface_name}.soil_depth "
+                f"is 0 (sfr={sfr_value:g}, soil_store_capacity={positive_cap:g})"
+            )
+        return None
+    return None
+
+
+def validate_active_soil_depth_raw(cfg: dict) -> None:
+    """Reject explicit zero ``soil_depth`` on active positive-capacity surfaces.
+
+    Checks canonical (``soil_depth``, ``soil_store_capacity``) and legacy
+    (``soildepth``, ``soilstorecap``) keys across all six non-water surfaces
+    without mutating *cfg*. Raises :class:`YamlUpgradeError` before any output
+    file is written.
+    """
+    zero_depths: list[str] = []
+    for site_idx, site in enumerate(cfg.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        site_label = _format_site_label(site_idx, site)
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            if not isinstance(surface, dict):
+                continue
+            sfr_value = _active_surface_sfr(surface)
+            if sfr_value is None:
+                continue
+            positive_cap = _positive_soil_capacity(surface)
+            if positive_cap is None:
+                continue
+            reason = _zero_soil_depth_reason(
+                site_label, surface_name, surface, sfr_value, positive_cap
+            )
+            if reason is not None:
+                zero_depths.append(reason)
+    if zero_depths:
+        raise YamlUpgradeError(
+            "Cannot migrate configuration: "
+            + "; ".join(zero_depths)
+            + ". Active non-water surfaces with positive soil_store_capacity "
+            "require a positive soil_depth (in mm); zero soil_depth breaks "
+            "wet-day soil water balance."
+        )
+
+
+def _migrate_active_surface_soil_params(
+    site_label: str,
+    surface_name: str,
+    surface: dict,
+    invalid_depths: list[str],
+    pending_logs: list[str],
+) -> None:
+    """Apply dev11 soil parameter migration to one non-water surface mapping."""
+    sfr_value = _active_surface_sfr(surface)
+    if sfr_value is None:
+        return
+    positive_cap = _positive_soil_capacity(surface)
+    for canonical, legacy in _SOIL_PARAMS_REQUIRED_DEV11:
+        if any(
+            _unwrap_scalar(surface.get(name)) is not None
+            for name in (canonical, legacy)
+        ):
+            if canonical == "soil_depth" and positive_cap is not None:
+                reason = _zero_soil_depth_reason(
+                    site_label, surface_name, surface, sfr_value, positive_cap
+                )
+                if reason is not None:
+                    invalid_depths.append(reason)
+            continue
+        if canonical == "soil_depth" and positive_cap is not None:
+            invalid_depths.append(
+                f"{site_label} properties.land_cover.{surface_name}.soil_depth "
+                "is missing or null "
+                f"(sfr={sfr_value:g}, soil_store_capacity={positive_cap:g})"
+            )
+            continue
+        _set_zero_soil_param(surface, canonical, legacy)
+        pending_logs.append(
+            f"[yaml-upgrade]   set '{site_label} land_cover.{surface_name}.{canonical}' "
+            "to 0.0 (absent or null on active surface; the value the model used)"
+        )
+
+
+def _migrate_2026_6_dev10_to_2026_6_dev11(cfg: dict) -> dict:
+    """Migrate active non-water surface soil parameters to schema 2026.6.dev11.
+
+    From 2026.6.dev11, ``soil_depth``, ``soil_store_capacity`` and
+    ``saturated_hydraulic_conductivity`` are required on every active
+    (``sfr > 0``) non-water surface (#2077, #2001). When ``soil_depth`` is
+    missing, null, or explicitly ``0`` on an active surface with positive
+    ``soil_store_capacity``, migration refuses to proceed (zero ``soil_depth``
+    divides by zero in horizontal soil water redistribution and breaks wet-day
+    water balance) and raises ``YamlUpgradeError`` listing every affected site
+    and surface so the user can supply a positive ``soil_depth`` explicitly.
+    Supplied positive values, inactive (``sfr == 0``) surfaces and ``water``
+    remain unchanged; other missing or null soil parameters (including
+    ``soil_depth`` when soil store capacity is zero or absent) receive explicit
+    ``0.0`` while preserving any reference metadata.
+    """
+    result = deepcopy(cfg)
+    invalid_depths: list[str] = []
+    pending_logs: list[str] = []
+    for site_idx, site in enumerate(result.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        site_label = _format_site_label(site_idx, site)
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            if isinstance(surface, dict):
+                _migrate_active_surface_soil_params(
+                    site_label, surface_name, surface, invalid_depths, pending_logs
+                )
+    if invalid_depths:
+        raise YamlUpgradeError(
+            "Cannot migrate configuration to schema 2026.6.dev11: "
+            + "; ".join(invalid_depths)
+            + ". Active non-water surfaces with positive soil_store_capacity "
+            "require a positive user-supplied soil_depth (in mm) before "
+            "migration; zero soil_depth breaks wet-day soil water balance."
+        )
+    for message in pending_logs:
+        _log(message)
+    return result
+
+
+def _migrate_2026_6_dev11_to_2026_6_dev12(cfg: dict) -> dict:
+    """Remove explicit numeric zeros from inapplicable water destinations.
+
+    Validate only the fields this delta owns, through the public parser and
+    destination validator. Partial configurations need not supply routing
+    fractions, and applicable destinations retain their original representation.
+    Nulls and accepted non-numeric representations remain unchanged.
+    """
+    from ...data_model.core.hydro import WaterDistribution
+    from ...data_model.core.type import SurfaceType
+
+    result = deepcopy(cfg)
+    pending_logs: list[str] = []
+    for site_idx, site in enumerate(result.get("sites", []) or []):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        for surface_name in NON_WATER_SURFACES:
+            surface = land_cover.get(surface_name)
+            dist = surface.get("waterdist") if isinstance(surface, dict) else None
+            if not isinstance(dist, dict):
+                continue
+            required = WATER_DISTRIBUTION_REQUIRED[surface_name]
+            for name in WaterDistribution.model_fields:
+                if not name.startswith("to_") or name in required or name not in dist:
+                    continue
+                path = (
+                    f"{_format_site_label(site_idx, site)} "
+                    f"properties.land_cover.{surface_name}.waterdist.{name}"
+                )
+                try:
+                    parsed = WaterDistribution.model_validate({name: dist[name]})
+                    parsed.validate_distribution(
+                        SurfaceType(surface_name),
+                        require_complete=False,
+                        normalise_zero_disallowed=True,
+                    )
+                except ValueError as exc:
+                    raise YamlUpgradeError(
+                        f"Cannot migrate configuration to schema 2026.6.dev12: "
+                        f"{path}: {exc}"
+                    ) from exc
+                raw = _unwrap_scalar(dist[name])
+                if isinstance(raw, numbers.Real) and not isinstance(raw, bool) and raw == 0:
+                    del dist[name]
+                    pending_logs.append(
+                        f"[yaml-upgrade]   drop '{path}' "
+                        "(explicit numeric zero in an inapplicable destination; "
+                        "absence preserves the load-time routing)"
+                    )
+    for message in pending_logs:
+        _log(message)
+    return result
+
+
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
@@ -1751,6 +2059,13 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, _target)] = _with_soil_delta(_handler)
 _HANDLERS[("2026.6.dev8", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev8_to_2026_6_dev9
 
+# dev10 changes how the model reads the same inputs. The existing routes
+# to current therefore also produce valid dev9 content for callers pinning dev9.
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev9")] = _handler
+_HANDLERS[("2026.6.dev9", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev9_to_2026_6_dev10
+
 
 def apply_migration_handler(handler, cfg, *, migration_context=None):
     """Pass private context only to handlers declaring that keyword."""
@@ -1759,6 +2074,661 @@ def apply_migration_handler(handler, cfg, *, migration_context=None):
         return handler(cfg, migration_context=migration_context)
     return handler(cfg)
 
+
+# dev11 requires soil_depth, soil_store_capacity and
+# saturated_hydraulic_conductivity on active non-water surfaces. Existing
+# routes keep targeting dev10 for callers pinning dev10, and compose the dev11
+# delta when upgrading to the current schema.
+def _with_soil_params_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev10_to_2026_6_dev11(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev10")] = _handler
+        _HANDLERS[(_source, _target)] = _with_soil_params_delta(_handler)
+_HANDLERS[("2026.6.dev10", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev10_to_2026_6_dev11
+
+
+# Preserve every dev11 target, including private soil migration context, before
+# composing the water-distribution delta onto current-target routes.
+def _with_water_distribution_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev11_to_2026_6_dev12(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev11")] = _handler
+        _HANDLERS[(_source, _target)] = _with_water_distribution_delta(_handler)
+_HANDLERS[("2026.6.dev11", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev11_to_2026_6_dev12
+
+
+def _drop_legacy_radiation_memory_zeros(cfg: dict) -> tuple[dict, list[str]]:
+    """Drop legacy seven-zero radiation placeholders without mutating ``cfg``.
+
+    Returns the copied mapping and pending log messages; refuses non-zero
+    values with ``YamlUpgradeError`` so restart memory is never discarded.
+    """
+    cfg = deepcopy(cfg)
+    pending_logs: list[str] = []
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg, pending_logs
+    for index, site in enumerate(sites):
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for name in ("qn_surfs", "dqndt_surf"):
+            if name not in states:
+                continue
+            values = states[name]
+            path = f"sites[{index}].initial_states.{name}"
+            if not (
+                isinstance(values, list) and len(values) == 7
+                and all(isinstance(v, numbers.Real) and not isinstance(v, bool)
+                        and v == 0 for v in values)
+            ):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise radiation memory for a fresh run. "
+                    "Only legacy seven-zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states[name]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "radiation memory is formed internally during cold start"
+            )
+    return cfg, pending_logs
+
+
+def _migrate_2026_6_dev12_to_2026_6_dev13(cfg: dict) -> dict:
+    """Remove old generated zeros without silently discarding restart values."""
+    cfg, pending_logs = _drop_legacy_radiation_memory_zeros(cfg)
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_radiation_memory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev12_to_2026_6_dev13(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev12")] = _handler
+        _HANDLERS[(_source, _target)] = _with_radiation_memory_delta(_handler)
+_HANDLERS[("2026.6.dev12", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev12_to_2026_6_dev13
+
+
+def _is_bool_like(value: object) -> bool:
+    """Return True for Python ``bool`` and NumPy ``bool_`` scalars."""
+    return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+
+def _is_real_zero(value: object) -> bool:
+    """Return True when ``value`` is a non-boolean real zero."""
+    return isinstance(value, numbers.Real) and not _is_bool_like(value) and value == 0
+
+
+def _is_real_equal(value: object, expected: float) -> bool:
+    """Return True when ``value`` is a finite non-boolean real equal to ``expected``."""
+    if not isinstance(value, numbers.Real) or _is_bool_like(value):
+        return False
+    try:
+        numeric = float(value)
+    except OverflowError:
+        return False
+    return math.isfinite(numeric) and numeric == expected
+
+
+def _extract_control_tstep(cfg: dict) -> float | None:
+    """Extract numeric ``model.control.tstep`` when present and finite."""
+    model = cfg.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    raw = control.get("tstep") if isinstance(control, dict) else None
+    if isinstance(raw, dict):
+        raw = raw.get("value")
+    if isinstance(raw, numbers.Real) and not _is_bool_like(raw):
+        try:
+            numeric = float(raw)
+        except OverflowError:
+            return None
+        if math.isfinite(numeric):
+            return numeric
+    return None
+
+
+def _is_legacy_zero_wu(wu: object) -> bool:
+    """Return True when ``wu`` is a legacy all-zero WaterUse placeholder mapping."""
+    if not isinstance(wu, dict):
+        return False
+    allowed_keys = {"wu_total", "wu_auto", "wu_manual", "ref"}
+    if not set(wu.keys()).issubset(allowed_keys):
+        return False
+    if wu.get("ref") is not None:
+        return False
+    for field in ("wu_total", "wu_auto", "wu_manual"):
+        if field not in wu:
+            continue
+        entry = wu[field]
+        if _is_real_zero(entry):
+            continue
+        if (
+            isinstance(entry, dict)
+            and set(entry.keys()).issubset({"value", "ref"})
+            and "value" in entry
+            and entry.get("ref") is None
+            and _is_real_zero(entry["value"])
+        ):
+            continue
+        return False
+    return True
+
+
+def _drop_legacy_continuation_state_placeholders(cfg: dict) -> tuple[dict, list[str]]:
+    """Drop legacy continuation-state placeholders without mutating ``cfg``.
+
+    Returns the copied mapping and pending log messages; refuses non-placeholder
+    values with ``YamlUpgradeError`` so restart state is never silently dropped.
+    """
+    cfg = deepcopy(cfg)
+    pending_logs: list[str] = []
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg, pending_logs
+    control_tstep = _extract_control_tstep(cfg)
+    zero_only_fields = ("dt_since_start", "l_mod", "ustar", "ra_h", "rb", "rs")
+    for index, site in enumerate(sites):
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for name in zero_only_fields:
+            if name not in states:
+                continue
+            path = f"sites[{index}].initial_states.{name}"
+            if not _is_real_zero(states[name]):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states[name]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "continuation state is formed internally during cold start"
+            )
+        if "tair_av" in states:
+            path = f"sites[{index}].initial_states.tair_av"
+            val = states["tair_av"]
+            if not (_is_real_zero(val) or _is_real_equal(val, 273.15)):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy cold-start placeholders (0 or 273.15) can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del states["tair_av"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy cold-start placeholder; "
+                "tair_av is formed internally during cold start"
+            )
+        if "tstep_prev" in states:
+            path = f"sites[{index}].initial_states.tstep_prev"
+            val = states["tstep_prev"]
+            allowed_tstep = control_tstep is not None and _is_real_equal(val, control_tstep)
+            if not (_is_real_zero(val) or allowed_tstep):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise continuation state for a fresh run. "
+                    "Only legacy cold-start placeholders (0 or model.control.tstep) "
+                    "can be migrated. Remove the field to cold-start, or use a "
+                    "complete checkpoint for continuation."
+                )
+            del states["tstep_prev"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy cold-start placeholder; "
+                "tstep_prev is seeded from model.control.tstep during cold start"
+            )
+        for veg in ("evetr", "dectr", "grass"):
+            veg_state = states.get(veg)
+            if not isinstance(veg_state, dict) or "wu" not in veg_state:
+                continue
+            path = f"sites[{index}].initial_states.{veg}.wu"
+            if not _is_legacy_zero_wu(veg_state["wu"]):
+                raise YamlUpgradeError(
+                    f"{path} cannot initialise irrigation memory for a fresh run. "
+                    "Only legacy zero placeholders can be migrated. "
+                    "Remove the field to cold-start, or use a complete checkpoint "
+                    "for continuation."
+                )
+            del veg_state["wu"]
+            pending_logs.append(
+                f"[yaml-upgrade] dropped {path}: legacy zero placeholder; "
+                "irrigation memory is formed internally during cold start"
+            )
+    return cfg, pending_logs
+
+
+def _migrate_2026_6_dev13_to_2026_6_dev14(cfg: dict) -> dict:
+    """Remove legacy continuation-state placeholders without discarding restart values."""
+    cfg, pending_logs = _drop_legacy_continuation_state_placeholders(cfg)
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_continuation_state_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev13_to_2026_6_dev14(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev13")] = _handler
+        _HANDLERS[(_source, _target)] = _with_continuation_state_delta(_handler)
+_HANDLERS[("2026.6.dev13", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev13_to_2026_6_dev14
+
+
+def _migrate_2026_6_dev14_to_2026_6_dev15(cfg: dict) -> dict:
+    """Preserve supplied drainage coefficients; never infer them from omission."""
+    result = deepcopy(cfg)
+    sites = result.get("sites")
+    if not isinstance(sites, list):
+        return result
+    missing = []
+    for i, site in enumerate(sites):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, dict) else None
+        if not isinstance(land_cover, dict):
+            continue
+        for name in NON_WATER_SURFACES:
+            surface = land_cover.get(name)
+            if not isinstance(surface, dict) or _active_surface_sfr(surface) is None:
+                continue
+            params = surface.get("storage_drain_params", surface.get("storedrainprm"))
+            if params is None:
+                # Migration also serves partial configuration/annotation work.
+                # Preserve omission; engine validation requires the block later.
+                continue
+            if (
+                not isinstance(params, dict)
+                or _unwrap_scalar(params.get("drain_eq")) not in (1, 2, 3)
+            ):
+                continue
+            for coef in ("drain_coef_1", "drain_coef_2"):
+                if _unwrap_scalar(params.get(coef)) is None:
+                    missing.append(
+                        f"sites[{i}].properties.land_cover.{name}.storage_drain_params.{coef}"
+                    )
+    if missing:
+        raise YamlUpgradeError(
+            "Cannot migrate drainage coefficients to schema 2026.6.dev15: "
+            + "; ".join(missing)
+            + ". Supply the missing drainage block or coefficients before migration. "
+            "Explicit zero is allowed; omission does not establish a zero coefficient."
+        )
+    return result
+
+
+def _with_drainage_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev14_to_2026_6_dev15(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev14")] = _handler
+        _HANDLERS[(_source, _target)] = _with_drainage_delta(_handler)
+_HANDLERS[("2026.6.dev14", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev14_to_2026_6_dev15
+
+
+def _clear_nonfinite_sdd_for_dev9_candidate(candidate: dict) -> None:
+    """Keep pre-dev16 SDD representations out of the throwaway dev9 validation copy."""
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    for site in sites:
+        states = site.get("initial_states") if isinstance(site, dict) else None
+        if not isinstance(states, dict):
+            continue
+        for veg in ("evetr", "dectr", "grass"):
+            surface = states.get(veg)
+            if not isinstance(surface, dict) or "sdd_id" not in surface:
+                continue
+            raw = _unwrap_scalar(surface["sdd_id"])
+            if type(raw).__module__ == "numpy" and hasattr(raw, "item"):
+                raw = raw.item()
+            if isinstance(raw, bool):
+                surface.pop("sdd_id")
+                continue
+            if isinstance(raw, numbers.Real) or type(raw).__module__ == "numpy":
+                with suppress(TypeError, ValueError, OverflowError):
+                    if not math.isfinite(float(raw)):
+                        surface.pop("sdd_id")
+                continue
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    if not math.isfinite(float(raw)):
+                        surface.pop("sdd_id")
+
+
+def _max_dls_doy_for_config(cfg: dict) -> int:
+    """Return 365 for non-leap-year start_time and 366 for leap or unknown years.
+
+    Mirrors ``SUEWSConfig.validate_dls_parameters``.
+    """
+    model = cfg.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    start_time = (
+        _unwrap_scalar(control.get("start_time")) if isinstance(control, dict) else None
+    )
+    if start_time is not None:
+        with suppress(ValueError, TypeError):
+            year = int(str(start_time)[:4])
+            if not calendar.isleap(year):
+                return 365
+    return 366
+
+
+def _clear_noninteger_doy_for_dev9_candidate(candidate: dict) -> None:
+    """Replace pre-dev17 valid DOY values on a throwaway dev9 validation copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev17 integer-only DOY rules.
+    Historical targets ``dev9``..``dev16`` still accepted ``float`` DOYs (with
+    ``ge=1, le=366`` already enforced on ``startdls``/``enddls`` and no bounds
+    on ``ie_start``/``ie_end``). Replace only values that were historically
+    valid before dev17 on that throwaway copy with ``1`` (preserving pair
+    invariants) so historical targets keep pre-dev17 behaviour without relaxing
+    pre-existing DLS bounds or mutating the returned config.
+    """
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    max_dls_doy = float(_max_dls_doy_for_config(candidate))
+    doy_specs = (
+        ("irrigation", "ie_start", False),
+        ("irrigation", "ie_end", False),
+        ("anthropogenic_emissions", "startdls", True),
+        ("anthropogenic_emissions", "enddls", True),
+    )
+    for site in sites:
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name, has_pre_dev17_bounds in doy_specs:
+            section = props.get(section_name)
+            if not isinstance(section, dict) or field_name not in section:
+                continue
+            entry = section[field_name]
+            if isinstance(entry, dict) and not (set(entry.keys()) <= {"value", "ref"}):
+                continue
+            raw = _unwrap_scalar(entry)
+            if type(raw).__module__ == "numpy" and hasattr(raw, "item"):
+                raw = raw.item()
+            if isinstance(raw, bool):
+                # Pre-dev17 float fields accepted True (1.0) on both irrigation
+                # and DLS, and False (0.0) only on unbounded irrigation fields.
+                if not has_pre_dev17_bounds or raw is True:
+                    section[field_name] = 1
+                continue
+            if isinstance(raw, numbers.Real) or type(raw).__module__ == "numpy":
+                with suppress(TypeError, ValueError, OverflowError):
+                    fval = float(raw)
+                    if has_pre_dev17_bounds:
+                        if math.isfinite(fval) and 1.0 <= fval <= max_dls_doy and not fval.is_integer():
+                            section[field_name] = 1
+                    elif (
+                        not math.isfinite(fval)
+                        or not fval.is_integer()
+                        or not (1 <= int(fval) <= 366)
+                    ):
+                        section[field_name] = 1
+                continue
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    fval = float(raw)
+                    if not has_pre_dev17_bounds or (
+                        math.isfinite(fval) and 1.0 <= fval <= max_dls_doy
+                    ):
+                        section[field_name] = 1
+
+
+def validate_vegetation_sdd_raw(cfg: dict) -> None:
+    """Report every explicitly invalid vegetation SDD without changing its source."""
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return
+    problems = []
+    for index, site in enumerate(sites):
+        if not isinstance(site, dict) or not isinstance(site.get("initial_states"), dict):
+            continue
+        grid = site.get("gridiv")
+        location = f"sites[{index}]" if grid is None else f"sites[{index}] (gridiv={grid})"
+        for name in ("evetr", "dectr", "grass"):
+            surface = site["initial_states"].get(name)
+            if not isinstance(surface, dict) or "sdd_id" not in surface:
+                continue
+            value = _unwrap_scalar(surface["sdd_id"])
+            field_path = f"{location}.initial_states.{name}.sdd_id"
+            if isinstance(value, Mapping):
+                problems.append(
+                    f"{field_path} must be a finite number in K d. Supply the initial value "
+                    "from this vegetation type's site or restart record. Omit the field "
+                    "only when initialising it at zero is intended."
+                )
+                continue
+            # The public model also accepts quoted numbers. Preserve the source form.
+            if isinstance(value, str):
+                with suppress(ValueError):
+                    value = float(value)
+            try:
+                validate_sdd_id(value, field_path)
+            except ValueError as error:
+                problems.append(str(error))
+    if problems:
+        raise YamlUpgradeError("\n".join(problems))
+
+
+def _with_senescence_check(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
+        validate_vegetation_sdd_raw(cfg)
+        return cfg
+    return migrate
+
+
+def _migrate_2026_6_dev15_to_2026_6_dev16(cfg: dict) -> dict:
+    validate_vegetation_sdd_raw(cfg)
+    return deepcopy(cfg)
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev15")] = _handler
+        _HANDLERS[(_source, _target)] = _with_senescence_check(_handler)
+_HANDLERS[("2026.6.dev15", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev15_to_2026_6_dev16
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_senescence_check(_identity)
+
+
+def _check_and_normalise_integer_doys(cfg: dict) -> dict:
+    """Normalise whole-number float DOYs to ``int`` and refuse fractional/invalid values.
+
+    Day-of-year fields (``ie_start``, ``ie_end``, ``startdls``, ``enddls``) are
+    integers in ``1..366`` (gh#2101). Legacy whole-number floats such as
+    ``86.0`` are normalised to ``86`` without altering model semantics;
+    fractional floats (such as ``20.5``), booleans, non-finite numbers,
+    malformed strings, or out-of-range integers fail with ``YamlUpgradeError``
+    so users replace them explicitly rather than silently truncating or zeroing.
+    """
+    from ...data_model.core.human_activity import coerce_integer_doy_scalar
+
+    cfg = deepcopy(cfg)
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    max_dls_doy = _max_dls_doy_for_config(cfg)
+    doy_specs = (
+        ("irrigation", "ie_start", 366),
+        ("irrigation", "ie_end", 366),
+        ("anthropogenic_emissions", "startdls", max_dls_doy),
+        ("anthropogenic_emissions", "enddls", max_dls_doy),
+    )
+    pending_logs: list[str] = []
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name, max_doy in doy_specs:
+            section = props.get(section_name)
+            if not isinstance(section, dict) or field_name not in section:
+                continue
+            entry = section[field_name]
+            path = f"sites[{index}].properties.{section_name}.{field_name}"
+            if (
+                isinstance(entry, Mapping)
+                and "value" not in entry
+                and all(key == "ref" for key in entry)
+            ):
+                # Empty or ref-only mapping (``{}`` / ``{ref: ...}``): disabled window.
+                continue
+            if isinstance(entry, Mapping) and "value" in entry:
+                raw = entry["value"]
+                wrapped = True
+            else:
+                raw = entry
+                wrapped = False
+
+            if raw is None:
+                continue
+
+            try:
+                coerced = coerce_integer_doy_scalar(raw, path)
+            except ValueError as exc:
+                raise YamlUpgradeError(
+                    f"{exc} Replace fractional or invalid day-of-year values "
+                    f"manually with an integer day of year (1..{max_doy}) before upgrading."
+                ) from exc
+
+            if not (1 <= coerced <= max_doy):
+                raise YamlUpgradeError(
+                    f"{path} has out-of-range day-of-year value {coerced}; "
+                    f"day-of-year field {field_name} requires an integer day of "
+                    f"year between 1 and {max_doy}."
+                )
+
+            if type(raw) is not int:
+                if wrapped:
+                    entry["value"] = coerced
+                else:
+                    section[field_name] = coerced
+                pending_logs.append(
+                    f"[yaml-upgrade] normalised {path}: {raw!r} -> {coerced} "
+                    "(integer day of year)"
+                )
+
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _migrate_2026_6_dev16_to_2026_6_dev17(cfg: dict) -> dict:
+    """Enforce integer day-of-year fields (1..366) for irrigation and DLS."""
+    validate_vegetation_sdd_raw(cfg)
+    return _check_and_normalise_integer_doys(cfg)
+
+
+def _with_integer_doy_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(handler, cfg, migration_context=migration_context)
+        return _check_and_normalise_integer_doys(cfg)
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev16")] = _handler
+        _HANDLERS[(_source, _target)] = _with_integer_doy_delta(_handler)
+_HANDLERS[("2026.6.dev16", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev16_to_2026_6_dev17
+
+
+def _migrate_2026_6_dev17_to_2026_6_dev18(cfg: dict) -> dict:
+    """Record the default EHC surface-coupling change for storage_heat=5 YAMLs."""
+    physics = (cfg.get("model") or {}).get("physics") or {}
+    storage_heat = physics.get("storage_heat", physics.get("storageheatmethod"))
+    if isinstance(storage_heat, dict):
+        storage_heat = storage_heat.get("value", storage_heat)
+    is_ehc = storage_heat in (5, "5", "ehc", "EHC") or (
+        isinstance(storage_heat, dict) and "ehc" in storage_heat
+    )
+    if is_ehc and "ehc_surface_coupling" not in physics:
+        _log(
+            "[yaml-upgrade] model.physics.ehc_surface_coupling omitted with storage_heat=5: "
+            "2026.6.dev18 defaults to implicit coupling; set ehc_surface_coupling: explicit "
+            "to retain legacy explicit coupling"
+        )
+    return cfg
+
+
+def _with_ehc_implicit_default_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev17_to_2026_6_dev18(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev17")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ehc_implicit_default_delta(_handler)
+_HANDLERS[("2026.6.dev17", "2026.6.dev17")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev17", CURRENT_SCHEMA_VERSION)] = _with_ehc_implicit_default_delta(
+    _with_integer_doy_delta(_with_senescence_check(_identity))
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
 
 # ---------------------------------------------------------------------------
 # Public API

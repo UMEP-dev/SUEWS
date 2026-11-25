@@ -14,6 +14,7 @@ import yaml
 from supy import SUEWSSimulation
 from supy.cmd.schema_cli import cli
 from supy.cmd.table_converter import convert_table_cmd
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.data_model.core.config import SUEWSConfig
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
@@ -21,7 +22,7 @@ from supy.util.converter.yaml_upgrade import (
     upgrade_yaml,
 )
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "soil_observation"
 
 
@@ -61,7 +62,7 @@ def test_convert_content_and_provenance(tmp_path, method):
         )
     assert json.loads(paths[4].read_text(encoding="utf-8")) == report
     cfg = yaml.safe_load(paths[2].read_text(encoding="utf-8"))
-    assert cfg["schema_version"] == "2026.6.dev9"
+    assert cfg["schema_version"] == CURRENT_SCHEMA_VERSION
     obs = cfg["sites"][0]["properties"]["soil_observation"]
     assert obs["layer_depth"]["value"] == pytest.approx(0.2)
     assert obs["bulk_density"]["value"] == 1250
@@ -94,6 +95,33 @@ def test_convert_content_and_provenance(tmp_path, method):
     )
     assert repeat["completed"]
     assert (again / "new.txt").read_bytes() == paths[3].read_bytes()
+
+
+@pytest.mark.parametrize("schema", ["2026.6.dev9", "2026.6.dev10"])
+def test_canonical_observations_across_storage_schema_bump(tmp_path, schema):
+    raw = yaml.safe_load((FIXTURES / "canonical.yml").read_text(encoding="utf-8"))
+    raw["schema_version"] = schema
+    source = tmp_path / "input.yml"
+    source.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    forcing = FIXTURES / "canonical.txt"
+    output = tmp_path / "upgraded" / "config.yml"
+    output_forcing = output.with_name("canonical.txt")
+
+    result = CliRunner().invoke(convert_table_cmd, [
+        "-i", str(source), "-o", str(output),
+        "--forcing", str(forcing), "--forcing-output", str(output_forcing),
+        "--manifest", str(output.with_name("manifest.json")),
+    ])
+    assert result.exit_code == 0, result.output
+    raw["schema_version"] = CURRENT_SCHEMA_VERSION
+    assert yaml.safe_load(output.read_text(encoding="utf-8")) == raw
+    assert output_forcing.read_bytes() == forcing.read_bytes()
+
+    with pytest.raises(YamlUpgradeError, match="Both legacy and canonical"):
+        upgrade_soil_observation(
+            source, FIXTURES / "legacy_method1.txt", tmp_path / "mixed.yml",
+            tmp_path / "mixed.txt", tmp_path / "mixed.json",
+        )
 
 
 def test_dry_run_never_stamps_or_writes(tmp_path):

@@ -14,6 +14,7 @@ from typing import Any
 
 import click
 
+from .._run_output import _is_canonical_parquet_dataset_dir
 from ..diagnostics import check_run
 from .json_envelope import Envelope, _now_iso
 
@@ -91,15 +92,21 @@ def _build_text_message(data: dict[str, Any]) -> str:
     name="diagnose",
     short_help="Diagnose a finished SUEWS run directory.",
     help=(
-        "Read the contents of a SUEWS run directory and run a battery of "
-        "Phase-1 checks (provenance present, output files present, NaN "
-        "proportion in QH/QE/QN, energy-balance closure). Use --format json "
-        "for structured output consumable by MCP tooling."
+        "Read a SUEWS run directory (or a canonical output file / streamed "
+        "Parquet dataset directory) and run a battery of Phase-1 checks "
+        "(provenance present, output files present, NaN proportion in "
+        "QH/QE/QN, energy-balance closure). When given a run directory, writes "
+        "a diagnostics.json sidecar inside it; when given a direct output file "
+        "or streamed Parquet dataset directory, resolves provenance.json beside "
+        "the target and intentionally omits diagnostics.json to keep the "
+        "Parquet dataset clean and avoid overwriting a sibling or enclosing "
+        "run sidecar. Use --format json for structured output consumable by "
+        "MCP tooling."
     ),
 )
 @click.argument(
     "run_dir",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    type=click.Path(exists=True),
 )
 @click.option(
     "--format",
@@ -131,11 +138,16 @@ def diagnose_run_cmd(run_dir: str, output_format: str) -> None:
 
     list_warnings = [res.message for res in list_results if res.severity == "warning"]
 
-    # Sidecar: write diagnostics.json next to the run output. Required by the
-    # gh#1361 acceptance criteria. Failure to write (e.g. read-only mount)
+    # Sidecar: write diagnostics.json inside a run directory. Required by the
+    # gh#1361 acceptance criteria. Intentionally omitted for direct standalone
+    # output files and canonical streamed Parquet dataset directories: writing
+    # JSON inside a Parquet dataset directory breaks pandas.read_parquet, and
+    # writing into path_run_dir.parent would be an incidental write outside the
+    # target path that could collide with or overwrite an enclosing run or
+    # sibling output's diagnostics.json. Failure to write (e.g. read-only mount)
     # degrades to an envelope warning rather than a hard error so 'diagnose'
     # remains usable on CI artefact trees.
-    if path_run_dir.is_dir():
+    if path_run_dir.is_dir() and not _is_canonical_parquet_dataset_dir(path_run_dir):
         path_sidecar = path_run_dir / "diagnostics.json"
         try:
             path_sidecar.write_text(

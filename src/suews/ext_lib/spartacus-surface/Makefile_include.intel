@@ -9,5 +9,6 @@ endif
 
 WARNFLAGS = -warn all
 BASICFLAGS = -module ../mod -convert big_endian
+CONST_FFLAGS =
 DEBUGFLAGS = -g
 OMPFLAG = -qopenmp

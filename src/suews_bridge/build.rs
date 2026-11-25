@@ -1,3 +1,29 @@
+//! Build script for the `suews_bridge` Rust <-> Fortran C-API crate.
+//!
+//! Responsibilities, in execution order:
+//!
+//! 1. **Version metadata**: queries `git describe` (mirroring `get_ver_git.py`)
+//!    and exports `SUEWS_VERSION` and `SUEWS_COMMIT` via `cargo:rustc-env`.
+//! 2. **Lint-only fast path (`SUEWS_BRIDGE_LINT_ONLY=1`)**: generates
+//!    `$OUT_DIR/output_cols.rs` from Fortran source text and returns early,
+//!    skipping gfortran compilation and native linking for `cargo clippy` and
+//!    `cargo doc` checks (never a substitute for native-linked build evidence;
+//!    see `BR-09` in `.claude/rules/rust/bridge-contract.md`).
+//! 3. **C-API Fortran compilation**: compiles `c_api/*.f95` in dependency order
+//!    with gfortran (respecting `SUEWS_BUILD_PROFILE=release|checked`, adding
+//!    `-fcheck=all` in `checked` mode) and archives `libsuews_bridge.a`.
+//! 4. **Test-only observer (`capi-observer`)**: when enabled (mutually
+//!    exclusive with `python-extension`), compiles
+//!    the generated forward and hand-maintained reverse observers into `libsuews_capi_observer.a`
+//!    and links it ahead of `libsuews_bridge.a`.
+//! 5. **Kernel and runtime linkage**: under `--features physics`, links the
+//!    prebuilt SUEWS archives (`libsuewsdriver.a`, `libsuewsphys.a`,
+//!    `libspartacus.a`, `libsuewsutil.a`), followed by `libgfortran` (plus
+//!    `libquadmath` on Windows/MinGW) and macOS Python dynamic lookup flags.
+//! 6. **Output width generation**: parses `ncolumnsDataOut*` parameters from
+//!    `src/suews/src/suews_ctrl_const.f95` into `$OUT_DIR/output_cols.rs` so
+//!    `sim.rs` and `output_line.rs` stay in step with the Fortran kernel.
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,6 +36,8 @@ fn main() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let physics_enabled = env::var_os("CARGO_FEATURE_PHYSICS").is_some();
+    let capi_observer_enabled = env::var_os("CARGO_FEATURE_CAPI_OBSERVER").is_some();
+    let python_extension_enabled = env::var_os("CARGO_FEATURE_PYTHON_EXTENSION").is_some();
 
     // --- Git version detection (mirrors get_ver_git.py logic) ---
     let repo_root = manifest_dir.join("../../");
@@ -31,7 +59,7 @@ fn main() {
                     // Nightly: 2025.8.17.dev -> 2025.8.17.devN
                     format!("{base}{distance}")
                 } else if base.contains(".dev") {
-                    // Already has .devN suffix — replace N with distance
+                    // Already has .devN suffix -- replace N with distance
                     let idx = base.rfind(".dev").unwrap();
                     base.truncate(idx);
                     format!("{base}.dev{distance}")
@@ -79,6 +107,12 @@ fn main() {
     if env::var("SUEWS_BRIDGE_LINT_ONLY").as_deref() == Ok("1") {
         generate_output_col_constants(&manifest_dir, &out_dir);
         return;
+    }
+
+    if capi_observer_enabled && python_extension_enabled {
+        panic!(
+            "feature `capi-observer` is test-only and must not be enabled with `python-extension`"
+        );
     }
 
     let gfortran_bin = if target_os == "macos" {
@@ -197,8 +231,18 @@ fn main() {
             out_dir.to_string_lossy().as_ref(),
         ]);
 
+        if stem == "driver" {
+            // Give the test witness access to the private aggregate packer. Keep
+            // its host procedure and C symbol out of the ordinary Fortran facade.
+            gfortran_cmd.arg("-cpp");
+            if capi_observer_enabled {
+                gfortran_cmd.arg("-DSUEWS_CAPI_OBSERVER");
+                println!("cargo:rerun-if-changed=test_observer/reverse_checkpoint_leaves.inc");
+            }
+        }
+
         if runtime_checks {
-            // Runtime checks: bounds, pointer, memory – catch UB as
+            // Runtime checks: bounds, pointer, memory -- catch UB as
             // Fortran runtime error instead of bare SIGSEGV.
             gfortran_cmd.arg("-fcheck=all");
         }
@@ -249,7 +293,84 @@ fn main() {
         panic!("ar failed to create {}", archive_file.display());
     }
 
+    if capi_observer_enabled {
+        let mut observer_objects = Vec::new();
+        for observer_name in [
+            "capi_field_observer",
+            "reverse_nhood_observer",
+            "diagnostics",
+            "snapshot_observer",
+            "output_groups",
+        ] {
+            let observer_src = manifest_dir.join(format!("test_observer/{observer_name}.f95"));
+            if !observer_src.exists() {
+                panic!(
+                    "missing test-only Fortran observer source {}",
+                    observer_src.display()
+                );
+            }
+            println!("cargo:rerun-if-changed={}", observer_src.display());
+
+            let observer_obj = out_dir.join(format!("{observer_name}.o"));
+            let mut obs_cmd = Command::new(&gfortran_bin);
+            obs_cmd.args([
+                "-c",
+                "-O2",
+                "-fPIC",
+                "-ffree-line-length-none",
+                "-frecursive",
+                "-finit-real=zero",
+                "-finit-integer=0",
+                "-finit-logical=false",
+                "-I",
+                out_dir.to_string_lossy().as_ref(),
+            ]);
+            if runtime_checks {
+                obs_cmd.arg("-fcheck=all");
+            }
+            let suews_mod_dir = manifest_dir.join("../suews/mod");
+            let suews_mod_dir_str = suews_mod_dir.to_string_lossy().to_string();
+            obs_cmd.args(["-I", suews_mod_dir_str.as_str()]);
+            if target_os == "macos" {
+                obs_cmd.arg("-mmacosx-version-min=11.0");
+                if target_arch == "aarch64" {
+                    obs_cmd.args(["-arch", "arm64"]);
+                } else if target_arch == "x86_64" {
+                    obs_cmd.args(["-arch", "x86_64"]);
+                }
+            }
+            let obs_status = obs_cmd
+                .arg(&observer_src)
+                .arg("-o")
+                .arg(&observer_obj)
+                .arg("-J")
+                .arg(&out_dir)
+                .status()
+                .expect("failed to execute gfortran while compiling test C-API observer");
+            if !obs_status.success() {
+                panic!("gfortran failed to compile {}", observer_src.display());
+            }
+            observer_objects.push(observer_obj);
+        }
+
+        let obs_archive = out_dir.join("libsuews_capi_observer.a");
+        let obs_ar_status = Command::new("ar")
+            .arg("crus")
+            .arg(&obs_archive)
+            .args(&observer_objects)
+            .status()
+            .expect("failed to execute ar while archiving test C-API observer");
+        if !obs_ar_status.success() {
+            panic!("ar failed to create {}", obs_archive.display());
+        }
+    }
+
     println!("cargo:rustc-link-search=native={}", out_dir.display());
+    if capi_observer_enabled {
+        // Link the test observer archive before libsuews_bridge so single-pass
+        // linkers resolve every `*_unpack` call cleanly.
+        println!("cargo:rustc-link-lib=static=suews_capi_observer");
+    }
     println!("cargo:rustc-link-lib=static=suews_bridge");
 
     if physics_enabled {
@@ -295,12 +416,14 @@ fn main() {
 //
 // Reads `suews_ctrl_const.f95`, extracts every `ncolumnsDataOut<Name> = <expr>`
 // parameter, evaluates the integer arithmetic, and writes
-// `$OUT_DIR/output_cols.rs` with `pub const OUTPUT_<NAME>_COLS: usize = …;`.
+// `$OUT_DIR/output_cols.rs` with `pub const OUTPUT_<NAME>_COLS: usize = ...;`.
 //
-// sim.rs includes this generated file via `include!()` so that column counts
-// stay in sync automatically when the Fortran source changes.
+// sim.rs and output_line.rs include this generated file via `include!()` so
+// that column counts stay in sync automatically when the Fortran source changes.
 // ---------------------------------------------------------------------------
 
+/// Parse `ncolumnsDataOut*` parameters from `src/suews/src/suews_ctrl_const.f95`
+/// and emit `$OUT_DIR/output_cols.rs`.
 fn generate_output_col_constants(manifest_dir: &Path, out_dir: &Path) {
     let const_file = manifest_dir.join("../suews/src/suews_ctrl_const.f95");
     println!("cargo:rerun-if-changed={}", const_file.display());
@@ -439,6 +562,8 @@ fn extract_expression(s: &str) -> &str {
 // Operator precedence: * / before + -.
 // ---------------------------------------------------------------------------
 
+/// Evaluate a simple Fortran integer arithmetic expression (`+`, `-`, `*`, `/`,
+/// parentheses, and integer literals with optional `_kind` suffixes).
 fn eval_int_expr(expr: &str) -> i64 {
     let tokens = lex_int_expr(expr);
     let (val, rest) = parse_additive(&tokens);
@@ -592,6 +717,8 @@ fn parse_primary(tokens: &[Token]) -> (i64, &[Token]) {
     }
 }
 
+/// Locate and link the matching gfortran runtime (`libgfortran`, plus static
+/// `libquadmath` on Windows/MinGW) via `gfortran -print-file-name=...`.
 fn link_fortran_runtime(gfortran_bin: &Path) {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
 

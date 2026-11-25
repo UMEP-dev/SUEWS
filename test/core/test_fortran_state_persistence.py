@@ -21,7 +21,7 @@ from supy._run_rust import (  # noqa: PLC2701 - test the native boundary directl
     _prepare_forcing_block,
 )
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-ISOLATION")]
 
 _RESULT_PREFIX = "__SUEWS_NATIVE_RESULT__"
 _NATIVE_SEQUENCE_RUNNER = f"""

@@ -2,9 +2,9 @@
 """Keep the `physics-full` CI tier honest about what it adds over `standard`.
 
 The physics axis of the `standard` tier runs `-m "physics and (core or not
-slow)"`; the `physics-full` tier (selected for `0-physics:change` PRs and in
-their merge-queue runs, gh#1576) runs `-m physics`. The only tests the label
-can add are therefore those matching::
+slow)"`; the `physics-full` tier (selected for `0-physics:change` and
+`0-numerics:change` PRs and in their merge-queue runs, gh#1576) runs
+`-m physics`. The only tests either label can add are therefore those matching::
 
     physics and slow and not core
 
@@ -116,7 +116,8 @@ class TierDeltaReport:
             parts.append(
                 "[X] physics-full tier check: these tests are marked "
                 "`physics` and `slow` without `core`, so they run only in the "
-                "physics-full tier (0-physics:change PRs) and in the nightly, "
+                "physics-full tier (0-physics:change / 0-numerics:change PRs) "
+                "and in the nightly, "
                 "not in `standard`, and the rule does not say so:\n  - "
                 f"{bullet}\n"
                 "Either mark each one `core` as well (so `standard` keeps "

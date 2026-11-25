@@ -20,11 +20,13 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 try:
+    from supy.data_model.core.unit_metadata import resolve_conditional_unit_case
     from supy.data_model.doc_utils import ModelDocExtractor
 except ImportError:
     # If supy is not installed, add src to path for development
     SRC_PATH = PROJECT_ROOT / "src"
     sys.path.insert(0, str(SRC_PATH))
+    from supy.data_model.core.unit_metadata import resolve_conditional_unit_case
     from supy.data_model.doc_utils import ModelDocExtractor
 
 try:
@@ -47,20 +49,41 @@ except ImportError:
         """Fall back to recording no condition."""
         return ""
 
+try:
+    from supy.data_model.validation.derived_fields import derived_default
+except ImportError:
+    print(
+        "WARNING: the installed supy has no derived-default field registry, "
+        "so runtime-derived defaults will be omitted from the generated "
+        "configuration reference. Rebuild supy from this checkout (make dev) "
+        "to include them.",
+        file=sys.stderr,
+    )
+
+    def derived_default(model_name: str, field_name: str) -> str:
+        """Fall back to recording no runtime derivation."""
+        return ""
+
 
 # Every parameter entry carries one "Status" line:
 # required by its type, required under a condition the validation layer
 # records (see supy.data_model.validation.required_fields), optional because a
-# default exists, or without a default and unchecked.
+# literal or runtime-derived default exists, or without a default and unchecked.
 STATUS_LABEL = "Status"
 STATUS_REQUIRED = "Required"
 STATUS_REQUIRED_WHEN = "Required when {condition}"
+STATUS_DERIVED = "Optional; derived from {source}"
 STATUS_OPTIONAL = "Optional"
 # A parameter with no default that no validator checks. Such parameters are
 # declared Optional only so that a partial configuration still loads, which is
 # not the same as the parameter being optional to the science, so the status
 # does not call them optional: it says what is certain and asks for a value.
 STATUS_NO_DEFAULT = "No default; not checked by the validator - supply a value"
+
+
+SOURCE_HEADER = (
+    ":doc-source: generated\n:doc-generator: docs/generate_datamodel_rst.py\n\n"
+)
 
 
 class RSTGenerator:
@@ -127,7 +150,7 @@ class RSTGenerator:
             rst_file = output_dir / f"{model_name.lower()}.rst"
 
             with open(rst_file, "w", encoding="utf-8") as f:
-                f.write(rst_content)
+                f.write(SOURCE_HEADER + rst_content)
 
             print(f"Generated: {rst_file}")
 
@@ -145,7 +168,7 @@ class RSTGenerator:
             index_content = self._generate_preview_index()
             index_file = output_dir / "index.rst"
             with open(index_file, "w", encoding="utf-8") as f:
-                f.write(index_content)
+                f.write(SOURCE_HEADER + index_content)
             print(f"Generated: {index_file} (preview navigation)")
 
             # Generate all style variations
@@ -153,7 +176,7 @@ class RSTGenerator:
                 style_content = generator_func()
                 style_file = output_dir / f"index-{style_name}.rst"
                 with open(style_file, "w", encoding="utf-8") as f:
-                    f.write(style_content)
+                    f.write(SOURCE_HEADER + style_content)
                 print(f"Generated: {style_file}")
 
         else:
@@ -162,7 +185,7 @@ class RSTGenerator:
             index_content = style_generators[style]()
             index_file = output_dir / "index.rst"
             with open(index_file, "w", encoding="utf-8") as f:
-                f.write(index_content)
+                f.write(SOURCE_HEADER + index_content)
             print(f"Generated: {index_file} (production, style: {style})")
 
         print(f"\nGenerated {len(self.models)} RST files + index in {output_dir}")
@@ -220,6 +243,9 @@ class RSTGenerator:
 
         if model_name == "ModelPhysics":
             lines.extend(self._format_modelphysics_selector_guide())
+
+        if model_name == "WaterDistribution":
+            lines.extend(self._format_waterdistribution_guide())
 
         # Add fields directly; the page and option directives already provide
         # the necessary structure, so a generic "Parameters" label is redundant.
@@ -361,7 +387,8 @@ class RSTGenerator:
             "     - Notes",
             "   * - ``roughness_length_momentum``",
             "     - ``fixed``; ``variable``; ``macdonald`` / ``M98``; ``lambdap_dependent`` / ``GO99``; ``alternative``",
-            "     - Momentum roughness-length method.",
+            "     - Momentum roughness-length method. ``alternative`` (code 5) "
+            "has no implemented formulation and is rejected at validation.",
             "   * - ``roughness_length_heat``",
             "     - ``brutsaert`` / ``B82``; ``kawai`` / ``K09``; ``voogt_grimmond`` / ``VG00``; ``kanda`` / ``K07``; ``adaptive``",
             "     - Heat roughness-length method.",
@@ -414,6 +441,59 @@ class RSTGenerator:
             "   ``snow_use``, ``storage_heat.ohm.include_qf`` over flat "
             "   ``ohm_inc_qf``, and ``stebbs.parameter_source`` over "
             "   ``stebbs.parameters``.",
+            "",
+        ]
+
+    @staticmethod
+    def _format_waterdistribution_guide() -> list[str]:
+        """Format a worked YAML example and cross-reference for WaterDistribution."""
+        return [
+            ".. seealso::",
+            "",
+            "   See :ref:`waterdist_yaml_rules` for migration from legacy "
+            "nine-column tables, active vs. inactive surface rules "
+            "(``sfr > 0`` vs. ``sfr == 0``), load-time zero normalisation, "
+            "and post-load validation before engine execution.",
+            "",
+            ".. rubric:: Worked example (active paved surface)",
+            "",
+            "An active ``paved`` surface (impervious) routing 98% of drainage "
+            "to ``to_runoff`` and 2% to ``to_grass`` supplies its seven "
+            "applicable destinations and omits inapplicable ``to_paved`` and "
+            "``to_soilstore``:",
+            "",
+            ".. code-block:: yaml",
+            "",
+            "   sites:",
+            "     - name: ExampleSite",
+            "       properties:",
+            "         land_cover:",
+            "           paved:",
+            "             sfr:",
+            "               value: 0.43",
+            "             waterdist:",
+            "               to_bldgs:",
+            "                 value: 0.0",
+            "               to_dectr:",
+            "                 value: 0.0",
+            "               to_evetr:",
+            "                 value: 0.0",
+            "               to_grass:",
+            "                 value: 0.02",
+            "               to_bsoil:",
+            "                 value: 0.0",
+            "               to_water:",
+            "                 value: 0.0",
+            "               to_runoff:",
+            "                 value: 0.98",
+            "",
+            "At YAML or model load, an explicit ``0.0`` in an inapplicable "
+            "slot such as ``to_soilstore: {value: 0.0}`` on ``paved`` is "
+            "normalised to absent (``None``) while preserving ``to_runoff: "
+            "0.98``. Non-zero or invalid inapplicable values fail at load, "
+            "and post-load live mutations introducing inapplicable slots "
+            "(including ``0.0``) or raising ``sfr`` from ``0`` to ``> 0`` "
+            "without applicable destinations fail before engine execution.",
             "",
         ]
 
@@ -551,11 +631,63 @@ class RSTGenerator:
 
         return lines
 
+    def _format_conditional_unit(
+        self, conditional_unit: dict[str, Any]
+    ) -> list[str]:
+        """Format structured conditional-unit metadata as an RST ``:Unit:`` field."""
+        selector = conditional_unit["selector"]
+        cases = conditional_unit.get("cases", {})
+        lines = [f"   :Unit: Depends on ``{selector}``:", ""]
+
+        for code, case in cases.items():
+            label = case["label"]
+            kind = case["kind"]
+            if kind == "cf":
+                raw_unit = case["unit"]
+                unit_display = (
+                    "``1`` (dimensionless)"
+                    if raw_unit == "1"
+                    else self._format_unit(raw_unit)
+                )
+            elif kind == "formula":
+                depends = ", ".join(f"``{dep}``" for dep in case["depends_on"])
+                bases = ", ".join(self._format_unit(u) for u in case["base_units"])
+                unit_display = (
+                    f"``{case['expression']}`` "
+                    f"(formula; depends on {depends}; base units: {bases})"
+                )
+            elif kind == "empirical_base":
+                basis = self._format_unit(case["basis_unit"])
+                log_u = self._format_unit(case["log_unit"])
+                unit_display = (
+                    f"``{case['expression']}`` "
+                    f"(empirical power base for exponent in {basis}; "
+                    f"log unit: {log_u})"
+                )
+            else:
+                raise ValueError(f"Unsupported conditional_unit case kind: {kind!r}")
+
+            detail_parts = [f"Equation: ``{case['formula']}``."]
+            if note := case.get("note"):
+                detail_parts.append(note)
+            detail = " ".join(detail_parts)
+            lines.append(f"      - ``{code}`` ({label}): {unit_display}. {detail}")
+
+        if activation_note := conditional_unit.get("activation_note"):
+            lines.extend(["", f"      *Active:* {activation_note}"])
+        if inactive_note := conditional_unit.get("inactive_note"):
+            lines.extend(["", f"      *Inactive / other values:* {inactive_note}"])
+        lines.append("")
+        return lines
+
     def _format_unit_and_legacy_name(self, field_doc: dict[str, Any]) -> list[str]:
         """Format unit and legacy-name metadata for a field."""
         lines = []
+        conditional_unit = field_doc.get("conditional_unit")
         unit = field_doc.get("unit")
-        if unit and not field_doc.get("options"):
+        if conditional_unit and not field_doc.get("options"):
+            lines.extend(self._format_conditional_unit(conditional_unit))
+        elif unit and not field_doc.get("options"):
             lines.append(f"   :Unit: {self._format_unit(unit)}")
 
         legacy_name = field_doc.get("legacy_name")
@@ -570,10 +702,8 @@ class RSTGenerator:
         if not examples:
             return []
 
-        unit = self._format_unit(field_doc.get("unit", ""))
-        display_unit = (
-            unit if unit not in {"equation-dependent", "model-dependent"} else ""
-        )
+        static_unit = self._format_unit(field_doc.get("unit", ""))
+        conditional_unit = field_doc.get("conditional_unit")
         lines = [
             "",
             "   .. rubric:: Example values",
@@ -592,6 +722,21 @@ class RSTGenerator:
             if isinstance(example_value, float):
                 example_value = format(example_value, ".7g")
             value = f"``{example_value}``"
+            display_unit = static_unit
+            if (
+                not display_unit
+                and conditional_unit
+                and (selector := example.get("selector"))
+            ):
+                case = resolve_conditional_unit_case(
+                    conditional_unit, selector.get("value")
+                )
+                if case is not None and case.kind == "cf" and case.unit is not None:
+                    display_unit = (
+                        "(dimensionless)"
+                        if case.unit == "1"
+                        else self._format_unit(case.unit)
+                    )
             if display_unit:
                 value = f"{value} {display_unit}"
 
@@ -828,6 +973,7 @@ class RSTGenerator:
             "m^3",
             "s^-1",
             "kg^-1",
+            "g^-1",
             "K^-1",
             "J^-1",
             "W^-1",
@@ -881,6 +1027,8 @@ class RSTGenerator:
         - Fields declared without a default (Pydantic-required): ``"Required"``
         - Fields the validation layer requires under a recorded condition:
           ``"Required when ..."``, whether or not they carry a default
+        - Fields whose omitted value is derived from other inputs at runtime:
+          ``"Optional; derived from ..."``
         - Other fields with a default: ``"Optional"``
         - Other fields with ``default=None``: ``STATUS_NO_DEFAULT``
         - Nested models: ``None``, as the structure link describes them
@@ -888,8 +1036,9 @@ class RSTGenerator:
         Args:
             field_doc: Field documentation dictionary
             model_name: Name of the model declaring the field, used to look up
-                a conditional requirement. Omitted for callers that have no
-                model context, which simply skips that lookup.
+                a conditional requirement or derived default. Omitted for
+                callers that have no model context, which simply skips those
+                lookups.
         """
         if field_doc.get("nested_model"):
             return None
@@ -898,9 +1047,14 @@ class RSTGenerator:
         if str(default) == "PydanticUndefined":
             return STATUS_REQUIRED
 
-        condition = required_when(model_name, field_doc.get("name", ""))
+        field_name = field_doc.get("name", "")
+        condition = required_when(model_name, field_name)
         if condition:
             return STATUS_REQUIRED_WHEN.format(condition=condition)
+
+        source = derived_default(model_name, field_name)
+        if source:
+            return STATUS_DERIVED.format(source=source)
 
         if default is None:
             return STATUS_NO_DEFAULT

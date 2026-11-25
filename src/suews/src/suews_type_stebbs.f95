@@ -418,7 +418,7 @@ module module_type_stebbs
       INTEGER, INTENT(IN) :: num_layer
 
       CALL self%DEALLOCATE()
-      ! ALLOCATE (self%buildings(ntypes))
+      IF (num_layer <= 0) RETURN
       ! Initialise defensively so allocation alone never exposes undefined
       ! temperatures before the caller supplies the physical initial state.
       ALLOCATE (self%Textroof_C(num_layer), source=0.0D0)
@@ -446,6 +446,7 @@ module module_type_stebbs
       INTEGER :: i
 
       CALL self%DEALLOCATE()
+      IF (ntypes <= 0) RETURN
       ALLOCATE (self%buildings(ntypes))
       ! Pre-allocate inner arrays so they are never null when accessed
       ! via ASSOCIATE in SUEWS_cal_Qn. gen_building re-allocates later
@@ -460,7 +461,14 @@ module module_type_stebbs
       IMPLICIT NONE
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
-      IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
+      INTEGER :: i
+
+      IF (ALLOCATED(self%buildings)) THEN
+         DO i = 1, SIZE(self%buildings)
+            CALL self%buildings(i)%DEALLOCATE()
+         END DO
+         DEALLOCATE (self%buildings)
+      END IF
 
    END SUBROUTINE deallocSTEBBS_bldg
 

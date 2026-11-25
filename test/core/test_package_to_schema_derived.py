@@ -11,7 +11,7 @@ from supy.util.converter.yaml_upgrade import (
 )
 
 # gh#1300: every test file must carry a nature marker (api | physics).
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
 
 HISTORICAL = {
     "2025.10.15": "2025.12",

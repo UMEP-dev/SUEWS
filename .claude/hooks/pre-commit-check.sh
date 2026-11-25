@@ -54,6 +54,7 @@ F90_FILES=$(echo "$STAGED" | grep -E '\.(f95|f90|F90)$' || true)
 F90_FMT_FILES=$(echo "$STAGED" | grep -E '^src/suews/src/.*\.f95$' || true)
 RST_FILES=$(echo "$STAGED" | grep -E '\.rst$' || true)
 CHANGELOG=$(echo "$STAGED" | grep -E '^CHANGELOG\.md$' || true)
+CHANGELOG_FRAGMENTS=$(echo "$STAGED" | grep -E '^changes/' || true)
 AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/)' || true)
 
 ERRORS=""
@@ -174,6 +175,24 @@ if [[ -n "$CHANGELOG" ]] && [[ -f "CHANGELOG.md" ]]; then
         report_fail "CHANGELOG categories" "Unknown category tag (use [feature], [bugfix], [change], [maintenance], [doc]): $BAD_CATS"
     else
         report_pass "CHANGELOG categories"
+    fi
+fi
+
+# --- CHANGELOG fragment checks (changes/<number>.<category>.md) ---
+if [[ -n "$CHANGELOG_FRAGMENTS" ]] && [[ -f "scripts/suews/fold_changelog.py" ]]; then
+    echo "-- CHANGELOG fragments detected --"
+    PYTHON_BIN="$(command -v python3 || command -v python || true)"
+    if [[ -n "$PYTHON_BIN" ]]; then
+        # Check the staged copies only: export them from the index into a scratch root,
+        # so unstaged edits and untracked fragments neither hide nor cause a failure.
+        FRAG_ROOT=$(mktemp -d)
+        STAGED_FRAGMENTS=$(git diff --cached --name-only --diff-filter=ACMR -- 'changes/*' || true)
+        if [[ -n "$STAGED_FRAGMENTS" ]]; then
+            printf '%s\n' "$STAGED_FRAGMENTS" | git checkout-index --prefix="$FRAG_ROOT/" --stdin
+        fi
+        mkdir -p "$FRAG_ROOT/changes"
+        FRAG_OUT=$("$PYTHON_BIN" scripts/suews/fold_changelog.py --root "$FRAG_ROOT" --check 2>&1) && report_pass "CHANGELOG fragments" || report_fail "CHANGELOG fragments" "$FRAG_OUT"
+        rm -rf "$FRAG_ROOT"
     fi
 fi
 

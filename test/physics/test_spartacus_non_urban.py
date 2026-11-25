@@ -5,10 +5,14 @@ import numpy as np
 import pytest
 from supy import SUEWSSimulation
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-RESPONSE", "C-BIND"),
+]
 
-# SPARTACUS radiation_constants.F90, in W m-2 K-4.
-STEFAN_BOLTZMANN = 5.67037321e-8
+# CODATA Stefan-Boltzmann constant [W m-2 K-4].
+STEFAN_BOLTZMANN = 5.670374419e-8
 
 # Flat grass tile: fixed optical properties and direct/diffuse split.
 FLAT_ALBEDO_DIFFUSE = 0.25
@@ -28,6 +32,8 @@ def _forest_only_direct_albedo_state(df_state_init):
         df_state.loc[:, ("building_scale", f"({idx},)")] = 0.0
         df_state.loc[:, ("veg_frac", f"({idx},)")] = 0.0
     df_state.loc[:, ("veg_frac", "(0,)")] = 1.0
+    # Layer 2 (15-22 m) lies above the 13.1 m evergreen canopy.
+    df_state.loc[:, ("veg_scale", "(2,)")] = 0.0
 
     df_state.loc[:, ("bldgh", "0")] = 0.0
     df_state.loc[:, ("faibldg", "0")] = 0.0
@@ -150,10 +156,8 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays(
                 spartacus[column], expected_shortwave, rtol=0, atol=1e-10
             )
         for column in ("LTopNet", "LNet_Grnd"):
-            # The kernel's single-precision 273.15 literal shifts emission
-            # by about 3e-5 W m-2 at these temperatures.
             np.testing.assert_allclose(
-                spartacus[column], expected_longwave, rtol=0, atol=1e-4
+                spartacus[column], expected_longwave, rtol=0, atol=1e-10
             )
 
 

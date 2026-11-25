@@ -20,7 +20,10 @@ from supy._run_rust import (
 
 # ruff: enable[import-private-name]
 
-pytestmark = pytest.mark.physics
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.contract("C-CLOCK", "C-RESTART", "C-EMIT", "C-STRICT"),
+]
 
 
 def _config_dict(simulation):
@@ -65,14 +68,24 @@ def _output_datetimes(output, length):
     )
 
 
-def test_omitted_timestamp_reference_is_bit_identical_to_explicit_local_standard_time():
-    """The new control must not change an existing configuration or run."""
+def test_source_default_is_bit_identical_to_explicit_local_standard_time():
+    """The data model resolves an omitted source clock before the native handoff."""
     simulation = SUEWSSimulation(
         str(files("supy").joinpath("sample_data/sample_config.yml"))
     )
     config = _config_dict(simulation)
     config["model"]["control"]["forcing"].pop("timestamp_reference", None)
-    explicit = _set_timestamp_reference(config, "local_standard_time")
+    explicit_source = _set_timestamp_reference(config, "local_standard_time")
+    explicit_simulation = SUEWSSimulation()
+    explicit_simulation.update_config(explicit_source, auto_load_forcing=False)
+    explicit = _config_dict(explicit_simulation)
+    resolved = SUEWSSimulation()
+    resolved.update_config(config, auto_load_forcing=False)
+    config = _config_dict(resolved)
+    reference = config["model"]["control"]["forcing"]["timestamp_reference"]
+    if isinstance(reference, dict):
+        reference = reference["value"]
+    assert reference == "local_standard_time"
     forcing = simulation.forcing.df.iloc[:12]
     rust_module = _load_rust_module()
 
@@ -82,6 +95,84 @@ def test_omitted_timestamp_reference_is_bit_identical_to_explicit_local_standard
     assert implicit_len == explicit_len == len(forcing)
     np.testing.assert_array_equal(explicit_output, implicit_output)
     assert json.loads(explicit_state) == json.loads(implicit_state)
+
+
+@pytest.mark.parametrize("entry_point", ["oop", "cli"])
+def test_source_clock_default_through_supported_entry_points(
+    entry_point, tmp_path, monkeypatch
+):
+    """Both user routes resolve an omitted clock and execute the native model."""
+    from click.testing import CliRunner
+    import yaml
+
+    from supy.cmd.suews_cli import cli
+
+    sample = Path(str(files("supy").joinpath("sample_data/sample_config.yml")))
+    source = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    control = source["model"]["control"]
+    control["forcing"].pop("timestamp_reference", None)
+    forcing_file = control["forcing"]["file"]
+    if isinstance(forcing_file, dict):
+        forcing_file = forcing_file["value"]
+    control["forcing"]["file"] = str(sample.parent / forcing_file)
+    control["start_time"] = "2012-01-01 00:05:00"
+    control["end_time"] = "2012-01-01 01:00:00"
+    source_path = tmp_path / "source.yml"
+    source_path.write_text(yaml.safe_dump(source), encoding="utf-8")
+    completed = []
+
+    def capture_save(simulation, **kwargs):
+        completed.append(simulation)
+        return []
+
+    # Saving is unrelated to this input contract; keep the real run in both routes.
+    monkeypatch.setattr(SUEWSSimulation, "save", capture_save)
+    if entry_point == "cli":
+        result = CliRunner().invoke(cli, ["run", str(source_path)])
+        assert result.exit_code == 0, result.output
+        assert len(completed) == 1
+    else:
+        simulation = SUEWSSimulation(source_path)
+        simulation.run()
+        completed.append(simulation)
+    reference = completed[0].config.model.control.forcing.timestamp_reference
+    while hasattr(reference, "value"):
+        reference = reference.value
+    assert reference == "local_standard_time"
+
+
+@pytest.mark.parametrize("multi", [False, True], ids=["single", "multi"])
+@pytest.mark.parametrize(
+    "clock",
+    [
+        None, {"value": None}, {}, {"ref": "citation"}, False, -999, [],
+        {"value": 1}, "civil_time", {"value": "civil_time"},
+    ],
+)
+def test_native_handoff_rejects_invalid_forcing_clock(clock, multi):
+    """Resolved single- and multi-grid inputs cannot obtain a native default."""
+    simulation = SUEWSSimulation(
+        str(files("supy").joinpath("sample_data/sample_config.yml"))
+    )
+    valid = _config_dict(simulation)
+    invalid = _set_timestamp_reference(valid, clock)
+    if clock is None:
+        invalid["model"]["control"]["forcing"].pop("timestamp_reference")
+    forcing = simulation.forcing.df.iloc[:1]
+    rust_module = _load_rust_module()
+    match = r"model\.control\.forcing\.timestamp_reference"
+    if multi:
+        match = "grid 1:.*" + match
+    with pytest.raises(RuntimeError, match=match):
+        if multi:
+            rust_module.run_suews_multi(
+                [json.dumps(valid), json.dumps(invalid)],
+                _prepare_forcing_block(forcing).ravel(order="C").tolist(),
+                len(forcing),
+                2,
+            )
+        else:
+            _run(rust_module, invalid, forcing)
 
 
 @pytest.mark.parametrize("offset_hours", [5.75, -3.5])

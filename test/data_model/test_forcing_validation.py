@@ -4,7 +4,7 @@ import pytest
 
 from supy.data_model.core.model import ForcingControl, ModelControl
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
 
 
 def test_forcing_control_accepts_single_path():

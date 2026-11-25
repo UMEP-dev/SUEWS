@@ -1,0 +1,148 @@
+# Test-contract registry; markers on test files reference these ids.
+# Paths identify implementation ownership, not proof of complete enforcement.
+contracts:
+  - id: C-API
+    title: Public interface behaviour
+    definition: Public interfaces expose their declared operations, arguments, return structures and compatibility behaviour.
+    stages: [surface]
+    implementation: [src/supy/__init__.py, src/supy/suews_sim.py, src/supy/suews_output.py, src/supy/cmd/, mcp/src/suews_mcp/]
+  - id: C-ERROR
+    title: User-facing failures
+    definition: User-facing failures produce actionable diagnostics and the appropriate exception, envelope status or process exit.
+    stages: [surface, config, output]
+    implementation: [src/supy/cmd/json_envelope.py, src/supy/cmd/schema_cli.py, src/supy/data_model/validation/pipeline/, mcp/src/suews_mcp/]
+  - id: C-PARITY
+    title: Entry-route parity
+    definition: Equivalent supported entry routes resolve equivalent inputs and produce equivalent observable results.
+    stages: [surface, config, engine_input, bridge, output]
+    implementation: [src/supy/suews_sim.py, src/supy/cmd/SUEWS.py, src/supy/_run_rust.py, src/suews_bridge/src/main.rs]
+  - id: C-VALID
+    title: Configuration validation
+    definition: Active configuration requirements, nullability, ranges and cross-field constraints are enforced before execution.
+    stages: [config, engine_input]
+    implementation: [src/supy/data_model/core/, src/supy/data_model/validation/pipeline/]
+  - id: C-MIGRATE
+    title: Safe migrations
+    definition: Supported migrations preserve intended meaning and refuse ambiguous or unsafe conversions without partially publishing results.
+    stages: [surface, config, engine_input]
+    implementation: [src/supy/data_model/configuration/, src/supy/util/converter/, src/supy/cmd/table_converter.py]
+  - id: C-ROUNDTRIP
+    title: Configuration round trips
+    definition: Supported YAML, model and legacy state-frame round trips preserve values, identities and declared defaults.
+    stages: [config, engine_input]
+    implementation: [src/supy/data_model/core/]
+  - id: C-SCHEMA
+    title: Interface artefact agreement
+    definition: Registries, schema versions, generated artefacts and documentation describe the same interface.
+    stages: [config, engine_input, bridge, output, tooling]
+    implementation: [src/supy/data_model/configuration/, src/supy/data_model/forcing/, src/supy/data_model/output/, docs/, scripts/]
+  - id: C-EMIT
+    title: Explicit engine exports
+    definition: Python engine exports explicitly resolve every required value using the documented Python default or derivation policy.
+    stages: [config, engine_input]
+    implementation: [src/supy/_run_rust.py, src/supy/data_model/]
+  - id: C-STRICT
+    title: Strict native inputs
+    definition: Native readers reject missing or malformed active inputs with their paths instead of silently substituting values.
+    stages: [engine_input, bridge]
+    implementation: [src/suews_bridge/src/yaml_config.rs, src/suews_bridge/src/forcing_io.rs, src/suews_bridge/src/sim.rs]
+  - id: C-BIND
+    title: Parameter binding
+    definition: Each active supplied parameter reaches its owning runtime field without loss, truncation or unrelated overwriting.
+    stages: [engine_input, bridge, capi, kernel]
+    implementation: [src/suews_bridge/src/yaml_config.rs, src/suews_bridge/c_api/driver.f95, src/suews/src/]
+  - id: C-CAPI
+    title: Typed Fortran binding
+    definition: Native unpacking binds each transported value to the intended typed Fortran component and array index.
+    stages: [bridge, capi, kernel]
+    implementation: [src/suews_bridge/c_api/, src/suews_bridge/test_observer/]
+  - id: C-CODEC
+    title: Native codec fidelity
+    definition: Rust flat, map and payload codecs preserve represented values and reject invalid dimensions, types and versions.
+    stages: [bridge, capi]
+    implementation: [src/suews_bridge/src/codec.rs, src/suews_bridge/src/]
+  - id: C-FORCING
+    title: Forcing preparation
+    definition: Forcing loading and preparation preserve units, variable identity, missingness and option-dependent requirements.
+    stages: [surface, config, engine_input, bridge]
+    implementation: [src/supy/suews_forcing.py, src/supy/_load.py, src/supy/_check.py, src/supy/util/_forcing.py, src/supy/_run_rust.py, src/suews_bridge/src/forcing.rs, src/suews_bridge/src/forcing_io.rs]
+  - id: C-CLOCK
+    title: Temporal meaning
+    definition: Interval stamps, calendars, requested periods and output clock transformations retain their documented temporal meaning.
+    stages: [config, bridge, kernel, output, continuation]
+    implementation: [src/supy/_run_period.py, src/supy/_run_rust.py, src/supy/_save.py, src/suews_bridge/src/forcing_time.rs, src/suews_bridge/src/timer.rs, src/suews/src/]
+  - id: C-BALANCE
+    title: Budget closure
+    definition: Applicable energy, water and component budgets close under independently stated accounting identities.
+    stages: [kernel, output]
+    implementation: [src/suews/src/, src/supy/diagnostics/, src/supy/util/_attribution/]
+  - id: C-RESPONSE
+    title: Physics response
+    definition: Active physics follows specified equations, bounds and parameter responses, while inactive influences remain inert.
+    stages: [config, bridge, kernel, output]
+    implementation: [src/suews/src/, src/supy/util/_atm.py, src/supy/util/_gs.py, src/supy/util/_ohm.py]
+  - id: C-NATIVE-ERROR
+    title: Native failure propagation
+    definition: Native warnings and fatal failures reach the host with useful identity and do not expose invalid output as successful results.
+    stages: [surface, bridge, capi, kernel]
+    implementation: [src/suews_bridge/src/sim.rs, src/suews_bridge/c_api/driver.f95, src/suews/src/, src/supy/_run_rust.py]
+  - id: C-RESTART
+    title: Restart fidelity
+    definition: Supported represented state and timer information survive checkpoint/chunk transport sufficiently to reproduce uninterrupted execution.
+    stages: [bridge, capi, kernel, output, continuation]
+    implementation: [src/supy/suews_checkpoint.py, src/supy/_run_rust.py, src/suews_bridge/src/checkpoint.rs, src/suews_bridge/src/suews_state.rs, src/suews_bridge/c_api/driver.f95]
+  - id: C-SEQUENCE
+    title: Continuation sequencing
+    definition: Continuation rejects incompatible grids, timesteps, overlapping or gapped forcing and invalid lifecycle transitions.
+    stages: [surface, bridge, continuation]
+    implementation: [src/supy/suews_sim.py, src/supy/suews_checkpoint.py, src/supy/_run_period.py, src/suews_bridge/src/checkpoint.rs]
+  - id: C-SPINUP
+    title: Spin-up state assignment
+    definition: Spin-up handles its supported forcing durations and returns correctly assigned evolved state for every target grid.
+    stages: [config, kernel, continuation]
+    implementation: [src/supy/util/_spinup.py]
+  - id: C-OUTPUT
+    title: Output meaning
+    definition: Output arrays, columns, groups, dimensions, missing values and metadata retain their declared meanings.
+    stages: [bridge, capi, kernel, output]
+    implementation: [src/supy/_run_rust.py, src/supy/suews_output.py, src/supy/data_model/output/, src/suews_bridge/src/output_block.rs, src/suews_bridge/src/output_line.rs, src/suews_bridge/src/output_io.rs]
+  - id: C-SAVE
+    title: Output persistence
+    definition: Saving honours destination, format, group and provenance choices while preserving the represented output.
+    stages: [surface, output, continuation]
+    implementation: [src/supy/_save.py, src/supy/_provenance.py, src/supy/_filename.py, src/supy/suews_output.py, src/supy/suews_sim.py]
+  - id: C-RESAMPLE
+    title: Output aggregation
+    definition: Output aggregation preserves the declared sum/mean/state semantics, coverage, missingness and held interval.
+    stages: [output]
+    implementation: [src/supy/_post.py, src/supy/_output_metadata.py, src/supy/suews_output.py]
+  - id: C-ISOLATION
+    title: Execution isolation
+    definition: Independent grids, calls, threads, bands and output views cannot contaminate one another.
+    stages: [bridge, capi, kernel, output]
+    implementation: [src/suews_bridge/src/sim.rs, src/suews_bridge/c_api/, src/suews/src/, src/supy/_run_rust.py, src/supy/suews_output.py]
+  - id: C-TOOLING
+    title: Verification and build tooling
+    definition: Build, packaging, audit and CI machinery select, execute and report the intended checks and artefacts correctly.
+    stages: [tooling]
+    implementation: [src/supy/meson.build, src/supy/build_rust_bridge.py, src/supy/run_make.py, scripts/, .github/, test/conftest.py]
+  - id: C-STEBBS-RESTART
+    title: STEBBS continuation
+    definition: STEBBS continuation preserves required building-array contents or explicitly refuses unsupported continuation.
+    stages: [bridge, capi, kernel, continuation]
+    implementation: [src/suews_bridge/src/stebbs_state.rs, src/suews_bridge/c_api/driver.f95, src/suews/src/]
+  - id: C-EHC-RESTART
+    title: EHC continuation
+    definition: EHC continuation preserves thermal state (temp_roof, temp_wall, temp_surf, tsfc_*) identically across chunk, checkpoint and stream boundaries for both implicit and explicit coupling.
+    stages: [bridge, capi, kernel, continuation]
+    implementation: [src/suews_bridge/src/heat_state.rs, src/suews_bridge/c_api/heat_state.f95, src/suews_bridge/c_api/driver.f95, src/suews/src/]
+  - id: C-WARMSTART
+    title: YAML initial state
+    definition: Supported YAML initial-state fields affect their intended initial runtime state, with unsupported fields explicitly disposed of.
+    stages: [config, engine_input, bridge, kernel]
+    implementation: [src/supy/data_model/core/state.py, src/suews_bridge/src/yaml_config.rs]
+  - id: C-MEMORY
+    title: Bounded memory growth
+    definition: Repeated native execution and streaming remain within an explicitly defined memory-growth bound.
+    stages: [bridge, kernel, output, continuation, tooling]
+    implementation: [src/supy/_run_rust.py, src/supy/suews_output.py, src/suews_bridge/src/sim.rs]

@@ -16,7 +16,7 @@ import subprocess
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [pytest.mark.physics, pytest.mark.core, pytest.mark.contract("C-RESPONSE")]
 
 STABILITY_METHODS = (2, 3, 4)  # W16, K75 (Campbell & Norman), B71
 ZL_STABLE_MAX, ZL_UNSTABLE_MIN = 0.5, -2.0  # clips in cal_Stab [-]
@@ -64,7 +64,7 @@ do i = 1, n
     h = qh/rhocp
     lm = zzd/x
     us = max(1d-12, k*u/(log(zzd/z0m) - stab_psi_mom(meth, x) + stab_psi_mom(meth, z0m/lm)))
-    write(*, '(ES26.17E3)') -zzd*((grav/(t + 273.15))*k)*h/us**3 - x
+    write(*, '(ES26.17E3)') -zzd*((grav/(t + 273.15d0))*k)*h/us**3 - x
   end if
 end do
 end program

@@ -79,8 +79,8 @@ Check: FIRST principles, AAA pattern, tolerance assertions.
 
 ## Documentation Review
 
-- **CHANGELOG** -- entry with correct category
-- **PR description** -- scientific rationale (if physics)
+- **CHANGELOG** -- fragment `changes/<number>.<category>.md` with correct category (not a direct `CHANGELOG.md` edit)
+- **PR description** -- follows `.claude/rules/pr-description.md` (`## Why`, `## What changed` + known limits, `## How to review`, PR-specific `## Verification`, and `## Scientific evidence` / `## Numerical change` per `.claude/rules/physics-change-evidence.md` when physics or reference fixtures move)
 - **User docs** -- updated if user-facing; the `docs-reviewer` agent's
   findings-only drift report (see SKILL.md "Docs") lists the pages that should
   have moved

@@ -11,7 +11,11 @@ import pytest
 
 import supy as sp
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-RESPONSE", "C-BIND"),
+]
 
 QS_SURF_COLUMNS = [
     "QS_Paved",
@@ -80,6 +84,26 @@ def _run_storage_case(df_state_init, df_forcing, method: int, building_fraction:
     return df_output.SUEWS
 
 
+def _assert_qs_complete(result, forcing, grid):
+    """QS is required even when other storage diagnostics are not applicable."""
+    expected = pd.MultiIndex.from_product(
+        [[grid], forcing.index], names=result.index.names
+    )
+    assert result.index.equals(expected), (
+        "Incomplete or misordered DyOHM QS rows (grid, datetime): "
+        f"missing={expected.difference(result.index).tolist()}, "
+        f"unexpected={result.index.difference(expected).tolist()}, "
+        f"duplicates={result.index[result.index.duplicated()].tolist()}"
+    )
+    assert "QS" in result.columns, f"Missing DyOHM QS column for grid={grid}"
+    qs = result["QS"].to_numpy()
+    assert qs.size, f"Empty DyOHM QS for grid={grid}"
+    invalid = np.flatnonzero(~np.isfinite(qs) | (qs == -999))
+    assert not invalid.size, "Invalid DyOHM QS: " + "; ".join(
+        f"grid/time={result.index[row]}: {qs[row]}" for row in invalid[:5]
+    )
+
+
 def _set_outer_material(df_state, surface_kind: str, first_index: int, values):
     """Return state with one aggregate/facet outer material layer replaced."""
     updated = df_state.copy()
@@ -98,6 +122,8 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
 
     ohm_paved = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.0)
     dyohm_paved = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.0)
+    for result in (ohm_paved, dyohm_paved):
+        _assert_qs_complete(result, df_forcing, df_state_init.index[0])
     np.testing.assert_allclose(
         dyohm_paved["QS"].to_numpy(),
         ohm_paved["QS"].to_numpy(),
@@ -108,10 +134,12 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
     ohm_mixed = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.3)
     dyohm_mixed = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.3)
 
+    for result in (ohm_mixed, dyohm_mixed):
+        _assert_qs_complete(result, df_forcing, df_state_init.index[0])
     qs_delta = np.abs(dyohm_mixed["QS"].to_numpy() - ohm_mixed["QS"].to_numpy())
     warm_start = df_forcing.index[0] + pd.Timedelta(days=1)
     warm_mask = dyohm_mixed.index.get_level_values("datetime") >= warm_start
-    max_qs_delta = float(np.nanmax(qs_delta[warm_mask]))
+    max_qs_delta = float(np.max(qs_delta[warm_mask]))
     assert max_qs_delta > 1.0e-4, (
         "storage_heat=8 should alter storage heat flux when buildings are present; "
         f"max |delta QS| after DyOHM coefficient spin-up was {max_qs_delta:.3e}"
@@ -164,6 +192,9 @@ def test_dyohm_uses_building_material_not_wall(storage_heat_method):
         building_fraction=0.3,
     )
 
+    for result in (baseline, changed_building, changed_wall):
+        _assert_qs_complete(result, df_forcing, df_state_init.index[0])
+
     np.testing.assert_allclose(
         changed_wall["QS"].to_numpy(),
         baseline["QS"].to_numpy(),
@@ -173,7 +204,7 @@ def test_dyohm_uses_building_material_not_wall(storage_heat_method):
     )
 
     qs_delta = np.abs(changed_building["QS"].to_numpy() - baseline["QS"].to_numpy())
-    assert float(np.nanmax(qs_delta)) > 1.0e-4, (
+    assert float(np.max(qs_delta)) > 1.0e-4, (
         "DyOHM-building did not respond to land_cover.bldgs material layer 0"
     )
 

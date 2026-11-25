@@ -1,6 +1,7 @@
 py.install_sources(
     [
         '__init__.py',
+        '_build_depfile.py',
         '_check.py',
         '_env.py',
         '_filename.py',
@@ -119,6 +120,7 @@ py.install_sources(
             'data_model/parameter_examples.py',
             'data_model/parameter_examples.json',
             'data_model/core/__init__.py',
+            'data_model/core/_yaml_io.py',
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
             'data_model/core/field_renames.py',
@@ -135,6 +137,7 @@ py.install_sources(
             'data_model/core/surface.py',
             'data_model/core/timezone_enum.py',
             'data_model/core/type.py',
+            'data_model/core/unit_metadata.py',
             'data_model/configuration/__init__.py',
             'data_model/configuration/version.py',
             'data_model/configuration/migration.py',
@@ -179,6 +182,7 @@ py.install_sources(
             'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
+            'data_model/validation/derived_fields.py',
             'data_model/validation/required_fields.py',
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/orchestrator.py',
@@ -221,22 +225,24 @@ knowledge_pack = custom_target(
     '@OUTDIR@',
     '--command',
     'meson knowledge-pack build',
+    '--depfile',
+    '@DEPFILE@',
+    '--depfile-target',
+    '@OUTPUT0@',
   ],
   output: [
     'manifest.json',
     'chunks.jsonl.gz',
   ],
-  depend_files: files('knowledge/pack.py'),
-  # Always rebuild on every build invocation (gh#1406). The pack
-  # content depends on every file under `src/suews/src`,
-  # `src/suews_bridge/src`, and `src/supy/` — declaring those
-  # individually as `depend_files` is brittle (meson `files()` does
-  # not glob), so we let ninja skip the deduplication and run the
-  # builder unconditionally. The pack-build script reads the source
-  # roots and writes deterministic JSON; runtime is on the order of
-  # seconds, well below the cost of carrying a stale pack into a
-  # release wheel.
-  build_always_stale: true,
+  depend_files: files('knowledge/pack.py', '_build_depfile.py'),
+  # The pack content depends on every packed file under `src/suews/src`,
+  # `src/suews_bridge/src` and `src/supy/`, plus the Git index and HEAD
+  # (gh#1406). Meson `files()` does not glob, so pack.py writes those
+  # inputs to a Ninja depfile instead. This replaces
+  # `build_always_stale: true`, which rebuilt the pack (several seconds)
+  # on every editable-install import, i.e. on every `python -c "import
+  # supy"` and every `suews` CLI call in tests.
+  depfile: 'suews_knowledge_pack.d',
   build_by_default: true,
   install: true,
   install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',
@@ -248,28 +254,45 @@ dir_src_suews = dir_suews / 'src'
 
 src_f95_all = [
   'suews_ctrl_const.f95',
+  'suews_ctrl_driver.f95',
+  'suews_ctrl_error.f95',
   'suews_ctrl_type.f95',
-  'suews_util_profile.f95',
-  'suews_util_time.f95',
-  'suews_util_meteo.f95',
-  'suews_util_datetime.f95',
-  'suews_phys_waterdist.f95',
-  'suews_phys_narp.f95',
-  'suews_phys_beers.f95',
-  'suews_phys_atmmoiststab.f95',
-  'suews_phys_resist.f95',
-  'suews_phys_evap.f95',
-  'suews_phys_snow.f95',
-  'suews_phys_lai.f95',
-  'suews_phys_dailystate.f95',
-  'suews_phys_lumps.f95',
+  'suews_phys_anohm.f95',
   'suews_phys_anthro.f95',
-  'suews_phys_rslprof.f95',
+  'suews_phys_atmmoiststab.f95',
+  'suews_phys_beers.f95',
   'suews_phys_biogenco2.f95',
+  'suews_phys_dailystate.f95',
+  'suews_phys_ehc.f95',
+  'suews_phys_evap.f95',
+  'suews_phys_lai.f95',
+  'suews_phys_lumps.f95',
+  'suews_phys_narp.f95',
   'suews_phys_ohm.f95',
+  'suews_phys_resist.f95',
+  'suews_phys_rslprof.f95',
+  'suews_phys_snow.f95',
+  'suews_phys_solweig.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
-  'suews_ctrl_driver.f95',
+  'suews_phys_waterdist.f95',
+  'suews_type_anthro.f95',
+  'suews_type_atmosphere.f95',
+  'suews_type_ehc.f95',
+  'suews_type_heat.f95',
+  'suews_type_hydro.f95',
+  'suews_type_landcover.f95',
+  'suews_type_snow.f95',
+  'suews_type_soil.f95',
+  'suews_type_spartacus.f95',
+  'suews_type_stebbs.f95',
+  'suews_type_surface.f95',
+  'suews_type_vegetation.f95',
+  'suews_type_waterdist.f95',
+  'suews_util_datetime.f95',
+  'suews_util_meteo.f95',
+  'suews_util_profile.f95',
+  'suews_util_time.f95',
 ]
 
 src_f95_files = []
@@ -277,10 +300,27 @@ foreach f : src_f95_all
   src_f95_files += join_paths(dir_src_suews, f)
 endforeach
 src_f95_files = files(src_f95_files)
-# C helpers compiled into the same archives (thread-local error store, gh#1736)
-src_c_files = files(dir_src_suews / 'suews_ctrl_error_tls.c')
+# C helpers compiled into the same archives (thread-local error store, gh#1736;
+# Windows MinGW strptime shim)
+src_c_all = [
+  'strptime.c',
+  'suews_ctrl_error_tls.c',
+]
 
-makefile_deps = files(dir_suews / 'Makefile', dir_suews / 'Makefile.deps')
+src_c_files = []
+foreach f : src_c_all
+  src_c_files += join_paths(dir_src_suews, f)
+endforeach
+src_c_files = files(src_c_files)
+
+makefile_deps = files(
+  dir_suews / 'Makefile',
+  dir_suews / 'Makefile.deps',
+  dir_suews / 'Makefile.gfortran',
+  dir_suews / 'Makefile.ifort',
+  'run_make.py',
+  '_build_depfile.py',
+)
 
 build_suews = custom_target(
   'suews_objects',
@@ -289,9 +329,11 @@ build_suews = custom_target(
     '@CURRENT_SOURCE_DIR@/run_make.py',
     meson.current_source_dir() / '../suews/',
     '@OUTPUT@',
+    '@DEPFILE@',
   ],
   build_by_default: true,
   depend_files: [src_f95_files, src_c_files, makefile_deps],
+  depfile: 'suews_objects.d',
   output: 'suews_objects',
 )
 
@@ -300,8 +342,11 @@ if rust_bridge_enabled
     find_program('cargo', required: true)
     rust_bridge_dep_files = files(
         '../suews_bridge/Cargo.toml',
+        '../suews_bridge/Cargo.lock',
         '../suews_bridge/build.rs',
         '../suews_bridge/src/field_renames.rs',
+        'build_rust_bridge.py',
+        '_build_depfile.py',
     )
     # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
     # abi3-py39 makes the cargo artefact itself ABI-stable; the filename
@@ -323,10 +368,12 @@ if rust_bridge_enabled
             meson.project_source_root(),
             '@OUTPUT0@',
             '@OUTPUT1@',
+            '@DEPFILE@',
         ],
         output: [rust_bridge_ext_name, rust_bridge_cli_name],
         depends: build_suews,
         depend_files: rust_bridge_dep_files,
+        depfile: 'rust_bridge_artifacts.d',
         build_by_default: true,
         install: true,
         install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],

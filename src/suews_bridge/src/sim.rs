@@ -10,6 +10,7 @@ use crate::ehc_prm::{ehc_prm_from_ordered_values, EhcPrm};
 use crate::error::BridgeError;
 use crate::ffi;
 use crate::flag::flag_state_from_ordered_values;
+use crate::forcing_io::validate_forcing_block_for_emissions;
 use crate::heat_state::HeatState;
 use crate::hydro_state::HydroState;
 use crate::irrigation_prm::irrigation_prm_from_ordered_values;
@@ -30,7 +31,7 @@ use crate::solar::solar_state_from_ordered_values;
 use crate::spartacus_layer_prm::{spartacus_layer_prm_from_ordered_values, SpartacusLayerPrm};
 use crate::spartacus_prm::SpartacusPrm;
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
-use crate::stebbs_state::stebbs_state_from_ordered_values;
+use crate::stebbs_state::{stebbs_state_expected_flat_len, StebbsState};
 use crate::suews_site::SuewsSite;
 use crate::suews_state::SuewsState;
 use crate::surf_store::surf_store_prm_from_ordered_values;
@@ -131,10 +132,10 @@ pub const SUEWS_CAPI_SITE_SCALARS_LEN: usize = 24;
 ///
 /// Unlike the bridged types, the defaults below are Rust's own and are all
 /// zero (except `gridiv`). The YAML reader
-/// (`yaml_config::apply_site_scalar_overrides`) overwrites only the keys it
-/// finds, and the command-line entry point has no required-field check, so a
-/// YAML without, say, `properties.z` runs with a measurement height of 0 m.
-/// supy's data model supplies most of these values. These Rust-side zeros are
+/// (`yaml_config::apply_site_scalar_overrides`) requires finite coordinates,
+/// altitude, time zone, site area and measurement height. Other legacy reads
+/// still overwrite only the keys they find. SuPy's data model supplies the
+/// resolved values and owns their defaults. These Rust-side zeros are
 /// legacy: under the bridge's pass-through rule (`yaml_config.rs` module
 /// docs) a site scalar the kernel needs must come from the YAML or the run
 /// stops; do not rely on, or add to, these defaults.
@@ -366,6 +367,18 @@ fn decode_kernel_warnings(
     }
 }
 
+/// Test-only access to the production diagnostic decoder for the native witness.
+#[cfg(feature = "capi-observer")]
+pub fn observe_kernel_warnings(
+    total: i32,
+    stored: i32,
+    timer: &[i32],
+    text: &[c_char],
+    text_len: usize,
+) -> KernelWarnings {
+    decode_kernel_warnings(total, stored, timer, text, text_len)
+}
+
 #[derive(Debug, Clone)]
 struct MemberBuffers {
     flat: Vec<f64>,
@@ -480,7 +493,8 @@ fn encode_state_members(state: &SuewsState) -> Result<MemberBuffers, BridgeError
         STATE_MEMBER_ROUGHNESS_STATE,
         &state.roughness_state.to_flat(),
     )?;
-    out.push_member(STATE_MEMBER_STEBBS_STATE, &state.stebbs_state.to_flat())?;
+    let stebbs_flat = state.stebbs_state.to_flat_checked()?;
+    out.push_member(STATE_MEMBER_STEBBS_STATE, &stebbs_flat)?;
     out.push_member(STATE_MEMBER_NHOOD_STATE, &state.nhood_state.to_flat())?;
     Ok(out)
 }
@@ -508,12 +522,34 @@ fn encode_site_scalars(site_scalars: &SiteScalars) -> [f64; SUEWS_CAPI_SITE_SCAL
     out
 }
 
-fn decode_state_members(
+/// Test-only helper exposing the real `SiteScalars` flat encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_site_scalars_flat(site_scalars: &SiteScalars) -> Vec<f64> {
+    encode_site_scalars(site_scalars).to_vec()
+}
+
+/// Test-only helper exposing the real `SuewsSite` TOC encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_site_members_flat(site: &SuewsSite) -> Result<(Vec<f64>, Vec<i32>), BridgeError> {
+    let buf = encode_site_members(site)?;
+    Ok((buf.flat, buf.toc))
+}
+
+/// Test-only helper exposing the real `SuewsState` TOC encoder to the C-API field observer.
+#[cfg(feature = "capi-observer")]
+pub fn encode_state_members_flat(state: &SuewsState) -> Result<(Vec<f64>, Vec<i32>), BridgeError> {
+    let buf = encode_state_members(state)?;
+    Ok((buf.flat, buf.toc))
+}
+
+/// Decode the aggregate return buffer using the same member offsets as the input state.
+pub fn decode_state_members(
     state_template: &SuewsState,
     state_flat: &[f64],
     state_toc: &[i32],
     nlayer: usize,
     ndepth: usize,
+    stebbs_bldg_nlayer: usize,
 ) -> Result<SuewsState, BridgeError> {
     let flag_state = flag_state_from_ordered_values(member_slice(
         state_flat,
@@ -565,11 +601,10 @@ fn decode_state_members(
         state_toc,
         STATE_MEMBER_ROUGHNESS_STATE,
     )?)?;
-    let stebbs_state = stebbs_state_from_ordered_values(member_slice(
-        state_flat,
-        state_toc,
-        STATE_MEMBER_STEBBS_STATE,
-    )?)?;
+    let stebbs_state = StebbsState::from_flat_with_bldg_nlayer(
+        member_slice(state_flat, state_toc, STATE_MEMBER_STEBBS_STATE)?,
+        stebbs_bldg_nlayer,
+    )?;
     let nhood_state = nhood_state_from_ordered_values(member_slice(
         state_flat,
         state_toc,
@@ -834,6 +869,34 @@ fn validate_checkpoint_ehc_temperatures(run_cfg: &RunConfig) -> Result<(), Bridg
              heat method 5 (EHC) reads this initial temperature, so it must be finite. The \
              checkpoint was likely written by a run whose options did not read it",
             index % ndepth + 1,
+        )));
+    }
+    Ok(())
+}
+
+/// Reject an active-STEBBS checkpoint whose `stebbs_bldg_init` or
+/// `buildings(:)` dimensions are incompatible with the resumed configuration
+/// (`BR-06`).
+fn validate_checkpoint_stebbs_state(run_cfg: &RunConfig) -> Result<(), BridgeError> {
+    if !matches!(run_cfg.config.stebbs_method, 1 | 2) {
+        return Ok(());
+    }
+    let nlayer = usize::try_from(run_cfg.nlayer).unwrap_or(0);
+    let stebbs = &run_cfg.state.stebbs_state;
+    if run_cfg.state.flag_state.stebbs_bldg_init != 0 && stebbs.buildings.is_empty() {
+        return Err(simulation_error(format!(
+            "checkpoint has stebbs_bldg_init = {} but omits STEBBS_STATE%buildings(:) state; \
+             regenerate the checkpoint with stebbs_state schema version {}",
+            run_cfg.state.flag_state.stebbs_bldg_init,
+            crate::stebbs_state::STEBBS_STATE_SCHEMA_VERSION,
+        )));
+    }
+    if !stebbs.buildings.is_empty() && stebbs.bldg_nlayer != nlayer {
+        return Err(simulation_error(format!(
+            "checkpoint stebbs_state has bldg_nlayer = {}, but the configuration has \
+             nlayer = {nlayer}; STEBBS buildings(:)%Textwall_C/Textroof_C layer counts \
+             must match",
+            stebbs.bldg_nlayer,
         )));
     }
     Ok(())
@@ -1115,6 +1178,15 @@ fn prepare_checkpoint_input(
         )));
     }
     run_cfg.state = checkpoint.state;
+    // A saved state owns its envelope profile, even if its elapsed timer was
+    // reset externally. The configuration-start option must never replace it.
+    run_cfg.config.control_ehc_initial_profile = false;
+    // `iter_safe` describes the OHM state type, not the model state: OHM, AnOHM
+    // and DyOHM histories must be reset on every inner surface-temperature
+    // pass. Checkpoints written before that was fixed carry `iter_safe = true`,
+    // which would silently switch the reset off on resume, so the stored flag
+    // is ignored here.
+    run_cfg.state.ohm_state.iter_safe = false;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];
@@ -1137,6 +1209,7 @@ fn prepare_checkpoint_input(
 
     validate_dyohm_material_inputs(&run_cfg)?;
     validate_checkpoint_ehc_temperatures(&run_cfg)?;
+    validate_checkpoint_stebbs_state(&run_cfg)?;
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -1275,6 +1348,14 @@ pub fn run_simulation_into(
         });
     }
 
+    validate_forcing_block_for_emissions(
+        &input.forcing_block,
+        input.len_sim,
+        MET_FORCING_COLS,
+        input.config.emissions_method,
+    )
+    .map_err(simulation_error)?;
+
     let timer_in = input.timer.to_flat();
     let config_in = input.config.to_flat();
     let site_members = encode_site_members(&input.site)?;
@@ -1292,8 +1373,39 @@ pub fn run_simulation_into(
         input.ndepth,
     )?;
 
+    let out_stebbs_bldg_count = if !input.state.stebbs_state.buildings.is_empty() {
+        input.state.stebbs_state.buildings.len()
+    } else if matches!(input.config.stebbs_method, 1 | 2) {
+        1
+    } else {
+        0
+    };
+    let out_stebbs_bldg_nlayer = if out_stebbs_bldg_count > 0 {
+        input.nlayer as usize
+    } else {
+        0
+    };
+    let out_stebbs_len =
+        stebbs_state_expected_flat_len(out_stebbs_bldg_count, out_stebbs_bldg_nlayer)?;
+
+    let mut state_out_toc = vec![0_i32; STATE_MEMBER_COUNT * 2];
+    let mut state_out_total_len = 0_usize;
+    for member_idx in 0..STATE_MEMBER_COUNT {
+        let len = if member_idx == STATE_MEMBER_STEBBS_STATE {
+            out_stebbs_len
+        } else {
+            usize::try_from(state_members.toc[2 * member_idx + 1])
+                .map_err(|_| BridgeError::BadBuffer)?
+        };
+        state_out_toc[2 * member_idx] = i32_len(state_out_total_len, "state output offset")?;
+        state_out_toc[2 * member_idx + 1] = i32_len(len, "state output member length")?;
+        state_out_total_len = state_out_total_len
+            .checked_add(len)
+            .ok_or(BridgeError::BadBuffer)?;
+    }
+
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
-    let mut state_out = vec![0.0_f64; state_members.flat.len()];
+    let mut state_out = vec![0.0_f64; state_out_total_len];
     for (label, table, ncols) in [
         ("data", &out.data, OUTPUT_DATA_COLS),
         ("datetime", &out.datetime, OUTPUT_DATETIME_COLS),
@@ -1326,6 +1438,7 @@ pub fn run_simulation_into(
     let len_sim_i32 = i32_len(input.len_sim, "len_sim")?;
     let forcing_cols_i32 = i32_len(MET_FORCING_COLS, "forcing column count")?;
     let state_out_len_i32 = i32_len(state_out.len(), "state output length")?;
+    let state_out_toc_len_i32 = i32_len(state_out_toc.len(), "state output toc length")?;
     let output_reach = reach_i64(&out.data, "output")?;
     let output_ld_i32 = i32_len(out.data.ld, "output leading dimension")?;
     let datetime_reach = reach_i64(&out.datetime, "datetime output")?;
@@ -1361,6 +1474,8 @@ pub fn run_simulation_into(
             timer_len_i32,
             state_out.as_mut_ptr(),
             state_out_len_i32,
+            state_out_toc.as_ptr(),
+            state_out_toc_len_i32,
             out.data.ptr.as_ptr(),
             output_reach,
             output_ld_i32,
@@ -1381,6 +1496,13 @@ pub fn run_simulation_into(
     }
 
     if err != ffi::SUEWS_CAPI_OK {
+        let message = unsafe { CStr::from_ptr(sim_err_message.as_ptr()) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        if err == ffi::SUEWS_CAPI_BAD_BUFFER && !message.is_empty() {
+            return Err(BridgeError::BadBufferDetail(message));
+        }
         return Err(BridgeError::from_code(err));
     }
 
@@ -1399,9 +1521,10 @@ pub fn run_simulation_into(
     let state = decode_state_members(
         &input.state,
         &state_out,
-        &state_members.toc,
+        &state_out_toc,
         input.nlayer as usize,
         input.ndepth as usize,
+        out_stebbs_bldg_nlayer,
     )?;
 
     let warnings = decode_kernel_warnings(
@@ -1419,6 +1542,7 @@ pub fn run_simulation_into(
     })
 }
 
+// contract: C-STRICT, C-NATIVE-ERROR, C-OUTPUT, C-RESTART
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1500,6 +1624,220 @@ mod tests {
         run_cfg.config.storage_heat_method = 1;
         validate_checkpoint_ehc_temperatures(&run_cfg)
             .expect("the layout is not checked outside EHC");
+    }
+
+    #[test]
+    fn native_spartacus_failure_preserves_output_buffers() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+        let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        // Exercise the native API, bypassing the YAML validator deliberately:
+        // callers of run_simulation_into can supply typed in-memory inputs.
+        input.config.net_radiation_method = 1003;
+        input.site.spartacus_layer.building_frac[0] = 0.2;
+        input.site.spartacus_layer.building_frac[1] = 0.4;
+        let sentinel = 12345.0;
+        let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+        let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+        let result = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        );
+        assert!(matches!(
+            result,
+            Err(BridgeError::SimulationError { code: 111, .. })
+        ));
+        // No failed or later timestep may publish any output, including time.
+        assert!(data.iter().all(|value| *value == sentinel));
+        assert!(datetime.iter().all(|value| *value == sentinel));
+    }
+
+    #[test]
+    fn spartacus_layer_nspec_mismatch_is_rejected_at_ffi_boundary() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+        let mut input = prepare_fresh_input(yaml, row, 1).unwrap();
+        let nlayer = input.site.spartacus_layer.nlayer;
+        assert_eq!(input.site.spartacus_layer.nspec, 1);
+
+        // Oversized nspec = 2 must be rejected rather than silently unpacking
+        // spec-2 roof_albedo_dir_mult_fact into wall_specular_frac.
+        input.site.spartacus_layer.nspec = 2;
+        input
+            .site
+            .spartacus_layer
+            .roof_albedo_dir_mult_fact
+            .resize(2 * nlayer, 1.0);
+        input
+            .site
+            .spartacus_layer
+            .wall_specular_frac
+            .resize(2 * nlayer, 0.0);
+
+        let mut data = vec![0.0; OUTPUT_DATA_COLS];
+        let mut datetime = vec![0.0; OUTPUT_DATETIME_COLS];
+        let result = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 1, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 1, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        );
+        let expected_len = 9 * nlayer + 2 * nlayer;
+        let received_len = 9 * nlayer + 2 * 2 * nlayer;
+        let err = result.expect_err("oversized spartacus_layer nspec must be rejected");
+        let msg = match &err {
+            BridgeError::BadBufferDetail(msg) => msg.as_str(),
+            other => panic!(
+                "expected BadBufferDetail for oversized spartacus_layer nspec, got {other:?}"
+            ),
+        };
+        assert!(
+            msg.contains("spartacus_layer"),
+            "expected spartacus_layer in diagnostic, got: {msg}"
+        );
+        assert!(
+            msg.contains(&format!("received {received_len}"))
+                && msg.contains(&format!("expected {expected_len}")),
+            "expected received/expected lengths in diagnostic, got: {msg}"
+        );
+        assert!(
+            msg.contains(&format!("nlayer={nlayer}")) && msg.contains("nspec=1"),
+            "expected nlayer and compile-time nspec in diagnostic, got: {msg}"
+        );
+        assert!(
+            err.to_string().contains("spartacus_layer"),
+            "expected Display formatting to preserve diagnostic, got: {err}"
+        );
+    }
+
+    #[test]
+    fn native_invalid_emissions_method_triggers_fortran_error_73() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+
+        for invalid_code in [7, 17, 20, 47] {
+            let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+            // Bypass YAML allowlist to exercise the Fortran kernel guard directly.
+            input.config.emissions_method = invalid_code;
+            let sentinel = 12345.0;
+            let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+            let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+            let result = run_simulation_into(
+                input,
+                OutputBuffers {
+                    data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                    datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS)
+                        .unwrap(),
+                },
+            );
+            match result {
+                Err(BridgeError::SimulationError { code: 73, message }) => {
+                    assert!(
+                        message.contains("EmissionsMethod"),
+                        "emissions={invalid_code} error message should mention EmissionsMethod: {message}"
+                    );
+                }
+                other => panic!(
+                    "expected SimulationError code 73 for emissions={invalid_code}, got {other:?}"
+                ),
+            }
+            assert!(data.iter().all(|value| *value == sentinel));
+            assert!(datetime.iter().all(|value| *value == sentinel));
+        }
+    }
+
+    #[test]
+    fn observed_emissions_rejects_missing_qf_and_accepts_valid_qf() {
+        use super::{
+            prepare_fresh_input, run_simulation_into, OutputBuffers, OutputMatrix,
+            MET_FORCING_COLS, OUTPUT_DATA_COLS, OUTPUT_DATETIME_COLS,
+        };
+        use crate::error::BridgeError;
+        use crate::forcing::SuewsField;
+
+        let yaml = include_str!("../../../test/fixtures/bridge/sample_resolved.yml");
+        let mut row = vec![-999.0; MET_FORCING_COLS];
+        row[..4].copy_from_slice(&[2012.0, 1.0, 12.0, 0.0]);
+        row[9..15].copy_from_slice(&[2.0, 60.0, 20.0, 1013.0, 0.0, 500.0]);
+        row[16] = 350.0;
+
+        // Missing qf (-999) with emissions=0 must fail before stepping Fortran.
+        let mut input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        input.config.emissions_method = 0;
+        let sentinel = 12345.0;
+        let mut data = vec![sentinel; 3 * OUTPUT_DATA_COLS];
+        let mut datetime = vec![sentinel; 3 * OUTPUT_DATETIME_COLS];
+        let err = run_simulation_into(
+            input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime, 3, OUTPUT_DATETIME_COLS).unwrap(),
+            },
+        )
+        .expect_err("emissions=0 with missing qf must fail");
+        assert!(
+            matches!(err, BridgeError::SimulationError { ref message, .. }
+                if message.contains("forcing column 'qf'") && message.contains("emissions=0")),
+            "unexpected error: {err}"
+        );
+        assert!(data.iter().all(|value| *value == sentinel));
+        assert!(datetime.iter().all(|value| *value == sentinel));
+
+        // Valid observed qf (25.0 W m-2) succeeds and flows into SUEWS QF (data col 6).
+        row[SuewsField::qf_obs.index()] = 25.0;
+        let mut valid_input = prepare_fresh_input(yaml, row.repeat(3), 3).unwrap();
+        valid_input.config.emissions_method = 0;
+        let mut data_ok = vec![0.0; 3 * OUTPUT_DATA_COLS];
+        let mut datetime_ok = vec![0.0; 3 * OUTPUT_DATETIME_COLS];
+        run_simulation_into(
+            valid_input,
+            OutputBuffers {
+                data: OutputMatrix::from_slice(&mut data_ok, 3, OUTPUT_DATA_COLS).unwrap(),
+                datetime: OutputMatrix::from_slice(&mut datetime_ok, 3, OUTPUT_DATETIME_COLS)
+                    .unwrap(),
+            },
+        )
+        .expect("emissions=0 with valid observed qf must succeed");
+        // Column-major layout: element (r, c) is at c * nrows + r. SUEWS QF is col 6.
+        let qf_col = 6;
+        for step in 0..3 {
+            let qf_out = data_ok[qf_col * 3 + step];
+            assert!(
+                (qf_out - 25.0).abs() < 1e-12,
+                "step {step}: expected QF=25.0, got {qf_out}"
+            );
+        }
     }
 
     #[test]
@@ -1721,5 +2059,74 @@ mod kernel_warning_tests {
         assert_eq!(decoded.total, 1);
         let empty = decode_kernel_warnings(0, 0, &timer, &text, 8);
         assert_eq!(empty, KernelWarnings::default());
+    }
+}
+
+#[cfg(test)]
+mod stebbs_checkpoint_validation_tests {
+    use super::*;
+    use crate::stebbs_state::StebbsBldg;
+
+    fn sample_stebbs_run_cfg(stebbs_method: i32, nlayer: i32) -> RunConfig {
+        let yaml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test/fixtures/bridge/stebbs_resolved.yml");
+        let yaml_str =
+            std::fs::read_to_string(&yaml_path).expect("stebbs_resolved.yml fixture must be readable");
+        let mut run_cfg = crate::yaml_config::load_run_config_from_str(&yaml_str)
+            .expect("stebbs_resolved.yml fixture must load");
+        run_cfg.config.stebbs_method = stebbs_method;
+        run_cfg.nlayer = nlayer;
+        run_cfg
+    }
+
+    #[test]
+    fn rejects_initialized_stebbs_without_buildings() {
+        let mut run_cfg = sample_stebbs_run_cfg(1, 3);
+        run_cfg.state.flag_state.stebbs_bldg_init = 1;
+        run_cfg.state.stebbs_state.buildings.clear();
+        run_cfg.state.stebbs_state.bldg_nlayer = 0;
+
+        let err = validate_checkpoint_stebbs_state(&run_cfg)
+            .expect_err("stebbs_bldg_init=1 with empty buildings must fail");
+        assert!(
+            err.to_string().contains("STEBBS_STATE%buildings(:)"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_mismatched_bldg_nlayer() {
+        let mut run_cfg = sample_stebbs_run_cfg(1, 3);
+        run_cfg.state.flag_state.stebbs_bldg_init = 1;
+        run_cfg.state.stebbs_state.bldg_nlayer = 5;
+        run_cfg.state.stebbs_state.buildings = vec![StebbsBldg::with_nlayer(5)];
+
+        let err = validate_checkpoint_stebbs_state(&run_cfg)
+            .expect_err("mismatched bldg_nlayer must fail");
+        assert!(
+            err.to_string().contains("bldg_nlayer = 5"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn accepts_valid_initialized_and_cold_start_stebbs() {
+        let mut cold = sample_stebbs_run_cfg(1, 3);
+        cold.state.flag_state.stebbs_bldg_init = 0;
+        cold.state.stebbs_state.buildings.clear();
+        cold.state.stebbs_state.bldg_nlayer = 0;
+        validate_checkpoint_stebbs_state(&cold).expect("cold start STEBBS should be accepted");
+
+        let mut warm = sample_stebbs_run_cfg(1, 3);
+        warm.state.flag_state.stebbs_bldg_init = 1;
+        warm.state.stebbs_state.bldg_nlayer = 3;
+        warm.state.stebbs_state.buildings = vec![StebbsBldg::with_nlayer(3)];
+        validate_checkpoint_stebbs_state(&warm).expect("warm start STEBBS should be accepted");
+
+        let mut disabled = sample_stebbs_run_cfg(0, 3);
+        disabled.state.flag_state.stebbs_bldg_init = 1;
+        disabled.state.stebbs_state.buildings.clear();
+        validate_checkpoint_stebbs_state(&disabled)
+            .expect("STEBBS disabled skips STEBBS buildings validation");
     }
 }

@@ -3634,13 +3634,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     dectr:
       state:
         value: 0.0
@@ -3675,13 +3668,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
       porosity_id:
         value: 0.6
       decidcap_id:
@@ -3720,13 +3706,6 @@ sites:
         value: 0.0
       sdd_id:
         value: -450.0
-      wu:
-        wu_total:
-          value: 0.0
-        wu_auto:
-          value: 0.0
-        wu_manual:
-          value: 0.0
     bsoil:
       state:
         value: 0.0
@@ -3871,22 +3850,6 @@ sites:
         value: 5.0
       tin:
         value: 5.0
-    dqndt_surf:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    qn_surfs:
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
-    - 0.0
     hdd_id:
     - 13.5
     - 13.5

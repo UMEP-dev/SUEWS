@@ -1,10 +1,13 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
-   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day_sp
+   USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite, ieee_value, ieee_quiet_nan
    IMPLICIT NONE
+   PRIVATE :: invalid_stability_zl
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
@@ -131,14 +134,13 @@ CONTAINS
 
       REAL(KIND(1D0)) :: tair_av_next
 
-      REAL(KIND(1D0)), PARAMETER :: len_day_s = sec_per_day_sp ! day length in seconds
       REAL(KIND(1D0)) :: len_cal_s ! length of average period in seconds
       REAL(KIND(1D0)) :: temp_k ! temp in K
 
       ! determine the average period
-      IF (dt_since_start > len_day_s) THEN
+      IF (dt_since_start > sec_per_day) THEN
          ! if simulation has been running over one day
-         len_cal_s = len_day_s
+         len_cal_s = sec_per_day
       ELSE
          ! if simulation has been running less than one day
          len_cal_s = dt_since_start + tstep
@@ -265,7 +267,6 @@ CONTAINS
       modState) ! optional: for thread-safe error logging
       USE module_ctrl_const_physconst, ONLY: C2K
       USE module_ctrl_error_state, ONLY: supy_error_flag
-      USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod
 
@@ -621,6 +622,17 @@ CONTAINS
 
    END FUNCTION
 
+   FUNCTION invalid_stability_zl(proc_name, reason) RESULT(res)
+      ! Record fatal error 112 and return quiet NaN so neither uninitialised
+      ! locals nor plausible finite fallbacks leak downstream (GH#2171).
+      CHARACTER(LEN=*), INTENT(IN) :: proc_name
+      CHARACTER(LEN=*), INTENT(IN) :: reason
+      REAL(KIND(1D0)) :: res
+
+      CALL set_supy_error(112, TRIM(proc_name)//': '//TRIM(reason))
+      res = ieee_value(0.0D0, ieee_quiet_nan)
+   END FUNCTION invalid_stability_zl
+
    ! ------------------------------------
    ! Jimenez et al. (2012) forms for WRF
    ! https://doi.org/10.1175/mwr-d-11-00056.1
@@ -630,7 +642,9 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: b = 2.5
       REAL(KIND(1D0)) :: zl, psim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psim = invalid_stability_zl('psi_mom_J12', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Jimenez et al. (2012), eqn 17
@@ -639,6 +653,8 @@ CONTAINS
          ! Jimenez et al. (2012), eqn 18:
          ! Cheng and Brutsaert (2005)
          psim = psi_mom_CB05(zL)
+      ELSE
+         psim = invalid_stability_zl('psi_mom_J12', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -648,7 +664,9 @@ CONTAINS
       ! equations below are derived from related original formulations
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phim = invalid_stability_zl('phi_mom_J12', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          ! derivative of eqn 17 in Jimenez et al. (2012)
@@ -656,6 +674,8 @@ CONTAINS
       ELSEIF (zL > neut_limit) THEN
          ! derivative of eqn 18 in Jimenez et al. (2012)
          phim = phi_mom_CB05(zL)
+      ELSE
+         phim = invalid_stability_zl('phi_mom_J12', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -664,7 +684,9 @@ CONTAINS
       ! Jimenez et al. (2012), eqn 17 and 19
       REAL(KIND(1D0)) :: zl, psih
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psih = invalid_stability_zl('psi_heat_J12', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Jimenez et al. (2012), eqn 17
@@ -673,6 +695,8 @@ CONTAINS
          ! Jimenez et al. (2012), eqn 19:
          ! Cheng and Brutsaert (2005)
          psih = psi_heat_CB05(ZL)
+      ELSE
+         psih = invalid_stability_zl('psi_heat_J12', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -680,12 +704,16 @@ CONTAINS
    FUNCTION phi_heat_J12(ZL) RESULT(phih)
       REAL(KIND(1D0)) :: zl, phih
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phih = invalid_stability_zl('phi_heat_J12', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          phih = phi_heat_G00(ZL)
       ELSEIF (zL > neut_limit) THEN
          phih = phi_heat_CB05(ZL)
+      ELSE
+         phih = invalid_stability_zl('phi_heat_J12', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -704,7 +732,9 @@ CONTAINS
       REAL(KIND(1D0)) :: psim_k
       REAL(KIND(1D0)) :: psim_c
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psim = invalid_stability_zl('psi_mom_G00', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Kansas part:
@@ -714,6 +744,8 @@ CONTAINS
          ! zL weighted sum:
          psim = DOT_PRODUCT([psim_k, psim_c], [1D0, zL**2])
          psim = psim/SUM([1D0, zL**2])
+      ELSE
+         psim = invalid_stability_zl('psi_mom_G00', 'stable z/L > neut_limit outside unstable/neutral G00 domain')
       END IF
 
    END FUNCTION
@@ -727,7 +759,9 @@ CONTAINS
       REAL(KIND(1D0)) :: psih_k
       REAL(KIND(1D0)) :: psih_c
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psih = invalid_stability_zl('psi_heat_G00', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Kansas part:
@@ -737,7 +771,8 @@ CONTAINS
          ! zL weighted sum:
          psih = DOT_PRODUCT([psih_k, psih_c], [1D0, zL**2])
          psih = psih/SUM([1D0, zL**2])
-
+      ELSE
+         psih = invalid_stability_zl('psi_heat_G00', 'stable z/L > neut_limit outside unstable/neutral G00 domain')
       END IF
 
    END FUNCTION
@@ -757,7 +792,9 @@ CONTAINS
       REAL(KIND(1D0)) :: phim_C ! convective part
       ! REAL(KIND(1D0)):: psim_C ! convective part
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phim = invalid_stability_zl('phi_mom_G00', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          ! kansas
@@ -774,7 +811,8 @@ CONTAINS
          ! weighted sum:
          phim = DOT_PRODUCT([phim_k, phim_c], [1D0, zL**2])
          phim = phim/SUM([1D0, zL**2])
-
+      ELSE
+         phim = invalid_stability_zl('phi_mom_G00', 'stable z/L > neut_limit outside unstable/neutral G00 domain')
       END IF
 
    END FUNCTION
@@ -787,7 +825,9 @@ CONTAINS
       REAL(KIND(1D0)) :: phih_C ! convective part
       ! REAL(KIND(1D0)):: psih_C ! convective part
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phih = invalid_stability_zl('phi_heat_G00', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          ! kansas
@@ -800,7 +840,8 @@ CONTAINS
 
          phih = DOT_PRODUCT([phih_k, phih_c], [1D0, zL**2])
          phih = phih/SUM([1D0, zL**2])
-
+      ELSE
+         phih = invalid_stability_zl('phi_heat_G00', 'stable z/L > neut_limit outside unstable/neutral G00 domain')
       END IF
 
    END FUNCTION
@@ -808,7 +849,6 @@ CONTAINS
    FUNCTION psi_conv(ZL, ax) RESULT(psiC)
       ! Grachev et al. (2000), eqn 12
       REAL(KIND(1D0)) :: zl, psiC, y, ax
-      REAL(KIND(1D0)), PARAMETER :: pi = ACOS(-1.)
 
       y = (1 - ax*zl)**(1/3.)
       psiC = 3./2*LOG(y**2 + y + 1/3.) - SQRT(3.)*ATAN(2*y + 1/SQRT(3.)) + pi/SQRT(3.)
@@ -818,7 +858,6 @@ CONTAINS
    FUNCTION phi_conv(ZL, ax) RESULT(phiC)
       ! Grachev et al. (2000), eqn 15
       REAL(KIND(1D0)) :: zl, phiC, ax, dPsi_dzL
-      REAL(KIND(1D0)), PARAMETER :: pi = ACOS(-1.)
 
       ! d(psi_conv)/d(zL)
       dPsi_dzL = (9 + 4*(-3 + SQRT(3.))*ax*zL - 9*(1 - ax*zL)**(1/3.))/ &
@@ -871,10 +910,14 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: b = 2.5
       REAL(KIND(1D0)) :: zl, psim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psim = invalid_stability_zl('psi_mom_CB05', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL > neut_limit) THEN
          psim = psi_CB05(ZL, a, b)
+      ELSE
+         psim = invalid_stability_zl('psi_mom_CB05', 'unstable z/L < -neut_limit outside stable/neutral CB05 domain')
       END IF
 
    END FUNCTION
@@ -885,10 +928,14 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: d = 1.1
       REAL(KIND(1D0)) :: zl, psih
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psih = invalid_stability_zl('psi_heat_CB05', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL > neut_limit) THEN
          psih = psi_CB05(ZL, c, d)
+      ELSE
+         psih = invalid_stability_zl('psi_heat_CB05', 'unstable z/L < -neut_limit outside stable/neutral CB05 domain')
       END IF
 
    END FUNCTION
@@ -909,10 +956,14 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: b = 2.5
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phim = invalid_stability_zl('phi_mom_CB05', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL > neut_limit) THEN
          phim = phi_CB05(ZL, a, b)
+      ELSE
+         phim = invalid_stability_zl('phi_mom_CB05', 'unstable z/L < -neut_limit outside stable/neutral CB05 domain')
       END IF
 
    END FUNCTION
@@ -923,11 +974,15 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: d = 1.1
       REAL(KIND(1D0)) :: zl, phih, zld
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phih = invalid_stability_zl('phi_heat_CB05', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL > neut_limit) THEN
          zld = zl**d
          phih = phi_CB05(ZL, c, d)
+      ELSE
+         phih = invalid_stability_zl('phi_heat_CB05', 'unstable z/L < -neut_limit outside stable/neutral CB05 domain')
       END IF
 
    END FUNCTION
@@ -940,12 +995,16 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.22 and 7.23 p 97
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phim = invalid_stability_zl('phi_mom_K75', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          phim = 1/(1 - 16*zl)**.25
       ELSEIF (zL > neut_limit) THEN
          phim = 1 + 6*zl/(1 + zL)
+      ELSE
+         phim = invalid_stability_zl('phi_mom_K75', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -954,12 +1013,16 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.22 and 7.23 p 97
       REAL(KIND(1D0)) :: zl, phih
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phih = invalid_stability_zl('phi_heat_K75', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          phih = phi_mom_K75(zl)**2
       ELSEIF (zL > neut_limit) THEN
          phih = phi_mom_K75(ZL)
+      ELSE
+         phih = invalid_stability_zl('phi_heat_K75', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -968,12 +1031,16 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.26 and 7.27 p 97
       REAL(KIND(1D0)) :: zl, psim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psim = invalid_stability_zl('psi_mom_K75', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          psim = 0.6*psi_heat_K75(ZL)
       ELSEIF (zL > neut_limit) THEN
          psim = psi_heat_K75(ZL)
+      ELSE
+         psim = invalid_stability_zl('psi_mom_K75', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -982,12 +1049,16 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.26 and 7.27 p 97
       REAL(KIND(1D0)) :: zl, psih
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psih = invalid_stability_zl('psi_heat_K75', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          psih = (2)*LOG((1 + (1 - 16*zl)**0.5)/2)
       ELSEIF (zL > neut_limit) THEN
          psih = (-6)*LOG(1 + zl)
+      ELSE
+         psih = invalid_stability_zl('psi_heat_K75', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -1001,12 +1072,16 @@ CONTAINS
       ! modified by Hogstrom (1988): see Table VI
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phim = invalid_stability_zl('phi_mom_B71', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          phim = (1.-19.3*zl)**(-0.25)
       ELSEIF (zL > neut_limit) THEN
          phim = 1 + 6*zl
+      ELSE
+         phim = invalid_stability_zl('phi_mom_B71', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -1016,30 +1091,37 @@ CONTAINS
       ! modified by Hogstrom (1988): see Table VII
       REAL(KIND(1D0)) :: zl, phih
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         phih = invalid_stability_zl('phi_heat_B71', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          phih = 0.95*(1.-11.6*zl)**(-0.5)
       ELSEIF (zL > neut_limit) THEN
          phih = 0.95 + 7.8*zl
+      ELSE
+         phih = invalid_stability_zl('phi_heat_B71', 'non-finite z/L')
       END IF
 
    END FUNCTION
 
    FUNCTION psi_mom_B71(ZL) RESULT(psim)
       ! integral form of phi_mom_B71
-      REAL(KIND(1D0)), PARAMETER :: PIOVER2 = ACOS(-1.)/2.
       REAL(KIND(1D0)) :: zl, psim, x, x2
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psim = invalid_stability_zl('psi_mom_B71', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          x = (1 - 19.3*zl)**(0.25)
          X2 = LOG((1 + (X**2.))/2.)
-         psim = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + PIOVER2
+         psim = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + pi/2.0D0
 
       ELSEIF (zL > neut_limit) THEN
          psim = (-6)*zl
+      ELSE
+         psim = invalid_stability_zl('psi_mom_B71', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -1048,7 +1130,9 @@ CONTAINS
       ! integral form of phi_heat_B71
       REAL(KIND(1D0)) :: zl, psih, x
 
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psih = invalid_stability_zl('psi_heat_B71', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          x = 0.95*(1.-11.6*zl)**(0.5)
@@ -1059,6 +1143,8 @@ CONTAINS
          ELSE
             psih = (-7.8)*(1 + LOG(zl))
          END IF
+      ELSE
+         psih = invalid_stability_zl('psi_heat_B71', 'non-finite z/L')
       END IF
 
    END FUNCTION
@@ -1078,22 +1164,25 @@ CONTAINS
       IMPLICIT NONE
 
       ! REAL (KIND(1d0)), PARAMETER :: neut_limit = 1.E-4 ! Limit for neutral stability (Assumed from context)
-      REAL(KIND(1D0)) :: piover2, psym, zl, x, x2
+      REAL(KIND(1D0)) :: psym, zl, x, x2
 
-      PIOVER2 = ACOS(-1.)/2.
       !PRINT*,StabilityMethod,zl,"stab_fn_mom:" ! Original print statement commented out
-      IF (ABS(zL) <= neut_limit) THEN
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psym = invalid_stability_zl('psi_mom_W16', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN
          psym = 0
       ELSEIF (zL < -neut_limit) THEN !Unstable
          !Dyer (1974)(1-16z/L)**.25' k=0.41  mod. Hogstrom (1988)v15.2
          X = (1.-(15.2*zl))**0.25
          X2 = LOG((1 + (X**2.))/2.)
-         PSYM = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + PIOVER2
+         PSYM = (2.*LOG((1 + X)/2.)) + X2 - (2.*ATAN(X)) + pi/2.0D0
 
       ELSEIF (zL > neut_limit) THEN !Stable
          !Van Ulden & Holtslag (1985) p 1206
          PSYM = (-17.*(1.-EXP(-0.29*zl)))
 
+      ELSE
+         psym = invalid_stability_zl('psi_mom_W16', 'non-finite z/L')
       END IF
       RETURN
    END FUNCTION psi_mom_W16
@@ -1113,7 +1202,9 @@ CONTAINS
       ! REAL (KIND(1d0)), PARAMETER :: neut_limit = 1.E-4 ! Limit for neutral stability (Assumed from context)
       REAL(KIND(1D0)) :: zl, psyh, x
 
-      IF (ABS(zL) <= neut_limit) THEN !Neutral
+      IF (.NOT. ieee_is_finite(zL)) THEN
+         psyh = invalid_stability_zl('psi_heat_W16', 'non-finite z/L')
+      ELSEIF (ABS(zL) <= neut_limit) THEN !Neutral
          psyh = 0
       ELSEIF (zL < -neut_limit) THEN ! Unstable
          ! Dyer 1974 X=(1.-(16.*ZL))**(0.5)modified Hosgstrom
@@ -1123,6 +1214,8 @@ CONTAINS
       ELSE IF (zL > neut_limit) THEN !Stable
          ! Dyer (1974)  PSYH=(-5)*ZL        modifed  Hogstrom (1988) (implicit else case)
          PSYH = (-4.5)*Zl
+      ELSE
+         psyh = invalid_stability_zl('psi_heat_W16', 'non-finite z/L')
       END IF
 
       RETURN

@@ -142,7 +142,14 @@ Run the multi-version regression gate (`benchmark/REPRODUCE.md`) **before** merg
 
 ## Step 5: CHANGELOG Analysis
 
-Use `/log-changes` or inspect commits since the last formal release:
+First fold the per-PR fragments in `changes/` into `CHANGELOG.md` (see `changes/README.md`). Do this before tagging: the release workflow cuts the GitHub Release notes from the `### D Mon YYYY` section of `CHANGELOG.md`, so an unfolded fragment is silently missing from them.
+
+```bash
+python scripts/suews/fold_changelog.py --dry-run   # review
+python scripts/suews/fold_changelog.py             # write CHANGELOG.md, delete fragments
+```
+
+Then use `/log-changes` or inspect commits since the last formal release for anything merged without a fragment:
 
 ```bash
 LAST_RELEASE=$(git tag -l "[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | grep -v -E "dev" | head -1)
@@ -177,7 +184,7 @@ Edit `docs/source/version-history/v${VERSION}.rst`:
 
 ### Knowledge Pack Freshness Gate
 
-`src/supy/meson.build` builds the embedded knowledge pack (`manifest.json` and `chunks.jsonl.gz`) into `@OUTDIR@` on every wheel build (`build_always_stale: true`), so `src/supy/knowledge/pack/current/` is intentionally **untracked** in git -- never commit generated `.gz` pack artefacts into `src/supy/`. Verify pack generation cleanly against the release base via:
+`src/supy/meson.build` builds the embedded knowledge pack (`manifest.json` and `chunks.jsonl.gz`) into `@OUTDIR@` on every wheel build (an editable install rebuilds it only when a packed source, the Git index or `HEAD` changes), so `src/supy/knowledge/pack/current/` is intentionally **untracked** in git -- never commit generated `.gz` pack artefacts into `src/supy/`. Verify pack generation cleanly against the release base via:
 
 ```bash
 python scripts/lint/check_knowledge_pack_freshness.py --base "${LAST_RELEASE}"
@@ -223,7 +230,7 @@ Update the parent release issue (`2-meta:release`) with the governance and bench
 ## Step 9: Submit PR and Merge
 
 ```bash
-git add CHANGELOG.md docs/source/version-history/ docs/source/inputs/tables/schema.json .github/releases/
+git add CHANGELOG.md changes/ docs/source/version-history/ docs/source/inputs/tables/schema.json .github/releases/
 # Include schema collapse, sample_short, and release_configs files if updated (never src/supy/knowledge/pack/current/)
 git commit -m "docs: prepare release $VERSION"
 git push -u origin "release/$VERSION"

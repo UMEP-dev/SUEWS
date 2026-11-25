@@ -55,8 +55,8 @@ impl AnthroEmisState {
             value
         };
 
-        for i in 0..ANTHROEMIS_STATE_HDD_LEN {
-            state.hdd_id[i] = next();
+        for slot in &mut state.hdd_id {
+            *slot = next();
         }
         state.fc = next();
         state.fc_anthro = next();
@@ -137,6 +137,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_anthroemis_state_schema_version,
     ffi_default_fn = ffi::suews_anthroemis_state_default,
 }
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

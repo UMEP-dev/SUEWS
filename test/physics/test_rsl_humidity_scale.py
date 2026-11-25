@@ -17,7 +17,7 @@ from conftest import TIMESTEPS_PER_DAY
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 # Two levels above the canopy, where both profiles follow the same
 # stability function.

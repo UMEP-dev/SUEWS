@@ -332,8 +332,8 @@ impl StebbsPrm {
         flat.push(self.dhw_surface_area);
         flat.push(self.hot_water_flow_rate);
 
-        for day_type in 0..STEBBS_PRM_PROFILE_GROUPS {
-            flat.extend_from_slice(&self.hot_water_flow_profile[day_type]);
+        for row in &self.hot_water_flow_profile {
+            flat.extend_from_slice(row);
         }
 
         flat.push(self.dhw_specific_heat_capacity);
@@ -449,6 +449,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_stebbs_prm_schema_version,
     ffi_default_fn = ffi::suews_stebbs_prm_default,
 }
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

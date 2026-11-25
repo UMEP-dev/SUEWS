@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -172,7 +173,7 @@ def load_sample_output(data_dir: Path) -> pd.DataFrame:
 # -- never because a hashing implementation changed underneath it.
 
 
-def _file_digest(path: Path) -> tuple[str, int]:
+def reference_file_digest(path: Path) -> tuple[str, int]:
     """SHA-256 and byte count of a file with CRLF folded to LF."""
     digest = hashlib.sha256()
     size = 0
@@ -204,7 +205,7 @@ def shard_identities(data_dir: Path) -> list[dict[str, Any]]:
     data_dir = Path(data_dir)
     identities = []
     for path in sorted(data_dir.glob(SHARD_GLOB)):
-        sha256, size_bytes = _file_digest(path)
+        sha256, size_bytes = reference_file_digest(path)
         identities.append({
             "name": path.name,
             "size_bytes": size_bytes,
@@ -382,8 +383,29 @@ def reference_environment_mismatch(
     return None
 
 
+def reference_source(repo_root: Path) -> dict[str, str | None]:
+    """Use SUEWS_REFERENCE_SOURCE_REF to cite a PR for unpublished commits.
+
+    The Git tree of src identifies the exact model sources across rebases.
+    A normal regeneration records the commit itself, including on detached HEAD.
+    """
+
+    def revision(ref: str) -> str:
+        return subprocess.check_output(
+            ["git", "rev-parse", ref], cwd=repo_root, text=True
+        ).strip()
+
+    public_ref = os.environ.get("SUEWS_REFERENCE_SOURCE_REF")
+    commit = None if public_ref else revision("HEAD")
+    return {
+        "source_ref": public_ref or commit,
+        "source_commit": commit,
+        "source_tree": revision("HEAD:src"),
+    }
+
+
 def write_reference_provenance(
-    df: pd.DataFrame, data_dir: Path, repo_root: Path
+    df: pd.DataFrame, data_dir: Path, repo_root: Path, *, source: dict | None = None
 ) -> Path:
     """Write ``provenance.json`` beside the shards; return its path.
 
@@ -404,6 +426,14 @@ def write_reference_provenance(
         "build": build_identity(repo_root),
         "platform": platform_identity(),
     }
+    if source is not None:
+        # A public reference can identify an unpublished build across a rebase.
+        # Keep the measured build commit for ordinary published regenerations.
+        payload["build"].update(
+            source_ref=source["source_ref"], source_tree=source["source_tree"]
+        )
+        if source["source_commit"] is None:
+            payload["build"]["git_commit"] = None
     path = data_dir / PROVENANCE_FILENAME
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True) + "\n",

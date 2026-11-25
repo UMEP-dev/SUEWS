@@ -40,10 +40,10 @@ MODULE module_phys_spartacus
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
    USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp, p_ref_pa_d0
    USE module_phys_beers, ONLY: diffusefraction
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_type, ONLY: error_state
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN, IEEE_IS_FINITE
-   USE module_ctrl_const_mathconst, ONLY: pi_d0
+   USE module_ctrl_const_mathconst, ONLY: pi, DEG2RAD
    IMPLICIT NONE
 
 CONTAINS
@@ -216,7 +216,6 @@ CONTAINS
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE module_ctrl_const_mathconst, ONLY: pi_sp
       IMPLICIT NONE
       !!!!!!!!!!!!!! Set objects and variables !!!!!!!!!!!!!!
 
@@ -412,6 +411,28 @@ CONTAINS
       wall_in_sw_spc = -999.0D0
       wall_in_lw_spc = -999.0D0
       dataOutLineSPARTACUS = -999.0D0
+      IF (ANY(.NOT. IEEE_IS_FINITE(building_frac)) .OR. &
+          ANY(building_frac < 0D0) .OR. ANY(building_frac > 1D0)) THEN
+         CALL set_supy_error(111, 'SPARTACUS: building_frac must be finite and in [0,1]')
+         RETURN
+      END IF
+      IF (ANY(building_frac(2:nlayer) > building_frac(1:nlayer-1))) THEN
+         CALL set_supy_error(111, 'SPARTACUS: building_frac cannot increase with height')
+         RETURN
+      END IF
+      IF (MIN(n_stream_sw_urban, n_stream_lw_urban, n_stream_sw_forest, n_stream_lw_forest) < 1) THEN
+         CALL set_supy_error(111, 'SPARTACUS: stream counts must be positive')
+         RETURN
+      END IF
+      ! Unvegetated urban columns always use one solver region, independently
+      ! of the configured vegetation count (radsurf ITileUrban contract).
+      IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > eps_fp) THEN
+         IF (MIN(n_vegetation_region_urban, n_vegetation_region_forest) < 1 .OR. &
+             MAX(n_vegetation_region_urban, n_vegetation_region_forest) > 2) THEN
+            CALL set_supy_error(111, 'SPARTACUS: vegetation region counts must be 1 or 2')
+            RETURN
+         END IF
+      END IF
       IF (use_sw_direct_albedo) THEN
          ! Trees use vegetation SSA, not the ground direct-albedo multiplier.
          DO surface = 1, NSURF
@@ -539,6 +560,7 @@ CONTAINS
       config%n_stream_sw_forest = n_stream_sw_forest
       config%n_stream_lw_forest = n_stream_lw_forest
       CALL config%consolidate()
+      IF (supy_error_flag()) RETURN
 
       !!!!!!!!!!!!!! allocate and set canopy_props !!!!!!!!!!!!!!
 
@@ -548,7 +570,7 @@ CONTAINS
 
       ! set cos_sza, nlay, ncol, ntotlay
       ! Guard against negative night-time values to keep radiation geometry physical.
-      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*pi_sp/180))
+      canopy_props%cos_sza = MAX(0.0D0, COS(zenith_deg*DEG2RAD))
       canopy_props%nlay = nlay
       canopy_props%ncol = ncol
       canopy_props%ntotlay = nlayer
@@ -741,9 +763,9 @@ CONTAINS
       sw_spectral_props%ground_albedo = alb_no_tree_bldg ! albedo excluding buildings and trees
       ! Only set roof and wall albedo if building surface fraction is present
       IF (config%do_urban) THEN
-         sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
-         sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
-         sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
+         sw_spectral_props%roof_albedo(1:nspec, 1:nlayer) = roof_albedo(1:nspec, 1:nlayer) ! albedo of buildings
+         sw_spectral_props%wall_albedo(1:nspec, 1:nlayer) = wall_albedo(1:nspec, 1:nlayer) ! albedo of buildings
+         sw_spectral_props%wall_specular_frac(1:nspec, 1:nlayer) = wall_specular_frac(1:nspec, 1:nlayer)
       END IF
       sw_spectral_props%ground_albedo_dir = sw_spectral_props%ground_albedo
       IF (config%do_urban) THEN
@@ -752,7 +774,8 @@ CONTAINS
       IF (config%use_sw_direct_albedo) THEN
          sw_spectral_props%ground_albedo_dir = alb_no_tree_bldg*ground_albedo_dir_mult_fact
          IF (config%do_urban) THEN
-            sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
+            sw_spectral_props%roof_albedo_dir(1:nspec, 1:nlayer) = &
+               roof_albedo(1:nspec, 1:nlayer)*roof_albedo_dir_mult_fact(1:nspec, 1:nlayer)
          END IF
       END IF
 
@@ -790,8 +813,8 @@ CONTAINS
       END IF
       lw_spectral_props%ground_emissivity = emis_no_tree_bldg ! emissivity excluding buildings and trees
       IF (config%do_urban) THEN
-         lw_spectral_props%roof_emissivity = roof_emissivity(nspec, ncol) ! emissivity of buildings
-         lw_spectral_props%wall_emissivity = wall_emissivity(nspec, ncol) ! emissivity of buildings
+         lw_spectral_props%roof_emissivity(1:nspec, 1:nlayer) = roof_emissivity(1:nspec, 1:nlayer) ! emissivity of buildings
+         lw_spectral_props%wall_emissivity(1:nspec, 1:nlayer) = wall_emissivity(1:nspec, 1:nlayer) ! emissivity of buildings
       END IF
 
       ! print *, 'roof_emissivity in suews-su ', roof_emissivity(nspec,:)
@@ -859,6 +882,7 @@ CONTAINS
             ! Gas optics and spectral emission
             CALL calc_simple_spectrum_lw(config, canopy_props, lw_spectral_props, &
                  &                       istartcol, iendcol)
+            IF (supy_error_flag()) RETURN
          END IF
          ! Call the SPARTACUS-Surface radiation scheme
          CALL radsurf(config, canopy_props, &
@@ -867,17 +891,23 @@ CONTAINS
               &       istartcol, iendcol, &
               &       sw_norm_dir, sw_norm_diff, &
               &       lw_internal, lw_norm)
+         IF (supy_error_flag()) RETURN
          IF (config%do_sw) THEN
             ! Scale the normalized fluxes
             CALL sw_norm_dir%SCALE(canopy_props%nlay, &
             &  top_flux_dn_direct_sw)
+            IF (supy_error_flag()) RETURN
             CALL sw_norm_diff%SCALE(canopy_props%nlay, &
             &  top_flux_dn_sw - top_flux_dn_direct_sw)
+            IF (supy_error_flag()) RETURN
             CALL sw_flux%SUM(sw_norm_dir, sw_norm_diff)
+            IF (supy_error_flag()) RETURN
          END IF
          IF (config%do_lw) THEN
             CALL lw_norm%SCALE(canopy_props%nlay, top_flux_dn_lw)
+            IF (supy_error_flag()) RETURN
             CALL lw_flux%SUM(lw_internal, lw_norm)
+            IF (supy_error_flag()) RETURN
          END IF
       END DO
 
@@ -1409,7 +1439,6 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: min_cos_zenith = 0.065D0
       REAL(KIND(1D0)), PARAMETER :: max_airmass = 12.0D0
       REAL(KIND(1D0)), PARAMETER :: max_zenith = 87.0D0
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       kdirect = MAX(0.0D0, MIN(1.0D0, fallback_direct_frac))*MAX(0.0D0, kdown)
       IF (kdown <= 0.0D0) RETURN
@@ -1418,7 +1447,7 @@ CONTAINS
          RETURN
       END IF
 
-      cos_sza = COS(zenith_deg*pi/180.0D0)
+      cos_sza = COS(zenith_deg*DEG2RAD)
       IF (cos_sza <= 0.0D0) THEN
          kdirect = 0.0D0
          RETURN
@@ -1482,7 +1511,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: kdirect_horizontal ! [W m-2] direct horizontal irradiance
       REAL(KIND(1D0)) :: altitude, cos_zenith, ecc, kt, kdiffuse, direct_normal
       REAL(KIND(1D0)) :: temperature, humidity
-      REAL(KIND(1D0)), PARAMETER :: PI = pi_d0
 
       kdirect_horizontal = 0.0D0
       IF (.NOT. IEEE_IS_FINITE(kdown) .OR. .NOT. IEEE_IS_FINITE(zenith_deg)) RETURN
@@ -1491,7 +1519,7 @@ CONTAINS
       ! Match BEERS' daylight threshold and avoid its division by sin(0).
       IF (altitude <= 0.1D0) RETURN
 
-      cos_zenith = COS(zenith_deg*PI/180.0D0)
+      cos_zenith = COS(zenith_deg*DEG2RAD)
       CALL spartacus_spencer_eccentricity(doy, ecc)
       kt = kdown/(1370.0D0*ecc*cos_zenith)
       temperature = tair_c
@@ -1521,7 +1549,6 @@ CONTAINS
       REAL(KIND(1D0)) :: component_sum
       REAL(KIND(1D0)) :: cos_sza
       REAL(KIND(1D0)) :: scale
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       kdirect = 0.0D0
       kdiffuse = 0.0D0
@@ -1534,7 +1561,7 @@ CONTAINS
       IF (kdiff < 0.0D0 .OR. kdir < 0.0D0) RETURN
       IF (kdiff /= kdiff .OR. kdir /= kdir) RETURN
 
-      cos_sza = MAX(0.0D0, COS(zenith_deg*pi/180.0D0))
+      cos_sza = MAX(0.0D0, COS(zenith_deg*DEG2RAD))
       kdirect = kdir*cos_sza
       kdiffuse = kdiff
       component_sum = kdirect + kdiffuse
@@ -1655,7 +1682,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: ecc
 
       REAL(KIND(1D0)) :: b
-      REAL(KIND(1D0)), PARAMETER :: pi = pi_d0
 
       b = 2.0D0*pi*jday/365.0D0
       ecc = 1.00011D0 + 0.034221D0*COS(b) + 0.001280D0*SIN(b) &

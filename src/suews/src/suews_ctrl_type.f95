@@ -79,6 +79,11 @@ MODULE module_ctrl_type
       INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
       INTEGER :: ForcingTimestampReference = 0 ! forcing timestamp reference: 0=local standard time, 1=UTC [-]
+      INTEGER :: EHCSurfaceCoupling = 1 ! EHC surface coupling: 0=explicit, 1=implicit (default) [-]
+      INTEGER :: control_ehc_stability = 0 ! late implicit iteration: 0=off, 1=relax QH, 2=secant QH [-]
+      LOGICAL :: control_ehc_initial_profile = .TRUE. ! fresh implicit envelope only [-]
+      REAL(KIND(1D0)) :: resistance_ehc_indoor_roof = 0.10D0 ! ISO 6946 upward [m2 K W-1]
+      REAL(KIND(1D0)) :: resistance_ehc_indoor_wall = 0.13D0 ! ISO 6946 horizontal [m2 K W-1]
    END TYPE SUEWS_CONFIG
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -94,7 +99,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: pipecapacity = 0.0D0 ! capacity of pipes to transfer water [mm]
       REAL(KIND(1D0)) :: runofftowater = 0.0D0 ! fraction of above-ground runoff flowing to water surface during flooding [-]
       REAL(KIND(1D0)) :: narp_trans_site = 0.0D0 ! atmospheric transmissivity for NARP [-]
-      REAL(KIND(1D0)) :: CO2PointSource = 0.0D0 ! CO2 emission factor [kg km-1]
+      REAL(KIND(1D0)) :: CO2PointSource = 0.0D0 ! whole-grid CO2 point-source emission [kg C day-1]
       REAL(KIND(1D0)) :: flow_change = 0.0D0 ! Difference in input and output flows for water surface
       REAL(KIND(1D0)) :: n_buildings = 0.0D0 ! n_buildings
       REAL(KIND(1D0)) :: h_std = 0.0D0 ! zStd_RSL
@@ -602,6 +607,7 @@ CONTAINS
 
       CALL self%hydroState%DEALLOCATE()
       CALL self%heatState%DEALLOCATE()
+      CALL self%stebbsState%DEALLOCATE()
 
    END SUBROUTINE deallocSUEWSState_c
 
@@ -780,6 +786,10 @@ CONTAINS
 
       IF (.NOT. self%stebbsState%iter_safe) THEN
          self%stebbsState = ref_state%stebbsState
+         ! Keep stebbs_bldg_init synchronised with stebbsState%buildings(:) across
+         ! inner-iteration rollbacks so a Pass-1 initialisation cannot leave
+         ! stebbs_bldg_init = 1 while buildings(:) is rolled back (flagState%iter_safe is .TRUE.).
+         self%flagState%stebbs_bldg_init = ref_state%flagState%stebbs_bldg_init
       END IF
 
       IF (.NOT. self%nhoodState%iter_safe) THEN

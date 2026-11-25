@@ -1,5 +1,42 @@
 //! Python/engine boundary for transporting SUEWS parameters, state and outputs.
 //!
+//! ## Architecture and module families
+//!
+//! This crate sits between Python (`src/supy/`) or the standalone `suews-engine`
+//! CLI (`src/main.rs`) and the Fortran `bind(c)` facades in `c_api/` (see
+//! `src/suews_bridge/README.md` for the full end-to-end file map):
+//!
+//! - **Orchestration and FFI**: `sim` (`physics`), `ffi`, `error`.
+//! - **Configuration and naming**: `yaml_config` (`physics`), `field_renames`,
+//!   `config`, `timer`.
+//! - **Codecs, composite containers and restart**: `codec`, `suews_site`
+//!   (18 site parameter members), `suews_state` (13 state members),
+//!   `suews_state_block`, `suews_debug`, `checkpoint`.
+//! - **Per-type parameter and state codecs**: 40 modules pairing 1:1 with
+//!   `c_api/<type>.f95` (including `core`, which also wraps the legacy scalar
+//!   OHM helpers -- a recorded BR-01 deviation).
+//! - **Forcing and outputs**: `forcing`, `forcing_io` (`physics`),
+//!   `forcing_time`, `run_period`, `output_line`, `output_block`, `output_io`
+//!   (`physics` + `arrow-output`).
+//! - **PyO3 extension (`python_bindings`, gated on `python`)**: exposes
+//!   `#[pyclass]` wrappers, simulation entry points (`run_suews*` and
+//!   direct-output `run_suews*_into`), and schema introspection functions to
+//!   `supy._run_rust`.
+//!
+//! ## Cargo features (no defaults)
+//!
+//! - `physics`: compiles `c_api/driver.f95` and `c_api/sunposition.f95`, links
+//!   SUEWS static libraries, and enables `sim`, `yaml_config` and `forcing_io`.
+//! - `python` / `python-extension`: enables PyO3 (`abi3-py312`) bindings and
+//!   extension-module linking.
+//! - `arrow-output`: enables Apache Arrow IPC writing in `output_io` (requires
+//!   `physics`).
+//! - `capi-observer`: test-only feature (implies `physics`, incompatible with
+//!   `python-extension`) exposing raw TOC encoders for the generated Fortran
+//!   C-API field-binding observer tests.
+//!
+//! ## Boundary contract
+//!
 //! The parameter/state codecs and the forcing/output buffer contracts are
 //! distinct representations. Python's direct-output entry points validate and
 //! lend buffers; `sim` owns the checked native invocation. Keep buffer guards
@@ -29,6 +66,9 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
+// ---------------------------------------------------------------------------
+// Internal bridge modules (private; public API is flat-re-exported below)
+// ---------------------------------------------------------------------------
 mod anthro_emis_prm;
 mod anthro_heat_prm;
 mod anthroemis;
@@ -73,6 +113,7 @@ mod output_io;
 mod output_line;
 mod phenology;
 mod roughness;
+mod run_period;
 #[cfg(feature = "physics")]
 mod sim;
 mod snow;
@@ -93,6 +134,9 @@ mod water_dist;
 #[cfg(feature = "physics")]
 mod yaml_config;
 
+// ---------------------------------------------------------------------------
+// Public crate re-exports (consumed by `main.rs`, integration tests and PyO3)
+// ---------------------------------------------------------------------------
 pub use anthro_emis_prm::*;
 pub use anthro_heat_prm::*;
 pub use anthroemis::*;
@@ -136,6 +180,12 @@ pub use output_io::*;
 pub use output_line::*;
 pub use phenology::*;
 pub use roughness::*;
+pub use run_period::*;
+#[cfg(feature = "capi-observer")]
+pub use sim::{
+    decode_state_members, encode_site_members_flat, encode_site_scalars_flat,
+    encode_state_members_flat, observe_kernel_warnings,
+};
 #[cfg(feature = "physics")]
 pub use sim::{
     run_from_config_str_and_forcing, run_from_config_str_and_forcing_into,
@@ -162,6 +212,158 @@ pub use timer::*;
 pub use water_dist::*;
 #[cfg(feature = "physics")]
 pub use yaml_config::*;
+
+/// Minimum OS thread stack size (8 MiB) for Rayon worker threads executing
+/// `-frecursive` Fortran physics routines (`suews_cal_multitsteps_c` ->
+/// `SUEWS_cal_multitsteps_dts` -> `SUEWS_cal_Main` -> `SUEWS_cal_Main_impl`).
+///
+/// Linux `std::thread` defaults to 2 MiB worker stacks (compared with 8 MiB
+/// on the main thread), which can overflow under recursive Fortran stack
+/// frames on manylinux/GCC 14 builds (#2291).
+pub const FORTRAN_WORKER_STACK_SIZE: usize = 8 * 1024 * 1024;
+
+static DEFAULT_FORTRAN_POOL: std::sync::OnceLock<Result<rayon::ThreadPool, String>> =
+    std::sync::OnceLock::new();
+
+/// Execute a parallel Fortran workload on a Rayon pool whose worker threads
+/// carry [`FORTRAN_WORKER_STACK_SIZE`].
+///
+/// - `max_workers == Some(0)` returns an error.
+/// - `max_workers == Some(n)` runs inside a scoped pool of `n` workers.
+/// - `max_workers == None` reuses a lazily-initialised dedicated pool
+///   (honouring `RAYON_NUM_THREADS` when set) rather than Rayon's global pool,
+///   which may already have been initialised with Linux's 2 MiB default stack.
+pub fn run_in_fortran_pool<R, F>(max_workers: Option<usize>, op: F) -> Result<R, String>
+where
+    F: FnOnce() -> R + Send,
+    R: Send,
+{
+    match max_workers {
+        Some(0) => Err("max_workers must be a positive integer".to_string()),
+        Some(workers) => {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(workers)
+                .stack_size(FORTRAN_WORKER_STACK_SIZE)
+                .thread_name(|idx| format!("suews-fortran-{idx}"))
+                .build()
+                .map_err(|e| e.to_string())?;
+            Ok(pool.install(op))
+        }
+        None => {
+            let pool = DEFAULT_FORTRAN_POOL
+                .get_or_init(|| {
+                    rayon::ThreadPoolBuilder::new()
+                        .stack_size(FORTRAN_WORKER_STACK_SIZE)
+                        .thread_name(|idx| format!("suews-fortran-{idx}"))
+                        .build()
+                        .map_err(|e| e.to_string())
+                })
+                .as_ref()
+                .map_err(Clone::clone)?;
+            Ok(pool.install(op))
+        }
+    }
+}
+
+// contract: C-ISOLATION
+#[cfg(test)]
+mod fortran_pool_tests {
+    use super::{run_in_fortran_pool, FORTRAN_WORKER_STACK_SIZE};
+    use std::collections::HashSet;
+
+    /// Allocate `depth` recursive frames of 64 KiB each on the current thread
+    /// stack, touching the buffer so the OS faults pages in and preventing
+    /// tail-call or dead-store elimination.
+    #[inline(never)]
+    fn touch_stack_frames(depth: usize, seed: u8) -> u8 {
+        let mut buf = [seed; 64 * 1024];
+        buf[0] = seed.wrapping_add(depth as u8);
+        buf[buf.len() - 1] = seed.wrapping_sub(depth as u8);
+        let guard = std::hint::black_box(&buf);
+        let edge = guard[0] ^ guard[guard.len() - 1];
+        if depth <= 1 {
+            edge
+        } else {
+            edge ^ touch_stack_frames(depth - 1, seed.wrapping_add(1))
+        }
+    }
+
+    #[test]
+    fn fortran_pool_rejects_zero_workers() {
+        let err = run_in_fortran_pool(Some(0), || 42_usize)
+            .expect_err("max_workers=Some(0) must be rejected");
+        assert!(
+            err.contains("positive integer"),
+            "unexpected error for zero workers: {err}"
+        );
+    }
+
+    #[test]
+    fn fortran_pool_workers_support_3mib_stack_for_default_and_explicit_counts() {
+        const _: () = assert!(FORTRAN_WORKER_STACK_SIZE >= 8 * 1024 * 1024);
+
+        // 48 * 64 KiB = 3 MiB per worker: exceeds Linux's 2 MiB default
+        // std::thread stack so an unconfigured Rayon worker would SIGSEGV.
+        const FRAMES: usize = 48;
+
+        let scoped = run_in_fortran_pool(Some(2), || {
+            rayon::broadcast(|ctx| {
+                let name = std::thread::current()
+                    .name()
+                    .unwrap_or_default()
+                    .to_string();
+                let checksum = touch_stack_frames(FRAMES, ctx.index() as u8);
+                (ctx.index(), name, checksum)
+            })
+        })
+        .expect("scoped Fortran Rayon pool should run");
+        assert_eq!(scoped.len(), 2);
+        for (idx, name, _) in &scoped {
+            assert_eq!(name, &format!("suews-fortran-{idx}"));
+        }
+
+        let default_first = run_in_fortran_pool(None, || {
+            rayon::broadcast(|ctx| {
+                let current = std::thread::current();
+                let name = current.name().unwrap_or_default().to_string();
+                let checksum = touch_stack_frames(FRAMES, ctx.index() as u8);
+                (ctx.index(), current.id(), name, checksum)
+            })
+        })
+        .expect("default Fortran Rayon pool should run");
+        assert!(!default_first.is_empty());
+        for (idx, _, name, _) in &default_first {
+            assert_eq!(name, &format!("suews-fortran-{idx}"));
+        }
+
+        // Second call reuses the lazily-initialised default pool (identical worker ThreadIds).
+        let default_second = run_in_fortran_pool(None, || {
+            rayon::broadcast(|ctx| {
+                (
+                    ctx.index(),
+                    std::thread::current().id(),
+                    touch_stack_frames(FRAMES, 7),
+                )
+            })
+        })
+        .expect("default Fortran Rayon pool should remain reusable");
+        let first_ids: HashSet<_> = default_first.iter().map(|(_, id, _, _)| *id).collect();
+        let second_ids: HashSet<_> = default_second.iter().map(|(_, id, _)| *id).collect();
+        assert_eq!(second_ids, first_ids);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PyO3 Python extension module (`--features python` / `python-extension`)
+//
+// Layout of `python_bindings`:
+// 1. Error mapping and zero-copy `f64` -> `bytes` marshalling helpers.
+// 2. Per-type `#[pyclass]` wrappers for bridged parameter and state structs.
+// 3. Batch simulation entry points (`run_suews*` and direct-output
+//    `run_suews*_into` with NumPy buffer validation and overlap checks).
+// 4. Per-type schema introspection `#[pyfunction]` wrappers.
+// 5. `#[pymodule] fn suews_bridge` registration (`gil_used = true`).
+// ---------------------------------------------------------------------------
 #[cfg(feature = "python")]
 mod python_bindings {
     use crate::*;
@@ -172,6 +374,8 @@ mod python_bindings {
     use pyo3::types::PyBytes;
     use std::collections::{BTreeMap, HashMap};
 
+    /// Convert any [`BridgeError`] into a Python `RuntimeError` carrying its
+    /// diagnostic message.
     fn map_bridge_error(err: BridgeError) -> PyErr {
         PyRuntimeError::new_err(err.to_string())
     }
@@ -423,16 +627,6 @@ mod python_bindings {
         #[setter]
         fn set_ws_rav(&mut self, value: f64) {
             self.state.ws_rav = value;
-        }
-
-        #[getter]
-        fn tair_prev(&self) -> f64 {
-            self.state.tair_prev
-        }
-
-        #[setter]
-        fn set_tair_prev(&mut self, value: f64) {
-            self.state.tair_prev = value;
         }
 
         #[getter]
@@ -4108,6 +4302,12 @@ mod python_bindings {
         Ok((out.qn1_av_next, out.dqndt_next, out.qs))
     }
 
+    // -----------------------------------------------------------------------
+    // Simulation entry points, solar helper and direct-output buffer lending
+    // -----------------------------------------------------------------------
+
+    /// Compute solar azimuth and zenith angles (degrees) via the Fortran
+    /// `NARP_cal_SunPosition` routine.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "sunposition_calc")]
     fn sunposition_calc_py(
@@ -4128,6 +4328,8 @@ mod python_bindings {
     #[cfg(feature = "physics")]
     type PyKernelWarnings = (usize, Vec<(i32, i32, i32, i32, String, String)>);
 
+    /// Convert a Rust [`KernelWarnings`] buffer into the Python tuple layout
+    /// consumed by `supy._run_rust.KernelWarningLog`.
     #[cfg(feature = "physics")]
     fn kernel_warnings_to_py(warnings: &KernelWarnings) -> PyKernelWarnings {
         (
@@ -4149,6 +4351,12 @@ mod python_bindings {
         )
     }
 
+    /// Run a single-grid cold-start simulation from resolved YAML/JSON config
+    /// and a flat row-major forcing vector, returning
+    /// `(output_bytes, checkpoint_json, actual_len, warnings)`.
+    ///
+    /// Prefer [`run_suews_into_py`] (`run_suews_into`) for large runs so the
+    /// kernel writes straight into caller-owned NumPy output tables.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews")]
     fn run_suews_py(
@@ -4169,6 +4377,8 @@ mod python_bindings {
         ))
     }
 
+    /// Continue a single-grid simulation from a schema-version-2 checkpoint
+    /// JSON envelope, returning `(output_bytes, checkpoint_json, actual_len, warnings)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_with_state")]
     fn run_suews_with_state_py(
@@ -4223,7 +4433,9 @@ mod python_bindings {
                 .par_iter()
                 .enumerate()
                 .map(|(idx, config_json)| {
-                    // Each thread gets its own copy of forcing (Fortran mutates it)
+                    // Clone into an owned Vec<f64> per grid for sim's by-value API
+                    // (c_api/driver.f95 takes forcing_flat as intent(in) and copies
+                    // into its own per-call metforcing_block).
                     let forcing_copy = forcing_block.clone();
                     let (output_block, state, timer, actual_len, warnings) =
                         run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
@@ -4236,15 +4448,8 @@ mod python_bindings {
         };
 
         let results: Vec<Result<(usize, Vec<f64>, String, usize, KernelWarnings), _>> =
-            if let Some(workers) = max_workers {
-                rayon::ThreadPoolBuilder::new()
-                    .num_threads(workers)
-                    .build()
-                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?
-                    .install(run_parallel)
-            } else {
-                run_parallel()
-            };
+            run_in_fortran_pool(max_workers, run_parallel)
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
         // Convert errors to PyResult, then box each output block as bytes
         results
@@ -4300,7 +4505,9 @@ mod python_bindings {
                 .zip(state_jsons.par_iter())
                 .enumerate()
                 .map(|(idx, (config_json, state_json_in))| {
-                    // Each thread gets its own copy of forcing (Fortran mutates it)
+                    // Clone into an owned Vec<f64> per grid for sim's by-value API
+                    // (c_api/driver.f95 takes forcing_flat as intent(in) and copies
+                    // into its own per-call metforcing_block).
                     let forcing_copy = forcing_block.clone();
                     let (output_block, state, timer, actual_len, warnings) =
                         run_from_config_str_and_forcing_with_state(
@@ -4318,15 +4525,8 @@ mod python_bindings {
         };
 
         let results: Vec<Result<(usize, Vec<f64>, String, usize, KernelWarnings), _>> =
-            if let Some(workers) = max_workers {
-                rayon::ThreadPoolBuilder::new()
-                    .num_threads(workers)
-                    .build()
-                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?
-                    .install(run_parallel)
-            } else {
-                run_parallel()
-            };
+            run_in_fortran_pool(max_workers, run_parallel)
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
         results
             .into_iter()
@@ -4407,11 +4607,13 @@ mod python_bindings {
         }
     }
 
-    /// Copy the caller's forcing array into the row-major vector the kernel
-    /// reads (gh#1849). `obj` must be a C-contiguous float64 buffer (a NumPy
-    /// array with `order="C"`) of shape `(len_sim, MET_FORCING_COLS)`; it may
-    /// be read-only, since the kernel works on this copy. Taking the array
-    /// instead of a list avoids boxing every forcing value as a Python float.
+    /// Copy the caller's forcing array into an owned row-major Rust `Vec<f64>`
+    /// (gh#1849). `obj` must be a C-contiguous float64 buffer (a NumPy array
+    /// with `order="C"`) of shape `(len_sim, MET_FORCING_COLS)`; it may be
+    /// read-only because `copy_forcing_buffer` copies it once at the Python
+    /// boundary (and `c_api/driver.f95` reads `forcing_flat` as `intent(in)`).
+    /// Taking the array instead of a list avoids boxing every forcing value as
+    /// a Python float.
     #[cfg(feature = "physics")]
     fn copy_forcing_buffer(obj: &Bound<'_, PyAny>, len_sim: usize) -> PyResult<Vec<f64>> {
         let buffer = PyBuffer::<f64>::get(obj).map_err(|e| {
@@ -4460,10 +4662,18 @@ mod python_bindings {
         let mut runs: Vec<(usize, usize)> = Vec::new();
         for table in tables.iter().filter(|t| t.nrows > 0) {
             let start = table.buffer.buf_ptr() as usize;
-            runs.extend((0..table.ncols).map(|col| {
-                let run_start = start + col * table.ld * item;
-                (run_start, run_start + table.nrows * item)
-            }));
+            let overflow =
+                || PyValueError::new_err("output buffer address/stride arithmetic overflow");
+            let run_bytes = table.nrows.checked_mul(item).ok_or_else(overflow)?;
+            for col in 0..table.ncols {
+                let run_start = col
+                    .checked_mul(table.ld)
+                    .and_then(|offset| offset.checked_mul(item))
+                    .and_then(|offset| start.checked_add(offset))
+                    .ok_or_else(overflow)?;
+                let run_end = run_start.checked_add(run_bytes).ok_or_else(overflow)?;
+                runs.push((run_start, run_end));
+            }
         }
         runs.sort_unstable();
         if runs.windows(2).any(|w| w[1].0 < w[0].1) {
@@ -4566,8 +4776,10 @@ mod python_bindings {
     /// Run several grids in parallel (Rayon), each writing into its own
     /// caller-owned NumPy arrays as in `run_suews_into` (gh#1849).
     ///
-    /// `forcing_block` is shared by all grids and copied once more per grid,
-    /// since the kernel modifies its forcing while it runs.
+    /// `forcing_block` is copied once from Python into an owned Rust `Vec<f64>`
+    /// and cloned per grid to satisfy `sim`'s by-value parameter
+    /// (`c_api/driver.f95` reads `forcing_flat` as `intent(in)` and copies it
+    /// into a per-call `metforcing_block`).
     /// `out_data[i]` / `out_datetime[i]` receive grid `i`'s output; they may
     /// be row blocks of one array shared by all grids, which then holds the
     /// whole multi-grid output with no per-grid copy to join afterwards. With
@@ -4623,7 +4835,9 @@ mod python_bindings {
             outs.into_par_iter()
                 .enumerate()
                 .map(|(idx, out)| {
-                    // Each thread gets its own copy of forcing (Fortran mutates it)
+                    // Clone into an owned Vec<f64> per grid for sim's by-value API
+                    // (c_api/driver.f95 takes forcing_flat as intent(in) and copies
+                    // into its own per-call metforcing_block).
                     let forcing_copy = forcing_block.clone();
                     let config_json = &config_jsons[idx];
                     let result = match &state_jsons {
@@ -4654,15 +4868,8 @@ mod python_bindings {
                 .collect::<Vec<Result<_, String>>>()
         };
 
-        let results = if let Some(workers) = max_workers {
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(workers)
-                .build()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .install(run_parallel)
-        } else {
-            run_parallel()
-        };
+        let results =
+            run_in_fortran_pool(max_workers, run_parallel).map_err(PyRuntimeError::new_err)?;
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
@@ -4731,6 +4938,10 @@ mod python_bindings {
             .map(|(name, &ncols)| (name.to_string(), ncols))
             .collect())
     }
+
+    // -----------------------------------------------------------------------
+    // Per-type schema introspection functions exposed to Python
+    // -----------------------------------------------------------------------
 
     #[pyfunction(name = "ohm_state_schema")]
     fn ohm_state_schema_py() -> PyResult<(usize, usize)> {
@@ -5861,6 +6072,9 @@ mod python_bindings {
         nhood_state_field_names()
     }
 
+    // -----------------------------------------------------------------------
+    // PyO3 module registration
+    // -----------------------------------------------------------------------
     // The run_suews*_into functions write into caller-owned NumPy buffers, including
     // row blocks of one array shared by parallel grids, and rely on the GIL being held
     // for the whole run, so the module is not free-threaded (gh#1849).

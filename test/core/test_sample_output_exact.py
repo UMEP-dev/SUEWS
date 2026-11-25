@@ -30,8 +30,9 @@ under ``$SUEWS_CI_METRICS_DIR/reference-regenerated`` and uploaded as the
 ``reference-regenerated-*`` artefact, so a change that is meant to move the
 output is refreshed by downloading that artefact rather than by reproducing
 the CI build elsewhere. Refreshing the reference requires the
-``0-physics:change`` label and its evidence section
-(``.claude/rules/physics-change-evidence.md``); a CI job checks the label.
+``0-physics:change`` or ``0-numerics:change`` label and the matching PR-body
+section (``.claude/rules/physics-change-evidence.md``); a CI job checks the
+label.
 """
 
 import os
@@ -44,7 +45,7 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "fixtures" / "data_test"))
-from sample_output_io import (  # noqa: E402
+from sample_output_io import (
     SHARD_GLOB,
     load_sample_output,
     read_reference_provenance,
@@ -54,7 +55,7 @@ from sample_output_io import (  # noqa: E402
     write_sample_output_shards,
 )
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LANE_ENV = "SUEWS_REFERENCE_LANE"
@@ -66,9 +67,10 @@ REFRESH_HINT = (
     "same PR: download this CI run's 'reference-regenerated-cp312-manylinux-"
     "x86_64' artefact and copy its files into test/fixtures/data_test/ (or run "
     "'python scripts/suews/gen_sample_output.py' in the build that generated "
-    "the reference), commit the shards with provenance.json, label the PR "
-    "0-physics:change and add its Scientific evidence section "
-    "(.claude/rules/physics-change-evidence.md)."
+    "the reference), commit the shards with provenance.json, and label the PR "
+    "0-physics:change (with its Scientific evidence section) or "
+    "0-numerics:change (with its numerical change table); see "
+    ".claude/rules/physics-change-evidence.md."
 )
 
 
@@ -147,7 +149,7 @@ def _export_regenerated(regenerated_dir: Path, df) -> Path | None:
 
 
 @pytest.mark.core
-@pytest.mark.medium
+@pytest.mark.slow
 def test_sample_run_reproduces_reference_exactly(sample_reference_dir):
     """The full-year sample run matches the stored shards byte for byte."""
     # ARRANGE: decide whether this build can reproduce the reference exactly

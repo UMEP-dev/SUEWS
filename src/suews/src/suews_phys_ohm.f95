@@ -9,7 +9,7 @@ MODULE module_phys_ohm
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
-   USE module_ctrl_const_physconst, ONLY: sec_per_hour, sec_per_hour_sp
+   USE module_ctrl_const_physconst, ONLY: sec_per_hour
    IMPLICIT NONE
 
    REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 0.25D0 ! [degC]
@@ -71,7 +71,7 @@ CONTAINS
       USE module_ctrl_type, ONLY: SUEWS_TIMER
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER) :: timer
+      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
       INTEGER, INTENT(in) :: StorageHeatMethod !
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
@@ -170,6 +170,16 @@ CONTAINS
       dyohm_building_only = StorageHeatMethod == 8
       dyohm_active = dyohm_all_surfaces .OR. dyohm_with_stebbs .OR. dyohm_building_only
 
+      ! Preserve previous radiation histories on branches that do not update all six
+      ! INTENT(OUT) slots (surface arrays in grid OHM, grid scalars in full DyOHM,
+      ! or snow history when SnowUse == 0).
+      qn_av_next = qn_av_prev
+      dqndt_next = dqndt_prev
+      qn_surf_next = qn_surf_prev
+      dqndt_surf_next = dqndt_surf_prev
+      qn_s_av_next = qn_s_av_prev
+      dqnsdt_next = dqnsdt_prev
+
       IF (dyohm_active) THEN
          ! MP 14/04/2025
          ! YL 16/10/2025 test using DyOHM for all surface types
@@ -201,9 +211,9 @@ CONTAINS
                      qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
                   END DO
                ELSE
-                  ws_rav = ws_rav + (ws - ws_rav)/(sec_per_day/tstep)
+                  ws_rav = ws_rav + (ws - ws_rav)/(INT(sec_per_day)/tstep)
                   DO i_surf = 1, nsurf
-                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(sec_per_day/tstep)
+                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(INT(sec_per_day)/tstep)
                   END DO
                END IF
             END IF
@@ -437,8 +447,6 @@ CONTAINS
             IF (dyohm_building_only) THEN
                ! Hybrid method: start from ordinary grid OHM, then replace
                ! only the building contribution with DyOHM storage heat.
-               qn_surf_next = qn_surf_prev
-               dqndt_surf_next = dqndt_surf_prev
                CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
                                  qn_av_next, dqndt_next)
                CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)
@@ -554,7 +562,12 @@ CONTAINS
             CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_s_av_prev, qn1_S, dqnsdt_prev, &
                                  qn_s_av_next, dqnsdt_next)
 
-            ! Calculate net storage heat flux for snow surface (winter wet conditions)
+            ! Calculate net storage heat flux for snow surface using winter_wet
+            ! coefficients OHM_coef(nsurf + 1, 3, 1:3) = (a1, a2, a3).
+            ! All four regimes and OHM_threshSW(8)/OHM_threshWD(8) are wired
+            ! into OHM_coef(8, :, :) and OHM_thresh*(8) in SUEWS_cal_Qs, while
+            ! the snow OHM formulation intentionally selects winter_wet (index 3)
+            ! unconditionally and permits signed deltaQi (no positivity clamp).
             CALL OHM_QS_cal(qn1_S, dqnsdt_next, &
                             OHM_coef(nsurf + 1, 3, 1), OHM_coef(nsurf + 1, 3, 2), OHM_coef(nsurf + 1, 3, 3), &
                             deltaQi0)
@@ -693,30 +706,29 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! dQ* per dt for 60 min [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
-      REAL(KIND(1D0)), PARAMETER :: dt0_thresh = sec_per_hour ! threshold for period of dqndt0 [s]
-      REAL(KIND(1D0)), PARAMETER :: window_hr = 2 ! window size for Difference calculation [hr]
+      ! First-moment (mean-age) matched time constants for the 2016 1 h boxcar + 2 h diff
+      ! (OHM_dqndt_cal): boxcar centroid T1/2 = 0.5 h and backward-diff centroid T2/2 = 1.0 h.
+      REAL(KIND(1D0)), PARAMETER :: tau1_hr = 0.5D0 ! stage-1 Q* low-pass timescale [h]
+      REAL(KIND(1D0)), PARAMETER :: tau2_hr = 1.0D0 ! stage-2 dQ*/dt low-pass timescale [h]
+      REAL(KIND(1D0)), PARAMETER :: sec_hr = REAL(sec_per_hour, KIND(1D0))
+      REAL(KIND(1D0)), PARAMETER :: tau1_max_s = tau1_hr*sec_hr ! 0.5 h low-pass timescale [s]
+      REAL(KIND(1D0)), PARAMETER :: tau2_s = tau2_hr*sec_hr ! 1.0 h tendency timescale [s]
+      REAL(KIND(1D0)) :: dt_s, dt_hr, tau1_s, w1, w2
 
-      INTEGER :: dt0 ! period of dqndt0 [s]
-
-      REAL(KIND(1D0)) :: qn1_av_0 !, qn1_av_start,qn1_av_end
-
-      ! if previous period shorter than dt0_thresh, expand the storage/memory period
-      IF (dt_since_start < dt0_thresh) THEN ! spinup period
-         dt0 = dt_since_start + dt
-
-      ELSE ! effective period
-         dt0 = dt0_thresh
+      dt_s = REAL(dt, KIND(1D0))
+      dt_hr = dt_s/sec_hr
+      IF (dt_since_start <= dt) THEN
+         ! Cold start (step 1): initialise filter from current Q* with zero derivative
+         qn1_av_next = qn1
+         dqndt_next = 0.0D0
+      ELSE
+         ! Exact zero-order-hold exponential weights preserve 0.5 h + 1.0 h filtering across dt
+         tau1_s = MIN(tau1_max_s, REAL(dt_since_start, KIND(1D0)))
+         w1 = EXP(-dt_s/tau1_s)
+         qn1_av_next = w1*qn1_av_prev + (1.0D0 - w1)*qn1
+         w2 = EXP(-dt_s/tau2_s)
+         dqndt_next = w2*dqndt_prev + (1.0D0 - w2)*((qn1_av_next - qn1_av_prev)/dt_hr)
       END IF
-
-      ! get weighted average at a previous time specified by `window_hr`
-      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/sec_per_hour_sp)
-
-      ! averaged qn1 for previous period = dt0_thresh
-      qn1_av_next = (qn1_av_prev*(dt0 - dt) + qn1*dt)/(dt0)
-
-      ! do weighted average to calculate the difference by using the memory value and new forcing value
-      ! NB: keep the output dqndt in [W m-2 h-1]
-      dqndt_next = (qn1_av_next - qn1_av_0)/window_hr
 
    END SUBROUTINE OHM_dqndt_cal_X
 
@@ -745,11 +757,9 @@ CONTAINS
          qn_av = qn
       END IF
       ! Store hourly average values (calculated every timestep) for previous 2 hours
-      IF (nsh > 1) THEN
+      IF (nsh >= 1) THEN
          qn_av_store_grid = CSHIFT(qn_av_store_grid, 1)
          qn_av_store_grid(2*nsh + 1) = qn_av
-      ELSEIF (nsh == 1) THEN
-         qn_av_store_grid(:) = qn_av
       END IF
       ! Calculate dQ* per dt for 60 min (using running mean Q* at t hours and (t-2) hours)
       IF (ANY(qn_av_store_grid == -999)) THEN

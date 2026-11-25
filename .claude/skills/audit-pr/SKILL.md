@@ -61,7 +61,7 @@ recommendation instead of spending the review on an unreviewable diff:
   revision, evidence and unresolved gaps using its audit format. Check ownership
   as well as numerical correctness; do not treat a default round trip as
   field-to-kernel wiring evidence.
-- **Docs**: CHANGELOG, PR description; if the diff touches the user-facing
+- **Docs**: CHANGELOG, PR description (audit against `.claude/rules/pr-description.md`: human-readable `## Why`, `## What changed` + known limits, `## How to review`, PR-specific `## Verification` without copy-pasted batch boilerplate, and public-safe text; flag missing required sections or boilerplate on substantive PRs as `[major]`, privacy leaks as `[blocking]`); if the diff touches the user-facing
   surface (`src/supy/data_model/`, physics options, output or forcing
   registries, `src/supy/util/converter/`, the public API or CLI), dispatch the
   `docs-reviewer` agent in drift mode **findings-only** (it must not edit the
@@ -85,7 +85,7 @@ recommendation instead of spending the review on an unreviewable diff:
   `src/supy/data_model/core/` + `sample_config.yml`; if the PR carries the
   `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the
   reason is genuinely cosmetic before approving.
-- **Physics-change evidence audit**: If the diff touches physics source (`suews_phys_*.f95`, Rust physics backend), moves a reference fixture (`test/fixtures/data_test/sample_output_2012-*.csv` and its `provenance.json` sidecar, `.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`), or changes a physics-affecting data-model default, apply `.claude/rules/physics-change-evidence.md`. Confirm the `0-physics:change` label is present (apply or flag if missing), the PR body has a `## Scientific evidence` section (quantities + mechanism, before/after comparison, sign/magnitude reasoning -- a bare "outputs changed" is blocking), the owner sign-off is present for any owned subsystem (named in `MAINTAINERS.md`), any moved fixture is refreshed in this PR (or a linked PR), and the full `-m physics` tier (including `slow`) has run green.
+- **Physics and numerical change audit**: If the diff touches physics source (`suews_phys_*.f95`, `src/suews/ext_lib/**`, Rust physics backend), moves a reference fixture (`test/fixtures/data_test/sample_output_2012-*.csv` and its `provenance.json` sidecar, `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv`, `test/fixtures/w16_most.csv`), or changes a physics-affecting data-model default, apply `.claude/rules/physics-change-evidence.md`. Classify the diff first (never remove or downgrade an existing classification label automatically; preserve existing labels on conflict and flag for a maintainer): for a formulation/default change or any output-moving change that fails any `0-numerics:change` condition (including any shift at or above `0.5%` scale-relative (`max_i |new_i - ref_i| / max_i |ref_i|`) or `0.5 W m-2` absolute flux difference, any change to an identically-zero reference variable, any `NaN`/finite mismatch, or a reference-lane build-environment update), require `0-physics:change`, `## Scientific evidence` (quantities + mechanism, before/after comparison with baseline/head SHAs, sign/magnitude reasoning including regressions/costs and known limits, and figure/data-licensing hygiene when figures are attached -- a bare "outputs changed" is `[blocking]`), domain-owner sign-off (`MAINTAINERS.md`), same-PR fixture refresh, and green `physics-full` CI; for a round-off-only constant precision, unit conversion, or floating-point representation change with no formulation change and all shifts strictly below `0.5%` scale-relative and `0.5 W m-2` absolute flux difference across all non-`NaN` rows (`Lob` is judged by `zL` and `L_MOD_RSL` by `zeta = (z_30 - zd_RSL) / L_MOD_RSL`, or aligned `zL` where absent, using the same `< 0.5%` scale-relative criterion, failing closed to `L` directly if neither is available, with `Lob` / `L_MOD_RSL` still refreshed and reported for information; resistances such as `RA`, `RAsnow`, `RB`, `RS`, and `RSS_*` carry no exemption), accept `0-numerics:change` with same-PR fixture refresh, a per-variable max absolute and scale-relative change table in the PR body, and green `physics-full` CI (no `## Scientific evidence` or domain-owner sign-off required; applying `0-numerics:change` to a formulation, build-environment, or above-threshold change, or applying both labels simultaneously, is `[blocking]`).
 - **Build**: `src/supy/meson.build` (`src_f95_all`, `py.install_sources`),
   `src/suews/Makefile`, and `src/suews/Makefile.deps` (`python scripts/suews/gen_fortran_deps.py`)
   for new or changed source files / Fortran `USE` dependencies
@@ -143,7 +143,7 @@ named amendment), and the payload race: `references/ci-gates.md`.
 
 For PRs that add new features or breaking changes:
 
-- Verify CHANGELOG entries have appropriate status tags
+- Verify CHANGELOG fragments (`changes/*.md`) have appropriate status tags
 - New `[feature]` entries should have `[experimental]` tag by default
 - Flag if `[stable]` tag is used without governance approval
 - Check PR description mentions if feature is experimental

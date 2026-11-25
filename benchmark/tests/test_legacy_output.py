@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+pytestmark = pytest.mark.contract("C-TOOLING")
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import legacy_output as lo  # noqa: E402

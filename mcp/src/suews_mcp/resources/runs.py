@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import json
 from typing import Any, Optional
 
 from ..backend import ProjectRoot, SUEWSMCPSandboxError
@@ -26,10 +26,11 @@ def read_run_resource(
             kind,
         )
 
-    root = ProjectRoot(project_root)
     try:
+        root = ProjectRoot(project_root)
         run_dir = root.resolve(run_id)
-    except SUEWSMCPSandboxError as exc:
+        root.resolve(run_dir / f"{kind}.json")
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _err(str(exc), run_id, kind)
 
     try:
@@ -37,7 +38,7 @@ def read_run_resource(
             payload = read_provenance(run_dir)
         else:
             payload = read_diagnostics(run_dir)
-    except FileNotFoundError as exc:
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         return _err(str(exc), run_id, kind)
 
     return {

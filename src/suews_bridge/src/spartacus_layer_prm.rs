@@ -425,6 +425,7 @@ pub fn spartacus_layer_prm_default_from_fortran() -> Result<SpartacusLayerPrm, B
     SpartacusLayerPrm::from_flat_with_dims(&flat, nlayer, nspec)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

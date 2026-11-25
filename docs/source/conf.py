@@ -265,6 +265,7 @@ if sys.version_info >= (3, 13):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "doc_source",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
@@ -292,6 +293,15 @@ extensions = [
     # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
     "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
 ]
+
+# This declaration owns tool-output provenance, overriding any copied fields.
+# Keep it literal for scripts/lint/check_doc_sources.py to read without Sphinx.
+# A trailing slash declares a directory; other keys name one exact source file.
+doc_source_tool_outputs = {
+    "auto_examples/": "sphinx_gallery.gen_gallery",
+    "api/_autosummary/": "sphinx.ext.autosummary",
+    "sg_execution_times.rst": "sphinx_gallery.gen_gallery",
+}
 
 # email_automode = True
 
@@ -393,6 +403,7 @@ rst_prolog = rf"""
 .. |m^3| replace:: m\ :sup:`3`
 .. |s^-1| replace:: s\ :sup:`-1`
 .. |kg^-1| replace:: kg\ :sup:`-1`
+.. |g^-1| replace:: g\ :sup:`-1`
 .. |K^-1| replace:: K\ :sup:`-1`
 .. |J^-1| replace:: J\ :sup:`-1`
 .. |W^-1| replace:: W\ :sup:`-1`
@@ -402,7 +413,7 @@ rst_prolog = rf"""
 .. |ha^-1| replace:: ha\ :sup:`-1`
 .. |QF| replace:: Q\\ :sub:`F`
 .. |Qstar| replace:: Q\\ :sup:`*`
-.. |d^-1| replace:: d\\ :sup:`-1`
+.. |d^-1| replace:: d\ :sup:`-1`
 .. |d^-2| replace:: d\\ :sup:`-2`
 .. |)^-1| replace:: )\\ :sup:`-1`
 .. |Recmd| replace:: **Recommended in this version.**

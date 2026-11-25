@@ -7,7 +7,7 @@ import pytest
 from supy.data_model.core import SUEWSConfig
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE")]
 
 
 @pytest.mark.parametrize("fixture", [

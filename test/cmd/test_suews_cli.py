@@ -10,14 +10,20 @@ Validates:
 
 from __future__ import annotations
 
+from copy import deepcopy
+from importlib.resources import files
+import json
 from pathlib import Path
 import re
 import sys
 
 from click.testing import CliRunner
 import pytest
+import yaml
 
-pytestmark = pytest.mark.api
+from supy.cmd.suews_cli import cli as suews_cli_root
+
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 # ---------------------------------------------------------------------------
@@ -220,17 +226,217 @@ def test_schema_version_update_no_backup(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("flag", [[], ["-b"], ["--no-backup"]])
-def test_schema_migrate_leaves_input_unchanged(tmp_path, flag) -> None:
-    """``migrate`` never rewrites its input; the legacy backup flag is inert."""
+def test_schema_migrate_leaves_input_unchanged(
+    tmp_path: Path, flag: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``migrate`` writes a migrated copy and leaves its input untouched."""
+    import yaml as _yaml
+    from supy.cmd import schema_cli
     from supy.cmd.suews_cli import cli
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
 
+    # ARRANGE: skip only the heavy post-write JSON Schema generation so the
+    # real SchemaMigrator and file I/O execute in milliseconds.
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
     config = tmp_path / "config.yml"
-    _write_old_config(config)
+    config.write_text("name: test\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
     original = config.read_text(encoding="utf-8")
 
+    # ACT
     result = CliRunner().invoke(cli, ["schema", "migrate", *flag, str(config)])
+
+    # ASSERT
     assert result.exit_code == 0, result.output
     assert config.read_text(encoding="utf-8") == original
+    migrated = tmp_path / "config.migrated.yml"
+    assert migrated.exists()
+    migrated_doc = _yaml.safe_load(migrated.read_text(encoding="utf-8"))
+    assert migrated_doc["schema_version"] == CURRENT_SCHEMA_VERSION
+
+
+def _stderr_or_output(result) -> str:
+    """Return captured stderr when Click separates streams, else combined output."""
+    try:
+        return result.stderr
+    except ValueError:  # Click < 8.2 without mix_stderr=False
+        return result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("subcmd", ["version", "migrate"])
+def test_schema_subcommands_exit_nonzero_on_malformed_yaml(
+    tmp_path: Path, subcmd: str, quiet_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    bad = tmp_path / "bad.yml"
+    bad.write_text("name: [unterminated\n", encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, subcmd, str(bad)])
+
+    # ASSERT
+    assert result.exit_code == 1
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "bad.yml:" in err
+        assert "YAML" in err
+    else:
+        assert "bad.yml" in result.output
+        assert "YAML" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("subcmd", ["version", "migrate"])
+@pytest.mark.parametrize("content", ["- item1\n- item2\n", ""])
+def test_schema_subcommands_exit_nonzero_on_non_mapping_yaml(
+    tmp_path: Path, subcmd: str, quiet_flag: list[str], content: str
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    non_mapping = tmp_path / "non_mapping.yml"
+    non_mapping.write_text(content, encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(cli, ["schema", *quiet_flag, subcmd, str(non_mapping)])
+
+    # ASSERT
+    assert result.exit_code == 1
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "non_mapping.yml:" in err
+        assert "mapping" in err
+    else:
+        assert "mapping" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("dry_run_flag", [[], ["--dry-run"]])
+def test_schema_migrate_exits_nonzero_on_unsupported_migration_path(
+    tmp_path: Path, quiet_flag: list[str], dry_run_flag: list[str]
+) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    config = tmp_path / "unsupported.yml"
+    _write_old_config(config)
+
+    # ACT
+    result = CliRunner().invoke(
+        cli, ["schema", *quiet_flag, "migrate", *dry_run_flag, str(config)]
+    )
+
+    # ASSERT
+    assert result.exit_code == 1
+    assert not (tmp_path / "unsupported.migrated.yml").exists()
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "unsupported.yml:" in err
+        assert "No migration path available" in err
+    else:
+        assert "No migration path available" in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+def test_schema_migrate_dry_run_valid_config_writes_nothing(
+    tmp_path: Path, quiet_flag: list[str]
+) -> None:
+    """``migrate --dry-run`` validates migration in memory without writing to disk."""
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    config = tmp_path / "config.yml"
+    config.write_text("name: test\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    original = config.read_text(encoding="utf-8")
+    out_dir = tmp_path / "should_not_be_created"
+
+    # ACT
+    result = CliRunner().invoke(
+        cli,
+        [
+            "schema",
+            *quiet_flag,
+            "migrate",
+            "--dry-run",
+            "--output-dir",
+            str(out_dir),
+            str(config),
+        ],
+    )
+
+    # ASSERT
+    assert result.exit_code == 0, result.output
+    assert config.read_text(encoding="utf-8") == original
+    assert not out_dir.exists()
+    assert not (tmp_path / "config.migrated.yml").exists()
+    if quiet_flag:
+        assert not result.output
+    else:
+        assert "Would migrate" in result.output
+
+
+def test_schema_version_batch_quiet_reports_only_failing_file(tmp_path: Path) -> None:
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    good = tmp_path / "good.yml"
+    good.write_text("name: good\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    listfile = tmp_path / "listfile.yml"
+    listfile.write_text("- item1\n- item2\n", encoding="utf-8")
+
+    # ACT
+    result = CliRunner().invoke(
+        cli, ["schema", "--quiet", "version", str(good), str(listfile)]
+    )
+
+    # ASSERT
+    assert result.exit_code == 1
+    err = _stderr_or_output(result)
+    assert "listfile.yml:" in err
+    assert "mapping" in err
+    assert "good.yml" not in result.output
+
+
+@pytest.mark.parametrize("quiet_flag", [[], ["--quiet"]])
+@pytest.mark.parametrize("dry_run_flag", [[], ["--dry-run"]])
+def test_schema_migrate_batch_exits_nonzero_when_any_file_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    quiet_flag: list[str],
+    dry_run_flag: list[str],
+) -> None:
+    from supy.cmd import schema_cli
+    from supy.cmd.suews_cli import cli
+
+    # ARRANGE
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
+    good = tmp_path / "good.yml"
+    good.write_text("name: good\nschema_version: '2026.6.dev9'\n", encoding="utf-8")
+    bad = tmp_path / "bad.yml"
+    _write_old_config(bad)
+
+    # ACT
+    result = CliRunner().invoke(
+        cli, ["schema", *quiet_flag, "migrate", *dry_run_flag, str(good), str(bad)]
+    )
+
+    # ASSERT
+    assert result.exit_code == 1
+    if dry_run_flag:
+        assert not (tmp_path / "good.migrated.yml").exists()
+    else:
+        assert (tmp_path / "good.migrated.yml").exists()
+    assert not (tmp_path / "bad.migrated.yml").exists()
+    if quiet_flag:
+        err = _stderr_or_output(result)
+        assert "bad.yml:" in err
+        assert "good.yml" not in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -474,3 +680,199 @@ def test_run_explains_null_forcing_file(tmp_path: Path) -> None:
     assert result.exit_code == 1, result.output
     assert "'forcing.file' is null" in result.output
     assert "update_forcing()" in result.output
+
+
+@pytest.mark.parametrize("entry", ["command", "entrypoint"])
+@pytest.mark.parametrize("spelling", ["canonical", "alias", "invalid-both"])
+def test_run_site_longitude_source_boundary(
+    tmp_path: Path, monkeypatch, capsys, entry, spelling
+) -> None:
+    """Exercise normal run loading; stop only at simulation and saving.
+
+    The canonical input reaches the real resolved engine export. An unknown
+    site longitude key must fail even when a valid canonical key is present.
+    Native numerical execution is covered separately, not repeated here.
+    """
+    import yaml
+    from supy._env import trv_supy_module
+    from supy._run_rust import config_to_engine_yaml
+    from supy.cmd.suews_cli import cli, main
+    from supy.suews_sim import SUEWSSimulation
+
+    sample_dir = trv_supy_module / "sample_data"
+    forcing = tmp_path / "Kc_2012_data_60.txt"
+    forcing.write_bytes((sample_dir / forcing.name).read_bytes())
+    data = yaml.safe_load((sample_dir / "sample_config.yml").read_text(encoding="utf-8"))
+    props = data["sites"][0]["properties"]
+    props["lng"] = {"value": 0.0}
+    if spelling == "alias":
+        props["lon"] = props.pop("lng")
+    elif spelling == "invalid-both":
+        props["lon"] = {"value": 0.0}
+    path = tmp_path / "config.yml"
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    original = path.read_bytes()
+    original_forcing = forcing.read_bytes()
+    engine_inputs = []
+
+    def capture_engine_input(simulation):
+        engine_inputs.append(yaml.safe_load(config_to_engine_yaml(simulation.config)))
+
+    monkeypatch.setattr(SUEWSSimulation, "run", capture_engine_input)
+    monkeypatch.setattr(SUEWSSimulation, "save", lambda self, **kwargs: [])
+    if entry == "command":
+        result = CliRunner().invoke(cli, ["run", str(path)])
+        exit_code = result.exit_code
+        diagnostics = result.output
+    else:
+        # pyproject.toml registers suews = supy.cmd.suews_cli:main.
+        monkeypatch.setattr(sys, "argv", ["suews", "run", str(path)])
+        with pytest.raises(SystemExit) as exc:
+            main()
+        exit_code = exc.value.code
+        captured = capsys.readouterr()
+        diagnostics = captured.out + captured.err
+
+    assert path.read_bytes() == original
+    assert forcing.read_bytes() == original_forcing
+    if spelling in {"alias", "invalid-both"}:
+        assert exit_code == 1, diagnostics
+        assert "lon" in diagnostics
+        assert "extra" in diagnostics.lower()
+        assert engine_inputs == []
+    else:
+        assert exit_code == 0, diagnostics
+        assert len(engine_inputs) == 1
+        resolved = engine_inputs[0]["sites"][0]["properties"]
+        assert "lon" not in resolved
+        longitude = resolved["lng"]
+        assert (longitude["value"] if isinstance(longitude, dict) else longitude) == 0.0
+
+
+def _assert_waterdist_schema_rules(schema_dict: dict) -> None:
+    wd = schema_dict["$defs"]["WaterDistribution"]
+    assert "sfr > 0" in wd["description"]
+    assert "sfr == 0" in wd["description"]
+    assert "0 normalises to absent at load" in wd["description"]
+    assert "non-zero or post-load edits fail" in wd["description"]
+
+    for field_name in ("to_runoff", "to_soilstore", "to_paved"):
+        desc = wd["properties"][field_name]["description"]
+        assert "sfr > 0" in desc
+        assert "0 normalises to absent at load" in desc
+        assert "non-zero or post-load edits fail" in desc
+        # Keep descriptions within MCP search_schema's 200-char display budget.
+        assert len(desc) <= 200, (field_name, len(desc))
+
+
+def _write_waterdist_cli_cases(tmp_path: Path) -> tuple[Path, Path, Path]:
+    sample_raw = yaml.safe_load(
+        (files("supy") / "sample_data" / "sample_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    props = sample_raw["sites"][0]["properties"]
+    props.pop("stebbs", None)
+    props.pop("building_archetype", None)
+
+    raw_zero = deepcopy(sample_raw)
+    raw_zero["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"][
+        "to_soilstore"
+    ] = {"value": 0.0}
+    path_zero = tmp_path / "paved_zero_soilstore.yml"
+    path_zero.write_text(yaml.safe_dump(raw_zero), encoding="utf-8")
+
+    raw_inactive = deepcopy(sample_raw)
+    del raw_inactive["sites"][0]["properties"]["land_cover"]["evetr"]["waterdist"][
+        "to_soilstore"
+    ]
+    path_inactive = tmp_path / "inactive_evetr_omitted.yml"
+    path_inactive.write_text(yaml.safe_dump(raw_inactive), encoding="utf-8")
+
+    raw_nonzero = deepcopy(sample_raw)
+    raw_nonzero["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"][
+        "to_soilstore"
+    ] = {"value": 0.5}
+    path_nonzero = tmp_path / "paved_nonzero_soilstore.yml"
+    path_nonzero.write_text(yaml.safe_dump(raw_nonzero), encoding="utf-8")
+    return path_zero, path_inactive, path_nonzero
+
+
+def test_schema_export_cli_displays_waterdistribution_rules(tmp_path: Path) -> None:
+    """``suews schema export`` exposes the synced WaterDistribution rules."""
+    runner = CliRunner()
+    out_json = tmp_path / "exported_schema.json"
+
+    export_res = runner.invoke(
+        suews_cli_root, ["schema", "export", "-o", str(out_json)]
+    )
+
+    assert export_res.exit_code == 0, export_res.output
+    exported = json.loads(out_json.read_text(encoding="utf-8"))
+    _assert_waterdist_schema_rules(exported)
+
+
+def test_schema_envelope_cli_displays_waterdistribution_rules() -> None:
+    """``suews schema --format json`` exposes the synced WaterDistribution rules."""
+    runner = CliRunner()
+
+    envelope_res = runner.invoke(suews_cli_root, ["schema", "--format", "json"])
+
+    assert envelope_res.exit_code == 0, envelope_res.output
+    envelope = json.loads(envelope_res.output)
+    assert envelope["status"] == "success"
+    _assert_waterdist_schema_rules(envelope["data"])
+
+
+def test_inspect_cli_waterdist_rules(tmp_path: Path) -> None:
+    """``suews inspect --format json`` enforces load-time waterdist rules."""
+    path_zero, path_inactive, path_nonzero = _write_waterdist_cli_cases(tmp_path)
+    runner = CliRunner()
+
+    for ok_path in (path_zero, path_inactive):
+        inspect_ok = runner.invoke(
+            suews_cli_root, ["inspect", "--format", "json", str(ok_path)]
+        )
+        assert inspect_ok.exit_code == 0, inspect_ok.output
+        assert json.loads(inspect_ok.output)["status"] == "success"
+
+    inspect_bad = runner.invoke(
+        suews_cli_root, ["inspect", "--format", "json", str(path_nonzero)]
+    )
+    assert inspect_bad.exit_code != 0, inspect_bad.output
+    bad_env = json.loads(inspect_bad.output)
+    assert bad_env["status"] == "error"
+    assert any("to_soilstore" in str(err) for err in bad_env["errors"]), bad_env
+
+
+def test_validate_cli_waterdist_rules(tmp_path: Path) -> None:
+    """``suews validate -p C --dry-run --format json`` enforces load-time waterdist rules."""
+    path_zero, path_inactive, path_nonzero = _write_waterdist_cli_cases(tmp_path)
+    runner = CliRunner()
+
+    val_res = runner.invoke(
+        suews_cli_root,
+        [
+            "validate",
+            "-p",
+            "C",
+            "--dry-run",
+            "--format",
+            "json",
+            str(path_zero),
+            str(path_inactive),
+            str(path_nonzero),
+        ],
+    )
+    assert val_res.exit_code == 1, val_res.output
+    val_env = json.loads(val_res.output)
+    assert val_env["status"] == "error"
+    files_by_name = {
+        Path(entry["file"]).name: entry for entry in val_env["data"]["files"]
+    }
+    assert files_by_name["paved_zero_soilstore.yml"]["valid"] is True
+    assert files_by_name["inactive_evetr_omitted.yml"]["valid"] is True
+    assert files_by_name["paved_nonzero_soilstore.yml"]["valid"] is False
+    assert any(
+        "to_soilstore" in str(err.get("message", "")) for err in val_env["errors"]
+    ), val_env["errors"]

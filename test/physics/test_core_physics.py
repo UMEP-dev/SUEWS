@@ -23,8 +23,13 @@ from unittest import TestCase
 from conftest import TIMESTEPS_PER_DAY, run_simulation
 import numpy as np
 import pytest
+from test_option_sweep import water_balance_residual_mm
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = [
+    pytest.mark.physics,
+    pytest.mark.core,
+    pytest.mark.contract("C-BALANCE", "C-RESPONSE"),
+]
 
 
 class TestPhysicalValidation(TestCase):
@@ -177,19 +182,33 @@ class TestPhysicalValidation(TestCase):
         # Access debug data for grid 1
         df_debug = df_out.loc[1, "debug"]
 
-        # Get soil store for each surface type
-        df_soilstore = df_debug.filter(regex="^ss_.*_next$")
-
-        # Get surface fractions
-        ser_sfr_surf = self.df_state_init.sfr_surf.iloc[0]
-
-        # Calculate weighted soil store
-        ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
-
-        # Get water balance components from SUEWS output
-        df_water = df_out.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
-            SoilStore=ser_soilstore, TotalStore=ser_soilstore + df_out.SUEWS.State
+        # Validate the same required inputs and known intervals as the sweep.
+        actual_times = df_out.loc[1].index
+        assert actual_times.equals(self.df_forcing_week.index), (
+            "Incomplete or misordered water output rows for grid=1: "
+            f"missing={self.df_forcing_week.index.difference(actual_times).tolist()}, "
+            f"unexpected={actual_times.difference(self.df_forcing_week.index).tolist()}"
         )
+        max_diff = water_balance_residual_mm(df_out, self.df_state_init)
+
+        # Keep the summary on this grid's datetime index, in surface order.
+        soil_columns = [
+            f"ss_{surface}_next"
+            for surface in (
+                "Paved",
+                "Bldgs",
+                "EveTr",
+                "DecTr",
+                "Grass",
+                "BSoil",
+                "Water",
+            )
+        ]
+        fractions = self.df_state_init["sfr_surf"].loc[1, [f"({i},)" for i in range(7)]]
+        ser_soilstore = df_debug[soil_columns].dot(fractions.to_numpy(dtype=float))
+        df_water = df_out.loc[1, "SUEWS"][["Rain", "Irr", "Evap", "RO", "State"]].copy()
+        df_water["SoilStore"] = ser_soilstore
+        df_water["TotalStore"] = ser_soilstore + df_water.State
 
         # Check that fluxes have reasonable magnitudes
         max_rain_rate = df_water.Rain.max() * 12  # Convert 5-min to hourly
@@ -206,23 +225,7 @@ class TestPhysicalValidation(TestCase):
             f"Unrealistic evaporation rate: {max_evap_rate:.1f} mm/hr",
         )
 
-        # ===============================
-        # Check if water balance is closed
-        # ===============================
-        # Change in total store
-        ser_totalstore_change = df_water.TotalStore.diff().dropna()
-
-        # Water input
-        ser_water_in = df_water.Rain + df_water.Irr
-
-        # Water output
-        ser_water_out = df_water.Evap + df_water.RO
-
-        # Water balance
-        ser_water_balance = ser_water_in - ser_water_out
-
-        # Test if water balance is closed (should be very small)
-        max_diff = (ser_totalstore_change - ser_water_balance).abs().max()
+        # The shared residual excludes only the first, predecessor-free interval.
         self.assertLess(
             max_diff,
             1e-4,  # Slightly more relaxed than 1e-6 for robustness

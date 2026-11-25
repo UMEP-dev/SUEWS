@@ -121,6 +121,7 @@ use suews_bridge::{
 #[cfg(all(feature = "physics", feature = "arrow-output"))]
 use suews_bridge::{
     interpolate_forcing, load_run_config, read_forcing_block, run_from_config_str_and_forcing,
+    slice_forcing_to_period, validate_forcing_for_config,
 };
 
 /// What `suews-engine run` accepts, and where users should go instead.
@@ -130,7 +131,8 @@ use suews_bridge::{
 const RESOLVED_YAML_HINT: &str = "suews-engine is a developer and test binary: `suews-engine run` expects \
 resolved YAML, as `suews run` hands it to the engine. To run a hand-written \
 config, use `suews run <config>`, which validates and resolves it through the \
-SUEWS data model first.";
+SUEWS data model first. Resolved site properties require finite lat, lng, alt, \
+timezone, surfacearea and z. Use lng for site longitude.";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -147,13 +149,20 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[cfg(all(feature = "physics", feature = "arrow-output"))]
-    /// Run SUEWS batch simulation from resolved YAML config.
+    /// Run SUEWS from resolved YAML with `model.control.output.dir` set.
     ///
     /// The config must be resolved YAML, as `suews run` hands it to the
     /// engine. Hand-written configs go through `suews run <config>`.
+    ///
+    /// For direct engine runs, put the destination in `model.control.output.dir`.
+    /// Source YAML uses the legacy `model.control.output_file.path` only if the
+    /// `output` block is absent. If the selected source directory is missing or
+    /// null, the export records the working directory at export time. An explicit
+    /// empty string writes beside the exported YAML, as does `.`. Buffer-only
+    /// Python runs return arrays and can omit the directory.
     #[command(after_help = RESOLVED_YAML_HINT)]
     Run {
-        /// Path to resolved config YAML (as written by `suews run`).
+        /// Path to resolved YAML exported with `config_to_engine_yaml`.
         config: String,
     },
     /// Inspect bridge type schemas and samples.
@@ -787,11 +796,16 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
     let config_yaml = fs::read_to_string(&config_path)
         .map_err(|e| format!("failed to read config {}: {e}", config_path.display()))?;
     let run_cfg = load_run_config(&config_path).map_err(with_resolved_yaml_hint)?;
+    let output_dir = run_cfg.output_dir.as_deref().ok_or_else(|| {
+        with_resolved_yaml_hint("`model.control.output.dir` is missing".to_string())
+    })?;
     if run_cfg.config.smd_method != 0 {
         return Err("Observed soil moisture requires Python soil-content preparation; use SUEWSSimulation".into());
     }
     let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
     let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
+    let forcing = slice_forcing_to_period(&forcing, &run_cfg.run_period, run_cfg.timer.tstep)?;
+    validate_forcing_for_config(&forcing, &run_cfg.config)?;
 
     let (output_block, _state, _timer, len_sim, warnings) =
         run_from_config_str_and_forcing(&config_yaml, forcing.block, forcing.len_sim)
@@ -811,7 +825,7 @@ fn run_physics_command(config_path: &str) -> Result<(), String> {
         );
     }
 
-    let output_path = write_output_arrow(&run_cfg.output_dir, &output_block, len_sim)?;
+    let output_path = write_output_arrow(output_dir, &output_block, len_sim)?;
 
     println!("simulation complete");
     println!("timesteps_processed={}", len_sim);
@@ -1778,6 +1792,7 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
     Ok(())
 }
 
+// contract: C-API
 #[cfg(test)]
 mod tests {
     use super::*;

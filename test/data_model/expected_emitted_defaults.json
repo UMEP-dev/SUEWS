@@ -1,0 +1,1071 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "5b3c2366d7",
+  "description": "Implementation-behaviour regression snapshot of emitted static defaults for Layer 2 adversarial configuration mutations (gh#2098, part of gh#2083). This file locks current Pydantic and engine-export defaults against silent drift and is NOT an independently specified scientific reference. Every non-derived scalar leaf that resolves to a non-null value on omit must match both the declared finite type and exact snapshot value recorded here (cross-checked against live Pydantic defaults). Runtime-derived fields (alb_id, store_cap, sdd_id, deep_soil_temperature) are computed independently from base anchor inputs rather than listed statically.",
+  "defaults": {
+    "model.control.forcing.file": {
+      "type": "str",
+      "value": "forcing.txt"
+    },
+    "model.control.forcing.timestamp_reference": {
+      "type": "str",
+      "value": "local_standard_time"
+    },
+    "model.control.output.format": {
+      "type": "str",
+      "value": "txt"
+    },
+    "model.control.output.include_provisional": {
+      "type": "bool",
+      "value": false
+    },
+    "model.control.output.timestamp_reference": {
+      "type": "str",
+      "value": "follow"
+    },
+    "model.control.tstep": {
+      "type": "int",
+      "value": 300
+    },
+    "sites[0].gridiv": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].initial_states.*.gdd_id": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.icefrac": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.lai_id": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].initial_states.*.snowdens": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.snowfrac": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.snowpack": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.snowwater": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.state": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.*.tin": {
+      "type": "float",
+      "value": 20.0
+    },
+    "sites[0].initial_states.*.tsfc": {
+      "type": "float",
+      "value": 15.0
+    },
+    "sites[0].initial_states.bldgs.soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.bsoil.soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.dectr.decidcap_id": {
+      "type": "float",
+      "value": 0.3
+    },
+    "sites[0].initial_states.dectr.porosity_id": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].initial_states.dectr.soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.evetr.soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.grass.soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.paved.soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.roofs[*].soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.roofs[*].state": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.roofs[*].tin": {
+      "type": "float",
+      "value": 20.0
+    },
+    "sites[0].initial_states.roofs[*].tsfc": {
+      "type": "float",
+      "value": 15.0
+    },
+    "sites[0].initial_states.snowalb": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].initial_states.walls[*].soilstore": {
+      "type": "float",
+      "value": 150.0
+    },
+    "sites[0].initial_states.walls[*].state": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].initial_states.walls[*].tin": {
+      "type": "float",
+      "value": 20.0
+    },
+    "sites[0].initial_states.walls[*].tsfc": {
+      "type": "float",
+      "value": 15.0
+    },
+    "sites[0].initial_states.water.soilstore": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.co2.emission_factor_co2_vehicle.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.co2.emission_factor_co2_vehicle.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.co2.traffic_rate.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.co2.traffic_rate.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.ah_min.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.ah_min.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.ah_slope_cooling.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.ah_slope_cooling.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.ah_slope_heating.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.ah_slope_heating.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.baset_cooling.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.baset_cooling.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.baset_heating.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.baset_heating.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.popdensdaytime.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.popdensdaytime.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.popdensnighttime": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf0_beu.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf0_beu.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf_a.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf_a.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf_b.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf_b.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf_c.holiday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.anthropogenic_emissions.heat.qf_c.working_day": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.building_archetype.absorptivity_roof_external": {
+      "type": "float",
+      "value": 0.8
+    },
+    "sites[0].properties.building_archetype.absorptivity_wall_external": {
+      "type": "float",
+      "value": 0.8
+    },
+    "sites[0].properties.building_archetype.absorptivity_window_external": {
+      "type": "float",
+      "value": 0.01
+    },
+    "sites[0].properties.building_archetype.archetype_building_count": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.building_archetype.archetype_height": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.building_archetype.archetype_name": {
+      "type": "str",
+      "value": "SampleBuilding"
+    },
+    "sites[0].properties.building_archetype.area_footprint": {
+      "type": "float",
+      "value": 64.0
+    },
+    "sites[0].properties.building_archetype.area_internal_mass": {
+      "type": "float",
+      "value": 100.0
+    },
+    "sites[0].properties.building_archetype.area_wall_external": {
+      "type": "float",
+      "value": 80.0
+    },
+    "sites[0].properties.building_archetype.conductivity_ground_floor": {
+      "type": "float",
+      "value": 0.15
+    },
+    "sites[0].properties.building_archetype.conductivity_roof": {
+      "type": "float",
+      "value": 60.0
+    },
+    "sites[0].properties.building_archetype.conductivity_roof_outer": {
+      "type": "float",
+      "value": 60.0
+    },
+    "sites[0].properties.building_archetype.conductivity_wall": {
+      "type": "float",
+      "value": 0.6
+    },
+    "sites[0].properties.building_archetype.conductivity_wall_outer": {
+      "type": "float",
+      "value": 60.0
+    },
+    "sites[0].properties.building_archetype.conductivity_window": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.building_archetype.density_ground_floor": {
+      "type": "float",
+      "value": 500.0
+    },
+    "sites[0].properties.building_archetype.density_internal_mass": {
+      "type": "float",
+      "value": 1000.0
+    },
+    "sites[0].properties.building_archetype.density_roof": {
+      "type": "float",
+      "value": 1600.0
+    },
+    "sites[0].properties.building_archetype.density_roof_outer": {
+      "type": "float",
+      "value": 1600.0
+    },
+    "sites[0].properties.building_archetype.density_wall": {
+      "type": "float",
+      "value": 1600.0
+    },
+    "sites[0].properties.building_archetype.density_wall_outer": {
+      "type": "float",
+      "value": 1600.0
+    },
+    "sites[0].properties.building_archetype.density_window": {
+      "type": "float",
+      "value": 2500.0
+    },
+    "sites[0].properties.building_archetype.emissivity_internal_mass": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.building_archetype.emissivity_roof_external": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.emissivity_roof_internal": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.emissivity_wall_external": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.emissivity_wall_internal": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.emissivity_window_external": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.emissivity_window_internal": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.fraction_heat_capacity_roof_external": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.building_archetype.fraction_heat_capacity_wall_external": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.building_archetype.max_power_heating_system_air": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.building_archetype.max_power_heating_system_water": {
+      "type": "float",
+      "value": 3000.0
+    },
+    "sites[0].properties.building_archetype.occupants": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.building_archetype.ratio_internal_mass_volume": {
+      "type": "float",
+      "value": 0.01
+    },
+    "sites[0].properties.building_archetype.ratio_window_to_wall": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].properties.building_archetype.reflectivity_roof_external": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].properties.building_archetype.reflectivity_wall_external": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].properties.building_archetype.reflectivity_window_external": {
+      "type": "float",
+      "value": 0.09
+    },
+    "sites[0].properties.building_archetype.setpoint_temperature_cooling_air": {
+      "type": "float",
+      "value": 26.0
+    },
+    "sites[0].properties.building_archetype.setpoint_temperature_heating_air": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_ground_floor": {
+      "type": "float",
+      "value": 1500.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_internal_mass": {
+      "type": "float",
+      "value": 1000.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_roof": {
+      "type": "float",
+      "value": 850.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_roof_outer": {
+      "type": "float",
+      "value": 850.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_wall": {
+      "type": "float",
+      "value": 850.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_wall_outer": {
+      "type": "float",
+      "value": 850.0
+    },
+    "sites[0].properties.building_archetype.specific_heat_capacity_window": {
+      "type": "float",
+      "value": 840.0
+    },
+    "sites[0].properties.building_archetype.thickness_ground_floor": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].properties.building_archetype.thickness_roof": {
+      "type": "float",
+      "value": 20.0
+    },
+    "sites[0].properties.building_archetype.thickness_roof_outer": {
+      "type": "float",
+      "value": 20.0
+    },
+    "sites[0].properties.building_archetype.thickness_wall": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].properties.building_archetype.thickness_wall_outer": {
+      "type": "float",
+      "value": 20.0
+    },
+    "sites[0].properties.building_archetype.thickness_window": {
+      "type": "float",
+      "value": 0.015
+    },
+    "sites[0].properties.building_archetype.transmissivity_roof_external": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.building_archetype.transmissivity_wall_external": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.building_archetype.transmissivity_window_external": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.building_archetype.volume_hot_water_tank": {
+      "type": "float",
+      "value": 0.15
+    },
+    "sites[0].properties.h_std": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.irrigation.daywat.friday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywat.monday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywat.saturday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywat.sunday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywat.thursday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywat.tuesday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywat.wednesday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.friday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.monday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.saturday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.sunday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.thursday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.tuesday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.daywatper.wednesday": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.irrigation.faut": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.lambda_c": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.land_cover.*.alb": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.land_cover.*.alb_max": {
+      "type": "float",
+      "value": 0.3
+    },
+    "sites[0].properties.land_cover.*.alpha_enh_bioco2": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.land_cover.*.beta_enh_bioco2": {
+      "type": "float",
+      "value": 0.7
+    },
+    "sites[0].properties.land_cover.*.ch_anohm": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.land_cover.*.emis": {
+      "type": "float",
+      "value": 0.95
+    },
+    "sites[0].properties.land_cover.*.ie_a": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.land_cover.*.ie_m": {
+      "type": "float",
+      "value": 0.6
+    },
+    "sites[0].properties.land_cover.*.irrigation_fraction": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.land_cover.*.k_anohm": {
+      "type": "float",
+      "value": 0.4
+    },
+    "sites[0].properties.land_cover.*.lai.lai_min": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.land_cover.*.lai.lai_type": {
+      "type": "int",
+      "value": 0
+    },
+    "sites[0].properties.land_cover.*.max_conductance": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.land_cover.*.min_res_bioco2": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.land_cover.*.ohm_threshold_summer_winter": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.land_cover.*.ohm_threshold_wet_dry": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.land_cover.*.rho_cp_anohm": {
+      "type": "float",
+      "value": 1200.0
+    },
+    "sites[0].properties.land_cover.*.sfr": {
+      "type": "float",
+      "value": 0.14285714285714285
+    },
+    "sites[0].properties.land_cover.*.snowpack_limit": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.land_cover.*.state_limit": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.land_cover.*.storage_drain_params.drain_eq": {
+      "type": "int",
+      "value": 0
+    },
+    "sites[0].properties.land_cover.*.storage_drain_params.store_min": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.land_cover.*.wet_threshold": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.land_cover.dectr.capacity_max_deciduous": {
+      "type": "float",
+      "value": 100.0
+    },
+    "sites[0].properties.land_cover.dectr.capacity_min_deciduous": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.land_cover.dectr.porosity_max_deciduous": {
+      "type": "float",
+      "value": 0.6
+    },
+    "sites[0].properties.land_cover.dectr.porosity_min_deciduous": {
+      "type": "float",
+      "value": 0.2
+    },
+    "sites[0].properties.land_cover.water.flowchange": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.lumps.drainrt": {
+      "type": "float",
+      "value": 0.25
+    },
+    "sites[0].properties.lumps.raincover": {
+      "type": "float",
+      "value": 0.25
+    },
+    "sites[0].properties.lumps.rainmaxres": {
+      "type": "float",
+      "value": 0.25
+    },
+    "sites[0].properties.lumps.veg_type": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.n_buildings": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.snow.narp_emissivity_snow": {
+      "type": "float",
+      "value": 0.99
+    },
+    "sites[0].properties.snow.ohm_threshold_summer_winter": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.snow.ohm_threshold_wet_dry": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.snow.precipitation_threshold_albedo_reset": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.snow.radiation_melt_factor": {
+      "type": "float",
+      "value": 0.0016
+    },
+    "sites[0].properties.snow.snow_albedo_max": {
+      "type": "float",
+      "value": 0.85
+    },
+    "sites[0].properties.snow.snow_albedo_min": {
+      "type": "float",
+      "value": 0.4
+    },
+    "sites[0].properties.snow.snow_depth_limit_building": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.snow.snow_depth_limit_paved": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.snow.tau_cold_snow": {
+      "type": "float",
+      "value": 0.018
+    },
+    "sites[0].properties.snow.tau_melting_snow": {
+      "type": "float",
+      "value": 0.11
+    },
+    "sites[0].properties.snow.tau_refreezing_snow": {
+      "type": "float",
+      "value": 0.05
+    },
+    "sites[0].properties.snow.temperature_melt_factor": {
+      "type": "float",
+      "value": 0.12
+    },
+    "sites[0].properties.snow.water_holding_capacity_max": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.snow.water_holding_capacity_min": {
+      "type": "float",
+      "value": 0.05
+    },
+    "sites[0].properties.soil_observation.layer_top": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.soil_observation.soil_not_rocks": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.spartacus.air_ext_lw": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.spartacus.air_ext_sw": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.spartacus.air_ssa_lw": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.spartacus.air_ssa_sw": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.spartacus.ground_albedo_dir_mult_fact": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.spartacus.n_stream_lw_forest": {
+      "type": "int",
+      "value": 2
+    },
+    "sites[0].properties.spartacus.n_stream_lw_urban": {
+      "type": "int",
+      "value": 2
+    },
+    "sites[0].properties.spartacus.n_stream_sw_forest": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.spartacus.n_stream_sw_urban": {
+      "type": "int",
+      "value": 2
+    },
+    "sites[0].properties.spartacus.n_vegetation_region_forest": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.spartacus.n_vegetation_region_urban": {
+      "type": "int",
+      "value": 1
+    },
+    "sites[0].properties.spartacus.use_sw_direct_albedo": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.spartacus.veg_contact_fraction_const": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.spartacus.veg_fsd_const": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.spartacus.veg_ssa_lw": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.spartacus.veg_ssa_sw": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.stebbs.conductivity_hot_water_tank_wall": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.stebbs.conductivity_hot_water_vessel_wall": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.stebbs.convection_coefficient_ground_floor_internal": {
+      "type": "float",
+      "value": 5.88
+    },
+    "sites[0].properties.stebbs.convection_coefficient_hot_water_tank_vessel_external": {
+      "type": "float",
+      "value": 7.7
+    },
+    "sites[0].properties.stebbs.convection_coefficient_hot_water_tank_vessel_internal": {
+      "type": "float",
+      "value": 7.7
+    },
+    "sites[0].properties.stebbs.convection_coefficient_hot_water_tank_wall_external": {
+      "type": "float",
+      "value": 7.7
+    },
+    "sites[0].properties.stebbs.convection_coefficient_hot_water_tank_wall_internal": {
+      "type": "float",
+      "value": 7.7
+    },
+    "sites[0].properties.stebbs.convection_coefficient_internal_mass": {
+      "type": "float",
+      "value": 7.69
+    },
+    "sites[0].properties.stebbs.convection_coefficient_roof_external": {
+      "type": "float",
+      "value": 25.0
+    },
+    "sites[0].properties.stebbs.convection_coefficient_roof_internal": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.stebbs.convection_coefficient_wall_external": {
+      "type": "float",
+      "value": 25.0
+    },
+    "sites[0].properties.stebbs.convection_coefficient_wall_internal": {
+      "type": "float",
+      "value": 7.69
+    },
+    "sites[0].properties.stebbs.convection_coefficient_window_external": {
+      "type": "float",
+      "value": 25.0
+    },
+    "sites[0].properties.stebbs.convection_coefficient_window_internal": {
+      "type": "float",
+      "value": 7.69
+    },
+    "sites[0].properties.stebbs.daylight_control": {
+      "type": "int",
+      "value": 0
+    },
+    "sites[0].properties.stebbs.density_hot_water": {
+      "type": "float",
+      "value": 1000.0
+    },
+    "sites[0].properties.stebbs.density_hot_water_tank_wall": {
+      "type": "float",
+      "value": 2500.0
+    },
+    "sites[0].properties.stebbs.density_hot_water_vessel_wall": {
+      "type": "float",
+      "value": 2500.0
+    },
+    "sites[0].properties.stebbs.depth_ground": {
+      "type": "float",
+      "value": 3.0
+    },
+    "sites[0].properties.stebbs.destination_waste_heat": {
+      "type": "int",
+      "value": 0
+    },
+    "sites[0].properties.stebbs.efficiency_cooling_system_air": {
+      "type": "float",
+      "value": 3.4
+    },
+    "sites[0].properties.stebbs.efficiency_heating_system_air": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.stebbs.efficiency_heating_system_water": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.stebbs.emissivity_hot_water_tank_wall": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.emissivity_hot_water_vessel_wall": {
+      "type": "float",
+      "value": 0.9
+    },
+    "sites[0].properties.stebbs.fraction_convective_heating": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.stebbs.internal_shading": {
+      "type": "int",
+      "value": 0
+    },
+    "sites[0].properties.stebbs.max_power_cooling_system_air": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.power_density_lighting": {
+      "type": "float",
+      "value": 2.0
+    },
+    "sites[0].properties.stebbs.radiation_threshold_shading": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.rate_flow_hot_water": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.rate_ventilation": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.ratio_latent_sensible": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.reduction_factor_shading": {
+      "type": "float",
+      "value": 1.0
+    },
+    "sites[0].properties.stebbs.setpoint_temperature_heating_water": {
+      "type": "float",
+      "value": 60.0
+    },
+    "sites[0].properties.stebbs.specific_heat_capacity_hot_water": {
+      "type": "float",
+      "value": 4186.0
+    },
+    "sites[0].properties.stebbs.specific_heat_capacity_hot_water_tank_wall": {
+      "type": "float",
+      "value": 500.0
+    },
+    "sites[0].properties.stebbs.specific_heat_capacity_hot_water_vessel_wall": {
+      "type": "float",
+      "value": 500.0
+    },
+    "sites[0].properties.stebbs.surface_area_hot_water": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.stebbs.surface_area_hot_water_tank": {
+      "type": "float",
+      "value": 2.0
+    },
+    "sites[0].properties.stebbs.temperature_air_annual_mean": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.stebbs.temperature_air_indoor_initial": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.temperature_air_month_mean_diffmax": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.stebbs.temperature_air_outdoor_initial": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.temperature_mains_water": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.temperature_threshold_shading": {
+      "type": "float",
+      "value": 0.0
+    },
+    "sites[0].properties.stebbs.thermal_conductivity_ground": {
+      "type": "float",
+      "value": 0.193
+    },
+    "sites[0].properties.stebbs.thickness_hot_water_tank_wall": {
+      "type": "float",
+      "value": 0.01
+    },
+    "sites[0].properties.stebbs.thickness_hot_water_vessel_wall": {
+      "type": "float",
+      "value": 0.005
+    },
+    "sites[0].properties.stebbs.threshold_lighting_illuminance": {
+      "type": "float",
+      "value": 300.0
+    },
+    "sites[0].properties.stebbs.threshold_metabolism": {
+      "type": "float",
+      "value": 74.3
+    },
+    "sites[0].properties.stebbs.volume_hot_water": {
+      "type": "float",
+      "value": 0.05
+    },
+    "sites[0].properties.vertical_layers.nlayer": {
+      "type": "int",
+      "value": 3
+    },
+    "sites[0].properties.vertical_layers.roofs[*].alb": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.vertical_layers.roofs[*].emis": {
+      "type": "float",
+      "value": 0.95
+    },
+    "sites[0].properties.vertical_layers.roofs[*].roof_albedo_dir_mult_fact": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.vertical_layers.roofs[*].state_limit": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.vertical_layers.roofs[*].wall_specular_frac": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.vertical_layers.roofs[*].wet_threshold": {
+      "type": "float",
+      "value": 0.5
+    },
+    "sites[0].properties.vertical_layers.walls[*].alb": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.vertical_layers.walls[*].emis": {
+      "type": "float",
+      "value": 0.95
+    },
+    "sites[0].properties.vertical_layers.walls[*].roof_albedo_dir_mult_fact": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.vertical_layers.walls[*].state_limit": {
+      "type": "float",
+      "value": 10.0
+    },
+    "sites[0].properties.vertical_layers.walls[*].wall_specular_frac": {
+      "type": "float",
+      "value": 0.1
+    },
+    "sites[0].properties.vertical_layers.walls[*].wet_threshold": {
+      "type": "float",
+      "value": 0.5
+    }
+  }
+}

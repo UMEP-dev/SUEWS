@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
 
 # Import shared CLI testing utilities from conftest
 from conftest import run_cli_command

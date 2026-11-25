@@ -1,3 +1,23 @@
+//! Composite model state container mirroring Fortran `SUEWS_STATE`.
+//!
+//! Aggregates all 13 subsystem state members (`SUEWS_STATE_MEMBER_ORDER`):
+//! `error_state`, `flag_state`, `anthroemis_state`, `ohm_state`, `solar_state`,
+//! `atm_state`, `phenology_state`, `snow_state`, `hydro_state`, `heat_state`,
+//! `roughness_state`, `stebbs_state` and `nhood_state`.
+//!
+//! ## Restart and checkpoint contract (`BR-06`)
+//!
+//! - Decoding requires the complete 13-member set (`validate_member_set`); a
+//!   missing or unknown member fails with [`BridgeError::BadState`] instead of
+//!   silently substituting a default state.
+//! - Checkpoint serialisation (`suews_state_to_checkpoint_value`, invoked by
+//!   `checkpoint::suews_checkpoint_to_json`) preserves inactive `NaN` entries as
+//!   JSON `null` and restores JSON `null` back to `f64::NAN`, while rejecting
+//!   `+Inf` / `-Inf` with [`BridgeError::NonFiniteCheckpointValue`].
+//! - During simulation (`sim.rs`), all 13 members are packed into a flat buffer
+//!   plus a TOC matching `STATE_MEMBER_*` (`sim.rs`) and
+//!   `SUEWS_CAPI_STATE_MEMBER_*` (`c_api/driver.f95`).
+
 use crate::anthroemis::{
     anthroemis_state_default_from_fortran, anthroemis_state_from_values_payload,
     anthroemis_state_schema_version, anthroemis_state_schema_version_runtime,
@@ -56,11 +76,12 @@ use crate::solar::{
 use crate::stebbs_state::{
     stebbs_state_default_from_fortran, stebbs_state_from_values_payload,
     stebbs_state_schema_version, stebbs_state_schema_version_runtime,
-    stebbs_state_to_values_payload, StebbsState,
+    stebbs_state_to_values_payload, StebbsState, STEBBS_STATE_SCHEMA_VERSION,
 };
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
+/// Schema version for the composite [`SuewsState`] container payload.
 pub const SUEWS_STATE_SCHEMA_VERSION: u32 = 1;
 
 const MEMBER_ERROR_STATE: &str = "error_state";
@@ -93,6 +114,7 @@ const SUEWS_STATE_MEMBER_ORDER: [&str; 13] = [
     MEMBER_NHOOD_STATE,
 ];
 
+/// Schema metadata for [`SuewsState`], recording each member's schema version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsStateSchema {
     pub schema_version: u32,
@@ -100,12 +122,14 @@ pub struct SuewsStateSchema {
     pub member_schema_versions: BTreeMap<String, u32>,
 }
 
+/// Versioned nested JSON map holding all 13 serialised members of [`SuewsState`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsStateValuesPayload {
     pub schema_version: u32,
     pub members: BTreeMap<String, Value>,
 }
 
+/// Complete 13-member runtime state mirroring Fortran `SUEWS_STATE`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsState {
     pub error_state: ErrorState,
@@ -294,6 +318,23 @@ fn values_payload_with_dims_from_value(
         values,
         dims,
     })
+}
+
+fn stebbs_state_payload_from_value(
+    value: &Value,
+    path: &str,
+) -> Result<ValuesPayloadWithDims, BridgeError> {
+    let obj = value.as_object().ok_or(BridgeError::BadState)?;
+    if let Some(raw_ver) = obj.get("schema_version").and_then(Value::as_u64) {
+        let ver = u32::try_from(raw_ver).map_err(|_| BridgeError::BadState)?;
+        if ver != STEBBS_STATE_SCHEMA_VERSION {
+            return Err(BridgeError::UnsupportedStebbsStateVersion {
+                found: ver,
+                expected: STEBBS_STATE_SCHEMA_VERSION,
+            });
+        }
+    }
+    values_payload_with_dims_from_value(value, path)
 }
 
 fn error_entry_payload_to_value(payload: &ErrorEntryValuesPayload) -> Value {
@@ -700,7 +741,7 @@ pub fn suews_state_to_values_payload(state: &SuewsState) -> SuewsStateValuesPayl
     );
     members.insert(
         MEMBER_STEBBS_STATE.to_string(),
-        scalar_values_payload_to_value(&stebbs_state_to_values_payload(&state.stebbs_state)),
+        values_payload_with_dims_to_value(&stebbs_state_to_values_payload(&state.stebbs_state)),
     );
     members.insert(
         MEMBER_NHOOD_STATE.to_string(),
@@ -764,7 +805,7 @@ pub fn suews_state_from_values_payload(
         member_value(&payload.members, MEMBER_ROUGHNESS_STATE)?,
         "members.roughness_state",
     )?;
-    let stebbs_payload = scalar_values_payload_from_value(
+    let stebbs_payload = stebbs_state_payload_from_value(
         member_value(&payload.members, MEMBER_STEBBS_STATE)?,
         "members.stebbs_state",
     )?;
@@ -837,10 +878,6 @@ fn validate_suews_state_for_checkpoint(state: &SuewsState) -> Result<(), BridgeE
             roughness_state_to_values_payload(&state.roughness_state),
         ),
         (
-            "members.stebbs_state.values",
-            stebbs_state_to_values_payload(&state.stebbs_state),
-        ),
-        (
             "members.nhood_state.values",
             nhood_state_to_values_payload(&state.nhood_state),
         ),
@@ -857,6 +894,10 @@ fn validate_suews_state_for_checkpoint(state: &SuewsState) -> Result<(), BridgeE
         &heat_state_to_values_payload(&state.heat_state).values,
         "members.heat_state.values",
     )?;
+    validate_checkpoint_values(
+        &stebbs_state_to_values_payload(&state.stebbs_state).values,
+        "members.stebbs_state.values",
+    )?;
     Ok(())
 }
 
@@ -871,6 +912,7 @@ pub fn suews_state_from_nested_payload(payload: &Value) -> Result<SuewsState, Br
     suews_state_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC, C-RESTART
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -976,6 +1018,26 @@ mod tests {
             BridgeError::InvalidCheckpointValue {
                 path: "members.atm_state.values[0]".to_string(),
                 found: "string".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn nested_payload_rejects_old_stebbs_v2_without_dims() {
+        let state = suews_state_default_from_fortran().expect("default state should be available");
+        let mut payload = suews_state_to_nested_payload(&state);
+        payload["members"][MEMBER_STEBBS_STATE] = serde_json::json!({
+            "schema_version": 2,
+            "values": vec![0.0_f64; 155],
+        });
+
+        let err = suews_state_from_nested_payload(&payload)
+            .expect_err("old v2 stebbs_state without buildings must be rejected");
+        assert_eq!(
+            err,
+            BridgeError::UnsupportedStebbsStateVersion {
+                found: 2,
+                expected: STEBBS_STATE_SCHEMA_VERSION,
             }
         );
     }

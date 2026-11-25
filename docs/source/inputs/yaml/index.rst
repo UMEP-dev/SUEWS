@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _yaml_input:
 
 YAML Configuration Format
@@ -39,6 +41,8 @@ Quick Start
    # Run simulation
    output = sim.run()
 
+See :doc:`EHC coupling and heat diagnostics <../../outputs/ehc>` for method-5 defaults, initial temperatures and explicit compatibility settings.
+
 Configuration Structure
 -----------------------
 
@@ -67,7 +71,7 @@ Essential Parameters
 Minimum Configuration Structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A valid SUEWS configuration requires many parameters beyond this minimal example. The validator will add missing required parameters with appropriate defaults:
+A valid SUEWS configuration requires many parameters beyond this minimal example. The validator adds missing optional defaults where safe, while mandatory active-surface routing fields inside a supplied ``waterdist`` block and physics-required parameters must still be provided explicitly:
 
 .. code-block:: yaml
 
@@ -127,6 +131,17 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 Parameter Documentation
 -----------------------
 
+Vegetation initial senescence degree days,
+``sites[].initial_states.{evetr,dectr,grass}.sdd_id``, must be finite numbers
+in K d. Negative, zero and positive values are accepted; omission keeps the
+default of 0. Both scalar and ``value``/``ref`` forms are supported, with
+reference metadata retained. NaN and either infinity are rejected rather than
+being serialised as null or reaching the engine as zero. Explicit null remains
+invalid. SuPy checks this field when loading configuration or dataframe state
+and again before exporting or running a configuration that has been edited in
+memory. Errors identify the site, vegetation surface and field. For the
+migration procedure, see :ref:`schema_dev16_vegetation_senescence`.
+
 Before configuring height-dependent roof and wall properties, read
 :ref:`layer_conventions`. It defines the SPARTACUS vertical-layer geometry and,
 separately, the input structure for five material layers. It also identifies
@@ -134,6 +149,22 @@ which storage-heat and radiation methods use each property.
 
 For profile keys, day selection, normalisation and defaults, read
 :doc:`temporal-profiles`.
+
+If an older YAML contains ``to_soilstore: 0`` for paving or buildings, see
+:ref:`schema_dev12_water_routing` before comparing runoff with previous runs.
+For per-surface within-grid water routing (``waterdist``), read
+:ref:`waterdist_yaml_rules` and :doc:`config-reference/waterdistribution`. When
+a ``waterdist`` block is supplied for an active surface (``sfr > 0``), all
+seven applicable destinations must be given and sum to ``1.0`` (for example,
+``to_runoff: 0.98`` and ``to_grass: 0.02`` with zero to the remaining five
+non-paved surfaces on ``paved``); omitting the entire ``waterdist`` block uses
+surface-specific defaults, and inactive surfaces (``sfr == 0``) may omit
+applicable destinations. Explicit ``0.0`` in an inapplicable slot
+(``to_<self>``, ``to_soilstore`` on impervious surfaces, or ``to_runoff`` on
+pervious surfaces) is normalised to absent at YAML load while non-zero values
+fail; post-load live mutations introducing inapplicable slots (including
+``0.0``) or activating ``sfr`` from ``0`` to ``> 0`` without applicable
+destinations fail before engine execution.
 
 .. toctree::
    :hidden:
@@ -236,7 +267,7 @@ What Gets Fixed Automatically
 
 The validator automatically corrects these issues:
 
-- **Missing parameters** - Adds required fields with sensible defaults
+- **Missing parameters** - Adds default-backed fields; mandatory active-surface routing fields inside an explicit ``waterdist`` block (``sfr > 0``) and physics-required site parameters are reported as blocking errors rather than autofilled
 - **Surface fractions** - Normalizes to sum to exactly 1.0
 - **Initial temperatures** - Sets based on location and season using climate data
 - **Physics options** - Ensures compatible model settings
@@ -248,7 +279,10 @@ Common Issues and Solutions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **"Missing required parameter"**
-   The validator will add it with a default value. Check the report to see what was added.
+   Default-backed missing parameters are added by the validator (check the report to see what was added). Mandatory active-surface routing fields inside a supplied ``waterdist`` block (``sfr > 0``) and physics-required site parameters are not silently filled and must be supplied explicitly.
+
+**"Disallowed water distribution field"**
+   A surface's ``waterdist`` block received a non-zero inapplicable destination (self-routing ``to_<self>``, ``to_soilstore`` on impervious ``paved``/``bldgs``, or ``to_runoff`` on pervious surfaces), or an inapplicable field (including ``0.0``) was introduced by live mutation after load. Omit inapplicable destinations or set them to ``null`` (see :ref:`waterdist_yaml_rules`).
 
 **"Surface fractions don't sum to 1.0"**
    Automatically normalized. Original values are proportionally adjusted.
@@ -311,7 +345,7 @@ Urban Site Configuration
 Tips for Success
 ----------------
 
-1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it; configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) raise a :class:`ValueError` at load time.
+1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it; configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) or omit applicable destinations inside a supplied active-surface (``sfr > 0``) ``waterdist`` block raise a :class:`ValueError` at load time.
 2. **Validate early**: Run validation before long simulations
 3. **Check the report**: Understand what the validator changed
 4. **Use meaningful names**: Help yourself remember what each simulation is for

@@ -133,8 +133,8 @@ impl AtmState {
             ..Self::default()
         };
 
-        for i in 0..NSURF {
-            state.rss_surf[i] = next();
+        for slot in &mut state.rss_surf {
+            *slot = next();
         }
         state.iter_safe = next() >= 0.5;
 
@@ -256,6 +256,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_atm_state_schema_version,
     ffi_default_fn = ffi::suews_atm_state_default,
 }
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -24,7 +24,7 @@ from supy.util import read_forcing
 
 # ruff: enable[import-private-name]
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-PARITY")]
 
 
 @pytest.fixture(scope="module")

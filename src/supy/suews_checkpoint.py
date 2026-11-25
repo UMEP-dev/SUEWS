@@ -15,6 +15,7 @@ from ._version_scm import __version__
 
 CURRENT_CHECKPOINT_SCHEMA_VERSION = 2
 LEGACY_CHECKPOINT_SCHEMA_VERSION = 1
+CURRENT_STEBBS_STATE_SCHEMA_VERSION = 3
 
 
 def _utc_now_iso() -> str:
@@ -42,14 +43,52 @@ def _state_to_object(value: str) -> Any:
     return json.loads(value)
 
 
+def _format_duplicate_grid_key_error(
+    grid_id: int,
+    first_key: Any,
+    second_key: Any,
+) -> str:
+    """Format an actionable error for two distinct keys sharing a grid ID."""
+    first_text = ascii(first_key)
+    second_text = ascii(second_key)
+    if first_text == second_text:
+        first_text = f"{type(first_key).__name__}({first_text})"
+        second_text = f"{type(second_key).__name__}({second_text})"
+    return (
+        f"Duplicate checkpoint grid ID after normalisation: {grid_id} "
+        f"(keys {first_text} and {second_text})"
+    )
+
+
 def _normalise_grid_states(grid_states: Mapping[Any, Any]) -> dict[int, str]:
     if not grid_states:
         raise ValueError("SUEWSCheckpoint requires at least one grid state.")
 
     normalised: dict[int, str] = {}
+    seen_keys: dict[int, Any] = {}
     for grid_id, state in grid_states.items():
-        normalised[int(grid_id)] = _state_to_json(state)
+        public_id = int(grid_id)
+        if public_id in normalised:
+            raise ValueError(
+                _format_duplicate_grid_key_error(
+                    public_id,
+                    seen_keys[public_id],
+                    grid_id,
+                )
+            )
+        seen_keys[public_id] = grid_id
+        normalised[public_id] = _state_to_json(state)
     return normalised
+
+
+def _unique_checkpoint_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate JSON members before a dictionary can discard them."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate checkpoint JSON key: {key!r}")
+        result[key] = value
+    return result
 
 
 def _infer_state_schema_version(grid_states: Mapping[int, str]) -> int | None:
@@ -189,7 +228,9 @@ class SUEWSCheckpoint:
         """Read a checkpoint JSON file."""
         path = Path(path).expanduser().resolve()
         with path.open("r", encoding="utf-8") as checkpoint_file:
-            payload = json.load(checkpoint_file)
+            payload = json.load(
+                checkpoint_file, object_pairs_hook=_unique_checkpoint_object
+            )
         return cls.from_dict(payload)
 
     def to_dict(self) -> dict[str, Any]:
@@ -222,17 +263,45 @@ class SUEWSCheckpoint:
         return path
 
     def validate_for_continuation(self) -> None:
-        """Raise an actionable error when restart timer metadata is unavailable."""
-        if self.checkpoint_schema_version == CURRENT_CHECKPOINT_SCHEMA_VERSION:
-            return
+        """Raise an actionable error when restart metadata or state schema is incompatible."""
         if self.checkpoint_schema_version == LEGACY_CHECKPOINT_SCHEMA_VERSION:
             raise ValueError(
                 "Checkpoint schema version 1 has no elapsed timer metadata. "
                 "Rerun the preceding segment with checkpoint schema version 2 "
                 "before continuing."
             )
-        raise ValueError(
-            "Unsupported checkpoint schema version "
-            f"{self.checkpoint_schema_version!r}; expected "
-            f"{CURRENT_CHECKPOINT_SCHEMA_VERSION}."
-        )
+        if self.checkpoint_schema_version != CURRENT_CHECKPOINT_SCHEMA_VERSION:
+            raise ValueError(
+                "Unsupported checkpoint schema version "
+                f"{self.checkpoint_schema_version!r}; expected "
+                f"{CURRENT_CHECKPOINT_SCHEMA_VERSION}."
+            )
+
+        for grid_id, state_json in sorted(self.grid_states.items()):
+            payload = _state_to_object(state_json)
+            if not isinstance(payload, dict):
+                continue
+            state_payload = payload.get("state")
+            if not isinstance(state_payload, dict):
+                continue
+            members = state_payload.get("members")
+            if not isinstance(members, dict):
+                continue
+            stebbs_payload = members.get("stebbs_state")
+            if not isinstance(stebbs_payload, dict):
+                continue
+            found_version = stebbs_payload.get("schema_version")
+            if found_version != CURRENT_STEBBS_STATE_SCHEMA_VERSION:
+                raise ValueError(
+                    f"Checkpoint grid {grid_id} uses stebbs_state schema version "
+                    f"{found_version!r}, expected "
+                    f"{CURRENT_STEBBS_STATE_SCHEMA_VERSION}. Older checkpoints omit "
+                    "STEBBS buildings(:) state and cannot resume cleanly; rerun the "
+                    "preceding segment to generate a compatible checkpoint."
+                )
+            if "dims" not in stebbs_payload:
+                raise ValueError(
+                    f"Checkpoint grid {grid_id} stebbs_state payload is missing "
+                    "required 'dims' metadata for STEBBS buildings(:); regenerate "
+                    "the checkpoint with the current version."
+                )

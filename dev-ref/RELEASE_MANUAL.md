@@ -25,6 +25,7 @@ Never push commits directly to `master`. Prepare every release on a `release/YYY
 2. **Schema & knowledge-pack audit**: Verify any structural `src/supy/data_model/` changes bumped `CURRENT_SCHEMA_VERSION`, collapsed `.devN` to the plain `YYYY.M` release schema label where applicable (`.claude/rules/python/schema-versioning.md`), synced `sample_config.yml`, and passed `python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>` (Meson builds the knowledge pack into `@OUTDIR@` automatically on every wheel build; never commit `src/supy/knowledge/pack/current/`).
 3. **Benchmark gate (hard prerequisite before depositing)**: Build the candidate wheel (`build-suews` CI artefact or `make dev`) and run `benchmark/check_regression.py` over the KCL/London multi-version benchmark (`benchmark/REPRODUCE.md`). Confirm byte-identical reproducibility and maintainer sign-off on any metric shift before merging or tagging.
 4. **Update CHANGELOG, release notes & docs sanity**:
+   - Fold the per-PR fragments first: `python scripts/suews/fold_changelog.py` (see `changes/README.md`). The GitHub Release notes are cut from `CHANGELOG.md`, so an unfolded fragment is missing from them.
    - Update `CHANGELOG.md` (`### DD Mon YYYY` + `- [category][status] ...`), `docs/source/version-history/vYYYY.M.D.rst` (filtering out `[experimental]` and `[internal]` items), and `.github/releases/YYYY.M.D.md`.
    - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o docs/source/inputs/tables/schema.json`) and run the stray-`.dev` schema scan in `.claude/rules/docs/release-docs-sanity.md`.
 5. **Merge Release PR via Merge Queue**: Open `Release YYYY.M.D` PR, wait for `pr-gate`, and enqueue via `/queue-pr` / `gh pr merge --auto`.
@@ -179,7 +180,7 @@ When writing `docs/source/version-history/vYYYY.M.D.rst` and `.github/releases/Y
 ### Hotfix Procedure (`YYYY.M.D.PATCH`)
 Even for urgent hotfixes, **do not push directly to `master`**:
 1. Branch from `origin/master` (`git checkout -b fix/hotfix-YYYY.M.D.1 origin/master`).
-2. Implement the minimal fix + regression test, update `CHANGELOG.md` and `.github/releases/YYYY.M.D.1.md`, and run `make test-smoke && make test`.
+2. Implement the minimal fix + regression test, add a `changes/` fragment and commit it with the fix, then fold it (`python scripts/suews/fold_changelog.py`, which dates fragments by their commit; or pass `--date YYYY-MM-DD`) and commit the folded `CHANGELOG.md`, update `.github/releases/YYYY.M.D.1.md`, and run `make test-smoke && make test`.
 3. Open a PR, pass `pr-gate`, and merge via the merge queue.
 4. Tag `YYYY.M.D.1` on the merge commit on `origin/master`, push the tag, and run `release-docs-anchor.yml` once PyPI and `docs-sync.yml` complete.
 
@@ -209,7 +210,7 @@ Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
 - [ ] Structural `data_model` audit complete; `.devN` schema collapsed if applicable; `sample_config.yml` and `schema.json` synced; no stray `.dev` labels in `docs/source/`
 - [ ] Knowledge pack freshness verified via `python scripts/lint/check_knowledge_pack_freshness.py --base <last-release-tag>` (built into wheel by Meson; untracked in git)
 - [ ] Pre-release **Benchmark gate** passed and recorded on the `2-meta:release` issue
-- [ ] `CHANGELOG.md`, `docs/source/version-history/vYYYY.M.D.rst`, and `.github/releases/YYYY.M.D.md` prepared (`[experimental]`/`[internal]` filtered out of public notes)
+- [ ] `changes/` fragments folded into `CHANGELOG.md`; `CHANGELOG.md`, `docs/source/version-history/vYYYY.M.D.rst`, and `.github/releases/YYYY.M.D.md` prepared (`[experimental]`/`[internal]` filtered out of public notes)
 - [ ] Release PR merged to `master` through the GitHub merge queue
 - [ ] Annotated tag `YYYY.M.D` created on the merge commit and pushed to `origin`
 - [ ] PyPI (`https://pypi.org/project/supy/`), GitHub Release, and Zenodo DOI verified

@@ -1,0 +1,21 @@
+{
+  "source_ref": "da78796e4f5143a9c7c432c1effbb10aa1e04de3",
+  "source_commit": "da78796e4f5143a9c7c432c1effbb10aa1e04de3",
+  "source_tree": "598d5249d6517b1f171dad05f26958ea4f049b09",
+  "generator": "scripts/suews/gen_stebbs_output.py",
+  "generated_date": "2026-11-24",
+  "platform": "Linux x86_64",
+  "compiler": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
+  "python": "3.12.12",
+  "build_command": "make dev",
+  "spin_up": "2017-08-26",
+  "validation": "2017-08-27",
+  "rows": 288,
+  "columns": 82,
+  "hash_format": "SHA-256 with CRLF folded to LF",
+  "files": {
+    "sample_config.yml": "33b4ce63ce6dfe6cec1ecd5919e8128938ea086fc89d6d49a7e681f8b3a79fd6",
+    "test_2017_data_15_mp.txt": "c3632f3329acc0391ebb8e605a106dd457540bd15a93a3524ae1156506257106",
+    "sample_output_stebbs.csv": "e98a2dd854f993033881b9c83bcdc853369d9c6da8e3c2f4751725fc8b6c30bc"
+  }
+}

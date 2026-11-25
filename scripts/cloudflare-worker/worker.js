@@ -16,7 +16,16 @@ export default {
       return new Response("Method not allowed", { status: 405 });
     }
 
-    const body = await request.text();
+    if (!env.DISCOURSE_WEBHOOK_SECRET || !env.GITHUB_PAT) {
+      return new Response("Webhook configuration unavailable", { status: 503 });
+    }
+
+    let body;
+    try {
+      body = await request.text();
+    } catch {
+      return new Response("Unreadable request body", { status: 400 });
+    }
 
     // 1. Verify Discourse webhook signature
     const signature = request.headers.get("X-Discourse-Event-Signature");
@@ -24,31 +33,56 @@ export default {
       return new Response("Missing signature", { status: 401 });
     }
 
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(env.DISCOURSE_WEBHOOK_SECRET),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
+    if (!/^sha256=[0-9a-fA-F]{64}$/.test(signature)) {
+      return new Response("Invalid signature", { status: 403 });
+    }
+    const signatureBytes = Uint8Array.from(
+      signature.slice(7).match(/../g), (byte) => parseInt(byte, 16)
     );
-    const expected = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
-    const expectedHex = "sha256=" + [...new Uint8Array(expected)]
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    if (signature !== expectedHex) {
+    let verified;
+    try {
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(env.DISCOURSE_WEBHOOK_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["verify"]
+      );
+      verified = await crypto.subtle.verify(
+        "HMAC", key, signatureBytes, new TextEncoder().encode(body)
+      );
+    } catch {
+      return new Response("Signature verification unavailable", { status: 503 });
+    }
+    if (!verified) {
       return new Response("Invalid signature", { status: 403 });
     }
 
-    // 2. Parse payload and extract topic info
-    const payload = JSON.parse(body);
-    const topic = payload.topic;
-    if (!topic) {
-      return new Response("No topic in payload", { status: 200 });
+    // Only topic creation and edits can request an issue. In particular,
+    // deletion/recovery and post events must not create issues.
+    const event = request.headers.get("X-Discourse-Event");
+    if (!["topic_created", "topic_edited", "topic_revised"].includes(event)) {
+      return new Response("Unsupported event, skipping", { status: 200 });
     }
 
-    // 3. Deduplication: only forward if github-issue tag present and not already processed
-    const tags = (topic.tags || []).map((t) => (typeof t === "string" ? t : t.name || ""));
+    // 2. Parse payload and validate the fields used below.
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return new Response("Invalid JSON", { status: 400 });
+    }
+    const topic = payload?.topic;
+    if (!topic || !Number.isSafeInteger(topic.id) || topic.id <= 0 ||
+        typeof topic.slug !== "string" || !Array.isArray(topic.tags) ||
+        !topic.tags.every((tag) => typeof tag === "string" ||
+          (tag && typeof tag.name === "string"))) {
+      return new Response("Invalid topic payload", { status: 400 });
+    }
+
+    // 3. Best-effort tag guard only: concurrent deliveries can still dispatch
+    // twice before the workflow adds github-issue-created.
+    const tags = topic.tags.map((tag) => typeof tag === "string" ? tag : tag.name);
     if (!tags.includes("github-issue")) {
       return new Response("Tag github-issue not present, skipping", { status: 200 });
     }
@@ -57,32 +91,36 @@ export default {
     }
 
     const topicId = topic.id;
-    const topicUrl = `https://community.suews.io/t/${topic.slug}/${topicId}`;
+    const topicUrl = `https://community.suews.io/t/${encodeURIComponent(topic.slug)}/${topicId}`;
 
     // 4. POST to GitHub repository_dispatch
-    const ghResponse = await fetch(
-      "https://api.github.com/repos/UMEP-dev/SUEWS/dispatches",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `token ${env.GITHUB_PAT}`,
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "discourse-to-github-worker",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          event_type: "discourse-topic",
-          client_payload: {
-            topic_id: topicId,
-            topic_url: topicUrl,
+    let ghResponse;
+    try {
+      ghResponse = await fetch(
+        "https://api.github.com/repos/UMEP-dev/SUEWS/dispatches",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `token ${env.GITHUB_PAT}`,
+            Accept: "application/vnd.github.v3+json",
+            "User-Agent": "discourse-to-github-worker",
+            "Content-Type": "application/json",
           },
-        }),
-      }
-    );
+          body: JSON.stringify({
+            event_type: "discourse-topic",
+            client_payload: {
+              topic_id: topicId,
+              topic_url: topicUrl,
+            },
+          }),
+        }
+      );
+    } catch {
+      return new Response("GitHub API unavailable", { status: 502 });
+    }
 
     if (!ghResponse.ok) {
-      const errText = await ghResponse.text();
-      return new Response(`GitHub API error: ${ghResponse.status} ${errText}`, {
+      return new Response(`GitHub API error: ${ghResponse.status}`, {
         status: 502,
       });
     }

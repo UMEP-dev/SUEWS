@@ -20,10 +20,10 @@ Every open issue carries labels from the four tiers below, using **only** existi
 
 **`0-*` Automation and CI metadata labels** do not count towards the four tiers and are applied only where a rule or skill calls for them:
 - Issue automation / provenance: `0-auto:audited` (applied by `/triage-issue` after auditing an issue), `0-source:discourse` (imported from SUEWS Discourse)
-- PR classification / disposition / CI gates: `0-physics:change`, `0-auto:pr-audited`, `0-pr:advance`, `0-pr:continue`, `0-pr:deferred`, `0-pr:close-proposed`, `0-pr:escalate`, `0-ci:schema-audit-ok`, `0-ci:knowledge-pack-audit-ok`, `0-ci:encoding-audit-ok`, `0-ci:clippy-ok`
+- PR classification / disposition / CI gates: `0-physics:change`, `0-numerics:change`, `0-auto:pr-audited`, `0-pr:advance`, `0-pr:continue`, `0-pr:deferred`, `0-pr:close-proposed`, `0-pr:escalate`, `0-ci:schema-audit-ok`, `0-ci:knowledge-pack-audit-ok`, `0-ci:encoding-audit-ok`, `0-ci:clippy-ok`
 
 **Pull Request Labels vs Issue Labels**:
-- A PR carries **one `1-*` type** and **one or more `2-*` areas**, plus any `0-*` label required by its rules (such as `0-physics:change`).
+- A PR carries **one `1-*` type** and **one or more `2-*` areas**, plus any `0-*` label required by its rules (such as `0-physics:change` or `0-numerics:change`).
 - Priority (`3-*`) and status (`4-*`) labels belong on the **issue**, not on the PR.
 
 ## Triage Decision Tree

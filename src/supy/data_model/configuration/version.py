@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev9"
+CURRENT_SCHEMA_VERSION = "2026.6.dev18"
 
 # Schema version history and descriptions.
 #
@@ -186,6 +186,78 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "explicit whole-store layer bounds in metres, optional SI density and "
         "surface field capacity; retire sensor saturation capacity. Active legacy "
         "observations require confirmed bounds and a completed forcing manifest."
+    ),
+    "2026.6.dev10": (
+        "Surface water storage (#2018). The model reads the current capacity "
+        "from store_cap and uses store_max when the capacity is omitted. "
+        "Upgrading preserves both explicit values and their references."
+    ),
+    "2026.6.dev11": (
+        "Development schema requiring soil_depth, soil_store_capacity and "
+        "saturated_hydraulic_conductivity on every active (sfr > 0) non-water "
+        "surface loaded from YAML or a dict (#2077, #2001, #2002). Omitting "
+        "any of them used to reach the kernel as 0.0 via the Rust bridge. "
+        "The (2026.6.dev10 -> 2026.6.dev11) migration requires the user to "
+        "supply soil_depth (reporting each affected site and surface) when it "
+        "is missing or null on an active surface with positive "
+        "soil_store_capacity, preserves supplied values and inactive/water "
+        "surfaces unchanged, and writes explicit 0.0 for other missing or null "
+        "active soil parameters (preserving reference metadata)."
+    ),
+    "2026.6.dev12": (
+        "Within-grid water routing (#2086, #2117). An explicit numeric zero "
+        "in an unused destination is removed during migration. On paved and "
+        "building surfaces it could previously override the supplied runoff "
+        "fraction, changing the simulated runoff and water balance."
+    ),
+    "2026.6.dev13": (
+        "Radiation memory is internal to cold starts (#2003). Fresh-run "
+        "qn_surfs and dqndt_surf inputs are rejected; legacy seven-zero "
+        "placeholders are removed with an explicit migration message. "
+        "Nonzero legacy values require an explicit choice of cold start "
+        "or complete checkpoint continuation. Numerical seeds are unchanged."
+    ),
+    "2026.6.dev14": (
+        "Remaining continuation-only initial_states fields are internal to "
+        "cold starts (#2003). Fresh-run evetr/dectr/grass.wu, dt_since_start, "
+        "tair_av, tstep_prev, l_mod, ustar, ra_h, rb, and rs inputs are "
+        "rejected; legacy cold-start placeholders are removed with an "
+        "explicit migration message. Non-placeholder values require an "
+        "explicit choice of cold start or complete checkpoint continuation. "
+        "Numerical seeds and checkpoint payloads are unchanged."
+    ),
+    "2026.6.dev15": (
+        "Require finite drain_coef_1 and drain_coef_2 for active non-water "
+        "surfaces selecting drain_eq 1, 2 or 3 (#2101). Explicit zero remains "
+        "accepted. Diagnose missing active drainage blocks and fractional "
+        "native/mutable selectors without assigning new equation semantics. "
+        "Migration preserves supplied values and refuses to invent missing "
+        "blocks or coefficients; inactive surfaces and water are unchanged."
+    ),
+    "2026.6.dev16": (
+        "Initial vegetation senescence degree days (sdd_id) must be finite for "
+        "evergreen trees, deciduous trees and grass (#2001). Omission defaults "
+        "to zero. Migration preserves signed finite values and references and "
+        "reports each invalid site and vegetation type."
+    ),
+    "2026.6.dev17": (
+        "Day-of-year fields for irrigation (ie_start, ie_end) and daylight "
+        "saving time (startdls, enddls) require whole integers in 1..366 or "
+        "null/omission to disable (#2101, #2001, #2002). The "
+        "(2026.6.dev16 -> 2026.6.dev17) migration normalises exact "
+        "whole-number floats (e.g. 86.0 -> 86), preserves null and disabled "
+        "ref-only/empty mappings, and rejects fractional, boolean, non-finite "
+        "or out-of-range values rather than truncating or zeroing them."
+    ),
+    "2026.6.dev18": (
+        "Default storage_heat=5 (EHC) to implicit surface coupling (#2108). "
+        "Adds optional model.physics controls ehc_surface_coupling (default "
+        "implicit), control_ehc_stability (default off), "
+        "control_ehc_initial_profile (default true), "
+        "resistance_ehc_indoor_roof (default 0.10 m2 K W-1), and "
+        "resistance_ehc_indoor_wall (default 0.13 m2 K W-1). Existing EHC "
+        "YAMLs that omit ehc_surface_coupling now use implicit coupling; set "
+        "ehc_surface_coupling: explicit to retain legacy explicit coupling."
     ),
 }
 

@@ -1,38 +1,94 @@
 {
   "Build and test (manylinux x86_64) / API cross-CPython tests / *": [
-    "Build and test (manylinux x86_64) / cp*",
+    "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (manylinux x86_64) / test layout"
   ],
   "Build and test (macosx arm64) / API cross-CPython tests / *": [
-    "Build and test (macosx arm64) / cp*",
+    "Build and test (macosx arm64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (macosx arm64) / test layout"
   ],
   "Build and test (macosx x86_64) / API cross-CPython tests / *": [
-    "Build and test (macosx x86_64) / cp*",
+    "Build and test (macosx x86_64) / wheel | *",
     "Build MCP package",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Build and test (macosx x86_64) / test layout"
   ],
   "Build and test (win AMD64) / API cross-CPython tests / *": [
-    "Build and test (win AMD64) / cp*",
+    "Build and test (win AMD64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (win AMD64) / test layout"
+  ],
+  "Build and test (manylinux x86_64) / Python coverage *": [
+    "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",
     "Determine build matrix"
   ],
-  "Build and test (*) / cp*": [
+  "Build and test (*) / wheel | *": [
     "Build MCP package",
     "Create nightly tag for scheduled builds",
     "Detect code changes",
     "Determine build matrix",
     "Verify tag is on master"
   ],
+  "Build and test (*) / test layout": [
+    "Build MCP package",
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Build and test (*) / fortran probes | *": [
+    "Build MCP package",
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Build and test (manylinux x86_64) / physics | *": [
+    "Build and test (manylinux x86_64) / fortran probes | *",
+    "Build and test (manylinux x86_64) / test layout",
+    "Build and test (manylinux x86_64) / wheel | *"
+  ],
   "Build MCP package": [
     "Create nightly tag for scheduled builds",
     "Detect code changes",
     "Verify tag is on master"
   ],
+  "Core-test guard (Linux)": [
+    "Build and test (*) / *",
+    "Determine build matrix"
+  ],
+  "Data-interface version audit / *": [],
+  "Dependency and startup audit / *": [
+    "Detect code changes"
+  ],
   "Determine build matrix": [
     "Detect code changes"
+  ],
+  "Encoding audit / *": [
+    "Detect code changes"
+  ],
+  "Fortran uninitialized lint / *": [
+    "Detect code changes"
+  ],
+  "Build and test (manylinux x86_64) / Lowest-direct dependency smoke tests (Linux cp312)": [
+    "Build and test (manylinux x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
+  "Build and test (manylinux x86_64) / Require lowest-direct dependency smoke tests": [
+    "Build and test (manylinux x86_64) / Lowest-direct dependency smoke tests (Linux cp312)",
+    "Build and test (manylinux x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix"
+  ],
+  "Physics-change label": [
+    "Determine build matrix"
   ],
   "Post CI summary comment": [
     "Detect code changes",
@@ -42,10 +98,38 @@
     "Build and test (*) / *",
     "Build MCP package",
     "Check pytest marker axis",
+    "Core-test guard (Linux)",
+    "Data-interface version audit / *",
+    "Dependency and startup audit / *",
+    "Detect code changes",
+    "Determine build matrix",
+    "Encoding audit / *",
+    "Fortran uninitialized lint / *",
+    "Physics-change label",
+    "Rust C-API field observer / *",
+    "Rust clippy / *",
+    "Rust test / *",
+    "Schema version audit / *",
+    "Workflow security / *"
+  ],
+  "RSS growth (Linux cp312)": [
+    "Build and test (*) / *"
+  ],
+  "Rust C-API field observer / *": [
     "Detect code changes"
   ],
+  "Rust clippy / *": [
+    "Detect code changes"
+  ],
+  "Rust test / *": [
+    "Detect code changes"
+  ],
+  "Schema version audit / *": [],
   "Tolerance spread / *": [
     "Determine build matrix",
-    "Build and test (*) / cp*"
+    "Build and test (*) / wheel | *"
+  ],
+  "Workflow security / *": [
+    "Detect code changes"
   ]
 }

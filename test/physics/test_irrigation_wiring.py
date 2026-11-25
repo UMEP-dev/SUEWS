@@ -32,7 +32,7 @@ from supy.data_model.core.model import WaterUseMethod
 
 from conftest import TIMESTEPS_PER_DAY
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BIND", "C-BALANCE")]
 
 
 def _evening_profile() -> dict[str, float]:

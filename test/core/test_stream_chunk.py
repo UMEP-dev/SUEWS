@@ -29,6 +29,7 @@ from pathlib import Path
 import re
 
 from click.testing import CliRunner
+from conftest import build_year_crossing_sim
 import numpy as np
 import pandas as pd
 from pydantic import ValidationError
@@ -45,10 +46,12 @@ import supy._save as save_module
 from supy._save import StreamedTextFiles, save_df_output
 from supy.cmd.SUEWS import SUEWS as run_cmd
 from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
-from supy.data_model.output import PROVISIONAL_OUTPUT_GROUPS
 import supy.suews_sim as suews_sim_module
 
-pytestmark = pytest.mark.api
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract("C-RESTART", "C-SAVE", "C-RESAMPLE", "C-CLOCK", "C-VALID"),
+]
 
 GROUPS = ["SUEWS", "DailyState", "RSL", "debug"]
 GROUPS_NO_DAILY = ["SUEWS", "RSL", "debug"]
@@ -253,16 +256,6 @@ def _with_replicated_sites(config, list_gridiv):
     return config
 
 
-def _with_site_clock(config, timezone, startdls, enddls):
-    """A copy of *config* giving every site a time zone and a daylight-saving window."""
-    config = config.model_copy(deep=True)
-    for site in config.sites:
-        site.properties.timezone.value = timezone
-        site.properties.anthropogenic_emissions.startdls.value = startdls
-        site.properties.anthropogenic_emissions.enddls.value = enddls
-    return config
-
-
 def _replicate_sites(sim, list_gridiv):
     """Replace the site of *sim* by one per *list_gridiv* entry (see above)."""
     config = _with_replicated_sites(sim.config, list_gridiv)
@@ -307,47 +300,22 @@ def _year_crossing_sim(
 ):
     """A simulation across 1 January saving *groups* to *path_out*.
 
-    *site_clock* is ``(timezone, startdls, enddls)`` for every site; *fmt*
-    is the output format.
+    Delegates to ``conftest.build_year_crossing_sim`` so tests and the
+    session-scoped reference fixtures construct identical simulations.
     """
-    sim = short_sample_sim()
-    forcing = _year_crossing_forcing(sim, end=end, start=start)
-    config = sim.config
-    if list_gridiv is not None:
-        config = _with_replicated_sites(config, list_gridiv)
-    if site_clock is not None:
-        config = _with_site_clock(config, *site_clock)
-    output = {
-        "format": fmt,
-        "freq": freq_s,
-        "dir": str(path_out),
-        "groups": groups,
-        "include_provisional": bool(set(groups) & PROVISIONAL_OUTPUT_GROUPS),
-        "timestamp_reference": clock[1],
-    }
-    if stream_chunk is not None:
-        output["stream_chunk"] = stream_chunk
-    update = {
-        "model": {
-            "control": {
-                "start_time": str(forcing.index[0]),
-                "end_time": str(forcing.index[-1]),
-                "forcing": {"timestamp_reference": clock[0]},
-                "output": output,
-            }
-        }
-    }
-    if config is not sim.config:
-        # Changed sites travel in the same update, which replaces the sites
-        # list wholesale, so the state frame is built from the configuration
-        # once rather than once per change.
-        update["sites"] = [
-            site.model_dump(exclude_unset=True, round_trip=True, mode="json")
-            for site in config.sites
-        ]
-    sim.update_config(update, auto_load_forcing=False)
-    sim.update_forcing(forcing)
-    return sim
+    return build_year_crossing_sim(
+        short_sample_sim,
+        path_out,
+        freq_s,
+        stream_chunk,
+        list_gridiv=list_gridiv,
+        groups=groups,
+        clock=clock,
+        end=end,
+        start=start,
+        site_clock=site_clock,
+        fmt=fmt,
+    )
 
 
 def _numbers(obj):
@@ -381,54 +349,6 @@ def _compare_dirs(dir_a, dir_b):
             assert list(_numbers(ckpt_a)) == list(_numbers(ckpt_b)), name
 
 
-@pytest.fixture(scope="module")
-def saved_whole(short_sample_sim, tmp_path_factory):
-    """``run()`` + ``save()`` output folders, made once per setting."""
-    dict_dir = {}
-
-    def _saved_whole(
-        freq_s,
-        list_gridiv,
-        groups,
-        clock,
-        end=None,
-        start=None,
-        site_clock=None,
-        fmt="txt",
-    ):
-        key = (
-            freq_s,
-            tuple(list_gridiv or ()),
-            tuple(groups),
-            clock,
-            end,
-            start,
-            site_clock,
-            fmt,
-        )
-        if key not in dict_dir:
-            path = tmp_path_factory.mktemp("whole")
-            sim = _year_crossing_sim(
-                short_sample_sim,
-                path,
-                freq_s,
-                None,
-                list_gridiv=list_gridiv,
-                groups=groups,
-                clock=clock,
-                end=end,
-                start=start,
-                site_clock=site_clock,
-                fmt=fmt,
-            )
-            sim.run()
-            sim.save()
-            dict_dir[key] = path
-        return dict_dir[key]
-
-    return _saved_whole
-
-
 # ---------------------------------------------------------------------------
 # Byte identity with run() + save()
 # ---------------------------------------------------------------------------
@@ -442,10 +362,16 @@ def saved_whole(short_sample_sim, tmp_path_factory):
     {"daily": GROUPS, "nodaily": GROUPS_NO_DAILY},
 )
 def test_files_match_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, stream_chunk, freq_s, list_gridiv, groups
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    stream_chunk,
+    freq_s,
+    list_gridiv,
+    groups,
 ):
     """Streamed files match run() + save(), file for file, in follow mode."""
-    dir_whole = saved_whole(freq_s, list_gridiv, groups, CLOCK_FOLLOW)
+    dir_whole = stream_chunk_reference_dir(freq_s, list_gridiv, groups, CLOCK_FOLLOW)
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, freq_s, stream_chunk, list_gridiv, groups
     )
@@ -467,14 +393,19 @@ def test_files_match_run_then_save(
     {"1grid": None, "2grids": [2, 1]},
 )
 def test_explicit_clock_files_match_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, stream_chunk, clock, list_gridiv
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    stream_chunk,
+    clock,
+    list_gridiv,
 ):
     """With timestamps labelled by period end, the 1 January 00:00 row is kept.
 
     That row closes the previous year and is computed in its last chunk, but
     is saved into the new year's file.
     """
-    dir_whole = saved_whole(3600, list_gridiv, GROUPS, clock)
+    dir_whole = stream_chunk_reference_dir(3600, list_gridiv, GROUPS, clock)
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, 3600, stream_chunk, list_gridiv, clock=clock
     )
@@ -490,11 +421,11 @@ def test_explicit_clock_files_match_run_then_save(
 
 @pytest.mark.parametrize("clock", [CLOCK_FOLLOW, CLOCK_UTC], ids=["follow", "utc"])
 def test_year_end_stub_of_one_row_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, clock
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, clock
 ):
     """A run ending one hour into the new year saves that hour once, as save() does."""
     end = "2012-01-01 01:00"
-    dir_whole = saved_whole(3600, None, GROUPS, clock, end=end)
+    dir_whole = stream_chunk_reference_dir(3600, None, GROUPS, clock, end=end)
     sim = _year_crossing_sim(short_sample_sim, tmp_path, 3600, 30, clock=clock, end=end)
     sim.run()
 
@@ -952,15 +883,19 @@ N_CHUNK_2011 = 16  # one-day chunks from 16 to 31 December 2011
     {"follow": CLOCK_FOLLOW, "utc": CLOCK_UTC, "lst": CLOCK_LST},
 )
 def test_resumed_run_matches_an_uninterrupted_run(
-    short_sample_sim, tmp_path, monkeypatch, clock, n_written
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    monkeypatch,
+    clock,
+    n_written,
 ):
     """A run killed at or after a year end, then resumed, writes the same files.
 
     The mid-year case is resumed twice, the first resume itself failing part
     of the way, so trimming back to the checkpoint must be repeatable.
     """
-    dir_full = tmp_path / "full"
-    _year_crossing_sim(short_sample_sim, dir_full, 3600, 1, clock=clock).run()
+    dir_full = stream_chunk_reference_dir(3600, None, GROUPS, clock, stream_chunk=1)
 
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, 1, clock=clock)
@@ -1027,7 +962,7 @@ def test_default_run_does_not_stream(short_sample_sim, tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("stream_chunk", [1, 7, 366])
 def test_daily_output_across_new_year_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, stream_chunk
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, stream_chunk
 ):
     """Daily output: 31 December's row stays in the old year's file.
 
@@ -1035,7 +970,7 @@ def test_daily_output_across_new_year_matches_run_then_save(
     labelled 1 January 00:00; the file it goes to is the year the save
     selected it for, not the year of its label.
     """
-    dir_whole = saved_whole(86400, None, GROUPS, CLOCK_FOLLOW)
+    dir_whole = stream_chunk_reference_dir(86400, None, GROUPS, CLOCK_FOLLOW)
     sim = _year_crossing_sim(short_sample_sim, tmp_path, 86400, stream_chunk)
     sim.run()
 
@@ -1049,10 +984,10 @@ def test_daily_output_across_new_year_matches_run_then_save(
     "start", ["2012-01-01 00:00", "2011-12-20 00:00"], ids=["new-year", "mid-year"]
 )
 def test_run_starting_at_midnight_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, start, clock
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, start, clock
 ):
     """A run whose first row closes the previous day saves like run() + save()."""
-    dir_whole = saved_whole(3600, None, GROUPS, clock, start=start)
+    dir_whole = stream_chunk_reference_dir(3600, None, GROUPS, clock, start=start)
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, 3600, 1, clock=clock, start=start
     )
@@ -1129,11 +1064,12 @@ def test_fresh_run_removes_a_previous_runs_sidecars(
 @pytest.mark.parametrize("damage", ["empty", "partial-header"])
 @pytest.mark.medium
 def test_resume_rewrites_a_file_without_a_whole_header(
-    short_sample_sim, tmp_path, monkeypatch, damage
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, monkeypatch, damage
 ):
     """A file left with no header, or half of one, is written anew on resume."""
-    dir_full = tmp_path / "full"
-    _year_crossing_sim(short_sample_sim, dir_full, 3600, 1).run()
+    dir_full = stream_chunk_reference_dir(
+        3600, None, GROUPS, CLOCK_FOLLOW, stream_chunk=1
+    )
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, 1)
     _run_failing_after(sim, N_CHUNK_2011 + 2, monkeypatch)
@@ -1158,10 +1094,12 @@ SITE_CLOCKS = {
     ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
 )
 def test_non_zero_time_zone_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, clock, site_clock
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, clock, site_clock
 ):
     """With a time zone and a daylight-saving window, streamed equals whole."""
-    dir_whole = saved_whole(3600, [2, 1], GROUPS, clock, site_clock=site_clock)
+    dir_whole = stream_chunk_reference_dir(
+        3600, [2, 1], GROUPS, clock, site_clock=site_clock
+    )
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, 3600, 7, [2, 1], clock=clock, site_clock=site_clock
     )
@@ -1174,13 +1112,17 @@ def test_non_zero_time_zone_matches_run_then_save(
     ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
 )
 def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
-    short_sample_sim, tmp_path, monkeypatch, clock, site_clock
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    monkeypatch,
+    clock,
+    site_clock,
 ):
     """Killed mid-year and resumed with a time zone, the files equal a whole run."""
-    dir_full = tmp_path / "full"
-    _year_crossing_sim(
-        short_sample_sim, dir_full, 3600, 1, clock=clock, site_clock=site_clock
-    ).run()
+    dir_full = stream_chunk_reference_dir(
+        3600, None, GROUPS, clock, site_clock=site_clock, stream_chunk=1
+    )
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(
         short_sample_sim, dir_out, 3600, 1, clock=clock, site_clock=site_clock
@@ -1229,43 +1171,18 @@ def _read_streamed(path_dir):
 def _expected_streamed(df_whole, groups, freq_s, tstep_s=TSTEP_S):
     """What a streamed folder holds, built from a whole run's Parquet frame.
 
-    - Groups other than DailyState: the whole run's rows and values, less
-      rows labelled before the run's first timestamp, which hold only the
-      first day's DailyState in daily output (asserted).
-    - DailyState: one row per grid and day, at its own time, the day's last
-      model step. The whole run labels each daily value at the start of the
-      output interval holding that step; the streamed output at the step
-      itself, the whole-run label + freq - tstep. Rows of the whole run's
-      DailyState that hold no value are not DailyState rows (the remaining
-      labels must be exactly the days' last steps, asserted).
-
-    Columns keep the whole run's order; rows are sorted by grid and time.
+    Every group — DailyState included — uses the shared ``closed="right",
+    label="right"`` rule in both streamed and whole-run Parquet output, so the
+    streamed folder matches the selected groups of ``df_whole`` directly with
+    no timestamp shifting or leading DailyState-only row. When ``DailyState``
+    is requested alone, only rows carrying DailyState values are written (one
+    per grid and day).
     """
     ser_group = df_whole.columns.get_level_values("group")
     df_sel = df_whole.loc[:, ser_group.isin(groups)]
-    ser_sel = df_sel.columns.get_level_values("group")
-    list_frame = []
-    list_main = [g for g in groups if g != "DailyState"]
-    if list_main:
-        df_main = df_sel.loc[:, ser_sel.isin(list_main)]
-        ser_dt = df_main.index.get_level_values("datetime")
-        mask_lead = ser_dt < FIRST_FORCING
-        assert df_main.loc[mask_lead].isna().all().all()
-        list_frame.append(df_main.loc[~mask_lead])
-    if "DailyState" in groups:
-        df_daily = df_sel.loc[:, ser_sel == "DailyState"]
-        df_daily = df_daily.loc[df_daily.notna().any(axis=1).to_numpy()]
-        shift = pd.Timedelta(freq_s - tstep_s, "s")
-        index = df_daily.index
-        df_daily.index = index.set_levels(index.levels[1] + shift, level="datetime")
-        # One row per grid and day, all at the same step of the day.
-        ser_own = df_daily.index.get_level_values("datetime")
-        assert len(set(ser_own.time)) == 1
-        n_day = df_daily.groupby(level="grid").size()
-        assert (n_day == n_day.iloc[0]).all() and n_day.iloc[0] > 0
-        list_frame.append(df_daily)
-    df = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
-    return df.reindex(columns=df_sel.columns).sort_index()
+    if list(groups) == ["DailyState"]:
+        df_sel = df_sel.loc[df_sel.notna().any(axis=1).to_numpy()]
+    return df_sel.sort_index()
 
 
 def _assert_identical(df_streamed, df_expected):
@@ -1329,14 +1246,19 @@ def _compare_streamed_dirs(dir_a, dir_b):
     {"1grid": None, "2grids": [2, 1]},
 )
 def test_parquet_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, stream_chunk, freq_s, list_gridiv
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    stream_chunk,
+    freq_s,
+    list_gridiv,
 ):
     """Read back and sorted, the streamed folder is the whole run's frame.
 
     Restricted to output.groups, with DailyState at its own rows (see
     ``_expected_streamed``).
     """
-    dir_whole = saved_whole(
+    dir_whole = stream_chunk_reference_dir(
         freq_s, list_gridiv, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet"
     )
     sim = _parquet_sim(
@@ -1358,11 +1280,13 @@ def test_parquet_matches_run_then_save(
 @pytest.mark.parametrize("freq_s", [TSTEP_S, 3600, 86400])
 @pytest.mark.medium
 def test_parquet_daily_state_only_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, freq_s
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, freq_s
 ):
     """With DailyState alone, the folder holds one row per grid and day."""
     groups = ["DailyState"]
-    dir_whole = saved_whole(freq_s, [2, 1], groups, CLOCK_FOLLOW, fmt="parquet")
+    dir_whole = stream_chunk_reference_dir(
+        freq_s, [2, 1], groups, CLOCK_FOLLOW, fmt="parquet"
+    )
     sim = _parquet_sim(
         short_sample_sim, tmp_path, freq_s, 30, list_gridiv=[2, 1], groups=groups
     )
@@ -1400,10 +1324,17 @@ def test_parquet_folder_holds_one_file_per_chunk(
     {"1grid": None, "2grids": [2, 1]},
 )
 def test_parquet_explicit_clock_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, stream_chunk, clock, list_gridiv
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    stream_chunk,
+    clock,
+    list_gridiv,
 ):
     """Explicit output clocks on the forcing clock give the same frame."""
-    dir_whole = saved_whole(3600, list_gridiv, GROUPS_PARQUET, clock, fmt="parquet")
+    dir_whole = stream_chunk_reference_dir(
+        3600, list_gridiv, GROUPS_PARQUET, clock, fmt="parquet"
+    )
     sim = _parquet_sim(
         short_sample_sim,
         tmp_path,
@@ -1421,10 +1352,10 @@ def test_parquet_explicit_clock_matches_run_then_save(
     ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
 )
 def test_parquet_non_zero_time_zone_matches_run_then_save(
-    short_sample_sim, saved_whole, tmp_path, clock, site_clock
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, clock, site_clock
 ):
     """With a time zone and a daylight-saving window, streamed equals whole."""
-    dir_whole = saved_whole(
+    dir_whole = stream_chunk_reference_dir(
         3600, [2, 1], GROUPS_PARQUET, clock, site_clock=site_clock, fmt="parquet"
     )
     sim = _parquet_sim(
@@ -1442,11 +1373,11 @@ def test_parquet_non_zero_time_zone_matches_run_then_save(
 
 
 def test_parquet_short_last_chunk_at_the_model_timestep(
-    short_sample_sim, saved_whole, tmp_path
+    short_sample_sim, stream_chunk_reference_dir, tmp_path
 ):
     """A last chunk of two rows at the model timestep is not resampled alone."""
     end = "2012-01-14 00:10"
-    dir_whole = saved_whole(
+    dir_whole = stream_chunk_reference_dir(
         TSTEP_S, None, GROUPS_PARQUET, CLOCK_FOLLOW, end=end, fmt="parquet"
     )
     sim = _parquet_sim(short_sample_sim, tmp_path, TSTEP_S, 1, end=end)
@@ -1487,24 +1418,24 @@ def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, t
 
 @pytest.mark.parametrize("freq", ["MS", "ME", "YE"])
 def test_parquet_reload_resamples_dailystate_like_the_run(
-    short_sample_sim, tmp_path, freq
+    stream_chunk_reference_output, stream_chunk_reference_dir, freq
 ):
     """Streamed hourly Parquet reloaded and resampled keeps each day's period.
 
-    The folder declares one-hour rows while DailyState keeps its native
-    23:55 stamps, so treating those stamps as hourly start labels moved
-    31 December's P_day and daily coverage into the next year (and each
-    month's last day into the next month).
+    Streamed Parquet resamples DailyState onto the same ``D+1 00:00`` rows as
+    ``SUEWS``, so reloading and resampling to calendar frequencies puts
+    31 December's ``P_day`` and coverage in its own year (and each month's last
+    day in its own month), matching the direct resample of the run.
     """
     from supy._post import _resample_output
     from supy.suews_output import SUEWSOutput
 
     groups = ["SUEWS", "DailyState"]
-    output = _year_crossing_sim(
-        short_sample_sim, tmp_path / "whole", 3600, None, groups=groups
-    ).run()
-    _parquet_sim(short_sample_sim, tmp_path / "streamed", 3600, 7, groups=groups).run()
-    saved = pd.read_parquet(_output_path(tmp_path / "streamed"))
+    output = stream_chunk_reference_output(3600, None, groups, CLOCK_FOLLOW)
+    dir_streamed = stream_chunk_reference_dir(
+        3600, None, groups, CLOCK_FOLLOW, fmt="parquet", stream_chunk=7
+    )
+    saved = pd.read_parquet(_output_path(dir_streamed))
     assert saved.attrs["supy_output_interval_s"] == 3600
 
     expected = output.resample(freq).df
@@ -1584,7 +1515,13 @@ def test_fresh_parquet_run_removes_a_previous_runs_files(
     {"at-year-end": N_CHUNK_2011, "mid-year": N_CHUNK_2011 + 3},
 )
 def test_parquet_resumed_run_matches_an_uninterrupted_run(
-    short_sample_sim, tmp_path, monkeypatch, freq_s, list_gridiv, n_written
+    short_sample_sim,
+    stream_chunk_reference_dir,
+    tmp_path,
+    monkeypatch,
+    freq_s,
+    list_gridiv,
+    n_written,
 ):
     """Killed at or after a year end and resumed, the folder is the same.
 
@@ -1593,8 +1530,9 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
     repeatable. Completed parts keep their values; only the first part's
     folder-wide coverage metadata is refreshed at completion.
     """
-    dir_full = tmp_path / "full"
-    _parquet_sim(short_sample_sim, dir_full, freq_s, 1, list_gridiv=list_gridiv).run()
+    dir_full = stream_chunk_reference_dir(
+        freq_s, list_gridiv, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet", stream_chunk=1
+    )
 
     dir_out = tmp_path / "out"
     sim = _parquet_sim(short_sample_sim, dir_out, freq_s, 1, list_gridiv=list_gridiv)
@@ -1627,12 +1565,13 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
 
 
 def test_parquet_part_cut_short_is_never_left_half_written(
-    short_sample_sim, tmp_path, monkeypatch
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, monkeypatch
 ):
     """A part file is renamed into place whole; an interrupted write leaves
     only its temporary file, which the resumed run removes."""
-    dir_full = tmp_path / "full"
-    _parquet_sim(short_sample_sim, dir_full, 3600, 1).run()
+    dir_full = stream_chunk_reference_dir(
+        3600, None, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet", stream_chunk=1
+    )
     dir_out = tmp_path / "out"
     sim = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
     replace = os.replace
@@ -1691,11 +1630,13 @@ def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
 
 @pytest.mark.parametrize("freq_s", [3600, 86400])
 def test_parquet_group_without_values_keeps_every_interval(
-    short_sample_sim, saved_whole, tmp_path, freq_s
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, freq_s
 ):
     """A group the run leaves empty still has a row per output interval."""
     groups = ["EHC"]
-    dir_whole = saved_whole(freq_s, None, groups, CLOCK_FOLLOW, fmt="parquet")
+    dir_whole = stream_chunk_reference_dir(
+        freq_s, None, groups, CLOCK_FOLLOW, fmt="parquet"
+    )
     sim = _parquet_sim(short_sample_sim, tmp_path, freq_s, 30, groups=groups)
     sim.run()
 
@@ -1739,11 +1680,12 @@ def test_streamed_provisional_warning_points_to_caller(short_sample_sim, tmp_pat
 
 
 def test_parquet_failure_writing_metadata_resumes_from_the_year_before(
-    short_sample_sim, tmp_path, monkeypatch
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, monkeypatch
 ):
     """The metadata file is written before the last checkpoint."""
-    dir_full = tmp_path / "full"
-    _parquet_sim(short_sample_sim, dir_full, 3600, 30).run()
+    dir_full = stream_chunk_reference_dir(
+        3600, None, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet", stream_chunk=30
+    )
     dir_out = tmp_path / "out"
     sim = _parquet_sim(short_sample_sim, dir_out, 3600, 30)
 

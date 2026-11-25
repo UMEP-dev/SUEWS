@@ -20,7 +20,7 @@ from supy.data_model.core import SUEWSConfig
 from supy.suews_sim import SUEWSSimulation
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg]
+pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE")]
 
 SHORT_SAMPLE = (
     Path(__file__).parents[1] / "fixtures" / "sample_short" / "sample_config_short.yml"
@@ -150,7 +150,11 @@ def test_upgraded_null_snowalb_without_snowpack_runs_unchanged(tmp_path):
 @pytest.mark.core
 @pytest.mark.parametrize("snow", ["enabled", "disabled"])
 def test_upgraded_null_snowalb_with_snowpack_changes_output(tmp_path, snow):
-    """Snowpack, not the snow switch, determines whether albedo is retained."""
+    """With snow enabled, migrated snow albedo is retained and changes output.
+
+    With snow disabled, inactive snow state is cleared, so the migrated value
+    has no effect on snow albedo.
+    """
     old = _short_sample_with_snowalb(
         tmp_path, "dev7.yml", {"value": None}, "2026.6.dev7", snow, 10.0
     )
@@ -165,6 +169,9 @@ def test_upgraded_null_snowalb_with_snowpack_changes_output(tmp_path, snow):
 
     assert len(df_new) == TIMESTEPS_PER_DAY
     delta_albedo = df_new[("SUEWS", "AlbSnow")] - df_old[("SUEWS", "AlbSnow")]
+    if snow == "disabled":
+        assert (delta_albedo == 0.0).all()
+        return
     assert delta_albedo.max() > 0.0
     assert delta_albedo.min() >= 0.0
     if snow == "enabled":

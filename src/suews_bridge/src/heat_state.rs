@@ -421,32 +421,32 @@ impl HeatState {
             ..Self::default()
         };
 
-        for i in 0..NSURF {
-            state.qs_surf[i] = flat[idx];
+        for slot in &mut state.qs_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qn_surf[i] = flat[idx];
+        for slot in &mut state.qn_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qe0_surf[i] = flat[idx];
+        for slot in &mut state.qe0_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qe_surf[i] = flat[idx];
+        for slot in &mut state.qe_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qh_surf[i] = flat[idx];
+        for slot in &mut state.qh_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.qh_resist_surf[i] = flat[idx];
+        for slot in &mut state.qh_resist_surf {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..NSURF {
-            state.tsurf_ind[i] = flat[idx];
+        for slot in &mut state.tsurf_ind {
+            *slot = flat[idx];
             idx += 1;
         }
 
@@ -487,20 +487,20 @@ impl HeatState {
         state.qh_init = flat[idx];
         idx += 1;
 
-        for i in 0..RADIATION_BIN_COUNT {
-            state.roof_in_sw_spc[i] = flat[idx];
+        for slot in &mut state.roof_in_sw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..RADIATION_BIN_COUNT {
-            state.roof_in_lw_spc[i] = flat[idx];
+        for slot in &mut state.roof_in_lw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..RADIATION_BIN_COUNT {
-            state.wall_in_sw_spc[i] = flat[idx];
+        for slot in &mut state.wall_in_sw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
-        for i in 0..RADIATION_BIN_COUNT {
-            state.wall_in_lw_spc[i] = flat[idx];
+        for slot in &mut state.wall_in_lw_spc {
+            *slot = flat[idx];
             idx += 1;
         }
 
@@ -949,6 +949,7 @@ pub fn heat_state_default_from_fortran() -> Result<HeatState, BridgeError> {
     HeatState::from_flat_with_dims(&flat, nlayer, ndepth)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1015,10 +1016,37 @@ mod tests {
     fn default_state_roundtrip() {
         let state = heat_state_default_from_fortran().expect("default state should be available");
         assert_eq!(state, HeatState::default());
+        assert_eq!(state.nlayer, 0);
+        assert_eq!(state.ndepth, 0);
+        assert!(state.iter_safe);
 
         let state2 = HeatState::from_flat_with_dims(&state.to_flat(), state.nlayer, state.ndepth)
             .expect("flat roundtrip should succeed");
         assert_eq!(state, state2);
+    }
+
+    #[test]
+    fn default_state_rejects_short_buffer() {
+        let (base_len, _, _) = heat_state_schema().expect("schema call should succeed");
+        let mut short_flat = vec![-1.0_f64; base_len - 1];
+        let mut nlayer = -1_i32;
+        let mut ndepth = -1_i32;
+        let mut err = -1_i32;
+
+        unsafe {
+            ffi::suews_heat_state_default(
+                short_flat.as_mut_ptr(),
+                short_flat.len() as i32,
+                &mut nlayer as *mut i32,
+                &mut ndepth as *mut i32,
+                &mut err as *mut i32,
+            );
+        }
+
+        assert_eq!(err, ffi::SUEWS_CAPI_BAD_BUFFER);
+        assert_eq!(nlayer, 0);
+        assert_eq!(ndepth, 0);
+        assert!(short_flat.iter().all(|v| *v == -1.0));
     }
 
     #[test]

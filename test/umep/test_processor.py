@@ -19,9 +19,12 @@ from unittest import TestCase
 
 from conftest import TIMESTEPS_PER_DAY
 import pandas as pd
+import pytest
 
 import supy as sp
 from supy._env import trv_supy_module
+
+pytestmark = pytest.mark.contract("C-API")
 
 
 class TestSUEWSProcessorAPI(TestCase):

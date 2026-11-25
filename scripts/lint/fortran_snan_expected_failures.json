@@ -1,0 +1,4 @@
+{
+  "description": "Known physics test failures under no-trap -finit-real=snan (gh#2095). Any failure outside this list or any JUnit <error> (collection, setup, or xdist worker crash) fails the nightly workflow immediately; --strict fails on every failure including entries listed here.",
+  "entries": []
+}

@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _schema_versioning:
 
 YAML Configuration Schema Versioning
@@ -28,7 +30,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev9"`` describes the shape of the configuration
+``schema_version: "2026.6.dev18"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +43,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev9"
+   schema_version: "2026.6.dev18"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -59,7 +61,17 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — ``2026.6.dev8`` comes after ``2026.6.dev7``,
+as a floating-point number -- ``2026.6.dev18`` comes after ``2026.6.dev17``,
+which comes after ``2026.6.dev16``,
+which comes after ``2026.6.dev15``,
+which comes after ``2026.6.dev14``,
+which comes after ``2026.6.dev13``,
+which comes after ``2026.6.dev12``,
+which comes after ``2026.6.dev11``,
+which comes after ``2026.6.dev10``,
+which comes after ``2026.6.dev9``,
+which comes after ``2026.6.dev8``,
+which comes after ``2026.6.dev7``,
 which comes after ``2026.6.dev6``,
 which comes after ``2026.6.dev5``,
 which comes after ``2026.6.dev4``,
@@ -116,7 +128,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev9 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev18 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -125,13 +137,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev9.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev18.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev9.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev18.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -181,7 +193,86 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev9** (current; development)
+**Schema 2026.6.dev18** (current development version)
+
+   Defaults ``model.physics.storage_heat: ehc`` (method 5) to implicit surface
+   coupling (``ehc_surface_coupling: implicit``) and adds optional implicit EHC
+   controls (``control_ehc_stability``, ``control_ehc_initial_profile``,
+   ``resistance_ehc_indoor_roof``, ``resistance_ehc_indoor_wall``). Existing
+   method-5 YAMLs that omit ``ehc_surface_coupling`` now use implicit coupling;
+   set ``ehc_surface_coupling: explicit`` to retain legacy explicit coupling.
+   See :ref:`schema_dev18_ehc_implicit`.
+
+**Schema 2026.6.dev17** (development)
+
+   Irrigation day-of-year bounds (``ie_start``, ``ie_end``) and daylight saving
+   time day-of-year bounds (``startdls``, ``enddls``) now require whole integers
+   in ``1..366`` or ``null``/omission to disable the window. Exact whole-number
+   floats such as ``86.0`` are normalised to ``86`` during migration;
+   fractional, boolean, non-finite and out-of-range values are rejected rather
+   than truncated or zeroed. See :ref:`schema_dev17_integer_doy`.
+
+**Schema 2026.6.dev16** (development)
+
+   Initial senescence degree days for evergreen trees, deciduous trees and
+   grass accept any finite value in K d. Omission initialises the accumulator
+   at zero. Migration reports each invalid site and vegetation type so that
+   the initial condition can be recovered from the original record.
+   See :ref:`schema_dev16_vegetation_senescence`.
+
+**Schema 2026.6.dev15** (development)
+   Active non-water surfaces using drainage equations 1, 2 or 3 require both
+   finite drainage coefficients. The migration preserves supplied values and
+   retains omitted blocks for partial configuration work; engine export requires
+   those blocks. Declared equations with missing coefficients stop migration.
+   Explicit zero remains accepted; water and zero-area surfaces are exempt.
+   Active native and mutable inputs require an exact integer selector,
+   preserving whole-number floats and existing integer codes.
+   See :ref:`schema_dev15_drainage_coefficients`.
+
+**Schema 2026.6.dev14** (development)
+   Removes the remaining 17 continuation-only ``initial_states`` inputs from
+   fresh runs: ``evetr.wu``, ``dectr.wu`` and ``grass.wu`` (``wu_total``,
+   ``wu_auto``, ``wu_manual``), plus ``dt_since_start``, ``tair_av``,
+   ``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb`` and ``rs``. Older
+   cold-start placeholders are removed with a migration message; non-placeholder
+   values require an explicit choice of cold start or checkpoint continuation.
+   Numerical initialisation and checkpoint payloads are unchanged.
+   See :ref:`schema_dev14_continuation_state`.
+
+**Schema 2026.6.dev13** (development)
+   Removes fresh-run ``qn_surfs`` and ``dqndt_surf`` inputs. Older seven-zero
+   placeholders are removed with a migration message; other supplied values
+   require an explicit choice of cold start or checkpoint continuation.
+   Numerical initialisation and all requested output times are unchanged.
+   See :ref:`schema_dev13_radiation_memory`.
+
+**Schema 2026.6.dev12** (development)
+   Corrects runoff routing when an old YAML supplies an unused zero soil
+   destination for paving or buildings. The same input can now produce a
+   different runoff total. See :ref:`schema_dev12_water_routing` for an
+   example, the migration command and guidance on reproducing earlier runs.
+
+**Schema 2026.6.dev11** (development)
+   Requires ``soil_depth``, ``soil_store_capacity`` and
+   ``saturated_hydraulic_conductivity`` on every active (``sfr > 0``) non-water
+   surface (``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass`` and ``bsoil``)
+   in configurations loaded from YAML or a dict (#2077, #2001, #2002). Omitting
+   any of them used to reach the water-balance kernel as ``0.0`` via the Rust
+   bridge. The ``(2026.6.dev10 -> 2026.6.dev11)`` handler refuses to substitute
+   ``0.0`` when ``soil_depth`` is missing or null on an active surface with
+   positive ``soil_store_capacity`` (reporting each affected site and surface
+   so the user can supply ``soil_depth``), preserves supplied values and
+   inactive/``water`` surfaces unchanged, and writes ``0.0`` explicitly for
+   other missing or null active soil parameters while preserving references.
+   See :ref:`schema_dev11_soil_parameters`.
+
+**Schema 2026.6.dev10** (development)
+   The model uses an explicit surface storage capacity (``store_cap``) even when
+   it differs from the maximum (``store_max``). An omitted capacity still takes
+   its value from the maximum. See :ref:`schema_dev10_storage_capacity`.
+
+**Schema 2026.6.dev9** (development)
    Observed soil water (#1422): the source selector is
    ``model.physics.soil_moisture`` (``modelled`` or ``observed``), observations
    describe a whole-store layer in metres, and sensor ``smcap`` is retired.

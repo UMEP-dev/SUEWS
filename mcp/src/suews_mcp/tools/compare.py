@@ -44,11 +44,11 @@ def compare_runs(
         Comma-separated variable names to compare. ``None`` keeps the CLI
         default ``QH,QE,QN``.
     """
-    root = ProjectRoot(project_root)
     try:
-        path_a = root.resolve(run_a)
-        path_b = root.resolve(run_b_or_obs)
-    except SUEWSMCPSandboxError as exc:
+        root = ProjectRoot(project_root)
+        path_a = root.check_tree(run_a)
+        path_b = root.check_tree(run_b_or_obs)
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(
             str(exc), command=f"suews compare {run_a} {run_b_or_obs}"
         )

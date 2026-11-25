@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _integration_index:
 
 Integration and Complementary Tools

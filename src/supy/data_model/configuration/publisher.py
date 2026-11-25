@@ -10,6 +10,7 @@ representations of the SUEWS configuration structure. This enables:
 - Schema versioning and evolution tracking
 """
 
+from copy import deepcopy
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -17,7 +18,10 @@ import argparse
 import sys
 from datetime import datetime
 
+from packaging.version import Version
+
 from ..core import SUEWSConfig
+from ..core.hydro import DRAINAGE_COEFFICIENT_REQUIREMENT
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
 
@@ -34,39 +38,226 @@ def generate_json_schema(
     Returns:
         JSON Schema dictionary
     """
+    version = version or CURRENT_SCHEMA_VERSION
+
     # Get the Pydantic schema
     schema = SUEWSConfig.model_json_schema()
 
     # Add schema metadata
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = (
-        f"https://umep-dev.github.io/SUEWS/schema/suews-config/{version or CURRENT_SCHEMA_VERSION}.json"
+        f"https://umep-dev.github.io/SUEWS/schema/suews-config/{version}.json"
     )
 
     # Add versioning information
-    schema["version"] = version or CURRENT_SCHEMA_VERSION
-    schema["title"] = f"SUEWS Configuration Schema v{version or CURRENT_SCHEMA_VERSION}"
+    schema["version"] = version
+    schema["title"] = f"SUEWS Configuration Schema v{version}"
     schema["description"] = (
         f"JSON Schema for SUEWS YAML configuration files. "
-        f"Schema version {version or CURRENT_SCHEMA_VERSION}. "
-        f"{SCHEMA_VERSIONS.get(version or CURRENT_SCHEMA_VERSION, '')}"
+        f"Schema version {version}. "
+        f"{SCHEMA_VERSIONS.get(version, '')}"
     )
 
     # Add metadata
     schema["$comment"] = {
         "generator": "supy.util.schema_publisher",
         "suews_version": _get_suews_version(),
-        "schema_version": version or CURRENT_SCHEMA_VERSION,
+        "schema_version": version,
     }
+
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev12"):
+        _restore_historical_water_descriptions(schema["$defs"])
+
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev13"):
+        # The new input prohibitions must not be backdated onto old exports.
+        schema["$defs"]["InitialStates"].pop("not", None)
+        for def_name in (
+            "InitialStateVeg",
+            "InitialStateEvetr",
+            "InitialStateDectr",
+            "InitialStateGrass",
+        ):
+            if def_name in schema["$defs"]:
+                schema["$defs"][def_name].pop("not", None)
+    elif version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev14"):
+        # Schema 2026.6.dev13 prohibited only radiation-memory inputs.
+        schema["$defs"]["InitialStates"]["not"] = {
+            "anyOf": [
+                {"required": ["qn_surfs"]},
+                {"required": ["dqndt_surf"]},
+            ]
+        }
+        for def_name in (
+            "InitialStateVeg",
+            "InitialStateEvetr",
+            "InitialStateDectr",
+            "InitialStateGrass",
+        ):
+            if def_name in schema["$defs"]:
+                schema["$defs"][def_name].pop("not", None)
 
     # Filter internal fields if requested
     if not include_internal:
         schema = _filter_internal_fields(schema)
 
+    # The conditional drainage requirement was introduced in dev15.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev15"):
+        fields = schema["$defs"]["StorageDrainParams"]["properties"]
+        for name in ("drain_coef_1", "drain_coef_2"):
+            fields[name]["description"] = fields[name]["description"].removesuffix(
+                DRAINAGE_COEFFICIENT_REQUIREMENT
+            )
+
+    # Preserve the exact field description published through dev15.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev16"):
+        for model in ("InitialStateEvetr", "InitialStateDectr", "InitialStateGrass"):
+            schema["$defs"][model]["properties"]["sdd_id"]["description"] = (
+                "Senescence degree days at the start of the model run"
+            )
+
+    # Preserve pre-dev17 float day-of-year schema and descriptions; emit
+    # enforceable Draft 2020-12 bounds and disabled mapping forms from dev17.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev17"):
+        _restore_historical_doy_fields(schema["$defs"])
+    else:
+        _apply_dev17_doy_json_schema(schema["$defs"])
+
+    # Implicit EHC controls were introduced in dev18.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev18"):
+        physics_props = schema["$defs"].get("ModelPhysics", {}).get("properties", {})
+        for field_name in (
+            "ehc_surface_coupling",
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ):
+            physics_props.pop(field_name, None)
+        for def_name in (
+            "EHCSurfaceCoupling",
+            "EHCStabilityControl",
+            "RefValue_EHCSurfaceCoupling_",
+            "RefValue_EHCStabilityControl_",
+        ):
+            schema["$defs"].pop(def_name, None)
+
     # Add examples
-    schema["examples"] = [_get_minimal_example()]
+    schema["examples"] = [_get_minimal_example(version)]
 
     return schema
+
+
+def _apply_dev17_doy_json_schema(definitions: Dict[str, Any]) -> None:
+    """Emit enforceable Draft 2020-12 bounds and disabled forms for dev17 DOY fields."""
+    doy_wrapped_schema = {
+        "additionalProperties": False,
+        "properties": {
+            "value": {
+                "anyOf": [
+                    {"type": "integer", "minimum": 1, "maximum": 366},
+                    {"type": "null"},
+                ],
+                "title": "Value",
+            },
+            "ref": {
+                "anyOf": [
+                    {"$ref": "#/$defs/Reference"},
+                    {"type": "null"},
+                ],
+                "default": None,
+            },
+        },
+        "title": "RefValue[int]",
+        "type": "object",
+    }
+    doy_any_of = [
+        doy_wrapped_schema,
+        {"type": "integer", "minimum": 1, "maximum": 366},
+        {"type": "null"},
+    ]
+    for model_name, field_names in (
+        ("AnthropogenicEmissions", ("startdls", "enddls")),
+        ("IrrigationParams", ("ie_start", "ie_end")),
+    ):
+        props = definitions[model_name]["properties"]
+        for field_name in field_names:
+            props[field_name]["anyOf"] = deepcopy(doy_any_of)
+
+
+def _restore_historical_doy_fields(definitions: Dict[str, Any]) -> None:
+    """Preserve float day-of-year schema metadata published before schema 2026.6.dev17."""
+    anthro_props = definitions["AnthropogenicEmissions"]["properties"]
+    for field_name, desc in (
+        ("startdls", "Start of daylight savings time in decimal day of year"),
+        ("enddls", "End of daylight savings time in decimal day of year"),
+    ):
+        prop = anthro_props[field_name]
+        prop["description"] = desc
+        prop["anyOf"] = [
+            {
+                "anyOf": [
+                    {"$ref": "#/$defs/RefValue_float_"},
+                    {"type": "number"},
+                ],
+                "ge": 1,
+                "le": 366,
+            },
+            {"type": "null"},
+        ]
+
+    irrig_props = definitions["IrrigationParams"]["properties"]
+    for field_name, desc in (
+        ("ie_start", "Day of year when irrigation starts"),
+        ("ie_end", "Day of year when irrigation ends"),
+    ):
+        prop = irrig_props[field_name]
+        prop["description"] = desc
+        prop["anyOf"] = [
+            {"$ref": "#/$defs/RefValue_float_"},
+            {"type": "number"},
+            {"type": "null"},
+        ]
+
+
+def _restore_historical_water_descriptions(definitions: Dict[str, Any]) -> None:
+    """Preserve the water-routing metadata published before schema 2026.6.dev12."""
+    surface_descriptions = {
+        "BsoilProperties": "Water distribution for bare soil",
+        "DectrProperties": "Water distribution for deciduous trees",
+        "EvetrProperties": "Water distribution for evergreen trees",
+        "GrassProperties": "Water distribution for grass",
+        "PavedProperties": "Water distribution fractions for paved surfaces",
+        "WaterProperties": "Water distribution parameters",
+    }
+    for model, description in surface_descriptions.items():
+        definitions[model]["properties"]["waterdist"]["description"] = description
+    # Dev11 did not specify a description for building-surface waterdist.
+    definitions["BldgsProperties"]["properties"]["waterdist"].pop("description", None)
+
+    routing = definitions["WaterDistribution"]
+    routing["description"] = "Water routing between surface types."
+    properties = routing["properties"]
+    destinations = {
+        "to_paved": "paved",
+        "to_bldgs": "building",
+        "to_dectr": "deciduous tree",
+        "to_evetr": "evergreen tree",
+        "to_grass": "grass",
+        "to_bsoil": "bare soil",
+        "to_water": "water",
+    }
+    for field, surface in destinations.items():
+        properties[field]["description"] = (
+            f"Fraction of water redistributed to {surface} surfaces within the grid"
+        )
+    properties["to_runoff"]["description"] = (
+        "Fraction of water going to surface runoff (for impervious surfaces: "
+        "paved and buildings)"
+    )
+    properties["to_soilstore"]["description"] = (
+        "Fraction of water going to subsurface soil storage (for pervious "
+        "surfaces: vegetation and bare soil)"
+    )
 
 
 def _filter_internal_fields(schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -123,7 +314,7 @@ def _get_suews_version() -> str:
         return "unknown"
 
 
-def _get_minimal_example() -> Dict[str, Any]:
+def _get_minimal_example(version: str) -> Dict[str, Any]:
     """
     Get a minimal valid configuration example.
 
@@ -132,7 +323,7 @@ def _get_minimal_example() -> Dict[str, Any]:
     """
     return {
         "name": "minimal_config",
-        "schema_version": CURRENT_SCHEMA_VERSION,
+        "schema_version": version,
         "description": "Minimal SUEWS configuration example",
         "model": {
             "control": {"tstep": 3600, "forcing": {"file": "forcing.txt"}},

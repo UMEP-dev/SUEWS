@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _timestamp_convention:
 
 ====================
@@ -68,7 +70,7 @@ For two days of 5-minute rows, ``2023-12-31 00:00`` to ``2024-01-01 00:00``:
    s.loc["2023-12-31"]                            # 00:00 .. 23:55 (pandas)
    s.loc["2023-12-31 00:05":"2024-01-01 00:00"]   # 00:05 .. 00:00 (SUEWS)
 
-DailyState is the one group that uses ``label="left"`` (see below).
+Every output group, including ``DailyState``, follows this rule (see below).
 
 Run period
 ==========
@@ -107,16 +109,27 @@ unset to run over the whole forcing file.
 DailyState labels
 =================
 
-The ``DailyState`` output group is the exception. It covers the same
-right-closed days but labels each by its **start** (pandas ``label="left"``),
-so the row labelled ``2012-01-15`` holds the state at the end of 15 January,
-``(2012-01-15 00:00, 2012-01-16 00:00]``. When ``DailyState`` is combined with
-other output groups at daily resolution, for example with
-``SUEWSOutput.resample()``, its dates therefore run one day earlier
-than those of the other groups (see :ref:`output-dailystate`). Calendar
-frequencies (``W``, ``MS``, ``ME``, ``YE``) have no start-of-day label, so
-there DailyState takes the period's label like every other group, and a row
-holds one period for all groups.
+The ``DailyState`` output group follows the same ``closed="right",
+label="right"`` convention at every frequency (fixed and calendar) and across
+text, streamed Parquet and non-streamed Parquet output. Day ``D``'s
+``DailyState`` record is therefore labelled ``D+1 00:00`` at hourly and daily
+frequencies — for example, the row labelled ``2012-01-16 00:00`` holds the
+state at the end of 15 January — so ``DailyState`` sits on the same row as
+``SUEWS`` and every other output group (see :ref:`output-dailystate`). At
+calendar frequencies (``W``, ``MS``, ``ME``, ``YE``), every group likewise
+takes the period's label.
+
+.. note::
+
+   In native model-timestep output (in-memory ``SUEWSOutput.df``, as well as
+   Parquet saved at the native timestep via ``save_tstep=True`` or
+   ``freq == tstep``), the Fortran kernel still accumulates daily totals, means
+   and extremes across the calendar-day timestamps ``00:00`` to ``23:55`` (at a
+   5-minute timestep) and emits each day's ``DailyState`` row on ``23:55`` (the
+   right edge of ``(23:50, 23:55]``), rather than over ``(D 00:00, D+1 00:00]``.
+   Any coarser resample (including hourly, daily and calendar frequencies) and
+   the daily text ``DailyState`` file (always written at ``86400 s``) place that
+   record into the right-closed bin ending at ``D+1 00:00``.
 
 Forcing stamped at the start of each interval
 =============================================

@@ -194,6 +194,7 @@ crate::codec::impl_state_module_fns! {
     ffi_schema_version_fn = ffi::suews_lc_evetr_prm_schema_version,
     ffi_default_fn = ffi::suews_lc_evetr_prm_default,
 }
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

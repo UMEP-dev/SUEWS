@@ -22,7 +22,12 @@ import supy as sp
 
 _run_rust = import_module("supy._run_rust")
 
-pytestmark = [pytest.mark.api, pytest.mark.rust, pytest.mark.core]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.rust,
+    pytest.mark.core,
+    pytest.mark.contract("C-ISOLATION", "C-NATIVE-ERROR"),
+]
 
 # ErrorHint code raised by the roughness calculation when the measurement
 # height sits below the displacement height (z < zd): fatal, raised on every
@@ -354,8 +359,9 @@ def test_parallel_distinct_grids_match_serial(distinct_inputs):
     )
 
 
-def test_public_multi_grid_run_names_the_failing_grid():
-    """Same contract through the public config path used by SUEWSSimulation."""
+@pytest.mark.parametrize("failing_id", [2, 2**53 + 1])
+def test_public_multi_grid_run_names_the_failing_grid(failing_id):
+    """Public callers receive the site label; raw native callers use positions."""
     sim = sp.SUEWSSimulation.from_sample_data()
     config = sim.config
     base = config.sites[0]
@@ -364,6 +370,7 @@ def test_public_multi_grid_run_names_the_failing_grid():
         site = base.model_copy(deep=True)
         site.gridiv = idx + 1
         if idx == 1:
+            site.gridiv = failing_id
             site.properties.z.value = 0.5
         sites.append(site)
     config.sites = sites
@@ -371,4 +378,4 @@ def test_public_multi_grid_run_names_the_failing_grid():
 
     with pytest.raises(RuntimeError) as exc_info:
         _run_rust.run_suews_rust_multi(config, df_forcing, max_workers=4)
-    _assert_names_grid(exc_info, 1)
+    _assert_names_grid(exc_info, failing_id)

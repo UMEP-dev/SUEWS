@@ -12,19 +12,27 @@ If you are new to SUEWS and would like to contribute:
 2. **Read the development guide.** See [`dev-ref/onboarding-guide.md`](dev-ref/onboarding-guide.md) for the development workflow, coding standards, and how to set up your environment.
 3. **Coordinate before submitting a PR.** All non-trivial changes should be discussed in an issue before work begins.
 
-## Changes that affect model physics
+## Pull request descriptions
 
-If your PR changes model physics or moves a reference output (touching
+Every pull request should explain why the change is needed, what changed (including known limits), how a reviewer should read it, and what checks prove this PR specifically. Use [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) and follow [`.claude/rules/pr-description.md`](.claude/rules/pr-description.md) (trivial fixes need only one concise paragraph).
+
+## Changes that affect model physics or reference outputs
+
+If your PR changes model physics or moves a vendored reference output (touching
 `suews_phys_*.f95`, refreshing a vendored reference fixture, or changing a
-physics-affecting default), it must carry recorded scientific evidence. Add a
-`## Scientific evidence` section to the PR description stating which quantities
-change and why, a before/after comparison of the affected outputs, and the
-expected sign and magnitude with physical reasoning; refresh any moved reference
-fixture in the same PR; and obtain sign-off from the subsystem owner where one
-exists (e.g. STEBBS). Such PRs are labelled `0-physics:change` and run the full
-physics test tier before merge. See
-[`.claude/rules/physics-change-evidence.md`](.claude/rules/physics-change-evidence.md)
-for the full policy.
+physics-affecting default), classify it under
+[`.claude/rules/physics-change-evidence.md`](.claude/rules/physics-change-evidence.md):
+
+- **Physics changes (`0-physics:change`)** -- formulation/default changes, or
+  any output shift outside the numerical class -- require a `## Scientific evidence`
+  section (quantities and mechanism, before/after comparison with commit SHAs,
+  sign/magnitude reasoning including any regressions or costs, conservation and
+  known limits; Level 2 multi-site or formulation changes keep an executive
+  summary in the PR body and host diagnostic figures and deep tables in linked
+  PR comments without committing plots to the branch), domain-owner sign-off
+  where one exists (e.g. STEBBS; see [`MAINTAINERS.md`](MAINTAINERS.md)),
+  refreshed reference fixtures in the same PR, and green `physics-full` CI.
+- **Numerical changes (`0-numerics:change`)** -- constant precision, unit conversions, or floating-point representation only, with no formulation change and every variable strictly below `0.5%` scale-relative change (`max_i |new_i - ref_i| / max_i |ref_i|` across non-`NaN` rows in each fixture; `Lob` / `L_MOD_RSL` are judged by `zL` / `zeta`; any change to an identically-zero reference variable fails) and `0.5 W m-2` maximum absolute flux difference -- require refreshed reference fixtures in the same PR, a per-variable numerical change table, and green `physics-full` CI, without `## Scientific evidence` or domain-owner sign-off.
 
 ## AI-generated contributions
 

@@ -15,6 +15,13 @@ on:
         default: "UMEP-dev/SUEWS"
         type: string
 
+# Fixed across triggers, refs, topic spellings and repository aliases.
+# queue:max retains up to 100 pending runs; excess runs are cancelled by GitHub.
+concurrency:
+  group: discourse-issue-sync
+  cancel-in-progress: false
+  queue: max
+
 env:
   DISCOURSE_HOST: https://community.suews.io
   DISCOURSE_USERNAME: sunt05
@@ -24,10 +31,16 @@ jobs:
   create-issue:
     runs-on: ubuntu-latest
     environment: discourse-sync
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
     steps:
+      - name: Check out workflow helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
       - name: Resolve inputs
         id: inputs
         env:
@@ -37,12 +50,20 @@ jobs:
           INPUT_TARGET_REPO: ${{ github.event.inputs.target_repo || '' }}
         run: |
           if [ "$EVENT_NAME" = "repository_dispatch" ]; then
-            echo "topic_id=${CLIENT_TOPIC_ID}" >> "$GITHUB_OUTPUT"
-            echo "target_repo=${DEFAULT_REPO}" >> "$GITHUB_OUTPUT"
+            TOPIC_ID="$CLIENT_TOPIC_ID"
+            TARGET_REPO="$DEFAULT_REPO"
           else
-            echo "topic_id=${INPUT_TOPIC_ID}" >> "$GITHUB_OUTPUT"
-            echo "target_repo=${INPUT_TARGET_REPO:-$DEFAULT_REPO}" >> "$GITHUB_OUTPUT"
+            TOPIC_ID="$INPUT_TOPIC_ID"
+            TARGET_REPO="${INPUT_TARGET_REPO:-$DEFAULT_REPO}"
           fi
+          if [[ ! "$TOPIC_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::Topic ID must contain only digits"
+            exit 1
+          fi
+          TOPIC_ID=$(python3 -c 'import sys; sys.path.insert(0, ".github/scripts"); from discourse_issue import topic_id; print(topic_id(sys.argv[1]))' "$TOPIC_ID")
+          echo "topic_id=${TOPIC_ID}" >> "$GITHUB_OUTPUT"
+          DELIMITER="EOF_$(openssl rand -hex 16)"
+          printf 'target_repo<<%s\n%s\n%s\n' "$DELIMITER" "$TARGET_REPO" "$DELIMITER" >> "$GITHUB_OUTPUT"
 
       - name: Fetch Discourse topic
         id: discourse
@@ -70,18 +91,17 @@ jobs:
             | sed 's/<[^>]*>//g' \
             | sed 's/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g; s/&#39;/'"'"'/g')
 
-          # Write outputs (use files for multiline)
-          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
-          echo "topic_url=${TOPIC_URL}" >> "$GITHUB_OUTPUT"
-          echo "author=${AUTHOR}" >> "$GITHUB_OUTPUT"
-          echo "topic_id=${TOPIC_ID}" >> "$GITHUB_OUTPUT"
-
-          # Use delimiter for multiline body
-          {
-            echo "body<<DISCOURSE_EOF"
-            echo "$FIRST_POST"
-            echo "DISCOURSE_EOF"
-          } >> "$GITHUB_OUTPUT"
+          # Treat all forum text as multiline data, never output-file syntax.
+          write_output() {
+            local delimiter
+            delimiter="EOF_$(openssl rand -hex 16)"
+            printf '%s<<%s\n%s\n%s\n' "$1" "$delimiter" "$2" "$delimiter" >> "$GITHUB_OUTPUT"
+          }
+          write_output title "$TITLE"
+          write_output topic_url "$TOPIC_URL"
+          write_output author "$AUTHOR"
+          write_output topic_id "$TOPIC_ID"
+          write_output body "$FIRST_POST"
 
       - name: Build issue body
         id: body
@@ -103,7 +123,7 @@ jobs:
             echo "---"
             echo ""
             echo "*Created from [Discourse topic #${TOPIC_ID}](${TOPIC_URL})*"
-          } > /tmp/issue-body.md
+          } > "$RUNNER_TEMP/issue-body.md"
 
       - name: Create GitHub issue
         id: issue
@@ -111,17 +131,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_REPO: ${{ steps.inputs.outputs.target_repo }}
           ISSUE_TITLE: ${{ steps.discourse.outputs.title }}
+          TOPIC_ID: ${{ steps.inputs.outputs.topic_id }}
         run: |
-          ISSUE_URL=$(gh issue create \
-            --repo "${TARGET_REPO}" \
-            --title "${ISSUE_TITLE}" \
-            --body-file /tmp/issue-body.md \
-            --label "0-source:discourse" \
-            --label "1-question" \
-            2>&1)
-
-          echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"
-          echo "Created issue: ${ISSUE_URL}"
+          python3 .github/scripts/discourse_issue.py issue
 
       - name: Reply on Discourse
         env:
@@ -129,20 +141,7 @@ jobs:
           TOPIC_ID: ${{ steps.discourse.outputs.topic_id }}
           ISSUE_URL: ${{ steps.issue.outputs.issue_url }}
         run: |
-          REPLY_RAW="This topic has been tracked as a GitHub issue for the development team.\n\n**GitHub issue**: ${ISSUE_URL}\n\nThe team will follow up there. Updates will be posted in the GitHub issue."
-
-          # Build JSON payload with jq
-          PAYLOAD=$(jq -n \
-            --argjson tid "$TOPIC_ID" \
-            --arg raw "$(printf '%b' "$REPLY_RAW")" \
-            '{topic_id: $tid, raw: $raw}')
-
-          curl -s -f -X POST \
-            -H "Api-Key: ${DISCOURSE_API_KEY}" \
-            -H "Api-Username: ${DISCOURSE_USERNAME}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "${DISCOURSE_HOST}/posts.json"
+          python3 .github/scripts/discourse_issue.py reply
 
       - name: Update Discourse topic tags
         continue-on-error: true
@@ -157,7 +156,7 @@ jobs:
             "${DISCOURSE_HOST}/t/${TOPIC_ID}.json" \
             | jq '[.tags[]? | select(. != "github-issue")] + ["github-issue-created"] | unique')
 
-          HTTP_CODE=$(curl -s -o /tmp/tag-response.json -w '%{http_code}' -X PUT \
+          HTTP_CODE=$(curl -s -o "${RUNNER_TEMP}/tag-response.json" -w '%{http_code}' -X PUT \
             -H "Api-Key: ${DISCOURSE_API_KEY}" \
             -H "Api-Username: ${DISCOURSE_USERNAME}" \
             -H "Content-Type: application/json" \
@@ -168,5 +167,5 @@ jobs:
             echo "Updated topic ${TOPIC_ID}: removed github-issue, added github-issue-created"
           else
             echo "::warning::Failed to update Discourse tags (HTTP ${HTTP_CODE})"
-            cat /tmp/tag-response.json
+            cat "${RUNNER_TEMP}/tag-response.json"
           fi

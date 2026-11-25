@@ -18,7 +18,7 @@ import yaml
 from scripts.suews import analyse_ci_run
 from scripts.suews.analyse_ci_run import TargetNotCompletedError, analyse_run
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.mark.core
@@ -202,10 +202,10 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
         root / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
 
-    assert "python -m pip install pytest==9.1.1 pytest-xdist==3.8.0" in workflow
+    assert "pytest==9.1.1 pytest-xdist==3.8.0" in workflow
     main_invocation = re.search(
         r"^[ \t]*python -m pytest -p scripts\.suews\.pytest_ci_metrics test \\\n"
-        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS[ \t]*$",
+        r"[ \t]+-m \"\$MARKER_EXPR\" -v --tb=short --durations=25 \$XDIST_ARGS \$SHARD_ARGS[ \t]*$",
         workflow,
         flags=re.MULTILINE,
     )
@@ -258,6 +258,140 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
     )
 
 
+@pytest.mark.core
+def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api() -> None:
+    """Pull requests run no macOS api cell and shard the build-Python cells.
+
+    Ready pull requests and the merge queue split the Linux wheel's tests into
+    parallel jobs: physics shards in the wheel's manylinux image and the
+    build-Python api cell as four shards; on a pull request the newer bookend
+    runs the core-bookend tier in one job. Windows (on a labelled PR) splits
+    every api cell (cp312 and cp315) into two shards via ``shard_python: all``.
+    The layout itself is scripts/suews/ci_test_layout.py; the api reusable
+    workflow runs whatever cells it is given, with each shard's job and
+    artefact named after the shard.
+    """
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    layout = "(github.event_name == 'pull_request' || inputs.pr_api_lane)"
+    chain_with = caller["jobs"]["build_wheels"]["with"]
+    assert chain_with["run_api_tests"].endswith(
+        f"&& !({layout} && matrix.buildplat[1] == 'macosx') "
+        "&& !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}"
+    )
+    ready = (
+        "(needs.determine_matrix.outputs.test_tier == 'standard' || "
+        "needs.determine_matrix.outputs.test_tier == 'physics-full')"
+    )
+    assert "matrix.buildplat[1] == 'manylinux'" in chain_with["split_tests"]
+    assert ready in chain_with["split_tests"]
+    assert "github.event_name == 'merge_group'" in chain_with["split_tests"]
+    assert ready in chain_with["api_bookend_core"]
+    assert "merge_group" not in chain_with["api_bookend_core"]
+    assert chain_with["api_shard_count"] == "${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}"
+    assert "physics-full' && 3 || 2" in chain_with["physics_shards"]
+    dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
+    assert dispatch_inputs["pr_api_lane"]["default"] is False
+
+    wheels = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheel_inputs = wheels[True]["workflow_call"]["inputs"]
+    assert not wheel_inputs["api_shard_python"]["default"]
+    assert wheel_inputs["split_tests"]["default"] is False
+    assert wheel_inputs["api_bookend_core"]["default"] is False
+    jobs = wheels["jobs"]
+    assert jobs["api_cross_python"]["with"]["cells_json"] == (
+        "${{ needs.layout.outputs.api_cells }}"
+    )
+    build_step = next(s for s in jobs["build"]["steps"] if s.get("name") == "Build SUEWS wheels")
+    from scripts.suews.ci_test_layout import UNSHARDED_TIERS
+
+    assert (
+        jobs["layout"]["outputs"]["effective_split_tests"]
+        == "${{ steps.layout.outputs.effective_split_tests }}"
+    )
+    for unsharded_tier in UNSHARDED_TIERS:
+        assert f"inputs.test_tier != '{unsharded_tier}'" in build_step["with"]["skip_tests"]
+        assert f"inputs.test_tier != '{unsharded_tier}'" in jobs["fortran_probes"]["if"]
+    assert build_step["with"]["skip_tests"].startswith("${{ inputs.split_tests &&")
+    assert jobs["fortran_probes"]["if"].startswith("inputs.split_tests &&")
+    physics = jobs["physics"]
+    assert physics["if"] == "needs.layout.outputs.effective_split_tests == 'true'"
+    assert set(physics["needs"]) == {"layout", "build", "fortran_probes"}
+    assert physics["strategy"]["matrix"]["shard"] == (
+        "${{ fromJson(needs.layout.outputs.physics_shards) }}"
+    )
+    assert physics["name"].startswith("physics | ")
+    run = next(s for s in physics["steps"] if s.get("name", "").startswith("Run the physics shard"))
+    assert "-e SUEWS_REFERENCE_LANE " in run["run"]
+    assert "inputs.build_profile != 'checked'" in run["env"]["SUEWS_REFERENCE_LANE"]
+    assert run["env"]["SUEWS_BUILD_PROFILE"] == "${{ inputs.build_profile }}"
+    # Windows PRs pass 'all' to shard every api cell (cp312 and cp315); Linux
+    # PRs and merge_group pass the build Python tag (fromJson(...)[0]).
+    assert chain_with["api_shard_python"].startswith(
+        "${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && "
+        "matrix.buildplat[1] == 'win') && 'all' ||"
+    )
+    assert "fromJson(needs.determine_matrix.outputs.python)[0] || ''" in chain_with["api_shard_python"]
+    assert "SUEWS_FORTRAN_PROBES_PREBUILT=1" in run["run"]
+    assert '"$MANYLINUX_IMAGE"' in run["run"]
+    reference = next(
+        s for s in physics["steps"] if s.get("name") == "Upload regenerated sample-output reference"
+    )
+    # The name test_sample_output_exact.py tells a physics PR to download.
+    assert reference["with"]["name"] == (
+        "${{ inputs.artifact_prefix }}reference-regenerated-${{ matrix.python }}-"
+        "${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
+    )
+    pinned_manylinux = wheels["env"]["MANYLINUX_IMAGE"]
+    assert pinned_manylinux.startswith("quay.io/pypa/manylinux2014_x86_64:")
+    action = (root / ".github/actions/build-suews/action.yml").read_text(encoding="utf-8")
+    action_yaml = yaml.safe_load(action)
+    assert action_yaml["inputs"]["manylinux_x86_64_image"]["default"] == pinned_manylinux
+    assert build_step["with"]["manylinux_x86_64_image"] == "${{ env.MANYLINUX_IMAGE }}"
+    cibw_step = next(s for s in action_yaml["runs"]["steps"] if s.get("name") == "Build wheels")
+    assert "inputs.manylinux_x86_64_image" in cibw_step["env"]["CIBW_MANYLINUX_X86_64_IMAGE"]
+    assert "CIBW_TEST_SKIP: ${{ inputs.skip_tests == 'true' && '*' || '' }}" in action
+
+    api_text = (
+        root / ".github/workflows/test-api-cross-python-reusable.yml"
+    ).read_text(encoding="utf-8")
+    api = yaml.safe_load(api_text)
+    job = api["jobs"]["api_cross_python"]
+    assert job["strategy"]["matrix"]["cell"] == "${{ fromJson(inputs.cells_json) }}"
+    suffix = "${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}"
+    run_step = next(
+        s for s in job["steps"] if s.get("name") == "Install wheel and run api tests"
+    )
+    assert run_step["env"]["SHARD"] == "${{ matrix.cell.shard }}"
+    assert run_step["env"]["SUEWS_CI_METRICS"].endswith(f"{suffix}.json")
+    marker = next(s for s in job["steps"] if s.get("id") == "marker")
+    assert marker["env"]["TIER"] == "${{ matrix.cell.tier || inputs.test_tier }}"
+    upload = next(s for s in job["steps"] if s.get("name") == "Upload API test metrics")
+    assert upload["with"]["name"] == (
+        "ci-metrics-api-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-"
+        "${{ matrix.buildplat[2] }}" + suffix
+    )
+    assert "matrix.cell.shard && format(' shard {0}', matrix.cell.shard)" in job["name"]
+    # The protocol collection pass stays unsharded: it would collect nothing
+    # in the shard that does not own the protocol test.
+    assert (
+        'SHARD_ARGS="-p scripts.suews.pytest_shard --suews-shard ${SHARD/-of-//}"'
+        in run_step["run"]
+    )
+    collect_line = next(
+        line for line in run_step["run"].splitlines() if "--collect-only" in line
+    )
+    assert "SHARD" not in collect_line
+
+
 @pytest.mark.smoke
 def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     """The API matrix installs the MCP wheel only after both builds succeed."""
@@ -279,7 +413,7 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
         )
     )
     api_job = wheels_workflow["jobs"]["api_cross_python"]
-    assert api_job["needs"] == "build"
+    assert api_job["needs"] == ["layout", "build"]
     assert api_job["if"] == "inputs.run_api_tests"
     assert api_job["uses"].endswith("/test-api-cross-python-reusable.yml")
 
@@ -288,7 +422,7 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     ).read_text(encoding="utf-8")
     assert "name: suews-mcp-dist" in api_workflow
     assert "path: mcp-dist/" in api_workflow
-    assert "python -m pip install wheelhouse/*.whl mcp-dist/*.whl" in api_workflow
+    assert "wheelhouse/*.whl mcp-dist/*.whl" in api_workflow
 
     declared_needs = json.loads(
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
@@ -330,11 +464,11 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
     wheel_jobs = [
-        f"Build and test ({platform}) / cp312-{platform}"
+        f"Build and test ({platform}) / wheel | cp312 | {platform}"
         for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64")
     ]
     for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64"):
-        api_job = f"Build and test ({platform}) / API cross-CPython tests / cp312-x"
+        api_job = f"Build and test ({platform}) / API cross-CPython tests / api | cp312 | x"
         patterns = [k for k in declared_needs if fnmatchcase(api_job, k)]
         dependencies = {d for k in patterns for d in declared_needs[k]}
         wheels_waited_for = [
@@ -342,12 +476,15 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
             for wheel in wheel_jobs
             if any(fnmatchcase(wheel, d) for d in dependencies)
         ]
-        assert wheels_waited_for == [f"Build and test ({platform}) / cp312-{platform}"]
+        assert wheels_waited_for == [
+            f"Build and test ({platform}) / wheel | cp312 | {platform}"
+        ]
     gate = declared_needs["PR build validation"]
     assert any(fnmatchcase(wheel_jobs[0], d) for d in gate)
     assert any(
         fnmatchcase(
-            "Build and test (win AMD64) / API cross-CPython tests / cp312-win AMD64", d
+            "Build and test (win AMD64) / API cross-CPython tests / api | cp312 | win AMD64",
+            d,
         )
         for d in gate
     )
@@ -519,7 +656,12 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
     protocol_test = (root / "test/mcp/test_protocol_handshake.py").read_text(
         encoding="utf-8"
     )
-    assert "pytestmark = [pytest.mark.api, pytest.mark.smoke]" in protocol_test
+    # The lane markers must lead the list; later markers (contract tags) may follow.
+    assert re.search(
+        r"^pytestmark = \[pytest\.mark\.api, pytest\.mark\.smoke[,\]]",
+        protocol_test,
+        re.MULTILINE,
+    )
     assert '_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))' in protocol_test
 
 
@@ -645,7 +787,7 @@ def test_tolerance_spread_group_is_one_reusable_call() -> None:
     dependencies = declared_needs[patterns[0]]
     assert "Determine build matrix" in dependencies
     assert any(
-        fnmatchcase("Build and test (win AMD64) / cp312-win AMD64", d)
+        fnmatchcase("Build and test (win AMD64) / wheel | cp312 | win AMD64", d)
         for d in dependencies
     )
 
@@ -865,13 +1007,27 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
     caller = yaml.safe_load(
         (root / ".github/workflows/build-publish_to_pypi.yml").read_text(encoding="utf-8")
     )
-    job = caller["jobs"]["python_coverage"]
+    wheels = yaml.safe_load(
+        (root / ".github/workflows/build-wheels-reusable.yml").read_text(encoding="utf-8")
+    )
+    # The job is chained behind the Linux wheel build inside the per-platform
+    # reusable call, so it no longer waits for every platform's api lane.
+    assert "python_coverage" not in caller["jobs"]
+    job = wheels["jobs"]["python_coverage"]
+    trigger = caller["jobs"]["build_wheels"]["with"]["run_python_coverage"]
 
     assert job["name"] == "Python coverage (Linux cp312)"
+    assert job["needs"] == "build"
+    assert job["if"] == "inputs.run_python_coverage"
     assert job["continue-on-error"] is True
     assert 0 < job["timeout-minutes"] <= 120
-    assert "github.event_name == 'schedule'" in job["if"]
-    assert "inputs.python_coverage == true" in job["if"]
+    run_step = next(s for s in job["steps"] if "--cov" in str(s.get("run", "")))
+    # The step times out before the job does, so the summary and upload run.
+    assert 0 < run_step["timeout-minutes"] < job["timeout-minutes"]
+    assert "matrix.buildplat[1] == 'manylinux'" in trigger
+    assert "needs.build_mcp.result == 'success'" in trigger
+    assert "github.event_name == 'schedule'" in trigger
+    assert "inputs.python_coverage == true" in trigger
     assert "python_coverage" not in caller["jobs"]["report_scheduled_run"]["needs"]
     assert "python_coverage" not in caller["jobs"]["pr-gate"]["needs"]
 
@@ -885,7 +1041,7 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
         encoding="utf-8"
     )
     api_install = next(
-        line for line in api_workflow.splitlines() if "pip install pytest==" in line
+        line for line in api_workflow.splitlines() if "pytest==" in line
     )
     assert pins(api_install) <= pins(install)
     assert {p.split("==")[0] for p in pins(install) - pins(api_install)} == {
@@ -902,3 +1058,741 @@ def test_python_coverage_job_records_with_the_api_lane_pins() -> None:
     upload = job["steps"][-1]
     assert upload["if"] == "always()"
     assert upload["with"]["name"] == "python-coverage"
+
+
+def _write_gh_stub(bin_dir: Path) -> None:
+    """Write a minimal executable ``gh`` stub into ``bin_dir`` for workflow step tests."""
+    stub = bin_dir / "gh"
+    stub.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json\n"
+        "import os\n"
+        "import re\n"
+        "import sys\n"
+        "argv = sys.argv[1:]\n"
+        "args = ' '.join(argv)\n"
+        "paginate = '--paginate' in argv\n"
+        "m_lbl = re.search(r'/issues/(\\d+)/labels', args)\n"
+        "m_pr_files = re.search(r'/pulls/(\\d+)/files', args)\n"
+        "if m_lbl:\n"
+        "    by_pr = json.loads(os.environ.get('FAKE_GH_LABELS_BY_PR', '{}'))\n"
+        "    pr = m_lbl.group(1)\n"
+        "    raw = (\n"
+        "        by_pr[pr]\n"
+        "        if pr in by_pr\n"
+        "        else json.loads(os.environ.get('FAKE_GH_LABELS_JSON', '[]'))\n"
+        "    )\n"
+        "    pages = raw if (raw and isinstance(raw[0], list)) else [raw]\n"
+        "    shown = pages if paginate else pages[:1]\n"
+        "    for page in shown:\n"
+        "        sys.stdout.write(json.dumps(page) + '\\n')\n"
+        "elif m_pr_files or '/compare/' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_GH_FILES', '') + '\\n')\n"
+        "else:\n"
+        "    sys.exit(f'unexpected gh call: {args}')\n",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32"
+    or shutil.which("bash") is None
+    or shutil.which("jq") is None,
+    reason="Workflow shell steps run under bash + jq on Linux CI",
+)
+@pytest.mark.parametrize(
+    ("event_name", "api_labels", "head_ref", "base_sha", "expected"),
+    [
+        ("pull_request", ["0-physics:change"], "", "", "true"),
+        ("pull_request", ["1-maintenance", "0-numerics:change"], "", "", "true"),
+        (
+            "pull_request",
+            [["1-maintenance"], ["0-numerics:change"]],
+            "",
+            "",
+            "true",
+        ),
+        (
+            "pull_request",
+            [["0-physics:change"], ["0-numerics:change"]],
+            "",
+            "",
+            "true",
+        ),
+        ("pull_request", ["1-maintenance", "2-meta:governance"], "", "", "false"),
+        (
+            "merge_group",
+            ["0-numerics:change"],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            [["1-maintenance"], ["0-numerics:change"]],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            ["1-maintenance"],
+            "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+            "ba5e000",
+            "false",
+        ),
+        (
+            "merge_group",
+            ["1-maintenance"],
+            "refs/heads/gh-readonly-queue/master/pr-42-a11ce41",
+            "ba5e000",
+            "true",
+        ),
+        (
+            "merge_group",
+            [],
+            "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+            "ba5e000",
+            "true",
+        ),
+    ],
+)
+def test_determine_matrix_label_step_reads_live_api_labels(
+    tmp_path: Path,
+    event_name: str,
+    api_labels: list[str] | list[list[str]],
+    head_ref: str,
+    base_sha: str,
+    expected: str,
+) -> None:
+    """Live API labels drive physics-full selection across PR and merge_group contexts."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    step = next(
+        s
+        for s in workflow["jobs"]["determine_matrix"]["steps"]
+        if s.get("id") == "physics-label"
+    )
+    assert "PR_LABELS_JSON" not in step["env"]
+    assert json.loads(step["env"]["LABELS_JSON"]) == [
+        "0-physics:change",
+        "0-numerics:change",
+    ]
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _write_gh_stub(bin_dir)
+    gh_out = tmp_path / "github_output"
+    gh_out.write_text("", encoding="utf-8")
+
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+        "GITHUB_OUTPUT": str(gh_out),
+        "EVENT_NAME": event_name,
+        "PR_NUMBER": "42",
+        "FAKE_GH_LABELS_JSON": json.dumps(api_labels),
+        "MERGE_HEAD_REF": head_ref,
+        "MERGE_BASE_SHA": base_sha,
+        "REPO": "UMEP-dev/SUEWS",
+        "LABELS_JSON": step["env"]["LABELS_JSON"],
+    }
+
+    # ACT
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    # ASSERT
+    outputs = dict(
+        line.split("=", 1)
+        for line in gh_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    assert outputs["found"] == expected
+    if api_labels == [["0-physics:change"], ["0-numerics:change"]]:
+        assert "(0-physics:change, 0-numerics:change)" in result.stdout
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32"
+    or shutil.which("bash") is None
+    or shutil.which("jq") is None,
+    reason="Workflow shell steps run under bash + jq on Linux CI",
+)
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": "without 0-physics:change or 0-numerics:change",
+            },
+            id="pr-unlabelled-ref-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": (
+                    "test/fixtures/data_test/sample_output_2012-01.csv\n"
+                    "test/fixtures/data_test/provenance.json"
+                ),
+                "labels": ["1-maintenance", "0-numerics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="pr-numerics-physics-full-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["1-bug", "0-physics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-physics:change"
+                ),
+            },
+            id="pr-physics-physics-full-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels": ["1-maintenance", "0-numerics:change"],
+                "expected_rc": 1,
+                "expected_substring": (
+                    "requires test_tier=physics-full, but this workflow run used test_tier=smoke"
+                ),
+            },
+            id="pr-late-label-without-physics-full-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "true",
+                "test_tier": "smoke",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/sample_output_2012-01.csv",
+                "labels": ["1-maintenance", "0-numerics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="draft-pr-numerics-smoke-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["0-physics:change", "0-numerics:change"],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="pr-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": [
+                    ["1-maintenance", "0-physics:change"],
+                    ["2-infra:ci", "0-numerics:change"],
+                ],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="pr-split-pages-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": [["1-maintenance"], ["0-numerics:change"]],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="pr-split-pages-second-page-label-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "src/suews/src/suews_phys_ohm.f95",
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "::warning::PR #42 touches physics source without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="pr-unlabelled-physics-warns",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+                "base_sha": "ba5e000",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["0-numerics:change"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Reference and physics changes carry #42: 0-numerics:change"
+                ),
+            },
+            id="mq-single-pr-labelled-passes",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+                "base_sha": "ba5e000",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": (
+                    "PR #42 changes stored reference outputs without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="mq-single-pr-unlabelled-ref-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-ba5e000",
+                "base_sha": "ba5e000",
+                "files": "test/fixtures/w16_most.csv",
+                "labels": ["0-physics:change", "0-numerics:change"],
+                "expected_rc": 1,
+                "expected_substring": "mutually exclusive",
+            },
+            id="mq-single-pr-both-labels-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-a11ce41",
+                "base_sha": "ba5e000",
+                "files": "README.md\ntest/fixtures/w16_most.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Multi-PR or unparsed merge_group ref gated by physics-full"
+                ),
+            },
+            id="mq-multi-pr-ref-does-not-misattribute-to-tail-pr",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "refs/heads/gh-readonly-queue/master/pr-42-a11ce41",
+                "base_sha": "ba5e000",
+                "files": "README.md\ntest/fixtures/w16_most.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": "requires test_tier=physics-full",
+            },
+            id="mq-multi-pr-ref-without-physics-full-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": "test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv",
+                "labels": ["1-maintenance"],
+                "expected_rc": 1,
+                "expected_substring": (
+                    "PR #42 changes stored reference outputs without 0-physics:change or 0-numerics:change"
+                ),
+            },
+            id="pr-unlabelled-stebbs-output-fails",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": (
+                    "test/fixtures/data_test/stebbs_test/sample_config.yml\n"
+                    "test/fixtures/data_test/stebbs_test/test_2017_data_15_mp.txt"
+                ),
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] No reference outputs or physics source changed"
+                ),
+            },
+            id="pr-unlabelled-stebbs-inputs-pass",
+        ),
+        pytest.param(
+            {
+                "event_name": "pull_request",
+                "is_draft": "false",
+                "test_tier": "standard",
+                "head_ref": "",
+                "base_sha": "",
+                "files": (
+                    "test/fixtures/benchmark1/forcing/Kc1_2011_data_5.txt\n"
+                    "test/fixtures/benchmark1/benchmark1b.yml\n"
+                    "test/fixtures/benchmark1/benchmark1b.pkl"
+                ),
+                "labels": ["1-maintenance"],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] No reference outputs or physics source changed"
+                ),
+            },
+            id="pr-unlabelled-benchmark1-fixtures-pass",
+        ),
+        pytest.param(
+            {
+                "event_name": "merge_group",
+                "is_draft": "false",
+                "test_tier": "physics-full",
+                "head_ref": "refs/heads/gh-readonly-queue/master/batch-deadbeef",
+                "base_sha": "ba5e000",
+                "files": "README.md",
+                "labels": [],
+                "expected_rc": 0,
+                "expected_substring": (
+                    "[OK] Multi-PR or unparsed merge_group ref gated by physics-full"
+                ),
+            },
+            id="mq-unparsed-batch-ref-gated-by-physics-full",
+        ),
+    ],
+)
+def test_check_physics_label_gate_enforces_exclusivity_tier_and_queue_refs(
+    tmp_path: Path,
+    case: dict[str, object],
+) -> None:
+    """Fixture refreshes require exactly one classification label and a physics-full run."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    job = workflow["jobs"]["check_physics_label"]
+    assert job["needs"] == ["determine_matrix"]
+    step = job["steps"][0]
+    assert json.loads(step["env"]["LABELS_JSON"]) == [
+        "0-physics:change",
+        "0-numerics:change",
+    ]
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _write_gh_stub(bin_dir)
+
+    event_name = str(case["event_name"])
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
+        "EVENT_NAME": event_name,
+        "REPO": "UMEP-dev/SUEWS",
+        "PR_NUMBER": "42",
+        "IS_DRAFT": str(case["is_draft"]),
+        "DETERMINE_MATRIX_RESULT": "success",
+        "TEST_TIER": str(case["test_tier"]),
+        "MERGE_HEAD_REF": str(case["head_ref"]),
+        "MERGE_BASE_SHA": str(case["base_sha"]),
+        "MERGE_HEAD_SHA": "head111" if event_name == "merge_group" else "",
+        "LABELS_JSON": step["env"]["LABELS_JSON"],
+        "FAKE_GH_FILES": str(case["files"]),
+        "FAKE_GH_LABELS_BY_PR": json.dumps({"42": case["labels"]}),
+    }
+
+    # ACT
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    # ASSERT
+    assert result.returncode == case["expected_rc"], result.stdout + result.stderr
+    assert str(case["expected_substring"]) in result.stdout
+
+
+@pytest.mark.smoke
+def test_check_physics_label_ref_regex_governs_only_live_reference_outputs() -> None:
+    """check_physics_label ref_regex matches only live reference outputs, not inputs or dead fixtures."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    run_script = workflow["jobs"]["check_physics_label"]["steps"][0]["run"]
+    match = re.search(r"ref_regex='([^']+)'", run_script)
+    assert match is not None, "ref_regex definition missing from check_physics_label"
+    ref_pattern = re.compile(match.group(1))
+
+    # ACT
+    fixtures_root = root / "test/fixtures"
+    matched_files = sorted(
+        path.relative_to(root).as_posix()
+        for path in fixtures_root.rglob("*")
+        if path.is_file() and ref_pattern.search(path.relative_to(root).as_posix())
+    )
+    expected_files = sorted([
+        *(
+            f"test/fixtures/data_test/sample_output_2012-{month:02d}.csv"
+            for month in range(1, 13)
+        ),
+        "test/fixtures/data_test/provenance.json",
+        "test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv",
+        "test/fixtures/ehc_reference/ehc_facets.csv",
+        "test/fixtures/ehc_reference/ehc_slab.csv",
+        "test/fixtures/ehc_reference/provenance.json",
+        "test/fixtures/w16_most.csv",
+    ])
+
+    # ASSERT
+    assert matched_files == expected_files
+    test_sources = "\n".join(
+        path.read_text(encoding="utf-8", errors="ignore")
+        for path in (root / "test").rglob("*.py")
+        if path != Path(__file__).resolve()
+    )
+    for token in (
+        "sample_output_2012-",
+        "provenance.json",
+        "sample_output_stebbs.csv",
+        "ehc_reference",
+        "ehc_facets",
+        "ehc_slab",
+        "w16_most.csv",
+    ):
+        assert token in test_sources, (
+            f"Governed reference fixture {token!r} is not read by any test"
+        )
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh and pr-gate.sh run under bash on Linux CI only",
+)
+def test_determine_matrix_and_pr_gate_enforce_physics_or_numerics_override(
+    tmp_path: Path,
+) -> None:
+    """Classification labels force wheel builds, physics-full tiers, and pr-gate wheel checks."""
+    # ARRANGE
+    root = Path(__file__).resolve().parents[2]
+    assert not (root / ".github/workflows/physics-label-rerun.yml").exists()
+    workflow = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert workflow["jobs"]["determine_matrix"]["outputs"]["physics_change"] == (
+        "${{ steps.physics-label.outputs.found || 'false' }}"
+    )
+    assert (
+        "needs.determine_matrix.outputs.physics_change == 'true'"
+        in workflow["jobs"]["build_wheels"]["if"]
+    )
+    pr_gate_job = workflow["jobs"]["pr-gate"]
+    assert "determine_matrix" in pr_gate_job["needs"]
+    gate_step = next(
+        s for s in pr_gate_job["steps"] if s.get("name") == "Check build results"
+    )
+    assert gate_step["env"]["PHYSICS_CHANGE"] == (
+        "${{ needs.determine_matrix.outputs.physics_change || 'false' }}"
+    )
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    assert "Determine build matrix" in declared_needs["PR build validation"]
+
+    base_env = {
+        **os.environ,
+        "IS_DRAFT": "false",
+        "FORTRAN_CHANGED": "false",
+        "RUST_CHANGED": "false",
+        "PYTHON_CHANGED": "false",
+        "UTIL_CHANGED": "false",
+        "BUILD_CHANGED": "false",
+        "CI_CHANGED": "false",
+    }
+
+    # ACT: ready PR and merge_group with PHYSICS_CHANGE=true
+    pr_out = tmp_path / "pr_out"
+    pr_out.write_text("", encoding="utf-8")
+    subprocess.run(
+        ["bash", str(root / ".github/scripts/determine-matrix.sh")],
+        env={
+            **base_env,
+            "GITHUB_OUTPUT": str(pr_out),
+            "EVENT_NAME": "pull_request",
+            "PHYSICS_CHANGE": "true",
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    mq_out = tmp_path / "mq_out"
+    mq_out.write_text("", encoding="utf-8")
+    subprocess.run(
+        ["bash", str(root / ".github/scripts/determine-matrix.sh")],
+        env={
+            **base_env,
+            "GITHUB_OUTPUT": str(mq_out),
+            "EVENT_NAME": "merge_group",
+            "PHYSICS_CHANGE": "true",
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    gate_env = {
+        **os.environ,
+        "DETECT_CHANGES_RESULT": "success",
+        "BUILD_WHEELS_RESULT": "skipped",
+        "BUILD_MCP_RESULT": "skipped",
+        "TEST_BRIDGE_RESULT": "skipped",
+        "CHECK_MARKERS_RESULT": "success",
+        "NEEDS_BUILD": "false",
+        "PHYSICS_CHANGE": "false",
+    }
+    gate_fail = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={**gate_env, "PHYSICS_LABEL_RESULT": "failure"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    gate_noncode_ok = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={**gate_env, "PHYSICS_LABEL_RESULT": "success"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    gate_labelled_skipped_wheels = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={
+            **gate_env,
+            "PHYSICS_LABEL_RESULT": "success",
+            "PHYSICS_CHANGE": "true",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    gate_labelled_built_wheels = subprocess.run(
+        ["bash", str(root / ".github/scripts/pr-gate.sh")],
+        env={
+            **gate_env,
+            "PHYSICS_LABEL_RESULT": "success",
+            "PHYSICS_CHANGE": "true",
+            "BUILD_WHEELS_RESULT": "success",
+            "TEST_BRIDGE_RESULT": "success",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    # ASSERT
+    pr_kv = dict(
+        line.split("=", 1)
+        for line in pr_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    mq_kv = dict(
+        line.split("=", 1)
+        for line in mq_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    assert pr_kv["test_tier"] == "physics-full"
+    assert mq_kv["test_tier"] == "physics-full"
+    # The queue builds Linux (full tier) and Windows (smoke tier, set by the
+    # caller), and runs the api lane on Linux only.
+    assert [p[1] for p in json.loads(mq_kv["buildplat"])] == ["manylinux", "win"]
+    assert [p[1] for p in json.loads(mq_kv["api_buildplat"])] == ["manylinux"]
+
+    assert gate_fail.returncode == 1
+    assert "0-physics:change or 0-numerics:change" in gate_fail.stdout
+    assert gate_noncode_ok.returncode == 0
+    assert "[OK] Code builds correctly skipped" in gate_noncode_ok.stdout
+    assert gate_labelled_skipped_wheels.returncode == 1
+    assert (
+        "[X] Classification label requires wheel and physics build"
+        in gate_labelled_skipped_wheels.stdout
+    )
+    assert gate_labelled_built_wheels.returncode == 0
+    assert "[OK] Wheel and physics build passed" in gate_labelled_built_wheels.stdout

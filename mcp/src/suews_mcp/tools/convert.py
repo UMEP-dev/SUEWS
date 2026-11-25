@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Optional
 
 from ..backend import (
@@ -22,7 +23,7 @@ def convert_config(
     no_profile_validation: bool = False,
 ) -> dict[str, Any]:
     """**Use this when the user has a legacy SUEWS input** (RunControl
-    namelist, table CSV, df_state pickle, or an older YAML version)
+    namelist, table CSV, or an older YAML version)
     and wants the current schema. Do not call this when starting a
     new case — `init_case` is the right entry point. Pair with
     `validate_config` afterwards to check the converted YAML
@@ -31,7 +32,7 @@ def convert_config(
     Parameters
     ----------
     input_path
-        Source file: ``RunControl.nml`` for tables, ``*.csv``/``*.pkl`` for
+        Source file: ``RunControl.nml`` for tables, ``*.csv`` for
         a ``df_state`` snapshot, or ``*.yml``/``*.yaml`` for an older YAML
         config.
     output_path
@@ -49,14 +50,25 @@ def convert_config(
         Disable automatic profile validation and creation of missing
         profiles (table/df_state paths only).
     """
-    root = ProjectRoot(project_root)
     try:
+        root = ProjectRoot(project_root)
         in_path = root.resolve(input_path)
+        if any(
+            path.suffix.lower() in {".pkl", ".pickle"}
+            for path in (Path(input_path), in_path)
+        ):
+            raise SUEWSMCPSandboxError(
+                "Pickle inputs are not permitted by convert_config; use CSV or YAML."
+            )
+        if in_path.suffix.lower() == ".nml":
+            root.check_runcontrol(in_path, versioned=bool(from_version))
+        elif in_path.suffix.lower() in {".yaml", ".yml"}:
+            root.check_config(in_path)
         out_path = root.resolve(output_path)
         debug_resolved: Optional[str] = None
         if debug_dir:
-            debug_resolved = str(root.resolve(debug_dir))
-    except SUEWSMCPSandboxError as exc:
+            debug_resolved = str(root.check_tree(debug_dir))
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(
             str(exc), command=f"suews convert -i {input_path} -o {output_path}"
         )

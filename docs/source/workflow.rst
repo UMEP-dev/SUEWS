@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _getting_started:
 
 Getting Started
@@ -73,7 +75,7 @@ Quick Start: Sample Data Tutorial
    print(f"Output groups: {sim.results.columns.get_level_values('group').unique().tolist()}")
 
    # Extract key variables using get_variable() helper
-   # (Results use MultiIndex columns with (group, variable) structure)
+   # (Results use MultiIndex columns with levels 'group' and 'var')
    qn = sim.get_variable('QN', group='SUEWS')
    qh = sim.get_variable('QH', group='SUEWS')
    print("\nSample energy flux statistics:")
@@ -109,16 +111,16 @@ Quick Start: Sample Data Tutorial
     axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
     # Monthly patterns
-    monthly_energy = df_energy.groupby(df_energy.index.get_level_values(1).month).mean()
+    monthly_energy = df_energy.groupby(df_energy.index.get_level_values("datetime").month).mean()
     monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
     axes[0,1].set_ylabel('Energy Flux (W/m²)')
     axes[0,1].set_xlabel('Month')
 
     # Diurnal patterns (summer months)
     t2 = sim.get_variable('T2', group='SUEWS')
-    summer_mask = t2.index.get_level_values(1).month.isin([6,7,8])
+    summer_mask = t2.index.get_level_values("datetime").month.isin([6,7,8])
     summer_temp = t2[summer_mask]
-    hourly_temp = summer_temp.groupby(summer_temp.index.get_level_values(1).hour).mean()
+    hourly_temp = summer_temp.groupby(summer_temp.index.get_level_values("datetime").hour).mean()
     hourly_temp.iloc[:, 0].plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
     axes[1,0].set_ylabel('Air Temperature (°C)')
     axes[1,0].set_xlabel('Hour of Day')
@@ -184,7 +186,7 @@ The simulation produces comprehensive urban climate data:
 
 **Working with Results (Important!)**
 
-Results are stored with MultiIndex columns ``(group, variable)``. Always use ``sim.get_variable()`` to extract data:
+Results are stored with MultiIndex columns with levels ``group`` and ``var``. Always use ``sim.get_variable()`` to extract data:
 
 .. code-block:: python
 
@@ -283,28 +285,25 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
 Validate Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before running simulations, validate your configuration to catch and fix common issues:
+Before running simulations, validate your configuration and review any issues:
 
 .. code-block:: bash
 
-   # Validate and automatically fix your configuration
+   # Validate your configuration and report suggested updates
    suews validate config.yml
 
-   # This creates:
-   # - updated_config.yml (corrected configuration)
+   # Output files:
+   # - updated_config.yml (updated configuration)
    # - report_config.txt (detailed validation report)
+   # - report_config.json (machine-readable validation report)
 
-The validator automatically:
+By default, the validator writes recognised parameter-name updates and may add null placeholders for missing parameters. It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.
 
-- Adds missing parameters with sensible defaults
-- Normalises surface fractions to sum to 1.0
-- Sets initial temperatures based on location and season
-- Ensures physics options are compatible
-- Updates deprecated parameter names to current standards
+The command prints "Validation failed" and exits with status 1 if any validation check reports an error; suggestions alone exit with status 0. Before running simulations, address the report's **ACTION NEEDED** section and replace any null placeholders listed there with real values.
 
-The validation report consolidates all changes made across multiple validation phases, providing a clear summary of what was automatically fixed and what requires your attention.
+Scientific changes, such as initial temperatures and small surface-fraction corrections, are only suggested in the report, not written to the YAML. Use ``--science-fixes apply`` to write these changes, or ``--science-fixes off`` to suppress scientific suggestions while retaining validation checks.
 
-For more details, see :doc:`/inputs/yaml/validation`.
+For the scientific fix policy, output files and report sections, see :doc:`/inputs/yaml/validation`.
 
 Setup Your Site Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -371,6 +370,38 @@ period from the checkpointed state on purpose (for example when cycling one
 year of forcing for spin-up), pass ``check_continuity=False`` to
 ``from_checkpoint(...)``.
 
+Cold starts and continuation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The result of ``sim.run()`` exposes ``output.metadata["initialisation"]``.
+Its ``origin`` is ``"cold_start"`` for a fresh run and ``"checkpoint"`` for
+an explicit or same-instance continuation. ``radiation_memory`` is respectively
+``"internal"`` or ``"restored"``; ``warmup_completion`` is always
+``"not_assessed"``. A checkpoint identifies a continuation, not a guarantee
+that the preceding run was equilibrated.
+
+Cold starts retain every requested output interval, using available forcing
+without additional antecedent weather, weather cycling or a discarded prefix.
+Internal continuation memories (surface radiation histories ``qn_surfs`` and
+``dqndt_surf``, vegetation daily irrigation memories ``evetr``/``dectr``/``grass.wu``,
+and running timer/atmosphere diagnostics ``dt_since_start``, ``tair_av``,
+``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb`` and ``rs``) are rejected
+on fresh YAML runs and restored solely through complete checkpoints. Other
+unconfigured kernel state members follow fixed cold-start conventions: running
+step-1 diagnostics are overwritten before use, AnOHM buffers start at ``-999`` /
+``0`` / ``false``, ``tmin_id`` and ``tmax_id`` default to ``0`` assuming a
+midnight start, DyOHM (storage heat methods 6--8) dynamic coefficients stay at
+``0`` until the first midnight with ``t2_prev`` and ``temp_surf_dyohm`` at
+``0`` degC (requiring warm-up), and STEBBS with ``NetRadiationMethod < 1000``
+sees ``0`` W m-2 BEERS roof/wall radiation on step 1 before BEERS runs at the
+end of the step. Early results can therefore retain startup influence, and no
+elapsed-time threshold declares a run fully warmed.
+
+The same initialisation record is written to ``provenance.json`` under ``run``
+by ``sim.save()`` and ``suews run``, including streamed runs. Keep that sidecar
+with exported data. Bare DataFrame/file exports and ``output.save()`` do not
+carry this run-provenance record; use ``sim.save()`` when it is required.
+
 For detailed examples, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
 Data Requirements and Quality
@@ -436,8 +467,10 @@ Multi-Site and Comparative Studies
    monthly_temps = {}
    checkpoints = {}
    for name, output in results:
+       # One grid per simulation; otherwise apply .xs(grid_id, level="grid") to each result.
        t2 = output.get_variable('T2', group='SUEWS')
-       monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.month).mean()
+       dt = t2.index.get_level_values("datetime")
+       monthly_temps[name] = t2.iloc[:, 0].groupby(dt.month).mean()
        checkpoints[name] = output.checkpoint
 
    temp_comparison = pd.DataFrame(monthly_temps)
@@ -547,17 +580,21 @@ Advanced Analysis Patterns
        urban_sim, rural_sim : SUEWSSimulation
            Completed simulations for urban and rural sites
        """
+       # One grid per simulation; otherwise apply .xs(grid_id, level="grid") to each result.
        # Extract temperature using get_variable()
        urban_temp = urban_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
        rural_temp = rural_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
 
+       urban_dt = urban_temp.index.get_level_values("datetime")
+       rural_dt = rural_temp.index.get_level_values("datetime")
+
        # UHI intensity by time of day
-       uhi_diurnal = urban_temp.groupby(urban_temp.index.hour).mean() - \
-                     rural_temp.groupby(rural_temp.index.hour).mean()
+       uhi_diurnal = urban_temp.groupby(urban_dt.hour).mean() - \
+                     rural_temp.groupby(rural_dt.hour).mean()
 
        # Seasonal UHI patterns
-       uhi_seasonal = urban_temp.groupby(urban_temp.index.month).mean() - \
-                      rural_temp.groupby(rural_temp.index.month).mean()
+       uhi_seasonal = urban_temp.groupby(urban_dt.month).mean() - \
+                      rural_temp.groupby(rural_dt.month).mean()
 
        return uhi_diurnal, uhi_seasonal
 
@@ -573,6 +610,7 @@ Advanced Analysis Patterns
        sim : SUEWSSimulation
            Completed simulation
        """
+       # One grid per simulation; otherwise apply .xs(grid_id, level="grid") to each result.
        # Helper to extract variables
        def get_var(name):
            return sim.get_variable(name, group='SUEWS').iloc[:, 0]
@@ -592,7 +630,8 @@ Advanced Analysis Patterns
 
        # Seasonal energy partitioning
        df_fluxes = pd.DataFrame({'QS': qs, 'QE': qe, 'QH': qh})
-       seasonal_partition = df_fluxes.groupby(df_fluxes.index.month).mean()
+       dt = df_fluxes.index.get_level_values("datetime")
+       seasonal_partition = df_fluxes.groupby(dt.month).mean()
 
        # Bowen ratio (sensible/latent heat)
        bowen_ratio = qh / qe

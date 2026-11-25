@@ -58,7 +58,7 @@ from .data_model.core.model import OutputControl, check_stream_chunk
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
-from .suews_output import SUEWSOutput, streamed_output_error
+from .suews_output import SUEWSOutput, _variable_groups, streamed_output_error
 from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
@@ -264,6 +264,7 @@ class SUEWSSimulation:
 
         else:
             # Assume it's a SUEWSConfig object
+            config.validate_for_engine(require_drainage=False)
             self._config = config
             self._config_identity = None
             self._df_state_init = self._config.to_df_state()
@@ -891,10 +892,10 @@ class SUEWSSimulation:
         it when the run ends. ``pandas.read_parquet(folder)`` reads the
         parts back as one frame. It holds only the groups in
         ``output.groups`` (Parquet saved after an unstreamed run holds every
-        group), at full float64 precision. The groups other than DailyState
-        are resampled exactly as ``save(format="parquet")`` resamples them;
-        DailyState keeps its own rows, the last step of each day, as the text
-        output does, instead of being resampled to the output frequency.
+        group), at full float64 precision. Every group, DailyState included,
+        is resampled using the same right-labelled rule as
+        ``save(format="parquet")``, so the folder matches a whole run saved
+        as Parquet row for row for the chosen groups.
         See the outputs page of the documentation for how the frame compares
         with a run saved whole.
 
@@ -976,6 +977,8 @@ class SUEWSSimulation:
                         grid_vals = df_state_for_cfg.index.get_level_values(0)
                     df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
                 self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
+
+        self._config.validate_for_engine()
 
         # A streamed run saves as it goes: resolve where and what it writes,
         # and reject settings it cannot reproduce, before any work is done.
@@ -1162,6 +1165,7 @@ class SUEWSSimulation:
             checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings.to_frame(),
             streamed_paths=self._streamed_paths,
+            metadata=copy.deepcopy(self._run_metadata or {}),
         )
 
     def save(
@@ -1740,6 +1744,11 @@ class SUEWSSimulation:
             "n_jobs": int(n_jobs),
             "chunk_day": int(chunk_day),
             "continued_from_checkpoint": self._checkpoint is not None,
+            "initialisation": {
+                "origin": "checkpoint" if self._checkpoint is not None else "cold_start",
+                "radiation_memory": "restored" if self._checkpoint is not None else "internal",
+                "warmup_completion": "not_assessed",
+            },
         }
 
     def _snapshot_input_identity(self, df_forcing_slice: pd.DataFrame) -> dict:
@@ -1835,6 +1844,7 @@ class SUEWSSimulation:
             "ended_at": run_metadata.get("ended_at"),
             "n_jobs": run_metadata.get("n_jobs"),
             "chunk_day": run_metadata.get("chunk_day"),
+            "initialisation": run_metadata.get("initialisation"),
             "continued_from_checkpoint": run_metadata.get(
                 "continued_from_checkpoint", False
             ),
@@ -2183,6 +2193,10 @@ class SUEWSSimulation:
                     stacklevel=2,
                 )
 
+        # A supplied model state owns its layer temperatures. The legacy
+        # adapter reconstructs YAML and enters the fresh kernel path, so carry
+        # this distinction explicitly rather than resetting its envelope.
+        df_state_init[("control_ehc_initial_profile", "0")] = False
         # Create simulation instance with loaded state
         sim = cls()
         sim._df_state_init = df_state_init
@@ -2396,14 +2410,7 @@ class SUEWSSimulation:
             )
 
         # Check if variable appears in multiple groups
-        matching_groups = []
-        for grp in self._df_output.columns.get_level_values("group").unique():
-            try:
-                # Check if this group contains the variable
-                _ = self._df_output.xs((grp, var_name), level=("group", "var"), axis=1)
-                matching_groups.append(grp)
-            except KeyError:
-                continue
+        matching_groups = _variable_groups(self._df_output.columns, var_name)
 
         if len(matching_groups) == 0:
             # Should not happen if var_name was found above
@@ -2434,7 +2441,15 @@ class SUEWSSimulation:
                     f"Variable '{var_name}' only exists in group '{matching_groups[0]}', "
                     f"not in '{group}'"
                 )
-            result = self._df_output.xs(var_name, level="var", axis=1)
+            if group is None:
+                result = self._df_output.xs(var_name, level="var", axis=1)
+            else:
+                # An explicit group keeps the (group, var) cross-section that
+                # callers received before single-group variables were
+                # recognised, so existing group= calls see no column change.
+                result = self._df_output.xs(
+                    (group, var_name), level=("group", "var"), axis=1
+                )
 
         # Filter by site if requested
         if site is not None:
@@ -2567,6 +2582,7 @@ class SUEWSSimulation:
             checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings.to_frame(),
             streamed_paths=self._streamed_paths,
+            metadata=copy.deepcopy(self._run_metadata or {}),
         )
 
     @property

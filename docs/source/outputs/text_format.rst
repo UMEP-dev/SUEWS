@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _text_output_format:
 
 Text Format Output
@@ -144,10 +146,13 @@ Group Details
 
       **Timestamp Convention for DailyState**
 
-      DailyState labels each day by its start, unlike the other output groups,
-      which label every period by its end: the row labelled "2012-01-15" holds
-      the model state at the end of 15 January. See
-      :ref:`timestamp_convention`.
+      ``DailyState`` follows the same end-of-period convention
+      (``closed="right", label="right"``) as every other output group: day
+      ``D`` is labelled ``D+1 00:00``, so the row labelled ``2012-01-16 00:00``
+      holds the model state at the end of 15 January, matching daily ``SUEWS``
+      output. In native model-timestep output, the Fortran kernel still
+      accumulates daily values over ``00:00`` to ``23:55`` (at a 5-minute
+      timestep). See :ref:`timestamp_convention`.
 
 .. _output-snow:
 

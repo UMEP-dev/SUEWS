@@ -88,7 +88,9 @@ dev:
 			echo ""; \
 		fi \
 	fi; \
-	# Uninstall first if build directory is missing (post-clean state) \
+	# Uninstall first if build directory is missing (post-clean state); otherwise \
+	# invalidate stale Meson stamps if build env (e.g. SUEWS_INIT_REAL or \
+	# SUEWS_BUILD_PROFILE) changed since the last build. \
 	if [ ! -d "build/$$PYVER" ]; then \
 		echo "Build directory missing for $$PYVER - performing clean reinstall..."; \
 		if command -v uv >/dev/null 2>&1; then \
@@ -96,6 +98,8 @@ dev:
 		else \
 			$(PYTHON) -m pip uninstall supy -y 2>/dev/null || true; \
 		fi \
+	else \
+		$(PYTHON) src/supy/run_make.py --sync-builddir src/suews "build/$$PYVER"; \
 	fi
 	@# Install build dependencies first (required for --no-build-isolation).
 	@# setuptools builds sdist-only dependencies, e.g. numexpr (via atmosp) on CPython 3.15.
@@ -177,6 +181,7 @@ rebuild-meson:
 		fi; \
 	else \
 		echo "Rebuilding changed Fortran sources..."; \
+		$(PYTHON) src/supy/run_make.py --sync-builddir src/suews "build/$$PYVER"; \
 		BRIDGE_SO=$$(ls build/$$PYVER/src/supy/suews_bridge.* 2>/dev/null | head -1); \
 		if [ -n "$$BRIDGE_SO" ] && [ -d "src/suews_bridge/src" ]; then \
 			STALE=$$(find src/suews_bridge/src src/suews_bridge/c_api \
@@ -214,7 +219,7 @@ TEST_DEFAULT_PATHS := test/test_api_surface.py test/core test/data_model test/ph
 # full-year DailyState tests materialises its own year of output (about 1 GB);
 # raise it on a machine with memory to spare: make test TEST_JOBS=8
 TEST_JOBS ?= 4
-test:
+test: lint-fortran-constants
 	@echo "Running everyday development tests (core, data model, physics, I/O)..."
 	@echo "NOTE: slow regressions and peripheral surfaces (cmd, mcp, docs,"
 	@echo "      knowledge, umep) are excluded - run 'make test-all' or the"
@@ -322,3 +327,16 @@ plugin:
 AGENT_PLUGIN_OUT ?= ../suews-agent
 agent-plugin:
 	$(PYTHON) scripts/build_agent_plugin.py --output $(AGENT_PLUGIN_OUT)
+
+# Linux-only real-physics witness; execute on remote compute or CI, not macOS.
+.PHONY: test-rss-growth test-rss-growth-contract
+RSS_GROWTH_ARGS ?= --output rss-growth
+test-rss-growth:
+	$(PYTHON) scripts/suews/rss_growth.py $(RSS_GROWTH_ARGS)
+
+test-rss-growth-contract:
+	$(PYTHON) -m pytest test/core/test_rss_growth.py -q
+
+.PHONY: lint-fortran-constants
+lint-fortran-constants:
+	$(PYTHON) scripts/lint/check_fortran_literals.py

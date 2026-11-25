@@ -16,7 +16,7 @@ from scripts.suews.ci_phase_metrics import (
 )
 from scripts.suews.run_ci_tests import metrics_paths
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_PHASES = ("checkout", "toolchain_setup", "build", "repair", "install")
@@ -215,9 +215,12 @@ def test_wheel_checkout_filters_blobs_but_keeps_provenance_safeguards() -> None:
     workflow = (PROJECT_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
         encoding="utf-8"
     )
+    # The wheel build job's checkout (the layout job before it checks out
+    # only scripts/suews).
+    build_job = workflow[workflow.index("\n  build:\n") :]
     checkout = re.search(
         r"uses: actions/checkout@[^\n]+\n(?P<inputs>(?:[ \t]+[^\n]+\n){1,8})",
-        workflow,
+        build_job,
     )
 
     assert checkout is not None

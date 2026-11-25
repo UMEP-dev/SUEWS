@@ -25,7 +25,12 @@ import yaml
 
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.field_renames import read_physics_key
-from supy.data_model.core.model import ModelPhysics, NetRadiationMethod
+from supy.data_model.core.model import (
+    ModelPhysics,
+    MomentumRoughnessMethod,
+    NetRadiationMethod,
+)
+from supy.data_model.core.type import RefValue
 from supy.data_model.core.physics_families import (
     MODEL_PHYSICS_ENUM_FIELDS,
     PHYSICS_ENUM_FIELDS,
@@ -36,7 +41,7 @@ from supy.data_model.core.physics_families import (
 )
 from supy.data_model.core.physics_orthogonal import coerce_orthogonal_to_flat
 
-pytestmark = pytest.mark.api
+pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ROUNDTRIP")]
 
 
 _FIXTURES = Path(__file__).parent.parent / "fixtures" / "nested_physics"
@@ -110,7 +115,8 @@ class TestYamlRoundTrip:
         dumped_text = yaml.safe_dump(phys.model_dump(mode="json"))
         # Round-trip is flat: no family tags in the dump.
         assert "spartacus" not in dumped_text
-        assert "ehc" not in dumped_text
+        # the family tag, not the ehc_surface_coupling field
+        assert "ehc:" not in dumped_text
         assert "simple:" not in dumped_text
 
     def test_mixed_reject_yaml_raises(self):
@@ -408,6 +414,8 @@ class TestRegistryEnumParity:
             "emissions": m.EmissionsMethod,
             "storage_heat": m.StorageHeatMethod,
             "ohm_inc_qf": m.OhmIncQf,
+            "ehc_surface_coupling": m.EHCSurfaceCoupling,
+            "control_ehc_stability": m.EHCStabilityControl,
             "roughness_length_momentum": m.MomentumRoughnessMethod,
             "roughness_length_heat": m.HeatRoughnessMethod,
             "stability": m.StabilityMethod,
@@ -721,7 +729,13 @@ def test_flatten_physics_accepts_kdown_constant_direct_fraction():
 
     flatten_physics_in_config(data)
 
-    assert data["model"]["physics"] == {"kdown_split_method": {"value": 2}}
+    # The fraction is kept as the flat ModelPhysics field: the validator writes
+    # this flattened dict as its updated YAML, so dropping it would reset the
+    # fraction to the 0.5 default.
+    assert data["model"]["physics"] == {
+        "kdown_split_method": {"value": 2},
+        "sw_dn_direct_frac": 0.45,
+    }
 
 
 def test_model_physics_accepts_orthogonal_spartacus():
@@ -1003,4 +1017,107 @@ class TestReservedStabilityRejected:
         config["model"]["physics"]["stability"] = {"value": 1}
         yaml_path.write_text(yaml.safe_dump(config), encoding="utf-8")
         with pytest.raises(ValueError, match=re.escape(self.message(1))):
+            SUEWSConfig.from_yaml(str(yaml_path))
+
+
+class TestUnsupportedMomentumRoughnessRejected:
+    """`roughness_length_momentum = 5` (ALTERNATIVE) is refused by the data model (gh#2105).
+
+    Code 5 has no formulation in ``SUEWS_cal_RoughnessParameters``, leaving
+    ``z0m_zh`` and ``zdm_zh`` unassigned in the kernel. The refusal must hold
+    on validated construction and direct assignment across bare int, enum,
+    ``RefValue``, readable name, legacy key, dict, and YAML paths.
+    """
+
+    MESSAGE = "roughness_length_momentum=5 (ALTERNATIVE) is not available"
+
+    def test_flat_code_rejected(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(roughness_length_momentum=5)
+
+    def test_enum_member_rejected(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(roughness_length_momentum=MomentumRoughnessMethod.ALTERNATIVE)
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"value": 5},
+            RefValue(5),
+            RefValue(MomentumRoughnessMethod.ALTERNATIVE),
+            {"value": "alternative"},
+        ],
+        ids=["dict-int", "refvalue-int", "refvalue-enum", "dict-name"],
+    )
+    def test_refvalue_forms_rejected(self, payload):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(roughness_length_momentum=payload)
+
+    @pytest.mark.parametrize("name", ["alternative", "ALTERNATIVE"])
+    def test_named_form_rejected(self, name):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            ModelPhysics(roughness_length_momentum=name)
+
+    def test_legacy_key_rejected(self):
+        with (
+            pytest.warns(DeprecationWarning, match="roughlenmommethod"),
+            pytest.raises(ValidationError, match=re.escape(self.MESSAGE)),
+        ):
+            ModelPhysics(roughlenmommethod=5)
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            5,
+            MomentumRoughnessMethod.ALTERNATIVE,
+            {"value": 5},
+            RefValue(5),
+            "alternative",
+        ],
+        ids=["int", "enum", "dict", "refvalue", "name"],
+    )
+    def test_assignment_rejected(self, bad_value):
+        phys = ModelPhysics(roughness_length_momentum=2)
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)):
+            phys.roughness_length_momentum = bad_value
+        assert int(_unwrap(phys.roughness_length_momentum)) == 2
+
+    @staticmethod
+    @pytest.mark.parametrize("code", [1, 2, 3, 4])
+    def test_implemented_codes_accepted(code):
+        assert (
+            int(
+                _unwrap(
+                    ModelPhysics(roughness_length_momentum=code)
+                    .roughness_length_momentum
+                )
+            )
+            == code
+        )
+
+    def test_message_names_the_allowed_codes(self):
+        with pytest.raises(ValidationError, match=re.escape(self.MESSAGE)) as exc:
+            ModelPhysics(roughness_length_momentum=5)
+        for allowed in (
+            "1 (fixed)",
+            "2 (variable, Grimmond & Oke 1999)",
+            "3 (MacDonald et al. 1998)",
+            "4 (lambda_p-dependent, Grimmond & Oke 1999)",
+        ):
+            assert allowed in str(exc.value)
+
+    def test_from_dict_rejected(self, sample_yaml_path):
+        config = yaml.safe_load(sample_yaml_path.read_text(encoding="utf-8"))
+        config["model"]["physics"]["roughness_length_momentum"] = {"value": 5}
+        with pytest.raises(ValueError, match=re.escape(self.MESSAGE)):
+            SUEWSConfig.from_dict(config)
+
+    @pytest.mark.parametrize("value", [{"value": 5}, "alternative"], ids=["refvalue", "name"])
+    def test_from_yaml_rejected(self, sample_yaml_path, tmp_path, value):
+        sample_dir = shutil.copytree(sample_yaml_path.parent, tmp_path / "sample")
+        yaml_path = sample_dir / sample_yaml_path.name
+        config = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        config["model"]["physics"]["roughness_length_momentum"] = value
+        yaml_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+        with pytest.raises(ValueError, match=re.escape(self.MESSAGE)):
             SUEWSConfig.from_yaml(str(yaml_path))

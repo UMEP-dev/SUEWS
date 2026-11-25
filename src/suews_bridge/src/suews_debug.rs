@@ -1,3 +1,9 @@
+//! Intra-timestep debug snapshot container mirroring Fortran `SUEWS_DEBUG`.
+//!
+//! Holds 15 full [`SuewsState`] snapshots (`state_01_dailystate` through
+//! `state_15_beers`) captured after each physics stage inside a timestep.
+//! Serialises via [`CompositeCodec`] and requires all 15 named stages on decode.
+
 use crate::codec::CompositeCodec;
 use crate::error::BridgeError;
 use crate::suews_state::{
@@ -43,6 +49,7 @@ const SUEWS_DEBUG_MEMBER_ORDER: [&str; 15] = [
     MEMBER_STATE_15,
 ];
 
+/// Schema metadata for the 15-stage [`SuewsDebug`] snapshot container.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsDebugSchema {
     pub schema_version: u32,
@@ -50,12 +57,14 @@ pub struct SuewsDebugSchema {
     pub suews_state_schema_version: u32,
 }
 
+/// Versioned nested JSON payload for [`SuewsDebug`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsDebugValuesPayload {
     pub schema_version: u32,
     pub members: BTreeMap<String, Value>,
 }
 
+/// 15-stage intra-timestep [`SuewsState`] snapshot container (`SUEWS_DEBUG`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsDebug {
     pub state_01_dailystate: SuewsState,
@@ -395,6 +404,7 @@ pub fn suews_debug_from_nested_payload(payload: &Value) -> Result<SuewsDebug, Br
     suews_debug_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

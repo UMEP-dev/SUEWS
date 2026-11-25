@@ -2,7 +2,12 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import get_value_safe, read_physics_key
+from ...core.yaml_helpers import (
+    get_ref_or_bare,
+    get_value_safe,
+    is_ref_only,
+    read_physics_key,
+)
 from collections.abc import Mapping
 import calendar
 from typing import Dict, List, Optional, Union, Any
@@ -20,6 +25,15 @@ def _as_float(value: Any) -> Optional[float]:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _is_absent_doy_mapping(value: Any) -> bool:
+    """Return True for empty or ref-only mappings (disabled DOY window)."""
+    return (
+        isinstance(value, Mapping)
+        and "value" not in value
+        and all(key == "ref" for key in value)
+    )
 
 
 def _is_spartacus_enabled(yaml_data: Mapping) -> bool:
@@ -106,12 +120,18 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                 if "value" in value:
                     param_value = value["value"]
                     if param_value in (None, "") or (
-                        isinstance(param_value, list)
+                        isinstance(param_value, (list, tuple))
                         and any(v in (None, "") for v in param_value)
                     ):
                         missing_params.append(current_path)
                 else:
                     _check_recursively(value, current_path)
+            elif value in (None, "") or (
+                # ValidationContext freezes lists into tuples.
+                isinstance(value, (list, tuple))
+                and any(v in (None, "") for v in value)
+            ):
+                missing_params.append(current_path)
 
     _check_recursively(surface_props)
     return missing_params
@@ -176,7 +196,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 
         for surface_type, surface_props in land_cover.items():
             if isinstance(surface_props, Mapping):
-                sfr_value = surface_props.get("sfr", {}).get("value")
+                sfr_value = get_ref_or_bare(surface_props, "sfr")
                 if sfr_value is not None:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))
@@ -347,16 +367,17 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                     site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
                 )
 
-                def collect_param_names(d: dict, prefix: str = ""):
+                def collect_param_names(d: Mapping, prefix: str = ""):
                     for k, v in d.items():
                         if k == "sfr":
                             continue
                         current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, Mapping):
-                            if "value" in v:
-                                param_list.append(current_path)
-                            else:
-                                collect_param_names(v, current_path)
+                        if isinstance(v, Mapping) and "value" not in v and not is_ref_only(v):
+                            collect_param_names(v, current_path)
+                        else:
+                            # RefValue mapping, ref-only placeholder or bare
+                            # scalar/list: all are parameters (gh#2297).
+                            param_list.append(current_path)
 
                 collect_param_names(surf_props)
 
@@ -523,10 +544,64 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
 
         anthro_emissions = props.get("anthropogenic_emissions", {})
         if anthro_emissions:
+            from ....core.human_activity import coerce_integer_doy_scalar
+
             startdls = get_value_safe(anthro_emissions, "startdls")
             enddls = get_value_safe(anthro_emissions, "enddls")
+            if _is_absent_doy_mapping(startdls):
+                startdls = None
+            if _is_absent_doy_mapping(enddls):
+                enddls = None
 
-            if startdls is None or enddls is None:
+            # The run year comes from the context, which already falls back to
+            # the forcing when start_time is not set; unknown year allows 366.
+            max_dls_doy = 366
+            year = getattr(context, "model_year", None)
+            if year is not None and not calendar.isleap(year):
+                max_dls_doy = 365
+
+            for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
+                if dls_val is None:
+                    continue
+                try:
+                    dls_int = coerce_integer_doy_scalar(dls_val, dls_name)
+                except ValueError as exc:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="GEOGRAPHY",
+                            parameter=f"anthropogenic_emissions.{dls_name}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=str(exc),
+                            suggested_value=(
+                                "Replace decimal or non-integer values with an "
+                                f"integer day of year between 1 and {max_dls_doy}"
+                            ),
+                        )
+                    )
+                    continue
+                if not (1 <= dls_int <= max_dls_doy):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="GEOGRAPHY",
+                            parameter=f"anthropogenic_emissions.{dls_name}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                f"{dls_name}={dls_int} is invalid. Must be an "
+                                f"integer day of year between 1 and {max_dls_doy}."
+                            ),
+                            suggested_value=(
+                                f"Set an integer day of year between 1 and {max_dls_doy}, "
+                                "or omit both startdls and enddls to disable "
+                                "daylight saving"
+                            ),
+                        )
+                    )
+
+            if (startdls is None) != (enddls is None):
                 results.append(
                     ValidationResult(
                         status="WARNING",
@@ -534,8 +609,16 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
                         parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates (see updated parameters)",
-                        suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
+                        message=(
+                            "Only one daylight saving parameter (startdls or enddls) "
+                            "is set - provide both integer days of year (1-366), or "
+                            "set both to null / omit both to disable daylight saving"
+                        ),
+                        suggested_value=(
+                            "Set both startdls and enddls (or let --science-fixes apply "
+                            "fill them from your coordinates), or disable daylight saving "
+                            "by setting both to null / omitting both"
+                        ),
                     )
                 )
 
@@ -554,10 +637,10 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
 
 
 def validate_irrigation_doy(
-    ie_start: Optional[float],
-    ie_end: Optional[float],
+    ie_start: Optional[Union[int, float]],
+    ie_end: Optional[Union[int, float]],
     lat: float,
-    model_year: int,
+    model_year: int | None,
     site_name: str,
 ) -> List[ValidationResult]:
     """
@@ -565,14 +648,17 @@ def validate_irrigation_doy(
 
     Parameters
     ----------
-    ie_start : float or None
-        Irrigation start day of year.
-    ie_end : float or None
-        Irrigation end day of year.
+    ie_start : int or None
+        Irrigation start integer day of year (1-366, or null/None to disable;
+        0 is only used as the internal df_state sentinel).
+    ie_end : int or None
+        Irrigation end integer day of year (1-366, or null/None to disable;
+        0 is only used as the internal df_state sentinel).
     lat : float
         Site latitude (used for hemisphere and tropical detection).
-    model_year : int
-        Simulation year (used for leap year detection).
+    model_year : int or None
+        Simulation year (used for leap year detection); None when the run
+        year is unknown, which allows DOY 366.
     site_name : str
         Site identifier for error messages.
 
@@ -583,23 +669,79 @@ def validate_irrigation_doy(
 
     Notes
     -----
-    - Checks that DOY values are within valid range (1-365 or 1-366 for leap years).
+    - Checks that DOY values are whole integers within valid range (1-365 or 1-366 for leap years).
     - Ensures both parameters are set together or both disabled.
     - Checks warm season appropriateness based on hemisphere and latitude:
         * Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round.
         * Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273).
         * Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90).
     """
+    from ....core.human_activity import coerce_integer_doy_scalar
+
     results = []
+    # Without a known run year, accept DOY 366 rather than guess a non-leap year.
+    is_leap = model_year is None or calendar.isleap(model_year)
+    max_doy = 366 if is_leap else 365
 
-    # Helper: treat 0 and None as equivalent (both mean "disabled")
-    def is_disabled(value):
-        return value is None or value == 0 or value == 0.0
+    parsed: Dict[str, Optional[int]] = {}
+    has_type_error = False
+    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
+        if param_value is None or _is_absent_doy_mapping(param_value):
+            parsed[param_name] = None
+            continue
+        try:
+            parsed[param_name] = coerce_integer_doy_scalar(param_value, param_name)
+        except ValueError as exc:
+            has_type_error = True
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=str(exc),
+                    suggested_value=(
+                        f"Replace decimal or non-integer values with an integer "
+                        f"day of year (1-{max_doy}), or null/None to disable"
+                    ),
+                )
+            )
+    if has_type_error:
+        return results
 
-    start_disabled = is_disabled(ie_start)
-    end_disabled = is_disabled(ie_end)
+    ie_start_int = parsed["ie_start"]
+    ie_end_int = parsed["ie_end"]
 
-    # Case 1: Both disabled = valid (irrigation not configured)
+    # Range check first: reject explicit 0 and out-of-range integers (1..max_doy)
+    has_range_error = False
+    for param_name, param_value in [
+        ("ie_start", ie_start_int),
+        ("ie_end", ie_end_int),
+    ]:
+        if param_value is not None and (param_value < 1 or param_value > max_doy):
+            has_range_error = True
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=f"{param_name}={param_value} is invalid. "
+                    f"Must be an integer day of year between 1 and {max_doy}"
+                    + (
+                        f" for {'leap' if is_leap else 'non-leap'} year {model_year}"
+                        if model_year is not None
+                        else ""
+                    )
+                    + ", or null/None to disable irrigation",
+                    suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
+                )
+            )
+    if has_range_error:
+        return results
+
+    start_disabled = ie_start_int is None
+    end_disabled = ie_end_int is None
+
+    # Case 1: Both disabled (None/absent) = valid (irrigation not configured)
     if start_disabled and end_disabled:
         return results
 
@@ -610,32 +752,18 @@ def validate_irrigation_doy(
                 status="ERROR",
                 category="IRRIGATION",
                 parameter=f"irrigation in site {site_name}",
-                message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
-                "or both left as None/0 (irrigation disabled). "
+                message="Both ie_start and ie_end must be specified together (both set to valid integer DOY), "
+                "or both left as null/None (irrigation disabled). "
                 f"Currently: ie_start={ie_start}, ie_end={ie_end}",
-                suggested_value="Set both to valid DOY (1-365/366) or both to None/0",
+                suggested_value="Set both to valid integer DOY (1-365/366) or both to null/None",
             )
         )
         return results
 
-    # Case 3: Both enabled = validate DOY range and hemisphere logic
-    is_leap = calendar.isleap(model_year)
-    max_doy = 366 if is_leap else 365
-
-    # Validate DOY range (must be 1-365/366, not 0)
-    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
-        if param_value < 1 or param_value > max_doy:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=f"{param_name}={param_value} is invalid. "
-                    f"Must be between 1 and {max_doy} for {'leap' if is_leap else 'non-leap'} "
-                    f"year {model_year}, or 0/None to disable irrigation",
-                    suggested_value=f"Valid range: 1-{max_doy}, or 0/None to disable",
-                )
-            )
+    # Case 3: Both enabled = validate hemisphere logic
+    assert ie_start_int is not None and ie_end_int is not None
+    ie_start = ie_start_int
+    ie_end = ie_end_int
 
     # Seasonal validation based on hemisphere and latitude
     abs_lat = abs(lat)
@@ -755,8 +883,8 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
     if isinstance(sites, Mapping):
         # Dict format: {site_name: {lat: ..., ...}, ...}
         sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, list):
-        # List format: [{name: site_name, lat: ..., ...}, ...]
+    elif isinstance(sites, (list, tuple)):
+        # List/frozen-tuple format: [{name: site_name, lat: ..., ...}, ...]
         sites_list = [
             (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
         ]

@@ -10,6 +10,12 @@ name: Enforce Interaction Limits
 # repository permission (write), and `administration` is not among the scopes a
 # workflow `permissions:` block can grant to GITHUB_TOKEN. A separate token is
 # required -- see the error message in the guard step below for how to mint it.
+#
+# A failed scheduled run is reported by scheduled-run-tracker.yml, which opens
+# or updates one tracking issue assigned to a maintainer. If it keeps failing,
+# the limit lapses on its own and the repository falls open to
+# non-contributors; the usual cause is INTERACTION_LIMITS_TOKEN missing,
+# expired or lacking the "Administration" repository permission (write).
 
 on:
   schedule:
@@ -67,40 +73,3 @@ jobs:
             echo "- Limit: \`${limit}\`"
             echo "- Expires: \`${expires}\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
-  notify-on-failure:
-    name: Report enforcement failure
-    needs: set-limits
-    # Scheduled runs have no audience, which is how this workflow failed silently
-    # from 2026-04 to 2026-09. Surface a scheduled failure as an issue. A manual
-    # dispatch already reports back to whoever triggered it, so it is excluded.
-    if: failure() && github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-    steps:
-      - name: Open or update the tracking issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY_SLUG: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          title="CI: monthly interaction-limit enforcement failed"
-          body=$(printf '%s\n' \
-            "The scheduled \`Enforce Interaction Limits\` run failed, so the \`contributors_only\` interaction limit was not re-applied." \
-            "" \
-            "The limit expires on its own (the API caps \`expiry\` at six months). If this keeps failing, the repository will silently fall open to non-contributors." \
-            "" \
-            "Failing run: ${RUN_URL}" \
-            "" \
-            "Most likely cause: the \`INTERACTION_LIMITS_TOKEN\` secret is missing, expired, or no longer carries the \"Administration\" repository permission (write). See \`.github/workflows/interaction-limits.yml\`.")
-
-          existing=$(gh issue list --repo "${REPOSITORY_SLUG}" --state open --limit 100 \
-            --search "in:title \"${title}\"" --json number,title \
-            | jq -r --arg t "${title}" 'map(select(.title == $t)) | .[0].number // empty')
-
-          if [ -n "${existing}" ]; then
-            gh issue comment "${existing}" --repo "${REPOSITORY_SLUG}" --body "${body}"
-          else
-            gh issue create --repo "${REPOSITORY_SLUG}" --title "${title}" --body "${body}"
-          fi

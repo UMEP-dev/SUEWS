@@ -148,10 +148,8 @@ fails when any count differs from `scripts/lint/fortran_literals_baseline.json`.
   exists, add one at the literal's current value and precision.
 - **Count went down**: lower the baseline in the same diff with
   `python scripts/lint/check_fortran_literals.py --write-baseline`.
-- **Replacing a literal with a name** must keep its value and precision, so the
-  output does not move: a bare `273.15` is a default-real literal, and `C2K`
-  is declared from the same literal. Changing a value or precision is a
-  separate physics-change PR.
+- **Replacing a literal with a name** must keep its value and precision, so the output does not move: a bare `273.15` is a default-real literal, and `C2K` is declared from the same literal.
+  Changing a constant's value or precision goes in its own PR classified under `.claude/rules/physics-change-evidence.md` (`0-numerics:change` when only constant precision/representation changes within the numerical threshold, or `0-physics:change` otherwise). [decision: software maintainer, 2026-11-18]
 - `--report` also lists the factor-1000, 0.001 and 1E6 literals, which are not
   gated because most of them are not unit conversions.
 

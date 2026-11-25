@@ -19,6 +19,17 @@ from ._output_metadata import OutputUnits, prepare_output, with_daily_coverage
 from .suews_checkpoint import SUEWSCheckpoint
 
 
+def _variable_groups(columns: pd.MultiIndex, var_name: str) -> list[str]:
+    """Find groups containing a variable, preserving column group order.
+
+    Inspect column labels: a cross-section of an absent group-variable pair
+    can return an empty frame rather than raise ``KeyError``.
+    """
+    groups = columns.get_level_values("group")
+    matching = groups[columns.get_level_values("var") == var_name]
+    return [group for group in groups.unique() if group in matching]
+
+
 def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
     """Build the error raised when rows of a streamed run's output are requested.
 
@@ -571,13 +582,7 @@ class SUEWSOutput:
             var_name = matched_var
 
         # Find which groups contain this variable
-        matching_groups = []
-        for grp in self.groups:
-            try:
-                _ = self._df_output.xs((grp, var_name), level=("group", "var"), axis=1)
-                matching_groups.append(grp)
-            except KeyError:
-                continue
+        matching_groups = _variable_groups(self._df_output.columns, var_name)
 
         if len(matching_groups) == 0:
             raise ValueError(f"Variable '{var_name}' not found in any group")
@@ -715,12 +720,13 @@ class SUEWSOutput:
         - Accumulated variables: sum
         - State variables: last
 
-        Each value covers the left-open, right-closed interval
-        ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``); at fixed frequencies DailyState
-        is labelled by the start of each day, while at calendar frequencies
-        (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
-        label. See :ref:`timestamp_convention`.
+        Every output group, including ``DailyState``, covers the left-open,
+        right-closed interval ``(t - freq, t]`` and is labelled by its end
+        ``t`` (``closed="right", label="right"``) at both fixed and calendar
+        frequencies (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``). At hourly and
+        daily frequencies, day ``D``'s ``DailyState`` row is therefore
+        labelled ``D+1 00:00``, aligning on the same row as ``SUEWS``.
+        See :ref:`timestamp_convention`.
 
         Parameters
         ----------

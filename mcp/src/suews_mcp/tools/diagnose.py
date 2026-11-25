@@ -33,10 +33,10 @@ def diagnose_run(
     project_root
         Override the per-session project root for this call.
     """
-    root = ProjectRoot(project_root)
     try:
-        path = root.resolve(run_dir)
-    except SUEWSMCPSandboxError as exc:
+        root = ProjectRoot(project_root)
+        path = root.check_tree(run_dir)
+    except (SUEWSMCPSandboxError, OSError) as exc:
         return _error_envelope(str(exc), command=f"suews diagnose {run_dir}")
 
     try:

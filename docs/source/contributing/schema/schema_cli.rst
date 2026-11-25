@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 .. _schema_cli:
 
 Schema Management CLI
@@ -118,6 +120,9 @@ Migrate configuration files between schema versions.
 - ``--dry-run, -n``: Show what would be done without doing it
 
 The input files are never modified: each migrated copy is written next to its original as ``<name>.migrated.yml``, or into ``--output-dir``.
+
+For a worked migration with a measurable change in runoff, see
+:ref:`schema_dev12_water_routing`.
 
 export
 ~~~~~~

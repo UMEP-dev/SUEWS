@@ -1,0 +1,94 @@
+name: Fortran uninitialized lint
+
+# Compile-only shrinking ratchet for Fortran -Wuninitialized and
+# -Wmaybe-uninitialized warnings across all compiled SUEWS Fortran units
+# (SPARTACUS, SUEWS kernel, and Rust-bridge C-API facades), compiled WITHOUT
+# -finit-real=zero so uninitialised local variables are not masked.
+#
+# Runs inside a digest-pinned Linux GCC container so gfortran's optimisation
+# passes and diagnostic set stay 100% deterministic across runs (gh#2095).
+
+on:
+  pull_request:
+    paths:
+      - 'src/suews/src/**'
+      - 'src/suews/ext_lib/**'
+      - 'src/suews/Makefile'
+      - 'src/suews/Makefile.deps'
+      - 'src/suews/Makefile.gfortran'
+      - 'src/suews_bridge/c_api/**'
+      - 'src/suews_bridge/build.rs'
+      - 'scripts/lint/check_fortran_uninit.py'
+      - 'scripts/lint/fortran_uninit_baseline.json'
+      - '.github/workflows/fortran-uninit.yml'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      base_sha:
+        description: 'Base commit SHA to compare against'
+        required: false
+        type: string
+        default: ''
+      head_sha:
+        description: 'Commit SHA to check out (defaults to github.sha)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # Include github.workflow so standalone pull_request runs and folded
+  # workflow_call runs from build-publish_to_pypi.yml never cancel each other.
+  group: fortran-uninit-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-fortran-uninit:
+    name: Fortran -Wuninitialized ratchet (GCC 14.2.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      # gcc:14.2.0-bookworm (linux/amd64) Docker Official Image on Docker Hub,
+      # pinned by immutable manifest digest so the gfortran binary and its
+      # -Wmaybe-uninitialized diagnostics never drift. This is the same
+      # manifest digest previously pulled from the Amazon ECR Public mirror,
+      # whose anonymous pulls began failing with "Data limit exceeded"; the
+      # runner retries a failed container pull three times with back-off.
+      image: docker.io/library/gcc@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check Fortran -Wuninitialized ratchet
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          BASE_SHA: ${{ inputs.base_sha || github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+        run: |
+          set -eu
+          gfortran --version | head -n 1
+          # On pull_request synthetic merge checkouts (2-parent HEAD whose
+          # second parent is pull_request.head.sha), use HEAD^1 so moving
+          # master cannot lag behind pull_request.base.sha. Multi-PR
+          # merge_group batches keep merge_group.base_sha, non-synthetic merge
+          # tips keep BASE_SHA, and workflow_dispatch keeps BASE_SHA empty.
+          if [ "${EVENT_NAME:-}" = "pull_request" ] && [ -n "${PR_HEAD_SHA:-}" ]; then
+            HEAD_SECOND_PARENT="$(git -c "safe.directory=$PWD" rev-parse --verify -q HEAD^2 2>/dev/null || true)"
+            if [ -n "$HEAD_SECOND_PARENT" ] && [ "$HEAD_SECOND_PARENT" = "$PR_HEAD_SHA" ]; then
+              BASE_SHA="$(git -c "safe.directory=$PWD" rev-parse HEAD^1)"
+            fi
+          fi
+          if [ -n "$BASE_SHA" ]; then
+            if ! git -c "safe.directory=$PWD" cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              git -c "safe.directory=$PWD" fetch --no-tags origin "$BASE_SHA"
+            fi
+            python3 scripts/lint/check_fortran_uninit.py --base-ref "$BASE_SHA"
+          else
+            python3 scripts/lint/check_fortran_uninit.py
+          fi

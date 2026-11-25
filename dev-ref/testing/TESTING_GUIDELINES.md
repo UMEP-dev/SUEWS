@@ -5,7 +5,7 @@
 > Active, path-scoped testing rules in `.claude/` and CI lints supersede this overview whenever an example drifts. Always read the governing rule files first:
 > - [`.claude/rules/tests/patterns.md`](../../.claude/rules/tests/patterns.md) -- test placement taxonomy, nature/cost markers, tolerances, `importlib.resources` packaged-data access, and banned test constructions
 > - [`.claude/rules/tests/verification-methodology.md`](../../.claude/rules/tests/verification-methodology.md) -- reading existing loaders (`sample_output_io.load_sample_output`), covering all public API paths, and diagnostic discipline
-> - [`.claude/rules/physics-change-evidence.md`](../../.claude/rules/physics-change-evidence.md) -- required evidence, fixtures, and `0-physics:change` CI gates when model outputs move
+> - [`.claude/rules/physics-change-evidence.md`](../../.claude/rules/physics-change-evidence.md) -- required evidence, fixtures, and `0-physics:change` / `0-numerics:change` CI gates when model outputs move
 >
 > Note: Companion files [`FORTRAN_TEST_PATTERNS.md`](FORTRAN_TEST_PATTERNS.md) and [`ERROR_HANDLING_PATTERNS.md`](ERROR_HANDLING_PATTERNS.md) contain historical design explorations -- check their top banners before copying snippets.
 
@@ -93,7 +93,7 @@ Markers compose across orthogonal nature, importance, and cost axes declared in 
 | `smoke` | ~60 s | Draft PRs (`python`/`util`/`ci`/tests-only changes), ready PRs (`ci`/tests-only) |
 | `core` / `cfg` | ~2-3 min | Draft PRs (`fortran`/`rust` -> `core`; build-system -> `cfg`) |
 | `standard` | ~5-10 min | Ready PRs, merge queue |
-| `physics-full` | physics axis includes `slow`; api axis stays `standard` | Ready PR / merge queue when PR carries `0-physics:change` (gh#1576) |
+| `physics-full` | physics axis includes `slow`; api axis stays `standard` | Ready PR / merge queue when PR carries `0-physics:change` or `0-numerics:change` (gh#1576) |
 | `all` | ~15-30 min | Nightly schedule, tag push, manual dispatch (`full`) |
 
 ## 5. Session-Scoped Sample Fixtures

@@ -80,6 +80,7 @@ BAND = 2.0
 # session fixture to whichever test reaches it first on each worker.
 DEFAULT_PHASE = "call"
 PHASES = ("setup", "call", "teardown", "total")
+AXES = ("api", "physics")
 COST_MARKERS = ("medium", "slow")
 # Outcomes whose call phase ran and so carry a measurement.
 MEASURED_OUTCOMES = frozenset({"passed", "failed", "xpassed"})
@@ -106,6 +107,7 @@ class TestCost:
     source: str
     outcome: str = "passed"
     marker_reasons: tuple[tuple[str, str], ...] = ()
+    axis: str | None = None
 
     @property
     def cost_marker(self) -> str | None:
@@ -260,6 +262,16 @@ class UnsupportedMetricsSchema(ValueError):
     """An artefact carries per-test records under a schema this lint does not read."""
 
 
+def _sanitise_diagnostic(text: str) -> str:
+    """Keep diagnostic fragments on one printable ASCII line without leading `::`."""
+    cleaned = "".join(ch if 0x20 <= ord(ch) <= 0x7E else " " for ch in str(text))
+    stripped = cleaned.lstrip()
+    if stripped.startswith("::"):
+        prefix_len = len(cleaned) - len(stripped)
+        cleaned = cleaned[:prefix_len] + ": :" + stripped[2:]
+    return cleaned
+
+
 def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
     """Return the pytest metrics inside an artefact, or None if it is not one.
 
@@ -280,12 +292,43 @@ def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
         return None
     version = payload.get("schema_version")
     if version != METRICS_SCHEMA_VERSION:
+        safe_path = _sanitise_diagnostic(path.as_posix())
+        safe_version = _sanitise_diagnostic(repr(version))
         raise UnsupportedMetricsSchema(
-            f"{path.as_posix()}: metrics schema {version!r} not supported by this lint "
+            f"{safe_path}: metrics schema {safe_version} not supported by this lint "
             f"(expects {METRICS_SCHEMA_VERSION}); update METRICS_SCHEMA_VERSION and the "
             "record reader together"
         )
     return payload
+
+
+def source_axis(path: Path) -> str | None:
+    """Return the CI test axis (``api`` or ``physics``) a metrics artefact belongs to."""
+    stem = path.stem.lower()
+    for axis in AXES:
+        if stem == axis or stem.startswith(f"{axis}-") or stem.startswith(f"{axis}_"):
+            return axis
+    for parent in path.parents:
+        name = parent.name.lower()
+        if name in AXES:
+            return name
+    return None
+
+
+def missing_required_axes(
+    tests: Iterable[TestCost], required_axes: Iterable[str]
+) -> list[str]:
+    """Return required axes that have no measured tests in ``tests``."""
+    present = {test.axis for test in tests if test.measured and test.axis is not None}
+    missing: list[str] = []
+    seen: set[str] = set()
+    for axis in required_axes:
+        if axis not in AXES:
+            raise ValueError(f"unknown axis {axis!r}; expected one of {AXES}")
+        if axis not in present and axis not in seen:
+            missing.append(axis)
+            seen.add(axis)
+    return missing
 
 
 def load_tests(
@@ -315,6 +358,7 @@ def load_tests(
                 skipped.append(path.as_posix())
             continue
         sources.append(path.name)
+        axis = source_axis(path)
         for record in metrics["tests"]:
             reasons = record.get("marker_reasons") or {}
             tests.append(
@@ -326,6 +370,7 @@ def load_tests(
                     source=path.name,
                     outcome=str(record.get("outcome")),
                     marker_reasons=tuple(sorted((str(k), str(v)) for k, v in reasons.items())),
+                    axis=axis,
                 )
             )
     return tests, sources
@@ -515,6 +560,16 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         type=Path,
         help="write the outcome (counts and flagged tests) as JSON to this file",
     )
+    parser.add_argument(
+        "--require-axis",
+        dest="require_axes",
+        action="append",
+        choices=AXES,
+        help=(
+            "require at least one measured test from this lane axis (api or physics); "
+            "repeat to require both axes before reporting clean"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -531,6 +586,16 @@ def main(argv: list[str] | None = None) -> int:
     if not tests:
         print("[X] no per-test records found; pass ci-metrics-*-cp312-manylinux-x86_64 artefacts")
         return 2
+    if args.require_axes:
+        missing = missing_required_axes(tests, args.require_axes)
+        if missing:
+            present = sorted({t.axis for t in tests if t.measured and t.axis is not None})
+            found_str = ", ".join(present) if present else "none"
+            print(
+                f"[X] missing measured metrics for required axis/axes: {', '.join(missing)} "
+                f"(measured axes present: {found_str})"
+            )
+            return 2
     report = check_costs(
         tests,
         medium_seconds=args.medium_seconds,

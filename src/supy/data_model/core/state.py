@@ -1,8 +1,11 @@
+import math
+import numbers
+from collections.abc import Mapping
 from typing import Optional, Union, List, Literal, Type
+import numpy as np
 import pandas as pd
 from pydantic import (
     ConfigDict,
-    BaseModel,
     Field,
     field_validator,
     model_validator,
@@ -10,17 +13,53 @@ from pydantic import (
 )
 
 from .type import (
+    DataModelBase,
     RefValue,
     Reference,
     FlexibleRefValue,
     df_from_cols,
+    merge_df_state_cols,
+    reject_bool_input,
     SurfaceType,
-    null_rejecting_validator,
 )
 from ..._env import logger_supy
 
 
-class SurfaceInitialState(BaseModel):
+def validate_sdd_id(value: object, path: str = "sdd_id") -> None:
+    """Require finite senescence degree days without changing value or source form.
+
+    Parameters
+    ----------
+    value : object
+        Scalar, reference wrapper or raw value mapping, including live edits.
+    path : str
+        Field location to include in an error at a configuration handoff.
+
+    Raises
+    ------
+    ValueError
+        If the supplied value is not a finite number.
+    """
+    if isinstance(value, Mapping):
+        value = value.get("value")
+    if isinstance(value, RefValue):
+        value = value.value
+    if isinstance(value, (bool, np.bool_)):
+        finite = False
+    else:
+        try:
+            finite = math.isfinite(value)
+        except (TypeError, ValueError, OverflowError):
+            finite = False
+    if not finite:
+        raise ValueError(
+            f"{path} must be a finite number in K d. Supply the initial value "
+            "from this vegetation type's site or restart record. Omit the field "
+            "only when initialising it at zero is intended."
+        )
+
+
+class SurfaceInitialState(DataModelBase):
     """Generic initial state parameters for all surface types"""
 
     model_config = ConfigDict(title="Generic Surface Initial State")
@@ -114,25 +153,15 @@ class SurfaceInitialState(BaseModel):
             SurfaceType.WATER: 6,
         }[self._surface_type]
 
-    def to_df_state(
-        self, grid_id: int, vert_idx: int = None, is_roof: bool = False
-    ) -> pd.DataFrame:
-        """Convert base surface initial state to DataFrame state format.
-
-        Args:
-            grid_id: Grid ID for the DataFrame index
-
-        Returns:
-            pd.DataFrame: DataFrame containing initial state parameters
-        """
-        # Get surface index
+    def _to_df_state_cols(
+        self, grid_id: int, vert_idx: int | None = None, is_roof: bool = False
+    ) -> dict:
         if vert_idx is None:
             surf_idx = self.get_surface_index()
             str_type = "surf"
         else:
             surf_idx = vert_idx
             str_type = "roof" if is_roof else "wall"
-        # Set basic state parameters
         cols = {
             ("gridiv", "0"): grid_id,
             (f"state_{str_type}", f"({surf_idx},)"): (
@@ -144,40 +173,36 @@ class SurfaceInitialState(BaseModel):
                 else self.soilstore
             ),
         }
-
-        # Set snow/ice parameters if present
         if self.snowfrac is not None:
-            cols[(f"snowfrac", f"({surf_idx},)")] = (
+            cols[("snowfrac", f"({surf_idx},)")] = (
                 self.snowfrac.value
                 if isinstance(self.snowfrac, RefValue)
                 else self.snowfrac
             )
         if self.snowpack is not None:
-            cols[(f"snowpack", f"({surf_idx},)")] = (
+            cols[("snowpack", f"({surf_idx},)")] = (
                 self.snowpack.value
                 if isinstance(self.snowpack, RefValue)
                 else self.snowpack
             )
         if self.icefrac is not None:
-            cols[(f"icefrac", f"({surf_idx},)")] = (
+            cols[("icefrac", f"({surf_idx},)")] = (
                 self.icefrac.value
                 if isinstance(self.icefrac, RefValue)
                 else self.icefrac
             )
         if self.snowwater is not None:
-            cols[(f"snowwater", f"({surf_idx},)")] = (
+            cols[("snowwater", f"({surf_idx},)")] = (
                 self.snowwater.value
                 if isinstance(self.snowwater, RefValue)
                 else self.snowwater
             )
         if self.snowdens is not None:
-            cols[(f"snowdens", f"({surf_idx},)")] = (
+            cols[("snowdens", f"({surf_idx},)")] = (
                 self.snowdens.value
                 if isinstance(self.snowdens, RefValue)
                 else self.snowdens
             )
-
-        # Set temperature parameters
         temp_values = (
             self.temperature.value
             if isinstance(self.temperature, RefValue)
@@ -185,7 +210,6 @@ class SurfaceInitialState(BaseModel):
         )
         for i, temp in enumerate(temp_values):
             cols[(f"temp_{str_type}", f"({surf_idx}, {i})")] = temp
-
         if self.tsfc is not None:
             cols[(f"tsfc_{str_type}", f"({surf_idx},)")] = (
                 self.tsfc.value if isinstance(self.tsfc, RefValue) else self.tsfc
@@ -194,8 +218,23 @@ class SurfaceInitialState(BaseModel):
             cols[(f"tin_{str_type}", f"({surf_idx},)")] = (
                 self.tin.value if isinstance(self.tin, RefValue) else self.tin
             )
+        return cols
 
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+    def to_df_state(
+        self, grid_id: int, vert_idx: int = None, is_roof: bool = False
+    ) -> pd.DataFrame:
+        """Convert base surface initial state to DataFrame state format.
+
+        Args:
+            grid_id: Grid ID for the DataFrame index
+
+        Returns:
+            pd.DataFrame: DataFrame containing initial state parameters
+        """
+        return df_from_cols(
+            self._to_df_state_cols(grid_id, vert_idx, is_roof),
+            index=pd.Index([grid_id], name="grid"),
+        )
 
     @classmethod
     def from_df_state(
@@ -290,76 +329,28 @@ class SurfaceInitialState(BaseModel):
         )
 
 
-class WaterUse(BaseModel):
-    """Water use data and parameters."""
+RETIRED_CONTINUATION_STATE_FIELDS = (
+    "dt_since_start",
+    "tair_av",
+    "tstep_prev",
+    "l_mod",
+    "ustar",
+    "ra_h",
+    "rb",
+    "rs",
+)
+VEG_SURFACE_NAMES = ("evetr", "dectr", "grass")
 
-    model_config = ConfigDict(title="Water Use")
 
-    wu_total: FlexibleRefValue(float) = Field(
-        description="Total water use",
-        json_schema_extra={"unit": "mm", "display_name": "Total Water Use"},
-        default=0.0,
-        ge=0,
-    )  # Default set to 0.0 means no irrigation.
-    wu_auto: FlexibleRefValue(float) = Field(
-        description="Automatic water use",
-        json_schema_extra={"unit": "mm", "display_name": "Automatic Water Use"},
-        default=0.0,
-        ge=0,
-    )
-    wu_manual: FlexibleRefValue(float) = Field(
-        description="Manual water use",
-        json_schema_extra={"unit": "mm", "display_name": "Manual Water Use"},
-        default=0.0,
-        ge=0,
-    )
-
-    ref: Optional[Reference] = None
-
-    def to_df_state(self, veg_idx: int, grid_id: int) -> pd.DataFrame:
-        """Convert water use to DataFrame state format."""
-        cols = {
-            ("gridiv", "0"): grid_id,
-            ("wuday_id", f"({veg_idx * 3 + 0},)"): (
-                self.wu_total.value
-                if isinstance(self.wu_total, RefValue)
-                else self.wu_total
-            ),
-            ("wuday_id", f"({veg_idx * 3 + 1},)"): (
-                self.wu_auto.value
-                if isinstance(self.wu_auto, RefValue)
-                else self.wu_auto
-            ),
-            ("wuday_id", f"({veg_idx * 3 + 2},)"): (
-                self.wu_manual.value
-                if isinstance(self.wu_manual, RefValue)
-                else self.wu_manual
-            ),
-        }
-        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
-
-    @classmethod
-    def from_df_state(cls, df: pd.DataFrame, veg_idx: int, grid_id: int) -> "WaterUse":
-        """
-        Reconstruct WaterUse from a DataFrame state format.
-
-        Args:
-            df (pd.DataFrame): DataFrame containing water use parameters.
-            veg_idx (int): Vegetation index for identifying columns.
-            grid_id (int): Grid ID for the DataFrame index.
-
-        Returns:
-            WaterUse: Instance of WaterUse.
-        """
-        wu_total = df.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 0},)")].item()
-        wu_auto = df.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 1},)")].item()
-        wu_manual = df.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 2},)")].item()
-
-        return cls(
-            wu_total=RefValue(wu_total),
-            wu_auto=RefValue(wu_auto),
-            wu_manual=RefValue(wu_manual),
-        )
+def _df_scalar_matches(value: object, allowed: tuple[float, ...]) -> bool:
+    """Return True when ``value`` is a finite real scalar equal to one of ``allowed``."""
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, numbers.Real):
+        return False
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return math.isfinite(numeric) and any(numeric == target for target in allowed)
 
 
 class InitialStatePaved(SurfaceInitialState):
@@ -375,7 +366,10 @@ class InitialStateBldgs(SurfaceInitialState):
 class InitialStateVeg(SurfaceInitialState):
     """Extended initial state parameters for vegetated surfaces with LAI and phenology"""
 
-    model_config = ConfigDict(title="Vegetation Initial State")
+    model_config = ConfigDict(
+        title="Vegetation Initial State",
+        json_schema_extra={"not": {"required": ["wu"]}},
+    )
 
     alb_id: Optional[FlexibleRefValue(float)] = Field(
         description=(
@@ -408,7 +402,11 @@ class InitialStateVeg(SurfaceInitialState):
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
-        description="Senescence degree days at the start of the model run",
+        description=(
+            "Senescence degree days at the start of the model run. Must be finite; "
+            "negative, zero and positive values are permitted. Omit to use 0. "
+            "NaN, either infinity and null are not accepted."
+        ),
         json_schema_extra={
             "unit": "K d",
             "display_name": "Initial Senescence Degree Days",
@@ -416,12 +414,47 @@ class InitialStateVeg(SurfaceInitialState):
         default=0,
     )  # This need to be consistent with GDD.
 
-    _sdd_id_not_null = null_rejecting_validator("sdd_id")
-    wu: WaterUse = Field(
-        default_factory=WaterUse, json_schema_extra={"display_name": "Water Use"}
-    )
-
     ref: Optional[Reference] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_water_use_memory_input(cls, values):
+        """Keep internal irrigation memory out of fresh-run configuration."""
+        if isinstance(values, dict) and "wu" in values:
+            surface_attr = cls.__private_attributes__.get("_surface_type")
+            surface_default = getattr(surface_attr, "default", None)
+            surface_label = (
+                surface_default.value.lower()
+                if isinstance(surface_default, SurfaceType)
+                else "<veg>"
+            )
+            raise ValueError(
+                f"initial_states.{surface_label}.wu is internal irrigation memory "
+                "and cannot be supplied for a fresh run. Remove the field; "
+                "use a complete checkpoint for continuation."
+            )
+        return values
+
+    @field_validator("sdd_id", mode="before")
+    @classmethod
+    def _reject_bool_sdd_id(cls, value):
+        if isinstance(value, Mapping) and not isinstance(value, dict):
+            reject_bool_input(dict(value), "sdd_id")
+            return value
+        return reject_bool_input(value, "sdd_id")
+
+    @field_validator("sdd_id")
+    @classmethod
+    def _validate_sdd_id(cls, value):
+        validate_sdd_id(value)
+        if isinstance(value, RefValue):
+            value._bind_reject_bool("sdd_id")
+        return value
+
+    def __setattr__(self, name: str, value) -> None:
+        if name == "sdd_id" and isinstance(value, RefValue):
+            value._bind_reject_bool("sdd_id")
+        super().__setattr__(name, value)
 
     def _get_alb_id_value(self) -> float:
         """Return a usable albedo value, falling back to a legacy default."""
@@ -440,6 +473,42 @@ class InitialStateVeg(SurfaceInitialState):
             return 0.25
         return alb_val
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        surf_idx = self.get_surface_index()
+        veg_idx = surf_idx - 2
+        surface = ("evetr", "dectr", "grass")[veg_idx]
+        validate_sdd_id(
+            self.sdd_id, f"site[gridiv={grid_id}].initial_states.{surface}.sdd_id"
+        )
+        sdd_val = self.sdd_id
+        if isinstance(sdd_val, Mapping):
+            sdd_val = sdd_val.get("value")
+        if isinstance(sdd_val, RefValue):
+            sdd_val = sdd_val.value
+        cols = super()._to_df_state_cols(grid_id)
+        alb_val = self._get_alb_id_value()
+        merge_df_state_cols(
+            cols,
+            {
+                ("alb", f"({surf_idx},)"): alb_val,
+                ("lai_id", f"({veg_idx},)"): (
+                    self.lai_id.value
+                    if isinstance(self.lai_id, RefValue)
+                    else self.lai_id
+                ),
+                ("gdd_id", f"({veg_idx},)"): (
+                    self.gdd_id.value
+                    if isinstance(self.gdd_id, RefValue)
+                    else self.gdd_id
+                ),
+                ("sdd_id", f"({veg_idx},)"): sdd_val,
+            },
+        )
+        # Legacy DFState retains zero placeholders, never irrigation restart memory.
+        for offset in range(3):
+            cols[("wuday_id", f"({veg_idx * 3 + offset},)")] = 0.0
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vegetated surface initial state to DataFrame state format.
 
@@ -449,44 +518,9 @@ class InitialStateVeg(SurfaceInitialState):
         Returns:
             pd.DataFrame: DataFrame containing initial state parameters
         """
-        # Get base surface state parameters
-        df_state = super().to_df_state(grid_id)
-
-        # Get surface index
-        surf_idx = self.get_surface_index()
-        veg_idx = surf_idx - 2
-
-        # Add vegetated surface specific parameters
-        # alb is universal so use surf_idx
-        alb_val = self._get_alb_id_value()
-        cols = {
-            ("alb", f"({surf_idx},)"): alb_val,
-            ("lai_id", f"({veg_idx},)"): (
-                self.lai_id.value
-                if isinstance(self.lai_id, RefValue)
-                else self.lai_id
-            ),
-            ("gdd_id", f"({veg_idx},)"): (
-                self.gdd_id.value
-                if isinstance(self.gdd_id, RefValue)
-                else self.gdd_id
-            ),
-            ("sdd_id", f"({veg_idx},)"): (
-                self.sdd_id.value
-                if isinstance(self.sdd_id, RefValue)
-                else self.sdd_id
-            ),
-        }
-        df_veg = df_from_cols(cols, index=df_state.index)
-
-        # Add water use parameters
-        df_wu = self.wu.to_df_state(veg_idx, grid_id)
-        df_state = pd.concat([df_state, df_veg, df_wu], axis=1)
-
-        # Drop any duplicate columns
-        df_state = df_state.loc[:, ~df_state.columns.duplicated()]
-
-        return df_state
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(
@@ -505,7 +539,12 @@ class InitialStateVeg(SurfaceInitialState):
         alb_id = df.loc[grid_id, alb_key]
         lai_id = df.loc[grid_id, lai_key]
         gdd_id = df.loc[grid_id, gdd_key]
+        surface = ("evetr", "dectr", "grass")[surf_idx - 2]
+        field_path = f"site[gridiv={grid_id}].initial_states.{surface}.sdd_id"
+        if sdd_key not in df.columns:
+            raise KeyError(f"{field_path} requires column {sdd_key} in a full state DataFrame")
         sdd_id = df.loc[grid_id, sdd_key]
+        validate_sdd_id(sdd_id, field_path)
 
         # Convert to RefValue
         alb_id = RefValue(alb_id)
@@ -513,9 +552,18 @@ class InitialStateVeg(SurfaceInitialState):
         gdd_id = RefValue(gdd_id)
         sdd_id = RefValue(sdd_id)
 
-        # Reconstruct WaterUse instance
+        # A DFState is a fresh-run adapter, not a complete checkpoint.
         veg_idx = surf_idx - 2
-        wu = WaterUse.from_df_state(df, veg_idx, grid_id)
+        for offset in range(3):
+            idx = veg_idx * 3 + offset
+            column = ("wuday_id", f"({idx},)")
+            if column in df.columns and not _df_scalar_matches(
+                df.loc[grid_id, column], (0.0,)
+            ):
+                raise ValueError(
+                    f"wuday_id[{idx}] cannot initialise irrigation memory from "
+                    "DFState. Use a complete checkpoint for continuation."
+                )
 
         return cls(
             **base_instance.model_dump(),
@@ -523,26 +571,29 @@ class InitialStateVeg(SurfaceInitialState):
             lai_id=lai_id,
             gdd_id=gdd_id,
             sdd_id=sdd_id,
-            wu=wu,
         )
 
 
 class InitialStateEvetr(InitialStateVeg):
     """Initial state for evergreen trees with vegetation parameters."""
 
-    model_config = ConfigDict(title="Evergreen Tree Initial State")
+    model_config = ConfigDict(
+        title="Evergreen Tree Initial State",
+        json_schema_extra={"not": {"required": ["wu"]}},
+    )
 
     _surface_type: Literal[SurfaceType.EVETR] = SurfaceType.EVETR
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
+        cols[("albevetr_id", "0")] = self._get_alb_id_value()
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree initial state to DataFrame state format."""
-        df_state = super().to_df_state(grid_id)
-        alb_val = self._get_alb_id_value()
-        cols = {
-            ("albevetr_id", "0"): alb_val
-        }
-        df_evetr = df_from_cols(cols, index=df_state.index)
-        return pd.concat([df_state, df_evetr], axis=1)
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(
@@ -576,7 +627,10 @@ class InitialStateEvetr(InitialStateVeg):
 class InitialStateDectr(InitialStateVeg):
     """Initial state for deciduous trees with vegetation parameters plus porosity."""
 
-    model_config = ConfigDict(title="Deciduous Tree Initial State")
+    model_config = ConfigDict(
+        title="Deciduous Tree Initial State",
+        json_schema_extra={"not": {"required": ["wu"]}},
+    )
 
     porosity_id: FlexibleRefValue(float) = Field(
         description="Porosity for deciduous trees at the start of the model run",
@@ -595,6 +649,21 @@ class InitialStateDectr(InitialStateVeg):
 
     ref: Optional[Reference] = None
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
+        cols[("porosity_id", "0")] = (
+            self.porosity_id.value
+            if isinstance(self.porosity_id, RefValue)
+            else self.porosity_id
+        )
+        cols[("decidcap_id", "0")] = (
+            self.decidcap_id.value
+            if isinstance(self.decidcap_id, RefValue)
+            else self.decidcap_id
+        )
+        cols[("albdectr_id", "0")] = self._get_alb_id_value()
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree initial state to DataFrame state format.
 
@@ -604,26 +673,9 @@ class InitialStateDectr(InitialStateVeg):
         Returns:
             pd.DataFrame: DataFrame containing initial state parameters
         """
-        # Get base vegetated surface state parameters
-        df_state = super().to_df_state(grid_id)
-
-        # Add deciduous tree specific parameters
-        alb_val = self._get_alb_id_value()
-        cols = {
-            ("porosity_id", "0"): (
-                self.porosity_id.value
-                if isinstance(self.porosity_id, RefValue)
-                else self.porosity_id
-            ),
-            ("decidcap_id", "0"): (
-                self.decidcap_id.value
-                if isinstance(self.decidcap_id, RefValue)
-                else self.decidcap_id
-            ),
-            ("albdectr_id", "0"): alb_val,
-        }
-        df_dectr = df_from_cols(cols, index=df_state.index)
-        return pd.concat([df_state, df_dectr], axis=1)
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(
@@ -664,19 +716,23 @@ class InitialStateDectr(InitialStateVeg):
 class InitialStateGrass(InitialStateVeg):
     """Initial state for grass surfaces with vegetation parameters."""
 
-    model_config = ConfigDict(title="Grass Initial State")
+    model_config = ConfigDict(
+        title="Grass Initial State",
+        json_schema_extra={"not": {"required": ["wu"]}},
+    )
 
     _surface_type: Literal[SurfaceType.GRASS] = SurfaceType.GRASS
 
+    def _to_df_state_cols(self, grid_id: int) -> dict:
+        cols = super()._to_df_state_cols(grid_id)
+        cols[("albgrass_id", "0")] = self._get_alb_id_value()
+        return cols
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass initial state to DataFrame state format."""
-        df_state = super().to_df_state(grid_id)
-        alb_val = self._get_alb_id_value()
-        cols = {
-            ("albgrass_id", "0"): alb_val
-        }
-        df_grass = df_from_cols(cols, index=df_state.index)
-        return pd.concat([df_state, df_grass], axis=1)
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(
@@ -725,7 +781,7 @@ class InitialStateWater(SurfaceInitialState):
     )
 
 
-class HDD_ID(BaseModel):
+class HDD_ID(DataModelBase):
     """Heating Degree Days and related meteorological tracking parameters.
 
     This structure maintains both current day accumulations (fields 1-6) and
@@ -885,10 +941,40 @@ class HDD_ID(BaseModel):
         )
 
 
-class InitialStates(BaseModel):
-    """Initial conditions for the SUEWS model"""
+class InitialStates(DataModelBase):
+    """Initial conditions for fresh SUEWS runs.
 
-    model_config = ConfigDict(title="Initial States")
+    Internal continuation state (radiation memory ``qn_surfs``/``dqndt_surf``,
+    daily irrigation memory ``evetr``/``dectr``/``grass.wu``, and running
+    timer/atmosphere diagnostics ``dt_since_start``, ``tair_av``,
+    ``tstep_prev``, ``l_mod``, ``ustar``, ``ra_h``, ``rb``, ``rs``) is
+    rejected on fresh runs and restored solely through complete checkpoints.
+    Other unconfigured Fortran state members follow documented cold-start
+    conventions: step-1 running diagnostics are overwritten before use,
+    AnOHM buffers start at -999/0/false, ``tmin_id``/``tmax_id`` assume a
+    midnight start at 0, DyOHM (methods 6-8) dynamic coefficients start at 0
+    until the first midnight with ``t2_prev`` and ``temp_surf_dyohm`` at
+    0 degC, and STEBBS under NetRadiationMethod < 1000 sees 0 W m-2 BEERS
+    radiation on step 1 before BEERS runs at the end of the step.
+    """
+
+    model_config = ConfigDict(
+        title="Initial States",
+        json_schema_extra={
+            "not": {"anyOf": [
+                {"required": ["qn_surfs"]},
+                {"required": ["dqndt_surf"]},
+                {"required": ["dt_since_start"]},
+                {"required": ["tair_av"]},
+                {"required": ["tstep_prev"]},
+                {"required": ["l_mod"]},
+                {"required": ["ustar"]},
+                {"required": ["ra_h"]},
+                {"required": ["rb"]},
+                {"required": ["rs"]},
+            ]},
+        },
+    )
 
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo at the start of the model run",
@@ -897,8 +983,6 @@ class InitialStates(BaseModel):
         ge=0,
         le=1,
     )
-
-    _snowalb_not_null = null_rejecting_validator("snowalb")
 
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,
@@ -1005,11 +1089,6 @@ class InitialStates(BaseModel):
             "internal_only": True,
         },
     )
-    dt_since_start: float = Field(
-        default=0,
-        description="Time since start",
-        json_schema_extra={"display_name": "Time Since Start", "internal_only": True},
-    )
     lenday_id: int = Field(
         default=0,
         description="Length of the day ID",
@@ -1031,17 +1110,9 @@ class InitialStates(BaseModel):
             "internal_only": True,
         },
     )
-    tair_av: float = Field(
-        default=0,
-        description="Average air temperature (internal use only)",
-        json_schema_extra={
-            "display_name": "Average Air Temperature",
-            "internal_only": True,
-        },
-    )
     tmax_id: float = Field(
         default=0,
-        description="Maximum temperature ID",
+        description="Maximum temperature ID (cold-start default assumes midnight start)",
         json_schema_extra={
             "display_name": "Maximum Temperature ID",
             "internal_only": True,
@@ -1049,19 +1120,10 @@ class InitialStates(BaseModel):
     )
     tmin_id: float = Field(
         default=0,
-        description="Minimum temperature ID",
+        description="Minimum temperature ID (cold-start default assumes midnight start)",
         json_schema_extra={
             "display_name": "Minimum Temperature ID",
             "internal_only": True,
-        },
-    )
-    tstep_prev: float = Field(
-        default=0,
-        description="Previous time step",
-        json_schema_extra={
-            "display_name": "Previous Time Step",
-            "internal_only": True,
-            "note": "Required for WRF adaptive timestep scheme. Must equal tstep in standalone SUEWS",
         },
     )
     snowfallcum: float = Field(
@@ -1081,67 +1143,43 @@ class InitialStates(BaseModel):
         description="Heating degree days and meteorological tracking parameters (internal use only)",
     )
 
-    # Atmospheric state for continuation runs (resistance calculations)
-    l_mod: float = Field(
-        default=0.0,
-        description="Obukhov length [m] for stability calculations",
-        json_schema_extra={
-            "display_name": "Obukhov Length",
-            "internal_only": True,
-        },
-    )
-    ustar: float = Field(
-        default=0.0,
-        description="Friction velocity [m s-1]",
-        json_schema_extra={
-            "display_name": "Friction Velocity",
-            "internal_only": True,
-        },
-    )
-    ra_h: float = Field(
-        default=0.0,
-        description="Aerodynamic resistance for heat [s m-1]",
-        json_schema_extra={
-            "display_name": "Aerodynamic Resistance",
-            "internal_only": True,
-        },
-    )
-    rb: float = Field(
-        default=0.0,
-        description="Boundary layer resistance [s m-1]",
-        json_schema_extra={
-            "display_name": "Boundary Layer Resistance",
-            "internal_only": True,
-        },
-    )
-    rs: float = Field(
-        default=0.0,
-        description="Surface resistance [s m-1]",
-        json_schema_extra={
-            "display_name": "Surface Resistance",
-            "internal_only": True,
-        },
-    )
-    qn_surfs: List[Optional[float]] = Field(
-        default_factory=lambda: [0.0] * 7,
-        json_schema_extra={
-            "display_name": "Initial QN for each surface",
-            "internal_only": True,
-        },
-        description="Initial QN for each surface (internal use only)",
-    )
-    dqndt_surf: List[Optional[float]] = Field(
-        default_factory=lambda: [0.0] * 7,
-        json_schema_extra={
-            "display_name": "Initial dQN/dt for each surface",
-            "internal_only": True,
-        },
-        description="Initial dQN/dt for each surface (internal use only)",
-    )
-    def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert initial states to DataFrame state format."""
-        index = pd.Index([grid_id], name="grid")
+    @model_validator(mode="before")
+    @classmethod
+    def reject_radiation_memory_input(cls, values):
+        """Keep internal radiation memory out of fresh-run configuration."""
+        if isinstance(values, dict):
+            for name in ("qn_surfs", "dqndt_surf"):
+                if name in values:
+                    raise ValueError(
+                        f"initial_states.{name} is internal radiation memory and "
+                        "cannot be supplied for a fresh run. Remove the field; "
+                        "use a complete checkpoint for continuation."
+                    )
+        return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def reject_continuation_state_input(cls, values):
+        """Keep internal continuation state and irrigation memory out of fresh runs."""
+        if isinstance(values, dict):
+            for name in RETIRED_CONTINUATION_STATE_FIELDS:
+                if name in values:
+                    raise ValueError(
+                        f"initial_states.{name} is internal continuation state and "
+                        "cannot be supplied for a fresh run. Remove the field; "
+                        "use a complete checkpoint for continuation."
+                    )
+            for veg in VEG_SURFACE_NAMES:
+                veg_state = values.get(veg)
+                if isinstance(veg_state, dict) and "wu" in veg_state:
+                    raise ValueError(
+                        f"initial_states.{veg}.wu is internal irrigation memory and "
+                        "cannot be supplied for a fresh run. Remove the field; "
+                        "use a complete checkpoint for continuation."
+                    )
+        return values
+
+    def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {
             ("gridiv", "0"): grid_id,
             ("snowalb", "0"): (
@@ -1151,59 +1189,47 @@ class InitialStates(BaseModel):
             ),
             ("dqndt", "0"): self.dqndt,
             ("dqnsdt", "0"): self.dqnsdt,
-            ("dt_since_start", "0"): self.dt_since_start,
+            # Legacy DFState retains cold-start zero placeholders, never continuation state.
+            ("dt_since_start", "0"): 0.0,
             ("lenday_id", "0"): self.lenday_id,
             ("qn_av", "0"): self.qn_av,
             ("qn_s_av", "0"): self.qn_s_av,
-            ("tair_av", "0"): self.tair_av,
+            ("tair_av", "0"): 0.0,
             ("tmax_id", "0"): self.tmax_id,
             ("tmin_id", "0"): self.tmin_id,
-            ("tstep_prev", "0"): self.tstep_prev,
+            ("tstep_prev", "0"): 0.0,
             ("snowfallcum", "0"): self.snowfallcum,
         }
+        # Legacy DFState retains zero placeholders, never restart memory.
+        for name in ("qn_surfs", "dqndt_surf"):
+            for i in range(7):
+                cols[(name, f"({i},)")] = 0.0
+        for i, hdd in enumerate(self.hdd_id.to_list()):
+            cols[("hdd_id", f"({i},)")] = hdd
 
-        # qn_surfs (7)
-        for i, val in enumerate(self.qn_surfs):
-            cols[("qn_surfs", f"({i},)")] = val
+        for surface in (
+            self.paved,
+            self.bldgs,
+            self.evetr,
+            self.dectr,
+            self.grass,
+            self.bsoil,
+            self.water,
+        ):
+            merge_df_state_cols(cols, surface._to_df_state_cols(grid_id))
 
-        # dqndt_surf (7)
-        for i, val in enumerate(self.dqndt_surf):
-            cols[("dqndt_surf", f"({i},)")] = val
-
-        # special treatment for hdd_id - convert to list format for legacy compatibility
-        hdd_list = self.hdd_id.to_list()
-        for i, hdd in enumerate(hdd_list):
-            cols[(f"hdd_id", f"({i},)")] = hdd
-
-        frames = [df_from_cols(cols, index=index)]
-
-        # Add surface states
-        surfaces = {
-            "paved": self.paved,
-            "bldgs": self.bldgs,
-            "evetr": self.evetr,
-            "dectr": self.dectr,
-            "grass": self.grass,
-            "bsoil": self.bsoil,
-            "water": self.water,
-        }
-        # Add surface states
-        for surface in surfaces.values():
-            frames.append(surface.to_df_state(grid_id))
-
-        # Add roof and wall states
-        for facet_list, facet_type in [(self.roofs, "roof"), (self.walls, "wall")]:
-            if facet_list is not None:  # Check for None explicitly
+        for facet_list, is_roof in ((self.roofs, True), (self.walls, False)):
+            if facet_list is not None:
                 for i, facet in enumerate(facet_list):
-                    is_roof = facet_type == "roof"
-                    frames.append(facet.to_df_state(grid_id, i, is_roof))
+                    merge_df_state_cols(cols, facet._to_df_state_cols(grid_id, i, is_roof))
 
-        df_state = pd.concat(frames, axis=1)
-        df_state = df_state.sort_index(axis=1)
-        # Drop duplicate columns while preserving first occurrence
-        df_state = df_state.loc[:, ~df_state.columns.duplicated(keep="first")]
+        return dict(sorted(cols.items()))
 
-        return df_state
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert initial states to DataFrame state format."""
+        return df_from_cols(
+            self._to_df_state_cols(grid_id), index=pd.Index([grid_id], name="grid")
+        )
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "InitialStates":
@@ -1255,20 +1281,59 @@ class InitialStates(BaseModel):
 
         dqndt = df.loc[grid_id, ("dqndt", "0")]
         dqnsdt = df.loc[grid_id, ("dqnsdt", "0")]
-        dt_since_start = df.loc[grid_id, ("dt_since_start", "0")]
         lenday_id = df.loc[grid_id, ("lenday_id", "0")]
         qn_av = df.loc[grid_id, ("qn_av", "0")]
         qn_s_av = df.loc[grid_id, ("qn_s_av", "0")]
-        tair_av = df.loc[grid_id, ("tair_av", "0")]
         tmax_id = df.loc[grid_id, ("tmax_id", "0")]
         tmin_id = df.loc[grid_id, ("tmin_id", "0")]
-        tstep_prev = df.loc[grid_id, ("tstep_prev", "0")]
         snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
         hdd_id_list = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
         hdd_id = HDD_ID.from_list(hdd_id_list)
-        qn_surfs = [float(df.loc[grid_id, ("qn_surfs", f"({i},)")]) for i in range(7)]
-        dqndt_surf = [float(df.loc[grid_id, ("dqndt_surf", f"({i},)")]) for i in range(7)]
-        
+        # A DFState is a fresh-run adapter, not a complete checkpoint.
+        for name in ("qn_surfs", "dqndt_surf"):
+            for i in range(7):
+                column = (name, f"({i},)")
+                if column in df.columns and not _df_scalar_matches(
+                    df.loc[grid_id, column], (0.0,)
+                ):
+                    raise ValueError(
+                        f"{name}[{i}] cannot initialise radiation memory from "
+                        "DFState. Use a complete checkpoint for continuation."
+                    )
+
+        tstep_allowed: tuple[float, ...] = (0.0,)
+        if ("tstep", "0") in df.columns:
+            raw_tstep = df.loc[grid_id, ("tstep", "0")]
+            if not isinstance(raw_tstep, (bool, np.bool_)) and isinstance(
+                raw_tstep, numbers.Real
+            ):
+                try:
+                    tstep_num = float(raw_tstep)
+                except (TypeError, ValueError, OverflowError):
+                    tstep_num = math.nan
+                if math.isfinite(tstep_num):
+                    tstep_allowed = (0.0, tstep_num)
+
+        df_placeholder_rules = (
+            ("dt_since_start", (0.0,)),
+            ("tair_av", (0.0, 273.15)),
+            ("tstep_prev", tstep_allowed),
+            ("l_mod", (0.0,)),
+            ("ustar", (0.0,)),
+            ("ra_h", (0.0,)),
+            ("rb", (0.0,)),
+            ("rs", (0.0,)),
+        )
+        for name, allowed in df_placeholder_rules:
+            column = (name, "0")
+            if column in df.columns and not _df_scalar_matches(
+                df.loc[grid_id, column], allowed
+            ):
+                raise ValueError(
+                    f"{name} cannot initialise continuation state from DFState. "
+                    "Use a complete checkpoint for continuation."
+                )
+
         initital_state = {
             "snowalb": snowalb,
             "paved": surfaces["paved"],
@@ -1282,18 +1347,13 @@ class InitialStates(BaseModel):
             "walls": walls,
             "dqndt": dqndt,
             "dqnsdt": dqnsdt,
-            "dt_since_start": dt_since_start,
             "lenday_id": lenday_id,
             "qn_av": qn_av,
             "qn_s_av": qn_s_av,
-            "tair_av": tair_av,
             "tmax_id": tmax_id,
             "tmin_id": tmin_id,
-            "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
-            "qn_surfs": qn_surfs,
-            "dqndt_surf": dqndt_surf
         }
 
         return cls(

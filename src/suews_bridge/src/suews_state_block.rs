@@ -1,3 +1,10 @@
+//! Dimension-bearing sequence of [`SuewsState`] snapshots mirroring Fortran
+//! `SUEWS_STATE_BLOCK`.
+//!
+//! Serialises via [`CompositeCodec`] as a JSON object carrying
+//! `schema_version`, an ordered `block` array of nested `SuewsState` payloads,
+//! and explicit `dims` (`{"block": [len]}`) checked on decode.
+
 use crate::codec::{CompositeCodec, PayloadDims};
 use crate::error::BridgeError;
 use crate::suews_state::{
@@ -9,6 +16,7 @@ use serde_json::{Map, Value};
 pub const SUEWS_STATE_BLOCK_SCHEMA_VERSION: u32 = 1;
 pub const SUEWS_STATE_BLOCK_FIELD_BLOCK: &str = "block";
 
+/// Schema metadata for [`SuewsStateBlock`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsStateBlockSchema {
     pub schema_version: u32,
@@ -17,6 +25,7 @@ pub struct SuewsStateBlockSchema {
     pub suews_state_schema_version: u32,
 }
 
+/// Versioned payload holding serialised `SuewsState` entries plus explicit `dims`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsStateBlockValuesPayload {
     pub schema_version: u32,
@@ -24,6 +33,7 @@ pub struct SuewsStateBlockValuesPayload {
     pub dims: PayloadDims,
 }
 
+/// Ordered sequence of [`SuewsState`] snapshots mirroring `SUEWS_STATE_BLOCK`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SuewsStateBlock {
     pub block: Vec<SuewsState>,
@@ -208,6 +218,7 @@ pub fn suews_state_block_from_nested_payload(
     suews_state_block_from_values_payload(&values_payload)
 }
 
+// contract: C-CODEC
 #[cfg(test)]
 mod tests {
     use super::*;

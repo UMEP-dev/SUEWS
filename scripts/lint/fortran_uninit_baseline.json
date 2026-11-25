@@ -8,7 +8,7 @@
     "-Wmaybe-uninitialized"
   ],
   "unit_count": 113,
-  "entry_count": 3,
+  "entry_count": 2,
   "entries": [
     {
       "file": "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90",
@@ -21,12 +21,6 @@
       "proc": "suews_update_tsurf",
       "var": "dif_tsfc_iter",
       "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews_bridge/c_api/heat_state.f95",
-      "proc": "suews_heat_state_default",
-      "var": "heat_state_shadow.<tmp>",
-      "kind": "uninitialized"
     }
   ]
 }

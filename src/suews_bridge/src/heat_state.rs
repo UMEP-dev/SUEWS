@@ -1016,10 +1016,37 @@ mod tests {
     fn default_state_roundtrip() {
         let state = heat_state_default_from_fortran().expect("default state should be available");
         assert_eq!(state, HeatState::default());
+        assert_eq!(state.nlayer, 0);
+        assert_eq!(state.ndepth, 0);
+        assert!(state.iter_safe);
 
         let state2 = HeatState::from_flat_with_dims(&state.to_flat(), state.nlayer, state.ndepth)
             .expect("flat roundtrip should succeed");
         assert_eq!(state, state2);
+    }
+
+    #[test]
+    fn default_state_rejects_short_buffer() {
+        let (base_len, _, _) = heat_state_schema().expect("schema call should succeed");
+        let mut short_flat = vec![-1.0_f64; base_len - 1];
+        let mut nlayer = -1_i32;
+        let mut ndepth = -1_i32;
+        let mut err = -1_i32;
+
+        unsafe {
+            ffi::suews_heat_state_default(
+                short_flat.as_mut_ptr(),
+                short_flat.len() as i32,
+                &mut nlayer as *mut i32,
+                &mut ndepth as *mut i32,
+                &mut err as *mut i32,
+            );
+        }
+
+        assert_eq!(err, ffi::SUEWS_CAPI_BAD_BUFFER);
+        assert_eq!(nlayer, 0);
+        assert_eq!(ndepth, 0);
+        assert!(short_flat.iter().all(|v| *v == -1.0));
     }
 
     #[test]

@@ -18,12 +18,6 @@ mappings:
     issue: 2172
     classification: "coverage_gap"
   - selector:
-      ledger: "U"
-      file: "src/suews_bridge/c_api/heat_state.f95"
-    contract: "C-CAPI"
-    issue: 2096
-    classification: "defect"
-  - selector:
       ledger: "L"
     contract: "C-TOOLING"
     issue: 1953

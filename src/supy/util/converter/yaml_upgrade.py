@@ -2781,10 +2781,11 @@ def _migrate_2026_6_dev18_to_2026_6_dev19(cfg: dict) -> dict:
                 _log(
                     f"[yaml-upgrade] sites[{index}].properties.irrigation.{field_name} "
                     "has an asymmetric weekday schedule: 2026.6.dev19 aligns irrigation "
-                    "weekday slots with calendar days (Sunday=1 .. Saturday=7 in legacy "
-                    "tables and df_state). Keys were left unchanged; if this YAML was "
-                    "converted from legacy SUEWS_Irrigation.txt tables under an earlier "
-                    "schema, verify that weekday entries match the intended calendar days."
+                    "weekday slots with calendar days (1=Sunday .. 7=Saturday in legacy "
+                    "tables, 0=Sunday .. 6=Saturday in df_state). Keys were left "
+                    "unchanged; if this YAML was converted from legacy "
+                    "SUEWS_Irrigation.txt tables under an earlier schema, verify that "
+                    "weekday entries match the intended calendar days."
                 )
     return cfg
 

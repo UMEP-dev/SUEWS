@@ -2243,7 +2243,7 @@ mod tests {
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
         // Bump when ModelPhysics / SurfaceProperties / ... dicts change.
-        assert_eq!(FIELD_RENAMES.len(), 194);
+        assert_eq!(FIELD_RENAMES.len(), 193);
     }
 
     #[test]

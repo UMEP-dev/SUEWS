@@ -20,7 +20,7 @@
 !   112: Stability - Non-finite or out-of-domain z/L in stability correction functions (GH#2171)
 !   113: Roughness - RoughLenMomMethod value with no scheme behind it, e.g. 5 / ALTERNATIVE (GH#2105)
 !   114: RSL - Non-finite stability or canopy length-scale input in RSL_cal_prms (GH#2171)
-!   115: C-API bridge - buffer length mismatch across FFI boundary (GH#2085)
+!   115: C-API bridge - buffer length mismatch across FFI boundary (GH#2085, GH#2131)
 !   116: EHC - Invalid implicit coupling arrays, thermal layers, coefficients, indoor resistance or stability control (GH#2108)
 !
 ! Thread Safety:

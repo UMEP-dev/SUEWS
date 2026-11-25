@@ -74,6 +74,7 @@ use observer_manifest::{
 
 const OBS_CAPACITY: usize = 16384;
 const SUEWS_CAPI_OK: i32 = 0;
+const SUEWS_CAPI_BAD_BUFFER: i32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ExpectedVal {
@@ -3945,6 +3946,614 @@ fn observer_rejects_truncated_flat_buffer() {
     let obs_state = call_observer_state(&short, &empty_toc, 13, 3, 5, OBS_FIELDS_SUEWS_STATE);
     assert_ne!(obs_state.err, SUEWS_CAPI_OK);
     assert!(obs_state.values.is_empty());
+}
+
+fn rebuild_member_buffer(
+    flat: &[f64],
+    toc: &[i32],
+    target_member: usize,
+    replacement: &[f64],
+) -> (Vec<f64>, Vec<i32>) {
+    let member_count = toc.len() / 2;
+    let mut new_flat = Vec::new();
+    let mut new_toc = vec![0_i32; toc.len()];
+
+    for member in 0..member_count {
+        let offset = toc[2 * member] as usize;
+        let len = toc[2 * member + 1] as usize;
+        let slice = if member == target_member {
+            replacement
+        } else {
+            &flat[offset..offset + len]
+        };
+        new_toc[2 * member] = new_flat.len() as i32;
+        new_toc[2 * member + 1] = slice.len() as i32;
+        new_flat.extend_from_slice(slice);
+    }
+
+    (new_flat, new_toc)
+}
+
+#[test]
+fn inner_variable_length_unpackers_enforce_exact_lengths() {
+    let nlayer = 3_usize;
+    let ndepth = 5_usize;
+    let nspec = 1_usize;
+
+    // SPARTACUS_PRM
+    {
+        let mut exp = ExpectedStruct::new();
+        let flat = build_spartacus_prm(&mut exp, "", nlayer).to_flat();
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short", &flat[..flat.len() - 1]),
+            ("oversized", &oversized),
+        ] {
+            let obs = call_observer_1d(
+                observer_manifest::suews_obs_unpack_spartacus_prm,
+                buf,
+                nlayer,
+                OBS_FIELDS_SPARTACUS_PRM,
+            );
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "spartacus_prm_unpack must reject {label} buffer (len={})",
+                buf.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+
+    // SPARTACUS_LAYER_PRM
+    {
+        let mut exp = ExpectedStruct::new();
+        let flat = build_spartacus_layer_prm(&mut exp, "", nlayer, nspec).to_flat();
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short", &flat[..flat.len() - 1]),
+            ("oversized", &oversized),
+        ] {
+            let obs = call_observer_2d(
+                observer_manifest::suews_obs_unpack_spartacus_layer_prm,
+                buf,
+                nlayer,
+                nspec,
+                OBS_FIELDS_SPARTACUS_LAYER_PRM,
+            );
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "spartacus_layer_prm_unpack must reject {label} buffer (len={})",
+                buf.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+
+    // EHC_PRM
+    {
+        let mut exp = ExpectedStruct::new();
+        let flat = build_ehc_prm(&mut exp, "", nlayer, ndepth).to_flat();
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short", &flat[..flat.len() - 1]),
+            ("oversized", &oversized),
+        ] {
+            let obs = call_observer_2d(
+                observer_manifest::suews_obs_unpack_ehc_prm,
+                buf,
+                nlayer,
+                ndepth,
+                OBS_FIELDS_EHC_PRM,
+            );
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "ehc_prm_unpack must reject {label} buffer (len={})",
+                buf.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+
+    // HYDRO_STATE
+    {
+        let mut exp = ExpectedStruct::new();
+        let flat = build_hydro_state(&mut exp, "", nlayer, false).to_flat();
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short", &flat[..flat.len() - 1]),
+            ("oversized", &oversized),
+        ] {
+            let obs = call_observer_1d(
+                observer_manifest::suews_obs_unpack_hydro_state,
+                buf,
+                nlayer,
+                OBS_FIELDS_HYDRO_STATE,
+            );
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "hydro_state_unpack must reject {label} buffer (len={})",
+                buf.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+
+    // HEAT_STATE
+    {
+        let mut exp = ExpectedStruct::new();
+        let flat = build_heat_state(&mut exp, "", nlayer, ndepth, false).to_flat();
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short", &flat[..flat.len() - 1]),
+            ("oversized", &oversized),
+        ] {
+            let obs = call_observer_2d(
+                observer_manifest::suews_obs_unpack_heat_state,
+                buf,
+                nlayer,
+                ndepth,
+                OBS_FIELDS_HEAT_STATE,
+            );
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "heat_state_unpack must reject {label} buffer (len={})",
+                buf.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+
+    // STEBBS_STATE (0 buildings and 1 building)
+    for num_buildings in [0_usize, 1_usize] {
+        let mut exp = ExpectedStruct::new();
+        let flat =
+            build_stebbs_state(&mut exp, "", nlayer, num_buildings, false, true, false).to_flat();
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short", &flat[..flat.len() - 1]),
+            ("oversized", &oversized),
+        ] {
+            let obs = call_observer_1d(
+                observer_manifest::suews_obs_unpack_stebbs_state,
+                buf,
+                nlayer,
+                OBS_FIELDS_STEBBS_STATE,
+            );
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "stebbs_state_unpack (num_buildings={num_buildings}) must reject {label} buffer (len={})",
+                buf.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+}
+
+#[test]
+fn driver_site_and_state_unpackers_enforce_exact_when_present_lengths() {
+    let nlayer = 3_usize;
+    let ndepth = 5_usize;
+    let nspec = 1_usize;
+
+    // 1. SUEWS_SITE variable-length members (spartacus=0, ehc=2, spartacus_layer=3):
+    //    member_len == 0 skips cleanly; short non-zero and oversized return BAD_BUFFER.
+    {
+        let mut exp = ExpectedStruct::new();
+        let scalars = SiteScalars {
+            lat: exp.real("lat"),
+            lon: exp.real("lon"),
+            alt: exp.real("alt"),
+            timezone: exp.real("timezone"),
+            surfacearea: exp.real("surfacearea"),
+            z: exp.real("z"),
+            z0m_in: exp.real("z0m_in"),
+            zdm_in: exp.real("zdm_in"),
+            pipecapacity: exp.real("pipecapacity"),
+            runofftowater: exp.real("runofftowater"),
+            narp_trans_site: exp.real("narp_trans_site"),
+            co2_point_source: exp.real("CO2PointSource"),
+            flowchange: exp.real("flow_change"),
+            n_buildings: exp.real("n_buildings"),
+            h_std: exp.real("h_std"),
+            lambda_c: exp.real("lambda_c"),
+            sfr_surf: exp.real_arr_1d::<NSURF>("sfr_surf", 1),
+            gridiv: exp.int("gridiv"),
+        };
+        let site = SuewsSite {
+            spartacus: build_spartacus_prm(&mut exp, "spartacus", nlayer),
+            lumps: build_lumps_prm(&mut exp, "lumps"),
+            ehc: build_ehc_prm(&mut exp, "ehc", nlayer, ndepth),
+            spartacus_layer: build_spartacus_layer_prm(&mut exp, "spartacus_layer", nlayer, nspec),
+            surf_store: build_surf_store_prm(&mut exp, "surf_store"),
+            irrigation: build_irrigation_prm(&mut exp, "irrigation"),
+            anthroemis: build_anthro_emis_prm(&mut exp, "anthroemis"),
+            snow: build_snow_prm(&mut exp, "snow"),
+            conductance: build_conductance_prm(&mut exp, "conductance"),
+            lc_paved: build_lc_paved_prm(&mut exp, "lc_paved"),
+            lc_bldg: build_lc_bldg_prm(&mut exp, "lc_bldg"),
+            lc_dectr: build_lc_dectr_prm(&mut exp, "lc_dectr"),
+            lc_evetr: build_lc_evetr_prm(&mut exp, "lc_evetr"),
+            lc_grass: build_lc_grass_prm(&mut exp, "lc_grass"),
+            lc_bsoil: build_lc_bsoil_prm(&mut exp, "lc_bsoil"),
+            lc_water: build_lc_water_prm(&mut exp, "lc_water"),
+            building_archtype: build_building_archetype_prm(&mut exp, "building_archtype", true),
+            stebbs: build_stebbs_prm(&mut exp, "stebbs", false),
+        };
+        let scalars_flat = encode_site_scalars_flat(&scalars);
+        let (site_flat, site_toc) = encode_site_members_flat(&site).unwrap();
+
+        let desc_id = |path: &str| {
+            OBS_FIELDS_SUEWS_SITE
+                .iter()
+                .find(|d| d.path == path)
+                .unwrap_or_else(|| panic!("missing SUEWS_SITE observer descriptor '{path}'"))
+                .id
+        };
+        let surf_store_sentinel_id = desc_id("surf_store%store_max");
+
+        for (member_idx, member_name, alloc_probe_path) in [
+            (0_usize, "spartacus_prm", "spartacus%height"),
+            (2_usize, "ehc_prm", "ehc%k_roof"),
+            (3_usize, "spartacus_layer", "spartacus_layer%building_frac"),
+        ] {
+            let orig_off = site_toc[2 * member_idx] as usize;
+            let orig_len = site_toc[2 * member_idx + 1] as usize;
+            let orig_slice = &site_flat[orig_off..orig_off + orig_len];
+
+            // Absent (member_len == 0): must skip cleanly without unpacking that member.
+            let (absent_flat, absent_toc) =
+                rebuild_member_buffer(&site_flat, &site_toc, member_idx, &[]);
+            let obs_absent = call_observer_site(
+                &scalars_flat,
+                &absent_flat,
+                &absent_toc,
+                18,
+                nlayer,
+                ndepth,
+                OBS_FIELDS_SUEWS_SITE,
+            );
+            assert_eq!(
+                obs_absent.err, SUEWS_CAPI_OK,
+                "unpack_site_members must accept absent (len=0) {member_name}"
+            );
+            assert!(
+                !obs_absent.meta[&desc_id(alloc_probe_path)].allocated,
+                "absent {member_name} must leave {alloc_probe_path} unallocated"
+            );
+            assert!(
+                obs_absent
+                    .values
+                    .contains_key(&(surf_store_sentinel_id, 0, 0)),
+                "absent {member_name} must not stop unpacking subsequent site members"
+            );
+
+            // Short non-zero (member_len == required - 1) and oversized (required + 1).
+            let mut oversized = orig_slice.to_vec();
+            oversized.push(0.0);
+            for (case_name, bad_slice) in [
+                ("short non-zero", &orig_slice[..orig_len - 1]),
+                ("oversized", oversized.as_slice()),
+            ] {
+                let (bad_flat, bad_toc) =
+                    rebuild_member_buffer(&site_flat, &site_toc, member_idx, bad_slice);
+                let obs_bad = call_observer_site(
+                    &scalars_flat,
+                    &bad_flat,
+                    &bad_toc,
+                    18,
+                    nlayer,
+                    ndepth,
+                    OBS_FIELDS_SUEWS_SITE,
+                );
+                assert_eq!(
+                    obs_bad.err,
+                    SUEWS_CAPI_BAD_BUFFER,
+                    "unpack_site_members must reject {case_name} {member_name} (len={})",
+                    bad_slice.len()
+                );
+                assert!(obs_bad.values.is_empty());
+            }
+        }
+    }
+
+    // 2. SUEWS_STATE variable-length members (hydro=8, heat=9, stebbs=11):
+    //    required on every call; empty, short, and oversized must all return BAD_BUFFER.
+    {
+        let mut exp = ExpectedStruct::new();
+        let state = SuewsState {
+            error_state: ErrorState::default(),
+            flag_state: build_flag_state(&mut exp, "flagState", true, false, true),
+            anthroemis_state: build_anthroemis_state(&mut exp, "anthroemisState", false),
+            ohm_state: build_ohm_state(&mut exp, "ohmState", true, false),
+            solar_state: build_solar_state(&mut exp, "solarState", false),
+            atm_state: build_atm_state(&mut exp, "atmState", true),
+            phenology_state: build_phenology_state(&mut exp, "phenState", false),
+            snow_state: build_snow_state(&mut exp, "snowState", true),
+            hydro_state: build_hydro_state(&mut exp, "hydroState", nlayer, false),
+            heat_state: build_heat_state(&mut exp, "heatState", nlayer, ndepth, true),
+            roughness_state: build_roughness_state(&mut exp, "roughnessState", false),
+            stebbs_state: build_stebbs_state(&mut exp, "stebbsState", nlayer, 1, true, true, false),
+            nhood_state: build_nhood_state(&mut exp, "nhoodState", false),
+        };
+        let (state_flat, state_toc) = encode_state_members_flat(&state).unwrap();
+
+        for (member_idx, member_name) in [
+            (8_usize, "hydro_state"),
+            (9_usize, "heat_state"),
+            (11_usize, "stebbs_state"),
+        ] {
+            let orig_off = state_toc[2 * member_idx] as usize;
+            let orig_len = state_toc[2 * member_idx + 1] as usize;
+            let orig_slice = &state_flat[orig_off..orig_off + orig_len];
+            let mut oversized = orig_slice.to_vec();
+            oversized.push(0.0);
+
+            for (case_name, bad_slice) in [
+                ("empty", &[][..]),
+                ("short", &orig_slice[..orig_len - 1]),
+                ("oversized", oversized.as_slice()),
+            ] {
+                let (bad_flat, bad_toc) =
+                    rebuild_member_buffer(&state_flat, &state_toc, member_idx, bad_slice);
+                let obs_bad = call_observer_state(
+                    &bad_flat,
+                    &bad_toc,
+                    13,
+                    nlayer,
+                    ndepth,
+                    OBS_FIELDS_SUEWS_STATE,
+                );
+                assert_eq!(
+                    obs_bad.err,
+                    SUEWS_CAPI_BAD_BUFFER,
+                    "unpack_state_members must reject {case_name} {member_name} (len={})",
+                    bad_slice.len()
+                );
+                assert!(obs_bad.values.is_empty());
+            }
+        }
+    }
+}
+
+#[test]
+fn variable_length_unpackers_reject_integer_overflow_dimensions() {
+    // EHC_PRM: nlayer=1, ndepth=159_072_863 gives 8*1 + 7 + (6*1 + 3*7)*159_072_863
+    // = 4_294_967_316 = 2^32 + 20, which wraps to 20 in unchecked 32-bit c_int.
+    let wrap_20 = [0.0_f64; 20];
+    let obs_ehc_wrap = call_observer_2d(
+        observer_manifest::suews_obs_unpack_ehc_prm,
+        &wrap_20,
+        1,
+        159_072_863,
+        OBS_FIELDS_EHC_PRM,
+    );
+    assert_eq!(
+        obs_ehc_wrap.err, SUEWS_CAPI_BAD_BUFFER,
+        "ehc_prm_unpack must reject 32-bit-wrapping (nlayer=1, ndepth=159072863)"
+    );
+    assert!(obs_ehc_wrap.values.is_empty());
+
+    let obs_ehc_huge = call_observer_2d(
+        observer_manifest::suews_obs_unpack_ehc_prm,
+        &wrap_20,
+        1_000_000,
+        1_000_000,
+        OBS_FIELDS_EHC_PRM,
+    );
+    assert_eq!(
+        obs_ehc_huge.err, SUEWS_CAPI_BAD_BUFFER,
+        "ehc_prm_unpack must reject huge (nlayer=1e6, ndepth=1e6)"
+    );
+    assert!(obs_ehc_huge.values.is_empty());
+
+    // SPARTACUS_PRM: nlayer=i32::MAX overflows 17 + (nlayer + 1).
+    let obs_sp = call_observer_1d(
+        observer_manifest::suews_obs_unpack_spartacus_prm,
+        &wrap_20,
+        i32::MAX as usize,
+        OBS_FIELDS_SPARTACUS_PRM,
+    );
+    assert_eq!(
+        obs_sp.err, SUEWS_CAPI_BAD_BUFFER,
+        "spartacus_prm_unpack must reject overflowing nlayer=i32::MAX"
+    );
+    assert!(obs_sp.values.is_empty());
+
+    // SPARTACUS_LAYER_PRM: for (nlayer=1, nspec=i32::MAX), 9*1 + 2*nspec*1 = 2^32 + 7
+    // wraps to +7 in unchecked 32-bit c_int; (1e9, 1e9) also overflows 64-bit if unchecked.
+    let wrap_7 = [0.0_f64; 7];
+    for (nlayer, nspec, buf) in [
+        (1_usize, i32::MAX as usize, wrap_7.as_slice()),
+        (1_000_000_000, 1_000_000_000, wrap_20.as_slice()),
+    ] {
+        let obs_layer = call_observer_2d(
+            observer_manifest::suews_obs_unpack_spartacus_layer_prm,
+            buf,
+            nlayer,
+            nspec,
+            OBS_FIELDS_SPARTACUS_LAYER_PRM,
+        );
+        assert_eq!(
+            obs_layer.err, SUEWS_CAPI_BAD_BUFFER,
+            "spartacus_layer_prm_unpack must reject overflowing ({nlayer}, {nspec})"
+        );
+        assert!(obs_layer.values.is_empty());
+    }
+
+    // HYDRO_STATE: 104 + 6 * 715_827_883 = 2^32 + 106 wraps to +106 in unchecked 32-bit c_int.
+    // Match the exact wrapped length (106) so an unchecked exact-length guard would pass.
+    let wrap_hydro_106 = vec![0.0_f64; 106];
+    let obs_hydro = call_observer_1d(
+        observer_manifest::suews_obs_unpack_hydro_state,
+        &wrap_hydro_106,
+        715_827_883,
+        OBS_FIELDS_HYDRO_STATE,
+    );
+    assert_eq!(
+        obs_hydro.err, SUEWS_CAPI_BAD_BUFFER,
+        "hydro_state_unpack must reject 32-bit-wrapping nlayer=715827883 with wrapped len=106"
+    );
+    assert!(obs_hydro.values.is_empty());
+
+    // HEAT_STATE: 128 + (2*1 + 2*7) * 268_435_456 + 14*1 + 3*7 = 2^32 + 163 wraps to +163
+    // in unchecked 32-bit c_int. Match the exact wrapped length (163).
+    let wrap_heat_163 = vec![0.0_f64; 163];
+    let obs_heat = call_observer_2d(
+        observer_manifest::suews_obs_unpack_heat_state,
+        &wrap_heat_163,
+        1,
+        268_435_456,
+        OBS_FIELDS_HEAT_STATE,
+    );
+    assert_eq!(
+        obs_heat.err, SUEWS_CAPI_BAD_BUFFER,
+        "heat_state_unpack must reject 32-bit-wrapping (nlayer=1, ndepth=268435456) with wrapped len=163"
+    );
+    assert!(obs_heat.values.is_empty());
+
+    // STEBBS_STATE: 1-building payload with bldg_nlayer overflowing c_int, and
+    // huge bldg_count * per_bldg_len that would overflow even c_int64_t.
+    let base_stebbs_len = stebbs_state_expected_flat_len(0, 0).unwrap();
+    for (bldg_count_f64, bldg_nlayer) in [
+        (1.0_f64, 1_073_741_824_usize),
+        (f64::from(i32::MAX), i32::MAX as usize),
+    ] {
+        let mut fake_stebbs = vec![0.0_f64; base_stebbs_len];
+        // buildings_count sits at index base_len - 2 (iter_safe is base_len - 1).
+        fake_stebbs[base_stebbs_len - 2] = bldg_count_f64;
+        let obs_stebbs = call_observer_1d(
+            observer_manifest::suews_obs_unpack_stebbs_state,
+            &fake_stebbs,
+            bldg_nlayer,
+            OBS_FIELDS_STEBBS_STATE,
+        );
+        assert_eq!(
+            obs_stebbs.err, SUEWS_CAPI_BAD_BUFFER,
+            "stebbs_state_unpack must reject overflowing (bldg_count={bldg_count_f64}, bldg_nlayer={bldg_nlayer})"
+        );
+        assert!(obs_stebbs.values.is_empty());
+    }
+
+    // Driver aggregate unpackers must also reject overflowing dimensions with small buffers.
+    let mut exp = ExpectedStruct::new();
+    let scalars = SiteScalars {
+        lat: exp.real("lat"),
+        lon: exp.real("lon"),
+        alt: exp.real("alt"),
+        timezone: exp.real("timezone"),
+        surfacearea: exp.real("surfacearea"),
+        z: exp.real("z"),
+        z0m_in: exp.real("z0m_in"),
+        zdm_in: exp.real("zdm_in"),
+        pipecapacity: exp.real("pipecapacity"),
+        runofftowater: exp.real("runofftowater"),
+        narp_trans_site: exp.real("narp_trans_site"),
+        co2_point_source: exp.real("CO2PointSource"),
+        flowchange: exp.real("flow_change"),
+        n_buildings: exp.real("n_buildings"),
+        h_std: exp.real("h_std"),
+        lambda_c: exp.real("lambda_c"),
+        sfr_surf: exp.real_arr_1d::<NSURF>("sfr_surf", 1),
+        gridiv: exp.int("gridiv"),
+    };
+    let site = SuewsSite {
+        spartacus: build_spartacus_prm(&mut exp, "spartacus", 1),
+        lumps: build_lumps_prm(&mut exp, "lumps"),
+        ehc: build_ehc_prm(&mut exp, "ehc", 1, 1),
+        spartacus_layer: build_spartacus_layer_prm(&mut exp, "spartacus_layer", 1, 1),
+        surf_store: build_surf_store_prm(&mut exp, "surf_store"),
+        irrigation: build_irrigation_prm(&mut exp, "irrigation"),
+        anthroemis: build_anthro_emis_prm(&mut exp, "anthroemis"),
+        snow: build_snow_prm(&mut exp, "snow"),
+        conductance: build_conductance_prm(&mut exp, "conductance"),
+        lc_paved: build_lc_paved_prm(&mut exp, "lc_paved"),
+        lc_bldg: build_lc_bldg_prm(&mut exp, "lc_bldg"),
+        lc_dectr: build_lc_dectr_prm(&mut exp, "lc_dectr"),
+        lc_evetr: build_lc_evetr_prm(&mut exp, "lc_evetr"),
+        lc_grass: build_lc_grass_prm(&mut exp, "lc_grass"),
+        lc_bsoil: build_lc_bsoil_prm(&mut exp, "lc_bsoil"),
+        lc_water: build_lc_water_prm(&mut exp, "lc_water"),
+        building_archtype: build_building_archetype_prm(&mut exp, "building_archtype", true),
+        stebbs: build_stebbs_prm(&mut exp, "stebbs", false),
+    };
+    let scalars_flat = encode_site_scalars_flat(&scalars);
+    let (site_flat, site_toc) = encode_site_members_flat(&site).unwrap();
+    let (ehc_wrap_flat, ehc_wrap_toc) = rebuild_member_buffer(&site_flat, &site_toc, 2, &wrap_20);
+    let obs_site_wrap = call_observer_site(
+        &scalars_flat,
+        &ehc_wrap_flat,
+        &ehc_wrap_toc,
+        18,
+        1,
+        159_072_863,
+        OBS_FIELDS_SUEWS_SITE,
+    );
+    assert_eq!(
+        obs_site_wrap.err, SUEWS_CAPI_BAD_BUFFER,
+        "unpack_site_members must reject 32-bit-wrapping EHC dimensions"
+    );
+    assert!(obs_site_wrap.values.is_empty());
+
+    let mut state_exp = ExpectedStruct::new();
+    let state = SuewsState {
+        error_state: ErrorState::default(),
+        flag_state: build_flag_state(&mut state_exp, "flagState", true, false, true),
+        anthroemis_state: build_anthroemis_state(&mut state_exp, "anthroemisState", false),
+        ohm_state: build_ohm_state(&mut state_exp, "ohmState", true, false),
+        solar_state: build_solar_state(&mut state_exp, "solarState", false),
+        atm_state: build_atm_state(&mut state_exp, "atmState", true),
+        phenology_state: build_phenology_state(&mut state_exp, "phenState", false),
+        snow_state: build_snow_state(&mut state_exp, "snowState", true),
+        hydro_state: build_hydro_state(&mut state_exp, "hydroState", 1, false),
+        heat_state: build_heat_state(&mut state_exp, "heatState", 1, 1, true),
+        roughness_state: build_roughness_state(&mut state_exp, "roughnessState", false),
+        stebbs_state: build_stebbs_state(&mut state_exp, "stebbsState", 1, 0, true, false, false),
+        nhood_state: build_nhood_state(&mut state_exp, "nhoodState", false),
+    };
+    let (state_flat, state_toc) = encode_state_members_flat(&state).unwrap();
+    let (heat_wrap_flat, heat_wrap_toc) =
+        rebuild_member_buffer(&state_flat, &state_toc, 9, &wrap_heat_163);
+    let obs_state_heat_wrap = call_observer_state(
+        &heat_wrap_flat,
+        &heat_wrap_toc,
+        13,
+        1,
+        268_435_456,
+        OBS_FIELDS_SUEWS_STATE,
+    );
+    assert_eq!(
+        obs_state_heat_wrap.err, SUEWS_CAPI_BAD_BUFFER,
+        "unpack_state_members must reject 32-bit-wrapping heat_state dimensions with wrapped len=163"
+    );
+    assert!(obs_state_heat_wrap.values.is_empty());
+
+    let (hydro_wrap_flat, hydro_wrap_toc) =
+        rebuild_member_buffer(&state_flat, &state_toc, 8, &wrap_hydro_106);
+    let obs_state_hydro_wrap = call_observer_state(
+        &hydro_wrap_flat,
+        &hydro_wrap_toc,
+        13,
+        715_827_883,
+        1,
+        OBS_FIELDS_SUEWS_STATE,
+    );
+    assert_eq!(
+        obs_state_hydro_wrap.err, SUEWS_CAPI_BAD_BUFFER,
+        "unpack_state_members must reject 32-bit-wrapping hydro_state dimensions with wrapped len=106"
+    );
+    assert!(obs_state_hydro_wrap.values.is_empty());
 }
 
 #[test]

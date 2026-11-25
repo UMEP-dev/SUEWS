@@ -2,7 +2,7 @@
 ! SUEWS Rust bridge C API facade for HEAT_STATE.
 ! -----------------------------------------------------------------------------
 module module_c_api_heat_state
-use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer, suews_capi_error_text
@@ -63,6 +63,7 @@ public :: suews_heat_state_len
 public :: suews_heat_state_schema_version
 public :: suews_heat_state_default
 public :: suews_heat_state_error_message
+public :: heat_state_expected_len
 public :: heat_state_unpack
 
 contains
@@ -291,6 +292,49 @@ subroutine heat_state_pack(state, flat, n_flat, nlayer, ndepth, err)
 
 end subroutine heat_state_pack
 
+subroutine heat_state_expected_len(nlayer, ndepth, expected_len, ok)
+   implicit none
+
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(in) :: ndepth
+   integer(c_int), intent(out) :: expected_len
+   logical, intent(out) :: ok
+
+   integer(c_int64_t), parameter :: MAX_C_INT = int(huge(0_c_int), c_int64_t)
+   integer(c_int64_t) :: nl
+   integer(c_int64_t) :: nd
+   integer(c_int64_t) :: ns
+   integer(c_int64_t) :: n_64
+
+   expected_len = 0_c_int
+   ok = .false.
+   if (nlayer<0_c_int .or. ndepth<0_c_int) return
+   if ((nlayer==0_c_int .and. ndepth/=0_c_int) .or. &
+       (nlayer/=0_c_int .and. ndepth==0_c_int)) return
+
+   if (nlayer==0_c_int) then
+      expected_len = SUEWS_CAPI_HEAT_STATE_BASE_LEN
+      ok = .true.
+      return
+   end if
+
+   nl = int(nlayer, c_int64_t)
+   nd = int(ndepth, c_int64_t)
+   ns = int(nsurf, c_int64_t)
+   if (nl>MAX_C_INT / 14_c_int64_t) return
+   if (nd>MAX_C_INT / (2_c_int64_t * nl)) return
+   if (nd>MAX_C_INT / (2_c_int64_t * ns)) return
+
+   n_64 = int(SUEWS_CAPI_HEAT_STATE_BASE_LEN, c_int64_t) + &
+          2_c_int64_t * nl * nd + 2_c_int64_t * ns * nd + &
+          14_c_int64_t * nl + 3_c_int64_t * ns
+   if (n_64>MAX_C_INT) return
+
+   expected_len = int(n_64, c_int)
+   ok = .true.
+
+end subroutine heat_state_expected_len
+
 subroutine heat_state_unpack(flat, n_flat, nlayer, ndepth, state, err)
    implicit none
 
@@ -302,28 +346,13 @@ subroutine heat_state_unpack(flat, n_flat, nlayer, ndepth, state, err)
    integer(c_int), intent(out) :: err
 
    integer(c_int) :: n_expected
+   logical :: len_ok
    integer(c_int) :: idx
    integer(c_int) :: surf_vec_len
    integer(c_int) :: i
 
-   if (nlayer<0_c_int .or. ndepth<0_c_int) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-   if ((nlayer==0_c_int .and. ndepth/=0_c_int) .or. &
-       (nlayer/=0_c_int .and. ndepth==0_c_int)) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   if (nlayer==0_c_int) then
-      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN
-   else
-      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN + &
-                   2_c_int * nlayer * ndepth + 2_c_int * int(nsurf, c_int) * ndepth + &
-                   14_c_int * nlayer + 3_c_int * int(nsurf, c_int)
-   end if
-   if (n_flat<n_expected) then
+   call heat_state_expected_len(nlayer, ndepth, n_expected, len_ok)
+   if (.not. len_ok .or. n_flat/=n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

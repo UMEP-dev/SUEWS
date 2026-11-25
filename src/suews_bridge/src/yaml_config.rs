@@ -1658,8 +1658,8 @@ fn apply_waterdist_overrides(
 /// `suews_phys_dailystate.f95::update_Veg`:
 /// - `update_gddlai` loops over all three vegetation slots (`1..NVegSurf`)
 ///   regardless of `sfr` and runs degree-day accumulation even when
-///   `laimethod == 0`, so `base_temperature`, `gdd_full`,
-///   `base_temperature_senescence`, and `sdd_full` are required for all three
+///   `laimethod == 0`, so `base_temperature`, `gdd_base`,
+///   `base_temperature_senescence`, and `sdd_base` are required for all three
 ///   vegetated surfaces.
 /// - `update_Veg` reads `lai_min` and `lai_max` for all three vegetation slots
 ///   whenever daily LAI changes (without an `sfr` guard), and `calculate_lai`
@@ -1685,9 +1685,9 @@ fn apply_lai_overrides(
     validate_optional_mapping(lc_root, &["lai", "laipower"], at)?;
 
     lai.base_temperature = require_numeric(lc_root, &["lai", "baset"], at)?;
-    lai.gdd_full = require_numeric(lc_root, &["lai", "gddfull"], at)?;
+    lai.gdd_base = require_numeric(lc_root, &["lai", "gddbase"], at)?;
     lai.base_temperature_senescence = require_numeric(lc_root, &["lai", "basete"], at)?;
-    lai.sdd_full = require_numeric(lc_root, &["lai", "sddfull"], at)?;
+    lai.sdd_base = require_numeric(lc_root, &["lai", "sddbase"], at)?;
     lai.lai_min = require_numeric(lc_root, &["lai", "laimin"], at)?;
     let lai_max = require_numeric(lc_root, &["lai", "laimax"], at)?;
     if active && lai_max <= 0.0 {
@@ -11045,12 +11045,12 @@ mod tests {
         // phenology field and reports canonical data-model paths on absence/malformed.
         for (path, expected_display) in [
             (vec!["base_temperature"], "lai.base_temperature"),
-            (vec!["gdd_full"], "lai.gdd_full"),
+            (vec!["gdd_base"], "lai.gdd_base"),
             (
                 vec!["base_temperature_senescence"],
                 "lai.base_temperature_senescence",
             ),
-            (vec!["sdd_full"], "lai.sdd_full"),
+            (vec!["sdd_base"], "lai.sdd_base"),
             (vec!["lai_min"], "lai.lai_min"),
             (vec!["lai_power", "growth_lai"], "lai.lai_power.growth_lai"),
             (vec!["lai_power", "growth_gdd"], "lai.lai_power.growth_gdd"),
@@ -11130,9 +11130,9 @@ mod tests {
 
             for required_key in [
                 "base_temperature",
-                "gdd_full",
+                "gdd_base",
                 "base_temperature_senescence",
-                "sdd_full",
+                "sdd_base",
                 "lai_min",
                 "lai_max",
             ] {

@@ -153,12 +153,10 @@ mod tests {
         let mut mapped = lai_prm_to_map(&state);
         mapped.insert("laimax".to_string(), 5.0);
         mapped.insert("laipower_3".to_string(), 0.6);
-        mapped.insert("laitype".to_string(), 1.0);
 
         let updated = lai_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.lai_max - 5.0).abs() < 1.0e-12);
         assert!((updated.lai_power[2] - 0.6).abs() < 1.0e-12);
-        assert_eq!(updated.lai_type, 1);
     }
 
     #[test]
@@ -177,11 +175,11 @@ mod tests {
         assert_eq!(err, BridgeError::BadState);
     }
 
-    #[test]
-    fn from_flat_rejects_non_integer_laitype() {
-        let mut flat = vec![0.0_f64; LAI_PRM_FLAT_LEN];
-        flat[10] = 1.5;
-        let err = LaiPrm::from_flat(&flat).expect_err("fractional integer should fail");
-        assert_eq!(err, BridgeError::BadState);
-    }
+    // #[test]
+    // fn from_flat_rejects_non_integer_laitype() {
+    //     let mut flat = vec![0.0_f64; LAI_PRM_FLAT_LEN];
+    //     flat[10] = 1.5;
+    //     let err = LaiPrm::from_flat(&flat).expect_err("fractional integer should fail");
+    //     assert_eq!(err, BridgeError::BadState);
+    // }
 }

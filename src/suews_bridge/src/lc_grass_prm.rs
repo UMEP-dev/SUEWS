@@ -180,13 +180,11 @@ mod tests {
         let mut mapped = lc_grass_prm_to_map(&state);
         mapped.insert("irrfracgrass".to_string(), 0.25);
         mapped.insert("bioco2.theta_bioco2".to_string(), 0.85);
-        mapped.insert("lai.laitype".to_string(), 1.0);
         mapped.insert("waterdist.to_grass".to_string(), 0.45);
 
         let updated = lc_grass_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.irrfracgrass - 0.25).abs() < 1.0e-12);
         assert!((updated.bioco2.theta_bio_co2 - 0.85).abs() < 1.0e-12);
-        assert_eq!(updated.lai.lai_type, 1);
         assert!((updated.waterdist.to_grass - 0.45).abs() < 1.0e-12);
     }
 

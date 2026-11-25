@@ -214,21 +214,12 @@ CONTAINS
                dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &
-               LAIType => [evetrPrm%lai%lai_type, &
-                           dectrPrm%lai%lai_type, &
-                           grassPrm%lai%lai_type], &
                BaseT => [evetrPrm%lai%base_temperature, &
                          dectrPrm%lai%base_temperature, &
                          grassPrm%lai%base_temperature], &
                BaseTe => [evetrPrm%lai%base_temperature_senescence, &
                           dectrPrm%lai%base_temperature_senescence, &
                           grassPrm%lai%base_temperature_senescence], &
-               GDDFull => [evetrPrm%lai%gdd_full, &
-                           dectrPrm%lai%gdd_full, &
-                           grassPrm%lai%gdd_full], &
-               SDDFull => [evetrPrm%lai%sdd_full, &
-                           dectrPrm%lai%sdd_full, &
-                           grassPrm%lai%sdd_full], &
                LAIMin => [evetrPrm%lai%lai_min, &
                           dectrPrm%lai%lai_min, &
                           grassPrm%lai%lai_min], &

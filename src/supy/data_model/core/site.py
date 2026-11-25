@@ -516,14 +516,6 @@ class LAIParams(DataModelBase):
             "display_name": "Base Temperature for Growing Degree Days",
         },
     )
-    gdd_full: Optional[FlexibleRefValue(float)] = Field(
-        default=None,
-        description="Growing degree days (GDD) needed for full capacity of LAI",
-        json_schema_extra={
-            "unit": "K d",
-            "display_name": "Growing Degree Days for Full LAI",
-        },
-    )
     base_temperature_senescence: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating senescence degree days (SDD) for leaf off",
@@ -532,15 +524,6 @@ class LAIParams(DataModelBase):
             "display_name": "Base Temperature for Senescence Degree Days",
         },
     )
-    sdd_full: Optional[FlexibleRefValue(float)] = Field(
-        default=None,
-        description="Senescence degree days (SDD) needed to initiate leaf off",
-        json_schema_extra={
-            "unit": "K d",
-            "display_name": "Senescence Degree Days for Leaf Off",
-        },
-    )
-
     lai_min: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Leaf-off wintertime LAI value",
@@ -554,14 +537,6 @@ class LAIParams(DataModelBase):
     lai_power: LAIPowerCoefficients = Field(
         default_factory=LAIPowerCoefficients,
         description="LAI calculation power parameters for growth and senescence",
-    )
-    lai_type: FlexibleRefValue(int) = Field(
-        default=0,
-        description="LAI calculation choice (0: original, 1: new high latitude)",
-        json_schema_extra={
-            "unit": None,
-            "display_name": "LAI Calculation Method",
-        },
     )
 
     gdd_base: Optional[FlexibleRefValue(float)] = Field(
@@ -595,12 +570,9 @@ class LAIParams(DataModelBase):
         veg_idx = surf_idx - 2
         lai_params = {
             "baset": self.base_temperature,
-            "gddfull": self.gdd_full,
             "basete": self.base_temperature_senescence,
-            "sddfull": self.sdd_full,
             "laimin": self.lai_min,
             "laimax": self.lai_max,
-            "laitype": self.lai_type,
             "gdd_base": self.gdd_base,
             "sdd_base": self.sdd_base,
         }
@@ -611,9 +583,7 @@ class LAIParams(DataModelBase):
             else:
                 defaults = {
                     "baset": 10.0,
-                    "gddfull": 100.0,
                     "basete": 10.0,
-                    "sddfull": 100.0,
                     "laimax": self.LAIMAX_DF_DEFAULT,
                     "laitype": 0,
                     "gdd_base": 0,
@@ -669,12 +639,9 @@ class LAIParams(DataModelBase):
         # shim.
         lai_params = {
             "base_temperature": get_df_value("baset", (veg_idx,)),
-            "gdd_full": get_df_value("gddfull", (veg_idx,)),
             "base_temperature_senescence": get_df_value("basete", (veg_idx,)),
-            "sdd_full": get_df_value("sddfull", (veg_idx,)),
             "lai_min": get_df_value("laimin", (veg_idx,)),
             "lai_max": get_df_value("laimax", (veg_idx,)),
-            "lai_type": int(get_df_value("laitype", (veg_idx,))),
             "gdd_base": get_df_value("gdd_base", (veg_idx,)),
             "sdd_base": get_df_value("sdd_base", (veg_idx,)),
         }

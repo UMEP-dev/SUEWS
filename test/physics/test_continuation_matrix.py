@@ -72,8 +72,16 @@ def _simulation(config):
 
 def _active(frame, mode):
     """Require a finite live signal; irrigation may deliver a constant rate."""
-    if mode == "default":
+    if mode in {"default", "leap_day"}:
         series = frame["SUEWS", "QN"]
+        if mode == "leap_day":
+            dates = frame.index.get_level_values("datetime")
+            assert ((dates.month == 2) & (dates.day == 29)).any(), (
+                "Leap-day continuation window does not span 29 February"
+            )
+            assert ((dates.month == 3) & (dates.day == 1)).any(), (
+                "Leap-day continuation window does not cross into 1 March"
+            )
     elif mode == "snow":
         series = frame["SUEWS", "SWE"]
         assert (series > 0).any(), "Snow mode has no snow pack"
@@ -83,7 +91,13 @@ def _active(frame, mode):
     elif mode == "co2":
         series = frame["SUEWS", "FcPhoto"]
         assert (series != 0).any(), "Biogenic CO2 is inactive"
-    elif mode in {"ehc", "ehc_explicit"}:
+    elif mode == "dyohm":
+        series = frame["SUEWS", "QS"]
+        ts_dyohm = frame["SUEWS", "Ts_Paved_dyohm"]
+        assert np.isfinite(ts_dyohm).all() and ts_dyohm.nunique() > 1, (
+            "Inactive dyohm surface temperature history"
+        )
+    elif mode in {"ehc", "ehc_explicit", "dyohm_building"}:
         series = frame["SUEWS", "QS"]
     elif mode == "stebbs":
         series = frame["STEBBS", "Tair_ind"]
@@ -95,9 +109,53 @@ def _active(frame, mode):
         assert series.nunique() > 1, f"Inactive {mode}"
 
 
+_STORAGE_HEAT_MODES: dict[str, int] = {
+    "ehc": 5,
+    "dyohm": 6,
+    "dyohm_building": 8,
+}
+
+
+def _configure_irrigation(cfg, forcing):
+    props = cfg.sites[0].properties
+    irr = props.irrigation
+    irr.h_maintain.value, irr.faut.value = -999.0, 0.5
+    irr.ie_start.value, irr.ie_end.value = 1.0, 366.0
+    irr.internalwateruse_h.value = 0.0
+    for day in (
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ):
+        setattr(irr.daywat, day, 1.0)
+        setattr(irr.daywatper, day, 1.0)
+    for profile in (irr.wuprofa_24hr, irr.wuprofm_24hr):
+        for day in (profile.working_day, profile.holiday):
+            for hour in day:
+                day[hour] = 1 / 24
+    for name, coefficient in (("evetr", 4.0), ("dectr", 0.0), ("grass", 0.0)):
+        surface = getattr(props.land_cover, name)
+        surface.ie_a.value = surface.ie_m.value = coefficient
+        surface.irrigation_fraction.value = float(name == "grass")
+    forcing["rain"] = 0.0
+
+
 def _configuration(sample_config_loaded, sample_data_loaded, mode):
     cfg = sample_config_loaded.model_copy(deep=True)
-    forcing = sample_data_loaded[1].iloc[:STEPS].copy()
+    if mode == "leap_day":
+        full_forcing = sample_data_loaded[1]
+        # Start on 29 February so checkpoint snapshots on leap day itself and
+        # daily chunk/stream hand-overs cross the 29 Feb -> 1 Mar boundary.
+        mask = (full_forcing.index >= "2012-02-29 00:05:00") & (
+            full_forcing.index <= "2012-03-02 00:00:00"
+        )
+        forcing = full_forcing.loc[mask].copy()
+    else:
+        forcing = sample_data_loaded[1].iloc[:STEPS].copy()
     assert len(forcing) == STEPS
     assert forcing.index[-1] - forcing.index[0] == pd.Timedelta(hours=48, minutes=-5)
     physics = cfg.model.physics
@@ -126,37 +184,13 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
         cfg.sites[0].properties.building_archetype = template.sites[
             0
         ].properties.building_archetype.model_copy(deep=True)
-    elif mode == "ehc":
-        physics.storage_heat = 5
+    elif mode in _STORAGE_HEAT_MODES:
+        physics.storage_heat = _STORAGE_HEAT_MODES[mode]
     elif mode == "ehc_explicit":
         physics.storage_heat = 5
         physics.ehc_surface_coupling = 0
     elif mode == "irrigation":
-        props = cfg.sites[0].properties
-        irr = props.irrigation
-        irr.h_maintain.value, irr.faut.value = -999.0, 0.5
-        irr.ie_start.value, irr.ie_end.value = 1.0, 366.0
-        irr.internalwateruse_h.value = 0.0
-        for day in (
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-        ):
-            setattr(irr.daywat, day, 1.0)
-            setattr(irr.daywatper, day, 1.0)
-        for profile in (irr.wuprofa_24hr, irr.wuprofm_24hr):
-            for day in (profile.working_day, profile.holiday):
-                for hour in day:
-                    day[hour] = 1 / 24
-        for name, coefficient in (("evetr", 4.0), ("dectr", 0.0), ("grass", 0.0)):
-            surface = getattr(props.land_cover, name)
-            surface.ie_a.value = surface.ie_m.value = coefficient
-            surface.irrigation_fraction.value = float(name == "grass")
-        forcing["rain"] = 0.0
+        _configure_irrigation(cfg, forcing)
     elif mode == "co2":
         physics.emissions = 32
     return cfg, forcing
@@ -166,11 +200,14 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
     "mode",
     [
         "default",
+        "leap_day",
         "snow",
         "spartacus",
         "stebbs",
         "ehc",
         "ehc_explicit",
+        "dyohm",
+        "dyohm_building",
         "irrigation",
         "co2",
     ],

@@ -19,6 +19,13 @@ post findings, create issues or PRs, or push as part of this skill. The software
 maintainer decides which findings become issues; hand off repairs as separate
 work. Respect narrower authorisation for the invocation. [procedure: Principle 3]
 
+Roles: the **coordinator** orchestrates the run (pinning revisions, preparing
+classification declarations, declared-input manifests and untouched briefs,
+dispatching execution and holding known-answer material such as
+`references/pilot.md`), while separate **compiler**, **comparator** and
+**diagnostician** agents compile the page, compare blind first attempts and run
+records, and attribute failures. [procedure: Principle 1]
+
 ## 1. Select and pin
 
 Accept page paths or labels, CLI commands or qualified Python objects, and a
@@ -28,13 +35,37 @@ budget. Keep page revision, skill revision and installed software identity
 separate; a page revision does not prove which package was installed.
 [procedure: Principle 1]
 
-Select only `:doc-source: hand-written` pages. The #2162 labels (delivered by #2181)
-are required. Only when a page has no label, report that absence as a finding,
-fall back to the page list in #2162 and retain its retrieved version.
-Record the classification source. Skip generated pages and regions, naming their
-code source as the follow-up target. Inspect includes: a hand-written wrapper
-does not turn generated text into hand-written instructions. Contradictory or
-unresolved classification is blocked, not guessed. [procedure: Principle 1]
+Select only `:doc-source: hand-written` pages. `docs/source/_ext/doc_source.py`
+(delivered by #2181 for #2162) enforces `:doc-source:` labels on revisions where
+it exists.
+[fact: git grep -n "raise SphinxError" docs/source/_ext/doc_source.py; git log --diff-filter=A --oneline -- docs/source/_ext/doc_source.py (output names the adding commit, #2181)]
+When a page has no `:doc-source:` label, distinguish two cases: [procedure: Principle 1]
+
+- At a revision where `docs/source/_ext/doc_source.py` exists (`git cat-file -e
+  REV:docs/source/_ext/doc_source.py` succeeds), report the absent label as a
+  finding, fall back to the page list in #2162 and retain its retrieved version.
+- At a historical revision that predates `:doc-source:` labels (`git cat-file -e
+  REV:docs/source/_ext/doc_source.py` fails), do not report the missing label as
+  a page defect; instead, the coordinator records an explicit classification
+  declaration before compiling (`hand-written` or `generated`, citing the basis,
+  such as the current labelled inventory on master or inspection of generator
+  scripts at `REV`) and passes it in both compiler briefs.
+
+Record the classification source in every run. Skip generated pages and regions,
+naming their code source as the follow-up target. Inspect includes: a
+hand-written wrapper does not turn generated text into hand-written instructions.
+Contradictory or unresolved classification is blocked, not guessed.
+[procedure: Principle 1]
+
+When a page assumes reader-supplied files not created by earlier steps on that
+page, the coordinator prepares a declared-input manifest before compilation and
+gives the identical manifest to both compilers. Every declared input records its
+provenance (where it came from and at which full commit revision, or its
+generating command or external source), SHA-256 digest, reader workspace target
+path and the quoted page sentence stating what the page assumes. Never inject
+undeclared or ad-hoc files during execution; if an assumed input cannot be
+obtained from the repository or a documented prerequisite without inventing data,
+block the dependent steps instead. [procedure: Principle 1]
 
 Hand CLI help and docstrings to the #2168 code-text checker (#2182), using its
 own documented interface at an identified revision. Its planned path is
@@ -51,7 +82,7 @@ no spend beyond it. [procedure: Principle 1]
 
 ## 2. Reuse or compile
 
-Compile-instruction version: `v13.4`. Change it whenever the compilation rules
+Compile-instruction version: `v13.5`. Change it whenever the compilation rules
 in this skill or its references change. [procedure: Principle 1]
 
 The cache key is the tuple
@@ -82,14 +113,18 @@ step. Never hand-edit a compiled script: correct the reading and compile again.
 Apply all of these compilation rules: [procedure: Principle 1]
 
 - Copy every documented command or Python statement verbatim from the page,
-  removing only presentation markup and code-block indentation. Preserve order,
-  language, working directory and interactive Python state between blocks.
-  Every step quotes its exact source sentence or code block and gives the source
-  path, full revision and inclusive line range.
+  removing only presentation markup and code-block indentation (the sole
+  exception is a coordinator-declared shared-path substitution under section 4,
+  recorded in `mechanics`, not as verbatim). Preserve order, language, working
+  directory and interactive Python state between blocks. Every step quotes its
+  exact source sentence or code block and gives the source path, full revision
+  and inclusive line range.
 - Mark a prose instruction needing an action `reader-inferred`; generate only
   the smallest action satisfying that quoted sentence. Record the choice and
-  supplied input provenance. Never add an undocumented workaround, rename,
-  helper call or research input to make a failing journey pass.
+  draw only from the coordinator's declared-input manifest from section 1 (citing
+  each input's provenance), or block the step. Never add an undocumented
+  workaround, rename, helper call or research input to make a failing journey
+  pass.
 - Inventory examples, explanations, conditions and exclusions. Displayed YAML
   is not automatically a file-writing instruction. Keep unsatisfied prerequisites
   visible; block dependent steps instead of silently filling them.
@@ -111,29 +146,50 @@ flow and stop conditions; the model must not select or alter commands mid-run.
 
 ## 3. Obtain the independent compile
 
-During the pilot, every page receives two independent compiles: one by Opus
-(in a separate session or subagent) and one by Codex. Use different model
-families and separate contexts. Neither sees the other's output, run results,
-suspected findings or the known-answer report. Give both the same pinned page,
-prerequisite sources, input provenance and compile instructions. Record actual
-model IDs, effort if known, briefs and outputs. The post-pilot second-compile
-rule is for the software maintainer to decide from pilot evidence; do not silently
-waive it or invent a permanent sampling rate. [decision: software maintainer, 2026-11-21]
+Every exercised page receives two independent compiles from different model
+families (for example Opus in a separate session or subagent, and Codex) in
+separate contexts. Following the 22 Nov 2026 pilot, where each compiler found
+true findings the other missed, this second independent compile is the standing
+rule across all modes; do not silently waive it or invent a sampling rate.
+[decision: software maintainer, 2026-11-22]
 
-Freeze both outputs before comparing step lists and assertion sets, including
-order, inferred actions, exclusions and branch coverage. Record agreement,
-disagreement and unresolved items with quotations and reasons. Agreement settles
-the reading, not the correctness of the software. For a disagreement, identify a
-wrong reading from the source or report page ambiguity; do not quietly merge the
-two scripts or choose the one that passes. Execute both independent compiles,
-each in its own fresh environment, even when their step lists agree. Neither
-run is chosen after seeing results. Report any difference in results, and keep
-disputed branches distinguishable. [procedure: Principle 1]
+Neither compiler sees the other's output, run results, suspected findings, the
+known-answer report or `references/pilot.md` (which is coordinator-only). Give
+both the same pinned page, prerequisite sources, classification declaration (if
+historical), declared-input provenance and compile instructions. Write each
+worker's brief to a read-only handoff path (or pass it as immutable input) and
+keep an untouched coordinator-owned copy with its SHA-256 digest outside every
+worker's writable directory; workers must never overwrite or edit their brief,
+and any modification is recorded against the untouched copy. Record actual model
+IDs, effort if known, untouched briefs and outputs. [procedure: Principle 1]
 
-A previously independent cached compile may be reused under section 2; do not
-show it to the other compiler. If independent compilation cannot be obtained,
-retain the brief and mark the pilot incomplete. Compilation agreement alone is
-never independent reproduction or confirmation. [procedure: Principle 1]
+Freeze and record each compiler's blind first attempt (`attempt: 1`, `blind: true`)
+before either compiler sees any run output, failure feedback or the other
+compiler's output. Any later compile made after a compiler has seen its own run
+or failure feedback is not blind (`blind: false`); keep it separate and never
+substitute it for the blind first attempt in the independent comparison.
+[procedure: Principle 1]
+
+Assign comparison to a **comparator**: a fresh agent that has not compiled the
+page and has not read `references/pilot.md`. Give the
+comparator the coordinator's untouched briefs, the pinned page and declared-input
+provenance, both frozen blind first-attempt compiles, and (after execution) both
+machine run records. The comparator compares step lists and assertion sets --
+including order, inferred actions, exclusions and branch coverage -- and both
+run records without editing either compile. Record agreement, disagreement and
+unresolved items with quotations and reasons. Agreement settles the reading, not
+the correctness of the software. For a disagreement, identify a wrong reading
+from the source or report page ambiguity; do not quietly merge the two scripts or
+choose the one that passes. Execute both independent compiles, each in its own
+fresh environment, even when their step lists agree. Neither run is chosen after
+seeing results. Report any difference in results, and keep disputed branches
+distinguishable. [procedure: Principle 1]
+
+A previously independent cached blind first-attempt compile may be reused under
+section 2; do not show it to the other compiler. If independent compilation
+cannot be obtained, retain the untouched brief and mark the run incomplete.
+Compilation agreement alone is never independent reproduction or confirmation.
+[procedure: Principle 1]
 
 ## 4. Execute and preserve
 
@@ -144,26 +200,49 @@ next command. A failed attempt ends before diagnosis and any recompilation.
 [decision: software maintainer, 2026-11-21]
 
 Find a remote build route in the repository's contributor or CI documentation
-if documented there; otherwise the route is site-specific. Record the selected
-route and commands in the run record. [procedure: Principle 1]
+if documented there; otherwise the route is site-specific. The repository root
+contains `meson.build`. [fact: test -f meson.build && git ls-files --error-unmatch meson.build]
+Before dispatching a remote run, verify that the synced directory satisfies the
+chosen remote runner's root check -- in particular that `meson.build` is present
+in the synced folder (for example `test -f meson.build`) rather than syncing a
+bare scratch directory without the repository build root. Record the selected
+route, pre-sync root check and commands in the run record. [procedure: Principle 1]
 
 Start every journey attempt with a new virtual environment, empty home and empty
 work directory. Disable inherited user packages, editable checkouts and import
 paths. Keep the evidence directory outside the reader's work/home; record the
-preparation commands, Python/platform and isolation checks. Then install SUEWS
-using the page's own install line, or the install instruction the guide directs
-its reader to use, cited verbatim. [decision: software maintainer, 2026-11-21]
+preparation commands, Python/platform and isolation checks. Where a page
+instruction names a literal shared or host-global path (such as
+`/tmp/suews_debug`), either replace it with a per-run path through a disclosed
+substitution or isolate it with a per-run mount/namespace. For a substitution,
+the coordinator declares it in both compilers' briefs (as it does for declared
+inputs) so the two compiles use the same per-run path, and the compile records
+it as a `mechanics` entry (as `record-format.md` requires for precompiled
+mechanics, without presenting the substituted command as verbatim). In either
+case, include the per-run path in per-step file inventories so concurrent or
+repeated runs cannot collide. [procedure: Principle 1]
 
-Do not preinstall SUEWS or substitute a known working wheel. If no install route
-is documented, report the missing prerequisite. [procedure: Principle 1]
+Exercise a page at repository revision `R` against SUEWS built from that same
+revision `R` (the primary `page-revision-build` route: a non-editable install
+from the tree at revision `R` through the remote route into the fresh virtual
+environment). Record the page's own install line, or the install instruction the
+guide directs its reader to use, cited verbatim, as a separate route
+(`reader-install-line`) -- executed in its own fresh environment when run, or
+listed in untested scope if skipped. If no install route is documented, report
+the missing prerequisite. Do not preinstall an unrelated SUEWS package or
+substitute a known working wheel for either route.
+[decision: software maintainer, 2026-11-22]
 
-Record actual package/dependency versions, distribution hashes where available,
-inputs and installation output. Do not claim the page revision is the software
-revision without evidence. Identical scripts give identical decisions for the
-same inputs; changing package indexes, data, platform or external services can
-change outcomes. Preserve resolved inputs for comparison and report such drift
-without silently pinning or rewriting the page's install command.
-[procedure: Principle 1]
+Record the route (`page-revision-build` or `reader-install-line`), the revision
+built from or install command run, actual package/dependency versions,
+distribution hashes where available, inputs and installation output. Do not
+claim the page revision is the software revision without evidence. Identical
+scripts give identical decisions for the same inputs; changing package indexes,
+data, platform or external services can change outcomes. Preserve resolved
+inputs for comparison and report such drift without silently pinning or
+rewriting the page's install command. Keep the two routes' records separate so
+a packaging break in a published release is never conflated with a defect at
+the page's revision. [procedure: Principle 1]
 
 Run the frozen script mechanically using the persistent Python process, fresh
 shells and per-step inventories defined in record-format.md (Execution mechanics).
@@ -190,12 +269,21 @@ Attribute each failure with evidence to one of three causes:
 
 Record the failed observation, competing causes, attribution evidence and next
 discriminating step. Keep infrastructure/setup blockers separate; do not force
-an unavailable service into a page or software defect. A corrective compile is
-a new immutable attempt under its key, not an edit to cached evidence. Compare
-each corrective recompile's steps/assertions against the other compiler's
-current compile; a new third independent compile is not required. Disclose
-feedback exposure; do not call a feedback-informed compile blind. Stop early on a recurring
-finding signature per `.claude/rules/review-convergence.md`. [procedure: Principle 1]
+an unavailable service into a page or software defect. Treat a failure caused by
+a wrongly chosen or wrongly assembled declared input as a coordinator setup
+error recorded under the infrastructure/setup blockers record, not as a fourth
+finding cause: record it as a setup error only when evidence shows that the
+declared input does not match what the quoted page text assumes (citing both the
+quoted assumption and the mismatching property of the declared input), and never
+dismiss a failure as a setup error merely because a different input might have
+passed. [procedure: Principle 1]
+
+A corrective compile is a new immutable attempt under its key, not an edit to
+cached evidence; it is non-blind per section 3 and kept separate from the blind
+first-attempt comparison. Compare each corrective recompile's steps/assertions
+against the other compiler's current compile; a new third independent compile is
+not required. Disclose feedback exposure. Stop early on a recurring finding
+signature per `.claude/rules/review-convergence.md`. [procedure: Principle 1]
 
 For scientific thresholds or unresolved intended behaviour, use the owner and
 fallback routes in `MAINTAINERS.md`. Record the question, evidence and decision
@@ -223,7 +311,8 @@ records name the recorded owner role and date, never an invented decision.
 
 ## 7. Pilot and follow-up boundary
 
-Use [pilot.md](references/pilot.md) for the transition guide and Getting Started
+Use [pilot.md](references/pilot.md) (coordinator-only; never read by compilers,
+diagnosticians or comparators) for the transition guide and Getting Started
 acceptance procedure. Retain the labels (#2181), code-text checks (#2182) and
 filed findings (#2177, #2178, #2179). After the pilot, draft revised texts for
 #2164, #2167 and #2161 for the software maintainer to inspect before any posting;

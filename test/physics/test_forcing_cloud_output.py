@@ -404,36 +404,34 @@ def _independent_dailystate_bins(
     output_step: int,
     native: pd.DataFrame | None = None,
 ) -> list[pd.Timestamp]:
-    """Derive all left-labelled DailyState bins by interval walking."""
+    """Derive all right-labelled DailyState bins by interval walking."""
     if native is not None:
         ds_native = native["DailyState"]
         ds_arr = ds_native.to_numpy(dtype=float)
         valid_mask = (
             np.isfinite(ds_arr) & ~np.equal(ds_arr, SUEWS_MISSING_SENTINEL)
         ).any(axis=1)
-        ds_unit = ds_native.index.unit
-        eod_days = [stamp.normalize() for stamp in ds_native.index[valid_mask]]
+        eod_stamps = list(ds_native.index[valid_mask])
+        origin_index = native.index
     else:
         native_step = pd.Timedelta(seconds=tstep)
-        ds_unit = forcing.index.unit
-        eod_days = [
-            stamp.normalize()
+        eod_stamps = [
+            stamp
             for stamp in forcing.index
             if (stamp + native_step).normalize() != stamp.normalize()
         ]
-    if not eod_days:
+        origin_index = forcing.index
+    if not eod_stamps:
         return []
+    if output_step == tstep:
+        return sorted(set(eod_stamps))
 
-    ds_origin = min(eod_days)
+    origin = (origin_index.min() - pd.Timedelta(1, origin_index.unit)).normalize()
     step = pd.Timedelta(seconds=output_step)
-    tick = pd.Timedelta(1, ds_unit)
     ds_all: set[pd.Timestamp] = set()
-    for day in eod_days:
-        period_end = day + pd.Timedelta(days=1) - tick
-        left, _ = _right_closed_interval_containing(
-            period_end, origin=ds_origin, step=step
-        )
-        ds_all.add(left)
+    for stamp in eod_stamps:
+        _, right = _right_closed_interval_containing(stamp, origin=origin, step=step)
+        ds_all.add(right)
     return sorted(ds_all)
 
 
@@ -446,7 +444,7 @@ def _independent_cloud_expectations(
 ) -> tuple[dict[pd.Timestamp, float], list[pd.Timestamp], list[pd.Timestamp]]:
     """Compute SUEWS bins and all/exclusive DailyState bins by interval walking."""
     step = pd.Timedelta(seconds=output_step)
-    origin = forcing.index[0].normalize()
+    origin = (forcing.index.min() - pd.Timedelta(1, forcing.index.unit)).normalize()
 
     grouped: dict[pd.Timestamp, list[float]] = {}
     for stamp, raw_value in zip(forcing.index, forcing["fcld"].to_numpy(dtype=float)):
@@ -564,11 +562,13 @@ def boundary_run(sample_config_loaded, sample_data_loaded):
 def _series_corruptions(
     series: pd.Series,
     *,
-    ds_stamp: pd.Timestamp,
+    stray_ds_stamp: pd.Timestamp,
     finite_bin: pd.Timestamp,
     all_missing_bin: pd.Timestamp,
 ) -> list[tuple[str, pd.Series]]:
     """Build named clock, missingness, and value corruptions for a resampled Series."""
+    unit = series.index.unit
+    stray_idx = pd.DatetimeIndex([stray_ds_stamp]).as_unit(unit)
     variants: list[tuple[str, pd.Series]] = [
         ("drop_finite_bin", series.drop(index=finite_bin)),
         ("drop_all_missing_bin", series.drop(index=all_missing_bin)),
@@ -577,7 +577,10 @@ def _series_corruptions(
         (
             "stray_leading_nan",
             pd.concat([
-                pd.Series([np.nan], index=pd.DatetimeIndex(["2012-01-01 22:00:00"])),
+                pd.Series(
+                    [np.nan],
+                    index=pd.DatetimeIndex(["2012-01-01 22:00:00"]).as_unit(unit),
+                ),
                 series,
             ]),
         ),
@@ -585,8 +588,15 @@ def _series_corruptions(
             "stray_trailing_nan",
             pd.concat([
                 series,
-                pd.Series([np.nan], index=pd.DatetimeIndex(["2012-01-02 03:00:00"])),
+                pd.Series(
+                    [np.nan],
+                    index=pd.DatetimeIndex(["2012-01-02 03:00:00"]).as_unit(unit),
+                ),
             ]),
+        ),
+        (
+            "stray_legacy_ds_nan",
+            pd.concat([pd.Series([np.nan], index=stray_idx), series]),
         ),
     ]
     for label, value in (
@@ -610,13 +620,14 @@ def _series_corruptions(
         filled_missing = series.copy()
         filled_missing.loc[all_missing_bin] = value
         variants.append((f"all_missing_filled_{label}", filled_missing))
-        extra_finite = series.copy()
-        extra_finite.loc[ds_stamp] = value
-        variants.append((f"ds_row_filled_{label}", extra_finite))
-    shifted = series.copy()
-    shifted.loc[ds_stamp] = series.loc[finite_bin]
+        extra_finite = pd.concat([pd.Series([value], index=stray_idx), series])
+        variants.append((f"stray_legacy_ds_filled_{label}", extra_finite))
+    shifted = pd.concat([
+        pd.Series([series.loc[finite_bin]], index=stray_idx),
+        series.copy(),
+    ])
     shifted.loc[finite_bin] = np.nan
-    variants.append(("shifted_finite_to_ds", shifted))
+    variants.append(("shifted_finite_to_legacy_ds", shifted))
     return variants
 
 
@@ -624,10 +635,10 @@ def _nonvalid_structural_corruptions(
     orphan_ds: pd.DataFrame,
     blank_missing_suews_bin: pd.DataFrame,
     *,
-    ds_stamp: pd.Timestamp,
+    ds_bin: pd.Timestamp,
     all_missing_bin: pd.Timestamp,
 ) -> list[tuple[str, pd.DataFrame]]:
-    """Build Inf/-Inf/-999-only structural-row and all-missing-bin corruptions."""
+    """Build Inf/-Inf/-999-only DailyState-bin and all-missing-bin corruptions."""
     variants: list[tuple[str, pd.DataFrame]] = []
     for tag, bad_val in (
         ("pos_inf", np.inf),
@@ -635,10 +646,10 @@ def _nonvalid_structural_corruptions(
         ("sentinel", SUEWS_MISSING_SENTINEL),
     ):
         ds_only_bad = orphan_ds.copy()
-        ds_only_bad.loc[ds_stamp, ("DailyState", "LAI_Grass")] = bad_val
+        ds_only_bad.loc[ds_bin, ("DailyState", "LAI_Grass")] = bad_val
         suews_bin_only_bad = blank_missing_suews_bin.copy()
         suews_bin_only_bad.loc[all_missing_bin, ("SUEWS", "QN")] = bad_val
-        variants.append((f"ds_structural_only_{tag}", ds_only_bad))
+        variants.append((f"ds_bin_only_{tag}", ds_only_bad))
         variants.append((f"suews_missing_bin_only_{tag}", suews_bin_only_bad))
     return variants
 
@@ -646,16 +657,21 @@ def _nonvalid_structural_corruptions(
 def _flat_suews_corruptions(
     suews_flat: pd.DataFrame,
     *,
-    ds_stamp: pd.Timestamp,
+    stray_ds_stamp: pd.Timestamp,
     all_missing_bin: pd.Timestamp,
 ) -> list[tuple[str, pd.DataFrame]]:
     """Build named corruptions for flat SUEWS frames including Inf/-999-only bins."""
-    flat_suews_on_ds = suews_flat.copy()
-    flat_suews_on_ds.loc[ds_stamp, "QN"] = 10.0
+    stray_row = pd.DataFrame(
+        np.nan,
+        index=pd.DatetimeIndex([stray_ds_stamp]).as_unit(suews_flat.index.unit),
+        columns=suews_flat.columns,
+    )
+    stray_row.loc[:, "QN"] = 10.0
+    flat_suews_on_stray_ds = pd.concat([stray_row, suews_flat])
     flat_blank_bin = suews_flat.copy()
     flat_blank_bin.loc[all_missing_bin, :] = np.nan
     variants: list[tuple[str, pd.DataFrame]] = [
-        ("flat_suews_on_ds", flat_suews_on_ds),
+        ("flat_suews_on_stray_ds", flat_suews_on_stray_ds),
         ("flat_blank_bin", flat_blank_bin),
     ]
     for tag, bad_val in (
@@ -672,21 +688,31 @@ def _flat_suews_corruptions(
 def _combined_frame_corruptions(
     combined: pd.DataFrame,
     *,
-    ds_stamp: pd.Timestamp,
+    ds_bin: pd.Timestamp,
+    stray_ds_stamp: pd.Timestamp,
     all_missing_bin: pd.Timestamp,
 ) -> list[tuple[str, pd.DataFrame]]:
-    """Build named combined-frame corruptions mixing structural rows and SUEWS bins."""
-    suews_on_ds = combined.copy()
-    suews_on_ds.loc[ds_stamp, ("SUEWS", "QN")] = 10.0
-    beers_on_ds = combined.copy()
-    beers_on_ds.loc[ds_stamp, ("BEERS", "Zenith")] = 45.0
+    """Build named combined-frame corruptions mixing DailyState and SUEWS bins."""
+    unit = combined.index.unit
+    stray_ds_row = pd.DataFrame(
+        np.nan,
+        index=pd.DatetimeIndex([stray_ds_stamp]).as_unit(unit),
+        columns=combined.columns,
+    )
+    suews_on_stray_ds = stray_ds_row.copy()
+    suews_on_stray_ds.loc[:, ("SUEWS", "QN")] = 10.0
+    beers_on_stray_ds = stray_ds_row.copy()
+    beers_on_stray_ds.loc[:, ("BEERS", "Zenith")] = 45.0
     orphan_ds = combined.copy()
-    orphan_ds.loc[ds_stamp, "DailyState"] = np.nan
-    other_group_only_on_ds = orphan_ds.copy()
-    other_group_only_on_ds.loc[ds_stamp, ("BEERS", "Zenith")] = 45.0
+    orphan_ds.loc[ds_bin, "DailyState"] = np.nan
+    spurious_ds_on_missing = combined.copy()
+    for col in combined["DailyState"].columns:
+        spurious_ds_on_missing.at[all_missing_bin, ("DailyState", col)] = combined.at[
+            ds_bin, ("DailyState", col)
+        ]
     stray_row = pd.DataFrame(
         np.nan,
-        index=pd.DatetimeIndex(["2012-01-01 22:00:00"]),
+        index=pd.DatetimeIndex(["2012-01-01 22:00:00"]).as_unit(unit),
         columns=combined.columns,
     )
     stray_row.loc[:, ("BEERS", "Zenith")] = 45.0
@@ -694,18 +720,18 @@ def _combined_frame_corruptions(
     blank_missing_suews_bin = combined.copy()
     blank_missing_suews_bin.loc[all_missing_bin, "SUEWS"] = np.nan
     return [
-        ("suews_populated_on_ds", suews_on_ds),
-        ("beers_populated_on_ds", beers_on_ds),
+        ("stray_legacy_ds_empty", pd.concat([stray_ds_row, combined])),
+        ("suews_populated_on_stray_ds", pd.concat([suews_on_stray_ds, combined])),
+        ("beers_populated_on_stray_ds", pd.concat([beers_on_stray_ds, combined])),
         ("orphan_empty_ds", orphan_ds),
-        ("other_group_only_on_ds", other_group_only_on_ds),
+        ("spurious_ds_on_non_ds_bin", spurious_ds_on_missing),
         ("stray_other_group_row", stray_other_group),
-        ("dropped_ds_row", combined.drop(index=ds_stamp)),
-        ("dropped_dailystate_group", combined.drop(columns="DailyState", level=0)),
+        ("dropped_ds_row", combined.drop(index=ds_bin)),
         ("blank_all_missing_suews_bin", blank_missing_suews_bin),
         *_nonvalid_structural_corruptions(
             orphan_ds,
             blank_missing_suews_bin,
-            ds_stamp=ds_stamp,
+            ds_bin=ds_bin,
             all_missing_bin=all_missing_bin,
         ),
     ]
@@ -750,7 +776,7 @@ def _independent_right_labelled_bins(
     populated = grp_native.index[valid_mask]
     if len(populated) == 0:
         return []
-    origin = native.index[0].normalize()
+    origin = (native.index.min() - pd.Timedelta(1, native.index.unit)).normalize()
     step = pd.Timedelta(seconds=output_step)
     bins: set[pd.Timestamp] = set()
     for stamp in populated:
@@ -1042,7 +1068,8 @@ def test_documented_utc_timestamp_reference_cloud_contract(boundary_run):
 
 def test_all_missing_no_eod_and_native_step_reject_corruptions(boundary_run):
     """Preserve all-missing bins and reject stray rows on no-EOD and native outputs."""
-    ds_stamp = pd.Timestamp("2012-01-01 23:00:00")
+    ds_bin = pd.Timestamp("2012-01-02 00:00:00")
+    stray_stamp = pd.Timestamp("2012-01-01 23:00:00")
     all_missing_bin = pd.Timestamp("2012-01-02 01:00:00")
 
     # All-missing partial midnight @ 3600s: dropping any required bin must fail.
@@ -1052,7 +1079,7 @@ def test_all_missing_no_eod_and_native_step_reject_corruptions(boundary_run):
     assert_forcing_cloud(series_miss, forcing_miss, tstep=tstep, output_step=3600)
     for bad_miss in (
         series_miss.drop(index=all_missing_bin),
-        series_miss.loc[[ds_stamp]],
+        series_miss.loc[[ds_bin]],
         series_miss.dropna(),
     ):
         with pytest.raises(AssertionError, match="Fcld"):
@@ -1074,7 +1101,7 @@ def test_all_missing_no_eod_and_native_step_reject_corruptions(boundary_run):
     # Native cadence with explicit output_step == tstep still forbids extra rows.
     forcing_mix, output_mix, _ = boundary_run("midnight_mixed")
     native_with_extra = pd.concat([
-        pd.Series([np.nan], index=pd.DatetimeIndex([ds_stamp])),
+        pd.Series([np.nan], index=pd.DatetimeIndex([stray_stamp])),
         output_mix.df.loc[1, ("SUEWS", "Fcld")],
     ])
     with pytest.raises(AssertionError, match="Fcld"):
@@ -1148,16 +1175,18 @@ def test_storage_unit_aggregated_clock_negative_controls(storage_unit_runs, unit
 def test_storage_unit_structural_and_series_corruptions(storage_unit_runs, unit):
     """All Series, combined-frame, and flat-SUEWS structural corruptions fail across units."""
     forcing, output, _ = storage_unit_runs[unit]
+    native = output.df.loc[1]
     resampled = output.resample("3600s")
     combined = resampled.df.loc[1]
     suews_flat = resampled.get_group("SUEWS").xs(1, level="grid")
-    ds_stamp = pd.Timestamp("2012-01-01 23:00:00")
+    ds_bin = pd.Timestamp("2012-01-02 00:00:00")
+    stray_ds_stamp = pd.Timestamp("2012-01-01 23:00:00")
     all_missing_bin = pd.Timestamp("2012-01-02 01:00:00")
 
     for label, bad_series in _series_corruptions(
         combined["SUEWS", "Fcld"],
-        ds_stamp=ds_stamp,
-        finite_bin=pd.Timestamp("2012-01-02 00:00:00"),
+        stray_ds_stamp=stray_ds_stamp,
+        finite_bin=ds_bin,
         all_missing_bin=all_missing_bin,
     ):
         with pytest.raises(AssertionError, match="Fcld"):
@@ -1165,14 +1194,28 @@ def test_storage_unit_structural_and_series_corruptions(storage_unit_runs, unit)
         assert label
 
     for label, bad_frame in _combined_frame_corruptions(
-        combined, ds_stamp=ds_stamp, all_missing_bin=all_missing_bin
+        combined,
+        ds_bin=ds_bin,
+        stray_ds_stamp=stray_ds_stamp,
+        all_missing_bin=all_missing_bin,
     ):
         with pytest.raises(AssertionError, match="Fcld"):
             assert_forcing_cloud(bad_frame, forcing, tstep=300, output_step=3600)
         assert label
 
+    with pytest.raises(AssertionError, match="DailyState"):
+        assert_forcing_cloud(
+            combined.drop(columns="DailyState", level=0),
+            forcing,
+            tstep=300,
+            output_step=3600,
+            native=native,
+        )
+
     for label, bad_flat in _flat_suews_corruptions(
-        suews_flat, ds_stamp=ds_stamp, all_missing_bin=all_missing_bin
+        suews_flat,
+        stray_ds_stamp=stray_ds_stamp,
+        all_missing_bin=all_missing_bin,
     ):
         with pytest.raises(AssertionError, match="Fcld"):
             assert_forcing_cloud(bad_flat, forcing, tstep=300, output_step=3600)
@@ -1408,31 +1451,36 @@ def _assert_row_dailystate_mutations(
 
 
 def test_overlapping_and_exclusive_dailystate_resample_controls(seven_hour_overlap_run):
-    """Full DailyState erasure fails on both overlapping and exclusive resampled rows."""
+    """Right-labelled DailyState aligns with SUEWS bins across 7-hour and 25-hour cadences."""
     forcing, output = seven_hour_overlap_run
     native = output.df.loc[1]
     combined = output.resample("25200s").df.loc[1]
 
-    exclusive_ts = pd.Timestamp("2012-01-04 21:00:00")
-    overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
+    day1_ts = pd.Timestamp("2012-01-05 04:00:00")
+    day2_ts = pd.Timestamp("2012-01-06 01:00:00")
     suews_only_ts = pd.Timestamp("2012-01-05 11:00:00")
 
-    # Confirm the authentic 7-hour resample exposes one exclusive and one overlapping row.
-    assert combined["SUEWS"].loc[exclusive_ts].isna().all()
-    assert combined["SUEWS"].loc[overlap_ts].notna().all()
-    assert combined["SUEWS", "Fcld"].loc[overlap_ts] == pytest.approx(
-        0.6, abs=1e-15, rel=0
+    # Confirm the 7-hour right-labelled resample aligns both DailyState rows onto
+    # SUEWS bins with zero exclusive legacy left-labelled rows.
+    assert pd.Timestamp("2012-01-04 21:00:00") not in combined.index
+    assert combined["SUEWS"].loc[day1_ts].notna().all()
+    assert combined["SUEWS"].loc[day2_ts].notna().all()
+    assert combined["SUEWS", "Fcld"].loc[day1_ts] == pytest.approx(
+        0.4, abs=1e-15, rel=0
+    )
+    assert combined["SUEWS", "Fcld"].loc[day2_ts] == pytest.approx(
+        0.8, abs=1e-15, rel=0
     )
     np.testing.assert_array_equal(
         native["DailyState"].loc[pd.Timestamp("2012-01-04 23:55:00")].to_numpy(),
-        combined["DailyState"].loc[exclusive_ts].to_numpy(),
+        combined["DailyState"].loc[day1_ts].to_numpy(),
     )
     np.testing.assert_array_equal(
         native["DailyState"].loc[pd.Timestamp("2012-01-05 23:55:00")].to_numpy(),
-        combined["DailyState"].loc[overlap_ts].to_numpy(),
+        combined["DailyState"].loc[day2_ts].to_numpy(),
     )
 
-    # Intact positive controls pass across 7-hour and 25-hour (both overlap+exclusive).
+    # Intact positive controls pass across 7-hour and 25-hour cadences.
     _assert_dailystate_mutation_accepted(
         combined, forcing, native, output_step=25200, label="7h-intact"
     )
@@ -1445,11 +1493,11 @@ def test_overlapping_and_exclusive_dailystate_resample_controls(seven_hour_overl
         forcing,
         native,
         output_step=90000,
-        label="25h-overlap-erased",
+        label="25h-day1-erased",
     )
 
-    # Full erasure and non-valid-only corruptions fail on BOTH exclusive and overlapping.
-    for tag, target_ts in (("exclusive", exclusive_ts), ("overlap", overlap_ts)):
+    # Full erasure and non-valid-only corruptions fail on BOTH DailyState rows.
+    for tag, target_ts in (("day1", day1_ts), ("day2", day2_ts)):
         _assert_row_dailystate_mutations(
             combined, forcing, native, target_ts=target_ts, tag=tag
         )
@@ -1458,22 +1506,22 @@ def test_overlapping_and_exclusive_dailystate_resample_controls(seven_hour_overl
     spurious = combined.copy()
     for col in combined["DailyState"].columns:
         spurious.at[suews_only_ts, ("DailyState", col)] = combined.at[
-            overlap_ts, ("DailyState", col)
+            day2_ts, ("DailyState", col)
         ]
     _assert_dailystate_mutation_rejected(
         spurious, forcing, native, output_step=25200, label="7h-spurious"
     )
     _assert_dailystate_mutation_rejected(
-        _erase_dailystate_row(spurious, overlap_ts),
+        _erase_dailystate_row(spurious, day2_ts),
         forcing,
         native,
         output_step=25200,
         label="7h-shifted",
     )
 
-    # Cloud and SUEWS discriminators on the overlapping row remain enforced.
+    # Cloud and SUEWS discriminators on a shared SUEWS+DailyState row remain enforced.
     wrong_fcld = combined.copy()
-    wrong_fcld.at[overlap_ts, ("SUEWS", "Fcld")] = 0.83
+    wrong_fcld.at[day2_ts, ("SUEWS", "Fcld")] = 0.83
     with pytest.raises(AssertionError, match="Fcld"):
         assert_forcing_cloud(wrong_fcld, forcing, tstep=300, output_step=25200)
     with pytest.raises(AssertionError):
@@ -1482,7 +1530,7 @@ def test_overlapping_and_exclusive_dailystate_resample_controls(seven_hour_overl
         )
     erased_suews = combined.copy()
     for col in combined["SUEWS"].columns:
-        erased_suews.at[overlap_ts, ("SUEWS", col)] = np.nan
+        erased_suews.at[day2_ts, ("SUEWS", col)] = np.nan
     with pytest.raises(AssertionError, match="Fcld"):
         assert_forcing_cloud(erased_suews, forcing, tstep=300, output_step=25200)
 
@@ -1490,17 +1538,16 @@ def test_overlapping_and_exclusive_dailystate_resample_controls(seven_hour_overl
 def test_native_dailystate_subset_origin_and_contract_boundaries(
     seven_hour_overlap_run,
 ):
-    """Native occurrence tracks shifted origin and preserves SUEWS-only caller contracts."""
+    """Native subset keeps the shared grid origin and preserves SUEWS-only caller contracts."""
     forcing, output = seven_hour_overlap_run
     native = output.df.loc[1]
     resampled = output.resample("25200s")
     combined = resampled.df.loc[1]
-    exclusive_ts = pd.Timestamp("2012-01-04 21:00:00")
-    overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
+    day1_ts = pd.Timestamp("2012-01-05 04:00:00")
+    day2_ts = pd.Timestamp("2012-01-06 01:00:00")
 
     # Pure SUEWS-only, flat SUEWS, and Series callers keep forcing-only cloud contracts.
-    suews_bins = combined.index.drop(exclusive_ts)
-    suews_only = combined.drop(columns="DailyState", level=0).loc[suews_bins]
+    suews_only = combined.drop(columns="DailyState", level=0)
     assert_forcing_cloud(suews_only, forcing, tstep=300, output_step=25200)
     assert_forcing_cloud(combined["SUEWS"], forcing, tstep=300, output_step=25200)
     assert_forcing_cloud(
@@ -1520,7 +1567,7 @@ def test_native_dailystate_subset_origin_and_contract_boundaries(
         )
 
     # Native subset occurrence: if Day 1 DailyState is absent natively, public resample
-    # anchors DailyState at Day 2 midnight (label 2012-01-05 21:00, exclusive of SUEWS).
+    # keeps the shared per-grid origin so Day 2 stays on 2012-01-06 01:00 (matching SUEWS).
     day2_only_native_df = _erase_dailystate_row(
         output.df, (1, pd.Timestamp("2012-01-04 23:55:00"))
     )
@@ -1529,11 +1576,10 @@ def test_native_dailystate_subset_origin_and_contract_boundaries(
     ).resample("25200s")
     day2_only_native = day2_only_native_df.loc[1]
     day2_only_comb = day2_only_res.df.loc[1]
-    shifted_ds_ts = pd.Timestamp("2012-01-05 21:00:00")
-    assert shifted_ds_ts in day2_only_comb.index
-    assert overlap_ts in day2_only_comb.index
-    assert day2_only_comb["DailyState"].loc[overlap_ts].isna().all()
-    assert day2_only_comb["DailyState"].loc[shifted_ds_ts].notna().any()
+    assert day1_ts in day2_only_comb.index
+    assert day2_ts in day2_only_comb.index
+    assert day2_only_comb["DailyState"].loc[day1_ts].isna().all()
+    assert day2_only_comb["DailyState"].loc[day2_ts].notna().any()
 
     assert_dailystate_group_occurrence(
         day2_only_comb, day2_only_native, tstep=300, output_step=25200
@@ -1555,7 +1601,7 @@ def test_native_dailystate_subset_origin_and_contract_boundaries(
     )
     with pytest.raises(AssertionError, match="DailyState"):
         assert_dailystate_group_occurrence(
-            _erase_dailystate_row(day2_only_comb, shifted_ds_ts),
+            _erase_dailystate_row(day2_only_comb, day2_ts),
             day2_only_native,
             tstep=300,
             output_step=25200,
@@ -1636,15 +1682,15 @@ def test_active_non_dailystate_group_occurrence_and_column_controls(
     forcing, output = seven_hour_overlap_run
     native = output.df.loc[1]
     combined = output.resample("25200s").df.loc[1]
-    overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
-    final_bin_ts = pd.Timestamp("2012-01-06 01:00:00")
+    overlap_ts = pd.Timestamp("2012-01-06 01:00:00")
+    non_overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
 
     # Intact frame passes with active BEERS/RSL/debug and inactive optional groups.
     _assert_active_group_accepted(
         combined, forcing, native, output_step=25200, label="7h-active-intact"
     )
 
-    # Erasing BEERS, RSL, or debug on the overlapping 18:00 row while keeping
+    # Erasing BEERS, RSL, or debug on the overlapping 01:00 row while keeping
     # SUEWS and DailyState intact must fail across all aggregate checks.
     for grp, sample_col in (
         ("BEERS", "azimuth"),
@@ -1693,14 +1739,14 @@ def test_active_non_dailystate_group_occurrence_and_column_controls(
             label=f"7h-{grp}-dropped-col",
         )
 
-    # Erasing BEERS on the final non-overlap bin and dropping SUEWS/DailyState columns.
+    # Erasing BEERS on a non-overlap bin and dropping SUEWS/DailyState columns.
     _assert_active_group_mutation_rejected(
-        _erase_group_row(combined, "BEERS", final_bin_ts),
+        _erase_group_row(combined, "BEERS", non_overlap_ts),
         forcing,
         native,
         output_step=25200,
         group="BEERS",
-        label="7h-BEERS-final-erased",
+        label="7h-BEERS-non-overlap-erased",
     )
     for grp, col in (("SUEWS", "QH"), ("DailyState", "LAI_Grass")):
         _assert_active_group_mutation_rejected(
@@ -1746,7 +1792,7 @@ def test_dailystate_occurrence_ehc_legitimate_missing_fields(
     """Authentic EHC leaves DailyState a1/a2/a3 NaN; intact passes and erasures fail."""
     _, sample = sample_data_loaded
     forcing = _seven_hour_overlap_forcing(sample)
-    overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
+    overlap_ts = pd.Timestamp("2012-01-06 01:00:00")
 
     cfg_ehc = sample_config_loaded.model_copy(deep=True)
     cfg_ehc.model.physics.storage_heat = StorageHeatMethod.EHC
@@ -1817,7 +1863,7 @@ def test_active_snow_group_occurrence_and_erasure_controls(
     """Authentic snow_use=1 enforces resampled snow group occurrence and columns."""
     _, sample = sample_data_loaded
     forcing = _seven_hour_overlap_forcing(sample)
-    overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
+    overlap_ts = pd.Timestamp("2012-01-06 01:00:00")
 
     cfg_snow = sample_config_loaded.model_copy(deep=True)
     cfg_snow.model.physics.snow_use = SnowUse(1)
@@ -1873,7 +1919,7 @@ def test_active_snow_group_occurrence_and_erasure_controls(
 
 
 def test_dailystate_occurrence_multiday_and_no_eod_partial_bins(boundary_run):
-    """Daily overlap, two-day merged bins, and no-EOD partial windows enforce occurrence."""
+    """Daily bins, two-day merged bins, and no-EOD partial windows enforce occurrence."""
     forcing_2d, out_2d, tstep_2d = boundary_run("leap_two_day_mixed")
     assert tstep_2d == 300
     native_2d = out_2d.df.loc[1]
@@ -1883,18 +1929,18 @@ def test_dailystate_occurrence_multiday_and_no_eod_partial_bins(boundary_run):
         forcing_2d,
         native_2d,
         output_step=86400,
-        label="2d-daily-overlap-erased",
+        label="2d-daily-day1-erased",
     )
     _assert_dailystate_mutation_rejected(
-        _erase_dailystate_row(daily_2d, pd.Timestamp("2012-02-28 00:00:00")),
+        _erase_dailystate_row(daily_2d, pd.Timestamp("2012-03-01 00:00:00")),
         forcing_2d,
         native_2d,
         output_step=86400,
-        label="2d-daily-exclusive-erased",
+        label="2d-daily-day2-erased",
     )
     merged_2d = out_2d.resample("172800s").df.loc[1]
     _assert_dailystate_mutation_rejected(
-        _erase_dailystate_row(merged_2d, pd.Timestamp("2012-02-28 00:00:00")),
+        _erase_dailystate_row(merged_2d, pd.Timestamp("2012-03-01 00:00:00")),
         forcing_2d,
         native_2d,
         output_step=172800,
@@ -1916,8 +1962,8 @@ def test_dailystate_occurrence_distinguishable_multigrid(
     """Distinguishable grids check DailyState and active groups across units and mutations."""
     _, sample = sample_data_loaded
     forcing = _seven_hour_overlap_forcing(sample)
-    exclusive_ts = pd.Timestamp("2012-01-04 21:00:00")
-    overlap_ts = pd.Timestamp("2012-01-05 18:00:00")
+    day1_ts = pd.Timestamp("2012-01-05 04:00:00")
+    day2_ts = pd.Timestamp("2012-01-06 01:00:00")
 
     cfg_mg = sample_config_loaded.model_copy(deep=True)
     site_11 = cfg_mg.sites[0].model_copy(deep=True)
@@ -1938,8 +1984,8 @@ def test_dailystate_occurrence_distinguishable_multigrid(
     )
     res_mg = out_mg.resample("25200s").df
     assert not np.isclose(
-        res_mg.at[(11, overlap_ts), ("DailyState", "LAI_Grass")],
-        res_mg.at[(29, overlap_ts), ("DailyState", "LAI_Grass")],
+        res_mg.at[(11, day2_ts), ("DailyState", "LAI_Grass")],
+        res_mg.at[(29, day2_ts), ("DailyState", "LAI_Grass")],
     )
     assert_dailystate_group_occurrence(res_mg, out_mg.df, tstep=300, output_step=25200)
     assert_output_group_occurrence(res_mg, out_mg.df, tstep=300, output_step=25200)
@@ -1958,25 +2004,25 @@ def test_dailystate_occurrence_distinguishable_multigrid(
     )
     assert_output_group_occurrence(res_mg_s, out_mg.df, tstep=300, output_step=25200)
 
-    # Erasing Grid 29 overlapping DailyState or Grid 11 exclusive DailyState fails loudly.
+    # Erasing Grid 29 day-2 DailyState or Grid 11 day-1 DailyState fails loudly.
     with pytest.raises(AssertionError, match=r"DailyState\[grid=29\]"):
         assert_dailystate_group_occurrence(
-            _erase_dailystate_row(res_mg, (29, overlap_ts)),
+            _erase_dailystate_row(res_mg, (29, day2_ts)),
             out_mg.df,
             tstep=300,
             output_step=25200,
         )
     with pytest.raises(AssertionError, match=r"DailyState\[grid=11\]"):
         assert_dailystate_group_occurrence(
-            _erase_dailystate_row(res_mg, (11, exclusive_ts)),
+            _erase_dailystate_row(res_mg, (11, day1_ts)),
             out_mg.df,
             tstep=300,
             output_step=25200,
         )
-    # Erasing Grid 29 BEERS at 18:00 or dropping RSL fails multi-grid group occurrence.
+    # Erasing Grid 29 BEERS at day-2 bin or dropping RSL fails multi-grid group occurrence.
     with pytest.raises(AssertionError, match=r"OutputGroup\[grid=29\].*BEERS"):
         assert_output_group_occurrence(
-            _erase_group_row(res_mg, "BEERS", (29, overlap_ts)),
+            _erase_group_row(res_mg, "BEERS", (29, day2_ts)),
             out_mg.df,
             tstep=300,
             output_step=25200,

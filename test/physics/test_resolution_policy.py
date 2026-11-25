@@ -475,7 +475,7 @@ def _assert_aggregated_overlap_erasure_rejected(
     output_freq: int,
 ) -> None:
     """Prove erasing day-2 DailyState or BEERS fails while Fcld and Rain stay intact."""
-    overlap_ts = pd.Timestamp("2012-01-03 00:00:00") - pd.Timedelta(seconds=output_freq)
+    overlap_ts = pd.Timestamp("2012-01-03 00:00:00")
     for group_name in ("DailyState", "BEERS"):
         erased = aggregated_grid.copy()
         for col in erased[group_name].columns:

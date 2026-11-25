@@ -210,7 +210,7 @@ def test_downsampling_preserves_missing_sums_means_and_last_values():
 
 def test_dailystate_resampling_preserves_missing_sums_and_last_states():
     """DailyState keeps all-missing P_day as NaN and propagates partial-day LAST NaNs."""
-    # ARRANGE: 10 days -> 5 two-day bins (2024-01-01, 01-03, 01-05, 01-07, 01-09).
+    # ARRANGE: 10 days -> 5 two-day bins (2024-01-03, 01-05, 01-07, 01-09, 01-11).
     # - Bin 0 (Days 1-2): P_day all-NaN -> NaN (never 0.0); HDD3_Tmean -> last (14.0).
     # - Bin 1 (Days 3-4): Day 3 has genuine P_day=0.0; Day 4 is all-NaN and dropped
     #   by dropna(how="all"), leaving Day 3's genuine 0.0 and 16.0.
@@ -250,7 +250,8 @@ def test_dailystate_resampling_preserves_missing_sums_and_last_states():
     df_2d = SUEWSOutput(df_output, pd.DataFrame()).resample("2D").df
 
     # ASSERT (1-day): partial-NaN days survive; all-missing P_day stays NaN.
-    daily_dates = pd.date_range("2024-01-01", periods=10, freq="D")
+    # Day D is labelled D+1 00:00 (closed="right", label="right").
+    daily_dates = pd.date_range("2024-01-02", periods=10, freq="D")
     for grid, scale in ((1, 1.0), (2, 2.0)):
         ds_daily = df_daily.xs(grid, level="grid")["DailyState"].reindex(daily_dates)
         expected_p = np.asarray(p_day, dtype=float) * scale
@@ -270,7 +271,7 @@ def test_dailystate_resampling_preserves_missing_sums_and_last_states():
 
     # ASSERT (2-day): all-missing sums, genuine zeroes, trailing LAST NaNs, and
     # interior empty gaps all match the expected missingness contract.
-    bin_dates = pd.date_range("2024-01-01", periods=5, freq="2D")
+    bin_dates = pd.date_range("2024-01-03", periods=5, freq="2D")
     expected_2d_p = np.array([np.nan, 0.0, 4.0, np.nan, 3.5])
     expected_2d_hdd = np.array([14.0, 16.0, np.nan, np.nan, 26.0])
     for grid, scale in ((1, 1.0), (2, 2.0)):

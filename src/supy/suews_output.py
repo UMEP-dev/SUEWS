@@ -720,14 +720,13 @@ class SUEWSOutput:
         - Accumulated variables: sum
         - State variables: last
 
-        Each value covers the left-open, right-closed interval
-        ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``). At fixed frequencies, DailyState
-        uses the start of the bin containing the day's last model step.
-        For a last step at 23:55, that label is 23:00 for hourly output or
-        00:00 on the same day for daily output. At calendar frequencies
-        (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
-        label. See :ref:`timestamp_convention`.
+        Every output group, including ``DailyState``, covers the left-open,
+        right-closed interval ``(t - freq, t]`` and is labelled by its end
+        ``t`` (``closed="right", label="right"``) at both fixed and calendar
+        frequencies (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``). At hourly and
+        daily frequencies, day ``D``'s ``DailyState`` row is therefore
+        labelled ``D+1 00:00``, aligning on the same row as ``SUEWS``.
+        See :ref:`timestamp_convention`.
 
         Parameters
         ----------

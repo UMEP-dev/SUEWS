@@ -37,7 +37,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always active for every site; validate_site_required_fields lists all 11 scalars as required.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2101"
@@ -204,7 +204,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when storage_heat uses OHM (1) or DyOHM (6).",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001",
@@ -256,7 +256,7 @@
       },
       "category": "active_gap",
       "active_condition": "OHM thresholds are active under OHM/DyOHM (storage_heat=1,6); AnOHM parameters are active under storage_heat=3.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -357,7 +357,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active under emissions=12 (CO2 emissions enabled); emission_co2_point_source is already rejected on all 3 mutations.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001",
@@ -419,7 +419,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for vegetated surfaces (evetr, dectr, grass) with sfr > 0 under emissions=12; omitting theta_bio_co2 or beta_bio_co2 produces NaN FcPhoto/Fc.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001",
@@ -442,7 +442,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for vegetated surfaces under biogenic CO2 methods; omit emits defaults while Optional[...] allows explicit null.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -733,7 +733,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); wall/window/ground STEBBS fields already reject explicit nulls.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -944,7 +944,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when EHC (storage_heat=5) or DyOHM (storage_heat=6) evolves surface/inner temperatures.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -994,7 +994,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active whenever at least one actual simulation date satisfies water_use=modelled (WaterUseMethod==0), Fortran DayWat(wd)==1.0 (wd from Day_Of_Week: 1=Sun..7=Sat indexed into [sunday..saturday]), AND Fortran hemispheric season (lat>=0: ie_start-1 <= doy <= ie_end+1; lat<0: not(ie_end <= doy <= ie_start)), independent of faut or irrigation_fraction: update_WaterUse (suews_phys_dailystate.f95) adds ponding demand WUDay_P unconditionally to WUDay_A/WUDay_total.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001",
@@ -1044,7 +1044,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when water_use=modelled (WaterUseMethod==0) with irrigation.daywat.* == 1.0 (ie_start/ie_end gate update_WaterUse at suews_phys_dailystate.f95:593-602; internalwateruse_h splits total water use when wu > 0 at suews_phys_waterdist.f95:1420-1437).",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001",
@@ -1093,7 +1093,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active under modelled irrigation (irrigation_and_dls anchor); omit emits 0.0 while Optional[...] allows explicit null.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1147,7 +1147,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for DayProfile and WeeklyProfile scalar fields (omit emits defaults and wrapped_null rejects, while bare_null drops the key).",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2101"
@@ -1178,7 +1178,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active for 24-hour diurnal profiles; setting an hour slot to null passes validation and emits null into engine YAML.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2101"
@@ -1203,7 +1203,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting or nulling a 10-minute slot passes validation.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1284,7 +1284,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when storage_heat = 5 (EHC) on spartacus_ehc_stebbs.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1306,7 +1306,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when storage_heat = 6 (DyOHM) on observed_and_dyohm; bare_null is already rejected for bldgs thermal layers.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1404,7 +1404,7 @@
       },
       "category": "active_gap",
       "active_condition": "Active when net_radiation = 1003 (SPARTACUS) on spartacus_ehc_stebbs.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1455,7 +1455,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always active for every site; hdd_id is a fixed 12-slot heating/cooling degree-day state vector.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
@@ -1482,7 +1482,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always triggered when {value: null} is supplied on vegetated LAI parameters.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991"
       ],
@@ -1529,7 +1529,7 @@
       },
       "category": "active_gap",
       "active_condition": "Always triggered when {value: null} is supplied on a 24-hour or 144-step profile slot.",
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "related_issues": [
         "#1991"
       ],

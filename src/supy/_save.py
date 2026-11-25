@@ -482,9 +482,9 @@ def _row_label(line: str) -> Optional[pd.Timestamp]:
 def _keep_rows_up_to(path_out: Path, end_last: pd.Timestamp, header: str) -> bool:
     """Keep only the rows of a saved text file labelled at or before *end_last*.
 
-    Saved rows are labelled by the end of the period they cover (DailyState
-    by the last step of its day), so these are the rows a run ending at
-    *end_last* produces. The header and the leading rows up to *end_last* are
+    Saved rows are labelled by the end of the period they cover (every group,
+    DailyState included), so these are the rows a run ending at *end_last*
+    produces. The header and the leading rows up to *end_last* are
     kept; the first row past it, an incomplete line, and everything after
     are dropped. The file is rewritten beside itself and renamed over, so an
     interruption leaves it either as it was or trimmed, and trimming again
@@ -796,10 +796,9 @@ def _gen_df_year(
     else:
         df_year = df_grid_group if columns is None else df_grid_group[columns]
         df_year = df_year.loc[f"{year}"].copy(deep=False)
-    # shift back to align with SUEWS convention; DailyState holds
-    # end-of-day values and is not shifted
-    if group != "DailyState" and not timestamps_are_final:
-        if df_year.index.freq is None and step_s is not None:
+    # shift back to align with SUEWS end-of-period convention
+    if not timestamps_are_final:
+        if step_s is not None:
             df_year.index = df_year.index + pd.Timedelta(seconds=step_s)
         else:
             df_year.index = df_year.index.shift(1)
@@ -959,19 +958,20 @@ def _save_row_index(
         index = index.remove_unused_levels()
         idx_dt = index.get_level_values("datetime").drop_duplicates()
 
-        # cast freq to index if not associated
-        if idx_dt.freq is None:
-            ser_idx = idx_dt.to_series()
-            if len(ser_idx) > 1:
-                freq = ser_idx.diff().iloc[-1]
-                idx_dt = ser_idx.asfreq(freq).index
-            else:
-                idx_dt = ser_idx.index
-
-        if len(idx_dt) > 1:
-            idx_dt = idx_dt.shift(-1)
-        elif step_s is not None:
+        if step_s is not None:
+            # Shift by the known period length rather than inferring a cadence
+            # from consecutive stamps, which would over-shift across gaps (e.g.
+            # a missing day in DailyState moving 2 Jan back into the prior year).
             idx_dt = idx_dt - pd.Timedelta(seconds=step_s)
+        else:
+            if idx_dt.freq is None and len(idx_dt) > 1:
+                ser_idx = idx_dt.to_series()
+                freq = ser_idx.diff().iloc[-1]
+                idx_asfreq = ser_idx.asfreq(freq).index
+                if len(idx_asfreq) == len(idx_dt):
+                    idx_dt = idx_asfreq
+            if len(idx_dt) > 1 and idx_dt.freq is not None:
+                idx_dt = idx_dt.shift(-1)
 
         index = index.set_levels(idx_dt, level="datetime")
     return _relabel_output_index(
@@ -992,6 +992,7 @@ def _save_groups(
     step_s=None,
     metadata_interval_s=None,
     streamed_files: Optional[StreamedTextFiles] = None,
+    index_final: Optional[pd.MultiIndex] = None,
 ) -> list:
     """Save ``list_group`` of ``df_save`` one grid, group and year at a time.
 
@@ -999,7 +1000,9 @@ def _save_groups(
     Each group is taken as a view of ``df_save``, so the working set is one
     group-year rather than a copy of the table (gh#1849). *step_s* is the
     table's step, for tables of a single row; *streamed_files* is passed to
-    :func:`save_df_grid_group`.
+    :func:`save_df_grid_group`. *index_final* holds the final relabelled row
+    timestamps (without the temporary period-start shift) for DailyState
+    coverage metadata lookups.
     """
     list_grid = index.get_level_values("grid").unique()
     # Every labelled year is written: once moved to the start of their
@@ -1021,11 +1024,14 @@ def _save_groups(
             if group == "DailyState":
                 coverage = attrs_save.get("supy_output_daily_coverage_s")
                 if coverage is not None:
+                    coverage_index = index_final if index_final is not None else index
                     daily_coverage_grid = {
                         f"{grid}|{new_date.isoformat()}": coverage[
                             f"{grid}|{date.isoformat()}"
                         ]
-                        for (old_grid, date), (_, new_date) in zip(df_save.index, index)
+                        for (old_grid, date), (_, new_date) in zip(
+                            df_save.index, coverage_index
+                        )
                         if old_grid == grid and f"{grid}|{date.isoformat()}" in coverage
                     }
             idx_asfreq = None if group == "DailyState" else _grid_asfreq_index(
@@ -1215,15 +1221,30 @@ def save_df_output(
     if not save_snow:
         list_group_save = [g for g in list_group_save if g != "snow"]
 
-    # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
+    # Extract DailyState at daily resolution (closed="right", label="right"),
+    # so day D is labelled D+1 00:00 like every other daily output group.
+    # Only pass freq_source when it came from df_state_final so _resample_output
+    # keeps the true source (attrs vs index) for sparse native DailyState rows.
+    freq_from_state = (
+        pd.Timedelta(held_s, "s")
+        if held_s is not None and held.source == "state"
+        else None
+    )
     df_dailystate = None
     if "DailyState" in list_group_save:
         _check_dailystate_interval(held_s)
-        df_dailystate = _dailystate_rows(df_output)
+        df_daily_rsmp = _resample_output(
+            df_output,
+            pd.Timedelta(86400, "s"),
+            groups=["DailyState"],
+            freq_source=freq_from_state,
+        )
+        df_dailystate = _dailystate_rows(strip_attrs(df_daily_rsmp))
+        df_dailystate.attrs = copy_attrs_except(df_daily_rsmp.attrs)
     list_group_no_daily = [g for g in list_group_save if g != "DailyState"]
     if list_group_no_daily:
         # Only these groups are resampled to `freq_s`; DailyState rows are
-        # written as held, so a DailyState-only save leaves `freq_s` unused.
+        # written at daily resolution, so a DailyState-only save leaves `freq_s` unused.
         _check_save_frequency(held_s, freq_s)
 
     # resample `df_output` at `freq_save` (excluding DailyState); at the
@@ -1233,7 +1254,7 @@ def save_df_output(
     if list_group_no_daily:
         df_rsmp = _resample_output(
             df_output, freq_save, groups=list_group_no_daily,
-            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+            freq_source=freq_from_state,
         )
         list_group_rsmp = [
             g
@@ -1243,18 +1264,21 @@ def save_df_output(
 
     # tables to save: (table, its groups to save, fallback frequency)
     if save_tstep:
-        # both original and resampled output dataframes
+        # both original and resampled output dataframes; DailyState always
+        # uses the daily right-labelled table (D+1 00:00)
         list_df_save = []
-        if list_group_save:
+        if list_group_no_daily:
             # Preserve the historical five-minute singleton fallback when the
             # native cadence cannot be inferred from more than one timestamp.
-            list_df_save.append((df_output, list_group_save, 300))
+            list_df_save.append((df_output, list_group_no_daily, 300))
+        if df_dailystate is not None:
+            list_df_save.append((df_dailystate, ["DailyState"], 86400))
         # At the native timestep the "resampled" table is the native table and
         # its groups are among the ones the first pass saves, so saving it
         # again would only rewrite the same files and list them twice
         # (gh#1849).
         is_native_repeat = df_rsmp is df_output and set(list_group_rsmp) <= set(
-            list_group_save
+            list_group_no_daily
         )
         if df_rsmp is not None and list_group_rsmp and not is_native_repeat:
             list_df_save.append((df_rsmp, list_group_rsmp, freq_s))
@@ -1278,24 +1302,35 @@ def save_df_output(
             if timestamps_are_final
             else None
         )
-        # Check if this is DailyState-only data
-        is_dailystate_only = len(list_group) > 0 and all(
-            group == "DailyState" for group in list_group
-        )
-        # For regular output data, shift temporal index to make timestamps
-        # indicating the start of periods; DailyState already represents
-        # daily values and is not shifted
-        index_save = _save_row_index(
-            df_save.index,
-            not is_dailystate_only and not timestamps_are_final,
-            timestamp_reference,
-            forcing_timestamp_reference,
-            df_state_final,
-            step_s=fallback_frequency_s,
-        )
         metadata_interval_s = fallback_frequency_s
         if save_tstep and df_save is df_output:
             metadata_interval_s = held_s
+        shift_step_s = (
+            int(metadata_interval_s)
+            if metadata_interval_s is not None
+            else fallback_frequency_s
+        )
+        # Shift temporal index back by one step so rows are grouped into
+        # calendar-year files by interval start, then restored to period end
+        # in _gen_df_year (applies uniformly to every group, DailyState included).
+        index_save = _save_row_index(
+            df_save.index,
+            not timestamps_are_final,
+            timestamp_reference,
+            forcing_timestamp_reference,
+            df_state_final,
+            step_s=shift_step_s,
+        )
+        index_final = (
+            _relabel_output_index(
+                df_save.index,
+                timestamp_reference,
+                forcing_timestamp_reference,
+                df_state_final,
+            )
+            if "DailyState" in list_group
+            else None
+        )
         df_written = prepare_output(df_save, interval_s=metadata_interval_s, write=True)
         list_path_save += _save_groups(
             df_written,
@@ -1307,9 +1342,10 @@ def save_df_output(
             timestamp_reference,
             timestamps_are_final=timestamps_are_final,
             dict_group_frequency_s=dict_group_frequency_s,
-            step_s=fallback_frequency_s,
+            step_s=shift_step_s,
             metadata_interval_s=metadata_interval_s,
             streamed_files=streamed_files,
+            index_final=index_final,
         )
     return list_path_save
 
@@ -1655,18 +1691,22 @@ def _parquet_chunk_frame(
 ) -> pd.DataFrame:
     """Return the rows one chunk of a streamed run writes to Parquet.
 
-    Every group but DailyState is resampled to *freq_save* (left as it is at
-    the model timestep *tstep_s*), keeping a row for every output interval
-    even where those groups hold no value, as a run saved whole has one;
-    DailyState keeps its own rows, the last step of each day, as the text
-    output keeps them, rather than being resampled. Columns follow
-    ``df_output``; rows are sorted by grid, then time.
+    Every group -- DailyState included -- is resampled to *freq_save* using the
+    shared ``closed="right", label="right"`` rule (left as it is at the model
+    timestep *tstep_s*). Non-DailyState groups keep a row for every output
+    interval even where they hold no value, as a run saved whole does;
+    DailyState lands on the same end-of-period timestamps (``D+1 00:00`` at
+    hourly and daily frequencies), so streamed and unstreamed Parquet share the
+    exact same row labels. Columns follow ``df_output``; rows are sorted by
+    grid, then time.
     """
     ser_group = df_output.columns.get_level_values("group")
     list_main = [g for g in ser_group.unique() if g != "DailyState"]
+    freq_source = pd.Timedelta(tstep_s, "s") if tstep_s is not None else None
     list_frame = []
+    df_main = None
+    df_daily = None
     if list_main:
-        freq_source = pd.Timedelta(tstep_s, "s") if tstep_s is not None else None
         df_main = _resample_output(
             df_output,
             freq_save,
@@ -1677,28 +1717,36 @@ def _parquet_chunk_frame(
         mask_main = df_main.columns.get_level_values("group").isin(list_main)
         list_frame.append(strip_attrs(df_main).loc[:, mask_main])
     if "DailyState" in ser_group:
-        list_frame.append(_dailystate_rows(strip_attrs(df_output)))
+        df_daily = _resample_output(
+            df_output,
+            freq_save,
+            groups=["DailyState"],
+            freq_source=freq_source,
+            drop_empty_rows=True,
+        )
+        if df_daily is df_output:
+            df_daily_sel = (
+                strip_attrs(df_output).loc[:, ser_group == "DailyState"]
+                if list_main
+                else _dailystate_rows(strip_attrs(df_output))
+            )
+        else:
+            mask_daily = df_daily.columns.get_level_values("group") == "DailyState"
+            df_daily_sel = strip_attrs(df_daily).loc[:, mask_daily]
+        if df_daily_sel.empty and df_main is not None:
+            df_daily_sel = df_daily_sel.reindex(df_main.index)
+        list_frame.append(df_daily_sel)
     df_chunk = list_frame[0] if len(list_frame) == 1 else pd.concat(list_frame, axis=1)
     columns = df_output.columns[ser_group.isin(df_chunk.columns.get_level_values(0))]
     df_chunk = df_chunk.reindex(columns=columns).sort_index()
-    # Main rows and sparse daily rows have different interval attributes;
-    # concat otherwise drops the explicit unit declarations they share.
-    merged_attrs = {**df_output.attrs, **(df_main.attrs if list_main else {})}
-    coverage = None
-    if list_main:
-        coverage = dict(df_main.attrs.get("supy_output_coverage_s", {}))
-        # Sparse DailyState-only rows carry no main-group water interval.
-        coverage.update({
-            f"{grid}|{date.isoformat()}": 0.0
-            for grid, date in df_chunk.index.difference(df_main.index)
-        })
-    replaced_keys = {"supy_output_interval_s"}
-    if coverage:
-        replaced_keys.add("supy_output_coverage_s")
-    df_chunk.attrs = copy_attrs_except(merged_attrs, replaced_keys)
+    # Preserve SuPy-owned attributes across concat with independent ownership.
+    merged_attrs = {**df_output.attrs, **(df_main.attrs if df_main is not None else {})}
+    if df_daily is not None and "supy_output_daily_coverage_s" in df_daily.attrs:
+        merged_attrs["supy_output_daily_coverage_s"] = df_daily.attrs[
+            "supy_output_daily_coverage_s"
+        ]
+    df_chunk.attrs = copy_attrs_except(merged_attrs, {"supy_output_interval_s"})
     df_chunk.attrs["supy_output_interval_s"] = freq_save.total_seconds()
-    if coverage:
-        df_chunk.attrs["supy_output_coverage_s"] = coverage
     return df_chunk
 
 
@@ -1797,9 +1845,9 @@ def save_df_output_parquet(
         Clock used by ``df_output`` before any saved-output relabelling.
     streamed_parquet : StreamedParquetParts, optional
         Set when ``df_output`` is one chunk of a run streamed to disk: the
-        chunk's rows, with DailyState at its own rows rather than resampled,
-        go to their own file in the output folder, and the files beside it
-        are written once, when the run ends (see
+        chunk's rows, resampled with the same right-labelled rule as a run
+        saved whole, go to their own file in the output folder, and the files
+        beside it are written once, when the run ends (see
         :class:`StreamedParquetParts`). Only the output folder's path is
         returned. ``None`` (the default) writes every file now.
 
@@ -1815,7 +1863,7 @@ def save_df_output_parquet(
     if "DailyState" in df_output.columns.get_level_values("group"):
         # DailyState is resampled with the other groups unless saved as held.
         _check_dailystate_interval(
-            held_s, freq_s if streamed_parquet is None and not save_tstep else None
+            held_s, freq_s if not save_tstep else None
         )
     df_output = with_daily_coverage(df_output, held_s)
     df_output = prepare_output(df_output, units, interval_s=held_s)
@@ -1842,9 +1890,14 @@ def save_df_output_parquet(
         df_to_save = _parquet_chunk_frame(df_save, freq_save, streamed_parquet.tstep_s)
     elif not save_tstep:
         # Resample output
+        freq_from_state = (
+            pd.Timedelta(held_s, "s")
+            if held_s is not None and held.source == "state"
+            else None
+        )
         df_rsmp = _resample_output(
             df_save, freq_save,
-            freq_source=pd.Timedelta(held_s, "s") if held_s is not None else None,
+            freq_source=freq_from_state,
         )
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?

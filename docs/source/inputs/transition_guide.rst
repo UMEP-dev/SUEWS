@@ -21,7 +21,7 @@ The same command also accepts a df_state snapshot (``*.csv``/``*.pkl``) or an ol
 Prerequisites
 -------------
 
-Ensure that ``supy`` is installed in your Python environment. The transition tool is part of the ``supy`` package.
+Ensure that ``supy`` is installed in your Python environment (see :ref:`installation`). The transition tool is part of the ``supy`` package.
 
 Using the Transition Tool
 -------------------------
@@ -103,20 +103,20 @@ The tool will:
 Example 4: Table-to-Table Conversion (Python only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Converting between legacy table versions without creating YAML is not a command-line feature. Use the Python function instead:
+Converting between legacy table versions without creating YAML is not a command-line feature. Use :func:`~supy.util.converter.convert_table` from Python instead, passing run directories rather than the ``Input/`` tables folder itself:
 
 .. code-block:: python
 
    from supy.util.converter import convert_table
 
    convert_table(
-       "/path/to/suews_run/Input_v2020a",
-       "/path/to/suews_run/Input_v2024a",
-       "2020a",
-       "2024a",
+       fromDir="/path/to/suews_run_v2020a",
+       toDir="/path/to/suews_run_v2024a",
+       fromVer="2020a",
+       toVer="2024a",
    )
 
-This converts the tables from ``2020a`` to ``2024a`` format in the output directory. See :doc:`/api/converter` for the full signature.
+``fromDir`` is the run directory containing ``RunControl.nml``; the source tables are read from the folder its ``FileInputPath`` points to. ``toDir`` receives the converted ``RunControl.nml`` at its root, with the converted tables and namelists in its ``FileInputPath`` folder and an empty ``FileOutputPath`` folder beside it. Forcing files are not copied, so copy them across yourself. Keep ``FileInputPath`` relative: with an absolute path the converter writes the converted tables and namelists into that same folder, replacing the originals. See :doc:`/api/converter` for the full signature.
 
 Example 5: Debugging Conversion Issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -148,11 +148,11 @@ If auto-detection fails, you'll be prompted to specify the source version explic
 Path Resolution and File Location
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The converter intelligently handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
+The converter handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
 
-- **Configured paths**: The converter respects custom paths specified in ``RunControl.nml``
-- **Absolute paths**: Used directly as specified (e.g., ``/home/user/data/inputs/``)
-- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``)
+- **Configured paths**: The converter respects custom paths specified in ``RunControl.nml`` when reading source tables
+- **Absolute and parent-relative paths**: Used as specified when reading source tables (e.g., ``/home/user/data/inputs/`` or ``../shared/Input/``). When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that is absolute or resolves outside ``toDir`` (such as a ``../`` path or an escaping symlink) is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (e.g., ``./Input/``) so source files are not overwritten. Passing a ``toDir`` (different from ``fromDir``) that resolves to the source input directory raises a ``ValueError`` before any files are written. ``FileOutputPath`` is left unchanged, and an external ``FileOutputPath`` directory is not created (only a relative ``FileOutputPath`` resolving inside ``toDir`` is created). Forcing files are not copied by ``convert_table``; ``suews convert`` still locates forcing files using the original ``RunControl.nml`` ``FileInputPath``
+- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``) and preserved when inside ``toDir`` (unless it would overwrite the source input directory or escape ``toDir`` via a symlink)
 - **Automatic fallback**: If files aren't found at the configured path, the converter automatically checks:
   
   1. The directory containing ``RunControl.nml``
@@ -204,6 +204,8 @@ give a different water input. Surface-specific ``wuh_<surface>`` columns are
 also non-negative depths in mm per forcing interval and override bulk ``Wuh``
 for that surface.
 
+.. _yaml_schema_migrations:
+
 YAML Schema Migrations
 ----------------------
 
@@ -214,6 +216,16 @@ combined legacy+schema upgrades) and ``suews schema migrate`` (for
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.
+
+By default, ``suews schema migrate`` upgrades to the current schema.
+Among CalVer schemas, explicit ``--target-version`` values are supported
+only for ``2026.4`` (from ``2025.12`` or ``2026.1``), ``2026.6.dev8``
+and later (from any older schema), and the current schema. Earlier
+historical labels such as ``2026.1``, ``2026.5`` and ``2026.6.dev1`` to
+``2026.6.dev7`` have no migration route from older schemas, and
+configurations cannot be migrated to an older schema. If you need a
+configuration for an older release without a migration route, use that
+release's documentation and sample configuration.
 
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
@@ -361,17 +373,21 @@ a zero exponent in equation 3 gives a constant rate before the existing water
 availability cap. No new default or sign restriction is introduced. The storage
 capacity fallback from ``store_max`` when ``store_cap`` is omitted is unchanged.
 
-With schema dev15 installed, upgrade a versioned dev11, dev12, dev13 or dev14 file
-beside its original. For a file named ``site.yml``, confirm that the first
-command wrote ``site.migrated.yml``, then check the saved configuration:
+With schema dev15 or later installed, upgrade an older versioned file (dev11,
+dev12, dev13 or dev14, or dev15 on a newer installation) to the installed
+schema beside its original. For a file named ``site.yml``, confirm that the
+first command wrote ``site.migrated.yml``, then check the saved configuration:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev15
+   suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
-The second command checks current water-routing, radiation-memory,
-continuation-state and drainage requirements. Explicitly selecting an older
+On a dev15 installation, a file already at ``2026.6.dev15`` needs no
+migration (``suews schema migrate`` creates no copy); validate ``site.yml``
+directly. The validation command checks current water-routing,
+radiation-memory, continuation-state and drainage requirements (along with
+any later-schema checks on newer installations). Explicitly selecting an older
 ``--schema-version`` on the validation command checks the saved JSON Schema
 structure. A missing active runoff fraction, for example, can pass that
 historical structure check and fail model validation after migration.
@@ -429,22 +445,23 @@ and ``to_grass: 0.02``. A paved surface with a genuine zero runoff fraction
 also keeps that zero. See :ref:`waterdist_yaml_rules` for the applicable
 destinations and the rules for zero-area surfaces.
 
-The following commands apply to an installation using schema dev12. With
-dev15 installed, follow :ref:`schema_dev15_drainage_coefficients` to check
-water routing, radiation memory, continuation state and drainage coefficients.
+The following commands apply to an installation using schema dev12 or later;
+each migration brings the file up to the installed schema before validation.
 Choose the command from the version recorded at the top of your YAML file.
 Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
 conversion, so a file left by an earlier run cannot be mistaken for its result.
 
-**The file says** ``schema_version: 2026.6.dev11``. The first command writes
-``site.migrated.yml``. Confirm that this new file exists. The migration
-summary can say ``Needs review`` even after writing it. Read the diagnostics
-and run the second command to check the saved configuration:
+**The file says** ``schema_version: 2026.6.dev11``. The first command
+upgrades ``site.yml`` to the installed schema (including the dev12
+water-routing step) and writes ``site.migrated.yml``. Confirm that this new
+file exists. The migration summary can say ``Needs review`` even after
+writing it. Read the diagnostics and run the second command to check the
+saved configuration:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev12
+   suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
 **The file has no schema version.** Some older YAMLs are treated as current
@@ -464,12 +481,31 @@ source version if it differs from this example.
    suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
    suews validate -p C --dry-run site.migrated.yml --format json
 
-**The file already says** ``schema_version: 2026.6.dev12``. A migration to
-the same version creates no copy. Validate the original directly:
+**The file already says** ``schema_version: 2026.6.dev12``. On a dev12
+installation, ``suews schema migrate`` creates no copy because the file is
+already at the installed schema; validate the original directly:
 
 .. code-block:: bash
 
    suews validate -p C --dry-run site.yml --format json
+
+On a newer installation, validating the original directly fails with a
+schema-version mismatch. Migrate ``site.yml`` to the installed schema first,
+confirm that ``site.migrated.yml`` was written, and validate the migrated
+copy:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+On installations newer than dev12, migration to the installed schema can
+also stop on later-schema checks for
+:ref:`radiation memory (dev13) <schema_dev13_radiation_memory>`,
+:ref:`continuation state (dev14) <schema_dev14_continuation_state>`,
+:ref:`drainage coefficients (dev15) <schema_dev15_drainage_coefficients>`,
+:ref:`vegetation senescence (dev16) <schema_dev16_vegetation_senescence>`
+and :ref:`integer day-of-year windows (dev17) <schema_dev17_integer_doy>`.
 
 Check each site and surface named in a validation error. An inapplicable
 non-zero fraction needs a decision about where that water should go. Within
@@ -870,10 +906,12 @@ Upgrading to Schema 2026.5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Schema ``2026.5`` is the YAML schema shipped with release ``2026.6.5``.
-It is the single released label collapsing the ``2026.5.dev1`` ..
-``2026.5.dev14`` development cycle: one ``(2026.4 -> 2026.5)`` handler
-applies the union of every dev-cycle delta. Upgrading from ``2026.4``
-(shipped with 2026.4.3) brings the following user-visible changes:
+It collapsed the ``2026.5.dev1`` .. ``2026.5.dev14`` development cycle
+into a single released label: in release ``2026.6.5``, one
+``(2026.4 -> 2026.5)`` handler applied the union of every dev-cycle
+delta in order, and current migrations from ``2026.4`` apply that union
+on the way to later schemas. Upgrading from ``2026.4`` (shipped with
+2026.4.3) brings the following user-visible changes:
 
 - **Fused field names to snake_case** (#1256, Category 1): for example
   ``netradiationmethod`` -> ``net_radiation_method``, ``soildepth`` ->
@@ -912,11 +950,13 @@ applies the union of every dev-cycle delta. Upgrading from ``2026.4``
   / ``modelled``; the ``provided``, ``use_provided`` and
   ``simple_scheme`` aliases are retired.
 
-Run the migrator to bring an existing YAML onto the new shape:
+Run the migrator without ``--target-version`` to apply these changes and
+continue through to the current schema (see :ref:`yaml_schema_migrations`
+for supported explicit targets):
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.5
+   suews schema migrate your_config.yml
 
 For a combined legacy-table-plus-schema upgrade, use ``suews convert``,
 which runs the table conversion first and then walks the schema chain
@@ -957,10 +997,10 @@ Run:
 
    suews schema migrate your_config.yml --target-version 2026.4
 
-The migrator accepts any registered intermediate (for example
-``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
-further to the 2026.5 schema, use
-``--target-version 2026.5`` (or omit the flag to reach the latest).
+The migrator accepts ``2025.12`` or ``2026.1`` and walks the chain to
+the ``2026.4`` schema. To upgrade further to the current schema, omit
+``--target-version`` (see :ref:`yaml_schema_migrations` for supported
+explicit targets).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -981,13 +1021,17 @@ Landed with the STEBBS clean-up (#879). If you are moving from the
   hot water (#1038). Existing configs that omit them continue to
   work; the profiles default to previous scalar behaviour.
 
-If you are targeting 2026.1.28 exactly:
+To apply these changes together with the later schema updates in one
+pass, run the migrator without ``--target-version``:
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.1
+   suews schema migrate your_config.yml
 
-Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
+If you need a configuration for SUEWS 2026.1.28, use that release's
+documentation and sample configuration; ``suews schema migrate`` has no
+route to ``2026.1`` and cannot migrate configurations to an older schema
+(see :ref:`yaml_schema_migrations` for supported explicit targets).
 
 Preserving Your Values Through Renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

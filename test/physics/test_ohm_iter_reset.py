@@ -34,8 +34,9 @@ pytestmark = [
 ]
 
 ENERGY_CLOSURE_TOLERANCE_W_M2 = 1.0e-6
-OHM_TAU1_MAX_S = 3600.0
-OHM_WINDOW_HR = 2.0
+SECONDS_PER_HOUR = 3600.0
+OHM_TAU1_MAX_S = 0.5 * SECONDS_PER_HOUR
+OHM_TAU2_S = 1.0 * SECONDS_PER_HOUR
 STEBBS_CONFIG_PATH = (
     Path(__file__).resolve().parents[1]
     / "fixtures"
@@ -53,8 +54,8 @@ def _ohm_dqndt_single_pass_series(
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Evaluate ``OHM_dqndt_cal_X`` once per timestep on a converged ``QN`` series."""
     dt_s = float(tstep)
-    dt_hr = dt_s / OHM_TAU1_MAX_S
-    w2 = math.exp(-dt_s / (OHM_WINDOW_HR * OHM_TAU1_MAX_S))
+    dt_hr = dt_s / SECONDS_PER_HOUR
+    w2 = math.exp(-dt_s / OHM_TAU2_S)
 
     n_steps = len(qn_series)
     qn_av_out = np.empty(n_steps, dtype=float)

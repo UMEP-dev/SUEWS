@@ -989,18 +989,64 @@ def test_baseline_builder_and_loader_require_complete_api_and_physics_lanes(
 
 @pytest.mark.smoke
 @pytest.mark.core
+def test_malformed_filename_payloads_sanitised_cross_platform(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Newline, workflow-command, and HTML-comment filename payloads are sanitised on all platforms."""
+    baseline = _synthetic_baseline()
+    evil_schema_name = "api\n::error title=forged::pwned.json"
+    evil_comment_name = (
+        "api\n<!-- duration-guard:end -->[click](https://evil.test).json"
+    )
+
+    guard._emit_cli_error(
+        "",
+        cost_markers.UnsupportedMetricsSchema(
+            f"bad_schema/{evil_schema_name}: unsupported schema_version=99"
+        ),
+        emit_annotations=True,
+    )
+    err_lines = capsys.readouterr().out.splitlines()
+    assert not any(line.lstrip().startswith("::error") for line in err_lines), err_lines
+    assert any(line.startswith("::stop-commands::") for line in err_lines), err_lines
+
+    artefact = _artefact_from_costs(
+        evil_comment_name,
+        "api",
+        [("test/core/test_x.py::test_1", 2.0, ("api",))],
+    )
+    report = guard.check_durations([artefact], baseline, changed_test_files=[])
+    guard._emit_cli_output(report, [], emit_annotations=True)
+    out_lines = capsys.readouterr().out.splitlines()
+    assert not any(line.lstrip().startswith("::error") for line in out_lines)
+    md_text = report.markdown()
+    assert "<!-- duration-guard:end -->" not in md_text
+    assert "[click]" not in md_text
+    api_lane = report.to_dict()["lanes"]["api"]
+    assert api_lane["status"] == "unavailable"
+    assert api_lane["reason_code"] in {"low_coverage", "insufficient_references"}
+    assert "<!--" not in (api_lane["reason"] or "")
+
+
+@pytest.mark.smoke
+@pytest.mark.core
 def test_malformed_filenames_cannot_inject_workflow_commands_or_comment_markers(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Newlines or HTML comment markers in PR artefact filenames are sanitised on error and report paths."""
+    """On-disk adversarial PR artefact filenames are sanitised on error and report paths."""
     baseline_path = tmp_path / "baseline.json"
     guard.write_baseline(_synthetic_baseline(), baseline_path)
 
-    # 1. Unsupported-schema error path with newline + workflow command in filename.
+    # 1. Unsupported-schema error path. POSIX allows newline/colon filenames;
+    # Windows NTFS rejects those characters, so use NTFS-legal Markdown chars.
     bad_schema_dir = tmp_path / "bad_schema"
     bad_schema_dir.mkdir()
-    evil_schema_file = bad_schema_dir / "api\n::error title=forged::pwned.json"
-    evil_schema_file.write_text(
+    schema_name = (
+        "api[click](https__evil.test)~bad.json"
+        if sys.platform == "win32"
+        else "api\n::error title=forged::pwned.json"
+    )
+    (bad_schema_dir / schema_name).write_text(
         json.dumps({"schema_version": 99, "tests": [_record("t.py::t", call=1.0)]}),
         encoding="utf-8",
     )
@@ -1015,13 +1061,18 @@ def test_malformed_filenames_cannot_inject_workflow_commands_or_comment_markers(
     assert not any(line.lstrip().startswith("::error") for line in out_lines), out_lines
     assert any(line.startswith("::stop-commands::") for line in out_lines), out_lines
 
-    # 2. Incomplete-lane artefact filename carrying newline + sticky-comment delimiter + Markdown link.
+    # 2. Incomplete-lane artefact filename carrying delimiter / Markdown link payload.
     evil_dir = tmp_path / "evil_incomplete" / "api"
     evil_dir.mkdir(parents=True)
-    evil_file = (
-        evil_dir / "api\n<!-- duration-guard:end -->[click](https://evil.test).json"
+    comment_name = (
+        "api[click](https__evil.test)_~bad.json"
+        if sys.platform == "win32"
+        else "api\n<!-- duration-guard:end -->[click](https://evil.test).json"
     )
-    _write_artefact(evil_file, [_record("test/core/test_x.py::test_1", call=2.0)])
+    _write_artefact(
+        evil_dir / comment_name,
+        [_record("test/core/test_x.py::test_1", call=2.0)],
+    )
     out_json = tmp_path / "evil_report.json"
     out_md = tmp_path / "evil_report.md"
     rc2 = guard.main([
@@ -1040,6 +1091,7 @@ def test_malformed_filenames_cannot_inject_workflow_commands_or_comment_markers(
     assert not any(line.lstrip().startswith("::error") for line in out2_lines)
     md_text = out_md.read_text(encoding="utf-8")
     assert "<!-- duration-guard:end -->" not in md_text
+    assert "[click]" not in md_text
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     api_lane = payload["lanes"]["api"]
     assert api_lane["status"] == "unavailable"

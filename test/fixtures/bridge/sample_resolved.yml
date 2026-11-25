@@ -2742,12 +2742,12 @@ sites:
         lai:
           base_temperature:
             value: 6.0
-          gdd_full:
-            value: 300.0
+          gdd_base:
+            value: 100
           base_temperature_senescence:
             value: 11.0
-          sdd_full:
-            value: -450.0
+          sdd_base:
+            value: -300.0
           lai_min:
             value: 4.0
           lai_max:
@@ -2904,12 +2904,12 @@ sites:
         lai:
           base_temperature:
             value: 6.0
-          gdd_full:
-            value: 300.0
+          gdd_base:
+            value: 100
           base_temperature_senescence:
             value: 11.0
-          sdd_full:
-            value: -450.0
+          sdd_base:
+            value: -300.0
           lai_min:
             value: 1.0
           lai_max:
@@ -3074,12 +3074,12 @@ sites:
         lai:
           base_temperature:
             value: 6.0
-          gdd_full:
-            value: 300.0
+          gdd_base:
+            value: 100
           base_temperature_senescence:
             value: 11.0
-          sdd_full:
-            value: -450.0
+          sdd_base:
+            value: -300.0
           lai_min:
             value: 1.6
           lai_max:
@@ -6619,12 +6619,12 @@ _yaml_raw:
           lai:
             base_temperature:
               value: 6.0
-            gdd_full:
-              value: 300.0
+            gdd_base:
+              value: 100
             base_temperature_senescence:
               value: 11.0
-            sdd_full:
-              value: -450.0
+            sdd_base:
+              value: -300.0
             lai_min:
               value: 1.0
             lai_max:
@@ -6789,12 +6789,12 @@ _yaml_raw:
           lai:
             base_temperature:
               value: 6.0
-            gdd_full:
-              value: 300.0
+            gdd_base:
+              value: 100
             base_temperature_senescence:
               value: 11.0
-            sdd_full:
-              value: -450.0
+            sdd_base:
+              value: -300.0
             lai_min:
               value: 4.0
             lai_max:
@@ -6951,12 +6951,12 @@ _yaml_raw:
           lai:
             base_temperature:
               value: 6.0
-            gdd_full:
-              value: 300.0
+            gdd_base:
+              value: 100
             base_temperature_senescence:
               value: 11.0
-            sdd_full:
-              value: -450.0
+            sdd_base:
+              value: -300.0
             lai_min:
               value: 1.6
             lai_max:

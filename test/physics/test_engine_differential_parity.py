@@ -11,7 +11,10 @@ physics regimes defined in ``test/data_model/_physics_anchors.py``:
    output groups and the 118 ``SUEWS`` column names), exact timestamp alignment,
    bit-identical values across all 1,302 data columns (with exact ``-999.0`` ->
    ``NaN`` sentinel mask parity), and a live active-physics witness proving the
-   target subsystem ran.
+   target subsystem ran (save-time ``output.timestamp_reference='daylight'``
+   clock relabelling happens outside the native simulation buffers compared
+   here, whereas in-kernel DLS shifting of irrigation and anthropogenic
+   profiles is verified against a DLS-disabled control).
 3. The unmodified ``observed_and_dyohm`` anchor (``soil_moisture = "observed"``)
    verifies the boundary contract that ``SUEWSSimulation`` performs canonical
    soil-content preprocessing while standalone ``suews-engine`` refuses raw
@@ -255,11 +258,60 @@ def _prepare_parity_case(
     return cfg, df
 
 
+def _assert_dyohm_and_observed_witness(
+    py_df: pd.DataFrame, control_df: pd.DataFrame | None
+) -> None:
+    """Verify DyOHM diverges post-spin-up from OHM and observed inputs took effect."""
+    qs = py_df["SUEWS", "QS"]
+    assert np.isfinite(qs).all() and qs.nunique() > 1
+    assert control_df is not None, "Missing ordinary-OHM control for DyOHM check"
+    pd.testing.assert_index_equal(py_df.index, control_df.index)
+    warm_mask = py_df.index >= (py_df.index.min() + pd.Timedelta(days=1))
+    assert warm_mask.any(), "DyOHM window must extend past day-1 spin-up"
+    max_qs_delta = float(
+        np.max(np.abs(qs.to_numpy() - control_df["SUEWS", "QS"].to_numpy())[warm_mask])
+    )
+    assert max_qs_delta > 1.0e-4, (
+        "DyOHM storage_heat=6 did not diverge from ordinary OHM after day-1 "
+        f"spin-up (max |delta QS| = {max_qs_delta:.3e})"
+    )
+    np.testing.assert_allclose(py_df["SUEWS", "Ldown"].to_numpy(), 320.0)
+    np.testing.assert_allclose(py_df["SUEWS", "Irr"].to_numpy(), 0.05)
+    lai = py_df["SUEWS", "LAI"]
+    assert np.isfinite(lai).all() and np.isclose(float(lai.iloc[-1]), 2.5)
+
+
+def _assert_irrigation_and_dls_witness(
+    py_df: pd.DataFrame, control_df: pd.DataFrame | None
+) -> None:
+    """Verify irrigation ran and active DLS shifted irrigation and QF schedules."""
+    irr = py_df["SUEWS", "Irr"]
+    qf = py_df["SUEWS", "QF"]
+    assert np.isfinite(irr).all() and (irr > 0.0).any()
+    assert np.isfinite(qf).all() and qf.nunique() > 1
+    assert control_df is not None, "Missing DLS-disabled control for DLS check"
+    pd.testing.assert_index_equal(py_df.index, control_df.index)
+    max_irr_delta = float(
+        np.max(np.abs(irr.to_numpy() - control_df["SUEWS", "Irr"].to_numpy()))
+    )
+    max_qf_delta = float(
+        np.max(np.abs(qf.to_numpy() - control_df["SUEWS", "QF"].to_numpy()))
+    )
+    assert max_irr_delta > 1.0e-4, (
+        "Active DLS did not shift irrigation timing relative to DLS-disabled "
+        f"control (max |delta Irr| = {max_irr_delta:.3e})"
+    )
+    assert max_qf_delta > 1.0e-2, (
+        "Active DLS did not shift anthropogenic heat timing relative to "
+        f"DLS-disabled control (max |delta QF| = {max_qf_delta:.3e})"
+    )
+
+
 def _assert_active_physics_witness(
     case_name: str,
     py_df: pd.DataFrame,
     *,
-    ohm_control: pd.DataFrame | None = None,
+    control_df: pd.DataFrame | None = None,
 ) -> None:
     """Confirm each coupled parity case genuinely activated its target physics."""
     if case_name == "all_surfaces_baseline":
@@ -281,32 +333,43 @@ def _assert_active_physics_witness(
         assert np.isfinite(ts_roof).all() and ts_roof.nunique() > 1
         assert np.isfinite(tind).all() and tind.nunique() > 1
     elif case_name == "dyohm_observed_inputs":
-        qs = py_df["SUEWS", "QS"]
-        ldown = py_df["SUEWS", "Ldown"]
-        irr = py_df["SUEWS", "Irr"]
-        lai = py_df["SUEWS", "LAI"]
-        assert np.isfinite(qs).all() and qs.nunique() > 1
-        assert ohm_control is not None, "Missing ordinary-OHM control for DyOHM check"
-        pd.testing.assert_index_equal(py_df.index, ohm_control.index)
-        warm_mask = py_df.index >= (py_df.index.min() + pd.Timedelta(days=1))
-        assert warm_mask.any(), "DyOHM window must extend past day-1 spin-up"
-        max_qs_delta = float(
-            np.max(
-                np.abs(qs.to_numpy() - ohm_control["SUEWS", "QS"].to_numpy())[warm_mask]
-            )
-        )
-        assert max_qs_delta > 1.0e-4, (
-            "DyOHM storage_heat=6 did not diverge from ordinary OHM after day-1 "
-            f"spin-up (max |delta QS| = {max_qs_delta:.3e})"
-        )
-        np.testing.assert_allclose(ldown.to_numpy(), 320.0)
-        np.testing.assert_allclose(irr.to_numpy(), 0.05)
-        assert np.isfinite(lai).all() and np.isclose(float(lai.iloc[-1]), 2.5)
+        _assert_dyohm_and_observed_witness(py_df, control_df)
     elif case_name == "irrigation_and_dls":
-        irr = py_df["SUEWS", "Irr"]
-        assert np.isfinite(irr).all() and (irr > 0.0).any()
+        _assert_irrigation_and_dls_witness(py_df, control_df)
     else:
         raise KeyError(f"Unknown parity case: {case_name!r}")
+
+
+def _run_activation_control(
+    case_name: str, cfg_dict: dict[str, Any], case_dir: Path
+) -> pd.DataFrame | None:
+    """Run the public-path baseline control for cases requiring comparative activation."""
+    if case_name == "dyohm_observed_inputs":
+        control_cfg = copy.deepcopy(cfg_dict)
+        control_cfg["model"]["physics"]["storage_heat"] = 1
+        control_path = case_dir / "ohm_control.yml"
+        expected_error = "ordinary OHM"
+    elif case_name == "irrigation_and_dls":
+        control_cfg = copy.deepcopy(cfg_dict)
+        anthro = control_cfg["sites"][0]["properties"]["anthropogenic_emissions"]
+        anthro["startdls"] = None
+        anthro["enddls"] = None
+        control_cfg["model"]["control"]["output"]["timestamp_reference"] = (
+            "local_standard_time"
+        )
+        control_path = case_dir / "nodls_control.yml"
+        expected_error = "DLS"
+    else:
+        return None
+
+    control_path.write_text(
+        yaml.dump(control_cfg, sort_keys=False, Dumper=_YAML_DUMPER),
+        encoding="utf-8",
+    )
+    control_df = SUEWSSimulation(control_path).run(n_jobs=1).df.droplevel("grid")
+    with pytest.raises(AssertionError, match=expected_error):
+        _assert_active_physics_witness(case_name, control_df, control_df=control_df)
+    return control_df
 
 
 def _run_paired_python_and_engine(
@@ -400,21 +463,8 @@ def test_live_python_and_engine_bit_identical_across_coupled_anchors(
     _assert_full_buffer_bit_identical(
         py_df, eng_timestamps, eng_raw_data, case_name=case_name
     )
-    ohm_control: pd.DataFrame | None = None
-    if case_name == "dyohm_observed_inputs":
-        ohm_cfg = copy.deepcopy(cfg_dict)
-        ohm_cfg["model"]["physics"]["storage_heat"] = 1
-        ohm_path = tmp_path / "ohm_control.yml"
-        ohm_path.write_text(
-            yaml.dump(ohm_cfg, sort_keys=False, Dumper=_YAML_DUMPER),
-            encoding="utf-8",
-        )
-        ohm_control = SUEWSSimulation(ohm_path).run(n_jobs=1).df.droplevel("grid")
-        with pytest.raises(AssertionError, match="ordinary OHM"):
-            _assert_active_physics_witness(
-                case_name, ohm_control, ohm_control=ohm_control
-            )
-    _assert_active_physics_witness(case_name, py_df, ohm_control=ohm_control)
+    control_df = _run_activation_control(case_name, cfg_dict, tmp_path)
+    _assert_active_physics_witness(case_name, py_df, control_df=control_df)
 
 
 def test_engine_refuses_observed_soil_moisture_anchor(

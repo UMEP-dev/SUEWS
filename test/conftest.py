@@ -573,6 +573,58 @@ def sample_ohm_48h_qs(sample_config_loaded, sample_data_loaded, tmp_path_factory
 
 
 @pytest.fixture(scope="session")
+def continuation_reference_cache(tmp_path_factory):
+    """Session-scoped cache of uninterrupted continuation reference runs.
+
+    Runs each uninterrupted 48-hour reference simulation and its persisted
+    Parquet representation at most once per session (keyed by mode name),
+    releases the ``SUEWSSimulation`` instance immediately, and hands every
+    caller fresh deep copies so shared session references remain isolated
+    across ``chunk``, ``checkpoint``, and ``stream`` mechanisms.
+    """
+    cache_root = tmp_path_factory.mktemp("continuation_references")
+    cache: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
+
+    def _get(
+        key: str,
+        yaml_path: Path,
+        forcing: pd.DataFrame,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        if key not in cache:
+            sim = supy.SUEWSSimulation()
+            sim.update_config(yaml_path, auto_load_forcing=False)
+            sim.update_forcing(forcing.copy())
+            native = sim.run(
+                start_date=forcing.index[0],
+                end_date=forcing.index[-1],
+                n_jobs=1,
+                chunk_day=3660,
+            ).df
+            assert native.index.is_unique, "Duplicate grid/timestamp output rows"
+            pd.testing.assert_index_equal(
+                native.index.get_level_values("datetime"),
+                forcing.index,
+                check_names=False,
+            )
+            groups = [
+                group
+                for group in native.columns.get_level_values(0).unique()
+                if group != "BL"
+            ]
+            sim.config.model.control.output.freq = 300
+            sim.config.model.control.output.groups = groups
+            out_dir = cache_root / key
+            sim.save(out_dir, format="parquet", include_provisional=True)
+            (saved,) = out_dir.glob("*SUEWS_output*.parquet")
+            persisted = pd.read_parquet(saved).sort_index()
+            cache[key] = (native.copy(deep=True), persisted.copy(deep=True))
+        native_ref, persisted_ref = cache[key]
+        return native_ref.copy(deep=True), persisted_ref.copy(deep=True)
+
+    return _get
+
+
+@pytest.fixture(scope="session")
 def sample_config_loaded(sample_yaml_path):
     """The validated sample config, without loading its full forcing file.
 

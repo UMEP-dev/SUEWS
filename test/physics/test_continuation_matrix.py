@@ -237,6 +237,7 @@ def test_continuation_matrix(
     sample_config_loaded,
     sample_data_loaded,
     sample_ohm_48h_qs,
+    continuation_reference_cache,
     tmp_path,
     mode,
     mechanism,
@@ -247,12 +248,15 @@ def test_continuation_matrix(
     # Round-trip through YAML so overrides take the public parser/engine path.
     path = tmp_path / "case.yml"
     cfg.to_yaml(path)
-    whole = _simulation(path)
-    expected = _run(whole, forcing, chunk_day=3660)
-    _active(expected, mode, ohm_control=ohm_control)
+    expected_native, expected_parquet = continuation_reference_cache(
+        mode, path, forcing
+    )
+    _active(expected_native, mode, ohm_control=ohm_control)
     if mechanism == "chunk":
+        expected = expected_native
         actual = _run(_simulation(path), forcing, chunk_day=1)
     elif mechanism == "checkpoint":
+        expected = expected_native
         first = _simulation(path)
         head = _run(first, forcing.iloc[:SPLIT])
         second = SUEWSSimulation.from_checkpoint(
@@ -261,9 +265,11 @@ def test_continuation_matrix(
         )
         actual = pd.concat([head, _run(second, forcing.iloc[SPLIT:])])
     else:
-        groups = list(expected.columns.get_level_values(0).unique())
-        # BL has no kernel writer; omit only that inactive, all-NaN group.
-        groups = [group for group in groups if group != "BL"]
+        groups = [
+            group
+            for group in expected_native.columns.get_level_values(0).unique()
+            if group != "BL"
+        ]
         output = {
             "format": "parquet",
             "freq": 300,
@@ -287,11 +293,7 @@ def test_continuation_matrix(
         # save() converts accumulated native quantities (e.g. Evap mm/step)
         # to declared output units (mm/s). Compare two persisted representations,
         # as test_stream_chunk does, never persisted values against native units.
-        whole.config.model.control.output.freq = 300
-        whole.config.model.control.output.groups = groups
-        whole.save(tmp_path / "whole", format="parquet", include_provisional=True)
-        (saved,) = (tmp_path / "whole").glob("*SUEWS_output*.parquet")
-        expected = pd.read_parquet(saved).sort_index()
+        expected = expected_parquet
     _compare(actual, expected)
     _active(actual, mode, ohm_control=ohm_control)
 

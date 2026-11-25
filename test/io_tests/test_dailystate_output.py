@@ -90,12 +90,15 @@ class TestDailyStateOutput:
                         break
                 assert has_real_data, "DailyState should contain actual data values"
 
-                # Check that all days are present (no missing first day)
+                # Check that all days are present, right-labelled at D+1 00:00
+                # (days 1..3 of 2012 are labelled DOY 2..4, 00:00).
                 doy_values = df_saved["DOY"].values
-                expected_doys = list(range(1, len(doy_values) + 1))
+                expected_doys = list(range(2, len(doy_values) + 2))
                 assert list(doy_values) == expected_doys, (
-                    f"Missing days in output. Got DOYs: {list(doy_values)}, expected: {expected_doys}"
+                    f"Missing or mislabelled days in output. Got DOYs: {list(doy_values)}, expected: {expected_doys}"
                 )
+                assert (df_saved["Hour"] == 0).all()
+                assert (df_saved["Min"] == 0).all()
 
     def test_dailystate_different_output_frequencies(self, sample_run_cached):
         """Test DailyState output with different resampling frequencies."""

@@ -6,6 +6,8 @@ from .type import DataModelBase, Reference, df_from_cols
 
 CANONICAL_HOUR_KEYS: tuple[str, ...] = tuple(str(hour) for hour in range(1, 25))
 _CANONICAL_HOUR_KEY_SET: frozenset[str] = frozenset(CANONICAL_HOUR_KEYS)
+CANONICAL_TEN_MINUTE_KEYS: tuple[str, ...] = tuple(str(step) for step in range(1, 145))
+_CANONICAL_TEN_MINUTE_KEY_SET: frozenset[str] = frozenset(CANONICAL_TEN_MINUTE_KEYS)
 
 _HOURLY_PROFILE_PATHS: tuple[tuple[str, ...], ...] = (
     ("snow", "snow_profile_24hr"),
@@ -22,6 +24,63 @@ _HOURLY_PROFILE_PATHS: tuple[tuple[str, ...], ...] = (
 HOURLY_PROFILE_FIELD_NAMES: frozenset[str] = frozenset(
     path[-1] for path in _HOURLY_PROFILE_PATHS
 )
+
+
+def _normalise_profile_step_key(
+    key: object, *, max_step: int, profile_label: str, unit: str
+) -> str:
+    """Normalise a 1-based integer or ASCII-digit profile key in ``1..max_step``."""
+    if isinstance(key, bool):
+        raise ValueError(
+            f"Invalid {profile_label} key {key!r}: booleans are not allowed; "
+            f"expected an integer 1..{max_step} or ASCII digit string '1'..'{max_step}'."
+        )
+    if isinstance(key, int):
+        step = key
+    elif isinstance(key, str):
+        if not key or not all("0" <= ch <= "9" for ch in key):
+            raise ValueError(
+                f"Invalid {profile_label} key {key!r}: expected ASCII digits '1'..'{max_step}' "
+                "(optional leading zeros allowed; no signs, whitespace, decimals, "
+                "underscores, or non-ASCII digits)."
+            )
+        stripped = key.lstrip("0")
+        if not stripped:
+            raise ValueError(
+                f"Invalid {profile_label} key {key!r}: {unit} must be between 1 and {max_step}."
+            )
+        step = int(stripped)
+    else:
+        raise ValueError(
+            f"Invalid {profile_label} key {key!r} ({type(key).__name__} is not allowed): "
+            f"expected an integer 1..{max_step} or ASCII digit string '1'..'{max_step}'."
+        )
+
+    if not 1 <= step <= max_step:
+        raise ValueError(
+            f"Invalid {profile_label} key {key!r}: {unit} {step} is outside valid range 1..{max_step}."
+        )
+    return str(step)
+
+
+def _normalise_profile_step_mapping(
+    mapping: dict[object, object], *, max_step: int, profile_label: str, unit: str
+) -> dict[str, object]:
+    """Normalise keys of a 1-based profile mapping and reject canonical collisions."""
+    normalised: dict[str, object] = {}
+    seen_raw: dict[str, object] = {}
+    for raw_key, value in mapping.items():
+        canonical = _normalise_profile_step_key(
+            raw_key, max_step=max_step, profile_label=profile_label, unit=unit
+        )
+        if canonical in seen_raw:
+            raise ValueError(
+                f"Duplicate {profile_label} key {canonical!r} "
+                f"(colliding keys: {seen_raw[canonical]!r} and {raw_key!r})."
+            )
+        seen_raw[canonical] = raw_key
+        normalised[canonical] = value
+    return {key: normalised[key] for key in sorted(normalised, key=int)}
 
 
 def normalise_hourly_profile_key(key: object) -> str:
@@ -48,37 +107,9 @@ def normalise_hourly_profile_key(key: object) -> str:
         underscore-separated string, non-ASCII digit string, non-numeric, or
         outside the inclusive range ``1``..``24``.
     """
-    if isinstance(key, bool):
-        raise ValueError(
-            f"Invalid 24-hour profile key {key!r}: booleans are not allowed; "
-            "expected an integer 1..24 or ASCII digit string '1'..'24'."
-        )
-    if isinstance(key, int):
-        hour = key
-    elif isinstance(key, str):
-        if not key or not all("0" <= ch <= "9" for ch in key):
-            raise ValueError(
-                f"Invalid 24-hour profile key {key!r}: expected ASCII digits '1'..'24' "
-                "(optional leading zeros allowed; no signs, whitespace, decimals, "
-                "underscores, or non-ASCII digits)."
-            )
-        stripped = key.lstrip("0")
-        if not stripped:
-            raise ValueError(
-                f"Invalid 24-hour profile key {key!r}: hour must be between 1 and 24."
-            )
-        hour = int(stripped)
-    else:
-        raise ValueError(
-            f"Invalid 24-hour profile key {key!r} ({type(key).__name__} is not allowed): "
-            "expected an integer 1..24 or ASCII digit string '1'..'24'."
-        )
-
-    if not 1 <= hour <= 24:
-        raise ValueError(
-            f"Invalid 24-hour profile key {key!r}: hour {hour} is outside valid range 1..24."
-        )
-    return str(hour)
+    return _normalise_profile_step_key(
+        key, max_step=24, profile_label="24-hour profile", unit="hour"
+    )
 
 
 def normalise_hourly_profile_mapping(
@@ -105,18 +136,34 @@ def normalise_hourly_profile_mapping(
         If any key is malformed, out of range, or collides with another key
         after normalisation.
     """
-    normalised: dict[str, object] = {}
-    seen_raw: dict[str, object] = {}
-    for raw_key, value in mapping.items():
-        canonical = normalise_hourly_profile_key(raw_key)
-        if canonical in seen_raw:
-            raise ValueError(
-                f"Duplicate 24-hour profile key {canonical!r} "
-                f"(colliding keys: {seen_raw[canonical]!r} and {raw_key!r})."
-            )
-        seen_raw[canonical] = raw_key
-        normalised[canonical] = value
-    return {key: normalised[key] for key in sorted(normalised, key=int)}
+    return _normalise_profile_step_mapping(
+        mapping, max_step=24, profile_label="24-hour profile", unit="hour"
+    )
+
+
+def normalise_ten_minute_profile_key(key: object) -> str:
+    """Normalise a 10-minute profile key to canonical ``"1"``..``"144"``.
+
+    Accepts plain integers ``1``..``144`` (excluding ``bool``) and pure
+    ASCII-digit strings representing ``1``..``144``, including leading-zero
+    forms such as ``"01"``..``"09"``, ``"001"``, and ``"0144"``.
+    """
+    return _normalise_profile_step_key(
+        key, max_step=144, profile_label="10-minute profile", unit="step"
+    )
+
+
+def normalise_ten_minute_profile_mapping(
+    mapping: dict[object, object],
+) -> dict[str, object]:
+    """Normalise keys of a 10-minute profile mapping to canonical ``"1"``..``"144"``.
+
+    Rejects malformed or out-of-range keys and rejects canonical collisions
+    (for example ``{"1": 0.1, "01": 0.2}``) instead of silently overwriting.
+    """
+    return _normalise_profile_step_mapping(
+        mapping, max_step=144, profile_label="10-minute profile", unit="step"
+    )
 
 
 def _normalise_day_mapping_if_unambiguous(
@@ -513,12 +560,13 @@ class TenMinuteProfile(DataModelBase):
         if not isinstance(v, dict):
             return v
 
+        normalised = normalise_ten_minute_profile_mapping(v)
         out: Dict[str, Optional[float]] = {}
-        for k, val in v.items():
+        for k, val in normalised.items():
             if val is None:
-                out[str(k)] = None
+                out[k] = None
             else:
-                out[str(k)] = float(val)
+                out[k] = float(val)
         return out
 
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:

@@ -2763,6 +2763,8 @@ sites:
               value: 0.0015
           lai_type:
             value: 1
+          gdd_base: 0.0
+          sdd_base: 0.0
         ie_a:
           value: 0.0
         ie_m:
@@ -2925,6 +2927,8 @@ sites:
               value: 0.0015
           lai_type:
             value: 1
+          gdd_base: 0.0
+          sdd_base: 0.0
         ie_a:
           value: 0.0
         ie_m:
@@ -3095,6 +3099,8 @@ sites:
               value: 0.0015
           lai_type:
             value: 1
+          gdd_base: 0.0
+          sdd_base: 0.0
         ie_a:
           value: 0.0
         ie_m:

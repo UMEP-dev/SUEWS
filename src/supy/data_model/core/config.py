@@ -914,14 +914,14 @@ class SUEWSConfig(DataModelBase):
             "info_messages": [],
         }
 
-        # set up empty list for site-specific critical issues
+        # list for site-specific critical issues
         critical_lai_issues = []
 
         ### 2) Run the standard site-by-site checks
         for i, site in enumerate(self.sites):
             self._validate_site_parameters(site, site_index=i)
 
-            #FA and append critical lai parameters (TODO: combine with 4d check later)
+            # append critical lai parameters (FA: should be combined with 4d check later)
             if hasattr(site.properties, "land_cover") and site.properties.land_cover:
                 critical_lai_issues.extend(self._check_critical_lai_params(site.properties.land_cover, site_id=i))
 
@@ -952,7 +952,6 @@ class SUEWSConfig(DataModelBase):
             all_critical_issues.extend(zero_soil_depth_issues)
         if active_veg_lai_max_issues:
             all_critical_issues.extend(active_veg_lai_max_issues)
-        #FA make sure to raise lai issues as errors rather than advisory
         if critical_lai_issues:
             all_critical_issues.extend(critical_lai_issues)
 
@@ -2182,7 +2181,6 @@ class SUEWSConfig(DataModelBase):
     
             """
     
-            #FA need to change so these flagged as critical rather than advisory
             issues: List[Dict[str, str]] = []
     
             # Return early if no land cover
@@ -2232,8 +2230,8 @@ class SUEWSConfig(DataModelBase):
                                                     "error_text": (
                                                         f"site {site_index}, "
                                                         f"properties.land_cover.{surface}.lai.lai_min "
-                                                        f"must be less than properties.land_cover.{surface}.lai.lai_max "
-                                                        f"where surface fraction (currently set to {sfr_value}) is greater than "
+                                                        f"(currently {lai_min_val}) must be less than properties.land_cover.{surface}.lai.lai_max (currently {lai_max_val}) "
+                                                        f"where surface fraction (currently {sfr_value}) is greater than "
                                                         f"zero"
                                                     ),
                                                     # "path": f"sites[{site_name}]/properties/land_cover/{surface}/lai",
@@ -2256,8 +2254,8 @@ class SUEWSConfig(DataModelBase):
                                                 {
                                                     "error_text": (
                                                         f"site {site_index}, "
-                                                        f"properties.land_cover.{surface_type}.lai.lai_min "
-                                                        f"must be >= 0 where surface fraction (currently set to {sfr_value}) is greater than zero"
+                                                        f"properties.land_cover.{surface_type}.lai.lai_min (currently {lai_min_val})"
+                                                        f"must be >= 0 where surface fraction (currently {sfr_value}) is greater than zero"
                                                     ),
                                                     # "path": f"sites[{i}]/properties/land_cover/{surface}/lai",
                                                     "param": "lai_min",
@@ -2283,7 +2281,7 @@ class SUEWSConfig(DataModelBase):
                                                 {
                                                     "error_text": (
                                                         f"site {site_index}, "
-                                                        f"properties.land_cover.{surface_type}.lai.gdd_base "
+                                                        f"properties.land_cover.{surface_type}.lai.gdd_base (currently {gdd_base})"
                                                         f"must be >= 0 where surface fraction (currently {sfr_value}) is greater than zero"
                                                     ),
                                                     # "path": f"sites[{i}]/properties/land_cover/{surface}/lai",
@@ -2309,7 +2307,7 @@ class SUEWSConfig(DataModelBase):
                                                     {
                                                         "error_text": (
                                                             f"site {site_index}, "
-                                                            f"properties.land_cover.{surface_type}.lai.sdd_base "
+                                                            f"properties.land_cover.{surface_type}.lai.sdd_base (currently {sdd_base})"
                                                             f"must be >= 0 where surface fraction (currently {sfr_value}) is greater than zero"
                                                         ),
                                                         # "path": f"sites[{i}]/properties/land_cover/{surface}/lai",
@@ -4824,8 +4822,6 @@ class SUEWSConfig(DataModelBase):
             for issue in self._iter_active_veg_lai_max_issues()
             if issue["error_text"]
         ]
-
-    #FA make function that checks for critical LAI parameter issues
 
     def _check_critical_lai_params(self, land_cover, site_id) -> list[str]:
         """ Returns error text for positive/negative sdd_base/gdd_base, where lai_min is negative and where lai_max

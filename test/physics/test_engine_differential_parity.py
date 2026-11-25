@@ -24,9 +24,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from importlib import import_module
-from importlib.resources import as_file, files
+from importlib.resources import files
 import importlib.util
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -77,21 +76,6 @@ pytestmark = [
 
 _TIME_COLS = ("iy", "id", "it", "imin", "dectime")
 _YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
-
-
-def _locate_suews_engine() -> Path:
-    """Return the bundled or locally built ``suews-engine`` binary."""
-    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = files("supy").joinpath("bin").joinpath(binary_name)
-    with as_file(bundled) as bundled_path:
-        if bundled_path.exists():
-            return Path(bundled_path)
-
-    repo_root = Path(__file__).resolve().parents[2]
-    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
-    if dev_binary.exists():
-        return dev_binary
-    pytest.skip("Rust CLI binary not found; build with: make bridge")
 
 
 @pytest.fixture(scope="module")
@@ -377,15 +361,15 @@ def test_live_python_and_engine_bit_identical_across_coupled_anchors(
     tmp_path: Path,
     sample_data_loaded,
     sample_forcing_header: list[str],
+    suews_engine_bin: Path,
 ) -> None:
     """Python SUEWSSimulation and standalone suews-engine match bit-for-bit across all 11 groups."""
-    engine_bin = _locate_suews_engine()
     _, df_full = sample_data_loaded
     cfg_dict, df_forcing = _prepare_parity_case(case_name, df_full)
 
     py_df, eng_timestamps, eng_raw_data, column_names, parsed_layout = (
         _run_paired_python_and_engine(
-            tmp_path, cfg_dict, df_forcing, sample_forcing_header, engine_bin
+            tmp_path, cfg_dict, df_forcing, sample_forcing_header, suews_engine_bin
         )
     )
 
@@ -406,9 +390,9 @@ def test_engine_refuses_observed_soil_moisture_anchor(
     tmp_path: Path,
     sample_data_loaded,
     sample_forcing_header: list[str],
+    suews_engine_bin: Path,
 ) -> None:
     """Standalone suews-engine refuses observed soil moisture while Python converts canonical sm."""
-    engine_bin = _locate_suews_engine()
     _, df_full = sample_data_loaded
 
     cfg_dict = build_anchor_dict("observed_and_dyohm")
@@ -444,7 +428,7 @@ def test_engine_refuses_observed_soil_moisture_anchor(
     np.testing.assert_allclose(py_df["SUEWS", "SMD"].to_numpy(), 40.0)
 
     proc = subprocess.run(
-        [str(engine_bin), "run", str(resolved_path)],
+        [str(suews_engine_bin), "run", str(resolved_path)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -459,15 +443,15 @@ def test_differential_comparator_rejects_value_and_sentinel_drift(
     tmp_path: Path,
     sample_data_loaded,
     sample_forcing_header: list[str],
+    suews_engine_bin: Path,
 ) -> None:
     """Negative control: single-cell numerical drift or sentinel mismatch fails parity."""
-    engine_bin = _locate_suews_engine()
     _, df_full = sample_data_loaded
     cfg_dict = build_anchor_dict("all_surfaces_baseline")
     df_forcing = df_full.iloc[120:132].copy()
 
     py_df, eng_timestamps, eng_raw_data, _, _ = _run_paired_python_and_engine(
-        tmp_path, cfg_dict, df_forcing, sample_forcing_header, engine_bin
+        tmp_path, cfg_dict, df_forcing, sample_forcing_header, suews_engine_bin
     )
     _assert_full_buffer_bit_identical(
         py_df, eng_timestamps, eng_raw_data, case_name="control"

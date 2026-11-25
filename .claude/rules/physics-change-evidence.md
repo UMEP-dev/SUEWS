@@ -316,8 +316,9 @@ the only tests the label can add are those matching
 `physics and slow and not core`. That set is the module
 `test/physics/test_continuation_matrix.py`: the parametrised
 `test_continuation_matrix` (chunked, checkpoint-resumed and streamed
-runs against an uninterrupted run, crossed with the default,
-snow, SPARTACUS, STEBBS, dual-timescale EHC, irrigation and CO2 modes) and its
+runs against an uninterrupted run, crossed with the default, leap-day,
+snow, SPARTACUS, STEBBS, dual-timescale EHC, DyOHM, DyOHM-building,
+irrigation and CO2 modes) and its
 negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
 not `core` on purpose: #2100 asks for this restart verification to be opt-in, so
 it runs on ready `0-physics:change` and `0-numerics:change` PRs and their

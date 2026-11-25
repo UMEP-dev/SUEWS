@@ -70,7 +70,35 @@ def _simulation(config):
     return sim
 
 
-def _active(frame, mode):
+@pytest.fixture(scope="module")
+def ohm_control_qs(sample_config_loaded, sample_data_loaded, tmp_path_factory):
+    """Public-path OHM (storage_heat=1) control on the 48-hour default forcing."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.physics.storage_heat = 1
+    forcing = sample_data_loaded[1].iloc[:STEPS].copy()
+    path = tmp_path_factory.mktemp("ohm_control") / "case.yml"
+    cfg.to_yaml(path)
+    output = _run(_simulation(path), forcing, chunk_day=3660)
+    return output["SUEWS"][["QS", "QS_Bldgs"]]
+
+
+def _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode):
+    """Require a post-spin-up dynamic storage-heat divergence from ordinary OHM."""
+    assert ohm_control is not None, f"Missing OHM control for {mode}"
+    pd.testing.assert_index_equal(frame.index, ohm_control.index)
+    dates = frame.index.get_level_values("datetime")
+    warm_mask = dates >= (dates.min() + pd.Timedelta(days=1))
+    assert warm_mask.any(), f"No post-spin-up rows for {mode}"
+    for col in ("QS", "QS_Bldgs"):
+        delta = np.abs(frame["SUEWS", col].to_numpy() - ohm_control[col].to_numpy())
+        max_delta = float(np.max(delta[warm_mask]))
+        assert max_delta > 1.0e-4, (
+            f"{mode} {col} did not diverge from ordinary OHM after day-1 "
+            f"coefficient spin-up (max |delta| = {max_delta:.3e})"
+        )
+
+
+def _active(frame, mode, *, ohm_control=None):
     """Require a finite live signal; irrigation may deliver a constant rate."""
     if mode in {"default", "leap_day"}:
         series = frame["SUEWS", "QN"]
@@ -97,7 +125,11 @@ def _active(frame, mode):
         assert np.isfinite(ts_dyohm).all() and ts_dyohm.nunique() > 1, (
             "Inactive dyohm surface temperature history"
         )
-    elif mode in {"ehc", "ehc_explicit", "dyohm_building"}:
+        _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode)
+    elif mode == "dyohm_building":
+        series = frame["SUEWS", "QS"]
+        _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode)
+    elif mode in {"ehc", "ehc_explicit"}:
         series = frame["SUEWS", "QS"]
     elif mode == "stebbs":
         series = frame["STEBBS", "Tair_ind"]
@@ -214,7 +246,7 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
 )
 @pytest.mark.parametrize("mechanism", ["chunk", "checkpoint", "stream"])
 def test_continuation_matrix(
-    sample_config_loaded, sample_data_loaded, tmp_path, mode, mechanism
+    sample_config_loaded, sample_data_loaded, ohm_control_qs, tmp_path, mode, mechanism
 ):
     """All active output groups survive the chosen state hand-over exactly."""
     cfg, forcing = _configuration(sample_config_loaded, sample_data_loaded, mode)
@@ -223,7 +255,7 @@ def test_continuation_matrix(
     cfg.to_yaml(path)
     whole = _simulation(path)
     expected = _run(whole, forcing, chunk_day=3660)
-    _active(expected, mode)
+    _active(expected, mode, ohm_control=ohm_control_qs)
     if mechanism == "chunk":
         actual = _run(_simulation(path), forcing, chunk_day=1)
     elif mechanism == "checkpoint":
@@ -267,7 +299,7 @@ def test_continuation_matrix(
         (saved,) = (tmp_path / "whole").glob("*SUEWS_output*.parquet")
         expected = pd.read_parquet(saved).sort_index()
     _compare(actual, expected)
-    _active(actual, mode)
+    _active(actual, mode, ohm_control=ohm_control_qs)
 
 
 def test_checkpoint_perturbation_is_detected(sample_config_loaded, sample_data_loaded):

@@ -506,6 +506,36 @@ def sample_yaml_path() -> Iterator[Path]:
 
 
 @pytest.fixture(scope="session")
+def suews_engine_bin() -> Iterator[Path]:
+    """Path to the bundled or locally built ``suews-engine`` CLI binary.
+
+    Keeps the ``as_file`` materialisation context open for the session lifetime
+    whenever the binary is served from packaged ``supy/bin`` resources, and
+    falls back to the local release build under ``src/suews_bridge`` before
+    skipping if no compiled CLI binary is available.
+    """
+    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
+    bundled = trv_supy_module / "bin" / binary_name
+    with as_file(bundled) as bundled_path:
+        if bundled_path.exists():
+            yield Path(bundled_path)
+            return
+
+    dev_binary = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "suews_bridge"
+        / "target"
+        / "release"
+        / binary_name
+    )
+    if dev_binary.exists():
+        yield dev_binary
+        return
+    pytest.skip("Rust CLI binary not found; build with: make bridge")
+
+
+@pytest.fixture(scope="session")
 def sample_config_loaded(sample_yaml_path):
     """The validated sample config, without loading its full forcing file.
 

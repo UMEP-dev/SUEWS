@@ -2721,32 +2721,26 @@ sites:
           value: 0.6
         lai:
           base_temperature: 
-            value: 6.4553
-          gdd_full: 
-            value: 378
+            value: 6.5
           gdd_base:
-            value: 118.7532
+            value: 120
           base_temperature_senescence:
             value: 22.0
-          sdd_full: 
-            value: -740
           sdd_base:
-              value: -239.3996
+              value: -240
           lai_min: 
             value: 0.001
           lai_max: 
             value: 5.34
           lai_power:
             growth_lai: 
-              value: -0.0176
+              value: -0.02
             growth_gdd:
-              value: 0.0347
+              value: 0.04
             senescence_lai: 
               value: -1.0
             senescence_sdd: 
               value: 0.02
-          lai_type: 
-            value: 0
         ie_a:
           value: 0.0
         ie_m:
@@ -2895,32 +2889,26 @@ sites:
           value: 0.6
         lai:
           base_temperature: 
-            value: 6.4553
-          gdd_full: 
-            value: 378
+            value: 6.5
           gdd_base:
-            value: 118.7532
+            value: 120
           base_temperature_senescence:
             value: 22.0
-          sdd_full: 
-            value: -740
           sdd_base:
-              value: -239.3996
+              value: -240
           lai_min: 
             value: 0.001
           lai_max: 
             value: 5.34
           lai_power:
             growth_lai: 
-              value: -0.0176
+              value: -0.02
             growth_gdd:
-              value: 0.0347
+              value: 0.04
             senescence_lai: 
               value: -1.0
             senescence_sdd: 
               value: 0.02
-          lai_type: 
-            value: 0
         ie_a:
           value: 0.0
         ie_m:
@@ -3061,32 +3049,27 @@ sites:
           value: 0.6
         lai:
           base_temperature: 
-            value: 6.4553
-          gdd_full: 
-            value: 378
+            value: 6.5
           gdd_base:
-            value: 118.7532
+            value: 120
           base_temperature_senescence:
             value: 22.0
-          sdd_full: 
-            value: -740
           sdd_base:
-              value: -239.3996
+              value: -240
           lai_min: 
             value: 0.001
           lai_max: 
             value: 5.34
           lai_power:
             growth_lai: 
-              value: -0.0176
+              value: -0.02
             growth_gdd:
-              value: 0.0347
+              value: 0.04
             senescence_lai: 
               value: -1.0
             senescence_sdd: 
               value: 0.02
-          lai_type: 
-            value: 0
+
         ie_a:
           value: 0.0
         ie_m:

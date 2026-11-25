@@ -525,7 +525,7 @@ def test_weekly_daywat_dailystate_matches_named_weekday_gh2049(calendar_base):
         for other_day in cycle_days:
             if other_day == active_day:
                 continue
-            assert abs(float(wu_by_day.loc[other_day])) <= 1e-12, (
-                f"Expected zero DailyState WU_Grass1 on {other_day.date()} when only "
+            assert np.array_equal(float(wu_by_day.loc[other_day]), 0.0), (
+                f"Expected exact zero DailyState WU_Grass1 on {other_day.date()} when only "
                 f"{label} is enabled, got {wu_by_day.loc[cycle_days].to_dict()}"
             )

@@ -70,18 +70,6 @@ def _simulation(config):
     return sim
 
 
-@pytest.fixture(scope="module")
-def ohm_control_qs(sample_config_loaded, sample_data_loaded, tmp_path_factory):
-    """Public-path OHM (storage_heat=1) control on the 48-hour default forcing."""
-    cfg = sample_config_loaded.model_copy(deep=True)
-    cfg.model.physics.storage_heat = 1
-    forcing = sample_data_loaded[1].iloc[:STEPS].copy()
-    path = tmp_path_factory.mktemp("ohm_control") / "case.yml"
-    cfg.to_yaml(path)
-    output = _run(_simulation(path), forcing, chunk_day=3660)
-    return output["SUEWS"][["QS", "QS_Bldgs"]]
-
-
 def _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode):
     """Require a post-spin-up dynamic storage-heat divergence from ordinary OHM."""
     assert ohm_control is not None, f"Missing OHM control for {mode}"
@@ -246,16 +234,22 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
 )
 @pytest.mark.parametrize("mechanism", ["chunk", "checkpoint", "stream"])
 def test_continuation_matrix(
-    sample_config_loaded, sample_data_loaded, ohm_control_qs, tmp_path, mode, mechanism
+    sample_config_loaded,
+    sample_data_loaded,
+    sample_ohm_48h_qs,
+    tmp_path,
+    mode,
+    mechanism,
 ):
     """All active output groups survive the chosen state hand-over exactly."""
     cfg, forcing = _configuration(sample_config_loaded, sample_data_loaded, mode)
+    ohm_control = sample_ohm_48h_qs() if mode in {"dyohm", "dyohm_building"} else None
     # Round-trip through YAML so overrides take the public parser/engine path.
     path = tmp_path / "case.yml"
     cfg.to_yaml(path)
     whole = _simulation(path)
     expected = _run(whole, forcing, chunk_day=3660)
-    _active(expected, mode, ohm_control=ohm_control_qs)
+    _active(expected, mode, ohm_control=ohm_control)
     if mechanism == "chunk":
         actual = _run(_simulation(path), forcing, chunk_day=1)
     elif mechanism == "checkpoint":
@@ -299,7 +293,7 @@ def test_continuation_matrix(
         (saved,) = (tmp_path / "whole").glob("*SUEWS_output*.parquet")
         expected = pd.read_parquet(saved).sort_index()
     _compare(actual, expected)
-    _active(actual, mode, ohm_control=ohm_control_qs)
+    _active(actual, mode, ohm_control=ohm_control)
 
 
 def test_checkpoint_perturbation_is_detected(sample_config_loaded, sample_data_loaded):

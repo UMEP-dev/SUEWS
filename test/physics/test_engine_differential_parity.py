@@ -22,6 +22,7 @@ physics regimes defined in ``test/data_model/_physics_anchors.py``:
 
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timedelta
 from importlib import import_module
 from importlib.resources import files
@@ -70,7 +71,6 @@ build_anchor_dict = _physics_anchors.build_anchor_dict
 
 pytestmark = [
     pytest.mark.physics,
-    pytest.mark.api,
     pytest.mark.contract("C-PARITY", "C-OUTPUT", "C-CLOCK"),
 ]
 
@@ -238,8 +238,9 @@ def _prepare_parity_case(
         # in test_engine_refuses_observed_soil_moisture_anchor); keep DyOHM plus
         # observed Ldown, water use, and LAI active.
         cfg["model"]["physics"]["soil_moisture"] = "modelled"
-        # Full 24-hour window exercises the diurnal DyOHM storage-heat cycle.
-        df = df_full.iloc[:288].copy()
+        # 48-hour window extends past day-1 DyOHM coefficient spin-up so day-2 QS
+        # diverges cleanly from an otherwise identical ordinary-OHM control.
+        df = df_full.iloc[:576].copy()
         df["ldown"] = 320.0
         df["Wuh"] = 0.05
         df["lai"] = 2.5
@@ -254,7 +255,12 @@ def _prepare_parity_case(
     return cfg, df
 
 
-def _assert_active_physics_witness(case_name: str, py_df: pd.DataFrame) -> None:
+def _assert_active_physics_witness(
+    case_name: str,
+    py_df: pd.DataFrame,
+    *,
+    ohm_control: pd.DataFrame | None = None,
+) -> None:
     """Confirm each coupled parity case genuinely activated its target physics."""
     if case_name == "all_surfaces_baseline":
         series = py_df["SUEWS", "QN"]
@@ -276,12 +282,23 @@ def _assert_active_physics_witness(case_name: str, py_df: pd.DataFrame) -> None:
         assert np.isfinite(tind).all() and tind.nunique() > 1
     elif case_name == "dyohm_observed_inputs":
         qs = py_df["SUEWS", "QS"]
-        ts_dyohm = py_df["SUEWS", "Ts_Paved_dyohm"]
         ldown = py_df["SUEWS", "Ldown"]
         irr = py_df["SUEWS", "Irr"]
         lai = py_df["SUEWS", "LAI"]
         assert np.isfinite(qs).all() and qs.nunique() > 1
-        assert np.isfinite(ts_dyohm).all() and ts_dyohm.nunique() > 1
+        assert ohm_control is not None, "Missing ordinary-OHM control for DyOHM check"
+        pd.testing.assert_index_equal(py_df.index, ohm_control.index)
+        warm_mask = py_df.index >= (py_df.index.min() + pd.Timedelta(days=1))
+        assert warm_mask.any(), "DyOHM window must extend past day-1 spin-up"
+        max_qs_delta = float(
+            np.max(
+                np.abs(qs.to_numpy() - ohm_control["SUEWS", "QS"].to_numpy())[warm_mask]
+            )
+        )
+        assert max_qs_delta > 1.0e-4, (
+            "DyOHM storage_heat=6 did not diverge from ordinary OHM after day-1 "
+            f"spin-up (max |delta QS| = {max_qs_delta:.3e})"
+        )
         np.testing.assert_allclose(ldown.to_numpy(), 320.0)
         np.testing.assert_allclose(irr.to_numpy(), 0.05)
         assert np.isfinite(lai).all() and np.isclose(float(lai.iloc[-1]), 2.5)
@@ -383,7 +400,21 @@ def test_live_python_and_engine_bit_identical_across_coupled_anchors(
     _assert_full_buffer_bit_identical(
         py_df, eng_timestamps, eng_raw_data, case_name=case_name
     )
-    _assert_active_physics_witness(case_name, py_df)
+    ohm_control: pd.DataFrame | None = None
+    if case_name == "dyohm_observed_inputs":
+        ohm_cfg = copy.deepcopy(cfg_dict)
+        ohm_cfg["model"]["physics"]["storage_heat"] = 1
+        ohm_path = tmp_path / "ohm_control.yml"
+        ohm_path.write_text(
+            yaml.dump(ohm_cfg, sort_keys=False, Dumper=_YAML_DUMPER),
+            encoding="utf-8",
+        )
+        ohm_control = SUEWSSimulation(ohm_path).run(n_jobs=1).df.droplevel("grid")
+        with pytest.raises(AssertionError, match="ordinary OHM"):
+            _assert_active_physics_witness(
+                case_name, ohm_control, ohm_control=ohm_control
+            )
+    _assert_active_physics_witness(case_name, py_df, ohm_control=ohm_control)
 
 
 def test_engine_refuses_observed_soil_moisture_anchor(

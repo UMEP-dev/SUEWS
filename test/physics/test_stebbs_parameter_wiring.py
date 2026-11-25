@@ -36,6 +36,92 @@ def _rust_library_available() -> bool:
     return False
 
 
+def _run_building_qf_probe(building_fraction=0.351, legacy_source_multiplier=1.0):
+    """Run six native steps across changes in the appliance schedule."""
+    simulation = sp.SUEWSSimulation(STEBBS_CONFIG)
+    forcing = simulation.forcing.df.loc["2017-08-26"].iloc[:6].copy()
+    forcing["rain"] = 0.0
+    simulation.update_config(
+        {"model": {"physics": {"emissions": {"heat": "stebbs"}}}},
+        auto_load_forcing=False,
+    )
+    properties = simulation.config.sites[0].properties
+    land_cover = properties.land_cover
+    land_cover.paved.sfr.value += land_cover.bldgs.sfr.value - building_fraction
+    land_cover.bldgs.sfr.value = building_fraction
+
+    # Alternating ten-minute loads distinguish current QEC from a lagged value.
+    profile = properties.stebbs.profile_appliance
+    for day in (profile.working_day, profile.holiday):
+        for slot in day:
+            day[slot] = 88.0 if int(slot) % 2 else 1088.0
+
+    legacy = properties.anthropogenic_emissions.co2
+    legacy.traffic_rate.working_day *= legacy_source_multiplier
+    legacy.traffic_rate.holiday *= legacy_source_multiplier
+    legacy.emission_heat_metabolism_min.value *= legacy_source_multiplier
+    legacy.emission_heat_metabolism_max.value *= legacy_source_multiplier
+    simulation.update_config(simulation.config, auto_load_forcing=False)
+    simulation.update_forcing(forcing)
+    output = simulation.run(
+        start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1
+    )
+    return output.df
+
+
+@pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
+def test_stebbs_qf_uses_current_stebbs_anthropogenic_heat():
+    """SUEWS receives current STEBBS anthropogenic heat, scaled to grid area."""
+    building_fraction = 0.351
+    output = _run_building_qf_probe(building_fraction)
+    qec = output.STEBBS["QEC_bldg_FA"].to_numpy()
+    qf = output.SUEWS["QF"].to_numpy()
+
+    assert len(qec) == 6
+    assert np.isfinite(qec).all()
+    assert qec[0] > 0.0
+    assert np.ptp(qec) > 1.0, "The schedule must expose a one-step QEC lag"
+    assert (output.STEBBS["QH_metabolism_FA"] > 0.0).all()
+    # Both outputs are native float64 values; only arithmetic round-off is allowed.
+    np.testing.assert_allclose(qf, building_fraction * qec, rtol=1e-12, atol=1e-12)
+
+    # The dry, snow-free fixture closes with the source consumed by QH, not just
+    # copied into the output after the downstream energy calculations finish.
+    flux = output.SUEWS
+    np.testing.assert_allclose(
+        flux["QN"] + flux["QF"] - flux["QS"],
+        flux["QH"] + flux["QE"],
+        rtol=1e-12,
+        atol=1e-10,
+    )
+
+
+@pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
+def test_stebbs_qf_ignores_legacy_traffic_and_metabolism():
+    """Changing unused SUEWS sources cannot add heat to building-only QF."""
+    building_fraction = 0.2
+    baseline = _run_building_qf_probe(building_fraction)
+    changed = _run_building_qf_probe(building_fraction, legacy_source_multiplier=10.0)
+
+    np.testing.assert_array_equal(changed.SUEWS["QF"], baseline.SUEWS["QF"])
+    np.testing.assert_array_equal(
+        changed.STEBBS["QEC_bldg_FA"], baseline.STEBBS["QEC_bldg_FA"]
+    )
+    np.testing.assert_allclose(
+        changed.SUEWS["QF"],
+        building_fraction * changed.STEBBS["QEC_bldg_FA"],
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+
+@pytest.mark.skipif(not _rust_library_available(), reason="Rust backend not available")
+def test_stebbs_qf_zero_building_cover_has_no_anthropogenic_input():
+    """A grid without building cover receives neither building nor traffic QF."""
+    output = _run_building_qf_probe(building_fraction=0.0)
+    np.testing.assert_array_equal(output.SUEWS["QF"], np.zeros(6))
+
+
 def _run_one_second_stebbs_probe(external_ground_conductivity=None):
     """Run a short STEBBS case with one internal update per forcing row."""
     simulation = sp.SUEWSSimulation(STEBBS_CONFIG)

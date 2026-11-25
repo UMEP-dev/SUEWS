@@ -725,6 +725,7 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
         &[
             ("observed", &[0]),
             ("simple", &[1, 2, 3, 4, 5, 6]),
+            ("stebbs", &[7]),
             ("biogenic_rectangular", &[11, 12, 13, 14, 15, 16]),
             ("biogenic_bellucco_local", &[21, 22, 23, 24, 25, 26]),
             ("biogenic_bellucco_general", &[31, 32, 33, 34, 35, 36]),
@@ -778,6 +779,7 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("j19", 4),
             ("j19_updated", 5),
             ("l11_updated_detailed", 6),
+            ("stebbs", 7),
             ("biogen_rect_l11", 11),
             ("biogen_rect_j11", 12),
             ("biogen_rect_l11_updated", 13),
@@ -1186,7 +1188,15 @@ fn collapse_orthogonal_emissions(map: &mut serde_yaml::Mapping) -> Result<bool, 
         Some(_) => return Err("'emissions.co2' must be a mapping.".to_string()),
     };
 
-    let code = if heat == "observed" {
+    let code = if heat == "stebbs" {
+        if anthropogenic != "none" || biogenic != "none" {
+            return Err(
+                "'emissions.heat=stebbs' supports building heat only; CO2 axes must be 'none'."
+                    .to_string(),
+            );
+        }
+        7
+    } else if heat == "observed" {
         if anthropogenic == "none" && biogenic == "none" {
             0
         } else {
@@ -1197,7 +1207,7 @@ fn collapse_orthogonal_emissions(map: &mut serde_yaml::Mapping) -> Result<bool, 
         }
     } else {
         let heat_code = emissions_heat_code(&heat).ok_or_else(|| {
-            "'emissions.heat' must be one of 'observed', 'l11', 'j11', or 'l11_updated'."
+            "'emissions.heat' must be one of 'observed', 'l11', 'j11', 'l11_updated', or 'stebbs'."
                 .to_string()
         })?;
 
@@ -2821,7 +2831,13 @@ model:
 
     #[test]
     fn orthogonal_emissions_collapses() {
-        let heat_only_cases = [("observed", 0), ("l11", 1), ("j11", 2), ("l11_updated", 3)];
+        let heat_only_cases = [
+            ("observed", 0),
+            ("l11", 1),
+            ("j11", 2),
+            ("l11_updated", 3),
+            ("stebbs", 7),
+        ];
         for (heat, expected) in heat_only_cases {
             let yaml = format!("model:\n  physics:\n    emissions:\n      heat: {heat}\n");
             let mut root: Value = from_str(&yaml).unwrap();
@@ -2856,6 +2872,39 @@ model:
                     assert_eq!(v.as_i64(), Some(expected));
                 }
             }
+        }
+    }
+
+    #[test]
+    fn stebbs_emissions_forms_collapse_to_building_heat() {
+        for selector in ["stebbs", "{value: stebbs}", "{stebbs: {value: 7}}"] {
+            let mut root: Value =
+                from_str(&format!("model:\n  physics:\n    emissions: {selector}\n")).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            assert_eq!(
+                root["model"]["physics"]["emissionsmethod"]["value"].as_i64(),
+                Some(7)
+            );
+        }
+    }
+
+    #[test]
+    fn stebbs_emissions_reject_enabled_co2_axes() {
+        for co2 in [
+            "{anthropogenic: qf_linked}",
+            "{biogenic: rectangular}",
+            "{anthropogenic: detailed, biogenic: conductance}",
+        ] {
+            let mut root: Value = from_str(&format!(
+                "model:\n  physics:\n    emissions: {{heat: stebbs, co2: {co2}}}\n"
+            ))
+            .unwrap();
+            let err = normalize_field_names(&mut root)
+                .expect_err("building-only STEBBS heat must reject enabled CO2 axes");
+            assert!(
+                err.contains("emissions.heat=stebbs") && err.contains("CO2"),
+                "{err}"
+            );
         }
     }
 

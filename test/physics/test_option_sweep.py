@@ -118,6 +118,9 @@ OPTION_VALUES_REFUSED = {
     ("net_radiation", 1002): "SPARTACUS with buildings",
     ("net_radiation", 1003): "SPARTACUS with buildings",
     ("emissions", 0): "forcing column 'qf'",
+    # Building-only QF needs coupled STEBBS storage, enabled STEBBS and
+    # SPARTACUS; this sweep changes only emissions from the sample defaults.
+    ("emissions", 7): "requires storage_heat=7",
     ("storage_heat", 0): "forcing column 'qs'",
     # STEBBS storage heat needs SPARTACUS-Surface net radiation, which the
     # sample's net_radiation=3 is not; varying one option at a time cannot

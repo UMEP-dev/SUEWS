@@ -2409,13 +2409,14 @@ def _build_site_with_co2(co2_block):
     return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
 
 
-def test_emissionsmethod_non_biogenic_nullifies_co2_block():
+@pytest.mark.parametrize("emissions_method", [6, 7])
+def test_emissionsmethod_non_biogenic_nullifies_co2_block(emissions_method):
     co2_block = {
         "co2pointsource": {"value": 0.1},
         "nested": {"ef_umolco2perj": {"value": 2.0}},
     }
     data = {
-        "model": {"physics": {"emissions": 6}},  # 0..6 => CO2 output disabled
+        "model": {"physics": {"emissions": emissions_method}},
         "sites": [_build_site_with_co2(co2_block)],
     }
     result = precheck_model_option_rules(deepcopy(data))
@@ -2425,10 +2426,11 @@ def test_emissionsmethod_non_biogenic_nullifies_co2_block():
     assert out["nested"]["ef_umolco2perj"]["value"] is None
 
 
-def test_orthogonal_heat_only_emissions_nullifies_co2_block():
+@pytest.mark.parametrize("heat", ["j11", "stebbs"])
+def test_orthogonal_heat_only_emissions_nullifies_co2_block(heat):
     co2_block = {"co2pointsource": {"value": 0.1}}
     data = {
-        "model": {"physics": {"emissions": {"heat": "j11"}}},
+        "model": {"physics": {"emissions": {"heat": heat}}},
         "sites": [_build_site_with_co2(co2_block)],
     }
     result = precheck_model_option_rules(deepcopy(data))
@@ -2525,10 +2527,11 @@ def test_deeply_nested_co2_structures_get_nullified():
         assert all(v is None for v in tp["working_day"].values())
 
 
-def test_phase_b_adjust_model_dependent_nullification_reports_changes():
+@pytest.mark.parametrize("emissions_method", [0, 7])
+def test_phase_b_adjust_model_dependent_nullification_reports_changes(emissions_method):
     co2_block = {"co2pointsource": {"value": 0.5}, "nested": {"x": {"value": 1.0}}}
     data = {
-        "model": {"physics": {"emissions": 0}},
+        "model": {"physics": {"emissions": emissions_method}},
         "sites": [_build_site_with_co2(co2_block)],
     }
     yaml_after, adjustments = adjust_model_dependent_nullification(deepcopy(data))

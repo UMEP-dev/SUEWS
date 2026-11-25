@@ -1498,6 +1498,20 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: notUsed = -999
       REAL(KIND(1D0)) :: Tair !ambient air temperature [degC]
 
+      IF (config%EmissionsMethod == 7) THEN
+         ! Building-only QF is assigned from this pass's STEBBS QEC in
+         ! SUEWS_cal_Qs. Do not read or add legacy SAHP, traffic or metabolism.
+         modState%heatState%qf = 0.0D0
+         modState%heatState%QF_SAHP = 0.0D0
+         ehcDiag%qf_build = 0.0D0
+         modState%anthroEmisState%Fc_anthro = 0.0D0
+         modState%anthroEmisState%Fc_metab = 0.0D0
+         modState%anthroEmisState%Fc_traff = 0.0D0
+         modState%anthroEmisState%Fc_build = 0.0D0
+         modState%anthroEmisState%Fc_point = 0.0D0
+         RETURN
+      END IF
+
       ASSOCIATE ( &
          anthroEmisState => modState%anthroEmisState, &
          heatState => modState%heatState, &
@@ -2555,11 +2569,15 @@ CONTAINS
                a2 = -999
                a3 = -999
 
-               ! calculate qn if qf should be included
-               IF (OHMIncQF == OHM_QF_INCLUDE) THEN
-                  qn_use = qf + qn
-               ELSEIF (OHMIncQF == OHM_QF_EXCLUDE) THEN
-                  qn_use = qn
+               IF (EmissionsMethod == 7) THEN
+                  IF (StorageHeatMethod /= SHM_STEBBS .OR. &
+                      (config%stebbsmethod /= STEBBS_DEFAULT .AND. config%stebbsmethod /= STEBBS_PROVIDED) .OR. &
+                      config%NetRadiationMethod < 1001 .OR. config%NetRadiationMethod > 1003) THEN
+                     CALL set_supy_error(117, &
+                        'SUEWS_cal_Qs: EmissionsMethod 7 requires StorageHeatMethod 7, '// &
+                        'STEBBSMethod 1 or 2 and NetRadiationMethod 1001-1003')
+                     RETURN
+                  END IF
                END IF
 
                !==============use STEBBS to get localised surface temperature and storage heat flux==================
@@ -2571,6 +2589,28 @@ CONTAINS
                      modState, & ! input/output:
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
+                  IF (supy_error_flag()) RETURN
+               END IF
+
+               IF (EmissionsMethod == 7) THEN
+                  ! QEC already includes STEBBS sensible metabolism. Convert
+                  ! footprint to grid area once; replace, never accumulate QF.
+                  qf = 0.0D0
+                  IF (sfr_surf(BldgSurf) > 0.0D0) THEN
+                     IF (stebbsState%buildings(1)%QEC_bldg_tstepFA < 0.0D0) THEN
+                        CALL set_supy_error(117, 'SUEWS_cal_Qs: STEBBS QEC must be non-negative')
+                        RETURN
+                     END IF
+                     qf = sfr_surf(BldgSurf)*stebbsState%buildings(1)%QEC_bldg_tstepFA
+                  END IF
+                  ehcDiag%qf_build = qf
+               END IF
+
+               ! Use the current complete QF before storage and turbulent fluxes.
+               IF (OHMIncQF == OHM_QF_INCLUDE) THEN
+                  qn_use = qf + qn
+               ELSEIF (OHMIncQF == OHM_QF_EXCLUDE) THEN
+                  qn_use = qn
                END IF
 
                IF (StorageHeatMethod == SHM_ANOHM) THEN

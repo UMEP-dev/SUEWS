@@ -2248,15 +2248,14 @@ fn build_expected_receivers(
                 ("resp_b", format!("{site_lc}.bioco2.resp_b")),
                 ("min_res_bioco2", format!("{site_lc}.bioco2.min_res_bioco2")),
                 ("lai.base_temperature", format!("{site_lc}.lai.baset")),
-                ("lai.gdd_full", format!("{site_lc}.lai.gddfull")),
+                ("lai.gdd_base", format!("{site_lc}.lai.gddbase")),
                 (
                     "lai.base_temperature_senescence",
                     format!("{site_lc}.lai.basete"),
                 ),
-                ("lai.sdd_full", format!("{site_lc}.lai.sddfull")),
+                ("lai.sdd_base", format!("{site_lc}.lai.sddbase")),
                 ("lai.lai_min", format!("{site_lc}.lai.laimin")),
                 ("lai.lai_max", format!("{site_lc}.lai.laimax")),
-                ("lai.lai_type", format!("{site_lc}.lai.laitype")),
                 (
                     "lai.lai_power.growth_lai",
                     format!("{site_lc}.lai.laipower_1"),

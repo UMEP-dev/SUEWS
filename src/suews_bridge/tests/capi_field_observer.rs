@@ -958,13 +958,10 @@ fn build_lai_prm(exp: &mut ExpectedStruct, prefix: &str) -> LaiPrm {
     let p = |f: &str| join_path(prefix, f);
     LaiPrm {
         base_temperature: exp.real(&p("base_temperature")),
-        gdd_full: exp.real(&p("gdd_full")),
         base_temperature_senescence: exp.real(&p("base_temperature_senescence")),
-        sdd_full: exp.real(&p("sdd_full")),
         lai_min: exp.real(&p("lai_min")),
         lai_max: exp.real(&p("lai_max")),
         lai_power: exp.real_arr_1d::<4>(&p("lai_power"), 1),
-        lai_type: exp.int(&p("lai_type")),
         gdd_base: exp.int(&p("gdd_base")),
         sdd_base: exp.int(&p("sdd_base")),
     }

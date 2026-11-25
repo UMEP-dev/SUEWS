@@ -147,8 +147,8 @@ fn set_veg_shadow_values(
         .expect("lai mapping");
     set_wrapped_f64(lai, "base_temperature", lai_scalars[0]);
     set_wrapped_f64(lai, "base_temperature_senescence", lai_scalars[1]);
-    set_wrapped_f64(lai, "gdd_base", lai_scalars[2]);
-    set_wrapped_f64(lai, "sdd_base", lai_scalars[3]);
+    set_wrapped_f64(lai, "gdd_full", lai_scalars[2]);
+    set_wrapped_f64(lai, "sdd_full", lai_scalars[3]);
     set_wrapped_f64(lai, "lai_max", lai_scalars[4]);
 
     let mut lp = Mapping::new();
@@ -253,7 +253,7 @@ fn build_sparse_ohm_asymmetric_yaml() -> Value {
         Some(("height_evergreen_tree", 18.5)),
         Some(("fai_evergreen_tree", 0.37)),
         [0.73, 0.52, 1.17, 0.88, 1.24],
-        [6.5, 11.5, 100.0, -300.0, 5.4],
+        [6.5, 11.5, 240.0, -380.0, 5.4],
         [0.21, 0.22, 0.23, 0.24],
     );
 
@@ -322,8 +322,8 @@ fn test_sparse_asymmetric_ohm_receiver_parity() {
         11.5,
         "evetr.basete",
     );
-    assert_close(site.lc_evetr.lai.gdd_base, 240.0, "evetr.gddbase");
-    assert_close(site.lc_evetr.lai.sdd_base, -380.0, "evetr.sddbase");
+    assert_close(site.lc_evetr.lai.gdd_full, 240.0, "evetr.gddfull");
+    assert_close(site.lc_evetr.lai.sdd_full, -380.0, "evetr.sddfull");
     assert_close(site.lc_evetr.lai.lai_max, 5.4, "evetr.laimax");
     assert_slice_close(
         &site.lc_evetr.lai.lai_power,
@@ -366,8 +366,8 @@ fn test_sparse_asymmetric_ohm_receiver_parity() {
     for key in [
         "base_temperature",
         "base_temperature_senescence",
-        "gdd_base",
-        "sdd_base",
+        "gdd_full",
+        "sdd_full",
         "lai_max",
         "lai_power",
     ] {
@@ -642,7 +642,7 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
             Some(("height_deciduous_tree", 16.5)),
             Some(("fai_deciduous_tree", 0.29)),
             [0.64, 0.47, 1.31, 0.92, 1.18],
-            [7.5, 12.5, 100.0, -300.0, 4.8],
+            [7.5, 12.5, 290.0, -410.0, 4.8],
             [0.31, 0.32, 0.33, 0.34],
         );
         strip_veg_shadow_defaults(lc, "evetr");
@@ -756,8 +756,8 @@ fn test_sparse_asymmetric_ehc_flipped_receiver_parity() {
         12.5,
         "dectr.basete",
     );
-    assert_close(received.lc_dectr.lai.gdd_base, 100.0, "dectr.gddbase");
-    assert_close(received.lc_dectr.lai.sdd_base, 300.0, "dectr.sddbase");
+    assert_close(received.lc_dectr.lai.gdd_full, 290.0, "dectr.gddfull");
+    assert_close(received.lc_dectr.lai.sdd_full, -410.0, "dectr.sddfull");
     assert_close(received.lc_dectr.lai.lai_max, 4.8, "dectr.laimax");
     assert_slice_close(
         &received.lc_dectr.lai.lai_power,

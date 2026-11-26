@@ -246,7 +246,12 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "TEST_DEFAULT_PATHS != echo test/core\n",
-            "shell assignment operator !=",
+            "unsupported Make assignment operator !=",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "TEST_DEFAULT_PATHS :::= test/core\n",
+            "unsupported Make assignment operator :::=",
         ),
     ],
 )
@@ -278,7 +283,8 @@ def test_invalid_makefile_fails_with_diagnostic(
         (API_TEST_SOURCE, True),
         (PHYSICS_TEST_SOURCE, True),
         (
-            "import pytest\npytestmark = (pytest.mark.api, pytest.mark.smoke)\n",
+            "import pytest\n"
+            'pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]\n',
             True,
         ),
         (
@@ -425,6 +431,60 @@ def test_directory_symlink_under_test_is_rejected(tmp_path: Path, capsys) -> Non
     assert "[X]" in captured.err
     assert "unsupported directory symlink" in captured.err
     assert "test/linked_suite" in captured.err
+    assert captured.err.isascii()
+
+
+def test_nested_define_blocks_do_not_expose_inactive_assignment(
+    tmp_path: Path, capsys
+) -> None:
+    """Nested define/endef blocks cannot leak an inactive TEST_DEFAULT_PATHS append."""
+    makefile = (
+        "TEST_DEFAULT_PATHS := test/core\n"
+        "define OUTER\n"
+        "define INNER\n"
+        "unused\n"
+        "endef\n"
+        "TEST_DEFAULT_PATHS += test/orphan_dir\n"
+        "endef\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan_dir/test_stray.py": API_TEST_SOURCE,
+        },
+        makefile=makefile,
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/orphan_dir/test_stray.py" in captured.err
+
+
+def test_cyclic_symlink_reports_structured_error_without_masking(
+    tmp_path: Path, capsys
+) -> None:
+    """A self-referencing symlink emits [X] without crashing or masking markers."""
+    repo = _make_repo(
+        tmp_path / "repo",
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_unmarked.py": UNMARKED_TEST_SOURCE,
+        },
+    )
+    loop_link = repo / "test" / "core" / "loop"
+    loop_link.symlink_to(loop_link)
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "cyclic or unresolvable symlink" in captured.err
+    assert "test/core/loop" in captured.err
+    assert "test/core/test_unmarked.py" in captured.err
     assert captured.err.isascii()
 
 

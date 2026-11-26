@@ -56,11 +56,11 @@ _UNDEFINE_TARGET_RE = re.compile(
 )
 _TEST_DEFAULT_PATHS_RE = re.compile(
     r"^ *(?P<prefix>(?:(?:override|export|private)[ \t]+)*)"
-    r"TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|!=|=)(?P<value>.*)$"
+    r"TEST_DEFAULT_PATHS[ \t]*(?P<op>:::=|::=|:=|\?=|\+=|!=|=)(?P<value>.*)$"
 )
 _TARGET_SPECIFIC_RE = re.compile(
     r"^ *[^#\t][^:=]*:[ \t]*(?:(?:override|export|private)[ \t]+)*"
-    r"TEST_DEFAULT_PATHS[ \t]*(?:::=|:=|\?=|\+=|!=|=)"
+    r"TEST_DEFAULT_PATHS[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
 )
 
 
@@ -208,9 +208,9 @@ def _apply_makefile_assignment(
             f"TEST_DEFAULT_PATHS uses unsupported Make directive prefix: {prefix}"
         )
     op = match.group("op")
-    if op == "!=":
+    if op in {":::=", "!="}:
         raise ValueError(
-            "TEST_DEFAULT_PATHS uses unsupported Make shell assignment operator !="
+            f"TEST_DEFAULT_PATHS uses unsupported Make assignment operator {op}"
         )
     value = match.group("value").split("#", 1)[0]
     if "$" in value:
@@ -252,13 +252,16 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     found = False
     raw_tokens: list[str] = []
     cond_depth = 0
-    in_define = False
+    define_depth = 0
 
     for line in _join_makefile_continuations(text):
         if line.startswith("\t") or line.lstrip().startswith("#"):
             continue
-        if in_define:
-            in_define = not bool(_DEFINE_CLOSE_RE.match(line))
+        if define_depth > 0:
+            if _DEFINE_OPEN_RE.match(line):
+                define_depth += 1
+            elif _DEFINE_CLOSE_RE.match(line):
+                define_depth -= 1
             continue
 
         define_match = _DEFINE_OPEN_RE.match(line)
@@ -267,7 +270,7 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
                 raise ValueError(
                     "TEST_DEFAULT_PATHS uses unsupported Make define block"
                 )
-            in_define = True
+            define_depth = 1
             continue
 
         if _COND_OPEN_RE.match(line):
@@ -336,7 +339,11 @@ def _find_symlink_errors(resolved_root: Path, test_root: Path) -> list[str]:
             if not entry.is_symlink():
                 continue
             rel = entry.relative_to(resolved_root).as_posix()
-            target = entry.resolve(strict=False)
+            try:
+                target = entry.resolve(strict=False)
+            except (OSError, RuntimeError):
+                errors.append(f"cyclic or unresolvable symlink under test/: {rel}")
+                continue
             if not entry.exists():
                 errors.append(f"broken symlink under test/: {rel}")
             elif not target.is_relative_to(resolved_root):
@@ -394,7 +401,13 @@ def find_orphan_test_files(
 
     for entry in default_paths:
         raw_candidate = resolved_root / entry
-        candidate = raw_candidate.resolve()
+        try:
+            candidate = raw_candidate.resolve()
+        except (OSError, RuntimeError):
+            errors.append(
+                f"TEST_DEFAULT_PATHS entry has cyclic or unresolvable symlink: {entry}"
+            )
+            continue
         if not candidate.is_relative_to(resolved_root):
             errors.append(f"TEST_DEFAULT_PATHS entry escapes repository root: {entry}")
             continue

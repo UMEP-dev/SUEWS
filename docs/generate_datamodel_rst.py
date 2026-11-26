@@ -317,14 +317,19 @@ class RSTGenerator:
             "     - Choices",
             "     - Notes",
             "   * - ``emissions.heat``",
-            "     - ``observed``; ``L11``; ``J11``; ``L11_updated``",
-            "     - Observed QF cannot be combined with CO2 axes; use modelled heat when CO2 is enabled.",
+            "     - ``observed``; ``L11``; ``J11``; ``L11_updated``; ``stebbs``",
+            "     - Observed and STEBBS heat require both CO2 axes to be ``none``.",
             "   * - ``emissions.co2.anthropogenic``",
             "     - ``none``; ``qf_linked``; ``detailed``",
             "     - Anthropogenic CO2 branch; use ``none`` only when biogenic is also ``none``.",
             "   * - ``emissions.co2.biogenic``",
             "     - ``none``; ``rectangular``; ``bellucco_local``; ``bellucco_general``; ``conductance``",
             "     - Biogenic CO2 family; a family requires anthropogenic ``qf_linked`` or ``detailed``.",
+            "",
+            "``emissions.heat: stebbs`` supplies anthropogenic heat flux calculated by the",
+            "building energy model STEBBS. The building surface fraction scales this flux",
+            "from building footprint to grid area. It requires ``storage_heat: stebbs``,",
+            "an enabled STEBBS model, and SPARTACUS net radiation.",
             "",
             ".. list-table:: Storage heat",
             "   :header-rows: 1",
@@ -802,8 +807,7 @@ class RSTGenerator:
                 lines.append("")
                 lines.append(
                     "      Some options below are marked as **experimental**. "
-                    "While scientifically validated, users should verify results "
-                    "for their specific applications."
+                    "Users should verify results for their specific applications."
                 )
                 lines.append("")
 

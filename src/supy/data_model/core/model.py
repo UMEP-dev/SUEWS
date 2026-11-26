@@ -113,6 +113,7 @@ class EmissionsMethod(Enum):
     4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes
     5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes
     6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes
+    7: STEBBS - Anthropogenic heat flux calculated by the building energy model STEBBS, converted from building footprint to grid area (experimental)
     11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
     12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
     13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
@@ -148,6 +149,7 @@ class EmissionsMethod(Enum):
     J19 = 4
     J19_UPDATED = 5
     L11_UPDATED_DETAILED = 6
+    STEBBS = 7
     BIOGEN_RECT_L11 = 11
     BIOGEN_RECT_J11 = 12
     BIOGEN_RECT_L11_UPDATED = 13

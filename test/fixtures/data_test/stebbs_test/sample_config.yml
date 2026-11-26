@@ -20,7 +20,7 @@ model:
       constant:
         sw_dn_direct_frac: 0.45
     emissions:
-      value: 2
+      heat: stebbs
     storage_heat:
       value: 7
     ohm_inc_qf:

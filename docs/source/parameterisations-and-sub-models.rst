@@ -220,6 +220,11 @@ Anthropogenic heat flux, Q\ :sub:`F`
    -  **LUCY** :cite:`A11,L13`. A new version has been now included in UMEP. To distinguish it is referred to as `LQF`_
    -  **GreaterQF** :cite:`I11`. A new version has been now included in UMEP. To distinguish it is referred to as `GQF`_
 
+#. |EXP| Anthropogenic heat flux calculated by the building energy model
+   STEBBS can supply |QF| directly to the grid energy balance with emissions
+   method ``7``. See :ref:`STEBBS anthropogenic heat <stebbs_anthropogenic_heat>`
+   for building-fraction scaling, required physics options and source accounting.
+
 Storage heat flux, ΔQ\ :sub:`S`
 -------------------------------
 

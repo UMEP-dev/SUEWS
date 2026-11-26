@@ -3335,6 +3335,26 @@ class SUEWSConfig(DataModelBase):
 
         return issues
 
+    def _validate_stebbs_heat_source(self) -> list[str]:
+        """Require coupled STEBBS to supply its calculated anthropogenic heat flux."""
+        physics = getattr(self.model, "physics", None)
+        if _unwrap_value(getattr(physics, "emissions", None)) != 7:
+            return []
+
+        issues = []
+        prefix = "emissions=7 (STEBBS anthropogenic heat) requires "
+        if _unwrap_value(getattr(physics, "storage_heat", None)) != 7:
+            issues.append(prefix + "storage_heat=7 to account for building storage")
+        if self._composed_stebbsmethod() not in {1, 2}:
+            issues.append(
+                prefix + "STEBBS to be enabled (model.physics.stebbs.enabled=true)"
+            )
+        if not self._needs_spartacus_validation():
+            issues.append(
+                prefix + "SPARTACUS-Surface net radiation (1001, 1002, or 1003)"
+            )
+        return issues
+
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run conditional, method-specific validations for all sites.
@@ -3367,7 +3387,7 @@ class SUEWSConfig(DataModelBase):
 
         All issues found are accumulated and returned as a list of messages.
         """
-        all_issues: List[str] = []
+        all_issues: list[str] = self._validate_stebbs_heat_source()
 
         # Determine which checks to run once up front
         needs_stebbs = self._needs_stebbs_validation()
@@ -4194,7 +4214,7 @@ class SUEWSConfig(DataModelBase):
 
         ``min_res_bioco2`` carries a documented default of ``0.1`` and remains
         ``Optional`` only so Phase B can nullify inactive biogenic blocks when
-        CO2 is disabled (methods 0-6). Under active biogenic CO2 methods
+        CO2 is disabled (heat-only methods). Under active biogenic CO2 methods
         (11-16, 21-26, 31-36, 41-46), an explicit ``null`` or ``{value: null}``
         on an active vegetated surface would drop the key from engine YAML and
         silently deliver ``0.0`` instead of ``0.1`` (gh#2087).
@@ -4256,12 +4276,12 @@ class SUEWSConfig(DataModelBase):
 
         The kernel adds ``emission_co2_point_source`` to the anthropogenic CO2
         flux for the biogenic emissions methods 11-16, 21-26, 31-36 and
-        41-46. Methods 0-6 do not use it: the driver discards every CO2 flux
-        they compute. A missing value used to reach the kernel as the Rust
-        bridge's own 0; for those methods it must now be given, ``0``
-        included (gh#2001). At construction time this applies to configurations
-        loaded from user input (``from_yaml`` / ``from_dict``); at execution
-        handoff (``include_programmatic=True``) it applies unconditionally.
+        41-46. Heat-only methods do not use it. A missing value used to reach
+        the kernel as the Rust bridge's own 0; the biogenic emissions methods
+        now require an explicit value, including ``0`` (gh#2001). At
+        construction time this applies to configurations loaded from user
+        input (``from_yaml`` / ``from_dict``); at execution handoff
+        (``include_programmatic=True``) it applies unconditionally.
 
         Returns
         -------

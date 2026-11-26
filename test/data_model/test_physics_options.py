@@ -788,6 +788,7 @@ def test_model_physics_reports_orthogonal_errors():
         ({"heat": "l11"}, 1),
         ({"heat": "j11"}, 2),
         ({"heat": "l11_updated"}, 3),
+        ({"heat": "stebbs"}, 7),
         *[
             (
                 {
@@ -903,6 +904,77 @@ def test_model_physics_reports_orthogonal_emissions_errors():
             emissions={"heat": "j11", "co2": {"anthropogenic": "qf_linked"}}
         )
     assert "requires a biogenic" in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    "emissions", [7, "stebbs", {"heat": "stebbs"}, {"stebbs": {"value": 7}}]
+)
+def test_stebbs_heat_selector_round_trip(emissions):
+    physics = ModelPhysics(emissions=emissions)
+    dumped = physics.model_dump(mode="json")
+    assert read_physics_key(dumped, "emissions") == 7
+    assert int(_unwrap(ModelPhysics.model_validate(dumped).emissions)) == 7
+
+
+@pytest.mark.parametrize(
+    "co2",
+    [
+        {"anthropogenic": "qf_linked"},
+        {"anthropogenic": "detailed", "biogenic": "conductance"},
+        {"biogenic": "rectangular"},
+    ],
+)
+def test_stebbs_heat_rejects_co2_axes(co2):
+    """Guard the shared emissions selector: the new STEBBS option couples QF only."""
+    with pytest.raises(ValidationError, match=r"STEBBS.*CO2"):
+        ModelPhysics(emissions={"heat": "stebbs", "co2": co2})
+
+
+@pytest.fixture
+def stebbs_qf_config():
+    path = (
+        Path(__file__).parents[1] / "fixtures/data_test/stebbs_test/sample_config.yml"
+    )
+    config = yaml.safe_load(path.read_text(encoding="utf-8"))
+    config["model"]["physics"]["emissions"] = {"heat": "stebbs"}
+    config["model"]["control"]["forcing"]["file"] = None
+    config["model"]["control"]["output"]["groups"] = ["SUEWS"]
+    return config
+
+
+@pytest.mark.parametrize("input_form", ["dict", "yaml"])
+def test_stebbs_heat_config_accepts_no_legacy_sources(
+    stebbs_qf_config, tmp_path, input_form
+):
+    """STEBBS QF must not require inputs for the existing SUEWS emissions model."""
+    anthro = stebbs_qf_config["sites"][0]["properties"]["anthropogenic_emissions"]
+    heat = anthro["heat"]
+    anthro["heat"] = {key: heat[key] for key in ("baset_heating", "baset_cooling")}
+    anthro.pop("co2", None)
+    if input_form == "dict":
+        config = SUEWSConfig.from_dict(stebbs_qf_config)
+    else:
+        path = tmp_path / "stebbs_qf.yml"
+        path.write_text(yaml.safe_dump(stebbs_qf_config), encoding="utf-8")
+        config = SUEWSConfig.from_yaml(str(path))
+    assert int(_unwrap(config.model.physics.emissions)) == 7
+    assert config.to_df_state()["emissionsmethod"].iloc[0, 0] == 7
+
+
+@pytest.mark.parametrize(
+    "field, value, message",
+    [
+        ("storage_heat", 1, "emissions.*STEBBS.*storage_heat.*7"),
+        ("stebbs", {"enabled": False}, "emissions.*STEBBS.*enabled"),
+        ("net_radiation", 3, "emissions.*STEBBS.*SPARTACUS"),
+    ],
+)
+def test_stebbs_heat_requires_coupled_buildings(
+    stebbs_qf_config, field, value, message
+):
+    stebbs_qf_config["model"]["physics"][field] = value
+    with pytest.raises(ValueError, match=message):
+        SUEWSConfig.from_dict(stebbs_qf_config)
 
 
 class TestEstmRejected:

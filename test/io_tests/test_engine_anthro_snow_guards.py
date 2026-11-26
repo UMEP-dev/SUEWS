@@ -14,6 +14,7 @@ import yaml
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.human_activity import AnthropogenicHeat
 from supy.data_model.core.site import SnowParams
+from supy.data_model.output.stebbs_vars import STEBBS_VARIABLE_DEFS
 
 _run_rust = import_module("supy._run_rust")
 
@@ -439,6 +440,71 @@ def _read_arrow_df(arrow_path: Path) -> pd.DataFrame:
     """Read an Arrow IPC output file into a DataFrame and release the mmap."""
     with ipc.open_file(str(arrow_path)) as reader:
         return reader.read_all().to_pandas()
+
+
+@pytest.mark.parametrize("emissions", [{"value": 7}, {"heat": "stebbs"}])
+def test_engine_stebbs_qf_allows_omitted_legacy_anthro_inputs(
+    tmp_path: Path, emissions: dict
+):
+    """Resolved building-only QF runs without SAHP, traffic or SUEWS metabolism."""
+    fixture_dir = Path(__file__).resolve().parents[1] / "fixtures"
+    doc = yaml.safe_load(
+        (fixture_dir / "bridge" / "stebbs_resolved.yml").read_text(encoding="utf-8")
+    )
+    doc["model"]["physics"]["emissions"] = emissions
+    control = doc["model"]["control"]
+    control["output"]["dir"] = str(tmp_path)
+    control["start_time"] = None
+    control["end_time"] = None
+    forcing_name = _unwrap(control["forcing"]["file"])
+    lines = (
+        (fixture_dir / "data_test" / "stebbs_test" / forcing_name)
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
+    rain_col = lines[0].split().index("rain")
+    selected = [line.split() for line in lines[1:] if line.split()[1] == "238"][:3]
+    assert len(selected) == 3
+    for row in selected:
+        row[rain_col] = "0"
+    (tmp_path / forcing_name).write_text(
+        "\n".join([lines[0], *(" ".join(row) for row in selected)]) + "\n",
+        encoding="utf-8",
+    )
+
+    props = doc["sites"][0]["properties"]
+    heat = props["anthropogenic_emissions"]["heat"]
+    props["anthropogenic_emissions"] = {
+        "heat": {key: heat[key] for key in ("baset_heating", "baset_cooling")}
+    }
+    props.pop("emission_co2_point_source", None)
+    config_path = tmp_path / "resolved_stebbs_qf.yml"
+    config_path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    result = subprocess.run(
+        [str(_locate_suews_engine()), "run", str(config_path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    output = _read_arrow_df(tmp_path / "suews_output.arrow")
+    qec_index = (
+        next(
+            index
+            for index, variable in enumerate(STEBBS_VARIABLE_DEFS)
+            if variable[0] == "QEC_bldg_FA"
+        )
+        + 5
+    )
+    building_fraction = _unwrap(props["land_cover"]["bldgs"]["sfr"])
+    assert len(output) > 0
+    assert (output["QF"] > 0).any()
+    assert output["QF"].to_numpy() == pytest.approx(
+        building_fraction * output[f"STEBBS_{qec_index}"].to_numpy(),
+        rel=1e-12,
+        abs=1e-12,
+    )
 
 
 def test_engine_snow_disabled_positive_initial_snowpack_matches_zero_control(

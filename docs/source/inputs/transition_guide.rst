@@ -1141,7 +1141,7 @@ alongside the existing flat ``{value: N}`` shape:
   ``estm``, ``ehc``, ``dyohm``, ``stebbs``, ``dyohm_building``. The
   ``estm`` tag is kept so old files still parse; its option 4 is rejected
   at validation.
-- ``emissions`` — families ``observed``, ``simple``,
+- ``emissions`` - families ``observed``, ``simple``, ``stebbs``,
   ``biogenic_rectangular``, ``biogenic_bellucco_local``,
   ``biogenic_bellucco_general``, ``biogenic_conductance``.
 
@@ -1214,7 +1214,7 @@ and CO2 axes:
            biogenic: conductance
 
 This is equivalent to ``emissions: {value: 45}``. Supported ``heat``
-values are ``observed``, ``l11``, ``j11``, and ``l11_updated``.
+values are ``observed``, ``l11``, ``j11``, ``l11_updated``, and ``stebbs``.
 When omitted, ``co2`` defaults to no CO2 calculation, so ``heat:
 j11`` is equivalent to ``emissions: {value: 2}``. Supported
 ``co2.anthropogenic`` values are ``qf_linked`` and ``detailed``;
@@ -1226,6 +1226,18 @@ families, so the orthogonal form rejects unsupported "CO2-only"
 combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
+
+.. _stebbs_anthropogenic_heat:
+
+``heat: stebbs`` selects anthropogenic heat flux calculated by the building
+energy model STEBBS (code ``7``). SUEWS multiplies this flux by the building
+surface fraction to supply |QF| per unit grid area. It requires
+``storage_heat: stebbs``, an enabled STEBBS model, and SPARTACUS net
+radiation (codes ``1001-1003``). This experimental option supplies building
+heat only, including the sensible metabolism represented in STEBBS; no
+separate SUEWS traffic or metabolic heat is added. Method ``0`` remains
+available for prescribed |QF| from meteorological forcing. Both ``observed``
+and ``stebbs`` require the CO2 axes to remain ``none``.
 
 .. _waterdist_yaml_rules:
 

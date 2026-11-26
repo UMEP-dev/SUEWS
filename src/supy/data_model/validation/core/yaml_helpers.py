@@ -2045,11 +2045,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 site["properties"] = props
                 data["sites"][site_idx] = site
 
-    # --- EMISSIONS / CO2 RULE: when emissions 0..6, CO2 is not output, nullify co2 params ---
+    # --- EMISSIONS / CO2 RULE: when emissions 0..7, CO2 is not output, nullify co2 params ---
     emissionsmethod = get_value_safe(physics, "emissions")
-    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4, 5, 6):
+    if emissionsmethod is not None and emissionsmethod in range(8):
         logger_supy.info(
-            "[precheck] emissions 0..6 detected -> nullifying 'anthropogenic_emissions.co2' values."
+            "[precheck] emissions 0..7 detected -> nullifying 'anthropogenic_emissions.co2' values."
         )
 
         for site_idx, site in enumerate(data.get("sites", [])):

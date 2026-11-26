@@ -651,10 +651,30 @@ def fortran_probes_required(repo_root: Path = _REPO_ROOT) -> bool:
     )
 
 
+_RECOGNISED_NON_GNU_PROFILES = frozenset({
+    "ifort",
+    "ifx",
+    "intel",
+    "flang",
+    "nvfortran",
+    "pgi",
+    "nagfor",
+})
+_RECOGNISED_NON_GNU_COMPILER_TOKENS = (
+    "ifort",
+    "ifx",
+    "intel",
+    "flang",
+    "nvfortran",
+    "pgfortran",
+    "nagfor",
+)
+
+
 def _is_non_gnu_fortran_build(suews_dir: Path) -> bool:
-    """Return True when build metadata or env explicitly names a non-GNU compiler."""
+    """Return True when build metadata or env positively names a non-GNU compiler."""
     profile = os.environ.get("PROFILE", "").strip().lower()
-    if profile and profile != "gfortran":
+    if profile in _RECOGNISED_NON_GNU_PROFILES:
         return True
     ver_file = suews_dir / "src" / "suews_ctrl_ver.f95"
     if not ver_file.is_file():
@@ -667,9 +687,9 @@ def _is_non_gnu_fortran_build(suews_dir: Path) -> bool:
     if not match:
         return False
     compiler_ver = match.group(1).strip().lower()
-    return bool(compiler_ver) and (
-        "gnu fortran" not in compiler_ver and "gfortran" not in compiler_ver
-    )
+    if not compiler_ver or "gnu fortran" in compiler_ver or "gfortran" in compiler_ver:
+        return False
+    return any(token in compiler_ver for token in _RECOGNISED_NON_GNU_COMPILER_TOKENS)
 
 
 def _classify_fortran_module(mod_path: Path, suews_dir: Path) -> str:
@@ -743,13 +763,6 @@ def require_fortran_probe_toolchain(
         Repository root directory; defaults to the enclosing checkout.
     """
     suews_dir = repo_root / "src" / "suews"
-    compiler = shutil.which("gfortran")
-    if compiler is None:
-        fortran_probe_unavailable(
-            f"{description} requires gfortran on PATH; "
-            "model/driver tests cover installed wheels",
-            repo_root=repo_root,
-        )
 
     if source_dir is not None and not source_dir.is_dir():
         fortran_probe_unavailable(
@@ -767,29 +780,53 @@ def require_fortran_probe_toolchain(
             repo_root=repo_root,
         )
 
+    missing_mods: list[str] = []
+    corrupt_mods: list[str] = []
+    non_gnu_mods: list[str] = []
     for mod_name in modules:
-        mod_path = suews_dir / "mod" / mod_name
-        status = _classify_fortran_module(mod_path, suews_dir)
-        if status == "gnu":
-            continue
+        status = _classify_fortran_module(suews_dir / "mod" / mod_name, suews_dir)
         if status == "missing":
+            missing_mods.append(mod_name)
+        elif status == "corrupt":
+            corrupt_mods.append(mod_name)
+        elif status == "non_gnu":
+            non_gnu_mods.append(mod_name)
+
+    if missing_mods:
+        fortran_probe_unavailable(
+            f"{description} requires GNU Fortran module file(s) "
+            f"{', '.join(missing_mods)} under {suews_dir / 'mod'}; "
+            "model/driver tests cover installed wheels",
+            repo_root=repo_root,
+        )
+    if corrupt_mods:
+        fortran_probe_unavailable(
+            f"{description} found unreadable or corrupt Fortran module file(s) "
+            f"{', '.join(corrupt_mods)} under {suews_dir / 'mod'}",
+            repo_root=repo_root,
+        )
+    if non_gnu_mods:
+        # A recognised non-GNU local build (e.g. Intel Fortran or Flang)
+        # cannot be read by gfortran; fail in CI probe lanes, skip locally.
+        fortran_probe_unavailable(
+            f"{description} requires GNU Fortran module files "
+            f"({', '.join(non_gnu_mods)} from a non-GNU Fortran build)",
+            repo_root=repo_root,
+            require_env_only=True,
+        )
+
+    compiler = shutil.which("gfortran")
+    if compiler is None:
+        if _is_non_gnu_fortran_build(suews_dir):
             fortran_probe_unavailable(
-                f"{description} requires GNU Fortran module file {mod_name} "
-                f"under {suews_dir / 'mod'}; model/driver tests cover installed wheels",
-                repo_root=repo_root,
-            )
-        if status == "non_gnu":
-            # A recognised non-GNU local build (e.g. Intel Fortran or Flang)
-            # cannot be read by gfortran; fail in CI probe lanes, skip locally.
-            fortran_probe_unavailable(
-                f"{description} requires GNU Fortran module files "
-                f"({mod_name} is from a non-GNU Fortran build)",
+                f"{description} requires gfortran on PATH "
+                "(active build uses a non-GNU Fortran compiler)",
                 repo_root=repo_root,
                 require_env_only=True,
             )
         fortran_probe_unavailable(
-            f"{description} found unreadable or corrupt Fortran module file "
-            f"{mod_name} under {suews_dir / 'mod'}",
+            f"{description} requires gfortran on PATH; "
+            "model/driver tests cover installed wheels",
             repo_root=repo_root,
         )
 

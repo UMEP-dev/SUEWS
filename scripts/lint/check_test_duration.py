@@ -89,6 +89,7 @@ SCHEMA_REQUIRED_LANES: dict[int, tuple[str, ...]] = {
     MULTI_AXIS_BASELINE_SCHEMA_VERSION: MULTI_AXIS_LANES,
 }
 _CI_METRICS_PREFIXES = ("ci-metrics-", "ci_metrics_")
+_API_SHIM_AXES = frozenset({"tooling", "unit", "native"})
 DEFAULT_MAX_REGRESSION = 0.10
 DEFAULT_MIN_REFERENCE_SECONDS = 1.0
 DEFAULT_MAX_REFERENCES_PER_LANE = 200
@@ -858,6 +859,42 @@ def _lane_from_parent_name(name: str) -> tuple[str | None, bool]:
     return None, len(matched) > 1
 
 
+def _infer_lane_from_markers(
+    measured: Sequence[cost_markers.TestCost],
+    *,
+    allowed_lanes: Iterable[str] | None,
+    candidate_lanes: tuple[str, ...],
+) -> str | None:
+    """Infer a single lane from measured test markers without masking foreign lanes.
+
+    When ``allowed_lanes`` is given, the transitional ``api`` compatibility shim
+    is disambiguated only on records that carry both ``api`` and a replacement
+    axis (``tooling``, ``unit``, or ``native``); any record carrying only a
+    foreign-lane marker still contributes that marker so mixed-lane artefacts
+    fail closed as ``None``.
+    """
+    candidate_set = frozenset(candidate_lanes)
+    present: set[str] = set()
+    for test in measured:
+        test_lanes = [lane for lane in ALL_LANES if lane in test.markers]
+        if not test_lanes:
+            continue
+        is_api_shim_record = (
+            allowed_lanes is not None
+            and "api" in test_lanes
+            and any(lane in _API_SHIM_AXES for lane in test_lanes)
+        )
+        if is_api_shim_record:
+            present.update(lane for lane in test_lanes if lane in candidate_set)
+        else:
+            present.update(test_lanes)
+    if len(present) == 1:
+        lane = next(iter(present))
+        if lane in candidate_set:
+            return lane
+    return None
+
+
 def infer_lane(
     path: Path,
     tests: Sequence[cost_markers.TestCost],
@@ -868,12 +905,13 @@ def infer_lane(
 
     Supports both schema 1 (``api``, ``physics``) and schema 2
     (``tooling``, ``unit``, ``native``, ``physics``). Checks the filename stem
-    first, then the immediate parent directory name (never higher ancestors,
-    so test temporary paths cannot collide), and finally falls back to test
-    markers when the path carries no lane token. When ``allowed_lanes`` is
-    given, marker fallback is scoped to those lanes so transitional
-    dual-marked tests (for example ``unit`` plus compatibility ``api``)
-    resolve against the active baseline schema.
+    and immediate parent directory name (never higher ancestors, so test
+    temporary paths cannot collide), failing closed on ambiguity or stem/parent
+    contradiction, and falls back to test markers when the path carries no lane
+    token. When ``allowed_lanes`` is given, marker fallback resolves
+    transitional dual-marked shim tests (``api`` paired with ``tooling``,
+    ``unit``, or ``native``) against the active baseline schema while still
+    rejecting artefacts that mix foreign-lane records.
     """
     candidate_lanes = _validate_allowed_lanes(allowed_lanes)
 
@@ -889,12 +927,9 @@ def infer_lane(
     measured = [test for test in tests if test.measured]
     if not measured:
         return None
-    present = [
-        lane
-        for lane in candidate_lanes
-        if any(lane in test.markers for test in measured)
-    ]
-    return present[0] if len(present) == 1 else None
+    return _infer_lane_from_markers(
+        measured, allowed_lanes=allowed_lanes, candidate_lanes=candidate_lanes
+    )
 
 
 def load_artefacts(

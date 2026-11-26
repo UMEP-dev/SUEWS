@@ -1883,6 +1883,19 @@ def test_infer_lane_dual_schema_ambiguity_and_transitional_shim_isolation(
         )
         == "unit"
     )
+    # Mixed-lane generic artefact (`physics` + foreign `api`-only test) must fail closed
+    # under schema 2 rather than assigning the foreign test to `physics`.
+    phys_test = cost_markers.TestCost(
+        "test/physics/test_p.py::test_p", ("physics",), 2.0, 2.4, "results.json"
+    )
+    assert (
+        guard.infer_lane(
+            generic_path,
+            [phys_test, api_test],
+            allowed_lanes=("tooling", "unit", "native", "physics"),
+        )
+        is None
+    )
 
     # Cross-schema CLI isolation + ambiguous-directory rejection: schema 2 artefacts
     # (and a labelled api file under an ambiguous directory) evaluated against a
@@ -1932,3 +1945,40 @@ def test_infer_lane_dual_schema_ambiguity_and_transitional_shim_isolation(
     assert payload["lanes"]["api"]["status"] == "missing"
     assert payload["incomplete_lanes"] == ["api"]
     assert "unit-cp312-linux-x86_64.json" not in payload["sources"]
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_mixed_foreign_lane_generic_artefact_fails_closed_under_schema2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An unlabelled `physics` + foreign `api`-only artefact must not pollute schema 2 `physics`."""
+    v2_path = _build_schema2_baseline_file(tmp_path / "base")
+    capsys.readouterr()
+    v2_loaded = guard.load_baseline(v2_path)
+    eval_dir = tmp_path / "eval"
+    mixed_recs = [
+        _record(nid, call=cpu, markers=("physics",))
+        for nid, cpu in v2_loaded.lanes["physics"].reference_tests.items()
+    ]
+    mixed_recs.append(
+        _record(
+            "test/core/test_foreign_api.py::test_heavy", call=500.0, markers=("api",)
+        )
+    )
+    _write_artefact(eval_dir / "results.json", mixed_recs)
+    out_json = tmp_path / "report.json"
+    rc = guard.main([
+        str(eval_dir),
+        "--baseline",
+        str(v2_path),
+        "--no-changed-test-files",
+        "--json",
+        str(out_json),
+    ])
+    capsys.readouterr()
+    assert rc == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["lanes"]["physics"]["status"] == "missing"
+    assert payload["lanes"]["physics"]["regressed"] is False
+    assert "results.json" not in payload["sources"]

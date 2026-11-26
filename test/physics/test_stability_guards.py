@@ -1,15 +1,12 @@
 """Kernel stability dispatch and non-finite z/L guards (GH#1783/1784/2171)."""
 
 import copy
-import gzip
 from importlib import import_module
 import json
-import os
 from pathlib import Path
-import shutil
 import subprocess
 
-from conftest import TIMESTEPS_PER_DAY
+from conftest import TIMESTEPS_PER_DAY, require_fortran_probe_toolchain
 import numpy as np
 import pandas as pd
 import pytest
@@ -22,17 +19,11 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-NATIVE-ERROR", "C-RES
 @pytest.fixture(scope="module")
 def stability_probe(tmp_path_factory):
     """Call the actual Fortran selectors, including their thread-local errors."""
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        pytest.skip("Native checks need gfortran and source-build libraries; run tests cover wheels")
-    try:
-        with gzip.open(suews / "mod" / "module_phys_atmmoiststab.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except gzip.BadGzipFile:
-        is_gnu = False
-    if not is_gnu:
-        pytest.skip("Native harness needs GNU Fortran modules")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native stability selector probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=("module_phys_atmmoiststab.mod",),
+    )
     directory = tmp_path_factory.mktemp("stability")
     source = directory / "probe.f95"
     source.write_text(
@@ -248,28 +239,14 @@ ALL_22_DIRECT_PROCS = tuple(
 NONFINITE_KINDS = ("qnan", "+inf", "-inf")
 
 
-def _native_probe_unavailable(reason):
-    if os.environ.get("SUEWS_REQUIRE_FORTRAN_PROBES") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
 @pytest.fixture(scope="module")
 def stability_nonfinite_probe(tmp_path_factory):
     """Compile a native Fortran probe for direct schemes, selectors, and callers (GH#2171)."""
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        _native_probe_unavailable(
-            "Native checks need gfortran and source-build libraries; run tests cover wheels"
-        )
-    try:
-        with gzip.open(suews / "mod" / "module_phys_atmmoiststab.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except (gzip.BadGzipFile, FileNotFoundError):
-        is_gnu = False
-    if not is_gnu:
-        _native_probe_unavailable("Native harness needs GNU Fortran modules")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native stability non-finite probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=("module_phys_atmmoiststab.mod",),
+    )
 
     directory = tmp_path_factory.mktemp("stability_nonfinite")
     source = directory / "probe_nonfinite.f95"

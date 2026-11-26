@@ -1,10 +1,9 @@
 """Ground absorption and building residuals through the compiled SPARTACUS routine."""
 
-import gzip
 from pathlib import Path
-import shutil
 import subprocess
 
+from conftest import require_fortran_probe_toolchain
 import numpy as np
 import pytest
 
@@ -25,18 +24,12 @@ FLUX_ATOL = 1e-8
 @pytest.fixture(scope="module")
 def ground_radiation(tmp_path_factory):
     """Compile a one-layer call to the full routine, with no copied physics."""
-    compiler = shutil.which("gfortran")
     root = Path(__file__).resolve().parents[2]
-    suews = root / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        pytest.skip("Native radiation probe requires gfortran and source-build libraries")
-    try:
-        with gzip.open(suews / "mod" / "module_phys_spartacus.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except gzip.BadGzipFile:
-        is_gnu = False
-    if not is_gnu:
-        pytest.skip("Native radiation probe requires GNU Fortran module files")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native radiation probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=("module_phys_spartacus.mod",),
+    )
     executable = tmp_path_factory.mktemp("ground_budget") / "probe"
     compiled = subprocess.run(
         [

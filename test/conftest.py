@@ -3,6 +3,8 @@
 from collections.abc import Iterator
 import copy
 from functools import lru_cache
+import gzip
+import importlib.metadata
 from importlib.resources import as_file
 from inspect import signature
 import json
@@ -12,6 +14,9 @@ import shutil
 import stat
 import subprocess
 import sys
+from typing import NoReturn
+import urllib.parse
+import urllib.request
 import warnings
 
 # Make the standalone suews_mcp package importable when it is not pip-installed
@@ -538,6 +543,182 @@ def suews_engine_bin() -> Iterator[Path]:
         yield dev_binary
         return
     pytest.skip("Rust CLI binary not found; build with: make bridge")
+
+
+# =============================================================================
+# Native Fortran Probe Availability Policy (gh#2349 W1-1)
+# =============================================================================
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _is_editable_source_install(repo_root: Path = _REPO_ROOT) -> bool:
+    """Return True when ``supy`` is installed editably from *repo_root*.
+
+    Reads PEP 610 ``direct_url.json`` from distribution metadata rather than
+    inspecting ``supy.__file__`` (forbidden under ``test/`` by
+    ``scripts/lint/check_packaged_data_paths.py``). Returns False for
+    installed wheels (PyPI or ``wheelhouse/*.whl``) and for editable installs
+    pointing at another checkout.
+    """
+    try:
+        dist = importlib.metadata.distribution("supy")
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+    direct_entry = next(
+        (entry for entry in (dist.files or ()) if entry.name == "direct_url.json"),
+        None,
+    )
+    dist_path = getattr(dist, "_path", None)
+    direct_path = (
+        Path(dist.locate_file(direct_entry))
+        if direct_entry is not None
+        else (Path(dist_path) / "direct_url.json" if dist_path is not None else None)
+    )
+    if direct_path is None or not direct_path.is_file():
+        return False
+
+    try:
+        payload = json.loads(direct_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+
+    dir_info = payload.get("dir_info")
+    url = payload.get("url")
+    if (
+        not isinstance(dir_info, dict)
+        or not dir_info.get("editable")
+        or not isinstance(url, str)
+        or not url.startswith("file://")
+    ):
+        return False
+
+    parsed = urllib.parse.urlparse(url)
+    raw_path = (
+        f"//{parsed.netloc}{parsed.path}"
+        if parsed.netloc and parsed.netloc.lower() != "localhost"
+        else parsed.path
+    )
+    install_path = Path(urllib.request.url2pathname(raw_path))
+    try:
+        return install_path.resolve() == repo_root.resolve()
+    except OSError:
+        return False
+
+
+def _fortran_probes_required_by_env() -> bool:
+    """Return True when CI environment variables require Fortran probes."""
+    return (
+        os.environ.get("SUEWS_REQUIRE_FORTRAN_PROBES") == "1"
+        or os.environ.get("SUEWS_FORTRAN_PROBES_PREBUILT") == "1"
+    )
+
+
+def fortran_probes_required(repo_root: Path = _REPO_ROOT) -> bool:
+    """Return True when missing Fortran probe prerequisites must fail loudly.
+
+    Probes are mandatory in CI reference and prebuilt-probe lanes
+    (``SUEWS_REQUIRE_FORTRAN_PROBES=1`` or
+    ``SUEWS_FORTRAN_PROBES_PREBUILT=1``) and in editable source builds of
+    *repo_root*. Only installed-wheel runs without prebuilt probe archives
+    may skip probe tests cleanly.
+    """
+    return _fortran_probes_required_by_env() or _is_editable_source_install(repo_root)
+
+
+def fortran_probe_unavailable(
+    reason: str,
+    *,
+    repo_root: Path = _REPO_ROOT,
+    require_env_only: bool = False,
+) -> NoReturn:
+    """Fail when Fortran probes are required, otherwise skip with *reason*."""
+    required = (
+        _fortran_probes_required_by_env()
+        if require_env_only
+        else fortran_probes_required(repo_root)
+    )
+    if required:
+        pytest.fail(reason)
+    pytest.skip(reason)
+
+
+def require_fortran_probe_toolchain(
+    description: str,
+    *,
+    libraries: tuple[str, ...] = ("libsuewsphys.a",),
+    modules: tuple[str, ...] = (),
+    source_dir: Path | None = None,
+    repo_root: Path = _REPO_ROOT,
+) -> tuple[str, Path]:
+    """Return ``(gfortran_path, suews_dir)`` or fail/skip per probe policy.
+
+    Parameters
+    ----------
+    description : str
+        Human-readable probe label used in failure/skip diagnostics.
+    libraries : tuple of str, optional
+        Static archive filenames required under ``src/suews/lib/``. Pass ``()``
+        for probes that compile directly from Fortran source files.
+    modules : tuple of str, optional
+        GNU Fortran ``.mod`` filenames required under ``src/suews/mod/``. Each
+        must exist and carry a gzipped ``GFORTRAN`` header.
+    source_dir : Path or None, optional
+        Optional Fortran source directory that must exist for direct-source
+        probes.
+    repo_root : Path, optional
+        Repository root directory; defaults to the enclosing checkout.
+    """
+    suews_dir = repo_root / "src" / "suews"
+    compiler = shutil.which("gfortran")
+    if compiler is None:
+        fortran_probe_unavailable(
+            f"{description} requires gfortran on PATH; "
+            "model/driver tests cover installed wheels",
+            repo_root=repo_root,
+        )
+
+    if source_dir is not None and not source_dir.is_dir():
+        fortran_probe_unavailable(
+            f"{description} requires Fortran sources at {source_dir}; "
+            "model/driver tests cover installed wheels",
+            repo_root=repo_root,
+        )
+
+    missing_libs = [lib for lib in libraries if not (suews_dir / "lib" / lib).is_file()]
+    if missing_libs:
+        fortran_probe_unavailable(
+            f"{description} requires source-build libraries "
+            f"({', '.join(missing_libs)} missing under {suews_dir / 'lib'}); "
+            "model/driver tests cover installed wheels",
+            repo_root=repo_root,
+        )
+
+    for mod_name in modules:
+        mod_path = suews_dir / "mod" / mod_name
+        if not mod_path.is_file():
+            fortran_probe_unavailable(
+                f"{description} requires GNU Fortran module file {mod_name} "
+                f"under {suews_dir / 'mod'}; model/driver tests cover installed wheels",
+                repo_root=repo_root,
+            )
+        try:
+            with gzip.open(mod_path, "rb") as stream:
+                is_gnu = stream.readline().startswith(b"GFORTRAN")
+        except (gzip.BadGzipFile, EOFError, OSError):
+            is_gnu = False
+        if not is_gnu:
+            # A non-GNU .mod file (e.g. Intel Fortran local build) cannot be
+            # read by gfortran; fail in CI probe lanes, skip only locally.
+            fortran_probe_unavailable(
+                f"{description} requires GNU Fortran module files "
+                f"({mod_name} is not a gfortran module)",
+                repo_root=repo_root,
+                require_env_only=True,
+            )
+
+    return compiler, suews_dir
 
 
 @pytest.fixture(scope="session")

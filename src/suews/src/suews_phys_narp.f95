@@ -1416,32 +1416,6 @@ CONTAINS
    END FUNCTION solar_ESdist
 
    !===============================================================================
-   FUNCTION SmithLambda(lat, modState) RESULT(G)
-      USE FileName
-      USE defaultnotUsed
-      !read kriged data based on Smith 1966 (JAM)
-      ! Smith, William L.
-      ! "Note on the relationship between total precipitable water and surface dew point."
-      ! Journal of Applied Meteorology 5.5 (1966): 726-727.
-      INTEGER :: lat, ios, ilat
-      REAL(KIND(1D0)), DIMENSION(365) :: G
-      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
-
-      !open(99,file="Smith1966.grd",access="direct",action="read",recl=365*4,iostat=ios)
-      !read(99,rec=lat+1,iostat=ios) G
-      OPEN (99, file=smithFile, iostat=ios)
-      DO ilat = 1, lat
-         READ (99, *)
-      END DO
-      READ (99, *, iostat=ios) ilat, G
-      IF (ios /= 0) THEN
-         CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios, modState)
-         IF (supy_error_flag()) RETURN
-      END IF
-      CLOSE (99)
-   END FUNCTION SmithLambda
-
-   !===============================================================================
    FUNCTION transmissivity(Press_hPa, Temp_C_dew, G, zenith) RESULT(trans)
       ! bulk atmospheric transmissivity (Crawford and Duchon, 1999)
       ! P = pressure (hPa)

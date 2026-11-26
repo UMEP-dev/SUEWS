@@ -19,6 +19,13 @@ The returned output holds no rows, so its row accessors raise. The checkpoint
 is replaced at the end of each calendar year; a run that fails part-way
 resumes from it, trims the files it writes back to what the run up to the
 checkpoint produced, and ends with the files of an uninterrupted run.
+
+Runs cross 1 January in a six-day window, three days of each year, so chunks
+of 1, 2 and 7 days cut each year into days, unevenly (two days then one) and
+not at all. A separate 31-day January run is what splits a single year with
+30-day chunks. Where a test used to take every combination of its settings,
+it now takes a set of cases covering every pair of values of any two settings
+(``_parametrize_cases``), so each value and each pair is still exercised.
 """
 
 import itertools
@@ -58,108 +65,86 @@ GROUPS_NO_DAILY = ["SUEWS", "RSL", "debug"]
 SAMPLE_FORCING_ROWS_PER_DAY = 24  # the sample forcing file is hourly
 TSTEP_S = 300  # the short sample's model timestep
 STEPS_PER_HOUR = 3600 // TSTEP_S
+STEPS_PER_DAY = 24 * STEPS_PER_HOUR
 # Explicit output clocks: (forcing timestamp_reference, output timestamp_reference)
 CLOCK_FOLLOW = ("local_standard_time", "follow")
 CLOCK_UTC = ("utc", "utc")
 CLOCK_LST = ("local_standard_time", "local_standard_time")
 
-# Cost markers of the cases measured at 20 CPU-s or more: call-phase CPU
-# seconds in nightly run 43544098140 (14 Nov 2026), artefact
-# ci-metrics-api-cp312-manylinux-x86_64; thresholds and their reasoning are in
-# .claude/rules/tests/patterns.md. A case at 30 CPU-s or more is `slow` and one
-# at 20 to 30 is `medium`, except that where every case of a test is at 30 or
-# more, the cheapest stays `medium`, so each test keeps a case in the
-# pre-merge tier. Tests whose cases all take the same marker carry it as a
-# decorator instead (test_resume_rewrites_a_file_without_a_whole_header,
-# test_parquet_daily_state_only_matches_run_then_save and
-# test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts, all
-# `medium`). Measure again and edit here when these tests get cheaper.
-COST_MARKER = {
-    "test_files_match_run_then_save": {
-        "1-300-2grids-daily": "slow",
-        "1-300-2grids-nodaily": "slow",
-        "1-3600-2grids-daily": "slow",
-        "1-3600-2grids-nodaily": "slow",
-    },
-    "test_explicit_clock_files_match_run_then_save": {
-        "1-utc-2grids": "slow",
-        "1-lst-2grids": "slow",
-    },
-    "test_resumed_run_matches_an_uninterrupted_run": {
-        "at-year-end-follow": "medium",
-        "at-year-end-utc": "medium",
-        "at-year-end-lst": "medium",
-        "mid-year-follow": "slow",
-        "mid-year-utc": "slow",
-        "mid-year-lst": "slow",
-    },
-    "test_non_zero_time_zone_matches_run_then_save": {
-        "utc-tz+8": "medium",
-        "utc-tz-5": "slow",
-        "lst-tz+8": "slow",
-        "lst-tz-5": "slow",
-    },
-    "test_non_zero_time_zone_resume_matches_an_uninterrupted_run": {
-        "utc-tz+8": "slow",
-        "utc-tz-5": "medium",
-        "lst-tz+8": "slow",
-        "lst-tz-5": "slow",
-    },
-    "test_parquet_matches_run_then_save": {
-        "1-300-2grids": "slow",
-        "1-3600-1grid": "medium",
-        "1-3600-2grids": "slow",
-        "1-86400-2grids": "slow",
-        "30-300-2grids": "medium",
-        "30-3600-2grids": "slow",
-        "30-86400-2grids": "medium",
-    },
-    "test_parquet_explicit_clock_matches_run_then_save": {
-        "1-utc-1grid": "medium",
-        "1-utc-2grids": "slow",
-        "1-lst-1grid": "medium",
-        "1-lst-2grids": "slow",
-    },
-    "test_parquet_non_zero_time_zone_matches_run_then_save": {
-        "utc-tz+8": "slow",
-        "utc-tz-5": "slow",
-        "lst-tz+8": "slow",
-        "lst-tz-5": "medium",
-    },
-    "test_parquet_resumed_run_matches_an_uninterrupted_run": {
-        "3600-1grid-at-year-end": "slow",
-        "3600-1grid-mid-year": "slow",
-        "3600-2grids-at-year-end": "slow",
-        "3600-2grids-mid-year": "slow",
-        "86400-1grid-at-year-end": "medium",
-        "86400-1grid-mid-year": "slow",
-        "86400-2grids-at-year-end": "slow",
-        "86400-2grids-mid-year": "slow",
-    },
-}
+# The year-crossing window: 29 to 31 December 2011 and 1 to 3 January 2012.
+# Every simulation built by _year_crossing_sim covers it unless a test asks
+# for other first or last rows; reference folders are asked for with the same
+# strings, so the session fixtures share one reference run per setting.
+WINDOW_START = "2011-12-29 00:05"
+WINDOW_END = "2012-01-04 00:00"
+WINDOW = {"start": WINDOW_START, "end": WINDOW_END}
+N_CHUNK_2011 = 3  # one-day chunks from 29 to 31 December 2011
+N_CHUNK_2012 = 3  # one-day chunks from 1 to 3 January 2012
+# One-day chunks written by a run that fails after the first chunk of 2012.
+N_WRITTEN_MID_YEAR = N_CHUNK_2011 + 1
+# Chunk lengths of the year-crossing runs: one day, two days (a two-day chunk
+# then a one-day one in each year) and seven days (each year whole).
+CHUNKS = {"1": 1, "2": 2, "7": 7}
+GRIDS = {"1grid": None, "2grids": [2, 1]}
+
+# Cost markers: the cases reading 10 CPU-s or more (`medium`) or 30 or more
+# (`slow`) in the call phase, by the thresholds of .claude/rules/tests/patterns.md.
+# Measure again and edit here when these tests get cheaper or dearer.
+COST_MARKER = {}
 
 
-def _parametrize_by_cost(argnames, *axes):
-    """Parametrise over every combination of *axes*, marked from COST_MARKER.
+def _uncovered_pairs(axes, cases):
+    """Pairs of values of two axes that no case in *cases* takes together.
 
-    Each axis maps case ids to values. A case's id joins its ids with "-" in
-    the order of *axes*, as stacked ``parametrize`` decorators do from the
-    bottom one up, and the case takes the marker COST_MARKER gives that id
-    under the decorated test's name. A COST_MARKER id that names no case
-    raises, so a changed axis cannot drop a marker unnoticed.
+    *axes* is a sequence of mappings from case-id parts to values; each case
+    is a tuple of case-id parts, one per axis.
     """
+    list_missing = []
+    for (pos_a, axis_a), (pos_b, axis_b) in itertools.combinations(enumerate(axes), 2):
+        covered = {(case[pos_a], case[pos_b]) for case in cases}
+        list_missing.extend(
+            (key_a, key_b)
+            for key_a, key_b in itertools.product(axis_a, axis_b)
+            if (key_a, key_b) not in covered
+        )
+    return list_missing
+
+
+def _parametrize_cases(argnames, *axes, cases=None, cover_pairs=True):
+    """Parametrise over *cases*, marked from COST_MARKER.
+
+    Each axis maps case ids to values; each case is a tuple of ids, one per
+    axis, and its id joins them with "-". Without *cases*, every combination
+    is taken. *cases* must name only values the axes hold and, unless
+    *cover_pairs* is false (for a share of a set checked as a whole, such as
+    TZ_CASES), cover every pair of values of any two axes, so a pairwise set
+    cannot lose a value or a pair unnoticed. A case takes the marker
+    COST_MARKER gives its id under the decorated test's name; a COST_MARKER
+    id that names no case raises, so a changed axis cannot drop a marker
+    unnoticed.
+    """
+    if cases is None:
+        cases = list(itertools.product(*(list(axis) for axis in axes)))
+    for case in cases:
+        if len(case) != len(axes) or any(
+            key not in axis for key, axis in zip(case, axes)
+        ):
+            raise ValueError(f"case {case} does not name one value per axis")
+    missing = _uncovered_pairs(axes, cases) if cover_pairs else []
+    if missing:
+        raise ValueError(f"cases leave pairs uncovered: {missing}")
 
     def decorate(func):
         dict_marker = COST_MARKER.get(func.__name__, {})
         list_param = []
-        for combo in itertools.product(*(axis.items() for axis in axes)):
-            case = "-".join(key for key, _ in combo)
-            marker = dict_marker.get(case)
+        for case in cases:
+            case_id = "-".join(case)
+            marker = dict_marker.get(case_id)
             list_param.append(
                 pytest.param(
-                    *(value for _, value in combo),
+                    *(axis[key] for key, axis in zip(case, axes)),
                     marks=[getattr(pytest.mark, marker)] if marker else [],
-                    id=case,
+                    id=case_id,
                 )
             )
         unknown = set(dict_marker) - {param.id for param in list_param}
@@ -262,10 +247,11 @@ def _replicate_sites(sim, list_gridiv):
     sim.update_config(config, auto_load_forcing=False)
 
 
-def _year_crossing_forcing(sim, end=None, start=None):
+def _year_crossing_forcing(sim, end=WINDOW_END, start=WINDOW_START):
     """The January short sample relabelled to run across 1 January.
 
-    With *start* or *end*, the forcing starts or stops at that row.
+    The forcing starts and stops at the *start* and *end* rows, by default
+    those of the six-day window.
     """
     forcing = sim.forcing.df.copy()
     forcing.index -= pd.Timedelta(days=16)
@@ -293,13 +279,14 @@ def _year_crossing_sim(
     list_gridiv=None,
     groups=GROUPS,
     clock=CLOCK_FOLLOW,
-    end=None,
-    start=None,
+    end=WINDOW_END,
+    start=WINDOW_START,
     site_clock=None,
     fmt="txt",
 ):
     """A simulation across 1 January saving *groups* to *path_out*.
 
+    Runs the six-day window unless *start* or *end* says otherwise.
     Delegates to ``conftest.build_year_crossing_sim`` so tests and the
     session-scoped reference fixtures construct identical simulations.
     """
@@ -354,12 +341,34 @@ def _compare_dirs(dir_a, dir_b):
 # ---------------------------------------------------------------------------
 
 
-@_parametrize_by_cost(
+def test_pairwise_cases_must_cover_every_pair():
+    """A case set leaving a pair of values untested, or naming no value, raises."""
+    axes = ({"a": 1, "b": 2}, {"x": 1, "y": 2}, {"p": 1, "q": 2})
+    pairwise = [("a", "x", "p"), ("a", "y", "q"), ("b", "x", "q"), ("b", "y", "p")]
+
+    assert _uncovered_pairs(axes, pairwise) == []
+    assert _uncovered_pairs(axes, pairwise[:3]) == [("b", "y"), ("b", "p"), ("y", "p")]
+    with pytest.raises(ValueError, match="uncovered"):
+        _parametrize_cases(("i", "j", "k"), *axes, cases=pairwise[:3])
+    with pytest.raises(ValueError, match="one value per axis"):
+        _parametrize_cases(("i", "j", "k"), *axes, cases=[*pairwise, ("a", "z", "p")])
+
+
+# Chunk length, output frequency, grids and groups: each pair of values once.
+@_parametrize_cases(
     ("stream_chunk", "freq_s", "list_gridiv", "groups"),
-    {"1": 1, "30": 30, "366": 366},
+    CHUNKS,
     {"3600": 3600, "300": TSTEP_S},
-    {"1grid": None, "2grids": [2, 1]},
+    GRIDS,
     {"daily": GROUPS, "nodaily": GROUPS_NO_DAILY},
+    cases=[
+        ("1", "3600", "1grid", "daily"),
+        ("1", "300", "2grids", "nodaily"),
+        ("2", "3600", "2grids", "nodaily"),
+        ("2", "300", "1grid", "daily"),
+        ("7", "3600", "1grid", "nodaily"),
+        ("7", "300", "2grids", "daily"),
+    ],
 )
 def test_files_match_run_then_save(
     short_sample_sim,
@@ -371,7 +380,9 @@ def test_files_match_run_then_save(
     groups,
 ):
     """Streamed files match run() + save(), file for file, in follow mode."""
-    dir_whole = stream_chunk_reference_dir(freq_s, list_gridiv, groups, CLOCK_FOLLOW)
+    dir_whole = stream_chunk_reference_dir(
+        freq_s, list_gridiv, groups, CLOCK_FOLLOW, **WINDOW
+    )
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, freq_s, stream_chunk, list_gridiv, groups
     )
@@ -386,11 +397,38 @@ def test_files_match_run_then_save(
     assert "stream_chunk" not in read_provenance(dir_whole)["run"]
 
 
-@_parametrize_by_cost(
+# Chunk length, output clock and grids across text and Parquet: every pair of
+# values of any two of the four axes appears at least once.
+CLOCKS_EXPLICIT = {"utc": CLOCK_UTC, "lst": CLOCK_LST}
+EXPLICIT_CLOCK_FORMATS = {"txt": "txt", "parquet": "parquet"}
+EXPLICIT_CLOCK_CASES = [
+    ("txt", "1", "utc", "1grid"),
+    ("txt", "2", "lst", "1grid"),
+    ("txt", "7", "utc", "2grids"),
+    ("parquet", "1", "lst", "2grids"),
+    ("parquet", "2", "utc", "2grids"),
+    ("parquet", "7", "lst", "1grid"),
+]
+if _uncovered_pairs(
+    (EXPLICIT_CLOCK_FORMATS, CHUNKS, CLOCKS_EXPLICIT, GRIDS), EXPLICIT_CLOCK_CASES
+):
+    raise ValueError(
+        "EXPLICIT_CLOCK_CASES must cover every pair of format, chunk, clock and grids"
+    )
+
+
+def _explicit_clock_cases(fmt):
+    """The (stream_chunk, clock, grids) cases of *fmt* in EXPLICIT_CLOCK_CASES."""
+    return [case[1:] for case in EXPLICIT_CLOCK_CASES if case[0] == fmt]
+
+
+@_parametrize_cases(
     ("stream_chunk", "clock", "list_gridiv"),
-    {"1": 1, "30": 30, "366": 366},
-    {"utc": CLOCK_UTC, "lst": CLOCK_LST},
-    {"1grid": None, "2grids": [2, 1]},
+    CHUNKS,
+    CLOCKS_EXPLICIT,
+    GRIDS,
+    cases=_explicit_clock_cases("txt"),
+    cover_pairs=False,
 )
 def test_explicit_clock_files_match_run_then_save(
     short_sample_sim,
@@ -405,7 +443,7 @@ def test_explicit_clock_files_match_run_then_save(
     That row closes the previous year and is computed in its last chunk, but
     is saved into the new year's file.
     """
-    dir_whole = stream_chunk_reference_dir(3600, list_gridiv, GROUPS, clock)
+    dir_whole = stream_chunk_reference_dir(3600, list_gridiv, GROUPS, clock, **WINDOW)
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, 3600, stream_chunk, list_gridiv, clock=clock
     )
@@ -425,11 +463,80 @@ def test_year_end_stub_of_one_row_matches_run_then_save(
 ):
     """A run ending one hour into the new year saves that hour once, as save() does."""
     end = "2012-01-01 01:00"
-    dir_whole = stream_chunk_reference_dir(3600, None, GROUPS, clock, end=end)
-    sim = _year_crossing_sim(short_sample_sim, tmp_path, 3600, 30, clock=clock, end=end)
+    dir_whole = stream_chunk_reference_dir(
+        3600, None, GROUPS, clock, end=end, start=WINDOW_START
+    )
+    sim = _year_crossing_sim(short_sample_sim, tmp_path, 3600, 7, clock=clock, end=end)
     sim.run()
 
     _compare_dirs(tmp_path, dir_whole)
+
+
+def _january_sim(short_sample_sim, path_out, stream_chunk):
+    """The 31-day January short sample, unshifted, saving to *path_out*.
+
+    The output block is the one ``build_year_crossing_sim`` sets, for SUEWS
+    and DailyState at hourly frequency.
+    """
+    sim = short_sample_sim()
+    forcing = sim.forcing.df
+    output = {
+        "format": "txt",
+        "freq": 3600,
+        "dir": str(path_out),
+        "groups": ["SUEWS", "DailyState"],
+        "include_provisional": False,
+        "timestamp_reference": CLOCK_FOLLOW[1],
+    }
+    if stream_chunk is not None:
+        output["stream_chunk"] = stream_chunk
+    sim.update_config(
+        {
+            "model": {
+                "control": {
+                    "start_time": str(forcing.index[0]),
+                    "end_time": str(forcing.index[-1]),
+                    "forcing": {"timestamp_reference": CLOCK_FOLLOW[0]},
+                    "output": output,
+                }
+            }
+        },
+        auto_load_forcing=False,
+    )
+    sim.update_forcing(forcing)
+    return sim
+
+
+def test_january_in_two_chunks_matches_run_then_save(short_sample_sim, tmp_path):
+    """Thirty-day chunks cut 31 days of January into 30 days and one.
+
+    In the year-crossing window every year fits in one 30-day chunk; this
+    run is where stream_chunk 30 splits a year, so state crosses a chunk
+    boundary inside it and the year's files are extended.
+    """
+    dir_whole, dir_streamed = tmp_path / "whole", tmp_path / "streamed"
+    sim_whole = _january_sim(short_sample_sim, dir_whole, None)
+    sim_whole.run()
+    sim_whole.save()
+    sim = _january_sim(short_sample_sim, dir_streamed, 30)
+    index = sim.forcing.df.index
+    assert (index[0], index[-1]) == (
+        pd.Timestamp("2012-01-01 00:05"),
+        pd.Timestamp("2012-02-01 00:00"),
+    )
+
+    ar_year, ar_chunk = forcing_chunk_keys(index, TSTEP_S, 30)
+    sim.run()
+
+    ser_size = pd.Series(ar_year).groupby([ar_year, ar_chunk]).size()
+    assert ser_size.to_dict() == {
+        (2012, 0): 30 * STEPS_PER_DAY,
+        (2012, 1): STEPS_PER_DAY,
+    }
+    _compare_dirs(dir_streamed, dir_whole)
+    [path_ckpt] = dir_streamed.glob("*_checkpoint.json")
+    ckpt = SUEWSCheckpoint.from_file(path_ckpt)
+    assert pd.Timestamp(ckpt.last_timestamp) == index[-1]
 
 
 @pytest.mark.parametrize("tail_rows", [1, 2])
@@ -490,10 +597,13 @@ def test_kept_groups_equal_the_full_chunk_frames(
 
     Covers grids listed out of ID order, at different latitudes, and runs
     starting from saved states, so each grid's rows land in its own block of
-    the kept store.
+    the kept store. One-day chunks across two days per year keep four chunks;
+    starting from saved state begins a day earlier so the remaining 23 hours
+    fold into 30 December and still split each year in two.
     """
     sim = short_sample_sim()
-    forcing = _year_crossing_forcing(sim)
+    start = "2011-12-29 00:05" if with_state else "2011-12-30 00:05"
+    forcing = _year_crossing_forcing(sim, start=start, end="2012-01-03 00:00")
     if list_gridiv is not None:
         _replicate_sites(sim, list_gridiv)
     config = sim.config
@@ -506,10 +616,10 @@ def test_kept_groups_equal_the_full_chunk_frames(
 
     list_keep = ["SUEWS", "DailyState", "RSL"]
     kw = {"initial_state_json_by_grid": dict_state}
-    list_full = list(iter_suews_rust_streamed(config, forcing, TSTEP_S, 10, **kw))
+    list_full = list(iter_suews_rust_streamed(config, forcing, TSTEP_S, 1, **kw))
     list_kept = list(
         iter_suews_rust_streamed(
-            config, forcing, TSTEP_S, 10, keep_groups=list_keep, **kw
+            config, forcing, TSTEP_S, 1, keep_groups=list_keep, **kw
         )
     )
 
@@ -874,12 +984,9 @@ def _resume(sim, dir_out, monkeypatch=None, fail_after=None):
     monkeypatch.undo()
 
 
-N_CHUNK_2011 = 16  # one-day chunks from 16 to 31 December 2011
-
-
-@_parametrize_by_cost(
+@_parametrize_cases(
     ("n_written", "clock"),
-    {"at-year-end": N_CHUNK_2011, "mid-year": N_CHUNK_2011 + 3},
+    {"at-year-end": N_CHUNK_2011, "mid-year": N_WRITTEN_MID_YEAR},
     {"follow": CLOCK_FOLLOW, "utc": CLOCK_UTC, "lst": CLOCK_LST},
 )
 def test_resumed_run_matches_an_uninterrupted_run(
@@ -893,9 +1000,12 @@ def test_resumed_run_matches_an_uninterrupted_run(
     """A run killed at or after a year end, then resumed, writes the same files.
 
     The mid-year case is resumed twice, the first resume itself failing part
-    of the way, so trimming back to the checkpoint must be repeatable.
+    of the way, past the point the first attempt reached, so trimming back to
+    the checkpoint must be repeatable.
     """
-    dir_full = stream_chunk_reference_dir(3600, None, GROUPS, clock, stream_chunk=1)
+    # Text output is byte-identical between streamed and whole runs, so the
+    # cached unstreamed reference dirs serve resume tests without rebuilding.
+    dir_full = stream_chunk_reference_dir(3600, None, GROUPS, clock, **WINDOW)
 
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, 1, clock=clock)
@@ -907,7 +1017,7 @@ def test_resumed_run_matches_an_uninterrupted_run(
     assert pd.Timestamp(ckpt.last_timestamp) == pd.Timestamp("2012-01-01 00:00")
 
     if n_written > N_CHUNK_2011:
-        _resume(sim, dir_out, monkeypatch, fail_after=5)
+        _resume(sim, dir_out, monkeypatch, fail_after=N_CHUNK_2012 - 1)
     _resume(sim, dir_out)
 
     _compare_dirs(dir_out, dir_full)
@@ -960,17 +1070,17 @@ def test_default_run_does_not_stream(short_sample_sim, tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("stream_chunk", [1, 7, 366])
+@pytest.mark.parametrize("stream_chunk", list(CHUNKS.values()), ids=list(CHUNKS))
 def test_daily_output_across_new_year_matches_run_then_save(
     short_sample_sim, stream_chunk_reference_dir, tmp_path, stream_chunk
 ):
     """Daily output: 31 December's row stays in the old year's file.
 
-    With one-day chunks the last chunk of 2011 holds that single row,
-    labelled 1 January 00:00; the file it goes to is the year the save
+    With one- and two-day chunks the last chunk of 2011 holds that single
+    row, labelled 1 January 00:00; the file it goes to is the year the save
     selected it for, not the year of its label.
     """
-    dir_whole = stream_chunk_reference_dir(86400, None, GROUPS, CLOCK_FOLLOW)
+    dir_whole = stream_chunk_reference_dir(86400, None, GROUPS, CLOCK_FOLLOW, **WINDOW)
     sim = _year_crossing_sim(short_sample_sim, tmp_path, 86400, stream_chunk)
     sim.run()
 
@@ -981,15 +1091,22 @@ def test_daily_output_across_new_year_matches_run_then_save(
 
 @pytest.mark.parametrize("clock", [CLOCK_FOLLOW, CLOCK_UTC], ids=["follow", "utc"])
 @pytest.mark.parametrize(
-    "start", ["2012-01-01 00:00", "2011-12-20 00:00"], ids=["new-year", "mid-year"]
+    ("start", "end"),
+    [
+        ("2012-01-01 00:00", "2012-01-03 00:00"),
+        ("2011-12-30 00:00", "2012-01-02 00:00"),
+    ],
+    ids=["new-year", "mid-year"],
 )
 def test_run_starting_at_midnight_matches_run_then_save(
-    short_sample_sim, stream_chunk_reference_dir, tmp_path, start, clock
+    short_sample_sim, stream_chunk_reference_dir, tmp_path, start, end, clock
 ):
     """A run whose first row closes the previous day saves like run() + save()."""
-    dir_whole = stream_chunk_reference_dir(3600, None, GROUPS, clock, start=start)
+    dir_whole = stream_chunk_reference_dir(
+        3600, None, GROUPS, clock, end=end, start=start
+    )
     sim = _year_crossing_sim(
-        short_sample_sim, tmp_path, 3600, 1, clock=clock, start=start
+        short_sample_sim, tmp_path, 3600, 1, clock=clock, start=start, end=end
     )
     sim.run()
 
@@ -1055,24 +1172,22 @@ def test_fresh_run_removes_a_previous_runs_sidecars(
     assert (tmp_path / "provenance.json").exists()
 
     sim = _year_crossing_sim(short_sample_sim, tmp_path, 3600, 1)
-    _run_failing_after(sim, 3, monkeypatch)
+    # Stopped inside 2011, before its year-end checkpoint.
+    _run_failing_after(sim, N_CHUNK_2011 - 1, monkeypatch)
 
     assert not list(tmp_path.glob("*_checkpoint.json"))
     assert not (tmp_path / "provenance.json").exists()
 
 
 @pytest.mark.parametrize("damage", ["empty", "partial-header"])
-@pytest.mark.medium
 def test_resume_rewrites_a_file_without_a_whole_header(
     short_sample_sim, stream_chunk_reference_dir, tmp_path, monkeypatch, damage
 ):
     """A file left with no header, or half of one, is written anew on resume."""
-    dir_full = stream_chunk_reference_dir(
-        3600, None, GROUPS, CLOCK_FOLLOW, stream_chunk=1
-    )
+    dir_full = stream_chunk_reference_dir(3600, None, GROUPS, CLOCK_FOLLOW, **WINDOW)
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(short_sample_sim, dir_out, 3600, 1)
-    _run_failing_after(sim, N_CHUNK_2011 + 2, monkeypatch)
+    _run_failing_after(sim, N_WRITTEN_MID_YEAR, monkeypatch)
     path = next(dir_out.glob("*_2012_SUEWS_60.txt"))
     text = path.read_text(encoding="utf-8")
     path.write_text(
@@ -1088,17 +1203,41 @@ SITE_CLOCKS = {
     "tz+8": (8, 300, 80),
     "tz-5": (-5, 300, 80),
 }
+# The time-zone cases of the three tests that take them, as (test, output
+# clock, site clock). Between them every pair of values of the three appears,
+# so each test takes two of the four (clock, time zone) pairs and the tests
+# together all four.
+TZ_TESTS = {"txt": "txt", "txt-resume": "txt-resume", "parquet": "parquet"}
+TZ_CASES = [
+    ("txt", "utc", "tz+8"),
+    ("txt", "lst", "tz-5"),
+    ("txt-resume", "utc", "tz-5"),
+    ("txt-resume", "lst", "tz+8"),
+    ("parquet", "utc", "tz-5"),
+    ("parquet", "lst", "tz+8"),
+]
+if _uncovered_pairs((TZ_TESTS, CLOCKS_EXPLICIT, SITE_CLOCKS), TZ_CASES):
+    raise ValueError("TZ_CASES must cover every pair of test, clock and time zone")
 
 
-@_parametrize_by_cost(
-    ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
+def _tz_cases(test):
+    """The (clock, site clock) cases of *test* in TZ_CASES."""
+    return [case[1:] for case in TZ_CASES if case[0] == test]
+
+
+@_parametrize_cases(
+    ("clock", "site_clock"),
+    CLOCKS_EXPLICIT,
+    SITE_CLOCKS,
+    cases=_tz_cases("txt"),
+    cover_pairs=False,
 )
 def test_non_zero_time_zone_matches_run_then_save(
     short_sample_sim, stream_chunk_reference_dir, tmp_path, clock, site_clock
 ):
     """With a time zone and a daylight-saving window, streamed equals whole."""
     dir_whole = stream_chunk_reference_dir(
-        3600, [2, 1], GROUPS, clock, site_clock=site_clock
+        3600, [2, 1], GROUPS, clock, **WINDOW, site_clock=site_clock
     )
     sim = _year_crossing_sim(
         short_sample_sim, tmp_path, 3600, 7, [2, 1], clock=clock, site_clock=site_clock
@@ -1108,8 +1247,12 @@ def test_non_zero_time_zone_matches_run_then_save(
     _compare_dirs(tmp_path, dir_whole)
 
 
-@_parametrize_by_cost(
-    ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
+@_parametrize_cases(
+    ("clock", "site_clock"),
+    CLOCKS_EXPLICIT,
+    SITE_CLOCKS,
+    cases=_tz_cases("txt-resume"),
+    cover_pairs=False,
 )
 def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
     short_sample_sim,
@@ -1121,13 +1264,13 @@ def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
 ):
     """Killed mid-year and resumed with a time zone, the files equal a whole run."""
     dir_full = stream_chunk_reference_dir(
-        3600, None, GROUPS, clock, site_clock=site_clock, stream_chunk=1
+        3600, None, GROUPS, clock, **WINDOW, site_clock=site_clock
     )
     dir_out = tmp_path / "out"
     sim = _year_crossing_sim(
         short_sample_sim, dir_out, 3600, 1, clock=clock, site_clock=site_clock
     )
-    _run_failing_after(sim, N_CHUNK_2011 + 3, monkeypatch)
+    _run_failing_after(sim, N_WRITTEN_MID_YEAR, monkeypatch)
 
     _resume(sim, dir_out)
 
@@ -1139,7 +1282,6 @@ def test_non_zero_time_zone_resume_matches_an_uninterrupted_run(
 # ---------------------------------------------------------------------------
 
 GROUPS_PARQUET = ["SUEWS", "DailyState", "RSL"]
-FIRST_FORCING = pd.Timestamp("2011-12-16 00:05")  # the year-crossing run's start
 
 
 def _parquet_sim(short_sample_sim, path_out, freq_s, stream_chunk, **kwargs):
@@ -1239,11 +1381,23 @@ def _compare_streamed_dirs(dir_a, dir_b):
     _compare_sidecars(dir_a, dir_b)
 
 
-@_parametrize_by_cost(
+# Chunk length, output frequency and grids: each pair of values once.
+@_parametrize_cases(
     ("stream_chunk", "freq_s", "list_gridiv"),
-    {"1": 1, "30": 30, "366": 366},
+    CHUNKS,
     {"300": TSTEP_S, "3600": 3600, "86400": 86400},
-    {"1grid": None, "2grids": [2, 1]},
+    GRIDS,
+    cases=[
+        ("1", "300", "1grid"),
+        ("1", "3600", "2grids"),
+        ("1", "86400", "1grid"),
+        ("2", "300", "2grids"),
+        ("2", "3600", "1grid"),
+        ("2", "86400", "2grids"),
+        ("7", "300", "2grids"),
+        ("7", "3600", "1grid"),
+        ("7", "86400", "2grids"),
+    ],
 )
 def test_parquet_matches_run_then_save(
     short_sample_sim,
@@ -1259,7 +1413,7 @@ def test_parquet_matches_run_then_save(
     ``_expected_streamed``).
     """
     dir_whole = stream_chunk_reference_dir(
-        freq_s, list_gridiv, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet"
+        freq_s, list_gridiv, GROUPS_PARQUET, CLOCK_FOLLOW, **WINDOW, fmt="parquet"
     )
     sim = _parquet_sim(
         short_sample_sim, tmp_path, freq_s, stream_chunk, list_gridiv=list_gridiv
@@ -1278,22 +1432,22 @@ def test_parquet_matches_run_then_save(
 
 
 @pytest.mark.parametrize("freq_s", [TSTEP_S, 3600, 86400])
-@pytest.mark.medium
 def test_parquet_daily_state_only_matches_run_then_save(
     short_sample_sim, stream_chunk_reference_dir, tmp_path, freq_s
 ):
     """With DailyState alone, the folder holds one row per grid and day."""
     groups = ["DailyState"]
+    # Whole-run Parquet always writes every group, so reuse the cached reference.
     dir_whole = stream_chunk_reference_dir(
-        freq_s, [2, 1], groups, CLOCK_FOLLOW, fmt="parquet"
+        freq_s, [2, 1], GROUPS_PARQUET, CLOCK_FOLLOW, **WINDOW, fmt="parquet"
     )
     sim = _parquet_sim(
-        short_sample_sim, tmp_path, freq_s, 30, list_gridiv=[2, 1], groups=groups
+        short_sample_sim, tmp_path, freq_s, 2, list_gridiv=[2, 1], groups=groups
     )
     sim.run()
 
     _compare_with_whole(tmp_path, dir_whole, groups, freq_s)
-    assert len(_read_streamed(tmp_path)) == 2 * 31  # two grids, 31 days
+    assert len(_read_streamed(tmp_path)) == 2 * 6  # two grids, six days
 
 
 @pytest.mark.parametrize(
@@ -1301,11 +1455,19 @@ def test_parquet_daily_state_only_matches_run_then_save(
     [
         (
             1,
-            [f"part-2011-{k:03d}.parquet" for k in range(1, 17)]
-            + [f"part-2012-{k:03d}.parquet" for k in range(1, 16)],
+            [f"part-2011-{k:03d}.parquet" for k in range(1, N_CHUNK_2011 + 1)]
+            + [f"part-2012-{k:03d}.parquet" for k in range(1, N_CHUNK_2012 + 1)],
         ),
-        (30, ["part-2011-001.parquet", "part-2012-001.parquet"]),
-        (366, ["part-2011-001.parquet", "part-2012-001.parquet"]),
+        (
+            2,
+            [
+                "part-2011-001.parquet",
+                "part-2011-002.parquet",
+                "part-2012-001.parquet",
+                "part-2012-002.parquet",
+            ],
+        ),
+        (7, ["part-2011-001.parquet", "part-2012-001.parquet"]),
     ],
 )
 def test_parquet_folder_holds_one_file_per_chunk(
@@ -1317,11 +1479,13 @@ def test_parquet_folder_holds_one_file_per_chunk(
     assert _part_names(tmp_path) == names
 
 
-@_parametrize_by_cost(
+@_parametrize_cases(
     ("stream_chunk", "clock", "list_gridiv"),
-    {"1": 1, "366": 366},
-    {"utc": CLOCK_UTC, "lst": CLOCK_LST},
-    {"1grid": None, "2grids": [2, 1]},
+    CHUNKS,
+    CLOCKS_EXPLICIT,
+    GRIDS,
+    cases=_explicit_clock_cases("parquet"),
+    cover_pairs=False,
 )
 def test_parquet_explicit_clock_matches_run_then_save(
     short_sample_sim,
@@ -1333,7 +1497,7 @@ def test_parquet_explicit_clock_matches_run_then_save(
 ):
     """Explicit output clocks on the forcing clock give the same frame."""
     dir_whole = stream_chunk_reference_dir(
-        3600, list_gridiv, GROUPS_PARQUET, clock, fmt="parquet"
+        3600, list_gridiv, GROUPS_PARQUET, clock, **WINDOW, fmt="parquet"
     )
     sim = _parquet_sim(
         short_sample_sim,
@@ -1348,15 +1512,25 @@ def test_parquet_explicit_clock_matches_run_then_save(
     _compare_with_whole(tmp_path, dir_whole, GROUPS_PARQUET, 3600)
 
 
-@_parametrize_by_cost(
-    ("clock", "site_clock"), {"utc": CLOCK_UTC, "lst": CLOCK_LST}, SITE_CLOCKS
+@_parametrize_cases(
+    ("clock", "site_clock"),
+    CLOCKS_EXPLICIT,
+    SITE_CLOCKS,
+    cases=_tz_cases("parquet"),
+    cover_pairs=False,
 )
 def test_parquet_non_zero_time_zone_matches_run_then_save(
     short_sample_sim, stream_chunk_reference_dir, tmp_path, clock, site_clock
 ):
     """With a time zone and a daylight-saving window, streamed equals whole."""
     dir_whole = stream_chunk_reference_dir(
-        3600, [2, 1], GROUPS_PARQUET, clock, site_clock=site_clock, fmt="parquet"
+        3600,
+        [2, 1],
+        GROUPS_PARQUET,
+        clock,
+        **WINDOW,
+        site_clock=site_clock,
+        fmt="parquet",
     )
     sim = _parquet_sim(
         short_sample_sim,
@@ -1376,25 +1550,37 @@ def test_parquet_short_last_chunk_at_the_model_timestep(
     short_sample_sim, stream_chunk_reference_dir, tmp_path
 ):
     """A last chunk of two rows at the model timestep is not resampled alone."""
-    end = "2012-01-14 00:10"
+    end = "2012-01-04 00:10"
     dir_whole = stream_chunk_reference_dir(
-        TSTEP_S, None, GROUPS_PARQUET, CLOCK_FOLLOW, end=end, fmt="parquet"
+        TSTEP_S,
+        None,
+        GROUPS_PARQUET,
+        CLOCK_FOLLOW,
+        end=end,
+        start=WINDOW_START,
+        fmt="parquet",
     )
     sim = _parquet_sim(short_sample_sim, tmp_path, TSTEP_S, 1, end=end)
     sim.run()
 
-    assert _part_names(tmp_path)[-1] == "part-2012-014.parquet"
-    assert len(pd.read_parquet(_output_path(tmp_path) / "part-2012-014.parquet")) == 2
+    assert _part_names(tmp_path)[-1] == "part-2012-004.parquet"
+    assert len(pd.read_parquet(_output_path(tmp_path) / "part-2012-004.parquet")) == 2
     _compare_with_whole(tmp_path, dir_whole, GROUPS_PARQUET, TSTEP_S)
 
 
-def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, tmp_path):
+def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(
+    short_sample_sim, tmp_path
+):
     """A completed streamed run retains the last chunk's fifteen-minute bin."""
     from supy.suews_output import SUEWSOutput
 
     sim = _parquet_sim(
-        short_sample_sim, tmp_path, 3600, 1,
-        end="2011-12-17 00:15", groups=["SUEWS", "DailyState"],
+        short_sample_sim,
+        tmp_path,
+        3600,
+        1,
+        end="2011-12-30 00:15",
+        groups=["SUEWS", "DailyState"],
     )
     forcing = sim.forcing.df.copy()
     forcing["rain"] = 0.5
@@ -1404,11 +1590,13 @@ def test_parquet_later_chunk_partial_bin_keeps_rate_coverage(short_sample_sim, t
     path = _output_path(tmp_path)
     parts = sorted(path.glob("part-*.parquet"))
     assert len(parts) == 2
-    key = "1|2011-12-17T01:00:00"
+    key = "1|2011-12-30T01:00:00"
     for source in (path, parts[-1]):
         saved = pd.read_parquet(source)
         assert saved.attrs["supy_output_coverage_s"][key] == 900
-        assert saved["SUEWS", "Rain"].dropna().to_numpy() == pytest.approx(0.5 / TSTEP_S)
+        assert saved["SUEWS", "Rain"].dropna().to_numpy() == pytest.approx(
+            0.5 / TSTEP_S
+        )
         daily = SUEWSOutput(saved, None).resample("D")
         # DailyState-only bins have no main-group coverage or rain rate.
         rain = daily.df["SUEWS", "Rain"].dropna()
@@ -1431,9 +1619,9 @@ def test_parquet_reload_resamples_dailystate_like_the_run(
     from supy.suews_output import SUEWSOutput
 
     groups = ["SUEWS", "DailyState"]
-    output = stream_chunk_reference_output(3600, None, groups, CLOCK_FOLLOW)
+    output = stream_chunk_reference_output(3600, None, groups, CLOCK_FOLLOW, **WINDOW)
     dir_streamed = stream_chunk_reference_dir(
-        3600, None, groups, CLOCK_FOLLOW, fmt="parquet", stream_chunk=7
+        3600, None, groups, CLOCK_FOLLOW, **WINDOW, fmt="parquet", stream_chunk=2
     )
     saved = pd.read_parquet(_output_path(dir_streamed))
     assert saved.attrs["supy_output_interval_s"] == 3600
@@ -1508,11 +1696,18 @@ def test_fresh_parquet_run_removes_a_previous_runs_files(
     assert (dir_out / "other.parquet").read_bytes() == b"mine"
 
 
-@_parametrize_by_cost(
+# Output frequency, grids and failure point: each pair of values once.
+@_parametrize_cases(
     ("freq_s", "list_gridiv", "n_written"),
     {"3600": 3600, "86400": 86400},
-    {"1grid": None, "2grids": [2, 1]},
-    {"at-year-end": N_CHUNK_2011, "mid-year": N_CHUNK_2011 + 3},
+    GRIDS,
+    {"at-year-end": N_CHUNK_2011, "mid-year": N_WRITTEN_MID_YEAR},
+    cases=[
+        ("3600", "1grid", "at-year-end"),
+        ("3600", "2grids", "mid-year"),
+        ("86400", "1grid", "mid-year"),
+        ("86400", "2grids", "at-year-end"),
+    ],
 )
 def test_parquet_resumed_run_matches_an_uninterrupted_run(
     short_sample_sim,
@@ -1531,7 +1726,13 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
     folder-wide coverage metadata is refreshed at completion.
     """
     dir_full = stream_chunk_reference_dir(
-        freq_s, list_gridiv, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet", stream_chunk=1
+        freq_s,
+        list_gridiv,
+        GROUPS_PARQUET,
+        CLOCK_FOLLOW,
+        **WINDOW,
+        fmt="parquet",
+        stream_chunk=1,
     )
 
     dir_out = tmp_path / "out"
@@ -1549,8 +1750,8 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
     }
 
     if n_written > N_CHUNK_2011:
-        _resume(sim, dir_out, monkeypatch, fail_after=2)
-        assert len(_part_names(dir_out)) == N_CHUNK_2011 + 2
+        _resume(sim, dir_out, monkeypatch, fail_after=N_CHUNK_2012 - 1)
+        assert len(_part_names(dir_out)) == N_CHUNK_2011 + N_CHUNK_2012 - 1
     _resume(sim, dir_out)
 
     _compare_streamed_dirs(dir_out, dir_full)
@@ -1559,7 +1760,8 @@ def test_parquet_resumed_run_matches_an_uninterrupted_run(
     # resumed year; _compare_streamed_dirs above still checks every value.
     first_part = min(dict_2011)
     assert {
-        p.name: p.stat().st_mtime_ns for p in path_output.glob("part-2011-*.parquet")
+        p.name: p.stat().st_mtime_ns
+        for p in path_output.glob("part-2011-*.parquet")
         if p.name != first_part
     } == {name: mtime for name, mtime in dict_2011.items() if name != first_part}
 
@@ -1570,14 +1772,20 @@ def test_parquet_part_cut_short_is_never_left_half_written(
     """A part file is renamed into place whole; an interrupted write leaves
     only its temporary file, which the resumed run removes."""
     dir_full = stream_chunk_reference_dir(
-        3600, None, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet", stream_chunk=1
+        3600,
+        None,
+        GROUPS_PARQUET,
+        CLOCK_FOLLOW,
+        **WINDOW,
+        fmt="parquet",
+        stream_chunk=1,
     )
     dir_out = tmp_path / "out"
     sim = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
     replace = os.replace
 
     def fail_on_part(src, dst):
-        if Path(dst).name == "part-2012-003.parquet":
+        if Path(dst).name == "part-2012-002.parquet":
             raise OSError("simulated interruption")
         return replace(src, dst)
 
@@ -1586,8 +1794,8 @@ def test_parquet_part_cut_short_is_never_left_half_written(
         sim.run()
     monkeypatch.undo()
     path_output = _output_path(dir_out)
-    assert (path_output / ".part-2012-003.parquet.tmp").exists()
-    assert "part-2012-003.parquet" not in _part_names(dir_out)
+    assert (path_output / ".part-2012-002.parquet.tmp").exists()
+    assert "part-2012-002.parquet" not in _part_names(dir_out)
     # The temporary file is hidden from readers.
     assert len(pd.read_parquet(path_output)) > 0
 
@@ -1596,7 +1804,6 @@ def test_parquet_part_cut_short_is_never_left_half_written(
     _compare_streamed_dirs(dir_out, dir_full)
 
 
-@pytest.mark.medium
 def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
     short_sample_sim, tmp_path
 ):
@@ -1609,22 +1816,22 @@ def test_parquet_resume_refuses_a_checkpoint_inside_a_year_with_parts(
     sim_out = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
     sim_out.run()
     sim_mid = _parquet_sim(short_sample_sim, tmp_path / "mid", 3600, None)
-    sim_mid.run(end_date="2011-12-20 00:00")
+    sim_mid.run(end_date="2011-12-30 00:00")
     sim = SUEWSSimulation.from_checkpoint(sim_out.config, sim_mid.checkpoint)
     sim.update_forcing(sim_mid.forcing.df)
     n_part = len(_part_names(dir_out))
 
     with pytest.raises(ValueError, match="not at a year end"):
-        sim.run(start_date=pd.Timestamp("2011-12-20 00:05"))
+        sim.run(start_date=pd.Timestamp("2011-12-30 00:05"))
     assert len(_part_names(dir_out)) == n_part
 
     sim_done = _parquet_sim(short_sample_sim, tmp_path / "done", 3600, 1)
-    sim_done.run(end_date="2012-01-10 00:00")
+    sim_done.run(end_date="2012-01-03 00:00")
     sim_next = SUEWSSimulation.from_checkpoint(sim_done.config, sim_done.checkpoint)
     sim_next.update_forcing(sim_done.forcing.df)
     n_part = len(_part_names(tmp_path / "done"))
     with pytest.raises(ValueError, match="not at a year end"):
-        sim_next.run(start_date=pd.Timestamp("2012-01-10 00:05"))
+        sim_next.run(start_date=pd.Timestamp("2012-01-03 00:05"))
     assert len(_part_names(tmp_path / "done")) == n_part
 
 
@@ -1634,10 +1841,11 @@ def test_parquet_group_without_values_keeps_every_interval(
 ):
     """A group the run leaves empty still has a row per output interval."""
     groups = ["EHC"]
+    # Whole-run Parquet always writes every group, so reuse the cached reference.
     dir_whole = stream_chunk_reference_dir(
-        freq_s, None, groups, CLOCK_FOLLOW, fmt="parquet"
+        freq_s, None, GROUPS_PARQUET, CLOCK_FOLLOW, **WINDOW, fmt="parquet"
     )
-    sim = _parquet_sim(short_sample_sim, tmp_path, freq_s, 30, groups=groups)
+    sim = _parquet_sim(short_sample_sim, tmp_path, freq_s, 7, groups=groups)
     sim.run()
 
     df_streamed = _read_streamed(tmp_path)
@@ -1684,10 +1892,16 @@ def test_parquet_failure_writing_metadata_resumes_from_the_year_before(
 ):
     """The metadata file is written before the last checkpoint."""
     dir_full = stream_chunk_reference_dir(
-        3600, None, GROUPS_PARQUET, CLOCK_FOLLOW, fmt="parquet", stream_chunk=30
+        3600,
+        None,
+        GROUPS_PARQUET,
+        CLOCK_FOLLOW,
+        **WINDOW,
+        fmt="parquet",
+        stream_chunk=1,
     )
     dir_out = tmp_path / "out"
-    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 30)
+    sim = _parquet_sim(short_sample_sim, dir_out, 3600, 1)
 
     def fail(*args, **kwargs):
         raise OSError("simulated failure")

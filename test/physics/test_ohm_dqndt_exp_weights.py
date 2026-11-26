@@ -23,9 +23,9 @@ import json
 import math
 import os
 from pathlib import Path
-import shutil
 import subprocess
 
+from conftest import require_fortran_probe_toolchain
 import numpy as np
 import pandas as pd
 import pytest
@@ -418,12 +418,11 @@ def test_moment_matched_diurnal_phase_lag_matches_2016_centroid():
 
 def _compile_ohm_dqndt_cal_probe(tmp_path: Path):
     """Compile a minimal ``bind(C)`` wrapper around ``module_phys_ohm::OHM_dqndt_cal``."""
-    compiler = shutil.which("gfortran")
-    suews_dir = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews_dir / "lib" / "libsuewsphys.a").exists():
-        pytest.skip(
-            "Native OHM_dqndt_cal check requires gfortran and source-build libraries"
-        )
+    compiler, suews_dir = require_fortran_probe_toolchain(
+        "Native OHM_dqndt_cal probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=("module_phys_ohm.mod",),
+    )
 
     wrapper = tmp_path / "ohm_dqndt_cal_probe.f90"
     wrapper.write_text(

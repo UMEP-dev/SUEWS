@@ -1,7 +1,6 @@
 """Fatal non-finite guards for RSL_cal_prms and RSLProfile (GH#2171)."""
 
 import copy
-import gzip
 from importlib import import_module
 from importlib.resources import as_file, files
 import json
@@ -10,7 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from conftest import run_cli_command
+from conftest import require_fortran_probe_toolchain, run_cli_command
 import pandas as pd
 import pytest
 import yaml
@@ -28,28 +27,19 @@ pytestmark = [
 NONFINITE_KINDS = ("qnan", "+inf", "-inf")
 
 
-def _native_probe_unavailable(reason: str) -> None:
-    if os.environ.get("SUEWS_REQUIRE_FORTRAN_PROBES") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
 @pytest.fixture(scope="module")
 def rsl_nonfinite_probe(tmp_path_factory):
     """Compile a native Fortran probe for RSL_cal_prms and RSLProfile."""
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        _native_probe_unavailable(
-            "Native checks need gfortran and source-build libraries; run tests cover wheels"
-        )
-    try:
-        with gzip.open(suews / "mod" / "module_phys_rslprof.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except (gzip.BadGzipFile, FileNotFoundError):
-        is_gnu = False
-    if not is_gnu:
-        _native_probe_unavailable("Native harness needs GNU Fortran modules")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native RSL non-finite probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=(
+            "module_ctrl_const_allocate.mod",
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_rslprof.mod",
+        ),
+    )
 
     directory = tmp_path_factory.mktemp("rsl_nonfinite")
     source = directory / "probe_rsl.f95"

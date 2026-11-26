@@ -3,10 +3,10 @@
 import ctypes
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
+from conftest import fortran_probe_unavailable, require_fortran_probe_toolchain
 import numpy as np
 import pytest
 
@@ -19,12 +19,14 @@ pytestmark = [
 
 @pytest.fixture(scope="module", params=["release", "checked"])
 def matrix_solvers(tmp_path_factory, request):
-    compiler = shutil.which("gfortran")
-    if compiler is None:
-        pytest.skip("Native matrix checks require gfortran; model tests cover installed wheels")
     source_dir = (
         Path(__file__).resolve().parents[2]
         / "src/suews/ext_lib/spartacus-surface"
+    )
+    compiler, _ = require_fortran_probe_toolchain(
+        "Native SPARTACUS matrix probe",
+        libraries=(),
+        source_dir=source_dir,
     )
     directory = tmp_path_factory.mktemp("spartacus_matrices")
     wrapper = directory / "wrapper.f90"
@@ -76,17 +78,22 @@ end subroutine matrices
          str(wrapper), "-o", str(library)],
         cwd=directory, check=True, capture_output=True, text=True,
     )
-    if sys.platform == "win32":
-        # The library links the gfortran and OpenMP runtimes, which Windows
-        # resolves only from directories registered for DLL search.
-        os.add_dll_directory(str(Path(compiler).resolve().parent))
     try:
-        native = ctypes.CDLL(str(library)).matrices
+        if sys.platform == "win32":
+            # The library links the gfortran and OpenMP runtimes, which Windows
+            # resolves only from directories registered for DLL search.
+            with os.add_dll_directory(str(Path(compiler).resolve().parent)):
+                native = ctypes.CDLL(str(library)).matrices
+        else:
+            native = ctypes.CDLL(str(library)).matrices
     except OSError as error:
         if sys.platform != "win32":
             raise
-        pytest.skip(f"gfortran runtime DLLs not loadable on this runner ({error}); "
-                    "the solver maths is checked on Linux and macOS")
+        fortran_probe_unavailable(
+            f"gfortran runtime DLLs not loadable on this runner ({error}); "
+            "the solver maths is checked on Linux and macOS",
+            require_env_only=True,
+        )
     array_arg = np.ctypeslib.ndpointer(dtype=np.float64, flags="F_CONTIGUOUS")
     native.argtypes = [ctypes.c_int] * 4 + [array_arg] * 6
     native.restype = None

@@ -8,12 +8,10 @@ equal the energy that entered it, and a semi-infinite slab under a diurnal
 sinusoid, refined in time and in space to measure the order of accuracy.
 """
 
-import gzip
-import os
 from pathlib import Path
-import shutil
 import subprocess
 
+from conftest import require_fortran_probe_toolchain
 import numpy as np
 import pytest
 
@@ -26,26 +24,20 @@ pytestmark = [
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _probe_unavailable(reason):
-    if os.environ.get("SUEWS_REQUIRE_FORTRAN_PROBES") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
 @pytest.fixture(scope="module")
 def probe(tmp_path_factory):
     """Compile the probe against the source-build physics library."""
-    compiler = shutil.which("gfortran")
-    suews = ROOT / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        _probe_unavailable("EHC solver probe requires gfortran and source-build libraries")
-    try:
-        with gzip.open(suews / "mod" / "module_phys_ehc_heatflux.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except (gzip.BadGzipFile, FileNotFoundError):
-        is_gnu = False
-    if not is_gnu:
-        _probe_unavailable("EHC solver probe requires GNU Fortran module files")
+    compiler, suews = require_fortran_probe_toolchain(
+        "EHC solver probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a"),
+        modules=(
+            "module_ctrl_const_allocate.mod",
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_ehc.mod",
+            "module_phys_ehc_heatflux.mod",
+        ),
+    )
     executable = tmp_path_factory.mktemp("ehc_implicit") / "probe"
     compiled = subprocess.run(
         [

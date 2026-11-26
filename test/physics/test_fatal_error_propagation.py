@@ -4,10 +4,10 @@ from concurrent.futures import ThreadPoolExecutor
 import ctypes
 import os
 from pathlib import Path
-import shutil
 import subprocess
 from threading import Barrier
 
+from conftest import require_fortran_probe_toolchain
 import pytest
 
 pytestmark = [
@@ -19,10 +19,22 @@ pytestmark = [
 
 @pytest.fixture(scope="module")
 def fatal_probe(tmp_path_factory):
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libspartacus.a").exists():
-        pytest.skip("Native fatal-error probe requires gfortran and source-build libraries")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native fatal-error probe",
+        libraries=("libspartacus.a",),
+        modules=(
+            "radiation_io.mod",
+            "radsurf_boundary_conds_out.mod",
+            "radsurf_canopy_flux.mod",
+            "radsurf_canopy_properties.mod",
+            "radsurf_config.mod",
+            "radsurf_interface.mod",
+            "radsurf_lw_spectral_properties.mod",
+            "radsurf_overlap.mod",
+            "radsurf_simple_spectrum.mod",
+            "radsurf_sw_spectral_properties.mod",
+        ),
+    )
     directory = tmp_path_factory.mktemp("fatal_radiation")
     source = directory / "probe.f90"
     source.write_text(
@@ -138,10 +150,14 @@ def test_native_fatal_returns_and_can_be_reset(fatal_probe, mode):
 
 
 def test_surface_resistance_fatal_initialises_outputs(tmp_path):
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        pytest.skip("Native resistance check requires gfortran and source-build libraries")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native resistance check",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_phys_resist.mod",
+        ),
+    )
     source = tmp_path / "resistance.f90"
     source.write_text(
         """program resistance
@@ -177,10 +193,11 @@ end program
 
 
 def test_radiation_tls_isolated_between_native_threads(tmp_path):
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libspartacus.a").exists():
-        pytest.skip("Native TLS check requires gfortran and source-build libraries")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native TLS check",
+        libraries=("libspartacus.a",),
+        modules=("radiation_io.mod",),
+    )
     source = tmp_path / "threads.f90"
     source.write_text(
         """subroutine native_abort() bind(C)

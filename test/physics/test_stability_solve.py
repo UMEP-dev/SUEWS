@@ -7,12 +7,9 @@ returned 0.357 or 0.5. It now brackets the residual g(zL) = f(zL) - zL and
 takes the root nearest neutral, or the clip when no root lies inside it.
 """
 
-import gzip
-import os
-from pathlib import Path
-import shutil
 import subprocess
 
+from conftest import require_fortran_probe_toolchain
 import numpy as np
 import pytest
 
@@ -71,26 +68,18 @@ end program
 """
 
 
-def _probe_unavailable(reason):
-    if os.environ.get("SUEWS_REQUIRE_FORTRAN_PROBES") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
 @pytest.fixture(scope="module")
 def probe(tmp_path_factory):
     """Compile a probe against the source-build libraries; no copied physics."""
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        _probe_unavailable("Native probe needs gfortran and source-build libraries; run tests cover wheels")
-    try:
-        with gzip.open(suews / "mod" / "module_phys_atmmoiststab.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except (gzip.BadGzipFile, FileNotFoundError):
-        is_gnu = False
-    if not is_gnu:
-        _probe_unavailable("Native probe needs GNU Fortran module files")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native stability solve probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_phys_atmmoiststab.mod",
+            "module_phys_resist.mod",
+        ),
+    )
     directory = tmp_path_factory.mktemp("stability_solve")
     source = directory / "probe.f95"
     source.write_text(PROBE, encoding="ascii")

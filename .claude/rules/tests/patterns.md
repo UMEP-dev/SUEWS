@@ -145,9 +145,11 @@ cheapest thing the test needs in order to run: [decision: pending software maint
 - `unit` -- pure Python in `supy` (data model, validator rules through
   `SUEWSConfig.from_dict()`, converters, helpers); imports no compiled code.
   Runs from source.
-- `native` -- needs the compiled extension but asserts a contract rather than
-  an output value: bridge loading, guard and error witnesses, I/O wiring. Guard
-  witnesses follow the layering in `rust/bridge-contract.md` (BR-02).
+- `native` -- needs compiled native code (the Python extension or the
+  standalone `suews-engine` binary) but asserts a contract rather than an
+  output value: bridge loading, guard and error witnesses, I/O wiring. An
+  engine contract witness is `native` plus `e2e`. Guard witnesses follow the
+  layering in `rust/bridge-contract.md` (BR-02).
 - `physics` -- asserts model output values from a compiled run (balances,
   oracles, reference outputs).
 

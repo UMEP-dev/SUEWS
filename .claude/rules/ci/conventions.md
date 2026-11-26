@@ -443,8 +443,9 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
 
 The sections "Test Tier Definitions", "Test Tier Assignment by Event" and
 "Merge Queue Coverage Policy" describe the current two-lane gate: a `physics`
-lane on the build Python and an `api` lane across Python versions, selected by
-the `physics | api` nature markers. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+lane on the build Python and an `api` lane across Python versions. Its tests
+are selected by the `physics | api` nature markers, and the `api` lane is
+switched per platform by `run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
 
 The topology below is the target. Its axis selection takes effect once
 `pyproject.toml` registers `tooling`, `unit` and `native` (#2349 `W1-4`), and

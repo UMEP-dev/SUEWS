@@ -607,7 +607,9 @@ def _required_lanes(
     """Build the ordered list of required Linux lane keys for ``schema``."""
     _validate_python_tag(physics_python, "physics_python")
     if schema == SCHEMA_V1:
-        pythons = _dedupe_tags(list(api_pythons or []), "api_pythons")
+        if not api_pythons:
+            raise ValueError("api_pythons must be non-empty for schema 1")
+        pythons = _dedupe_tags(list(api_pythons), "api_pythons")
         return [("physics", physics_python, *LINUX)] + [
             ("api", python, *LINUX) for python in pythons
         ]
@@ -616,16 +618,19 @@ def _required_lanes(
         if source_python is None
         else _validate_python_tag(source_python, "source_python")
     )
-    if abi3_smoke_pythons is not None:
-        smoke_pythons = _dedupe_tags(list(abi3_smoke_pythons), "abi3_smoke_pythons")
-    elif api_pythons is not None:
-        smoke_pythons = [
+    raw_smoke = abi3_smoke_pythons if abi3_smoke_pythons is not None else api_pythons
+    smoke_label = (
+        "abi3_smoke_pythons" if abi3_smoke_pythons is not None else "api_pythons"
+    )
+    smoke_pythons = (
+        [
             python
-            for python in _dedupe_tags(list(api_pythons), "api_pythons")
+            for python in _dedupe_tags(list(raw_smoke), smoke_label)
             if python != physics_python
         ]
-    else:
-        smoke_pythons = []
+        if raw_smoke is not None
+        else []
+    )
     required: list[tuple[str, str, str, str]] = [
         ("tooling", src_python, *LINUX),
         ("unit", src_python, *LINUX),
@@ -654,6 +659,8 @@ def run_guard(
     """Run every check over the metrics under ``metrics_dir``."""
     resolved = validate_schema(schema)
     if resolved == SCHEMA_V1:
+        if not api_pythons:
+            raise ValueError("api_pythons must be non-empty for schema 1")
         if (
             abi3_smoke_pythons is not None
             or require_os_compat

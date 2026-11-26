@@ -14,7 +14,7 @@ import pytest
 import yaml
 
 from scripts.lint.check_cost_markers import load_tests
-from scripts.suews import ci_tiers
+from scripts.suews import ci_test_layout, ci_tiers
 from scripts.suews.check_core_guard import EXACT_REFERENCE_TEST, main, run_guard
 from scripts.suews.pytest_shard import shard_of
 
@@ -904,4 +904,67 @@ def test_schema2_cli_and_cross_schema_flag_validation(
             allow,
         ])
         == 2
+    )
+
+
+def test_schema1_omitted_api_pythons_fails_closed(tmp_path: Path) -> None:
+    """Schema 1 rejects omitted or empty api_pythons even with valid physics evidence."""
+    metrics = _layout(tmp_path)
+    allow = tmp_path / "allow.json"
+    with pytest.raises(ValueError, match="api_pythons must be non-empty for schema 1"):
+        run_guard(metrics, "standard", allowlist_path=allow)
+    with pytest.raises(ValueError, match="api_pythons must be non-empty for schema 1"):
+        run_guard(metrics, "standard", [], allowlist_path=allow)
+    assert (
+        main([
+            str(metrics),
+            "--tier",
+            "standard",
+            "--api-python",
+            "[]",
+            "--allowlist",
+            str(allow),
+        ])
+        == 2
+    )
+
+
+def test_schema2_layout_and_guard_agree_when_abi3_list_includes_build_python(
+    tmp_path: Path,
+) -> None:
+    """Layout and guard both exclude physics_python and deduplicate explicit abi3_smoke lists."""
+    explicit_pythons = ["cp312", "cp315", "cp315"]
+    cells = ci_test_layout.abi3_smoke_cells(explicit_pythons, "physics-core", "cp312")
+    assert [cell["python_version"] for cell in cells] == ["cp315"]
+
+    metrics = _layout_v2(
+        tmp_path,
+        tier="physics-core",
+        abi3_smoke_pythons=tuple(cell["python_version"] for cell in cells),
+    )
+    allow = tmp_path / "allow.json"
+    report = run_guard(
+        metrics,
+        "physics-core",
+        physics_python="cp312",
+        allowlist_path=allow,
+        schema=2,
+        abi3_smoke_pythons=explicit_pythons,
+    )
+    assert report.errors == []
+    assert (
+        main([
+            str(metrics),
+            "--schema",
+            "2",
+            "--tier",
+            "physics-core",
+            "--physics-python",
+            "cp312",
+            "--abi3-smoke-python",
+            json.dumps(explicit_pythons),
+            "--allowlist",
+            str(allow),
+        ])
+        == 0
     )

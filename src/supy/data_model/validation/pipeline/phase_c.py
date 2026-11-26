@@ -1,118 +1,491 @@
-"""Phase C report generation for configuration consistency validation errors."""
+"""Phase C validation and report generation for configuration consistency."""
 
+from __future__ import annotations
+
+from collections.abc import Mapping
+from copy import deepcopy
+from dataclasses import dataclass, field
+import logging
 import os
 import re
+from typing import Any
+
+from pydantic import BaseModel
 import yaml
 
+from ...core._yaml_io import safe_load_yaml
+from ...core.field_renames import (
+    STEBBS_PHYSICS_LEAF_RENAMES,
+    fold_stebbs_physics,
+    normalise_yaml_renames,
+)
+from ...core.physics_families import flatten_physics_in_config
+from .document import (
+    format_pydantic_loc,
+    is_ref_only,
+    site_gridid_map,
+    unwrap_entry,
+)
+from .report_schema import SEVERITY_ERROR, SEVERITY_INFO, Issue
 from .report_writer import REPORT_WRITER
 
 # Use unified report title for all validation phases
 REPORT_TITLE = "SUEWS Validation Report"
 
+_INTERNAL_DEFAULT_SKIP = frozenset({
+    "ref",
+    "description",
+    "version",
+    "metadata",
+    "comments",
+})
 
-def collect_phase_c_issues(input_yaml_file: str):
-    """Run a structured Pydantic validation pass and return canonical ``Issue``\\ s.
+_CRITICAL_PHYSICS_PARAMS = (
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+    "capacitance",
+    "setpoint",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+)
+_STEBBS_LEAF_NAMES = frozenset(STEBBS_PHYSICS_LEAF_RENAMES.values())
 
-    The orchestrator's ``run_phase_c`` calls ``SUEWSConfig.from_yaml``
-    which formats Pydantic ``ValidationError`` into a string-only
-    ``ValueError`` (see ``SUEWSConfig._transform_validation_error``).
-    This helper sidesteps that wrapper by calling the shared strict raw-mapping
-    validator so ``ValidationError.errors()`` survive into the JSON sidecar.
-    The cost is one extra Pydantic pass per failing config, which is
-    acceptable for the validation surface.
+
+@dataclass
+class PhaseCResult:
+    """Result of a single-pass Phase C Pydantic validation."""
+
+    config: Any = None
+    issues: list[Issue] = field(default_factory=list)
+    raw_data: dict[str, Any] | None = None
+    had_signature: bool = True
+    exception: Exception | None = None
+
+    @property
+    def has_errors(self) -> bool:
+        """Whether Phase C produced any blocking ERROR issue."""
+        return any(issue.severity == SEVERITY_ERROR for issue in self.issues)
+
+
+def _collect_critical_physics_nulls(raw_data: Mapping[str, Any]) -> list[Issue]:
+    """Detect critical physics parameters explicitly authored as null.
+
+    Normalises legacy physics spellings and folds flat STEBBS keys onto a
+    shallow copy so explicit nulls under legacy or nested spellings are
+    surfaced as structured ``C.CRITICAL_PARAM.*`` errors instead of falling
+    through to ``C.PIPELINE.UNKNOWN``.
     """
-    from .report_schema import Issue, SEVERITY_ERROR
+    model_raw = raw_data.get("model")
+    if not isinstance(model_raw, Mapping):
+        return []
+    physics_raw = model_raw.get("physics")
+    if not isinstance(physics_raw, Mapping):
+        return []
 
-    issues = []
+    normalised_cfg = normalise_yaml_renames({"model": {"physics": deepcopy(dict(physics_raw))}})
+    flatten_physics_in_config(normalised_cfg)
+    physics = normalised_cfg.get("model", {}).get("physics", {})
+    if not isinstance(physics, dict):
+        return []
+    folded = fold_stebbs_physics(deepcopy(physics), "model.physics")
+    stebbs_block = folded.get("stebbs")
+    if not isinstance(stebbs_block, Mapping):
+        stebbs_block = {}
 
-    try:
-        from supy.data_model import SUEWSConfig
-        from supy.data_model.core.config import _legacy_yaml_key_suggestion
-    except ImportError as exc:
-        issues.append(Issue(
-            phase="C",
-            severity=SEVERITY_ERROR,
-            code="C.PIPELINE.IMPORT_ERROR",
-            message=f"Cannot import SUEWSConfig: {exc}",
-            category="PIPELINE",
-        ))
-        return issues
+    issues: list[Issue] = []
+    for param in _CRITICAL_PHYSICS_PARAMS:
+        if param in _STEBBS_LEAF_NAMES:
+            container: Mapping[str, Any] = stebbs_block
+            field_path = f"model.physics.stebbs.{param}"
+        else:
+            container = physics
+            field_path = f"model.physics.{param}"
 
-    try:
-        with open(input_yaml_file, "r", encoding="utf-8") as fh:
-            config_data = yaml.safe_load(fh)
-    except (OSError, yaml.YAMLError) as exc:
-        issues.append(Issue(
-            phase="C",
-            severity=SEVERITY_ERROR,
-            code="C.PIPELINE.YAML_PARSE_ERROR",
-            message=str(exc),
-            category="PIPELINE",
-        ))
-        return issues
+        if param not in container:
+            continue
+        entry = container[param]
+        is_null = (
+            entry is None
+            or (isinstance(entry, Mapping) and "value" in entry and entry["value"] is None)
+            or is_ref_only(entry)
+        )
+        if is_null:
+            issues.append(
+                Issue(
+                    phase="C",
+                    severity=SEVERITY_ERROR,
+                    code=f"C.CRITICAL_PARAM.{param.upper()}",
+                    message=(
+                        f"{param} at level {field_path}: Physics parameter is null "
+                        "and will cause runtime crash"
+                    ),
+                    yaml_path=field_path,
+                    category="CONFIG_CONSISTENCY",
+                    suggested_value=(
+                        "Set to appropriate non-null value - see documentation at "
+                        "https://docs.suews.io/stable"
+                    ),
+                )
+            )
+    return issues
 
-    if not isinstance(config_data, dict):
-        issues.append(Issue(
-            phase="C",
-            severity=SEVERITY_ERROR,
-            code="C.PIPELINE.YAML_NOT_MAPPING",
-            message="YAML root is not a mapping",
-            category="PIPELINE",
-        ))
-        return issues
 
-    # Replicate the minimal field ``from_yaml`` injects so validation reaches
-    # Pydantic with the same source path, but without the
-    # ValidationError-to-ValueError wrapping.
-    config_data.setdefault("_yaml_path", input_yaml_file)
+def _unwrap_model_scalar(value: Any) -> Any:
+    """Return a display-friendly scalar from a RefValue, Enum, or primitive."""
+    if hasattr(value, "value") and not isinstance(value, (dict, list, str, bytes)):
+        inner = value.value
+        if hasattr(inner, "value") and not isinstance(inner, (dict, list, str, bytes)):
+            return inner.value
+        return inner
+    return value
+
+
+def _collect_model_defaults(
+    config: BaseModel,
+    raw_data: Mapping[str, Any],
+    *,
+    had_signature: bool,
+    gridid_map: Mapping[int, Any],
+) -> list[Issue]:
+    """Emit structured ``INFO`` issues for Pydantic-applied defaults via ``model_fields_set``.
+
+    Walks only user-authored containers (never expanding omitted optional
+    sub-models) and skips internal/private fields so compact configs are not
+    flooded with inactive defaults while omitted user-level defaults such as
+    ``schema_version`` are reported accurately without loading
+    ``sample_config.yml``.
+    """
+    issues: list[Issue] = []
+
+    if not had_signature and getattr(config, "schema_version", None) is not None:
+        default_val = config.schema_version
+        issues.append(
+            Issue(
+                phase="C",
+                severity=SEVERITY_INFO,
+                code="C.DEFAULT_APPLIED.SCHEMA_VERSION",
+                message=(
+                    "schema_version found missing in user YAML at level schema_version. "
+                    f"The validation system will interpret that as default value: "
+                    f"{default_val} - check doc for info on this parameter: "
+                    "https://docs.suews.io/stable"
+                ),
+                yaml_path="schema_version",
+                category="DEFAULTS",
+                suggested_value=default_val,
+            )
+        )
+
+    def _walk(model_obj: BaseModel, raw_map: Mapping[str, Any], prefix: str) -> None:
+        fields_set = getattr(model_obj, "model_fields_set", set())
+        for field_name in type(model_obj).model_fields:
+            if field_name.startswith("_") or field_name in _INTERNAL_DEFAULT_SKIP:
+                continue
+            if field_name == "schema_version" and not prefix:
+                continue
+
+            val = getattr(model_obj, field_name, None)
+            current_path = f"{prefix}.{field_name}" if prefix else field_name
+
+            if field_name not in raw_map:
+                if field_name in fields_set or val is None:
+                    continue
+                if isinstance(val, BaseModel) and not hasattr(val, "value"):
+                    # Do not dump large omitted nested sub-models as scalar defaults.
+                    continue
+                if isinstance(val, (list, dict)):
+                    continue
+                display_val = _unwrap_model_scalar(val)
+                if display_val is None:
+                    continue
+                issues.append(
+                    Issue(
+                        phase="C",
+                        severity=SEVERITY_INFO,
+                        code=f"C.DEFAULT_APPLIED.{field_name.upper()}",
+                        message=(
+                            f"{field_name} found missing in user YAML at level "
+                            f"{current_path}. The validation system will interpret "
+                            f"that as default value: {display_val} - check doc for "
+                            "info on this parameter: https://docs.suews.io/stable"
+                        ),
+                        yaml_path=current_path,
+                        category="DEFAULTS",
+                        suggested_value=display_val,
+                    )
+                )
+                continue
+
+            raw_child = raw_map[field_name]
+            if isinstance(val, BaseModel) and not hasattr(val, "value"):
+                if isinstance(raw_child, Mapping):
+                    _walk(val, raw_child, current_path)
+            elif isinstance(val, list) and isinstance(raw_child, list):
+                for idx, (raw_item, model_item) in enumerate(zip(raw_child, val)):
+                    if isinstance(model_item, BaseModel) and isinstance(raw_item, Mapping):
+                        if current_path == "sites":
+                            item_path = f"sites.{gridid_map.get(idx, idx)}"
+                        else:
+                            item_path = f"{current_path}[{idx}]"
+                        _walk(model_item, raw_item, item_path)
+            elif val is not None:
+                raw_inner = unwrap_entry(raw_child)
+                if raw_inner is None:
+                    display_val = _unwrap_model_scalar(val)
+                    if display_val is not None and not isinstance(
+                        display_val, (dict, list, BaseModel)
+                    ):
+                        issues.append(
+                            Issue(
+                                phase="C",
+                                severity=SEVERITY_INFO,
+                                code=f"C.DEFAULT_APPLIED.{field_name.upper()}",
+                                message=(
+                                    f"{field_name} found null in user YAML at level "
+                                    f"{current_path}. The validation system will "
+                                    f"interpret that as default value: {display_val} "
+                                    "- check doc for info on this parameter: "
+                                    "https://docs.suews.io/stable"
+                                ),
+                                yaml_path=current_path,
+                                category="DEFAULTS",
+                                suggested_value=display_val,
+                            )
+                        )
+
+    _walk(config, raw_data, "")
+    return issues
+
+
+def validate_phase_c(
+    input_yaml_file: str | None = None,
+    *,
+    raw_data: dict[str, Any] | None = None,
+) -> PhaseCResult:
+    """Run a single-pass Phase C Pydantic validation and collect structured issues.
+
+    Calls ``SUEWSConfig._prepare_raw_input`` and ``SUEWSConfig._validate_raw_mapping``
+    once so site-completeness checks (``_yaml_raw``) and structured
+    ``ValidationError.errors()`` are both preserved without running Pydantic twice
+    or loading ``sample_config.yml``.
+    """
+    issues: list[Issue] = []
 
     try:
         from pydantic import ValidationError
-    except ImportError:
-        ValidationError = None
+        from supy.data_model import SUEWSConfig
+        from supy.data_model.core.config import _legacy_yaml_key_suggestion
+    except ImportError as exc:
+        issues.append(
+            Issue(
+                phase="C",
+                severity=SEVERITY_ERROR,
+                code="C.PIPELINE.IMPORT_ERROR",
+                message=f"Cannot import SUEWSConfig: {exc}",
+                category="PIPELINE",
+            )
+        )
+        return PhaseCResult(issues=issues, exception=exc)
 
-    try:
-        SUEWSConfig._validate_raw_mapping(config_data)
-        return issues  # No errors
-    except Exception as exc:
-        if ValidationError is not None and isinstance(exc, ValidationError):
-            for err in exc.errors():
-                loc_tuple = err.get("loc", ())
-                gridid_path = convert_pydantic_location_to_gridid_path(
-                    loc_tuple, input_yaml_file
+    if raw_data is None:
+        try:
+            with open(input_yaml_file, encoding="utf-8") as fh:
+                loaded = safe_load_yaml(fh)
+        except (OSError, yaml.YAMLError) as exc:
+            issues.append(
+                Issue(
+                    phase="C",
+                    severity=SEVERITY_ERROR,
+                    code="C.PIPELINE.YAML_PARSE_ERROR",
+                    message=str(exc),
+                    category="PIPELINE",
                 )
-                err_type = err.get("type", "value_error")
-                code_slug = str(err_type).upper().replace(".", "_")
-                message = err.get("msg", str(err))
-                if err_type == "extra_forbidden" and loc_tuple:
+            )
+            return PhaseCResult(issues=issues, exception=exc)
+    else:
+        loaded = raw_data
+
+    if not isinstance(loaded, dict):
+        issues.append(
+            Issue(
+                phase="C",
+                severity=SEVERITY_ERROR,
+                code="C.PIPELINE.YAML_NOT_MAPPING",
+                message="YAML root is not a mapping",
+                category="PIPELINE",
+            )
+        )
+        return PhaseCResult(
+            issues=issues,
+            exception=ValueError("YAML root is not a mapping"),
+        )
+
+    gridid_map = site_gridid_map(loaded)
+    supy_logger = logging.getLogger("SuPy")
+    original_level = supy_logger.level
+    supy_logger.setLevel(logging.CRITICAL)
+
+    prepared: dict[str, Any] | None = None
+    had_signature = "schema_version" in loaded
+    try:
+        prepared, had_signature = SUEWSConfig._prepare_raw_input(
+            loaded, yaml_path=input_yaml_file
+        )
+        config = SUEWSConfig._validate_raw_mapping(prepared)
+    except ValidationError as exc:
+        has_extra_forbidden = False
+        for err in exc.errors():
+            loc_tuple = err.get("loc", ())
+            gridid_path = format_pydantic_loc(loc_tuple, gridid_map)
+            err_type = err.get("type", "value_error")
+            code_slug = str(err_type).upper().replace(".", "_")
+            message = err.get("msg", str(err))
+            if err_type == "extra_forbidden":
+                has_extra_forbidden = True
+                if loc_tuple:
                     suggestion = _legacy_yaml_key_suggestion(loc_tuple[-1])
                     if suggestion is not None:
                         message += f"; legacy field was renamed to '{suggestion}'"
-                issues.append(Issue(
+            issues.append(
+                Issue(
                     phase="C",
                     severity=SEVERITY_ERROR,
                     code=f"C.PYDANTIC.{code_slug}",
                     message=message,
                     yaml_path=gridid_path,
                     category="CONFIG_CONSISTENCY",
-                ))
-        else:
-            issues.append(Issue(
+                )
+            )
+        if has_extra_forbidden and prepared is not None:
+            drift_hint = SUEWSConfig._drift_hint(
+                prepared, had_signature=had_signature, unknown_fields=True
+            )
+            issues.append(
+                Issue(
+                    phase="C",
+                    severity=SEVERITY_INFO,
+                    code="C.SCHEMA_DRIFT_HINT",
+                    message=drift_hint,
+                    yaml_path="schema_version",
+                    category="CONFIG_CONSISTENCY",
+                )
+            )
+        return PhaseCResult(
+            config=None,
+            issues=issues,
+            raw_data=loaded,
+            had_signature=had_signature,
+            exception=exc,
+        )
+    except (TypeError, AttributeError) as exc:
+        drift_exc = (
+            SUEWSConfig._build_drift_error(exc, prepared, had_signature=had_signature)
+            if prepared is not None
+            else exc
+        )
+        issues.append(
+            Issue(
+                phase="C",
+                severity=SEVERITY_ERROR,
+                code="C.PIPELINE.EXCEPTION",
+                message=str(drift_exc),
+                category="PIPELINE",
+            )
+        )
+        return PhaseCResult(
+            config=None,
+            issues=issues,
+            raw_data=loaded,
+            had_signature=had_signature,
+            exception=drift_exc,
+        )
+    except Exception as exc:
+        issues.append(
+            Issue(
                 phase="C",
                 severity=SEVERITY_ERROR,
                 code="C.PIPELINE.EXCEPTION",
                 message=str(exc),
                 category="PIPELINE",
-            ))
-        return issues
+            )
+        )
+        return PhaseCResult(
+            config=None,
+            issues=issues,
+            raw_data=loaded,
+            had_signature=had_signature,
+            exception=exc,
+        )
+    finally:
+        supy_logger.setLevel(original_level)
+
+    critical_null_issues = _collect_critical_physics_nulls(loaded)
+    issues.extend(critical_null_issues)
+
+    if not critical_null_issues:
+        if hasattr(config, "_validation_summary"):
+            for msg in config._validation_summary.get("info_messages", []):
+                issues.append(
+                    Issue(
+                        phase="C",
+                        severity=SEVERITY_INFO,
+                        code="C.VALIDATION_SUMMARY",
+                        message=str(msg),
+                        category="CONFIG_CONSISTENCY",
+                    )
+                )
+
+        # Normalise a shallow copy for default comparison so legacy field
+        # spellings authored by the user are not flagged as omitted defaults.
+        normalised_for_defaults = normalise_yaml_renames(deepcopy(loaded))
+        flatten_physics_in_config(normalised_for_defaults)
+        issues.extend(
+            _collect_model_defaults(
+                config,
+                normalised_for_defaults,
+                had_signature=had_signature,
+                gridid_map=gridid_map,
+            )
+        )
+
+    return PhaseCResult(
+        config=config,
+        issues=issues,
+        raw_data=loaded,
+        had_signature=had_signature,
+        exception=None,
+    )
 
 
-def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
+def collect_phase_c_issues(input_yaml_file: str) -> list[Issue]:
+    """Run a structured Pydantic validation pass and return blocking ``Issue``\\ s."""
+    result = validate_phase_c(input_yaml_file)
+    return [issue for issue in result.issues if issue.severity == SEVERITY_ERROR]
+
+
+def convert_pydantic_location_to_gridid_path(
+    loc_tuple, input_yaml_file, *, gridid_map: Mapping[int, Any] | None = None
+):
     """Convert Pydantic error location tuple to user-friendly GRIDID path.
 
     Args:
         loc_tuple: Tuple of location elements from Pydantic error (e.g., ('sites', 0, 'properties', 'lat'))
         input_yaml_file: Path to original YAML file to extract GRIDID values
+        gridid_map: Optional precomputed ``{site_index: gridiv}`` map to avoid re-reading disk.
 
     Returns:
         str: User-friendly path with GRIDID (e.g., "sites.123.properties.lat")
@@ -120,53 +493,15 @@ def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
     if not loc_tuple:
         return ""
 
-    path_parts = []
+    if gridid_map is None and "sites" in loc_tuple and input_yaml_file:
+        try:
+            with open(input_yaml_file, encoding="utf-8") as f:
+                yaml_data = safe_load_yaml(f)
+            gridid_map = site_gridid_map(yaml_data)
+        except Exception:
+            gridid_map = {}
 
-    for i, part in enumerate(loc_tuple):
-        if (
-            part == "sites"
-            and i + 1 < len(loc_tuple)
-            and isinstance(loc_tuple[i + 1], int)
-        ):
-            # This is the sites array, next element is numeric index
-            site_index = loc_tuple[i + 1]
-            try:
-                # Load YAML to get the actual GRIDID
-                with open(input_yaml_file, "r", encoding="utf-8") as f:
-                    yaml_data = yaml.safe_load(f)
-
-                if (
-                    "sites" in yaml_data
-                    and isinstance(yaml_data["sites"], list)
-                    and site_index < len(yaml_data["sites"])
-                    and isinstance(yaml_data["sites"][site_index], dict)
-                    and "gridiv" in yaml_data["sites"][site_index]
-                ):
-                    gridiv = yaml_data["sites"][site_index]["gridiv"]
-                    # Handle RefValue objects
-                    if isinstance(gridiv, dict) and "value" in gridiv:
-                        gridid = gridiv["value"]
-                    else:
-                        gridid = gridiv
-                    path_parts.append(f"sites.{gridid}")
-                    # Skip the numeric index in next iteration
-                    continue
-                else:
-                    # Fallback to original format if GRIDID not found
-                    path_parts.append(f"sites.{site_index}")
-                    continue
-            except Exception:
-                # Fallback to original format on any error
-                path_parts.append(f"sites.{site_index}")
-                continue
-        elif isinstance(part, int) and i > 0 and loc_tuple[i - 1] == "sites":
-            # Skip numeric indices that follow "sites" (already handled above)
-            continue
-        else:
-            # Regular path component
-            path_parts.append(str(part))
-
-    return ".".join(path_parts)
+    return format_pydantic_loc(loc_tuple, gridid_map)
 
 
 def _parse_previous_phase_report(report_content: str):

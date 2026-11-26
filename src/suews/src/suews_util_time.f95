@@ -1,7 +1,6 @@
 ! subroutines included:
 ! day2month
 !
-! month2day
 ! leapYearCalc
 !       returns -- number of days in actual year
 !            used    -- LUMPS phenology (initalization)
@@ -109,38 +108,6 @@ CONTAINS
       RETURN
    END SUBROUTINE day2month
 !===============================================================================
-   SUBROUTINE month2day(mon, ne, k, b)
-      IMPLICIT NONE
-      INTEGER :: mon, ne, k, b
-
-      IF (mon == 1) THEN
-         NE = 32 - B
-      ELSE IF (mon == 2) THEN
-         NE = 60 + K - B
-      ELSE IF (mon == 3) THEN
-         NE = 91 + K - B
-      ELSE IF (mon == 4) THEN
-         NE = 121 + K - B
-      ELSE IF (mon == 5) THEN
-         NE = 152 + K - B
-      ELSE IF (mon == 6) THEN
-         NE = 182 + K - B
-      ELSE IF (mon == 7) THEN
-         NE = 213 + K - B
-      ELSE IF (mon == 8) THEN
-         NE = 244 + K - B
-         !**********PAGE 151 STARTS HERE**************
-      ELSE IF (mon == 9) THEN
-         NE = 274 + K - B
-      ELSE IF (mon == 10) THEN
-         NE = 305 + K - B
-      ELSE IF (mon == 11) THEN
-         NE = 335 + K - B
-      ELSE IF (mon == 12) THEN
-         NE = 366 + K - B
-      END IF
-   END SUBROUTINE month2day
-!===============================================================================
 !Defines the number or days in each year (defines the leap year)
    SUBROUTINE LeapYearCalc(year_int, nroDays)
 
@@ -156,24 +123,6 @@ CONTAINS
          nroDays = 365
       END IF
    END SUBROUTINE LeapYearCalc
-
-!===============================================================================
-!Defines the number or days in each year (defines the leap year)
-! Ting Sun 09 May 2018
-   ELEMENTAL FUNCTION Days_of_Year(year_int) RESULT(nDays)
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: year_int
-      INTEGER :: nDays
-
-      IF (MOD(year_int, 100) /= 0 .AND. MOD(year_int, 4) == 0) THEN
-         nDays = 366
-      ELSEIF (MOD(year_int, 400) == 0) THEN
-         nDays = 366
-      ELSE
-         nDays = 365
-      END IF
-
-   END FUNCTION Days_of_Year
 
 !===============================================================================
 

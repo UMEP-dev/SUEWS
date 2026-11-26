@@ -878,31 +878,6 @@ CONTAINS
 
    END FUNCTION cal_psih_hat
 
-   FUNCTION cal_phim_hat(StabilityMethod, z, zh_RSL, L_MOD, beta, lc) RESULT(phim_hat)
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: StabilityMethod ! stability method
-      REAL(KIND(1D0)), INTENT(in) :: z
-      REAL(KIND(1D0)), INTENT(in) :: zh_RSL
-      REAL(KIND(1D0)), INTENT(in) :: L_MOD
-      REAL(KIND(1D0)), INTENT(in) :: beta
-      REAL(KIND(1D0)), INTENT(in) :: lc
-      REAL(KIND(1D0)) :: phim_hat
-      REAL(KIND(1D0)) :: zd_RSL
-
-      REAL(KIND(1D0)) :: elm
-      REAL(KIND(1D0)) :: c2
-      REAL(KIND(1D0)) :: cm
-
-      elm = cal_elm_RSL(beta, lc)
-
-      zd_RSL = cal_zd_RSL(Zh_RSL, beta, lc)
-
-      CALL cal_cm(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD, c2, cm)
-
-      phim_hat = 1 - cm*EXP(-1.*c2*beta*(z - zd_RSL)/elm)
-
-   END FUNCTION cal_phim_hat
-
    SUBROUTINE cal_cm(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD, c2, cm)
 
       IMPLICIT NONE

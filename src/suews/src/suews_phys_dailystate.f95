@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
-      ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+      nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
    USE module_ctrl_const_calendar, ONLY: &
       NDAYS_WEEK, DOW_SUNDAY, DOW_MONDAY, DOW_TUESDAY, DOW_WEDNESDAY, &
       DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
@@ -710,33 +710,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE update_DailyState_Start
-
-   SUBROUTINE SUEWS_update_DailyState( &
-      id, datetimeline, & !input
-      Gridiv, NumberOfGrids, &
-      DailyStateLine, &
-      dataOutDailyState) !inout
-
-      IMPLICIT NONE
-
-      ! INTEGER,INTENT(IN) ::iy
-      INTEGER, INTENT(IN) :: id
-      ! INTEGER,INTENT(IN) ::it
-      ! INTEGER,INTENT(IN) ::imin
-
-      REAL(KIND(1D0)), DIMENSION(5), INTENT(IN) :: datetimeline
-
-      INTEGER, INTENT(IN) :: Gridiv
-      INTEGER, INTENT(IN) :: NumberOfGrids
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5), INTENT(IN) :: DailyStateLine
-      REAL(KIND(1D0)), DIMENSION(ndays, ncolumnsDataOutDailyState, NumberOfGrids), INTENT(INOUT) :: dataOutDailyState
-
-      ! write out to dataOutDailyState
-      dataOutDailyState(id, 1:5, Gridiv) = datetimeline
-      ! DailyStateLine will be -999 unless realistic values are calculated at the last timestep of each day
-      dataOutDailyState(id, 6:ncolumnsDataOutDailyState, Gridiv) = DailyStateLine
-
-   END SUBROUTINE SUEWS_update_DailyState
 
    ! transfer results to a one-line output for SUEWS_cal_DailyState
    SUBROUTINE update_DailyStateLine( &

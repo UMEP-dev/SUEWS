@@ -441,16 +441,16 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
 
 ## Multi-Axis CI Topology (transitional, #2349)
 
-The sections "Test Tier Definitions", "Test Tier Assignment by Event" and
-"Merge Queue Coverage Policy" describe the current gate. Its nature markers
-are `physics | api`, and its `api` lane is switched per platform by
-`run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+The current gate's nature markers are `physics | api`, and its `api` lane is
+switched per platform by `run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
 
 The topology below is the target. Its axis selection takes effect once
 `pyproject.toml` registers `tooling`, `unit` and `native` (#2349 `W1-4`), and
 its lanes once `build-publish_to_pypi.yml` enables `GATE_AXIS_SCHEMA=2` (#2349
-`W1-6`); until then, the `physics | api` gate above remains active, and this
-section does not describe what CI runs. From `W1-6` it also supersedes the
+`W1-6`); until then, the existing `physics | api` policy in "Test Tier
+Definitions", "Test Tier Assignment by Event" and "Merge Queue Coverage
+Policy" remains active, and this section does not describe what CI runs. From
+`W1-6` it also supersedes the
 physics worked example in "Where a new expensive check goes" below (slow
 physics tests gating a pull request only through a classification label); the
 general guidance in that section is unchanged. The superseded parts of the

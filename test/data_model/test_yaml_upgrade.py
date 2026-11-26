@@ -1640,3 +1640,100 @@ def test_dev8_observed_soil_migration_does_not_leak_dev20_profile_validation():
         migrator.migrate(
             deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
         )
+
+
+def test_schema_migrate_cli_writes_normalised_output_on_same_version_dev20(
+    tmp_path: Path,
+):
+    """``suews schema migrate`` writes normalised output when same-version dev20 keys change."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    from click.testing import CliRunner  # ruff: ignore[import-outside-top-level]
+
+    from supy.cmd.suews_cli import cli  # ruff: ignore[import-outside-top-level]
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    # 1. Same-version dev20 with valid zero-padded and integer 10-minute keys -> writes output.
+    non_canonical = deepcopy(base_cfg)
+    non_canonical["schema_version"] = "2026.6.dev20"
+    wd = non_canonical["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"]
+    expected_vals = {"1": wd.pop("1"), "2": wd.pop("2"), "144": wd.pop("144")}
+    wd[1] = expected_vals["1"]
+    wd["02"] = expected_vals["2"]
+    wd["0144"] = expected_vals["144"]
+
+    src_path = tmp_path / "dev20_noncanonical.yml"
+    src_text = yaml.safe_dump(non_canonical, sort_keys=False)
+    src_path.write_text(src_text, encoding="utf-8")
+
+    # Dry-run reports migration/normalisation without writing output.
+    runner = CliRunner()
+    dry_res = runner.invoke(
+        cli,
+        [
+            "schema",
+            "migrate",
+            "--target-version",
+            "2026.6.dev20",
+            "--dry-run",
+            str(src_path),
+        ],
+    )
+    assert dry_res.exit_code == 0, dry_res.output
+    assert "Would migrate" in dry_res.output
+    assert not src_path.with_suffix(".migrated.yml").exists()
+
+    # Live run writes <name>.migrated.yml with canonical keys and leaves input untouched.
+    run_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(src_path)],
+    )
+    assert run_res.exit_code == 0, run_res.output
+    assert src_path.read_text(encoding="utf-8") == src_text
+    out_path = src_path.with_suffix(".migrated.yml")
+    assert out_path.exists()
+    out_wd = yaml.safe_load(out_path.read_text(encoding="utf-8"))["sites"][0][
+        "properties"
+    ]["building_archetype"]["profile_metabolism"]["working_day"]
+    assert all(isinstance(k, str) for k in out_wd)
+    assert "02" not in out_wd
+    assert "0144" not in out_wd
+    for key, val in expected_vals.items():
+        assert out_wd[key] == pytest.approx(val)
+
+    # 2. Re-migrating the normalised dev20 config is an idempotent no-op skip (no file written).
+    canonical_path = tmp_path / "dev20_canonical.yml"
+    canonical_path.write_text(out_path.read_text(encoding="utf-8"), encoding="utf-8")
+    skip_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(canonical_path)],
+    )
+    assert skip_res.exit_code == 0, skip_res.output
+    assert "Skipped" in skip_res.output
+    assert not canonical_path.with_suffix(".migrated.yml").exists()
+
+    # 3. Same-version dev20 with colliding 10-minute keys exits nonzero and writes nothing.
+    colliding_cfg = deepcopy(base_cfg)
+    colliding_cfg["schema_version"] = "2026.6.dev20"
+    colliding_cfg["sites"][0]["properties"]["stebbs"]["profile_appliance"][
+        "working_day"
+    ]["01"] = 0.99
+    bad_path = tmp_path / "dev20_colliding.yml"
+    bad_path.write_text(yaml.safe_dump(colliding_cfg, sort_keys=False), encoding="utf-8")
+    bad_res = runner.invoke(
+        cli,
+        [
+            "schema",
+            "--quiet",
+            "migrate",
+            "--target-version",
+            "2026.6.dev20",
+            str(bad_path),
+        ],
+    )
+    assert bad_res.exit_code == 1
+    assert not bad_path.with_suffix(".migrated.yml").exists()

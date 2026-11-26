@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from copy import deepcopy
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing import Optional, Dict
@@ -23,6 +24,30 @@ _HOURLY_PROFILE_PATHS: tuple[tuple[str, ...], ...] = (
 )
 HOURLY_PROFILE_FIELD_NAMES: frozenset[str] = frozenset(
     path[-1] for path in _HOURLY_PROFILE_PATHS
+)
+
+TEN_MINUTE_PROFILE_PATHS: tuple[tuple[str, str], ...] = (
+    ("building_archetype", "profile_metabolism"),
+    ("building_archetype", "profile_setpoint_temperature_heating_air"),
+    ("building_archetype", "profile_setpoint_temperature_cooling_air"),
+    ("stebbs", "profile_flow_hot_water"),
+    ("stebbs", "profile_appliance"),
+)
+_TEN_MINUTE_PROFILE_RAW_PATHS: tuple[tuple[str, ...], ...] = (
+    *TEN_MINUTE_PROFILE_PATHS,
+    ("building_archetype", "metabolism_profile"),
+    ("building_archetype", "MetabolismProfile"),
+    ("building_archetype", "profile_temperature_air_heating_setpoint"),
+    ("building_archetype", "HeatingSetpointTemperatureProfile"),
+    ("building_archetype", "profile_temperature_air_cooling_setpoint"),
+    ("building_archetype", "CoolingSetpointTemperatureProfile"),
+    ("stebbs", "profile_hot_water_flow"),
+    ("stebbs", "HotWaterFlowProfile"),
+    ("stebbs", "appliance_profile"),
+    ("stebbs", "ApplianceProfile"),
+)
+TEN_MINUTE_PROFILE_FIELD_NAMES: frozenset[str] = frozenset(
+    path[-1] for path in _TEN_MINUTE_PROFILE_RAW_PATHS
 )
 
 
@@ -168,18 +193,20 @@ def normalise_ten_minute_profile_mapping(
 
 def _normalise_day_mapping_if_unambiguous(
     day_map: object,
+    *,
+    normalise_mapping: Callable[[dict[object, object]], dict[str, object]],
+    normalise_key: Callable[[object], str],
 ) -> dict[str, object] | None:
     """Return a canonical copy of *day_map* when valid, non-empty, and non-canonical."""
     if not isinstance(day_map, dict) or not day_map:
         return None
     try:
-        canonical_map = normalise_hourly_profile_mapping(day_map)
+        canonical_map = normalise_mapping(day_map)
     except ValueError:
         # Preserve malformed or colliding mappings for strict rejection.
         return None
     has_non_canonical = any(
-        not isinstance(raw_k, str) or normalise_hourly_profile_key(raw_k) != raw_k
-        for raw_k in day_map
+        not isinstance(raw_k, str) or normalise_key(raw_k) != raw_k for raw_k in day_map
     )
     return deepcopy(canonical_map) if has_non_canonical else None
 
@@ -192,6 +219,53 @@ def _resolve_nested_dict(root: dict, rel_path: tuple[str, ...]) -> dict | None:
             return None
         node = node[part]
     return node if isinstance(node, dict) else None
+
+
+def _normalise_profile_keys_in_raw_config(
+    config_data: object,
+    *,
+    paths: tuple[tuple[str, ...], ...],
+    normalise_mapping: Callable[[dict[object, object]], dict[str, object]],
+    normalise_key: Callable[[object], str],
+) -> tuple[object, bool]:
+    """Normalise unambiguous non-canonical profile keys along *paths* in raw YAML."""
+    if not isinstance(config_data, dict):
+        return config_data, False
+    sites = config_data.get("sites")
+    if not isinstance(sites, list):
+        return config_data, False
+
+    normalised_root: dict | None = None
+    changed = False
+
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for rel_path in paths:
+            node = _resolve_nested_dict(props, rel_path)
+            if node is None:
+                continue
+            for day_type in ("working_day", "holiday"):
+                canonical_map = _normalise_day_mapping_if_unambiguous(
+                    node.get(day_type),
+                    normalise_mapping=normalise_mapping,
+                    normalise_key=normalise_key,
+                )
+                if canonical_map is None:
+                    continue
+                if normalised_root is None:
+                    normalised_root = deepcopy(config_data)
+                target = _resolve_nested_dict(
+                    normalised_root["sites"][site_idx]["properties"], rel_path
+                )
+                assert target is not None
+                target[day_type] = canonical_map
+                changed = True
+
+    if normalised_root is None:
+        return config_data, False
+    return normalised_root, changed
 
 
 def normalise_hourly_profile_keys_in_raw_config(
@@ -217,41 +291,43 @@ def normalise_hourly_profile_keys_in_raw_config(
         ``(normalised_config, changed)`` where *changed* is ``True`` only when
         at least one non-canonical key was rewritten.
     """
-    if not isinstance(config_data, dict):
-        return config_data, False
-    sites = config_data.get("sites")
-    if not isinstance(sites, list):
-        return config_data, False
+    return _normalise_profile_keys_in_raw_config(
+        config_data,
+        paths=_HOURLY_PROFILE_PATHS,
+        normalise_mapping=normalise_hourly_profile_mapping,
+        normalise_key=normalise_hourly_profile_key,
+    )
 
-    normalised_root: dict | None = None
-    changed = False
 
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties") if isinstance(site, dict) else None
-        if not isinstance(props, dict):
-            continue
-        for rel_path in _HOURLY_PROFILE_PATHS:
-            node = _resolve_nested_dict(props, rel_path)
-            if node is None:
-                continue
-            for day_type in ("working_day", "holiday"):
-                canonical_map = _normalise_day_mapping_if_unambiguous(
-                    node.get(day_type)
-                )
-                if canonical_map is None:
-                    continue
-                if normalised_root is None:
-                    normalised_root = deepcopy(config_data)
-                target = _resolve_nested_dict(
-                    normalised_root["sites"][site_idx]["properties"], rel_path
-                )
-                assert target is not None
-                target[day_type] = canonical_map
-                changed = True
+def normalise_ten_minute_profile_keys_in_raw_config(
+    config_data: object,
+) -> tuple[object, bool]:
+    """Normalise unambiguous zero-padded or integer 10-minute profile keys in raw YAML.
 
-    if normalised_root is None:
-        return config_data, False
-    return normalised_root, changed
+    Walks the five 10-minute STEBBS profile fields (both current and legacy
+    spellings) under each site's ``properties`` block. Day-type mappings whose
+    keys are all valid and collision-free are rewritten to canonical
+    ``"1"``..``"144"`` strings when at least one key was non-canonical. Any
+    mapping containing a malformed, out-of-range, or colliding key is left
+    untouched so downstream strict validation rejects it explicitly.
+
+    Parameters
+    ----------
+    config_data : object
+        Parsed raw YAML configuration object.
+
+    Returns
+    -------
+    tuple[object, bool]
+        ``(normalised_config, changed)`` where *changed* is ``True`` only when
+        at least one non-canonical key was rewritten.
+    """
+    return _normalise_profile_keys_in_raw_config(
+        config_data,
+        paths=_TEN_MINUTE_PROFILE_RAW_PATHS,
+        normalise_mapping=normalise_ten_minute_profile_mapping,
+        normalise_key=normalise_ten_minute_profile_key,
+    )
 
 
 class DayProfile(DataModelBase):
@@ -571,10 +647,18 @@ class TenMinuteProfile(DataModelBase):
 
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
         cols = {("gridiv", "0"): grid_id}
-        for bin_id, value in self.working_day.items():
-            cols[(param_name, f"({int(bin_id) - 1}, 0)")] = value
-        for bin_id, value in self.holiday.items():
-            cols[(param_name, f"({int(bin_id) - 1}, 1)")] = value
+        for day_idx, day_type in enumerate(("working_day", "holiday")):
+            day_map = getattr(self, day_type)
+            if day_map is None:
+                continue
+            if not isinstance(day_map, dict):
+                raise ValueError(
+                    f"TenMinuteProfile.{day_type} must be a mapping keyed by "
+                    f"steps '1'..'144', got {type(day_map).__name__}."
+                )
+            normalised = normalise_ten_minute_profile_mapping(day_map)
+            for bin_id, value in normalised.items():
+                cols[param_name, f"({int(bin_id) - 1}, {day_idx})"] = value
         return cols
 
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:

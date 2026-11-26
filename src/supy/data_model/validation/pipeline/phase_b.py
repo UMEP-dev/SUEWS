@@ -51,7 +51,10 @@ from ..core.yaml_helpers import (
     parse_simulation_bounds,
 )
 from ...core.field_renames import normalise_yaml_renames
-from ...core.profile import normalise_hourly_profile_keys_in_raw_config
+from ...core.profile import (
+    normalise_hourly_profile_keys_in_raw_config,
+    normalise_ten_minute_profile_keys_in_raw_config,
+)
 from .phase_a import forcing_date_bounds
 
 from .phase_b_rules.rules_core import rule_crash_result
@@ -325,6 +328,9 @@ def validate_phase_b_inputs(
             # the normalise_yaml_renames call keeps it equivalent.
             uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
             uptodate_data, _ = normalise_hourly_profile_keys_in_raw_config(uptodate_data)
+            uptodate_data, _ = normalise_ten_minute_profile_keys_in_raw_config(
+                uptodate_data
+            )
 
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 

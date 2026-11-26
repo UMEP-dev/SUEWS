@@ -49,6 +49,7 @@ from ...data_model.core.field_renames import (
     rename_keys_recursive,
 )
 from ...data_model.core.profile import (
+    TEN_MINUTE_PROFILE_PATHS as _TEN_MINUTE_PROFILE_PATHS,
     normalise_ten_minute_profile_key,
     normalise_ten_minute_profile_mapping,
 )
@@ -2822,14 +2823,6 @@ _HANDLERS[("2026.6.dev18", CURRENT_SCHEMA_VERSION)] = (
 )
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
     _with_senescence_check(_identity)
-)
-
-_TEN_MINUTE_PROFILE_PATHS: tuple[tuple[str, str], ...] = (
-    ("building_archetype", "profile_metabolism"),
-    ("building_archetype", "profile_setpoint_temperature_heating_air"),
-    ("building_archetype", "profile_setpoint_temperature_cooling_air"),
-    ("stebbs", "profile_flow_hot_water"),
-    ("stebbs", "profile_appliance"),
 )
 
 

@@ -12,6 +12,7 @@ for all schema-related operations that will integrate with the future suews-wiza
 from datetime import datetime
 import json
 import logging
+import math
 from pathlib import Path
 import sys
 from typing import List, Optional, Tuple
@@ -329,6 +330,28 @@ def version(ctx, files, update, target_version, backup):
         ctx.exit(1)
 
 
+def _yaml_values_identical(left: object, right: object) -> bool:
+    """Return True when two YAML structures match in both values and scalar types."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return len(left) == len(right) and all(
+            type(k_left) is type(k_right)
+            and k_left == k_right
+            and _yaml_values_identical(v_left, v_right)
+            for (k_left, v_left), (k_right, v_right) in zip(
+                left.items(), right.items(), strict=True
+            )
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            _yaml_values_identical(a, b) for a, b in zip(left, right, strict=True)
+        )
+    return (isinstance(left, float) and math.isnan(left) and math.isnan(right)) or (
+        left == right
+    )
+
+
 @cli.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option("--target-version", help="Target schema version for migration")
@@ -385,13 +408,20 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
             migrated = migrator.migrate(
                 config, from_version=current_version, to_version=target
             )
-            if current_version == target:
+            same_version = current_version == target
+            if same_version and _yaml_values_identical(config, migrated):
                 results.append((
                     path.name,
                     "Already at target version",
                     "[yellow]Skipped[/yellow]",
                 ))
                 continue
+
+            migration_label = (
+                f"{target} (normalised)"
+                if same_version
+                else f"{current_version} -> {target}"
+            )
 
             if not dry_run:
                 # Determine output path
@@ -412,19 +442,19 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                 if is_valid:
                     results.append((
                         path.name,
-                        f"{current_version} → {target}",
+                        migration_label,
                         "[green]✓ Success[/green]",
                     ))
                 else:
                     results.append((
                         path.name,
-                        f"{current_version} → {target}",
+                        migration_label,
                         "[yellow]⚠ Needs review[/yellow]",
                     ))
             else:
                 results.append((
                     path.name,
-                    f"{current_version} → {target}",
+                    migration_label,
                     "[dim]Would migrate[/dim]",
                 ))
 

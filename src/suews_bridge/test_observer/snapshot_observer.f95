@@ -1,6 +1,5 @@
 ! Opt-in native observation of SUEWS_DEBUG stage transitions (via SUEWS_cal_Main)
-! and production multiline block capture (via run_multitsteps_block, shared with
-! SUEWS_cal_multitsteps). Test-only under feature `capi-observer`; no production
+! and multiline block capture (via run_multitsteps_block). Test-only under feature `capi-observer`; no production
 ! snapshot wire is added or advertised.
 SUBMODULE (SUEWS_Driver) test_snapshot_observer
    IMPLICIT NONE
@@ -565,7 +564,7 @@ CONTAINS
          RETURN
       END IF
 
-      ! Independent Reference 2: active SUEWS_cal_multitsteps_dts concatenated output table.
+      ! Independent Reference 2: active SUEWS_cal_multitsteps concatenated output table.
       total_data_cols = &
          (ncolumnsDataOutSUEWS - 5) + (ncolumnsDataOutSnow - 5) + &
          (ncolumnsDataOutBEERS - 5) + (ncolumnsDataOutESTM - 5) + &
@@ -580,7 +579,7 @@ CONTAINS
       tmr_run = tmr_base
       cfg_run = cfg_base
       cfg_run%flag_test = .FALSE.
-      CALL SUEWS_cal_multitsteps_dts( &
+      CALL SUEWS_cal_multitsteps( &
          tmr_run, met32, nsteps, cfg_run, site, state_dts, dts_data, dts_dates)
       IF (supy_error_flag()) THEN
          err = 202_c_int
@@ -773,7 +772,7 @@ CONTAINS
       mode_flags(5) = 1_c_int
 
       ! Verify full-matrix parity between production output_block_suews and both
-      ! independent references (SUEWS_cal_Main lines AND SUEWS_cal_multitsteps_dts).
+      ! independent references (SUEWS_cal_Main lines AND SUEWS_cal_multitsteps).
       IF (.NOT. mat_equal(ob_m3%dataOutBlockSUEWS(:, 1:5), dts_dates)) THEN
          err = 260_c_int
          RETURN
@@ -841,7 +840,7 @@ CONTAINS
          END IF
       END DO
 
-      ! Cross-check concatenated SUEWS_cal_multitsteps_dts slices against ob_m3.
+      ! Cross-check concatenated SUEWS_cal_multitsteps slices against ob_m3.
       off = 0
       IF (.NOT. mat_equal(ob_m3%dataOutBlockSUEWS(:, 6:), dts_data(:, off + 1:off + ncolumnsDataOutSUEWS - 5))) THEN
          err = 280_c_int

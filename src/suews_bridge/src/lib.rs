@@ -216,7 +216,7 @@ pub use yaml_config::*;
 
 /// Minimum OS thread stack size (8 MiB) for Rayon worker threads executing
 /// `-frecursive` Fortran physics routines (`suews_cal_multitsteps_c` ->
-/// `SUEWS_cal_multitsteps_dts` -> `SUEWS_cal_Main` -> `SUEWS_cal_Main_impl`).
+/// `SUEWS_cal_multitsteps` -> `SUEWS_cal_Main` -> `SUEWS_cal_Main_impl`).
 ///
 /// Linux `std::thread` defaults to 2 MiB worker stacks (compared with 8 MiB
 /// on the main thread), which can overflow under recursive Fortran stack

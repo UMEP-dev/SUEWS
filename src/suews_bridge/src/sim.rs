@@ -1088,7 +1088,8 @@ fn prepare_fresh_input(
         2
     };
 
-    // Match old SUEWS_cal_multitsteps state initialisation:
+    // Cold-start state initialisation, as in the removed legacy Fortran
+    // multi-timestep driver:
     // heatState%temp_surf_dyohm = MetForcingBlock(1,12)  [first-row air temp]
     // heatState%tsfc_surf_dyohm = MetForcingBlock(1,12)
     // ohmState%ws_rav = 2.0

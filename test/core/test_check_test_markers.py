@@ -154,6 +154,8 @@ def test_default_paths_and_all_peripheral_dirs_pass(tmp_path: Path, capsys) -> N
         "test/orphan_dir/test_stray.py",
         "test/test_stray.py",
         "test/orphan_dir/stray_test.py",
+        "test/orphan_dir/Test_example.py",
+        "test/orphan_dir/example_TEST.py",
         "test/core_extra/test_prefix_collision.py",
         "test/fixtures/test_stray_in_fixtures.py",
     ],
@@ -610,6 +612,49 @@ def test_suffix_test_file_missing_marker_is_caught(tmp_path: Path, capsys) -> No
     assert rc == 1
     assert "[X]" in captured.err
     assert "test/core/sample_test.py" in captured.err
+
+
+def test_mixed_case_test_file_missing_marker_is_caught(tmp_path: Path, capsys) -> None:
+    """Windows-discoverable mixed-case .py test files are checked for markers."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/Test_unmarked.py": UNMARKED_TEST_SOURCE,
+        },
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/core/Test_unmarked.py" in captured.err
+    assert captured.err.isascii()
+
+
+def test_invalid_utf8_in_auto_applied_dir_reports_read_error(
+    tmp_path: Path, capsys
+) -> None:
+    """Invalid UTF-8 under test/umep/ still reports a read error."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+        },
+    )
+    bad_umep = repo / "test" / "umep" / "test_bad.py"
+    bad_umep.parent.mkdir(parents=True, exist_ok=True)
+    bad_umep.write_bytes(b"\xff\xfeinvalid utf8")
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/umep/test_bad.py" in captured.err
+    assert captured.err.isascii()
 
 
 def test_marker_and_orphan_failures_both_reported(tmp_path: Path, capsys) -> None:

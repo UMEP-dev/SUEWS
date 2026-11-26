@@ -91,10 +91,11 @@ def _is_link_or_junction(path: Path) -> bool:
 
 
 def _is_test_filename(filename: str) -> bool:
-    """Return True if ``filename`` matches pytest's exact ``.py`` test-file rules."""
-    return filename.endswith(".py") and (
-        filename.startswith("test_") or filename.endswith("_test.py")
-    )
+    """Return True if ``filename`` matches pytest discovery on POSIX or Windows."""
+    if not filename.endswith(".py"):
+        return False
+    lowered = filename.lower()
+    return lowered.startswith("test_") or lowered.endswith("_test.py")
 
 
 def _lstat_entry(
@@ -715,15 +716,15 @@ def _check_nature_markers(
         if not target.is_relative_to(repo_root):
             read_errors.append(f"{rel.as_posix()}: resolved path escapes repo root")
             continue
-        if is_auto_applied(rel):
-            auto_applied += 1
-            continue
-        checked += 1
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
             read_errors.append(f"{rel.as_posix()}: {exc}")
             continue
+        if is_auto_applied(rel):
+            auto_applied += 1
+            continue
+        checked += 1
         if file_has_nature_marker(source):
             continue
         missing.append(rel.as_posix())

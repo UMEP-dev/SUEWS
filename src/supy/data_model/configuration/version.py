@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev19"
+CURRENT_SCHEMA_VERSION = "2026.6.dev20"
 
 # Schema version history and descriptions.
 #
@@ -268,6 +268,17 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "site defines an asymmetric irrigation weekday schedule so users who "
         "converted from legacy tables under an earlier schema can verify their "
         "weekday assignments."
+    ),
+    "2026.6.dev20": (
+        "Align Python TenMinuteProfile (HeatingSetpointProfile, "
+        "CoolingSetpointProfile) and Rust apply_day_profile_overrides key "
+        "validation for 10-minute STEBBS profiles (#2342). Step keys in "
+        "working_day and holiday accept canonical strings '1'..'144', "
+        "zero-padded ASCII-digit strings, and plain integers 1..144, "
+        "normalising to canonical '1'..'144' strings while strictly rejecting "
+        "malformed keys and canonical collisions. The (2026.6.dev19 -> "
+        "2026.6.dev20) migration normalises valid non-canonical 10-minute "
+        "profile keys and rejects malformed or colliding keys explicitly."
     ),
 }
 

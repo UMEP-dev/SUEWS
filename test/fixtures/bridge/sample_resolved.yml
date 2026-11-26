@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: 2026.6.dev19
+schema_version: 2026.6.dev20
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
   configuration
 strict_initial_state_bounds: true
@@ -3902,7 +3902,7 @@ sites:
 _auto_generate_annotated: false
 _yaml_raw:
   name: sample_config
-  schema_version: 2026.6.dev19
+  schema_version: 2026.6.dev20
   description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
     configuration
   model:

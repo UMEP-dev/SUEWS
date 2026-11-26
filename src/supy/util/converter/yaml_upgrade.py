@@ -48,6 +48,10 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
+from ...data_model.core.profile import (
+    normalise_ten_minute_profile_key,
+    normalise_ten_minute_profile_mapping,
+)
 from ...data_model.core.state import validate_sdd_id
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
@@ -2817,6 +2821,95 @@ _HANDLERS[("2026.6.dev18", CURRENT_SCHEMA_VERSION)] = (
 )
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
     _with_senescence_check(_identity)
+)
+
+_TEN_MINUTE_PROFILE_PATHS: tuple[tuple[str, str], ...] = (
+    ("building_archetype", "profile_metabolism"),
+    ("building_archetype", "profile_setpoint_temperature_heating_air"),
+    ("building_archetype", "profile_setpoint_temperature_cooling_air"),
+    ("stebbs", "profile_flow_hot_water"),
+    ("stebbs", "profile_appliance"),
+)
+
+
+def _check_and_normalise_ten_minute_profile_keys(cfg: dict) -> dict:
+    """Normalise valid 10-minute STEBBS profile keys and reject malformed/colliding keys."""
+    cfg = deepcopy(cfg)
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    problems: list[str] = []
+    pending_logs: list[str] = []
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, field_name in _TEN_MINUTE_PROFILE_PATHS:
+            section = props.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            profile = section.get(field_name)
+            if not isinstance(profile, dict):
+                continue
+            for day_type in ("working_day", "holiday"):
+                day_map = profile.get(day_type)
+                if not isinstance(day_map, Mapping):
+                    continue
+                path = f"sites[{index}].properties.{section_name}.{field_name}.{day_type}"
+                try:
+                    canonical_map = normalise_ten_minute_profile_mapping(dict(day_map))
+                except ValueError as exc:
+                    problems.append(f"{path}: {exc}")
+                    continue
+                has_non_canonical = any(
+                    not isinstance(raw_k, str)
+                    or normalise_ten_minute_profile_key(raw_k) != raw_k
+                    for raw_k in day_map
+                )
+                if has_non_canonical:
+                    profile[day_type] = canonical_map
+                    pending_logs.append(
+                        f"[yaml-upgrade] normalised {path}: non-canonical 10-minute "
+                        "profile keys -> canonical '1'..'144' strings"
+                    )
+
+    if problems:
+        raise YamlUpgradeError("\n".join(problems))
+
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_ten_minute_profile_key_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _check_and_normalise_ten_minute_profile_keys(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev19")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ten_minute_profile_key_delta(_handler)
+_HANDLERS[("2026.6.dev19", "2026.6.dev19")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev19", CURRENT_SCHEMA_VERSION)] = (
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = (
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
 )
 
 # ---------------------------------------------------------------------------

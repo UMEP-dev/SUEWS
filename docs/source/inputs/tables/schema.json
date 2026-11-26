@@ -14013,7 +14013,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev19. Align irrigation WeeklyProfile (daywat, daywatper) weekday slots with the Sunday-first calendar convention used by legacy SUEWS_Irrigation.txt tables, df_state arrays (0=sunday .. 6=saturday), and the Fortran kernel (#2049, #2324). Existing YAML files remain structurally valid and migration leaves weekday keys unchanged, logging an advisory when a site defines an asymmetric irrigation weekday schedule so users who converted from legacy tables under an earlier schema can verify their weekday assignments.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev20. Align Python TenMinuteProfile (HeatingSetpointProfile, CoolingSetpointProfile) and Rust apply_day_profile_overrides key validation for 10-minute STEBBS profiles (#2342). Step keys in working_day and holiday accept canonical strings '1'..'144', zero-padded ASCII-digit strings, and plain integers 1..144, normalising to canonical '1'..'144' strings while strictly rejecting malformed keys and canonical collisions. The (2026.6.dev19 -> 2026.6.dev20) migration normalises valid non-canonical 10-minute profile keys and rejects malformed or colliding keys explicitly.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -14066,20 +14066,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev19",
+  "title": "SUEWS Configuration Schema v2026.6.dev20",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev19.json",
-  "version": "2026.6.dev19",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev20.json",
+  "version": "2026.6.dev20",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev19"
+    "schema_version": "2026.6.dev20"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev19",
+      "schema_version": "2026.6.dev20",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -1350,3 +1350,159 @@ def test_chained_pre_dev18_to_dev19_preserves_dev18_boundary_and_logs_advisory(
         "sites[0].properties.irrigation.daywat has an asymmetric weekday schedule"
         in err_19
     )
+
+
+def test_dev19_to_dev20_normalises_ten_minute_profile_keys_and_is_idempotent(capsys):
+    """2026.6.dev19 -> 2026.6.dev20 normalises valid integer/zero-padded 10-min keys."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {
+                            "working_day": {1: 0.1, "02": 0.2, "0144": 0.3},
+                            "holiday": {"1": 0.4, "144": 0.5},
+                        },
+                        "profile_setpoint_temperature_heating_air": {
+                            "working_day": {"001": 20.0, 72: 21.0},
+                            "holiday": None,
+                        },
+                    },
+                    "stebbs": {
+                        "profile_appliance": {
+                            "working_day": {"1": 0.5},
+                            "holiday": {144: 0.9},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+    original = deepcopy(cfg)
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev20")
+    err = capsys.readouterr().err
+    assert cfg == original
+    assert migrated["schema_version"] == "2026.6.dev20"
+    arch = migrated["sites"][0]["properties"]["building_archetype"]
+    assert arch["profile_metabolism"]["working_day"] == {
+        "1": 0.1,
+        "2": 0.2,
+        "144": 0.3,
+    }
+    assert arch["profile_metabolism"]["holiday"] == {"1": 0.4, "144": 0.5}
+    assert arch["profile_setpoint_temperature_heating_air"]["working_day"] == {
+        "1": 20.0,
+        "72": 21.0,
+    }
+    assert arch["profile_setpoint_temperature_heating_air"]["holiday"] is None
+    assert migrated["sites"][0]["properties"]["stebbs"]["profile_appliance"][
+        "holiday"
+    ] == {"144": 0.9}
+    assert (
+        "sites[0].properties.building_archetype.profile_metabolism.working_day" in err
+    )
+    assert (
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day"
+        in err
+    )
+    assert "sites[0].properties.stebbs.profile_appliance.holiday" in err
+    assert "profile_metabolism.holiday" not in err
+
+    # Re-migrating an already-canonical dev20 config is idempotent and silent.
+    remigrated = migrator.migrate(migrated, to_version="2026.6.dev20")
+    err_repeat = capsys.readouterr().err
+    assert remigrated == migrated
+    assert err_repeat == ""
+
+
+@pytest.mark.parametrize(
+    ("bad_day_map", "expected_fragment"),
+    [
+        ({"+1": 0.5}, "Invalid 10-minute profile key '+1'"),
+        ({"0": 0.5}, "Invalid 10-minute profile key '0'"),
+        ({"145": 0.5}, "Invalid 10-minute profile key '145'"),
+        ({True: 0.5}, "Invalid 10-minute profile key True"),
+        ({"1": 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+        ({1: 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+    ],
+)
+def test_dev19_to_dev20_rejects_malformed_and_colliding_ten_minute_keys_transactionally(
+    bad_day_map, expected_fragment, capsys
+):
+    """Malformed or colliding 10-minute profile keys fail dev20 migration without mutating input."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {"working_day": {1: 0.5}},
+                    },
+                    "stebbs": {
+                        "profile_flow_hot_water": {"working_day": deepcopy(bad_day_map)},
+                    },
+                }
+            }
+        ],
+    }
+    before = deepcopy(cfg)
+
+    with pytest.raises(
+        YamlUpgradeError, match=r"profile_flow_hot_water\.working_day"
+    ) as exc_info:
+        migrator.migrate(cfg, to_version="2026.6.dev20")
+
+    assert expected_fragment in str(exc_info.value)
+    assert cfg == before
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("source_version", ["2026.5", "2026.6.dev18"])
+def test_chained_pre_dev19_to_dev20_preserves_dev19_boundary(source_version, capsys):
+    """Chained pre-dev19 -> dev20 runs dev20 normalisation, while targeting dev19 does not."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": source_version,
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": {"monday": 1.0, "sunday": 0.0},
+                    },
+                    "building_archetype": {
+                        "profile_setpoint_temperature_cooling_air": {
+                            "working_day": {"01": 25.0, 144: 26.0},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+
+    to_dev19 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev19")
+    err_19 = capsys.readouterr().err
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert (
+        to_dev19["sites"][0]["properties"]["building_archetype"][
+            "profile_setpoint_temperature_cooling_air"
+        ]["working_day"]
+        == {"01": 25.0, 144: 26.0}
+    )
+    assert "asymmetric weekday schedule" in err_19
+    assert "profile_setpoint_temperature_cooling_air" not in err_19
+
+    to_dev20 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev20")
+    err_20 = capsys.readouterr().err
+    assert to_dev20["schema_version"] == "2026.6.dev20"
+    assert (
+        to_dev20["sites"][0]["properties"]["building_archetype"][
+            "profile_setpoint_temperature_cooling_air"
+        ]["working_day"]
+        == {"1": 25.0, "144": 26.0}
+    )
+    assert "asymmetric weekday schedule" in err_20
+    assert "profile_setpoint_temperature_cooling_air.working_day" in err_20

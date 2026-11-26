@@ -318,6 +318,8 @@ unsafe extern "C" {
 
     pub fn suews_spartacus_layer_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
+    pub fn suews_spartacus_layer_prm_compile_nspec(compile_nspec: *mut c_int, err: *mut c_int);
+
     pub fn suews_spartacus_layer_prm_default(
         flat: *mut c_double,
         n_flat: c_int,

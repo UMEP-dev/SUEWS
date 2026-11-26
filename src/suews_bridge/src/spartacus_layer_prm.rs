@@ -266,6 +266,28 @@ pub fn spartacus_layer_prm_schema_version_runtime() -> Result<u32, BridgeError> 
     Ok(schema_version as u32)
 }
 
+/// Return Fortran's compile-time spectral band count (`module_ctrl_const_allocate::nspec`).
+pub fn spartacus_layer_prm_compile_nspec() -> Result<usize, BridgeError> {
+    let mut compile_nspec = -1_i32;
+    let mut err = -1_i32;
+
+    unsafe {
+        ffi::suews_spartacus_layer_prm_compile_nspec(
+            &mut compile_nspec as *mut i32,
+            &mut err as *mut i32,
+        );
+    }
+
+    if err != ffi::SUEWS_CAPI_OK {
+        return Err(BridgeError::from_code(err));
+    }
+    if compile_nspec <= 0 {
+        return Err(BridgeError::BadState);
+    }
+
+    Ok(compile_nspec as usize)
+}
+
 pub fn spartacus_layer_prm_field_names() -> Result<Vec<String>, BridgeError> {
     let (_, nlayer, nspec) = spartacus_layer_prm_schema()?;
     Ok(spartacus_layer_prm_field_names_with_dims(nlayer, nspec))
@@ -491,5 +513,16 @@ mod tests {
         let err = spartacus_layer_prm_from_values_payload(&payload)
             .expect_err("missing dims should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn compile_nspec_is_positive_and_matches_fortran() {
+        let nspec = spartacus_layer_prm_compile_nspec()
+            .expect("Fortran compile-time nspec query should succeed");
+        assert!(nspec > 0, "compile-time nspec must be positive");
+        assert_eq!(
+            nspec, 1,
+            "Fortran module_ctrl_const_allocate::nspec is expected to be 1"
+        );
     }
 }

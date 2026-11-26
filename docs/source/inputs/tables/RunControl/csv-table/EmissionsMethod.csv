@@ -17,6 +17,9 @@ Modelled values will be used even if QF is provided in the meteorological forcin
 Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 flux output is disabled for this non-biogenic code."
 6,"Detailed anthropogenic heat branch using the updated :cite:t:`L11` heat basis plus building, metabolism, and traffic components from `SUEWS_AnthropogenicEmission.txt` and `SUEWS_Profiles.txt`.
 Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 flux output is disabled for this non-biogenic code."
+7,"|EXP| Anthropogenic heat flux calculated by the building energy model STEBBS, multiplied by building surface fraction to supply QF per unit grid area.
+Requires STEBBS storage heat (StorageHeatMethod 7), enabled STEBBS (STEBBSMethod 1 or 2), and SPARTACUS net radiation (NetRadiationMethod 1001-1003). CO2 calculation is disabled.
+See :ref:`STEBBS anthropogenic heat <stebbs_anthropogenic_heat>` for source accounting and YAML configuration."
 11-16,"|EXP| Rectangular hyperbola photosynthesis model with biogenic CO2.
 The unit digit selects the heat/QF and anthropogenic CO2 mode: 1-3 use QF-linked anthropogenic CO2 with L11, J11, and L11_UPDATED heat; 4-6 use detailed anthropogenic CO2 with the same three heat methods.
 Parameters from `SUEWS_BiogenCO2.txt`. Total Fc = Fc_anthro + Fc_biogen."

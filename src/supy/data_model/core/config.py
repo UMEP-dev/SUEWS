@@ -3342,9 +3342,13 @@ class SUEWSConfig(DataModelBase):
         if _unwrap_value(getattr(physics, "storage_heat", None)) != 7:
             issues.append(prefix + "storage_heat=7 to account for building storage")
         if self._composed_stebbsmethod() not in {1, 2}:
-            issues.append(prefix + "STEBBS to be enabled (model.physics.stebbs.enabled=true)")
+            issues.append(
+                prefix + "STEBBS to be enabled (model.physics.stebbs.enabled=true)"
+            )
         if not self._needs_spartacus_validation():
-            issues.append(prefix + "SPARTACUS-Surface net radiation (1001, 1002, or 1003)")
+            issues.append(
+                prefix + "SPARTACUS-Surface net radiation (1001, 1002, or 1003)"
+            )
         return issues
 
     def _validate_conditional_parameters(self) -> List[str]:

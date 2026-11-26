@@ -932,7 +932,9 @@ def test_stebbs_heat_rejects_co2_axes(co2):
 
 @pytest.fixture
 def stebbs_qf_config():
-    path = Path(__file__).parents[1] / "fixtures/data_test/stebbs_test/sample_config.yml"
+    path = (
+        Path(__file__).parents[1] / "fixtures/data_test/stebbs_test/sample_config.yml"
+    )
     config = yaml.safe_load(path.read_text(encoding="utf-8"))
     config["model"]["physics"]["emissions"] = {"heat": "stebbs"}
     config["model"]["control"]["forcing"]["file"] = None
@@ -941,7 +943,9 @@ def stebbs_qf_config():
 
 
 @pytest.mark.parametrize("input_form", ["dict", "yaml"])
-def test_stebbs_heat_config_accepts_no_legacy_sources(stebbs_qf_config, tmp_path, input_form):
+def test_stebbs_heat_config_accepts_no_legacy_sources(
+    stebbs_qf_config, tmp_path, input_form
+):
     """STEBBS QF must not require inputs for the existing SUEWS emissions model."""
     anthro = stebbs_qf_config["sites"][0]["properties"]["anthropogenic_emissions"]
     heat = anthro["heat"]
@@ -965,7 +969,9 @@ def test_stebbs_heat_config_accepts_no_legacy_sources(stebbs_qf_config, tmp_path
         ("net_radiation", 3, "emissions.*STEBBS.*SPARTACUS"),
     ],
 )
-def test_stebbs_heat_requires_coupled_buildings(stebbs_qf_config, field, value, message):
+def test_stebbs_heat_requires_coupled_buildings(
+    stebbs_qf_config, field, value, message
+):
     stebbs_qf_config["model"]["physics"][field] = value
     with pytest.raises(ValueError, match=message):
         SUEWSConfig.from_dict(stebbs_qf_config)

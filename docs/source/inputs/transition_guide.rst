@@ -1198,12 +1198,17 @@ combinations rather than assigning misleading semantics. Non-biogenic
 flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
 but their CO2 fluxes are discarded by the driver.
 
+.. _stebbs_anthropogenic_heat:
+
 ``heat: stebbs`` selects anthropogenic heat flux calculated by the building
 energy model STEBBS (code ``7``). SUEWS multiplies this flux by the building
 surface fraction to supply |QF| per unit grid area. It requires
 ``storage_heat: stebbs``, an enabled STEBBS model, and SPARTACUS net
-radiation. Both ``observed`` and ``stebbs`` require the CO2 axes to remain
-``none``.
+radiation (codes ``1001-1003``). This experimental option supplies building
+heat only, including the sensible metabolism represented in STEBBS; no
+separate SUEWS traffic or metabolic heat is added. Method ``0`` remains
+available for prescribed |QF| from meteorological forcing. Both ``observed``
+and ``stebbs`` require the CO2 axes to remain ``none``.
 
 .. _waterdist_yaml_rules:
 

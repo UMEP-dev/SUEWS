@@ -46,20 +46,26 @@ an established range; it must not invent a new scientific constraint.
 ### BR-02 evidence layers
 
 BR-02 failure evidence is factorised by layer (#2349) rather than repeated per
-leaf through Python: [decision: pending software maintainer approval on #2350]
+leaf through Python. Every point below is a requirement for changes that add,
+merge or delete BR-02 tests from the revision this section is approved; it is
+not a claim that the current tests already meet it (#2349 `W0A-5` supplies the
+first set). [decision: pending software maintainer approval on #2350]
 
 - Every positive physical-response test and every inactive-invariance test (a
   field the selected options leave unused does not change the output) stays in
   Python.
 - Each bridged subsystem keeps, for every (value class x channel) it accepts,
   at least one failure witness through a public Python entry point and one
-  through the standalone `suews-engine` binary. Value class is missing, null,
+  through the standalone engine binary. Value class is missing, null,
   malformed or incorrectly sized; channel is the route the value enters by
-  (configuration, forcing or restart state). [fact: git grep -n 'name = "suews-engine"' src/suews_bridge/Cargo.toml]
-- The repetitive per-leaf invalid-YAML matrix lives in Rust `cargo test` under
-  `src/suews_bridge/tests/`. [fact: git ls-files --error-unmatch src/suews_bridge/tests/yaml_jacobian.rs]
+  (configuration, forcing or restart state). This is per subsystem, so it is
+  broader than the about ten Python witness cases in total that #2349 sizes.
+- The repetitive per-leaf invalid-YAML matrix lives in Rust `cargo test`.
 - A Python per-leaf test is deleted only when the pull request names, contract
   by contract, the Rust test or witness that now covers it.
+
+The standalone binary is `suews-engine`, and the Rust integration tests live
+under `src/suews_bridge/tests/`. [fact: git grep -n 'name = "suews-engine"' src/suews_bridge/Cargo.toml && git ls-files --error-unmatch src/suews_bridge/tests/yaml_jacobian.rs]
 
 ## Audit record
 

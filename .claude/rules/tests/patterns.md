@@ -131,11 +131,11 @@ not bypass.
 
 ### Transition to the 4+1 dependency axes (#2349)
 
-The `physics | api` nature axis above stays the active rule until
-`pyproject.toml` registers the `tooling`, `unit` and `native` markers (#2349
-`W1-4`); until then, do not add those markers. [fact: git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
-From the revision where `W1-4` registers them, the axes below replace the
-nature axis without a further edit to this file. [decision: pending software maintainer approval on #2350]
+The marker lint currently accepts exactly the `physics | api` nature set. [fact: git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+That nature axis stays the active rule until `pyproject.toml` registers the
+`tooling`, `unit` and `native` markers (#2349 `W1-4`); until then, do not add
+those markers. From the revision where `W1-4` registers them, the axes below
+replace the nature axis without a further edit to this file. [decision: pending software maintainer approval on #2350]
 
 Each file under `test/` then declares exactly one dependency axis, named for the
 cheapest thing the test needs in order to run: [decision: pending software maintainer approval on #2350]
@@ -158,6 +158,11 @@ binary), whose count the static gate caps (#2349 `W1-8`). When two axes fit,
 pick the more expensive one (`native` over `unit`). The `api` axis is retired
 by `W1-4`; its compatibility shim is removed by `W1-7`. Where each axis runs in
 CI is stated once, in `ci/conventions.md` ("Multi-Axis CI Topology"). [decision: pending software maintainer approval on #2350]
+From the revision where `W1-6` enables that topology, its event selection
+supersedes the event-based statements in "PR/CR placement" below (which tiers
+run on draft, ready and merge-queue runs, and that a `slow` test runs before
+merge only when it also carries `core`); the importance and cost definitions,
+including "Cost thresholds", are unchanged. [decision: pending software maintainer approval on #2350]
 
 ### Importance and cost -- independent per-test decorators
 

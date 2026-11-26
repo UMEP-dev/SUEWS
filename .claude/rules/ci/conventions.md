@@ -455,7 +455,8 @@ above are pruned in their own pull request after `W1-6` lands, so each lane is
 stated in one place. [decision: pending software maintainer approval on #2350]
 
 - **One required check.** Every axis reports through the existing required
-  check `PR build validation`; no required check is added or renamed. [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
+  check `PR build validation`; no required check is added or renamed. [decision: pending software maintainer approval on #2350]
+  The job that carries that check exists today. [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
 - **From source at t=0.** `tooling` and `unit` start with the workflow, from a
   source checkout, without waiting for a wheel. [decision: pending software maintainer approval on #2350]
 - **`native` on one Python per OS.** `native` runs once per built OS on cp312

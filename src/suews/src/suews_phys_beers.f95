@@ -473,22 +473,6 @@ CONTAINS
 
    END SUBROUTINE KRoof
 
-   SUBROUTINE cal_svfalfa(svfr, svfveg, svfalfa, tmp)
-      IMPLICIT NONE
-
-      REAL(KIND(1D0)), INTENT(in) :: svfr ! svf of roof
-      REAL(KIND(1D0)), INTENT(in) :: svfveg ! svf of vegetation
-      REAL(KIND(1D0)), INTENT(out) :: svfalfa ! Building height angle from svfr
-      REAL(KIND(1D0)), INTENT(out) :: tmp
-
-      ! TODO: we need to use wall area directly to get this
-      !Building height angle from svfr
-      tmp = 1.-(svfr + svfveg - 1.)
-      IF (tmp <= 0) tmp = 0.000000001 ! avoiding log(0)
-      svfalfa = ASIN(EXP(LOG(tmp)/2.))
-
-   END SUBROUTINE cal_svfalfa
-
    FUNCTION cal_ratio_height2width(lamdaP, lamdaF) RESULT(HW)
       IMPLICIT NONE
       REAL(KIND(1D0)), PARAMETER :: a = 0.5598

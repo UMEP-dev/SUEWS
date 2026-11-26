@@ -1370,21 +1370,6 @@ CONTAINS
       RETURN
    END FUNCTION SnowDepletionCurve
 
-   SUBROUTINE veg_fr_snow( &
-      sfr_surf, SnowFrac, & !input
-      veg_fr) !output
-
-      IMPLICIT NONE
-
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf !< surface fractions
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowFrac !< snowy surface fractions [-]
-
-      REAL(KIND(1D0)), INTENT(out) :: veg_fr !< vegetated surface fractions [-]
-
-      veg_fr = DOT_PRODUCT(sfr_surf(3:7), 1 - SnowFrac(3:7))
-
-   END SUBROUTINE veg_fr_snow
-
    !In this subroutine the snow properties are updated. The aging functions work for hourly air
    !temperature (dt=1). As the code timestep is typically smaller than one hour, the new albedo
    !and density are calculated using the timestep air temperature and then these are scaled to timestep

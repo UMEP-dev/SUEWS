@@ -868,30 +868,6 @@ CONTAINS
 
    END FUNCTION
 
-   FUNCTION dPsi_dzL_G00(ZL, psiK, phiK, psiC, phiC) RESULT(dPsi)
-      ! Grachev et al. (2000), eqn 15
-      ! note: Psi is a zL-weighted sum of Kansas and convective components
-      ! derived from d(Psi)/d(zL)=d((psiK+zL**2*psiC)/(1+zL**2))/d(zL)
-
-      REAL(KIND(1D0)) :: zl, dPsi, psiC, phiC, psiK, phiK
-      REAL(KIND(1D0)) :: x_zl, x_psiC, x_phiC, x_psiK, x_phiK
-
-      ! Kansas part
-      x_psiK = -(2*psiK*zL)/(1 + zL**2)**2
-      x_phiK = -phiK/(zL*(1 + zL**2))
-
-      ! convective contribution
-      x_psiC = (2*psiC*zL)/(1 + zL**2)**2
-      x_phiC = -(phiC*zL)/(1 + zL**2)
-
-      ! zL related
-      x_zl = 1/zL
-
-      ! totoal
-      dPsi = x_psiC + x_psiK + x_phiK + x_phiC + x_zl
-
-   END FUNCTION
-
    ! ------------------------------------
 
    ! ------------------------------------

@@ -49,7 +49,7 @@ from ...data_model.core.field_renames import (
     rename_keys_recursive,
 )
 from ...data_model.core.profile import (
-    TEN_MINUTE_PROFILE_PATHS as _TEN_MINUTE_PROFILE_PATHS,
+    TEN_MINUTE_PROFILE_ALIAS_GROUPS as _TEN_MINUTE_PROFILE_ALIAS_GROUPS,
     normalise_ten_minute_profile_key,
     normalise_ten_minute_profile_mapping,
 )
@@ -2845,36 +2845,39 @@ def _clear_noncanonical_ten_minute_keys_for_dev9_candidate(candidate: dict) -> N
         props = site.get("properties") if isinstance(site, dict) else None
         if not isinstance(props, dict):
             continue
-        for section_name, field_name in _TEN_MINUTE_PROFILE_PATHS:
+        for section_name, _canonical_field, candidate_names in (
+            _TEN_MINUTE_PROFILE_ALIAS_GROUPS
+        ):
             section = props.get(section_name)
             if not isinstance(section, dict):
                 continue
-            profile = section.get(field_name)
-            if not isinstance(profile, dict):
-                continue
-            for day_type in ("working_day", "holiday"):
-                day_map = profile.get(day_type)
-                if not isinstance(day_map, dict):
+            for field_name in candidate_names:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
                     continue
-                try:
-                    normalise_ten_minute_profile_mapping(day_map)
-                    continue
-                except ValueError:
-                    pass
-                sanitised: dict[str, float | None] = {}
-                all_values_valid = True
-                for idx, val in enumerate(day_map.values()):
-                    if val is None:
-                        coerced_val: float | None = None
-                    else:
-                        try:
-                            coerced_val = float(val)
-                        except (TypeError, ValueError):
-                            all_values_valid = False
-                            break
-                    sanitised[str((idx % 144) + 1)] = coerced_val
-                if all_values_valid:
-                    profile[day_type] = sanitised
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, dict):
+                        continue
+                    try:
+                        normalise_ten_minute_profile_mapping(day_map)
+                        continue
+                    except ValueError:
+                        pass
+                    sanitised: dict[str, float | None] = {}
+                    all_values_valid = True
+                    for idx, val in enumerate(day_map.values()):
+                        if val is None:
+                            coerced_val: float | None = None
+                        else:
+                            try:
+                                coerced_val = float(val)
+                            except (TypeError, ValueError):
+                                all_values_valid = False
+                                break
+                        sanitised[str((idx % 144) + 1)] = coerced_val
+                    if all_values_valid:
+                        profile[day_type] = sanitised
 
 
 def _check_and_normalise_ten_minute_profile_keys(cfg: dict) -> dict:
@@ -2891,34 +2894,49 @@ def _check_and_normalise_ten_minute_profile_keys(cfg: dict) -> dict:
         props = site.get("properties") if isinstance(site, dict) else None
         if not isinstance(props, dict):
             continue
-        for section_name, field_name in _TEN_MINUTE_PROFILE_PATHS:
+        for section_name, canonical_field, candidate_names in (
+            _TEN_MINUTE_PROFILE_ALIAS_GROUPS
+        ):
             section = props.get(section_name)
             if not isinstance(section, dict):
                 continue
-            profile = section.get(field_name)
-            if not isinstance(profile, dict):
-                continue
-            for day_type in ("working_day", "holiday"):
-                day_map = profile.get(day_type)
-                if not isinstance(day_map, Mapping):
-                    continue
-                path = f"sites[{index}].properties.{section_name}.{field_name}.{day_type}"
-                try:
-                    canonical_map = normalise_ten_minute_profile_mapping(dict(day_map))
-                except ValueError as exc:
-                    problems.append(f"{path}: {exc}")
-                    continue
-                has_non_canonical = any(
-                    not isinstance(raw_k, str)
-                    or normalise_ten_minute_profile_key(raw_k) != raw_k
-                    for raw_k in day_map
+            present = [name for name in candidate_names if name in section]
+            if len(present) > 1:
+                problems.append(
+                    f"sites[{index}].properties.{section_name}: conflicting aliases "
+                    f"for '{canonical_field}': {', '.join(repr(n) for n in present)}"
                 )
-                if has_non_canonical:
-                    profile[day_type] = canonical_map
-                    pending_logs.append(
-                        f"[yaml-upgrade] normalised {path}: non-canonical 10-minute "
-                        "profile keys -> canonical '1'..'144' strings"
+                continue
+            for field_name in present:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
+                    continue
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, Mapping):
+                        continue
+                    path = (
+                        f"sites[{index}].properties.{section_name}."
+                        f"{field_name}.{day_type}"
                     )
+                    try:
+                        canonical_map = normalise_ten_minute_profile_mapping(
+                            dict(day_map)
+                        )
+                    except ValueError as exc:
+                        problems.append(f"{path}: {exc}")
+                        continue
+                    has_non_canonical = any(
+                        not isinstance(raw_k, str)
+                        or normalise_ten_minute_profile_key(raw_k) != raw_k
+                        for raw_k in day_map
+                    )
+                    if has_non_canonical:
+                        profile[day_type] = canonical_map
+                        pending_logs.append(
+                            f"[yaml-upgrade] normalised {path}: non-canonical 10-minute "
+                            "profile keys -> canonical '1'..'144' strings"
+                        )
 
     if problems:
         raise YamlUpgradeError("\n".join(problems))

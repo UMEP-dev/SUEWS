@@ -1737,3 +1737,134 @@ def test_schema_migrate_cli_writes_normalised_output_on_same_version_dev20(
     )
     assert bad_res.exit_code == 1
     assert not bad_path.with_suffix(".migrated.yml").exists()
+
+
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
+def test_dev20_migration_and_cli_cover_legacy_ten_minute_profile_aliases(
+    tmp_path: Path,
+):
+    """dev20 migration, CLI migrate, and dev8->dev9 observed-soil shim cover legacy 10-minute profile aliases."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    from click.testing import CliRunner  # ruff: ignore[import-outside-top-level]
+
+    from supy.cmd.suews_cli import cli  # ruff: ignore[import-outside-top-level]
+    from supy.util.converter.yaml_upgrade import (  # ruff: ignore[import-outside-top-level]
+        SoilMigrationContext,
+    )
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    migrator = SchemaMigrator()
+    runner = CliRunner()
+
+    # 1. dev19 -> dev20 and same-version dev20 CLI reject collisions under legacy MetabolismProfile.
+    legacy_dup = deepcopy(base_cfg)
+    legacy_dup["schema_version"] = "2026.6.dev19"
+    arch = legacy_dup["sites"][0]["properties"]["building_archetype"]
+    met = arch.pop("profile_metabolism")
+    met["working_day"]["01"] = 0.99
+    arch["MetabolismProfile"] = met
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"MetabolismProfile\.working_day.*Duplicate 10-minute profile key '1'",
+    ):
+        migrator.migrate(deepcopy(legacy_dup), to_version="2026.6.dev20")
+
+    legacy_dup["schema_version"] = "2026.6.dev20"
+    dup_cli_path = tmp_path / "legacy_dup_dev20.yml"
+    dup_cli_path.write_text(yaml.safe_dump(legacy_dup, sort_keys=False), encoding="utf-8")
+    dup_cli_res = runner.invoke(
+        cli,
+        ["schema", "--quiet", "migrate", "--target-version", "2026.6.dev20", str(dup_cli_path)],
+    )
+    assert dup_cli_res.exit_code == 1
+    assert not dup_cli_path.with_suffix(".migrated.yml").exists()
+
+    # 2. Same-version dev20 CLI normalises valid zero-padded keys under legacy hot_water_flow_profile.
+    legacy_valid = deepcopy(base_cfg)
+    legacy_valid["schema_version"] = "2026.6.dev20"
+    stebbs = legacy_valid["sites"][0]["properties"]["stebbs"]
+    hw = stebbs.pop("profile_flow_hot_water")
+    val_1 = hw["working_day"].pop("1")
+    hw["working_day"]["01"] = val_1
+    stebbs["hot_water_flow_profile"] = hw
+    valid_cli_path = tmp_path / "legacy_valid_dev20.yml"
+    valid_cli_path.write_text(
+        yaml.safe_dump(legacy_valid, sort_keys=False), encoding="utf-8"
+    )
+    valid_cli_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(valid_cli_path)],
+    )
+    assert valid_cli_res.exit_code == 0, valid_cli_res.output
+    out_hw = yaml.safe_load(
+        valid_cli_path.with_suffix(".migrated.yml").read_text(encoding="utf-8")
+    )["sites"][0]["properties"]["stebbs"]["hot_water_flow_profile"]["working_day"]
+    assert "01" not in out_hw
+    assert out_hw["1"] == pytest.approx(val_1)
+
+    # 3. Conflicting aliases (canonical + legacy) fail dev20 migration explicitly.
+    conflict_cfg = deepcopy(base_cfg)
+    conflict_cfg["schema_version"] = "2026.6.dev19"
+    conflict_cfg["sites"][0]["properties"]["building_archetype"][
+        "MetabolismProfile"
+    ] = deepcopy(
+        conflict_cfg["sites"][0]["properties"]["building_archetype"][
+            "profile_metabolism"
+        ]
+    )
+    with pytest.raises(
+        YamlUpgradeError, match=r"conflicting aliases for 'profile_metabolism'"
+    ):
+        migrator.migrate(conflict_cfg, to_version="2026.6.dev20")
+
+    # 4. Observed-soil dev8 -> dev19 preserves legacy alias MetabolismProfile with "+1", while dev20 rejects it.
+    dev8 = deepcopy(base_cfg)
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    dev8_arch = dev8["sites"][0]["properties"]["building_archetype"]
+    dev8_met = dev8_arch.pop("profile_metabolism")
+    dev8_met["working_day"]["+1"] = dev8_met["working_day"].pop("1")
+    dev8_arch["MetabolismProfile"] = dev8_met
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    to_dev19 = migrator.migrate(
+        deepcopy(dev8), to_version="2026.6.dev19", migration_context=ctx
+    )
+    assert (
+        "+1"
+        in to_dev19["sites"][0]["properties"]["building_archetype"][
+            "MetabolismProfile"
+        ]["working_day"]
+    )
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"MetabolismProfile\.working_day.*Invalid 10-minute profile key '\+1'",
+    ):
+        migrator.migrate(
+            deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
+        )

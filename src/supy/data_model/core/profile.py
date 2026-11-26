@@ -1,8 +1,11 @@
 from collections.abc import Callable
 from copy import deepcopy
-from pydantic import ConfigDict, Field, field_validator, model_validator
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 import pandas as pd
+from pydantic import ConfigDict, Field, field_validator, model_validator
+
+from .field_renames import RAW_YAML_FIELD_RENAMES
 from .type import DataModelBase, Reference, df_from_cols
 
 CANONICAL_HOUR_KEYS: tuple[str, ...] = tuple(str(hour) for hour in range(1, 25))
@@ -33,21 +36,36 @@ TEN_MINUTE_PROFILE_PATHS: tuple[tuple[str, str], ...] = (
     ("stebbs", "profile_flow_hot_water"),
     ("stebbs", "profile_appliance"),
 )
-_TEN_MINUTE_PROFILE_RAW_PATHS: tuple[tuple[str, ...], ...] = (
-    *TEN_MINUTE_PROFILE_PATHS,
-    ("building_archetype", "metabolism_profile"),
-    ("building_archetype", "MetabolismProfile"),
-    ("building_archetype", "profile_temperature_air_heating_setpoint"),
-    ("building_archetype", "HeatingSetpointTemperatureProfile"),
-    ("building_archetype", "profile_temperature_air_cooling_setpoint"),
-    ("building_archetype", "CoolingSetpointTemperatureProfile"),
-    ("stebbs", "profile_hot_water_flow"),
-    ("stebbs", "HotWaterFlowProfile"),
-    ("stebbs", "appliance_profile"),
-    ("stebbs", "ApplianceProfile"),
+
+
+def _build_ten_minute_profile_alias_groups() -> tuple[
+    tuple[str, str, tuple[str, ...]], ...
+]:
+    """Derive ``(section, canonical_field, (canonical, *aliases))`` from ``RAW_YAML_FIELD_RENAMES``."""
+    groups: list[tuple[str, str, tuple[str, ...]]] = []
+    for section_name, canonical_field in TEN_MINUTE_PROFILE_PATHS:
+        aliases = tuple(
+            sorted(
+                old_name
+                for old_name, target in RAW_YAML_FIELD_RENAMES.items()
+                if target == canonical_field and old_name != canonical_field
+            )
+        )
+        groups.append((section_name, canonical_field, (canonical_field, *aliases)))
+    return tuple(groups)
+
+
+TEN_MINUTE_PROFILE_ALIAS_GROUPS: tuple[
+    tuple[str, str, tuple[str, ...]], ...
+] = _build_ten_minute_profile_alias_groups()
+
+_TEN_MINUTE_PROFILE_RAW_PATHS: tuple[tuple[str, str], ...] = tuple(
+    (section_name, field_name)
+    for section_name, _canonical, names in TEN_MINUTE_PROFILE_ALIAS_GROUPS
+    for field_name in names
 )
 TEN_MINUTE_PROFILE_FIELD_NAMES: frozenset[str] = frozenset(
-    path[-1] for path in _TEN_MINUTE_PROFILE_RAW_PATHS
+    field_name for _, field_name in _TEN_MINUTE_PROFILE_RAW_PATHS
 )
 
 
@@ -649,8 +667,6 @@ class TenMinuteProfile(DataModelBase):
         cols = {("gridiv", "0"): grid_id}
         for day_idx, day_type in enumerate(("working_day", "holiday")):
             day_map = getattr(self, day_type)
-            if day_map is None:
-                continue
             if not isinstance(day_map, dict):
                 raise ValueError(
                     f"TenMinuteProfile.{day_type} must be a mapping keyed by "

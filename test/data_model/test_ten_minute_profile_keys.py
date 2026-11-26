@@ -13,12 +13,14 @@ from supy._run_rust import config_to_engine_yaml  # ruff: ignore[import-private-
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.profile import (
     CANONICAL_TEN_MINUTE_KEYS,
+    TEN_MINUTE_PROFILE_ALIAS_GROUPS,
     CoolingSetpointProfile,
     HeatingSetpointProfile,
     TenMinuteProfile,
     normalise_ten_minute_profile_key,
     normalise_ten_minute_profile_mapping,
 )
+from supy.data_model.core.site import ArchetypeProperties
 from supy.data_model.validation.pipeline.orchestrator import (
     run_phase_a,
     run_phase_b,
@@ -542,3 +544,63 @@ def test_phase_a_to_c_does_not_pad_null_on_malformed_ten_minute_key(
     assert any(
         "Invalid 10-minute profile key" in issue.message for issue in report_c.issues
     )
+
+
+def test_archetype_to_df_state_rejects_null_ten_minute_day_profile() -> None:
+    """Exporting a TenMinuteProfile with a null day fails loudly instead of silently losing values on round-trip."""
+    working_day = {str(step): 0.7 for step in range(1, 145)}
+    archetype = ArchetypeProperties(
+        profile_metabolism=TenMinuteProfile(working_day=working_day, holiday=None)
+    )
+    with pytest.raises(
+        ValueError,
+        match=r"TenMinuteProfile\.holiday must be a mapping keyed by steps '1'\.\.'144', got NoneType",
+    ):
+        archetype.to_df_state(1)
+
+
+ALL_LEGACY_TEN_MINUTE_PROFILE_ALIASES: tuple[tuple[str, str, str], ...] = tuple(
+    (section_name, canonical_field, alias)
+    for section_name, canonical_field, names in TEN_MINUTE_PROFILE_ALIAS_GROUPS
+    for alias in names[1:]
+)
+
+
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
+@pytest.mark.parametrize(
+    ("section", "canonical_field", "alias"),
+    ALL_LEGACY_TEN_MINUTE_PROFILE_ALIASES,
+)
+def test_phase_c_standalone_normalises_all_accepted_ten_minute_profile_aliases(
+    tmp_path: Path,
+    section: str,
+    canonical_field: str,
+    alias: str,
+) -> None:
+    """Standalone Phase C normalises zero-padded 10-minute keys under every accepted legacy field alias."""
+    raw = _load_sample_config_dict()
+    sec_dict = raw["sites"][0]["properties"][section]
+    orig_prof = sec_dict.pop(canonical_field)
+    wd = dict(orig_prof["working_day"])
+    val_1 = wd.pop("1")
+    wd["01"] = val_1
+    sec_dict[alias] = {"working_day": wd, "holiday": dict(orig_prof["holiday"])}
+
+    in_yaml = tmp_path / f"{alias}.yml"
+    out_yaml = tmp_path / f"{alias}_out_c.yml"
+    in_yaml.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+
+    report_c = run_phase_c(
+        str(in_yaml),
+        str(out_yaml),
+        str(tmp_path / f"{alias}_report_c.txt"),
+        mode="public",
+        silent=True,
+    )
+    assert not report_c.has_errors, report_c.issues
+    out_wd = yaml.safe_load(out_yaml.read_text(encoding="utf-8"))["sites"][0][
+        "properties"
+    ][section][alias]["working_day"]
+    assert tuple(out_wd.keys()) == CANONICAL_TEN_MINUTE_KEYS
+    assert "01" not in out_wd
+    assert out_wd["1"] == pytest.approx(val_1)

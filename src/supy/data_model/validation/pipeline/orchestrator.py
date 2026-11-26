@@ -1428,7 +1428,7 @@ def _run_phase_c_legacy(
                 # Pydantic validation passed - create updatedC YAML with standardized header.
                 # Normalise unambiguous non-canonical 24-hour and 10-minute profile keys
                 # on export while keeping canonical files on the comment-preserving copy path.
-                with open(input_yaml_file, "r", encoding="utf-8") as raw_f:
+                with open(input_yaml_file, encoding="utf-8") as raw_f:
                     raw_yaml_data = yaml.safe_load(raw_f)
                 normalised_yaml_data, hourly_keys_normalised = (
                     normalise_hourly_profile_keys_in_raw_config(raw_yaml_data)

@@ -507,7 +507,9 @@ def _january_sim(short_sample_sim, path_out, stream_chunk):
     return sim
 
 
-def test_january_in_two_chunks_matches_run_then_save(short_sample_sim, tmp_path):
+def test_january_in_two_chunks_matches_run_then_save(
+    short_sample_sim, tmp_path, monkeypatch
+):
     """Thirty-day chunks cut 31 days of January into 30 days and one.
 
     In the year-crossing window every year fits in one 30-day chunk; this
@@ -526,6 +528,20 @@ def test_january_in_two_chunks_matches_run_then_save(short_sample_sim, tmp_path)
     )
 
     ar_year, ar_chunk = forcing_chunk_keys(index, TSTEP_S, 30)
+    iter_streamed = suews_sim_module.iter_suews_rust_streamed
+    list_yielded = []
+
+    def spy(*args, **kwargs):
+        for chunk in iter_streamed(*args, **kwargs):
+            list_yielded.append((
+                chunk.year,
+                chunk.chunk,
+                chunk.n_chunk,
+                len(chunk.df_output),
+            ))
+            yield chunk
+
+    monkeypatch.setattr(suews_sim_module, "iter_suews_rust_streamed", spy)
     sim.run()
 
     ser_size = pd.Series(ar_year).groupby([ar_year, ar_chunk]).size()
@@ -533,6 +549,10 @@ def test_january_in_two_chunks_matches_run_then_save(short_sample_sim, tmp_path)
         (2012, 0): 30 * STEPS_PER_DAY,
         (2012, 1): STEPS_PER_DAY,
     }
+    assert list_yielded == [
+        (2012, 1, 2, 30 * STEPS_PER_DAY),
+        (2012, 2, 2, STEPS_PER_DAY),
+    ]
     _compare_dirs(dir_streamed, dir_whole)
     [path_ckpt] = dir_streamed.glob("*_checkpoint.json")
     ckpt = SUEWSCheckpoint.from_file(path_ckpt)

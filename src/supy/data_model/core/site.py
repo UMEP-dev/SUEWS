@@ -2865,14 +2865,33 @@ class StebbsProperties(DataModelBase):
     @model_validator(mode="after")
     def _validate_internal_shading_parameters(self) -> "StebbsProperties":
         """Require explicit active parameters whenever shading is enabled."""
+        from ..validation.rules.hard_invariants import check_stebbs_internal_shading
+
         shading_mode = (
             self.internal_shading.value
             if isinstance(self.internal_shading, RefValue)
             else self.internal_shading
         )
-        for field_name, message in stebbs_shading_requirements(shading_mode).items():
-            if field_name not in self.model_fields_set:
-                raise ValueError(message)
+        values = {
+            field_name: (
+                getattr(self, field_name).value
+                if isinstance(getattr(self, field_name), RefValue)
+                else getattr(self, field_name)
+            )
+            for field_name in (
+                "reduction_factor_shading",
+                "temperature_threshold_shading",
+                "radiation_threshold_shading",
+            )
+        }
+        violations = check_stebbs_internal_shading(
+            shading_mode,
+            values,
+            present_fields=self.model_fields_set,
+            require_explicit_presence=True,
+        )
+        if violations:
+            raise ValueError(violations[0].message)
         return self
 
     def _to_df_state_cols(self, grid_id: int) -> dict:

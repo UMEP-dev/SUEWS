@@ -254,6 +254,8 @@ def test_suews_config_from_yaml_and_update_config_reject_invalid_doys(
     bad_val,
 ) -> None:
     bad_cfg = copy.deepcopy(sample_config_dict)
+    if section == "irrigation":
+        bad_cfg["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
     bad_cfg["sites"][0]["properties"][section][field_name] = {"value": bad_val}
 
     # Direct mapping construction (deepcopy so in-place enum coercion does not leak)
@@ -275,7 +277,9 @@ def test_suews_config_from_yaml_and_update_config_reject_invalid_doys(
 def test_refvalue_live_assignment_rejects_booleans_fractionals_and_out_of_range(
     sample_config_dict: dict,
 ) -> None:
-    cfg = SUEWSConfig(**copy.deepcopy(sample_config_dict))
+    active_dict = copy.deepcopy(sample_config_dict)
+    active_dict["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
+    cfg = SUEWSConfig(**active_dict)
     irr = cfg.sites[0].properties.irrigation
     anthro = cfg.sites[0].properties.anthropogenic_emissions
 
@@ -319,7 +323,9 @@ def test_refvalue_live_assignment_rejects_booleans_fractionals_and_out_of_range(
 def test_validate_for_engine_catches_live_mutated_invalid_doys(
     sample_config_dict: dict,
 ) -> None:
-    cfg = SUEWSConfig(**copy.deepcopy(sample_config_dict))
+    active_dict = copy.deepcopy(sample_config_dict)
+    active_dict["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
+    cfg = SUEWSConfig(**copy.deepcopy(active_dict))
     cfg.sites[0].properties.irrigation.ie_start.__dict__["value"] = 0
     with pytest.raises(ValueError, match=r"irrigation\.ie_start"):
         cfg.validate_for_engine()
@@ -329,12 +335,12 @@ def test_validate_for_engine_catches_live_mutated_invalid_doys(
     with pytest.raises(ValueError, match=r"anthropogenic_emissions\.enddls"):
         cfg2.validate_for_engine()
 
-    cfg3 = SUEWSConfig(**copy.deepcopy(sample_config_dict))
+    cfg3 = SUEWSConfig(**copy.deepcopy(active_dict))
     cfg3.sites[0].properties.irrigation.__dict__["ie_end"] = 20.5
     with pytest.raises(ValueError, match="integer day of year"):
         cfg3.validate_for_engine()
 
-    cfg4 = SUEWSConfig(**copy.deepcopy(sample_config_dict))
+    cfg4 = SUEWSConfig(**copy.deepcopy(active_dict))
     cfg4.sites[0].properties.irrigation.ie_start.__dict__["value"] = True
     with pytest.raises(ValueError, match="boolean"):
         cfg4.validate_for_engine()
@@ -406,6 +412,7 @@ def test_phase_c_reports_fractional_doy_issue(
     sample_config_dict: dict, tmp_path: Path
 ) -> None:
     bad_cfg = copy.deepcopy(sample_config_dict)
+    bad_cfg["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
     bad_cfg["sites"][0]["properties"]["irrigation"]["ie_start"] = {"value": 20.5}
     yaml_path = tmp_path / "phase_c_bad_doy.yml"
     yaml_path.write_text(yaml.safe_dump(bad_cfg, sort_keys=False), encoding="utf-8")
@@ -510,6 +517,8 @@ def test_simulation_run_rejects_live_mutated_invalid_doy(
 ) -> None:
     """``SUEWSSimulation.run()`` refuses a DOY mutated past field validation."""
     sim = SUEWSSimulation.from_sample_data()
+    if section == "irrigation":
+        sim.config.sites[0].properties.irrigation.daywat.monday = 1.0
     forcing = sim.forcing.df.iloc[:12]
     sim.update_forcing(forcing)
     ref_value = getattr(getattr(sim.config.sites[0].properties, section), field)
@@ -524,6 +533,8 @@ def _write_config_with_doy(
     sample_config_dict: dict, tmp_path: Path, section: str, field: str, value
 ) -> Path:
     cfg = copy.deepcopy(sample_config_dict)
+    if section == "irrigation":
+        cfg["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
     cfg["sites"][0]["properties"][section][field] = {"value": value}
     path = tmp_path / f"{section}_{field}.yml"
     path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
@@ -570,6 +581,8 @@ def test_suews_validate_phase_b_cli_rejects_invalid_doy(
 ) -> None:
     """Non-dry-run ``suews validate --pipeline B`` rejects fractional/zero/out-of-range/bad DOYs."""
     cfg = copy.deepcopy(sample_config_dict)
+    if section == "irrigation":
+        cfg["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
     cfg["sites"][0]["properties"][section][field] = (
         {"value": bad_val} if wrapped else bad_val
     )
@@ -984,6 +997,8 @@ def test_suews_engine_cli_rejects_invalid_doy(
     """Standalone ``suews-engine run`` refuses a DOY the data model never saw."""
 
     def set_doy(resolved):
+        if section == "irrigation":
+            resolved["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 1.0
         resolved["sites"][0]["properties"][section][field] = {"value": bad_val}
 
     result = _run_suews_engine(tmp_path, mutate_resolved=set_doy)

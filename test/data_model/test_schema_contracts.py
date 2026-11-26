@@ -552,6 +552,49 @@ def _make_dls_spec(
     )
 
 
+def _make_irrigation_spec(missing: str, given: str) -> RequiredRuleSpec:
+    """Build active/inactive/valid YAML cases for scheme-gated ``IrrigationParams`` DOY pairing."""
+    window = {"ie_start": {"value": 140}, "ie_end": {"value": 240}}
+
+    def active_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        d["model"]["physics"]["water_use"] = {"value": 0}
+        irr = d["sites"][0]["properties"]["irrigation"]
+        irr["daywat"]["monday"] = 1.0
+        irr.pop(missing, None)
+        irr[given] = copy.deepcopy(window[given])
+        return d
+
+    def inactive_missing(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        d["model"]["physics"]["water_use"] = {"value": 1}
+        irr = d["sites"][0]["properties"]["irrigation"]
+        irr["daywat"]["monday"] = 1.0
+        irr.pop(missing, None)
+        irr[given] = copy.deepcopy(window[given])
+        return d
+
+    def active_valid(base: dict[str, Any]) -> dict[str, Any]:
+        d = copy.deepcopy(base)
+        d["model"]["physics"]["water_use"] = {"value": 0}
+        irr = d["sites"][0]["properties"]["irrigation"]
+        irr["daywat"]["monday"] = 1.0
+        irr["ie_start"] = copy.deepcopy(window["ie_start"])
+        irr["ie_end"] = copy.deepcopy(window["ie_end"])
+        return d
+
+    return RequiredRuleSpec(
+        case_id=f"IrrigationParams.{missing}[paired_with_{given}]",
+        model_name="IrrigationParams",
+        field_name=missing,
+        active_method=f"modelled irrigation active and {given} is given",
+        error_pattern=r"Both ie_start and ie_end must be specified together",
+        build_active_missing=active_missing,
+        build_inactive_missing=inactive_missing,
+        build_active_valid=active_valid,
+    )
+
+
 NON_WATER_SOIL_MODELS: tuple[tuple[str, str], ...] = (
     # SurfaceProperties is the shared base model in DOC_REQUIRED_WHEN; map it
     # to a concrete non-water surface (bsoil) alongside all six concrete subclasses.
@@ -772,6 +815,8 @@ ACTIVE_FROM_YAML_SPECS: tuple[RequiredRuleSpec, ...] = (
     _make_dls_spec("enddls", "startdls", daylight_clock=True),
     _make_dls_spec("startdls", "enddls", daylight_clock=False),
     _make_dls_spec("enddls", "startdls", daylight_clock=False),
+    _make_irrigation_spec("ie_start", "ie_end"),
+    _make_irrigation_spec("ie_end", "ie_start"),
 )
 
 

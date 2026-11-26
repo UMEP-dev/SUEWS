@@ -333,28 +333,50 @@ def _axis_from_prefixed_name(name: str) -> tuple[str | None, bool]:
     return None, False
 
 
+def _axis_from_parent_dir(name: str, *, immediate: bool) -> tuple[str | None, bool]:
+    """Extract an axis from a parent directory name, flagging ambiguity."""
+    lowered = name.lower()
+    if lowered in AXES:
+        return lowered, False
+    if lowered in {"physics-core", "physics_core"}:
+        return "physics", False
+    if lowered.startswith(_CI_METRICS_PREFIXES):
+        return _axis_from_prefixed_name(lowered)
+    if immediate and len(_axis_tokens(lowered)) > 1:
+        return None, True
+    return None, False
+
+
 def source_axis(path: Path) -> str | None:
     """Return the CI test axis a metrics artefact belongs to.
 
     Recognises both schema 1 (``api``, ``physics``) and schema 2
     (``tooling``, ``unit``, ``native``, ``physics``, including
-    ``physics-core``). Returns ``None`` when the path carries no axis label or
-    names multiple axes ambiguously.
+    ``physics-core``). Returns ``None`` when the path carries no axis label,
+    when a path component names multiple axes ambiguously, or when the
+    filename and enclosing artefact directory contradict each other.
     """
-    axis, ambiguous = _axis_from_prefixed_name(path.stem)
-    if ambiguous or axis is not None:
-        return None if ambiguous else axis
-    for parent in path.parents:
-        name = parent.name.lower()
-        if name in AXES:
-            return name
-        if name in {"physics-core", "physics_core"}:
-            return "physics"
-        if name.startswith(_CI_METRICS_PREFIXES):
-            parent_axis, parent_ambiguous = _axis_from_prefixed_name(name)
-            if parent_ambiguous or parent_axis is not None:
-                return None if parent_ambiguous else parent_axis
-    return None
+    stem_axis, stem_ambiguous = _axis_from_prefixed_name(path.stem)
+    if stem_ambiguous:
+        return None
+    parent_axis: str | None = None
+    for depth, parent in enumerate(path.parents):
+        axis, ambiguous = _axis_from_parent_dir(parent.name, immediate=(depth == 0))
+        if ambiguous:
+            return None
+        if axis is not None:
+            if (
+                stem_axis is not None
+                and axis != stem_axis
+                and (
+                    depth == 0
+                    or parent.name.lower().startswith(_CI_METRICS_PREFIXES)
+                )
+            ):
+                return None
+            if parent_axis is None:
+                parent_axis = axis
+    return stem_axis if stem_axis is not None else parent_axis
 
 
 def missing_required_axes(

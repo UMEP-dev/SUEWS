@@ -877,12 +877,14 @@ def infer_lane(
     """
     candidate_lanes = _validate_allowed_lanes(allowed_lanes)
 
-    for lane, ambiguous in (
-        _lane_from_stem(path.stem),
-        _lane_from_parent_name(path.parent.name),
-    ):
-        if ambiguous or lane is not None:
-            return None if ambiguous else lane
+    stem_lane, stem_ambiguous = _lane_from_stem(path.stem)
+    parent_lane, parent_ambiguous = _lane_from_parent_name(path.parent.name)
+    if stem_ambiguous or parent_ambiguous:
+        return None
+    if stem_lane is not None and parent_lane is not None and stem_lane != parent_lane:
+        return None
+    if stem_lane is not None or parent_lane is not None:
+        return stem_lane if stem_lane is not None else parent_lane
 
     measured = [test for test in tests if test.measured]
     if not measured:
@@ -1042,7 +1044,11 @@ def load_baseline(path: Path) -> DurationBaseline:
     if not isinstance(payload, dict):
         raise ValueError(f"{safe_path}: baseline root must be a JSON object")
     version = payload.get("schema_version")
-    if isinstance(version, bool) or version not in SCHEMA_REQUIRED_LANES:
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version not in SCHEMA_REQUIRED_LANES
+    ):
         supported = ", ".join(str(v) for v in SUPPORTED_BASELINE_SCHEMA_VERSIONS)
         raise ValueError(
             f"{safe_path}: unsupported baseline schema {version!r} "
@@ -1394,7 +1400,11 @@ def build_baseline(
     recorded in ``generated_from_runs`` so local filesystem paths never enter
     the committed baseline.
     """
-    if isinstance(schema_version, bool) or schema_version not in SCHEMA_REQUIRED_LANES:
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version not in SCHEMA_REQUIRED_LANES
+    ):
         supported = ", ".join(str(v) for v in SUPPORTED_BASELINE_SCHEMA_VERSIONS)
         raise ValueError(
             f"unsupported baseline schema {schema_version!r} "

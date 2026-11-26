@@ -1717,7 +1717,7 @@ def test_schema2_multi_axis_detects_regression_marker_drift_and_missing_lane(
 @pytest.mark.smoke
 @pytest.mark.core
 def test_schema2_cohorts_alias_and_schema_validation_fail_closed(
-    tmp_path: Path,
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Schema 2 accepts `lanes` or `cohorts`, and both schemas fail closed on mismatches."""
     v2_base = guard.DurationBaseline(
@@ -1796,8 +1796,8 @@ def test_schema2_cohorts_alias_and_schema_validation_fail_closed(
     with pytest.raises(ValueError, match=r"unexpected lane.*tooling"):
         guard.load_baseline(bad_v1_extra)
 
-    for bad_ver in (0, 3, True):
-        bad_ver_path = tmp_path / f"bad_ver_{bad_ver}.json"
+    for idx, bad_ver in enumerate((0, 3, True, [], {})):
+        bad_ver_path = tmp_path / f"bad_ver_{idx}.json"
         bad_ver_path.write_text(
             json.dumps({**v1_dict, "schema_version": bad_ver}), encoding="utf-8"
         )
@@ -1805,6 +1805,10 @@ def test_schema2_cohorts_alias_and_schema_validation_fail_closed(
             guard.load_baseline(bad_ver_path)
         with pytest.raises(ValueError, match="unsupported baseline schema"):
             guard.build_baseline([tmp_path], schema_version=bad_ver)  # type: ignore[arg-type]
+        assert guard.main([str(tmp_path), "--baseline", str(bad_ver_path)]) == 2
+        cli_out = capsys.readouterr().out
+        assert "[X]" in cli_out
+        assert "unsupported baseline schema" in cli_out
 
 
 @pytest.mark.smoke
@@ -1840,6 +1844,16 @@ def test_infer_lane_dual_schema_ambiguity_and_transitional_shim_isolation(
         guard.infer_lane(tmp_path / "ci-metrics-unit-native-cp312" / "pytest.json", [])
         is None
     )
+    # Labelled filenames inside ambiguous or contradictory directories must fail closed.
+    assert (
+        guard.infer_lane(
+            tmp_path / "ci-metrics-unit-native-cp312" / "unit-cp312.json", []
+        )
+        is None
+    )
+    assert (
+        guard.infer_lane(tmp_path / "native" / "unit-cp312.json", []) is None
+    )
 
     # Unrelated pytest temp dir containing `unit` must not override marker fallback.
     api_test = cost_markers.TestCost(
@@ -1870,8 +1884,9 @@ def test_infer_lane_dual_schema_ambiguity_and_transitional_shim_isolation(
         == "unit"
     )
 
-    # Cross-schema CLI isolation: schema 2 artefacts evaluated against a schema 1 baseline
-    # must NOT misclassify a `unit` artefact (even with `api` shim markers) as `api`.
+    # Cross-schema CLI isolation + ambiguous-directory rejection: schema 2 artefacts
+    # (and a labelled api file under an ambiguous directory) evaluated against a
+    # schema 1 baseline must leave `api` missing rather than entering evaluation.
     v1_baseline = _synthetic_baseline()
     v1_path = tmp_path / "v1_baseline.json"
     guard.write_baseline(v1_baseline, v1_path)
@@ -1881,6 +1896,15 @@ def test_infer_lane_dual_schema_ambiguity_and_transitional_shim_isolation(
         mixed_dir / "unit" / "unit-cp312-linux-x86_64.json",
         [
             _record(nid, call=cpu, markers=("api", "unit"))
+            for nid, cpu in v1_baseline.lanes["api"].reference_tests.items()
+        ],
+    )
+    _write_artefact(
+        mixed_dir
+        / "ci-metrics-api-unit-cp312"
+        / "api-cp312-manylinux-x86_64.json",
+        [
+            _record(nid, call=cpu, markers=("api",))
             for nid, cpu in v1_baseline.lanes["api"].reference_tests.items()
         ],
     )

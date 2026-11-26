@@ -103,33 +103,34 @@ def _drop_hour_24(profile_day: dict) -> None:
 
 
 _WITNESS_CASES = [
-    # Conductance subsystem: missing, null, malformed
+    # Conductance subsystem: missing (defaulted in SUEWSConfig per BR-01/C-EMIT), null, malformed
     pytest.param(
         False,
         lambda s: s["properties"]["conductance"].pop("g_max"),
-        "sites[gridiv=1].properties.conductance.g_max",
+        ("sites[gridiv=1].properties.conductance.g_max",),
         None,
         id="conductance-missing-g_max",
     ),
     pytest.param(
         False,
         lambda s: s["properties"]["conductance"].__setitem__("g_max", {"value": None}),
-        "sites[gridiv=1].properties.conductance.g_max",
+        ("sites[gridiv=1].properties.conductance.g_max",),
         ("conductance.g_max",),
         id="conductance-null-g_max",
     ),
     pytest.param(
         False,
         lambda s: s["properties"]["conductance"].__setitem__("g_max", "not-a-number"),
-        "sites[gridiv=1].properties.conductance.g_max",
+        ("sites[gridiv=1].properties.conductance.g_max",),
         ("conductance.g_max",),
         id="conductance-malformed-g_max",
     ),
-    # Irrigation subsystem: missing, null, malformed, incorrectly sized (24-hour profile)
+    # Irrigation subsystem: missing (defaulted in SUEWSConfig per BR-01/C-EMIT), null,
+    # malformed, incorrectly sized (24-hour profile missing hour 24).
     pytest.param(
         True,
         lambda s: s["properties"]["irrigation"].pop("h_maintain"),
-        "sites[gridiv=1].properties.irrigation.h_maintain",
+        ("sites[gridiv=1].properties.irrigation.h_maintain",),
         None,
         id="irrigation-missing-h_maintain",
     ),
@@ -138,7 +139,7 @@ _WITNESS_CASES = [
         lambda s: s["properties"]["irrigation"].__setitem__(
             "h_maintain", {"value": None}
         ),
-        "sites[gridiv=1].properties.irrigation.h_maintain",
+        ("sites[gridiv=1].properties.irrigation.h_maintain",),
         ("sites[gridiv=1].properties.irrigation.h_maintain",),
         id="irrigation-null-h_maintain",
     ),
@@ -147,7 +148,7 @@ _WITNESS_CASES = [
         lambda s: s["properties"]["irrigation"].__setitem__(
             "h_maintain", {"value": float("nan")}
         ),
-        "sites[gridiv=1].properties.irrigation.h_maintain",
+        ("sites[gridiv=1].properties.irrigation.h_maintain",),
         ("sites[gridiv=1].properties.irrigation.h_maintain",),
         id="irrigation-malformed-nan-h_maintain",
     ),
@@ -156,8 +157,11 @@ _WITNESS_CASES = [
         lambda s: _drop_hour_24(
             s["properties"]["irrigation"]["wuprofa_24hr"]["working_day"]
         ),
-        "sites[gridiv=1].properties.irrigation.wuprofa_24hr.working_day",
-        ("wuprofa_24hr.working_day", "24"),
+        (
+            "sites[gridiv=1].properties.irrigation.wuprofa_24hr.working_day",
+            "missing 1 hour(s): 24",
+        ),
+        ("wuprofa_24hr.working_day", "missing hours: [24]"),
         id="irrigation-wrong-size-wuprofa_24hr",
     ),
 ]
@@ -165,7 +169,7 @@ _WITNESS_CASES = [
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("activate_irrigation", "mutate_site", "expected_path", "public_needles"),
+    ("activate_irrigation", "mutate_site", "expected_needles", "public_needles"),
     _WITNESS_CASES,
 )
 def test_conductance_and_irrigation_br02_failure_witnesses(
@@ -174,7 +178,7 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
     _conductance_irrigation_base: dict,
     activate_irrigation: bool,
     mutate_site,
-    expected_path: str,
+    expected_needles: tuple[str, ...],
     public_needles: tuple[str, ...] | None,
 ) -> None:
     """BR-02 witnesses for conductance and irrigation across Python and suews-engine."""
@@ -192,7 +196,9 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
             _conductance_irrigation_base["forcing_flat_12h"],
             _conductance_irrigation_base["n_steps_12h"],
         )
-    assert expected_path in str(exc_info.value), str(exc_info.value)
+    pyo3_msg = str(exc_info.value)
+    for needle in expected_needles:
+        assert needle in pyo3_msg, f"expected {needle!r} in {pyo3_msg!r}"
 
     # 2. Standalone suews-engine CLI boundary
     cfg_path = tmp_path / "bad_resolved.yml"
@@ -204,10 +210,10 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
         timeout=60,
         check=False,
     )
-    assert res.returncode != 0, f"expected engine rejection for {expected_path}"
-    assert expected_path in f"{res.stdout}\n{res.stderr}", (
-        f"expected {expected_path} in stderr:\n{res.stderr}"
-    )
+    assert res.returncode != 0, f"expected engine rejection for {expected_needles[0]}"
+    combined = f"{res.stdout}\n{res.stderr}"
+    for needle in expected_needles:
+        assert needle in combined, f"expected {needle!r} in {combined!r}"
     assert not (out_dir / "suews_output.arrow").exists()
 
     # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation.run)

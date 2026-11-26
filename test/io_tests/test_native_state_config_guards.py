@@ -123,8 +123,12 @@ _WITNESS_CASES = [
                 "temperature", [15.0, 15.0]
             ),
         ),
-        ("sites[gridiv=1].initial_states.paved.temperature", "5"),
-        ("sites[gridiv=1].initial_states.paved.temperature", "5"),
+        (
+            "sites[gridiv=1].initial_states.paved.temperature",
+            "has 2 values",
+            "requires at least 5",
+        ),
+        ("sites[gridiv=1].initial_states.paved.temperature", "5 items"),
         id="state-wrong-size-paved-temperature",
     ),
 ]

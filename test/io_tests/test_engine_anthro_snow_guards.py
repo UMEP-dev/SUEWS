@@ -236,14 +236,15 @@ def _drop_hour_24(profile_day: dict) -> None:
 
 
 @pytest.mark.parametrize(
-    ("emissions", "snow_use", "mutator", "expected_path", "public_needles"),
+    ("emissions", "snow_use", "mutator", "expected_needles", "public_needles"),
     [
-        # Snow subsystem: missing, null, malformed, incorrectly sized (24-hour profile)
+        # Snow subsystem: missing (defaulted in SUEWSConfig per BR-01/C-EMIT), null,
+        # malformed, incorrectly sized (24-hour profile missing hour 24).
         pytest.param(
             2,
             1,
             lambda p: p["snow"].pop("water_holding_capacity_max", None),
-            "properties.snow.water_holding_capacity_max",
+            ("properties.snow.water_holding_capacity_max",),
             None,
             id="snow-missing-scalar",
         ),
@@ -253,7 +254,7 @@ def _drop_hour_24(profile_day: dict) -> None:
             lambda p: p["snow"].__setitem__(
                 "water_holding_capacity_max", {"value": None}
             ),
-            "properties.snow.water_holding_capacity_max",
+            ("properties.snow.water_holding_capacity_max",),
             ("water_holding_capacity_max", "null"),
             id="snow-null-scalar",
         ),
@@ -261,7 +262,7 @@ def _drop_hour_24(profile_day: dict) -> None:
             2,
             1,
             lambda p: p["snow"].__setitem__("tau_cold_snow", "bad"),
-            "properties.snow.tau_cold_snow",
+            ("properties.snow.tau_cold_snow",),
             ("tau_cold_snow",),
             id="snow-malformed-scalar",
         ),
@@ -269,20 +270,19 @@ def _drop_hour_24(profile_day: dict) -> None:
             2,
             1,
             lambda p: _drop_hour_24(p["snow"]["snow_profile_24hr"]["working_day"]),
-            "properties.snow.snow_profile_24hr.working_day",
-            ("snow_profile_24hr.working_day", "24"),
+            ("properties.snow.snow_profile_24hr.working_day", "missing 1 hour(s): 24"),
+            ("snow_profile_24hr.working_day", "missing hours: [24]"),
             id="snow-wrong-size-profile",
         ),
-        # Anthropogenic emissions subsystem: missing, null, malformed, incorrectly sized
+        # Anthropogenic emissions subsystem: missing (enddls with startdls set fails in
+        # public SUEWSConfig as well as resolved YAML), null, malformed, incorrectly sized.
         pytest.param(
             2,
             0,
-            lambda p: p["anthropogenic_emissions"]["heat"]["qf_a"].pop(
-                "working_day", None
-            ),
-            "properties.anthropogenic_emissions.heat.qf_a.working_day",
-            None,
-            id="anthro-missing-scalar",
+            lambda p: p["anthropogenic_emissions"].pop("enddls", None),
+            ("properties.anthropogenic_emissions.enddls",),
+            ("startdls and enddls",),
+            id="anthro-missing-enddls",
         ),
         pytest.param(
             2,
@@ -290,7 +290,9 @@ def _drop_hour_24(profile_day: dict) -> None:
             lambda p: p["anthropogenic_emissions"]["co2"][
                 "profile_human_activity_24hr"
             ]["holiday"].__setitem__("12", None),
-            "properties.anthropogenic_emissions.co2.profile_human_activity_24hr.holiday.12",
+            (
+                "properties.anthropogenic_emissions.co2.profile_human_activity_24hr.holiday.12",
+            ),
             (
                 "properties.anthropogenic_emissions.co2.profile_human_activity_24hr.holiday.12",
             ),
@@ -302,7 +304,7 @@ def _drop_hour_24(profile_day: dict) -> None:
             lambda p: p["anthropogenic_emissions"].__setitem__(
                 "startdls", {"value": 86.5}
             ),
-            "properties.anthropogenic_emissions.startdls",
+            ("properties.anthropogenic_emissions.startdls",),
             ("startdls", "integer"),
             id="anthro-malformed-dls",
         ),
@@ -312,8 +314,11 @@ def _drop_hour_24(profile_day: dict) -> None:
             lambda p: _drop_hour_24(
                 p["anthropogenic_emissions"]["heat"]["ahprof_24hr"]["working_day"]
             ),
-            "properties.anthropogenic_emissions.heat.ahprof_24hr.working_day",
-            ("ahprof_24hr.working_day", "24"),
+            (
+                "properties.anthropogenic_emissions.heat.ahprof_24hr.working_day",
+                "missing 1 hour(s): 24",
+            ),
+            ("ahprof_24hr.working_day", "missing hours: [24]"),
             id="anthro-wrong-size-profile",
         ),
     ],
@@ -325,7 +330,7 @@ def test_snow_and_anthro_br02_failure_witnesses(
     emissions: int,
     snow_use: int,
     mutator,
-    expected_path: str,
+    expected_needles: tuple[str, ...],
     public_needles: tuple[str, ...] | None,
 ):
     """BR-02 witnesses for snow and anthropogenic emissions across Python and suews-engine."""
@@ -350,9 +355,10 @@ def test_snow_and_anthro_br02_failure_witnesses(
         check=False,
     )
     assert result.returncode != 0, (
-        f"invalid {expected_path} must not exit 0 (stdout={result.stdout})"
+        f"invalid {expected_needles[0]} must not exit 0 (stdout={result.stdout})"
     )
-    assert expected_path in result.stderr, result.stderr
+    for needle in expected_needles:
+        assert needle in result.stderr, f"expected {needle!r} in {result.stderr!r}"
     assert not (tmp_path / "suews_output.arrow").exists()
 
     # 2. PyO3 Python-bridge witness
@@ -363,7 +369,9 @@ def test_snow_and_anthro_br02_failure_witnesses(
             _anthro_snow_base["forcing_flat"],
             _anthro_snow_base["forcing_count"],
         )
-    assert expected_path in str(exc_info.value), str(exc_info.value)
+    pyo3_msg = str(exc_info.value)
+    for needle in expected_needles:
+        assert needle in pyo3_msg, f"expected {needle!r} in {pyo3_msg!r}"
 
     # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation.run)
     if public_needles is not None:

@@ -113,13 +113,18 @@ _WITNESS_CASES = [
     ),
     pytest.param(
         lambda s: s["properties"]["vertical_layers"].__setitem__(
-            "height", {"value": [0.0, 10.0]}
+            "building_frac", {"value": [0.4, 0.2]}
         ),
-        ("sites[gridiv=1].properties.vertical_layers.height",),
-        ("vertical_layers",),
-        id="spartacus-wrong-size-height",
+        (
+            "sites[gridiv=1].properties.vertical_layers.building_frac",
+            "has 2 values",
+            "requires at least 3",
+        ),
+        ("Building fractions array length (2)", "nlayer (3)"),
+        id="spartacus-wrong-size-building_frac",
     ),
-    # EHC subsystem: missing, null, malformed, incorrectly sized
+    # EHC subsystem: missing (defaulted in SUEWSConfig per BR-01/C-EMIT), null,
+    # malformed, incorrectly sized.
     pytest.param(
         lambda s: s["properties"]["vertical_layers"]["walls"][0]["thermal_layers"].pop(
             "k"
@@ -157,7 +162,11 @@ _WITNESS_CASES = [
         lambda s: s["properties"]["vertical_layers"].__setitem__(
             "walls", s["properties"]["vertical_layers"]["walls"][:1]
         ),
-        ("sites[gridiv=1].properties.vertical_layers.walls",),
+        (
+            "sites[gridiv=1].properties.vertical_layers.walls",
+            "has 1 values",
+            "requires at least 3",
+        ),
         ("Wall layers count (1)", "nlayer (3)"),
         id="ehc-wrong-size-walls",
     ),

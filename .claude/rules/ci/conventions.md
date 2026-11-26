@@ -452,20 +452,20 @@ its lanes once `build-publish_to_pypi.yml` enables `GATE_AXIS_SCHEMA=2` (#2349
 `W1-6`); until then, the `physics | api` gate above remains active, and this
 section does not describe what CI runs. The superseded parts of the sections
 above are pruned in their own pull request after `W1-6` lands, so each lane is
-stated in one place. [decision: pending software maintainer approval on #PRNUM]
+stated in one place. [decision: pending software maintainer approval on #2350]
 
 - **One required check.** Every axis reports through the existing required
   check `PR build validation`; no required check is added or renamed. [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
 - **From source at t=0.** `tooling` and `unit` start with the workflow, from a
-  source checkout, without waiting for a wheel. [decision: pending software maintainer approval on #PRNUM]
+  source checkout, without waiting for a wheel. [decision: pending software maintainer approval on #2350]
 - **`native` on one Python per OS.** `native` runs once per built OS on cp312
   (the abi3 build floor), not across Python versions, because the same abi3
   binary is under test. An installed-wheel `abi3_smoke` lane covers the other
   interpreters: cp315 on pull requests, cp313 to cp315 on the nightly and on
-  release. [decision: pending software maintainer approval on #PRNUM]
+  release. [decision: pending software maintainer approval on #2350]
 - **`os_compat` on Windows and macOS.** The `os_compat` slice runs on the
   Windows and macOS builds as well as Linux; the rest of `tooling` and `unit`
-  runs on Linux only. [decision: pending software maintainer approval on #PRNUM]
+  runs on Linux only. [decision: pending software maintainer approval on #2350]
 - **Full `physics` on exactly four triggers:** (1) pull requests that touch
   Fortran, Rust or the build (the `fortran`, `rust` and `build` filter
   categories); (2) pull requests labelled `0-physics:change` or
@@ -473,7 +473,7 @@ stated in one place. [decision: pending software maintainer approval on #PRNUM]
   wheel-building Python pull request runs `physics-core`: the smoke tests plus
   `test/core/test_sample_output_exact.py` (about 50 s). Tag releases keep the
   full matrix at tier `all`, and the publish jobs require every axis to have
-  succeeded. [decision: pending software maintainer approval on #PRNUM]
+  succeeded. [decision: pending software maintainer approval on #2350]
 
 ---
 

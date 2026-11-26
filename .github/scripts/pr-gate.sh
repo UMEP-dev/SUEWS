@@ -40,8 +40,38 @@
 #   FORTRAN_UNINIT_CHANGED       -- needs.detect-changes.outputs.fortran-uninit-changed
 #   RUST_CAPI_OBSERVER_RESULT    -- needs.rust_capi_observer.result
 #   RUST_CAPI_OBSERVER_CHANGED   -- needs.detect-changes.outputs.rust-capi-observer-changed
+#
+# Dual-schema axis selection (#2349 W1-3b / W1-6):
+#   GATE_AXIS_SCHEMA             -- unset/empty/1 = active Schema 1 default (unchanged);
+#                                   2 = Schema 2 multi-axis topology; any other value
+#                                   fails closed.
+#   TOOLING_RESULT               -- Schema 2: source-checkout tooling lane result
+#   UNIT_RESULT                  -- Schema 2: source-checkout unit lane result
+#   NATIVE_RESULT                -- Schema 2: per-OS cp312 native lane result
+#   PHYSICS_RESULT               -- Schema 2: physics lane result
+#   OS_COMPAT_RESULT             -- Schema 2: Windows/macOS/Linux os_compat lane result
+#   OS_COMPAT_REQUIRED           -- Schema 2: optional 'true'|'false' (defaults to
+#                                   'true' when NEEDS_BUILD=true, 'false' otherwise)
+#   ABI3_SMOKE_RESULT            -- Schema 2: cross-CPython installed-wheel smoke result
+#   ABI3_SMOKE_REQUIRED          -- Schema 2: optional 'true'|'false' (defaults to
+#                                   'true' on pull_request when NEEDS_BUILD=true,
+#                                   'false' otherwise)
 
 set -euo pipefail
+
+GATE_AXIS_SCHEMA="${GATE_AXIS_SCHEMA:-}"
+case "${GATE_AXIS_SCHEMA}" in
+  ""|1)
+    AXIS_SCHEMA=1
+    ;;
+  2)
+    AXIS_SCHEMA=2
+    ;;
+  *)
+    echo "[X] Invalid GATE_AXIS_SCHEMA='${GATE_AXIS_SCHEMA}' (expected '1' or '2')" >&2
+    exit 1
+    ;;
+esac
 
 EVENT_NAME="${EVENT_NAME-unset}"
 CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
@@ -70,12 +100,36 @@ FORTRAN_UNINIT_CHANGED="${FORTRAN_UNINIT_CHANGED-unset}"
 RUST_CAPI_OBSERVER_RESULT="${RUST_CAPI_OBSERVER_RESULT-unset}"
 RUST_CAPI_OBSERVER_CHANGED="${RUST_CAPI_OBSERVER_CHANGED-unset}"
 
+if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  TOOLING_RESULT="${TOOLING_RESULT-unset}"
+  UNIT_RESULT="${UNIT_RESULT-unset}"
+  NATIVE_RESULT="${NATIVE_RESULT-unset}"
+  PHYSICS_RESULT="${PHYSICS_RESULT-unset}"
+  OS_COMPAT_RESULT="${OS_COMPAT_RESULT-unset}"
+  OS_COMPAT_REQUIRED="${OS_COMPAT_REQUIRED-unset}"
+  ABI3_SMOKE_RESULT="${ABI3_SMOKE_RESULT-unset}"
+  ABI3_SMOKE_REQUIRED="${ABI3_SMOKE_REQUIRED-unset}"
+  TEST_BRIDGE_RESULT="${TEST_BRIDGE_RESULT-unset}"
+fi
+
 echo "=== Job Results ==="
+if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  echo "gate_axis_schema: ${AXIS_SCHEMA}"
+fi
 echo "event_name: ${EVENT_NAME}"
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
 echo "build_mcp: ${BUILD_MCP_RESULT}"
-echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
+if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  echo "tooling: ${TOOLING_RESULT}"
+  echo "unit: ${UNIT_RESULT}"
+  echo "native: ${NATIVE_RESULT}"
+  echo "physics: ${PHYSICS_RESULT}"
+  echo "os_compat: ${OS_COMPAT_RESULT} (required=${OS_COMPAT_REQUIRED})"
+  echo "abi3_smoke: ${ABI3_SMOKE_RESULT} (required=${ABI3_SMOKE_REQUIRED})"
+else
+  echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
+fi
 echo "core_guard: ${CORE_GUARD_RESULT} (test_tier=${TEST_TIER:-unset})"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "check_physics_label: ${PHYSICS_LABEL_RESULT}"
@@ -111,19 +165,42 @@ VALIDATION_PASSED=true
 STRICT_CONSOLIDATED=false
 if [[ "${EVENT_NAME}" == "pull_request" ]] || [[ "${EVENT_NAME}" == "merge_group" ]]; then
   STRICT_CONSOLIDATED=true
+elif [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  STRICT_CONSOLIDATED=true
+  echo "[X] Schema 2 requires EVENT_NAME to be 'pull_request' or 'merge_group' (got '${EVENT_NAME}')"
+  VALIDATION_PASSED=false
 elif [[ "${EVENT_NAME}" != "unset" ]]; then
   echo "[X] Unexpected EVENT_NAME for pr-gate: '${EVENT_NAME}'"
   VALIDATION_PASSED=false
 fi
 
+if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  if [[ "${NEEDS_BUILD}" != "true" ]] && [[ "${NEEDS_BUILD}" != "false" ]]; then
+    echo "[X] Schema 2 requires NEEDS_BUILD to be 'true' or 'false' (got '${NEEDS_BUILD}')"
+    VALIDATION_PASSED=false
+  fi
+  if [[ "${PHYSICS_CHANGE}" != "true" ]] && [[ "${PHYSICS_CHANGE}" != "false" ]]; then
+    echo "[X] Schema 2 requires PHYSICS_CHANGE to be 'true' or 'false' (got '${PHYSICS_CHANGE}')"
+    VALIDATION_PASSED=false
+  fi
+fi
+
 # Marker-axis lint (gh#1300) runs on every PR regardless of needs-build.
 echo "Validating test marker axis (gh#1300)..."
 if [[ "${CHECK_MARKERS_RESULT}" == "success" ]]; then
-  echo "[OK] Every test file declares physics or api"
+  if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    echo "[OK] Every test file declares a valid Schema 2 axis marker"
+  else
+    echo "[OK] Every test file declares physics or api"
+  fi
 elif [[ "${CHECK_MARKERS_RESULT}" == "skipped" ]]; then
   echo "[OK] Marker lint skipped (not a PR/merge-queue/dispatch run)"
 else
-  echo "[X] Marker lint failed - some test file is missing physics/api marker"
+  if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    echo "[X] Marker lint failed - test axis marker check did not succeed"
+  else
+    echo "[X] Marker lint failed - some test file is missing physics/api marker"
+  fi
   echo "  check_test_markers: ${CHECK_MARKERS_RESULT}"
   VALIDATION_PASSED=false
 fi
@@ -163,92 +240,253 @@ else
   VALIDATION_PASSED=false
 fi
 
-if [[ "${NEEDS_BUILD}" == "true" ]]; then
-  echo "Code changes detected - validating standard build..."
-  if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
-    echo "[OK] Standard build passed"
+check_schema2_lane() {
+  local name="$1"
+  local status="$2"
+  local required="$3"
+
+  if [[ "${required}" == "true" ]]; then
+    if [[ "${status}" == "success" ]]; then
+      echo "[OK] ${name}: success"
+    else
+      echo "[X] Schema 2 lane '${name}' required but finished with status '${status}'"
+      VALIDATION_PASSED=false
+    fi
+  elif [[ "${required}" == "false" ]]; then
+    if [[ "${status}" == "success" ]]; then
+      echo "[OK] ${name}: success (not required)"
+    elif [[ "${status}" == "skipped" ]]; then
+      echo "[OK] ${name}: skipped (not required)"
+    else
+      echo "[X] Schema 2 lane '${name}' finished with status '${status}'"
+      VALIDATION_PASSED=false
+    fi
   else
-    echo "[X] Standard build failed"
-    echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+    echo "[X] Schema 2 lane '${name}' received invalid required flag '${required}' (status=${status})"
     VALIDATION_PASSED=false
   fi
+}
 
-  echo "Validating MCP package build..."
-  if [[ "${BUILD_MCP_RESULT}" == "success" ]]; then
-    echo "[OK] MCP package build passed"
+if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  if [[ "${OS_COMPAT_REQUIRED}" == "unset" ]]; then
+    if [[ "${NEEDS_BUILD}" == "true" ]]; then
+      EFFECTIVE_OS_COMPAT_REQUIRED="true"
+    else
+      EFFECTIVE_OS_COMPAT_REQUIRED="false"
+    fi
   else
-    echo "[X] MCP package build failed"
-    echo "  build_mcp: ${BUILD_MCP_RESULT}"
-    VALIDATION_PASSED=false
+    EFFECTIVE_OS_COMPAT_REQUIRED="${OS_COMPAT_REQUIRED}"
   fi
 
-  echo "Validating api cross-CPython tests..."
-  if [[ "${TEST_BRIDGE_RESULT}" == "success" ]]; then
-    echo "[OK] API tests passed on all matrix cells"
+  if [[ "${ABI3_SMOKE_REQUIRED}" == "unset" ]]; then
+    if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${NEEDS_BUILD}" == "true" ]]; then
+      EFFECTIVE_ABI3_SMOKE_REQUIRED="true"
+    else
+      EFFECTIVE_ABI3_SMOKE_REQUIRED="false"
+    fi
   else
-    echo "[X] API cross-CPython tests failed"
-    echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
-    VALIDATION_PASSED=false
+    EFFECTIVE_ABI3_SMOKE_REQUIRED="${ABI3_SMOKE_REQUIRED}"
   fi
 
-elif [[ "${PHYSICS_CHANGE}" == "true" ]]; then
-  echo "Classification label present without code-filter changes - validating wheel and physics build..."
-  if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
-    echo "[OK] Wheel and physics build passed"
-  else
-    echo "[X] Classification label requires wheel and physics build"
-    echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
-    VALIDATION_PASSED=false
-  fi
+  if [[ "${NEEDS_BUILD}" == "true" ]]; then
+    echo "Code changes detected (schema 2) - validating builds and 4+1 axis lanes..."
+    if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+      echo "[OK] Standard build passed"
+    else
+      echo "[X] Standard build failed"
+      echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+      VALIDATION_PASSED=false
+    fi
 
-  if [[ "${BUILD_MCP_RESULT}" != "success" ]] && [[ "${BUILD_MCP_RESULT}" != "skipped" ]]; then
-    echo "[X] MCP package build failed"
-    echo "  build_mcp: ${BUILD_MCP_RESULT}"
-    VALIDATION_PASSED=false
-  fi
+    echo "Validating MCP package build..."
+    if [[ "${BUILD_MCP_RESULT}" == "success" ]]; then
+      echo "[OK] MCP package build passed"
+    else
+      echo "[X] MCP package build failed"
+      echo "  build_mcp: ${BUILD_MCP_RESULT}"
+      VALIDATION_PASSED=false
+    fi
 
-else
-  echo "No code changes - builds not required"
+    echo "Validating Schema 2 axis lanes..."
+    check_schema2_lane "tooling" "${TOOLING_RESULT}" "true"
+    check_schema2_lane "unit" "${UNIT_RESULT}" "true"
+    check_schema2_lane "native" "${NATIVE_RESULT}" "true"
+    check_schema2_lane "physics" "${PHYSICS_RESULT}" "true"
+    check_schema2_lane "os_compat" "${OS_COMPAT_RESULT}" "${EFFECTIVE_OS_COMPAT_REQUIRED}"
+    check_schema2_lane "abi3_smoke" "${ABI3_SMOKE_RESULT}" "${EFFECTIVE_ABI3_SMOKE_REQUIRED}"
 
-  if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
-     [[ "${BUILD_MCP_RESULT}" == "skipped" ]] && \
-     [[ "${TEST_BRIDGE_RESULT}" == "skipped" ]]; then
-    echo "[OK] Code builds correctly skipped"
-  else
-    echo "Note: Unexpected build activity for non-code PR"
-    echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
-    echo "  build_mcp: ${BUILD_MCP_RESULT}"
-    echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
-    # Still pass if builds succeeded (conservative)
-    for result in "${BUILD_WHEELS_RESULT}" "${BUILD_MCP_RESULT}" "${TEST_BRIDGE_RESULT}"; do
-      if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then
+  elif [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+    echo "Classification label present without code-filter changes (schema 2) - validating wheel and physics lanes..."
+    if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+      echo "[OK] Wheel and physics build passed"
+    else
+      echo "[X] Classification label requires wheel and physics build"
+      echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+    if [[ "${BUILD_MCP_RESULT}" != "success" ]] && [[ "${BUILD_MCP_RESULT}" != "skipped" ]]; then
+      echo "[X] MCP package build failed"
+      echo "  build_mcp: ${BUILD_MCP_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+    echo "Validating Schema 2 axis lanes..."
+    check_schema2_lane "tooling" "${TOOLING_RESULT}" "false"
+    check_schema2_lane "unit" "${UNIT_RESULT}" "false"
+    check_schema2_lane "native" "${NATIVE_RESULT}" "false"
+    check_schema2_lane "physics" "${PHYSICS_RESULT}" "true"
+    check_schema2_lane "os_compat" "${OS_COMPAT_RESULT}" "${EFFECTIVE_OS_COMPAT_REQUIRED}"
+    check_schema2_lane "abi3_smoke" "${ABI3_SMOKE_RESULT}" "${EFFECTIVE_ABI3_SMOKE_REQUIRED}"
+
+  elif [[ "${NEEDS_BUILD}" == "false" ]]; then
+    echo "No code changes (schema 2) - builds not required"
+    for result_pair in "build_wheels:${BUILD_WHEELS_RESULT}" "build_mcp:${BUILD_MCP_RESULT}"; do
+      pair_name="${result_pair%%:*}"
+      pair_val="${result_pair#*:}"
+      if [[ "${pair_val}" != "success" ]] && [[ "${pair_val}" != "skipped" ]]; then
+        echo "[X] Unexpected failure in ${pair_name}: ${pair_val}"
         VALIDATION_PASSED=false
       fi
     done
-  fi
-fi
 
-# Every core test must pass on Linux before a merge (22 Nov 2026). The guard
-# runs whenever build_wheels ran at a ready tier (standard or physics-full);
-# draft tiers run a subset by design, and a run that needs no build (in
-# practice documentation-only) skips build_wheels and the guard together,
-# which is the single documented exemption.
-echo "Validating the core-test guard..."
-if [[ "${TEST_TIER}" == "standard" || "${TEST_TIER}" == "physics-full" ]] && \
-   [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
-  if [[ "${CORE_GUARD_RESULT}" == "success" ]]; then
-    echo "[OK] Every core test passed on Linux"
-  elif [[ "${CORE_GUARD_RESULT}" == "unset" ]] && [[ "${STRICT_CONSOLIDATED}" == "false" ]]; then
-    echo "[INFO] core_guard: not reported by caller workflow (rebase onto master)"
-  else
-    echo "[X] Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
+    echo "Validating Schema 2 axis lanes..."
+    check_schema2_lane "tooling" "${TOOLING_RESULT}" "false"
+    check_schema2_lane "unit" "${UNIT_RESULT}" "false"
+    check_schema2_lane "native" "${NATIVE_RESULT}" "false"
+    check_schema2_lane "physics" "${PHYSICS_RESULT}" "false"
+    check_schema2_lane "os_compat" "${OS_COMPAT_RESULT}" "${EFFECTIVE_OS_COMPAT_REQUIRED}"
+    check_schema2_lane "abi3_smoke" "${ABI3_SMOKE_RESULT}" "${EFFECTIVE_ABI3_SMOKE_REQUIRED}"
+  fi
+
+  if [[ "${TEST_BRIDGE_RESULT}" != "unset" ]] && \
+     [[ "${TEST_BRIDGE_RESULT}" != "success" ]] && \
+     [[ "${TEST_BRIDGE_RESULT}" != "skipped" ]]; then
+    echo "[X] Legacy api/bridge lane finished with status '${TEST_BRIDGE_RESULT}'"
     VALIDATION_PASSED=false
   fi
-elif [[ "${CORE_GUARD_RESULT}" == "failure" ]] || [[ "${CORE_GUARD_RESULT}" == "cancelled" ]]; then
-  echo "[X] Core-test guard finished with '${CORE_GUARD_RESULT}'"
-  VALIDATION_PASSED=false
+
+  echo "Validating the core-test guard (schema 2)..."
+  if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+    case "${TEST_TIER}" in
+      physics-core|standard|physics-full)
+        if [[ "${CORE_GUARD_RESULT}" == "success" ]]; then
+          echo "[OK] Every core test passed on Linux (schema 2, tier ${TEST_TIER})"
+        else
+          echo "[X] Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
+          VALIDATION_PASSED=false
+        fi
+        ;;
+      smoke|core|cfg|all)
+        if [[ "${CORE_GUARD_RESULT}" == "success" ]] || [[ "${CORE_GUARD_RESULT}" == "skipped" ]]; then
+          echo "[OK] Core-test guard not required (tier ${TEST_TIER}, build_wheels ${BUILD_WHEELS_RESULT})"
+        else
+          echo "[X] Core-test guard finished with '${CORE_GUARD_RESULT}'"
+          VALIDATION_PASSED=false
+        fi
+        ;;
+      *)
+        echo "[X] Core-test guard received invalid or empty Schema 2 TEST_TIER '${TEST_TIER}'"
+        VALIDATION_PASSED=false
+        ;;
+    esac
+  else
+    if [[ "${CORE_GUARD_RESULT}" == "success" ]] || [[ "${CORE_GUARD_RESULT}" == "skipped" ]]; then
+      echo "[OK] Core-test guard not required (tier ${TEST_TIER:-unset}, build_wheels ${BUILD_WHEELS_RESULT})"
+    else
+      echo "[X] Core-test guard finished with '${CORE_GUARD_RESULT}'"
+      VALIDATION_PASSED=false
+    fi
+  fi
+
 else
-  echo "[OK] Core-test guard not required (tier ${TEST_TIER:-unset}, build_wheels ${BUILD_WHEELS_RESULT})"
+  if [[ "${NEEDS_BUILD}" == "true" ]]; then
+    echo "Code changes detected - validating standard build..."
+    if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+      echo "[OK] Standard build passed"
+    else
+      echo "[X] Standard build failed"
+      echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+    echo "Validating MCP package build..."
+    if [[ "${BUILD_MCP_RESULT}" == "success" ]]; then
+      echo "[OK] MCP package build passed"
+    else
+      echo "[X] MCP package build failed"
+      echo "  build_mcp: ${BUILD_MCP_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+    echo "Validating api cross-CPython tests..."
+    if [[ "${TEST_BRIDGE_RESULT}" == "success" ]]; then
+      echo "[OK] API tests passed on all matrix cells"
+    else
+      echo "[X] API cross-CPython tests failed"
+      echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+  elif [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+    echo "Classification label present without code-filter changes - validating wheel and physics build..."
+    if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+      echo "[OK] Wheel and physics build passed"
+    else
+      echo "[X] Classification label requires wheel and physics build"
+      echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+    if [[ "${BUILD_MCP_RESULT}" != "success" ]] && [[ "${BUILD_MCP_RESULT}" != "skipped" ]]; then
+      echo "[X] MCP package build failed"
+      echo "  build_mcp: ${BUILD_MCP_RESULT}"
+      VALIDATION_PASSED=false
+    fi
+
+  else
+    echo "No code changes - builds not required"
+
+    if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
+       [[ "${BUILD_MCP_RESULT}" == "skipped" ]] && \
+       [[ "${TEST_BRIDGE_RESULT}" == "skipped" ]]; then
+      echo "[OK] Code builds correctly skipped"
+    else
+      echo "Note: Unexpected build activity for non-code PR"
+      echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+      echo "  build_mcp: ${BUILD_MCP_RESULT}"
+      echo "  api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
+      # Still pass if builds succeeded (conservative)
+      for result in "${BUILD_WHEELS_RESULT}" "${BUILD_MCP_RESULT}" "${TEST_BRIDGE_RESULT}"; do
+        if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then
+          VALIDATION_PASSED=false
+        fi
+      done
+    fi
+  fi
+
+  # Every core test must pass on Linux before a merge (22 Nov 2026). The guard
+  # runs whenever build_wheels ran at a ready tier (standard or physics-full);
+  # draft tiers run a subset by design, and a run that needs no build (in
+  # practice documentation-only) skips build_wheels and the guard together,
+  # which is the single documented exemption.
+  echo "Validating the core-test guard..."
+  if [[ "${TEST_TIER}" == "standard" || "${TEST_TIER}" == "physics-full" ]] && \
+     [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
+    if [[ "${CORE_GUARD_RESULT}" == "success" ]]; then
+      echo "[OK] Every core test passed on Linux"
+    elif [[ "${CORE_GUARD_RESULT}" == "unset" ]] && [[ "${STRICT_CONSOLIDATED}" == "false" ]]; then
+      echo "[INFO] core_guard: not reported by caller workflow (rebase onto master)"
+    else
+      echo "[X] Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
+      VALIDATION_PASSED=false
+    fi
+  elif [[ "${CORE_GUARD_RESULT}" == "failure" ]] || [[ "${CORE_GUARD_RESULT}" == "cancelled" ]]; then
+    echo "[X] Core-test guard finished with '${CORE_GUARD_RESULT}'"
+    VALIDATION_PASSED=false
+  else
+    echo "[OK] Core-test guard not required (tier ${TEST_TIER:-unset}, build_wheels ${BUILD_WHEELS_RESULT})"
+  fi
 fi
 
 check_unconditional_producer() {

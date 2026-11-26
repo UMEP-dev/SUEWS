@@ -19,11 +19,18 @@ from typing import Any
 import pytest
 import yaml
 
+from scripts.suews import ci_test_layout, ci_tiers
 from scripts.suews.analyse_ci_run import analyse_run
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture(autouse=True)
+def _isolate_axis_schema_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep tests isolated from an ambient GATE_AXIS_SCHEMA=2 CI environment."""
+    monkeypatch.delenv("GATE_AXIS_SCHEMA", raising=False)
 
 
 def _load_classify_pyproject_module():
@@ -90,12 +97,12 @@ def _write_gh_stub(bin_dir: Path) -> None:
     stub.chmod(0o755)
 
 
-def _run_determine_matrix(
+def _run_determine_matrix_raw(
     tmp_path: Path,
     env_overrides: dict[str, str],
     *,
     drop_vars: tuple[str, ...] = (),
-) -> dict[str, str]:
+) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
     gh_out = tmp_path / "github_output"
     gh_out.write_text("", encoding="utf-8")
     env = {
@@ -112,17 +119,31 @@ def _run_determine_matrix(
         "TESTS_CHANGED": "false",
         "PHYSICS_CHANGE": "false",
     }
+    env.pop("GATE_AXIS_SCHEMA", None)
     for key in drop_vars:
         env.pop(key, None)
     env.update(env_overrides)
-    subprocess.run(
+    proc = subprocess.run(
         ["bash", str(REPO_ROOT / ".github/scripts/determine-matrix.sh")],
         env=env,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
-    return _parse_github_output(gh_out)
+    return proc, _parse_github_output(gh_out)
+
+
+def _run_determine_matrix(
+    tmp_path: Path,
+    env_overrides: dict[str, str],
+    *,
+    drop_vars: tuple[str, ...] = (),
+) -> dict[str, str]:
+    proc, parsed = _run_determine_matrix_raw(
+        tmp_path, env_overrides, drop_vars=drop_vars
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    return parsed
 
 
 # ---- classify_pyproject.py tests ----
@@ -1496,3 +1517,303 @@ def test_nested_leaf_job_names_say_what_the_job_does() -> None:
     wheel_patterns = {d for deps in needs.values() for d in deps if "/ wheel" in d}
     assert wheel_patterns
     assert not any(fnmatchcase(api_job, d) for d in wheel_patterns)
+
+
+# ---- Dual-schema determine-matrix.sh contracts (#2349 W1-3b) ----
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI only",
+)
+def test_determine_matrix_schema1_parity_and_invalid_schema_fail_closed(
+    tmp_path: Path,
+) -> None:
+    """Unset, empty, and '1' emit exact Schema 1 keys; invalid values fail closed."""
+    expected_v1_keys = {
+        "buildplat",
+        "api_buildplat",
+        "python",
+        "test_tier",
+        "api_python",
+        "bookend_python",
+    }
+    scenarios = (
+        {"EVENT_NAME": "pull_request", "IS_DRAFT": "false", "PYTHON_CHANGED": "true"},
+        {"EVENT_NAME": "pull_request", "IS_DRAFT": "true", "FORTRAN_CHANGED": "true"},
+        {"EVENT_NAME": "merge_group", "FORTRAN_CHANGED": "true"},
+        {"EVENT_NAME": "schedule"},
+        {"EVENT_NAME": "push", "GITHUB_REF": "refs/tags/2026.11.26"},
+        {
+            "EVENT_NAME": "workflow_dispatch",
+            "INPUT_MATRIX_CONFIG": "minimal",
+            "INPUT_TEST_TIER": "standard",
+        },
+    )
+    for scenario in scenarios:
+        unset = _run_determine_matrix(tmp_path, scenario)
+        empty = _run_determine_matrix(tmp_path, {**scenario, "GATE_AXIS_SCHEMA": ""})
+        explicit1 = _run_determine_matrix(
+            tmp_path, {**scenario, "GATE_AXIS_SCHEMA": "1"}
+        )
+        assert set(unset) == expected_v1_keys, scenario
+        assert empty == unset, scenario
+        assert explicit1 == unset, scenario
+
+    for bad in ("0", "3", "v2", "true", " 2", "2 "):
+        proc, parsed = _run_determine_matrix_raw(
+            tmp_path, {"GATE_AXIS_SCHEMA": bad, "PYTHON_CHANGED": "true"}
+        )
+        assert proc.returncode == 1, (bad, proc.stdout, proc.stderr)
+        assert "invalid GATE_AXIS_SCHEMA" in proc.stderr
+        assert parsed == {}
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI only",
+)
+def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
+    tmp_path: Path,
+) -> None:
+    """Schema 2 selects full physics on the exact 4 automatic triggers and physics-core otherwise."""
+    # Trigger 1: ready PRs touching fortran, rust, or build -> standard (full physics).
+    for flag in ("FORTRAN_CHANGED", "RUST_CHANGED", "BUILD_CHANGED"):
+        out = _run_determine_matrix(
+            tmp_path,
+            {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "pull_request", flag: "true"},
+        )
+        assert out["gate_axis_schema"] == "2"
+        assert out["test_tier"] == "standard", flag
+        assert out["full_physics"] == "true", flag
+        assert out["physics_full_trigger"] == "compiled_or_build_change", flag
+        assert json.loads(out["source_lanes"]) == ["tooling", "unit"]
+        assert json.loads(out["native_python"]) == ["cp312"]
+        assert json.loads(out["abi3_smoke_python"]) == ["cp315"]
+        assert json.loads(out["os_compat_buildplat"]) == json.loads(out["buildplat"])
+
+    # Trigger 2: ready PRs carrying 0-physics:change or 0-numerics:change -> physics-full.
+    for extra in ({}, {"FORTRAN_CHANGED": "true"}, {"PYTHON_CHANGED": "true"}):
+        out = _run_determine_matrix(
+            tmp_path,
+            {
+                "GATE_AXIS_SCHEMA": "2",
+                "EVENT_NAME": "pull_request",
+                "PHYSICS_CHANGE": "true",
+                **extra,
+            },
+        )
+        assert out["test_tier"] == "physics-full", extra
+        assert out["full_physics"] == "true", extra
+        assert out["physics_full_trigger"] == "classification_label", extra
+
+    # Other ready PRs (python, util, tests, ci, other) -> physics-core.
+    for extra in (
+        {"PYTHON_CHANGED": "true"},
+        {"UTIL_CHANGED": "true"},
+        {"TESTS_CHANGED": "true"},
+        {"CI_CHANGED": "true"},
+        {},
+    ):
+        out = _run_determine_matrix(
+            tmp_path,
+            {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "pull_request", **extra},
+        )
+        assert out["test_tier"] == "physics-core", extra
+        assert out["full_physics"] == "false", extra
+        assert out["physics_full_trigger"] == "none", extra
+        assert json.loads(out["source_lanes"]) == ["tooling", "unit"]
+        assert [p[1] for p in json.loads(out["source_buildplat"])] == ["manylinux"]
+        assert json.loads(out["abi3_smoke_python"]) == ["cp315"]
+        assert [p[1] for p in json.loads(out["abi3_smoke_buildplat"])] == ["manylinux"]
+
+    # 0-ci:full-matrix widens native, abi3_smoke, and os_compat to Linux + macOS ARM + Windows,
+    # while source lanes (tooling/unit) remain Linux-only.
+    full_pr = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "pull_request",
+            "PYTHON_CHANGED": "true",
+            "FULL_MATRIX": "true",
+        },
+    )
+    assert full_pr["test_tier"] == "physics-core"
+    assert [p[1] for p in json.loads(full_pr["source_buildplat"])] == ["manylinux"]
+    assert [p[1] for p in json.loads(full_pr["native_buildplat"])] == [
+        "manylinux",
+        "macosx",
+        "win",
+    ]
+    assert [p[1] for p in json.loads(full_pr["os_compat_buildplat"])] == [
+        "manylinux",
+        "macosx",
+        "win",
+    ]
+    assert [p[1] for p in json.loads(full_pr["abi3_smoke_buildplat"])] == [
+        "manylinux",
+        "macosx",
+        "win",
+    ]
+
+    # Trigger 3: merge_group runs full physics (standard or physics-full), no abi3_smoke,
+    # and os_compat on built OSes (Linux + Windows for code/CI, Linux for tests-only).
+    mq_py = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "merge_group",
+            "PYTHON_CHANGED": "true",
+        },
+    )
+    assert mq_py["test_tier"] == "standard"
+    assert mq_py["full_physics"] == "true"
+    assert mq_py["physics_full_trigger"] == "merge_group"
+    assert json.loads(mq_py["abi3_smoke_python"]) == []
+    assert json.loads(mq_py["abi3_smoke_buildplat"]) == []
+    assert [p[1] for p in json.loads(mq_py["native_buildplat"])] == ["manylinux"]
+    assert [p[1] for p in json.loads(mq_py["os_compat_buildplat"])] == [
+        "manylinux",
+        "win",
+    ]
+
+    mq_phys = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "merge_group",
+            "PHYSICS_CHANGE": "true",
+        },
+    )
+    assert mq_phys["test_tier"] == "physics-full"
+    assert mq_phys["full_physics"] == "true"
+    assert mq_phys["physics_full_trigger"] == "classification_label"
+
+    # Trigger 4: nightly schedule -> all, 4 built OSes, abi3_smoke cp313..cp315.
+    nightly = _run_determine_matrix(
+        tmp_path, {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "schedule"}
+    )
+    assert nightly["test_tier"] == "all"
+    assert nightly["full_physics"] == "true"
+    assert nightly["physics_full_trigger"] == "schedule"
+    assert len(json.loads(nightly["buildplat"])) == 4
+    assert len(json.loads(nightly["native_buildplat"])) == 4
+    assert len(json.loads(nightly["os_compat_buildplat"])) == 4
+    assert json.loads(nightly["abi3_smoke_python"]) == ["cp313", "cp314", "cp315"]
+    assert [p[1] for p in json.loads(nightly["abi3_smoke_buildplat"])] == [
+        "manylinux",
+        "macosx",
+        "win",
+    ]
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="determine-matrix.sh runs under bash on Linux CI only",
+)
+def test_determine_matrix_schema2_draft_tag_dispatch_and_ci_tiers_parity(
+    tmp_path: Path,
+) -> None:
+    """Schema 2 handles draft PRs, tags, workflow_dispatch, and aligns with ci_tiers/ci_test_layout."""
+    # Draft PR tiers stay fast (core/cfg/smoke).
+    for overrides, expected_tier in (
+        ({"FORTRAN_CHANGED": "true"}, "core"),
+        ({"RUST_CHANGED": "true"}, "core"),
+        ({"BUILD_CHANGED": "true"}, "cfg"),
+        ({"PYTHON_CHANGED": "true"}, "smoke"),
+    ):
+        draft = _run_determine_matrix(
+            tmp_path,
+            {
+                "GATE_AXIS_SCHEMA": "2",
+                "EVENT_NAME": "pull_request",
+                "IS_DRAFT": "true",
+                **overrides,
+            },
+        )
+        assert draft["test_tier"] == expected_tier
+        assert draft["full_physics"] == "false"
+        assert ci_tiers.tier_expression("physics", expected_tier, schema=2)
+        assert ci_test_layout.native_cells("cp312", expected_tier)
+
+    # Tag release keeps full matrix at tier all and cp313..cp315 abi3_smoke.
+    tag = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "push",
+            "GITHUB_REF": "refs/tags/2026.11.26",
+        },
+    )
+    assert tag["test_tier"] == "all"
+    assert tag["full_physics"] == "true"
+    assert tag["physics_full_trigger"] == "tag_release"
+    assert len(json.loads(tag["buildplat"])) == 4
+    assert json.loads(tag["abi3_smoke_python"]) == ["cp313", "cp314", "cp315"]
+
+    # Manual workflow_dispatch keeps INPUT_TEST_TIER (including physics-core)
+    # and drops abi3_smoke when custom selects only cp312.
+    dispatch_core = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "workflow_dispatch",
+            "INPUT_MATRIX_CONFIG": "custom",
+            "INPUT_PLAT_LINUX": "true",
+            "INPUT_PLAT_MACOS_INTEL": "false",
+            "INPUT_PLAT_MACOS_ARM": "false",
+            "INPUT_PLAT_WINDOWS": "true",
+            "INPUT_PY312": "true",
+            "INPUT_PY313": "false",
+            "INPUT_PY314": "false",
+            "INPUT_PY315": "false",
+            "INPUT_TEST_TIER": "physics-core",
+        },
+    )
+    assert dispatch_core["test_tier"] == "physics-core"
+    assert dispatch_core["full_physics"] == "false"
+    assert json.loads(dispatch_core["abi3_smoke_python"]) == []
+    assert json.loads(dispatch_core["abi3_smoke_buildplat"]) == []
+    assert [p[1] for p in json.loads(dispatch_core["os_compat_buildplat"])] == [
+        "manylinux",
+        "win",
+    ]
+
+    # Invalid dispatch tier or matrix config fails closed under Schema 2.
+    bad_tier_proc, _ = _run_determine_matrix_raw(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "workflow_dispatch",
+            "INPUT_MATRIX_CONFIG": "minimal",
+            "INPUT_TEST_TIER": "physics_core",
+        },
+    )
+    assert bad_tier_proc.returncode == 1
+    assert "invalid INPUT_TEST_TIER" in bad_tier_proc.stderr
+
+    bad_cfg_proc, _ = _run_determine_matrix_raw(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "workflow_dispatch",
+            "INPUT_MATRIX_CONFIG": "unknown",
+            "INPUT_TEST_TIER": "standard",
+        },
+    )
+    assert bad_cfg_proc.returncode == 1
+    assert "invalid INPUT_MATRIX_CONFIG" in bad_cfg_proc.stderr
+
+    # Every tier emitted in Schema 2 is valid in scripts/suews/ci_tiers.py and ci_test_layout.py.
+    for tier in (
+        "smoke",
+        "core",
+        "cfg",
+        "physics-core",
+        "standard",
+        "physics-full",
+        "all",
+    ):
+        for lane in ("tooling", "unit", "native", "physics", "os_compat", "abi3_smoke"):
+            assert ci_tiers.tier_expression(lane, tier, schema=2)
+        assert ci_test_layout.native_cells("cp312", tier)

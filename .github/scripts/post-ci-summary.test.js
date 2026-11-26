@@ -492,3 +492,217 @@ test('duration-guard section uses trusted reason_code fields and neutralises inj
   // Replacing the section cleanly removes the entire forged payload without leaving residue.
   assert.equal(withDurationGuardSection(rendered, ''), body);
 });
+
+// ---- Dual-schema axis support (#2349 W1-3b) ----
+
+const {
+  SCHEMA_V2_LANES,
+  resolveAxisSchema,
+  laneStatusSection,
+  withLaneStatusSection,
+} = require('./post-ci-summary.js');
+
+test('resolveAxisSchema defaults to 1, accepts 1/2, and fails closed on invalid values', () => {
+  assert.equal(resolveAxisSchema({}), 1);
+  assert.equal(resolveAxisSchema({ GATE_AXIS_SCHEMA: '' }), 1);
+  assert.equal(resolveAxisSchema({ GATE_AXIS_SCHEMA: '1' }), 1);
+  assert.equal(resolveAxisSchema({ GATE_AXIS_SCHEMA: '2' }), 2);
+
+  for (const bad of ['0', '3', 'v2', 'true', ' 2', '2 ', 'invalid']) {
+    assert.throws(
+      () => resolveAxisSchema({ GATE_AXIS_SCHEMA: bad }),
+      /Invalid GATE_AXIS_SCHEMA/,
+      `expected schema ${JSON.stringify(bad)} to fail closed`,
+    );
+    assert.throws(
+      () => buildBody(envFor({ GATE_AXIS_SCHEMA: bad }), ctx),
+      /Invalid GATE_AXIS_SCHEMA/,
+    );
+  }
+});
+
+test('Schema 1 output is byte-identical across unset, empty, and explicit 1', () => {
+  const unset = buildBody(envFor({}), ctx);
+  const empty = buildBody(envFor({ GATE_AXIS_SCHEMA: '' }), ctx);
+  const explicit1 = buildBody(envFor({ GATE_AXIS_SCHEMA: '1' }), ctx);
+  assert.equal(empty, unset);
+  assert.equal(explicit1, unset);
+  assert.doesNotMatch(unset, /Axis schema/);
+  assert.doesNotMatch(unset, /Schema 2 Lane Statuses/);
+  // Even if Schema 2 lane result env vars are present in Schema 1 mode, output stays untouched.
+  const withUnusedV2Vars = buildBody(
+    envFor({ GATE_AXIS_SCHEMA: '1', TOOLING_RESULT: 'success', UNIT_RESULT: 'success' }),
+    ctx,
+  );
+  assert.equal(withUnusedV2Vars, unset);
+});
+
+test('physics-core has an explicit tier description', () => {
+  assert.ok(TIER_DESC['physics-core']);
+  assert.notEqual(describeTier('physics-core'), 'physics-core');
+  assert.match(describeTier('physics-core'), /exact sample-output witness/);
+});
+
+test('Schema 2 buildBody renders 4+1 axis configuration and physics-core rationale', () => {
+  const pyPr = buildBody(
+    envFor({
+      GATE_AXIS_SCHEMA: '2',
+      FORTRAN_CHANGED: 'false',
+      FORTRAN_FILES: '[]',
+      PYTHON_CHANGED: 'true',
+      PYTHON_FILES: '["src/supy/_run.py"]',
+      TEST_TIER: 'physics-core',
+      BUILDPLAT_JSON: MINIMAL,
+      PYTHON_JSON: '["cp312"]',
+      SOURCE_LANES_JSON: '["tooling","unit"]',
+      SOURCE_PYTHON_JSON: '["cp312"]',
+      NATIVE_PYTHON_JSON: '["cp312"]',
+      NATIVE_BUILDPLAT_JSON: MINIMAL,
+      ABI3_SMOKE_PYTHON_JSON: '["cp315"]',
+      ABI3_SMOKE_BUILDPLAT_JSON: MINIMAL,
+      OS_COMPAT_BUILDPLAT_JSON: MINIMAL,
+      PHYSICS_FULL_TRIGGER: 'none',
+    }),
+    ctx,
+  );
+  assert.match(pyPr, /\| \*\*Axis schema\*\* \| 2 \(4\+1 multi-axis\) \|/);
+  assert.match(pyPr, /\| \*\*Source lanes \(t=0\)\*\* \| tooling, unit \(Linux x86_64, 3\.12\) \|/);
+  assert.match(pyPr, /\| \*\*Native lane\*\* \| 3\.12 on Linux x86_64 \|/);
+  assert.match(pyPr, /\| \*\*abi3 smoke\*\* \| 3\.15 on Linux x86_64 \|/);
+  assert.match(pyPr, /\| \*\*os_compat\*\* \| Linux x86_64 \|/);
+  assert.match(pyPr, /\| \*\*Physics lane\*\* \| physics-core \(smoke \+ exact sample-output witness\) \|/);
+  assert.match(pyPr, /No Fortran\/Rust\/build or physics-label trigger -> physics-core/);
+
+  // Compiled change triggers full physics (standard) and multiplatform os_compat when full-matrix is active.
+  const fortranPr = buildBody(
+    envFor({
+      GATE_AXIS_SCHEMA: '2',
+      FORTRAN_CHANGED: 'true',
+      TEST_TIER: 'standard',
+      BUILDPLAT_JSON: PR,
+      PYTHON_JSON: '["cp312"]',
+      ABI3_SMOKE_PYTHON_JSON: '[]',
+      ABI3_SMOKE_BUILDPLAT_JSON: '[]',
+      OS_COMPAT_BUILDPLAT_JSON: PR,
+      PHYSICS_FULL_TRIGGER: 'compiled_or_build_change',
+    }),
+    ctx,
+  );
+  assert.match(fortranPr, /\| \*\*abi3 smoke\*\* \| skipped \(none scheduled\) \|/);
+  assert.match(fortranPr, /\| \*\*os_compat\*\* \| Linux x86_64, macOS ARM64, Windows x64 \|/);
+  assert.match(fortranPr, /\| \*\*Physics lane\*\* \| full physics \(standard; trigger: compiled\\_or\\_build\\_change\) \|/);
+  assert.match(fortranPr, /Fortran\/Rust\/build changed -> full physics tier triggered/);
+});
+
+test('Schema 2 lane status table renders canonical lanes, ASCII badges, and sanitises untrusted text', () => {
+  assert.deepEqual(SCHEMA_V2_LANES, ['tooling', 'unit', 'native', 'physics', 'os_compat', 'abi3_smoke']);
+
+  const body = buildBody(
+    envFor({
+      GATE_AXIS_SCHEMA: '2',
+      TEST_TIER: 'physics-core',
+      TOOLING_RESULT: 'success',
+      UNIT_RESULT: 'success',
+      NATIVE_RESULT: 'success',
+      PHYSICS_RESULT: 'failure',
+      OS_COMPAT_RESULT: 'skipped',
+      ABI3_SMOKE_RESULT: 'cancelled',
+    }),
+    ctx,
+  );
+  assert.match(body, /### Schema 2 Lane Statuses/);
+  assert.match(body, /\| `tooling` \| \[OK\] success \|/);
+  assert.match(body, /\| `unit` \| \[OK\] success \|/);
+  assert.match(body, /\| `native` \| \[OK\] success \|/);
+  assert.match(body, /\| `physics` \| \[X\] failure \|/);
+  assert.match(body, /\| `os_compat` \| \[-\] skipped \|/);
+  assert.match(body, /\| `abi3_smoke` \| \[X\] cancelled \|/);
+
+  // LANE_STATUSES_JSON works and sanitises untrusted values against HTML comment injection.
+  const forged = laneStatusSection({
+    tooling: 'success',
+    unit: 'weird <!-- schema2-lanes:end --> [click](https://evil.test)',
+  });
+  assert.match(forged, /\| `tooling` \| \[OK\] success \|/);
+  assert.match(forged, /\| `unit` \| \[\?\] /);
+  assert.doesNotMatch(forged, /<!-- schema2-lanes:end -->/);
+  assert.doesNotMatch(forged, /\[click\]\(https:\/\/evil\.test\)/);
+
+  // Unknown lanes or malformed JSON fail closed in Schema 2.
+  assert.throws(
+    () => buildBody(envFor({ GATE_AXIS_SCHEMA: '2', LANE_STATUSES_JSON: '{"bogus":"success"}' }), ctx),
+    /Unknown Schema 2 lane/,
+  );
+  assert.throws(
+    () => buildBody(envFor({ GATE_AXIS_SCHEMA: '2', LANE_STATUSES_JSON: 'not-json' }), ctx),
+    /Invalid JSON in LANE_STATUSES_JSON/,
+  );
+  assert.throws(
+    () => buildBody(envFor({ GATE_AXIS_SCHEMA: '2', SOURCE_LANES_JSON: '{}' }), ctx),
+    /SOURCE_LANES_JSON must be a JSON array/,
+  );
+
+  // withLaneStatusSection is idempotent, sits above footer, and removes cleanly.
+  const baseBody = buildBody(envFor({}), ctx);
+  const withLanes = withLaneStatusSection(baseBody, forged);
+  assert.ok(withLanes.includes('<!-- schema2-lanes:start -->'));
+  assert.ok(withLanes.indexOf('<!-- schema2-lanes:end -->') < withLanes.lastIndexOf('\n---\n'));
+  assert.equal(withLaneStatusSection(withLanes, forged), withLanes);
+  assert.equal(withLaneStatusSection(withLanes, ''), baseBody);
+});
+
+test('durationGuardSection renders Schema 2 4-axis reports cleanly and supports explicit testTier', () => {
+  const schema2Report = durationReport({
+    lanes: {
+      tooling: {
+        lane: 'tooling',
+        status: 'ok',
+        baseline_total_seconds: 120.0,
+        raw_total_seconds: 120.0,
+        scaled_total_seconds: 120.0,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+      unit: {
+        lane: 'unit',
+        status: 'ok',
+        baseline_total_seconds: 240.0,
+        raw_total_seconds: 242.4,
+        scaled_total_seconds: 242.4,
+        delta_ratio: 0.01,
+        delta_percent: 1.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+      native: {
+        lane: 'native',
+        status: 'ok',
+        baseline_total_seconds: 300.0,
+        raw_total_seconds: 297.0,
+        scaled_total_seconds: 297.0,
+        delta_ratio: -0.01,
+        delta_percent: -1.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+      physics: {
+        lane: 'physics',
+        status: 'ok',
+        baseline_total_seconds: 50.0,
+        raw_total_seconds: 50.0,
+        scaled_total_seconds: 50.0,
+        delta_ratio: 0.0,
+        delta_percent: 0.0,
+        regressed: false,
+        factor_summary: '1.00x',
+      },
+    },
+  });
+  const line = durationGuardSection(schema2Report, { testTier: 'physics-core' });
+  assert.match(
+    line,
+    /`physics-core` tier\): within \+10% of baseline \(tooling \+0\.0%, unit \+1\.0%, native -1\.0%, physics \+0\.0%; runner-normalised\)/,
+  );
+});

@@ -16,6 +16,13 @@ pytestmark = [
     pytest.mark.contract("C-TOOLING"),
 ]
 
+
+@pytest.fixture(autouse=True)
+def _isolate_axis_schema_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep tests isolated from an ambient GATE_AXIS_SCHEMA=2 CI environment."""
+    monkeypatch.delenv("GATE_AXIS_SCHEMA", raising=False)
+
+
 _UNCONDITIONAL_RESULT_VARS = (
     "SCHEMA_AUDIT_RESULT",
     "DATA_INTERFACE_AUDIT_RESULT",
@@ -31,7 +38,19 @@ _PATH_FILTERED_PRODUCERS = (
     ("RUST_CAPI_OBSERVER_RESULT", "RUST_CAPI_OBSERVER_CHANGED"),
 )
 
+_SCHEMA2_LANE_VARS = (
+    "TOOLING_RESULT",
+    "UNIT_RESULT",
+    "NATIVE_RESULT",
+    "PHYSICS_RESULT",
+    "OS_COMPAT_RESULT",
+    "OS_COMPAT_REQUIRED",
+    "ABI3_SMOKE_RESULT",
+    "ABI3_SMOKE_REQUIRED",
+)
+
 _ALL_CONSOLIDATED_ENV_VARS = (
+    "GATE_AXIS_SCHEMA",
     "EVENT_NAME",
     "CORE_GUARD_RESULT",
     "TEST_TIER",
@@ -39,6 +58,7 @@ _ALL_CONSOLIDATED_ENV_VARS = (
     "LOWEST_DIRECT_DEPS_REQUIRED",
     *_UNCONDITIONAL_RESULT_VARS,
     *(var for pair in _PATH_FILTERED_PRODUCERS for var in pair),
+    *_SCHEMA2_LANE_VARS,
 )
 
 
@@ -55,7 +75,30 @@ def _stage2_green_env(event_name: str = "pull_request") -> dict[str, str]:
     return env
 
 
-def _run_pr_gate(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _schema2_green_env(
+    event_name: str = "pull_request",
+    tier: str = "physics-core",
+) -> dict[str, str]:
+    """Return a clean Schema 2 caller environment with all required lanes green."""
+    return {
+        **_stage2_green_env(event_name),
+        "GATE_AXIS_SCHEMA": "2",
+        "TEST_TIER": tier,
+        "CORE_GUARD_RESULT": "success",
+        "TOOLING_RESULT": "success",
+        "UNIT_RESULT": "success",
+        "NATIVE_RESULT": "success",
+        "PHYSICS_RESULT": "success",
+        "OS_COMPAT_RESULT": "success",
+        "ABI3_SMOKE_RESULT": "success" if event_name == "pull_request" else "skipped",
+    }
+
+
+def _run_pr_gate(
+    env_overrides: dict[str, str],
+    *,
+    drop_vars: tuple[str, ...] = (),
+) -> subprocess.CompletedProcess[str]:
     script = Path(__file__).resolve().parents[2] / ".github/scripts/pr-gate.sh"
     base_env = {
         **os.environ,
@@ -71,6 +114,8 @@ def _run_pr_gate(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[s
     for key in _ALL_CONSOLIDATED_ENV_VARS:
         base_env.pop(key, None)
     base_env.update(env_overrides)
+    for key in drop_vars:
+        base_env.pop(key, None)
     return subprocess.run(
         ["bash", str(script)],
         env=base_env,
@@ -294,3 +339,214 @@ class GateTests(unittest.TestCase):
             "CORE_GUARD_RESULT": "skipped",
         })
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_schema1_parity_and_invalid_gate_axis_schema_fails_closed(self):
+        """Unset, empty, and '1' produce identical Schema 1 verdicts; invalid values fail closed."""
+        base_env = {
+            **_stage2_green_env(),
+            "TEST_TIER": "standard",
+            "CORE_GUARD_RESULT": "success",
+        }
+        unset = _run_pr_gate(base_env)
+        empty = _run_pr_gate({**base_env, "GATE_AXIS_SCHEMA": ""})
+        explicit1 = _run_pr_gate({**base_env, "GATE_AXIS_SCHEMA": "1"})
+        self.assertEqual(unset.returncode, 0, unset.stdout + unset.stderr)
+        self.assertEqual(empty.returncode, 0, empty.stdout + empty.stderr)
+        self.assertEqual(explicit1.returncode, 0, explicit1.stdout + explicit1.stderr)
+        self.assertEqual(empty.stdout, unset.stdout)
+        self.assertEqual(explicit1.stdout, unset.stdout)
+
+        for bad in ("0", "3", "v2", "true", " 2", "2 "):
+            with self.subTest(bad_schema=bad):
+                res = _run_pr_gate({**base_env, "GATE_AXIS_SCHEMA": bad})
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+                self.assertIn("Invalid GATE_AXIS_SCHEMA", res.stderr)
+
+    def test_schema2_green_across_ready_tiers_and_merge_group(self):
+        """Schema 2 passes when every required axis lane and core_guard succeed."""
+        for event_name, tiers in (
+            ("pull_request", ("physics-core", "standard", "physics-full")),
+            ("merge_group", ("standard", "physics-full")),
+        ):
+            for tier in tiers:
+                with self.subTest(event=event_name, tier=tier):
+                    env = _schema2_green_env(event_name, tier)
+                    # Schema 2 callers need not pass legacy TEST_BRIDGE_RESULT.
+                    res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                    self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+                    self.assertIn("gate_axis_schema: 2", res.stdout)
+                    self.assertIn("[OK] tooling: success", res.stdout)
+                    self.assertIn("[OK] unit: success", res.stdout)
+                    self.assertIn("[OK] native: success", res.stdout)
+                    self.assertIn("[OK] physics: success", res.stdout)
+                    self.assertIn("[OK] os_compat: success", res.stdout)
+
+    def test_schema2_required_lanes_fail_closed_on_missing_skipped_or_failed(self):
+        """Every required Schema 2 lane fails closed on unset, empty, skipped, failure, or cancelled."""
+        required_pr_lanes = (
+            "TOOLING_RESULT",
+            "UNIT_RESULT",
+            "NATIVE_RESULT",
+            "PHYSICS_RESULT",
+            "OS_COMPAT_RESULT",
+            "ABI3_SMOKE_RESULT",
+        )
+        for lane_var in required_pr_lanes:
+            with self.subTest(lane=lane_var, case="missing"):
+                env = _schema2_green_env("pull_request", "physics-core")
+                env.pop(lane_var)
+                res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+            for bad_status in ("", "skipped", "failure", "cancelled", "unknown"):
+                with self.subTest(lane=lane_var, status=bad_status):
+                    env = {
+                        **_schema2_green_env("pull_request", "physics-core"),
+                        lane_var: bad_status,
+                    }
+                    res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                    self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+        # On merge_group, abi3_smoke defaults to not required (skipped passes),
+        # but failure/cancelled/unset/empty or explicit ABI3_SMOKE_REQUIRED=true fail closed.
+        for bad_mq_abi3 in ("failure", "cancelled", "", "unset"):
+            with self.subTest(merge_group_abi3=bad_mq_abi3):
+                env = _schema2_green_env("merge_group", "standard")
+                if bad_mq_abi3 == "unset":
+                    env.pop("ABI3_SMOKE_RESULT")
+                else:
+                    env["ABI3_SMOKE_RESULT"] = bad_mq_abi3
+                res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+        for req_var, res_var in (
+            ("OS_COMPAT_REQUIRED", "OS_COMPAT_RESULT"),
+            ("ABI3_SMOKE_REQUIRED", "ABI3_SMOKE_RESULT"),
+        ):
+            with self.subTest(explicit_required=req_var):
+                env = {
+                    **_schema2_green_env("merge_group", "standard"),
+                    req_var: "true",
+                    res_var: "skipped",
+                }
+                res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+            for bad_flag in ("", "yes", "1"):
+                with self.subTest(invalid_flag=req_var, value=bad_flag):
+                    env = {
+                        **_schema2_green_env("pull_request", "physics-core"),
+                        req_var: bad_flag,
+                    }
+                    res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                    self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+    def test_schema2_core_guard_enforces_physics_core_and_rejects_invalid_tier(self):
+        """Schema 2 requires core_guard on physics-core, standard, and physics-full."""
+        cases = (
+            ("physics-core", "success", 0),
+            ("physics-core", "skipped", 1),
+            ("physics-core", "failure", 1),
+            ("physics-core", "cancelled", 1),
+            ("physics-core", "unset", 1),
+            ("standard", "skipped", 1),
+            ("physics-full", "skipped", 1),
+            ("smoke", "skipped", 0),
+            ("core", "skipped", 0),
+            ("cfg", "skipped", 0),
+            ("smoke", "failure", 1),
+            ("smoke", "unset", 1),
+            ("", "success", 1),
+            ("physics_core", "success", 1),
+        )
+        for tier, guard, expected_rc in cases:
+            with self.subTest(tier=tier, guard=guard):
+                env = {
+                    **_schema2_green_env("pull_request", tier),
+                }
+                if guard == "unset":
+                    env.pop("CORE_GUARD_RESULT")
+                else:
+                    env["CORE_GUARD_RESULT"] = guard
+                res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                self.assertEqual(res.returncode, expected_rc, res.stdout + res.stderr)
+
+    def test_schema2_docs_only_and_physics_change_without_code_filters(self):
+        """Schema 2 handles docs-only PRs and label-only physics PRs fail-closed."""
+        docs_env = {
+            **_schema2_green_env("pull_request", "physics-core"),
+            "NEEDS_BUILD": "false",
+            "BUILD_WHEELS_RESULT": "skipped",
+            "BUILD_MCP_RESULT": "skipped",
+            "TOOLING_RESULT": "skipped",
+            "UNIT_RESULT": "skipped",
+            "NATIVE_RESULT": "skipped",
+            "PHYSICS_RESULT": "skipped",
+            "OS_COMPAT_RESULT": "skipped",
+            "ABI3_SMOKE_RESULT": "skipped",
+            "CORE_GUARD_RESULT": "skipped",
+        }
+        res_docs = _run_pr_gate(docs_env, drop_vars=("TEST_BRIDGE_RESULT",))
+        self.assertEqual(res_docs.returncode, 0, res_docs.stdout + res_docs.stderr)
+
+        # Missing or failing lane on docs-only still fails closed in Schema 2.
+        for bad_var in (
+            "TOOLING_RESULT",
+            "UNIT_RESULT",
+            "NATIVE_RESULT",
+            "PHYSICS_RESULT",
+            "CORE_GUARD_RESULT",
+        ):
+            with self.subTest(docs_missing=bad_var):
+                env = dict(docs_env)
+                env.pop(bad_var)
+                res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+        # Label-only physics change (NEEDS_BUILD=false, PHYSICS_CHANGE=true):
+        # requires build_wheels + physics + core_guard (at physics-full).
+        label_only = {
+            **docs_env,
+            "PHYSICS_CHANGE": "true",
+            "TEST_TIER": "physics-full",
+            "BUILD_WHEELS_RESULT": "success",
+            "PHYSICS_RESULT": "success",
+            "CORE_GUARD_RESULT": "success",
+        }
+        res_label_ok = _run_pr_gate(label_only, drop_vars=("TEST_BRIDGE_RESULT",))
+        self.assertEqual(
+            res_label_ok.returncode, 0, res_label_ok.stdout + res_label_ok.stderr
+        )
+
+        res_label_skip_phys = _run_pr_gate(
+            {**label_only, "PHYSICS_RESULT": "skipped"},
+            drop_vars=("TEST_BRIDGE_RESULT",),
+        )
+        self.assertEqual(
+            res_label_skip_phys.returncode,
+            1,
+            res_label_skip_phys.stdout + res_label_skip_phys.stderr,
+        )
+
+        # Schema 2 never falls back to pre-Stage-2 lenient mode when EVENT_NAME is unset.
+        no_event = _schema2_green_env("pull_request", "physics-core")
+        no_event.pop("EVENT_NAME")
+        res_no_event = _run_pr_gate(no_event, drop_vars=("TEST_BRIDGE_RESULT",))
+        self.assertEqual(
+            res_no_event.returncode, 1, res_no_event.stdout + res_no_event.stderr
+        )
+
+        # Invalid NEEDS_BUILD or failing legacy TEST_BRIDGE_RESULT fails closed.
+        res_bad_nb = _run_pr_gate(
+            {**_schema2_green_env(), "NEEDS_BUILD": ""},
+            drop_vars=("TEST_BRIDGE_RESULT",),
+        )
+        self.assertEqual(
+            res_bad_nb.returncode, 1, res_bad_nb.stdout + res_bad_nb.stderr
+        )
+        res_bad_bridge = _run_pr_gate(
+            {**_schema2_green_env(), "TEST_BRIDGE_RESULT": "failure"},
+        )
+        self.assertEqual(
+            res_bad_bridge.returncode, 1, res_bad_bridge.stdout + res_bad_bridge.stderr
+        )

@@ -29,15 +29,133 @@
 // describes.
 
 // Keep in sync with the test_tier values emitted by determine-matrix.sh and
-// the tier -> pytest expression map in build-wheels-reusable.yml.
+// the tier -> pytest expression map in build-wheels-reusable.yml / ci_tiers.py.
 const TIER_DESC = {
   'smoke': 'smoke (critical tests only)',
   'cfg': 'cfg (configuration + smoke)',
   'core': 'core (physics + smoke)',
+  'physics-core': 'physics-core (smoke + exact sample-output witness; full tooling/unit/native)',
   'standard': 'standard (non-slow + core physics regressions)',
   'physics-full': 'physics-full (full physics tier incl. slow; 0-physics:change / 0-numerics:change)',
   'all': 'all (full suite)',
 };
+
+const SCHEMA_V2_LANES = Object.freeze([
+  'tooling',
+  'unit',
+  'native',
+  'physics',
+  'os_compat',
+  'abi3_smoke',
+]);
+
+const SCHEMA_V2_LANE_ENV = Object.freeze([
+  ['tooling', 'TOOLING_RESULT'],
+  ['unit', 'UNIT_RESULT'],
+  ['native', 'NATIVE_RESULT'],
+  ['physics', 'PHYSICS_RESULT'],
+  ['os_compat', 'OS_COMPAT_RESULT'],
+  ['abi3_smoke', 'ABI3_SMOKE_RESULT'],
+]);
+
+const SCHEMA_V2_LANE_SET = new Set(SCHEMA_V2_LANES);
+
+// Resolve GATE_AXIS_SCHEMA fail-closed: unset/empty/'1' -> 1, '2' -> 2, else throw.
+function resolveAxisSchema(env) {
+  const raw = env && env.GATE_AXIS_SCHEMA;
+  if (raw === undefined || raw === null || raw === '') return 1;
+  if (raw === '1' || raw === 1) return 1;
+  if (raw === '2' || raw === 2) return 2;
+  throw new Error(`Invalid GATE_AXIS_SCHEMA=${JSON.stringify(raw)} (expected '1' or '2')`);
+}
+
+function parseJsonEnv(env, key, fallback) {
+  const raw = env && env[key];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Invalid JSON in ${key}: ${err.message}`);
+  }
+}
+
+function formatPythonList(pythons) {
+  return pythons.map(v => String(v).replace(/^cp3/, '3.')).join(', ');
+}
+
+function collectSchema2LaneStatuses(env) {
+  const collected = {};
+  let hasAny = false;
+  if (env && env.LANE_STATUSES_JSON !== undefined && env.LANE_STATUSES_JSON !== null && env.LANE_STATUSES_JSON !== '') {
+    const parsed = parseJsonEnv(env, 'LANE_STATUSES_JSON', null);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('LANE_STATUSES_JSON must be a JSON object mapping lane names to statuses');
+    }
+    for (const [lane, status] of Object.entries(parsed)) {
+      if (!SCHEMA_V2_LANE_SET.has(lane)) {
+        throw new Error(`Unknown Schema 2 lane in LANE_STATUSES_JSON: ${JSON.stringify(lane)}`);
+      }
+      if (typeof status !== 'string') {
+        throw new Error(`Schema 2 lane status for ${lane} must be a string`);
+      }
+      collected[lane] = status;
+      hasAny = true;
+    }
+  }
+  for (const [lane, envKey] of SCHEMA_V2_LANE_ENV) {
+    const val = env && env[envKey];
+    if (val !== undefined && val !== null && val !== '') {
+      collected[lane] = String(val);
+      hasAny = true;
+    }
+  }
+  return hasAny ? collected : null;
+}
+
+function formatLaneStatusBadge(status) {
+  const clean = sanitiseInlineText(status);
+  if (clean === 'success') return '[OK] success';
+  if (clean === 'skipped') return '[-] skipped';
+  if (clean === 'failure' || clean === 'cancelled' || clean === 'timed_out') {
+    return `[X] ${clean}`;
+  }
+  return `[?] ${clean || 'unknown'}`;
+}
+
+function laneStatusSection(statuses) {
+  if (!statuses || typeof statuses !== 'object' || Array.isArray(statuses)) return '';
+  const rows = [];
+  for (const lane of SCHEMA_V2_LANES) {
+    if (!Object.prototype.hasOwnProperty.call(statuses, lane)) continue;
+    const raw = statuses[lane];
+    if (raw === undefined || raw === null || raw === '') continue;
+    rows.push(`| \`${lane}\` | ${formatLaneStatusBadge(raw)} |`);
+  }
+  if (rows.length === 0) return '';
+  return [
+    '| Lane | Status |',
+    '|---|---|',
+    ...rows,
+  ].join('\n');
+}
+
+function describeSchema2PhysicsLane(testTier, trigger) {
+  if (testTier === 'physics-core') {
+    return 'physics-core (smoke + exact sample-output witness)';
+  }
+  if (testTier === 'standard') {
+    return trigger && trigger !== 'none'
+      ? `full physics (standard; trigger: ${sanitiseInlineText(trigger)})`
+      : 'full physics (standard)';
+  }
+  if (testTier === 'physics-full') {
+    return 'full physics incl. slow (0-physics:change / 0-numerics:change)';
+  }
+  if (testTier === 'all') {
+    return 'full physics (all)';
+  }
+  return describeTier(testTier);
+}
 
 const PLATFORM_NAMES = { 'manylinux': 'Linux', 'macosx': 'macOS', 'win': 'Windows' };
 const ARCH_NAMES = { 'x86_64': 'x86_64', 'arm64': 'ARM64', 'AMD64': 'x64' };
@@ -76,6 +194,8 @@ function platformLabels(buildplat) {
 
 // Pure composition of the comment body from the workflow-provided environment.
 function buildBody(env, { isDraft, owner, repo }) {
+  const axisSchema = resolveAxisSchema(env);
+
   // Collect category flags and file lists
   const categories = [
     { name: 'fortran',   label: 'Fortran source',  changed: env.FORTRAN_CHANGED,  files: JSON.parse(env.FORTRAN_FILES   || '[]') },
@@ -132,6 +252,66 @@ function buildBody(env, { isDraft, owner, repo }) {
     configSection += `| **Python** | ${pyDisplay} |\n`;
     configSection += `| **Test tier** | ${describeTier(testTier)} |\n`;
     configSection += `| **PR status** | ${isDraft ? 'Draft' : 'Ready for review'} |\n`;
+    if (axisSchema === 2) {
+      const sourceLanes = parseJsonEnv(env, 'SOURCE_LANES_JSON', ['tooling', 'unit']);
+      if (!Array.isArray(sourceLanes)) {
+        throw new Error('SOURCE_LANES_JSON must be a JSON array');
+      }
+      const sourcePythons = parseJsonEnv(env, 'SOURCE_PYTHON_JSON', pythonVersions);
+      if (!Array.isArray(sourcePythons)) {
+        throw new Error('SOURCE_PYTHON_JSON must be a JSON array');
+      }
+      const nativePythons = parseJsonEnv(env, 'NATIVE_PYTHON_JSON', pythonVersions);
+      if (!Array.isArray(nativePythons)) {
+        throw new Error('NATIVE_PYTHON_JSON must be a JSON array');
+      }
+      const nativeBuildplat = parseJsonEnv(env, 'NATIVE_BUILDPLAT_JSON', buildplat);
+      if (!Array.isArray(nativeBuildplat)) {
+        throw new Error('NATIVE_BUILDPLAT_JSON must be a JSON array');
+      }
+      const abi3SmokePythons = parseJsonEnv(env, 'ABI3_SMOKE_PYTHON_JSON', null);
+      if (abi3SmokePythons !== null && !Array.isArray(abi3SmokePythons)) {
+        throw new Error('ABI3_SMOKE_PYTHON_JSON must be a JSON array');
+      }
+      const abi3SmokeBuildplat = parseJsonEnv(env, 'ABI3_SMOKE_BUILDPLAT_JSON', buildplat);
+      if (!Array.isArray(abi3SmokeBuildplat)) {
+        throw new Error('ABI3_SMOKE_BUILDPLAT_JSON must be a JSON array');
+      }
+      const osCompatBuildplat = parseJsonEnv(env, 'OS_COMPAT_BUILDPLAT_JSON', buildplat);
+      if (!Array.isArray(osCompatBuildplat)) {
+        throw new Error('OS_COMPAT_BUILDPLAT_JSON must be a JSON array');
+      }
+
+      const sourceDisplay = sourceLanes.map(l => sanitiseInlineText(l)).join(', ');
+      const sourcePyDisplay = formatPythonList(sourcePythons);
+      const nativePyDisplay = formatPythonList(nativePythons);
+      const nativePlatDisplay = platformLabels(nativeBuildplat).join(', ');
+      const osCompatPlatDisplay = platformLabels(osCompatBuildplat).join(', ');
+
+      let abi3Display;
+      if (abi3SmokePythons === null) {
+        abi3Display = 'not specified';
+      } else if (abi3SmokePythons.length === 0 || abi3SmokeBuildplat.length === 0) {
+        abi3Display = 'skipped (none scheduled)';
+      } else {
+        abi3Display = `${formatPythonList(abi3SmokePythons)} on ${platformLabels(abi3SmokeBuildplat).join(', ')}`;
+      }
+
+      configSection += `| **Axis schema** | 2 (4+1 multi-axis) |\n`;
+      configSection += `| **Source lanes (t=0)** | ${sourceDisplay} (Linux x86_64${sourcePyDisplay ? `, ${sourcePyDisplay}` : ''}) |\n`;
+      configSection += `| **Native lane** | ${nativePyDisplay} on ${nativePlatDisplay} |\n`;
+      configSection += `| **abi3 smoke** | ${abi3Display} |\n`;
+      configSection += `| **os_compat** | ${osCompatPlatDisplay || 'skipped (none scheduled)'} |\n`;
+      configSection += `| **Physics lane** | ${describeSchema2PhysicsLane(testTier, env.PHYSICS_FULL_TRIGGER)} |\n`;
+    }
+  }
+
+  let laneStatusBlock = '';
+  if (axisSchema === 2) {
+    const statuses = collectSchema2LaneStatuses(env);
+    if (statuses) {
+      laneStatusBlock = laneStatusSection(statuses);
+    }
   }
 
   // Build rationale
@@ -151,6 +331,11 @@ function buildBody(env, { isDraft, owner, repo }) {
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
+  if (axisSchema === 2 && needsBuild && testTier === 'physics-core') {
+    rationale.push('No Fortran/Rust/build or physics-label trigger -> physics-core (smoke + exact sample-output witness); full tooling/unit/native');
+  } else if (axisSchema === 2 && needsBuild && testTier === 'standard' && (fortranChanged || rustChanged || buildChanged)) {
+    rationale.push('Fortran/Rust/build changed -> full physics tier triggered');
+  }
   if (testTier === 'physics-full') rationale.push('0-physics:change or 0-numerics:change label -> full physics tier (incl. slow) required before merge');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
@@ -158,7 +343,7 @@ function buildBody(env, { isDraft, owner, repo }) {
 
   // Compose the comment
   const marker = '<!-- ci-build-plan -->';
-  return [
+  const parts = [
     marker,
     '## CI Build Plan',
     '',
@@ -168,13 +353,19 @@ function buildBody(env, { isDraft, owner, repo }) {
     '### Build Configuration',
     '',
     configSection,
+  ];
+  if (laneStatusBlock) {
+    parts.push('### Schema 2 Lane Statuses', '', `${laneStatusBlock}\n`);
+  }
+  parts.push(
     '### Rationale',
     '',
     rationaleSection,
     '',
     '---',
     `<sub>Updated by CI on each push. See <a href="https://github.com/${owner}/${repo}/blob/${env.COMMIT_SHA}/.github/path-filters.yml">path-filters.yml</a> for category definitions.</sub>`,
-  ].join('\n');
+  );
+  return parts.join('\n');
 }
 
 const MARKER = '<!-- ci-build-plan -->';
@@ -185,6 +376,9 @@ const COST_BLOCK = new RegExp(`\\n*${COST_START}[\\s\\S]*?${COST_END}\\n*`);
 const DURATION_START = '<!-- duration-guard:start -->';
 const DURATION_END = '<!-- duration-guard:end -->';
 const DURATION_BLOCK = new RegExp(`\\n*${DURATION_START}[\\s\\S]*?${DURATION_END}\\n*`);
+const LANE_START = '<!-- schema2-lanes:start -->';
+const LANE_END = '<!-- schema2-lanes:end -->';
+const LANE_BLOCK = new RegExp(`\\n*${LANE_START}[\\s\\S]*?${LANE_END}\\n*`);
 const COST_LIST_LIMIT = 15;
 
 // Neutralise HTML comment delimiters so untrusted data can never forge or
@@ -439,10 +633,11 @@ function formatIncompleteLaneReason(lane) {
 // report or no lanes; one line when comparison completed cleanly; otherwise an
 // advisory list that explicitly distinguishes incomplete comparisons from
 // completed clean runs.
-function durationGuardSection(report) {
+function durationGuardSection(report, { testTier } = {}) {
   if (!report || !report.lanes) return '';
   const laneEntries = Object.values(report.lanes);
   if (laneEntries.length === 0) return '';
+  const tierLabel = testTier ? sanitiseInlineText(testTier) : 'standard';
   const evaluated = laneEntries.filter(
     l => finiteNumber(l.scaled_total_seconds) !== null && finiteNumber(l.delta_percent) !== null
   );
@@ -461,7 +656,7 @@ function durationGuardSection(report) {
 
   if (regressed.length === 0 && warnings.length === 0 && incomplete.length === 0 && evaluated.length > 0) {
     return (
-      `**Test duration guard** (Linux cp312, \`standard\` tier): within +${thresholdPct}% of baseline ` +
+      `**Test duration guard** (Linux cp312, \`${tierLabel}\` tier): within +${thresholdPct}% of baseline ` +
       `(${laneParts.join(', ')}; runner-normalised).`
     );
   }
@@ -470,7 +665,7 @@ function durationGuardSection(report) {
     ? 'comparison incomplete; information only, not a gate'
     : 'information only, not a gate';
   const lines = [
-    `**Test duration guard** (${qualifier}; Linux cp312, \`standard\` tier):`,
+    `**Test duration guard** (${qualifier}; Linux cp312, \`${tierLabel}\` tier):`,
     '',
   ];
   for (const lane of regressed) {
@@ -530,13 +725,25 @@ function withDurationGuardSection(body, section) {
   return `${base.slice(0, footer).trimEnd()}\n\n${block}\n${base.slice(footer)}`;
 }
 
-async function postDurationGuard({ github, context, core, report }) {
+// Replace (or drop, for an empty section) the Schema 2 lane-status block in a
+// summary comment body, placing it just above the footer rule. Idempotent.
+function withLaneStatusSection(body, section) {
+  const base = body.replace(LANE_BLOCK, '\n\n');
+  if (!section) return base;
+  const safeSection = neutraliseHtmlComments(section);
+  const block = `${LANE_START}\n${safeSection}\n${LANE_END}`;
+  const footer = base.lastIndexOf('\n---\n');
+  if (footer === -1) return `${base.trimEnd()}\n\n${block}\n`;
+  return `${base.slice(0, footer).trimEnd()}\n\n${block}\n${base.slice(footer)}`;
+}
+
+async function postDurationGuard({ github, context, core, report, testTier }) {
   const existing = await findSummaryComment(github, context);
   if (!existing) {
     core.info('No CI summary comment on this PR; nothing to add the duration guard to.');
     return;
   }
-  const body = withDurationGuardSection(existing.body, durationGuardSection(report));
+  const body = withDurationGuardSection(existing.body, durationGuardSection(report, { testTier }));
   if (body === existing.body) {
     core.info('Duration-guard section unchanged.');
     return;
@@ -584,6 +791,10 @@ module.exports.buildBody = buildBody;
 module.exports.describeTier = describeTier;
 module.exports.describeMatrix = describeMatrix;
 module.exports.TIER_DESC = TIER_DESC;
+module.exports.SCHEMA_V2_LANES = SCHEMA_V2_LANES;
+module.exports.resolveAxisSchema = resolveAxisSchema;
+module.exports.laneStatusSection = laneStatusSection;
+module.exports.withLaneStatusSection = withLaneStatusSection;
 module.exports.costMarkerSection = costMarkerSection;
 module.exports.withCostMarkerSection = withCostMarkerSection;
 module.exports.postCostMarkers = postCostMarkers;

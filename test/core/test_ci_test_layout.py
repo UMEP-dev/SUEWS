@@ -21,6 +21,12 @@ from scripts.suews.ci_test_layout import (
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 
+@pytest.fixture(autouse=True)
+def _isolate_axis_schema_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep tests isolated from an ambient GATE_AXIS_SCHEMA=2 CI environment."""
+    monkeypatch.delenv("GATE_AXIS_SCHEMA", raising=False)
+
+
 def test_ready_linux_pull_request_layout() -> None:
     """cp312 in four shards at the full tier, cp315 whole at core-bookend."""
     cells = api_cells(["cp312", "cp315"], "standard", "cp312", 4, True, "cp312")
@@ -303,3 +309,18 @@ def test_schema_validation_and_cross_schema_cli_flags_fail_closed(
 
     monkeypatch.setenv("GATE_AXIS_SCHEMA", "3")
     assert main(["--api-python", '["cp312"]', "--tier", "standard"]) == 2
+
+    # Explicit --schema 1 overrides ambient GATE_AXIS_SCHEMA=2.
+    monkeypatch.setenv("GATE_AXIS_SCHEMA", "2")
+    assert (
+        main([
+            "--schema",
+            "1",
+            "--api-python",
+            '["cp312","cp315"]',
+            "--tier",
+            "standard",
+            "--bookend-core",
+        ])
+        == 0
+    )

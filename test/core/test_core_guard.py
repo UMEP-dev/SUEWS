@@ -20,6 +20,13 @@ from scripts.suews.pytest_shard import shard_of
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
+
+@pytest.fixture(autouse=True)
+def _isolate_axis_schema_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep tests isolated from an ambient GATE_AXIS_SCHEMA=2 CI environment."""
+    monkeypatch.delenv("GATE_AXIS_SCHEMA", raising=False)
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 SKIPPY = "test/physics/test_skippy.py::test_needs_tool"
@@ -907,7 +914,9 @@ def test_schema2_cli_and_cross_schema_flag_validation(
     )
 
 
-def test_schema1_omitted_api_pythons_fails_closed(tmp_path: Path) -> None:
+def test_schema1_omitted_api_pythons_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Schema 1 rejects omitted or empty api_pythons even with valid physics evidence."""
     metrics = _layout(tmp_path)
     allow = tmp_path / "allow.json"
@@ -926,6 +935,22 @@ def test_schema1_omitted_api_pythons_fails_closed(tmp_path: Path) -> None:
             str(allow),
         ])
         == 2
+    )
+    # Explicit --schema 1 overrides ambient GATE_AXIS_SCHEMA=2.
+    monkeypatch.setenv("GATE_AXIS_SCHEMA", "2")
+    assert (
+        main([
+            str(metrics),
+            "--schema",
+            "1",
+            "--tier",
+            "standard",
+            "--api-python",
+            '["cp312"]',
+            "--allowlist",
+            str(allow),
+        ])
+        == 0
     )
 
 

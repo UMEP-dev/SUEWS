@@ -50,6 +50,7 @@ from ..core.yaml_helpers import (
     load_user_yaml_normalised,
     parse_simulation_bounds,
 )
+from ...core._yaml_io import safe_load_yaml
 from ...core.field_renames import normalise_yaml_renames
 from ...core.profile import (
     normalise_hourly_profile_keys_in_raw_config,
@@ -57,6 +58,13 @@ from ...core.profile import (
 )
 from .phase_a import forcing_date_bounds
 
+from .phase_b_rules.other_rules import (
+    _check_surface_parameters as _rules_check_surface_parameters,
+    check_missing_vegetation_albedo as _rules_check_missing_vegetation_albedo,
+    validate_geographic_parameters as _rules_validate_geographic_parameters,
+    validate_irrigation_doy as validate_irrigation_doy,
+    validate_irrigation_parameters as _rules_validate_irrigation_parameters,
+)
 from .phase_b_rules.rules_core import rule_crash_result
 from .phase_b_rules import (
     RulesRegistry,
@@ -281,6 +289,27 @@ def get_site_gridid(site_data: dict) -> int:
     return None
 
 
+def _load_phase_b_input(uptodate_yaml_file: str) -> dict:
+    """Load and normalise only the YAML file Phase B checks."""
+    if not os.path.exists(uptodate_yaml_file):
+        raise FileNotFoundError(f"Required file not found: {uptodate_yaml_file}")
+
+    try:
+        from ...core.physics_families import flatten_physics_in_config
+
+        with open(uptodate_yaml_file, encoding="utf-8") as f:
+            uptodate_data = normalise_yaml_renames(safe_load_yaml(f))
+        uptodate_data, _ = normalise_hourly_profile_keys_in_raw_config(uptodate_data)
+        uptodate_data, _ = normalise_ten_minute_profile_keys_in_raw_config(
+            uptodate_data
+        )
+        flatten_physics_in_config(uptodate_data)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format: {e}") from e
+
+    return uptodate_data
+
+
 def validate_phase_b_inputs(
     uptodate_yaml_file: str, user_yaml_file: str, standard_yaml_file: str
 ) -> Tuple[dict, dict, dict]:
@@ -318,29 +347,13 @@ def validate_phase_b_inputs(
     try:
         from ...core.physics_families import flatten_physics_in_config
 
-        with open(uptodate_yaml_file, "r", encoding="utf-8") as f:
-            uptodate_content = f.read()
-            # Normalise legacy field spellings to current names so the science
-            # checks below match configs that bypass Phase A's normalisation
-            # (standalone BC mode reads the raw user YAML here). gh#1457. This
-            # reads the raw text first for the header sniff below, so it cannot
-            # use load_user_yaml_normalised (the path-based canonical loader);
-            # the normalise_yaml_renames call keeps it equivalent.
-            uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
-            uptodate_data, _ = normalise_hourly_profile_keys_in_raw_config(uptodate_data)
-            uptodate_data, _ = normalise_ten_minute_profile_keys_in_raw_config(
-                uptodate_data
-            )
-
-        is_phase_a_output = "UP TO DATE YAML" in uptodate_content
-
+        uptodate_data = _load_phase_b_input(uptodate_yaml_file)
         user_data = load_user_yaml_normalised(user_yaml_file)
 
         with open(standard_yaml_file, "r", encoding="utf-8") as f:
-            standard_data = yaml.safe_load(f)
+            standard_data = safe_load_yaml(f)
 
         # Collapse readable physics names for raw-dict science checks.
-        flatten_physics_in_config(uptodate_data)
         flatten_physics_in_config(user_data)
         flatten_physics_in_config(standard_data)
 
@@ -454,626 +467,42 @@ def resolve_simulation_parameters(
 
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
-    """
-    Check for missing or empty parameters in a surface configuration.
-
-    Parameters
-    ----------
-    surface_props : dict
-        Dictionary containing the properties of a surface.
-    surface_type : str
-        The type of surface being checked (e.g., 'paved', 'grass').
-
-    Returns
-    -------
-    List[str]
-        List of parameter paths that are missing or empty in the surface configuration.
-    """
-    missing_params = []
-
-    def _check_recursively(props: dict, path: str = ""):
-        for key, value in props.items():
-            if key == "sfr":
-                continue
-
-            current_path = f"{path}.{key}" if path else key
-
-            if isinstance(value, Mapping):
-                if "value" in value:
-                    param_value = value["value"]
-                    if param_value in (None, "") or (
-                        isinstance(param_value, list)
-                        and any(v in (None, "") for v in param_value)
-                    ):
-                        missing_params.append(current_path)
-                else:
-                    _check_recursively(value, current_path)
-            elif value in (None, "") or (
-                isinstance(value, list) and any(v in (None, "") for v in value)
-            ):
-                missing_params.append(current_path)
-
-    _check_recursively(surface_props)
-    return missing_params
+    """Delegate to the canonical surface-parameter check in ``phase_b_rules.other_rules``."""
+    return _rules_check_surface_parameters(surface_props, surface_type)
 
 
 def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
-    """
-    Perform comprehensive validation of geographic coordinates and related parameters.
-
-    This function checks for the presence, type, and valid range of latitude and longitude
-    for each site, as well as the presence of timezone and daylight saving parameters.
-    It provides detailed error and warning messages to guide users in correcting issues.
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing site configurations.
-
-    Returns
-    -------
-    List[ValidationResult]
-        List of validation results for all geographic parameters, including errors,
-        warnings, and a pass message if all checks succeed.
-    """
-    results = []
-    sites = yaml_data.get("sites", [])
-
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        site_gridid = get_site_gridid(site)
-
-        lat = get_value_safe(props, "lat")
-
-        if lat is None:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="GEOGRAPHY",
-                    parameter="lat",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message="Latitude is missing or null",
-                    suggested_value="Set latitude value between -90 and 90 degrees",
-                )
-            )
-        elif not isinstance(lat, (int, float)):
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="GEOGRAPHY",
-                    parameter="lat",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message="Latitude must be a numeric value",
-                    suggested_value="Set latitude as a number between -90 and 90 degrees",
-                )
-            )
-        elif not (-90 <= lat <= 90):
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="GEOGRAPHY",
-                    parameter="lat",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message=f"Latitude {lat} is outside valid range [-90, 90]",
-                    suggested_value="Set latitude between -90 and 90 degrees",
-                )
-            )
-
-        lng = get_value_safe(props, "lng")
-
-        if lng is None:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="GEOGRAPHY",
-                    parameter="lng",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message="Longitude is missing or null",
-                    suggested_value="Set longitude value between -180 and 180 degrees",
-                )
-            )
-        elif not isinstance(lng, (int, float)):
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="GEOGRAPHY",
-                    parameter="lng",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message="Longitude must be a numeric value",
-                    suggested_value="Set longitude as a number between -180 and 180 degrees",
-                )
-            )
-        elif not (-180 <= lng <= 180):
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="GEOGRAPHY",
-                    parameter="lng",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message=f"Longitude {lng} is outside valid range [-180, 180]",
-                    suggested_value="Set longitude between -180 and 180 degrees",
-                )
-            )
-
-        timezone = get_value_safe(props, "timezone")
-
-        if timezone is None:
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="GEOGRAPHY",
-                    parameter="timezone",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message="Timezone parameter is missing - will be calculated automatically from latitude and longitude (see updated parameters)",
-                    suggested_value="Timezone will be set based on your coordinates. You can also manually set the timezone value if you prefer a specific UTC offset",
-                )
-            )
-
-        anthro_emissions = props.get("anthropogenic_emissions", {})
-        if anthro_emissions:
-            from ...core.human_activity import coerce_integer_doy_scalar
-
-            startdls = get_value_safe(anthro_emissions, "startdls")
-            enddls = get_value_safe(anthro_emissions, "enddls")
-            if (
-                isinstance(startdls, Mapping)
-                and "value" not in startdls
-                and all(k == "ref" for k in startdls)
-            ):
-                startdls = None
-            if (
-                isinstance(enddls, Mapping)
-                and "value" not in enddls
-                and all(k == "ref" for k in enddls)
-            ):
-                enddls = None
-
-            max_dls_doy = 366
-            model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
-            control_cfg = (
-                model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
-            )
-            start_time = (
-                get_value_safe(control_cfg, "start_time")
-                if isinstance(control_cfg, Mapping)
-                else None
-            )
-            if start_time is not None:
-                try:
-                    year = int(str(start_time)[:4])
-                    if not calendar.isleap(year):
-                        max_dls_doy = 365
-                except (TypeError, ValueError):
-                    pass
-
-            for dls_name, dls_val in (("startdls", startdls), ("enddls", enddls)):
-                if dls_val is None:
-                    continue
-                try:
-                    dls_int = coerce_integer_doy_scalar(dls_val, dls_name)
-                except ValueError as exc:
-                    results.append(
-                        ValidationResult(
-                            status="ERROR",
-                            category="GEOGRAPHY",
-                            parameter=f"anthropogenic_emissions.{dls_name}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=str(exc),
-                            suggested_value=(
-                                "Replace decimal or non-integer values with an "
-                                f"integer day of year between 1 and {max_dls_doy}"
-                            ),
-                        )
-                    )
-                    continue
-                if not (1 <= dls_int <= max_dls_doy):
-                    results.append(
-                        ValidationResult(
-                            status="ERROR",
-                            category="GEOGRAPHY",
-                            parameter=f"anthropogenic_emissions.{dls_name}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=(
-                                f"{dls_name}={dls_int} is invalid. Must be an "
-                                f"integer day of year between 1 and {max_dls_doy}."
-                            ),
-                            suggested_value=(
-                                f"Set an integer day of year between 1 and {max_dls_doy}, "
-                                "or omit both startdls and enddls to disable "
-                                "daylight saving"
-                            ),
-                        )
-                    )
-
-            if (startdls is None) != (enddls is None):
-                results.append(
-                    ValidationResult(
-                        status="WARNING",
-                        category="GEOGRAPHY",
-                        parameter="anthropogenic_emissions.startdls,enddls",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message=(
-                            "Only one daylight saving parameter (startdls or enddls) "
-                            "is set - provide both integer days of year (1-366), or "
-                            "set both to null / omit both to disable daylight saving"
-                        ),
-                        suggested_value=(
-                            "Set both startdls and enddls (or let --science-fixes apply "
-                            "fill them from your coordinates), or disable daylight saving "
-                            "by setting both to null / omitting both"
-                        ),
-                    )
-                )
-
-    error_count = sum(1 for r in results if r.status == "ERROR")
-    if error_count == 0:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="GEOGRAPHY",
-                parameter="geographic_coordinates",
-                message="Geographic coordinates validated successfully",
-            )
-        )
-
-    return results
-
-
-def validate_irrigation_doy(
-    ie_start: Optional[Union[int, float]],
-    ie_end: Optional[Union[int, float]],
-    lat: float,
-    model_year: int,
-    site_name: str,
-) -> List[ValidationResult]:
-    """
-    Validate irrigation DOY parameters with leap year, hemisphere, and tropical awareness.
-
-    Parameters
-    ----------
-    ie_start : Optional[int]
-        Irrigation start integer day of year (1-366, or null/None to disable;
-        0 is only used as the internal df_state sentinel).
-    ie_end : Optional[int]
-        Irrigation end integer day of year (1-366, or null/None to disable;
-        0 is only used as the internal df_state sentinel).
-    lat : float
-        Site latitude (for hemisphere and tropical detection).
-    model_year : int
-        Simulation year (for leap year detection).
-    site_name : str
-        Site identifier for error messages.
-
-    Returns
-    -------
-    List[ValidationResult]
-        List of ValidationResult objects (errors, warnings, or empty).
-
-    Notes
-    -----
-    This validator ensures irrigation timing parameters are logically consistent
-    and appropriate for the site's location. It checks:
-    1. DOY values are whole integers within valid range (1-365 or 1-366 for leap years)
-    2. Both parameters are set together or both disabled
-    3. Warm season appropriateness based on hemisphere and latitude:
-       - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
-       - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
-       - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
-    """
-    from ...core.human_activity import coerce_integer_doy_scalar
-
-    results = []
-    is_leap = calendar.isleap(model_year)
-    max_doy = 366 if is_leap else 365
-
-    parsed: Dict[str, Optional[int]] = {}
-    has_type_error = False
-    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
-        if param_value is None or (
-            isinstance(param_value, Mapping)
-            and "value" not in param_value
-            and all(k == "ref" for k in param_value)
-        ):
-            parsed[param_name] = None
-            continue
+    """Delegate to the canonical geographic rule in ``phase_b_rules.other_rules``."""
+    model_year: Optional[int] = None
+    model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
+    control_cfg = model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
+    start_time = (
+        get_value_safe(control_cfg, "start_time")
+        if isinstance(control_cfg, Mapping)
+        else None
+    )
+    if start_time is not None:
         try:
-            parsed[param_name] = coerce_integer_doy_scalar(param_value, param_name)
-        except ValueError as exc:
-            has_type_error = True
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=str(exc),
-                    suggested_value=(
-                        f"Replace decimal or non-integer values with an integer "
-                        f"day of year (1-{max_doy}), or null/None to disable"
-                    ),
-                )
-            )
-    if has_type_error:
-        return results
-
-    ie_start_int = parsed["ie_start"]
-    ie_end_int = parsed["ie_end"]
-
-    # Range check first: reject explicit 0 and out-of-range integers (1..max_doy)
-    has_range_error = False
-    for param_name, param_value in [
-        ("ie_start", ie_start_int),
-        ("ie_end", ie_end_int),
-    ]:
-        if param_value is not None and (param_value < 1 or param_value > max_doy):
-            has_range_error = True
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="IRRIGATION",
-                    parameter=f"{param_name} in site {site_name}",
-                    message=f"{param_name}={param_value} is invalid. "
-                    f"Must be an integer day of year between 1 and {max_doy} for "
-                    f"{'leap' if is_leap else 'non-leap'} year {model_year}, "
-                    "or null/None to disable irrigation",
-                    suggested_value=f"Valid range: 1-{max_doy}, or null/None to disable",
-                )
-            )
-    if has_range_error:
-        return results
-
-    start_disabled = ie_start_int is None
-    end_disabled = ie_end_int is None
-
-    # Case 1: Both disabled (None/absent) = valid (irrigation not configured)
-    if start_disabled and end_disabled:
-        return results
-
-    # Case 2: One disabled, one enabled = ERROR (inconsistent)
-    if start_disabled != end_disabled:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message="Both ie_start and ie_end must be specified together (both set to valid integer DOY), "
-                "or both left as null/None (irrigation disabled). "
-                f"Currently: ie_start={ie_start}, ie_end={ie_end}",
-                suggested_value="Set both to valid integer DOY (1-365/366) or both to null/None",
-            )
-        )
-        return results
-
-    # Case 3: Both enabled = validate hemisphere logic
-    assert ie_start_int is not None and ie_end_int is not None
-    ie_start = ie_start_int
-    ie_end = ie_end_int
-
-    # Seasonal validation based on hemisphere and latitude
-    abs_lat = abs(lat)
-
-    # Tropical regions (within Tropic of Cancer/Capricorn): irrigation allowed all year
-    if abs_lat < 23.5:
-        return results
-
-    # Helper function to check if DOY is in warm season
-    def is_in_warm_season(doy: float, latitude: float) -> bool:
-        """
-        Check if a DOY falls within the warm season for the given hemisphere.
-
-        Parameters
-        ----------
-        doy : float
-            Day of year (1-365/366).
-        latitude : float
-            Latitude in degrees.
-
-        Returns
-        -------
-        bool
-            True if the DOY is within the warm season for the hemisphere, False otherwise.
-
-        Notes
-        -----
-        Warm season definitions:
-        - Northern Hemisphere (lat >= 23.5): May-September (DOY 121-273)
-        - Southern Hemisphere (lat <= -23.5): November-March (DOY 305-90, wraps year boundary)
-        """
-        if latitude >= 0:  # Northern Hemisphere
-            # May to September (DOY 121-273)
-            return 121 <= doy <= 273
-        else:  # Southern Hemisphere
-            # November to March (DOY 305-365/366 or 1-90)
-            return doy >= 305 or doy <= 90
-
-    # Check if ie_start and ie_end are within warm season
-    start_in_warm_season = is_in_warm_season(ie_start, lat)
-    end_in_warm_season = is_in_warm_season(ie_end, lat)
-
-    if not start_in_warm_season or not end_in_warm_season:
-        hemisphere = "Northern" if lat >= 0 else "Southern"
-        season_range = (
-            "May-September (DOY 121-273)" if lat >= 0 else "November-March (DOY 305-90)"
-        )
-
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message=f"Irrigation period (DOY {int(ie_start)} to {int(ie_end)}) falls outside "
-                f"the typical warm season for {hemisphere} Hemisphere sites (lat={lat:.2f}). "
-                f"Irrigation typically occurs during warm season: {season_range}. "
-                f"Verify this configuration is intentional.",
-                suggested_value=f"Consider adjusting to warm season: {season_range}",
-            )
-        )
-
-    # Check for unusual year-wrapping irrigation patterns
-    # This helps catch likely user errors where start/end are swapped
-    if lat >= 23.5 and ie_start > ie_end:  # NH with year-wrapping
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message=f"Irrigation period wraps year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
-                f"This means irrigation spans {365 - int(ie_start) + int(ie_end)} days including cold season. "
-                f"Verify this is intentional for Northern Hemisphere.",
-                suggested_value="Check if ie_start should be less than ie_end",
-            )
-        )
-    elif lat <= -23.5 and ie_start < ie_end:  # SH without year-wrapping
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="IRRIGATION",
-                parameter=f"irrigation in site {site_name}",
-                message=f"Irrigation period does not wrap year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
-                f"In Southern Hemisphere, warm season typically spans November-March (year-wrapping).",
-                suggested_value="Check if ie_start should be greater than ie_end",
-            )
-        )
-
-    return results
+            model_year = int(str(start_time)[:4])
+        except (TypeError, ValueError):
+            model_year = None
+    return _rules_validate_geographic_parameters(
+        ValidationContext(yaml_data=yaml_data, model_year=model_year)
+    )
 
 
 def validate_irrigation_parameters(
     yaml_data: dict, model_year: int
 ) -> List[ValidationResult]:
-    """
-    Validate irrigation DOY parameters for all sites.
-
-    Extracts irrigation parameters from each site configuration and validates
-    them using context-aware checks (leap year, hemisphere).
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Complete YAML configuration dictionary.
-    model_year : int
-        Simulation year for leap year detection.
-
-    Returns
-    -------
-    List[ValidationResult]
-        List of ValidationResult objects for all sites.
-    """
-    results = []
-    sites = yaml_data.get("sites", [])
-
-    # Handle both list and dict formats for sites
-    if isinstance(sites, Mapping):
-        # Dict format: {site_name: {lat: ..., ...}, ...}
-        sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, (list, tuple)):
-        # List/frozen-tuple format: [{name: site_name, lat: ..., ...}, ...]
-        sites_list = [
-            (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
-        ]
-    else:
-        return results  # No valid sites structure
-
-    for site_name, site_data in sites_list:
-        # Extract latitude from properties
-        properties = site_data.get("properties", {})
-        lat = get_value_safe(properties, "lat", 0.0)
-
-        # Extract irrigation parameters from properties
-        irrigation = properties.get("irrigation", {})
-        ie_start = get_value_safe(irrigation, "ie_start")
-        ie_end = get_value_safe(irrigation, "ie_end")
-
-        # Run validation
-        results.extend(
-            validate_irrigation_doy(ie_start, ie_end, lat, model_year, site_name)
-        )
-
-    return results
+    """Delegate to the canonical irrigation rule in ``phase_b_rules.other_rules``."""
+    return _rules_validate_irrigation_parameters(
+        ValidationContext(yaml_data=yaml_data, model_year=model_year)
+    )
 
 
 def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
-    """
-    Report when vegetated surfaces have null alb_id.
-
-    This is informational: SUEWSConfig will auto-calculate alb_id from
-    LAI state before the model run. Trees use a direct LAI-albedo
-    relationship (higher LAI -> higher albedo); grass uses a reversed
-    relationship (higher LAI -> lower albedo).
-
-    Parameters
-    ----------
-    yaml_data : dict
-        Parsed YAML data containing site configurations.
-
-    Returns
-    -------
-    List[ValidationResult]
-        List of informational ValidationResult objects for each vegetated surface
-        with a null alb_id, indicating that alb_id will be auto-calculated.
-    """
-    results = []
-    sites = yaml_data.get("sites", [])
-
-    surface_labels = {
-        "evetr": "evergreen trees",
-        "dectr": "deciduous trees",
-        "grass": "grass",
-    }
-
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-        land_cover = props.get("land_cover", {})
-        site_gridid = get_site_gridid(site)
-
-        for surf_key, surf_label in surface_labels.items():
-            surf_props = land_cover.get(surf_key, {})
-            surf_state = initial_states.get(surf_key, {})
-            if not surf_props or not surf_state:
-                continue
-
-            # Check if surface has non-zero fraction
-            sfr_entry = surf_props.get("sfr", {})
-            sfr_val = (
-                sfr_entry.get("value") if isinstance(sfr_entry, dict) else sfr_entry
-            )
-            if not sfr_val or sfr_val <= 0:
-                continue
-
-            # Check if alb_id is null
-            alb_entry = surf_state.get("alb_id", {})
-            alb_val = (
-                alb_entry.get("value") if isinstance(alb_entry, dict) else alb_entry
-            )
-            if alb_val is not None:
-                continue
-
-            results.append(
-                ValidationResult(
-                    status="INFO",
-                    category="SEASONAL",
-                    parameter=f"{surf_key}.alb_id",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message=(
-                        f"alb_id is null for {surf_label} (sfr={sfr_val}). "
-                        "It will be auto-calculated from LAI state during "
-                        "SUEWSConfig construction"
-                    ),
-                )
-            )
-
-    return results
+    """Delegate to the canonical vegetation-albedo rule in ``phase_b_rules.other_rules``."""
+    return _rules_check_missing_vegetation_albedo(ValidationContext(yaml_data=yaml_data))
 
 
 def get_mean_monthly_air_temperature(
@@ -3095,9 +2524,7 @@ def run_science_check(
     """
     science_fixes = _normalise_science_fixes(science_fixes)
     try:
-        uptodate_data, user_data, standard_data = validate_phase_b_inputs(
-            uptodate_yaml_file, user_yaml_file, standard_yaml_file
-        )
+        uptodate_data = _load_phase_b_input(uptodate_yaml_file)
 
         model_year, start_date, end_date, bound_notes = (
             resolve_simulation_parameters(
@@ -3185,12 +2612,8 @@ def run_science_check(
     adjustment_errors: List[ValidationResult] = []
     if not critical_errors:
         if science_fixes == "apply":
-            suggestions = collect_science_suggestions(
-                uptodate_data, start_date, model_year, errors=[]
-            )
-            science_checked_data, adjustments = apply_science_suggestions(
+            science_checked_data, adjustments = run_scientific_adjustment_pipeline(
                 uptodate_data,
-                suggestions,
                 start_date,
                 model_year,
                 errors=adjustment_errors,

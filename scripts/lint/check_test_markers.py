@@ -58,6 +58,11 @@ _DEFINE_DIRECTIVE_RE = re.compile(
     r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+[^ \t]+"
 )
 _INCLUDE_RE = re.compile(r"^(?:-include|sinclude|include)[ \t]+")
+_UNSUPPORTED_DIRECTIVE_RE = re.compile(
+    r"^(?:(?:override|private)[ \t]+)*"
+    r"(?P<directive>export|unexport|undefine|vpath)"
+    r"(?:[ \t]*$|[ \t]+[^:# \t])"
+)
 _DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t\f\v]*(?:eval|call)\b")
 _RECIPEPREFIX_RE = re.compile(r"\.RECIPEPREFIX\b")
 _PORTABLE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
@@ -75,7 +80,7 @@ _PLAIN_ASSIGN_RE = re.compile(
 )
 _ANY_VAR_ASSIGN_RE = re.compile(
     r"^(?:(?:override|export|private)[ \t]+)*"
-    r"[A-Za-z_][A-Za-z0-9_.-]*[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
+    r"[^:#= \t]+[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
 )
 _RULE_HEADER_RE = re.compile(r"^[^#\t][^:=]*:")
 
@@ -390,7 +395,7 @@ def _split_makefile_code_and_inline_recipe(
     return (stripped, None)
 
 
-def _reject_unsupported_makefile_line(code: str) -> None:
+def _reject_unsupported_makefile_line(code: str, *, is_assignment: bool) -> None:
     """Reject top-level Make directives or expansions that can mutate variables."""
     if any((ord(ch) < 0x20 and ch != "\t") or ch == "\x7f" for ch in code):
         raise ValueError(
@@ -410,6 +415,13 @@ def _reject_unsupported_makefile_line(code: str) -> None:
         raise ValueError(
             "Makefile conditionals are unsupported when parsing TEST_DEFAULT_PATHS"
         )
+    directive_match = _UNSUPPORTED_DIRECTIVE_RE.match(code)
+    if directive_match is not None:
+        directive = directive_match.group("directive")
+        raise ValueError(
+            f"Makefile {directive} directives are unsupported when parsing "
+            f"TEST_DEFAULT_PATHS: {code.strip(_MAKE_WHITESPACE)}"
+        )
     if _RECIPEPREFIX_RE.search(code):
         raise ValueError(
             "Makefile .RECIPEPREFIX is unsupported when parsing TEST_DEFAULT_PATHS"
@@ -419,6 +431,13 @@ def _reject_unsupported_makefile_line(code: str) -> None:
             "Makefile variable reference or expansion is unsupported when parsing "
             f"TEST_DEFAULT_PATHS: {code.strip()}"
         )
+    if not is_assignment and _RULE_HEADER_RE.match(code):
+        _, after_colon = code.split(":", 1)
+        if "=" in after_colon:
+            raise ValueError(
+                "Makefile target-specific variable assignments are unsupported "
+                f"when parsing TEST_DEFAULT_PATHS: {code.strip(_MAKE_WHITESPACE)}"
+            )
 
 
 def _apply_makefile_target_line(
@@ -471,10 +490,10 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     ValueError
         If ``TEST_DEFAULT_PATHS`` is missing, empty, uses unsupported Make
         syntax (conditionals, variable references, ``include``, ``eval``,
-        ``call``, ``define``, ``undefine``, ``.RECIPEPREFIX``, directive
-        prefixes, ``:::=``/``!=``, target-specific assignments, computed
-        variable names, or tab-indented assignments outside a recipe), or
-        contains an invalid path token.
+        ``call``, ``define``, ``export``, ``unexport``, ``undefine``,
+        ``vpath``, ``.RECIPEPREFIX``, directive prefixes, ``:::=``/``!=``,
+        target-specific assignments, computed variable names, or tab-indented
+        assignments outside a recipe), or contains an invalid path token.
     """
     with makefile_path.open("r", encoding="utf-8", newline="") as handle:
         text = handle.read()
@@ -504,7 +523,7 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
                 "Makefile eval/call inside inline recipe is unsupported when "
                 f"parsing TEST_DEFAULT_PATHS: {stripped}"
             )
-        _reject_unsupported_makefile_line(code)
+        _reject_unsupported_makefile_line(code, is_assignment=is_assignment)
 
         if _MENTIONS_TARGET_RE.search(code):
             raw_tokens, found = _apply_makefile_target_line(
@@ -513,10 +532,12 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
             in_rule = False
             continue
 
-        if _ANY_VAR_ASSIGN_RE.match(code):
+        if is_assignment:
             in_rule = False
-        elif _RULE_HEADER_RE.match(code):
+        elif _RULE_HEADER_RE.match(code) and not line.startswith("\t"):
             in_rule = True
+        else:
+            in_rule = False
 
     if not found:
         raise ValueError(

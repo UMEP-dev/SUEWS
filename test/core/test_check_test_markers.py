@@ -208,8 +208,16 @@ def test_makefile_continuations_comments_append_and_recipes(
     """Parser supports line continuations, comments, += and ignores recipes."""
     makefile = (
         "# Comment with TEST_DEFAULT_PATHS := test/ignored\n"
-        "dummy: # explanation; avoid $(eval ...) here\n"
+        "dummy: # explanation; avoid $(eval ...) here; FLAG := ignored\n"
         "\tTEST_DEFAULT_PATHS := test/recipe_ignored\n"
+        "inline_eq: ; FOO=bar pytest\n"
+        "\tTEST_DEFAULT_PATHS := test/recipe_ignored_2\n"
+        "inline_prereq: dummy ; VAR := 1\n"
+        "\tTEST_DEFAULT_PATHS := test/recipe_ignored_3\n"
+        "export:\n"
+        "\t@echo target named export\n"
+        "vpath : dummy\n"
+        "\t@echo target named vpath\n"
         "TEST_DEFAULT_PATHS := \\\n"
         "    test/test_surface.py \\\n"
         "    test/core # explanation; avoid $(eval ...) here\n"
@@ -287,11 +295,11 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\nundefine TEST_DEFAULT_PATHS\n",
-            "unsupported Make construct",
+            "Makefile undefine directives are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\ntest: TEST_DEFAULT_PATHS := test/core\n",
-            "unsupported Make construct",
+            "Makefile target-specific variable assignments are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS != echo test/core\n",
@@ -409,6 +417,164 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "include extra.mk\nTEST_DEFAULT_PATHS := test/core\n",
             "Makefile include directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG := literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG = literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG += literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG ?= literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG ::= literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG :::= literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG != echo literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: override FLAG := literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: private FLAG := literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: export FLAG := literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "%.o: CFLAGS := -O2\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test: FLAG := a ; b\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile target-specific variable assignments are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "export\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile export directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "export FLAG\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile export directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "override export FLAG := literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile export directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "unexport\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile unexport directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "unexport FLAG\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile unexport directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "undefine FLAG\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile undefine directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "override undefine FLAG\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile undefine directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "vpath\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile vpath directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "vpath %.py test/core:test/orphan\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile vpath directives are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "dummy:\n"
+            "\t@echo ok\n"
+            "1FLAG := literal\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "tab-indented construct outside a recipe",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "\tdummy:\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "tab-indented construct outside a recipe",
         ),
     ],
 )

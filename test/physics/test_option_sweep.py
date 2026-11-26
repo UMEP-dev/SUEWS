@@ -52,12 +52,8 @@ from typing import Any, get_args
 
 from conftest import TIMESTEPS_PER_DAY
 from layer5_checks import (
-    DAILYSTATE_ABSENT_UNDER_EHC,
-    RSL_ABSENT_UNDER_MOST,
     assert_forcing_cloud,
     assert_simulation_output_finiteness,
-    expected_dailystate_mask,
-    expected_group_columns,
     strict_finite_array,
 )
 import numpy as np
@@ -183,9 +179,10 @@ REPRESENTATIVE_OPTION_COMBINATIONS: dict[str, dict[str, Enum]] = {
         "roughness_length_momentum": MomentumRoughnessMethod.MACDONALD,
         "surface_conductance": GSModel.WARD,
     },
-    "ehc_explicit_kawai_most": {
+    "ehc_implicit_secant_kawai_most": {
         "storage_heat": StorageHeatMethod.EHC,
-        "ehc_surface_coupling": EHCSurfaceCoupling.EXPLICIT,
+        "ehc_surface_coupling": EHCSurfaceCoupling.IMPLICIT,
+        "control_ehc_stability": EHCStabilityControl.SECANT,
         "roughness_length_heat": HeatRoughnessMethod.KAWAI,
         "roughness_sublayer": RSLMethod.MOST,
     },
@@ -460,103 +457,6 @@ def water_balance_residual_mm(
     return float((total_store.diff().iloc[1:] - net_input.iloc[1:]).abs().max())
 
 
-# Indoor EHC diagnostics emitted as -999 -> NaN under explicit EHC coupling
-# (ehc_surface_coupling=0, matching test/core/test_ehc_implicit.py).
-_EHC_ABSENT_UNDER_EXPLICIT: tuple[str, ...] = ("QIndoor_EHC", "T_Indoor_EHC")
-_LAYER_SUFFIX_RE = re.compile(r"_(\d+)$")
-
-
-def _unused_layer_cols(columns: tuple[str, ...], nlayer: int) -> tuple[str, ...]:
-    """Return fixed-width vertical-layer columns above ``nlayer``."""
-    return tuple(
-        col
-        for col in columns
-        if (m := _LAYER_SUFFIX_RE.search(col)) is not None and int(m.group(1)) > nlayer
-    )
-
-
-def _assert_rsl_and_dailystate_for_explicit_ehc(
-    grid_df: pd.DataFrame,
-    *,
-    expected_timestamps: pd.DatetimeIndex,
-    tstep: int,
-) -> None:
-    """Assert RSL and DailyState finiteness under explicit EHC."""
-    rsl = grid_df["RSL"]
-    rsl_cols = expected_group_columns("RSL")
-    flag_rsl = strict_finite_array(rsl["flag_RSL"], label="RSL.flag_RSL")
-    rsl_mask = np.equal(flag_rsl, 1.0)
-    most_mask = np.equal(flag_rsl, 0.0)
-    assert bool((rsl_mask | most_mask).all())
-    if bool(rsl_mask.any()):
-        strict_finite_array(rsl.loc[rsl_mask, list(rsl_cols)], label="RSL[flag_RSL=1]")
-    if bool(most_mask.any()):
-        assert rsl.loc[most_mask, list(RSL_ABSENT_UNDER_MOST)].isna().all().all()
-        most_active = [c for c in rsl_cols if c not in RSL_ABSENT_UNDER_MOST]
-        strict_finite_array(rsl.loc[most_mask, most_active], label="RSL[flag_RSL=0]")
-
-    ds = grid_df["DailyState"]
-    ds_cols = expected_group_columns("DailyState")
-    eod_mask = expected_dailystate_mask(expected_timestamps, tstep)
-    assert bool(eod_mask.any())
-    if bool((~eod_mask).any()):
-        assert ds.loc[~eod_mask, list(ds_cols)].isna().all().all()
-    assert ds.loc[eod_mask, list(DAILYSTATE_ABSENT_UNDER_EHC)].isna().all().all()
-    ds_active = [c for c in ds_cols if c not in DAILYSTATE_ABSENT_UNDER_EHC]
-    strict_finite_array(ds.loc[eod_mask, ds_active], label="DailyState[EOD]")
-
-
-def _assert_explicit_ehc_active_groups(
-    grid_df: pd.DataFrame,
-    *,
-    expected_timestamps: pd.DatetimeIndex,
-    tstep: int,
-    net_radiation: int,
-    snow_use: int,
-    nlayer: int,
-    has_buildings: bool,
-) -> None:
-    """Assert active output groups under explicit EHC (storage_heat=5, coupling=0)."""
-    for group in ("debug", "BEERS"):
-        sub = grid_df[group]
-        cols = expected_group_columns(group)
-        missing = sorted(set(cols) - set(sub.columns))
-        assert not missing, f"{group}: missing required output columns: {missing}"
-        if group == "BEERS" and not has_buildings:
-            assert sub[list(cols)].isna().all().all()
-        else:
-            strict_finite_array(sub[list(cols)], label=group)
-
-    _assert_rsl_and_dailystate_for_explicit_ehc(
-        grid_df, expected_timestamps=expected_timestamps, tstep=tstep
-    )
-
-    ehc = grid_df["EHC"]
-    ehc_cols = expected_group_columns("EHC")
-    missing_ehc = sorted(set(ehc_cols) - set(ehc.columns))
-    assert not missing_ehc, f"EHC: missing required output columns: {missing_ehc}"
-    ehc_absent = (*_EHC_ABSENT_UNDER_EXPLICIT, *_unused_layer_cols(ehc_cols, nlayer))
-    assert ehc[list(ehc_absent)].isna().all().all(), (
-        f"EHC[explicit]: expected all-NaN columns {ehc_absent}"
-    )
-    ehc_active = [c for c in ehc_cols if c not in ehc_absent]
-    strict_finite_array(ehc[ehc_active], label="EHC[explicit]")
-
-    if net_radiation > 1000:
-        sp = grid_df["SPARTACUS"]
-        sp_cols = expected_group_columns("SPARTACUS")
-        sp_unused = _unused_layer_cols(sp_cols, nlayer)
-        if sp_unused:
-            assert sp[list(sp_unused)].isna().all().all()
-        strict_finite_array(
-            sp[[c for c in sp_cols if c not in sp_unused]], label="SPARTACUS"
-        )
-    if snow_use == 1:
-        strict_finite_array(
-            grid_df["snow"][list(expected_group_columns("snow"))], label="snow"
-        )
-
-
 def assert_sweep_invariants(
     df_output: pd.DataFrame,
     df_forcing: pd.DataFrame,
@@ -593,35 +493,18 @@ def assert_sweep_invariants(
         tstep = int(_unwrap_value(state_or_config.model.control.tstep))
         nlayer = int(_unwrap_value(site.properties.vertical_layers.nlayer))
         has_buildings = float(_unwrap_value(site.properties.land_cover.bldgs.sfr)) > 0.0
-        storage_heat = int(_unwrap_value(physics.storage_heat))
-        net_radiation = int(_unwrap_value(physics.net_radiation))
-        snow_use = int(_unwrap_value(physics.snow_use))
-        ehc_coupling = int(_unwrap_value(physics.ehc_surface_coupling))
-        if storage_heat == int(StorageHeatMethod.EHC.value) and ehc_coupling == int(
-            EHCSurfaceCoupling.EXPLICIT.value
-        ):
-            _assert_explicit_ehc_active_groups(
-                df_output.xs(grid, level=0),
-                expected_timestamps=df_forcing.index,
-                tstep=tstep,
-                net_radiation=net_radiation,
-                snow_use=snow_use,
-                nlayer=nlayer,
-                has_buildings=has_buildings,
-            )
-        else:
-            assert_simulation_output_finiteness(
-                df_output,
-                expected_grids=(grid,),
-                expected_timestamps=df_forcing.index,
-                tstep=tstep,
-                storage_heat=storage_heat,
-                net_radiation=net_radiation,
-                snow_use=snow_use,
-                nlayer=nlayer,
-                has_buildings=has_buildings,
-                forcing=df_forcing,
-            )
+        assert_simulation_output_finiteness(
+            df_output,
+            expected_grids=(grid,),
+            expected_timestamps=df_forcing.index,
+            tstep=tstep,
+            storage_heat=int(_unwrap_value(physics.storage_heat)),
+            net_radiation=int(_unwrap_value(physics.net_radiation)),
+            snow_use=int(_unwrap_value(physics.snow_use)),
+            nlayer=nlayer,
+            has_buildings=has_buildings,
+            forcing=df_forcing,
+        )
 
     assert residual < WATER_CLOSURE_TOLERANCE_MM, (
         f"{case_label}: water balance not closed, max residual {residual:.3e} mm"
@@ -726,6 +609,7 @@ def test_yaml_rust_option_combinations_run_finite_and_conserve_water(
     )
 
 
+@pytest.mark.api
 def test_yaml_roundtrip_matches_in_memory_config_run(sample_sweep_base, tmp_path):
     """On-disk YAML and in-memory SUEWSConfig produce identical engine output.
 

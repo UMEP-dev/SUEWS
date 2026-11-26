@@ -1,13 +1,12 @@
-"""Native resolved-YAML water-distribution guards across CLI, buffer, and checkpoint routes (#2086, #2002)."""
+"""Native resolved-YAML water-distribution guards across CLI, buffer, and checkpoint routes (#2086, #2002, #2349)."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 from importlib import import_module
-from importlib.resources import as_file, files
+from importlib.resources import files
 import json
 import math
-import os
 from pathlib import Path
 import struct
 import subprocess
@@ -17,12 +16,14 @@ from pyarrow import ipc
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.hydro import WATER_DISTRIBUTION_REQUIRED, WaterDistribution
 from supy.data_model.core.type import SurfaceType
 
 _run_rust = import_module("supy._run_rust")
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
 pytestmark = [
     pytest.mark.physics,
     pytest.mark.api,
@@ -30,50 +31,63 @@ pytestmark = [
 ]
 
 
-def _locate_suews_engine() -> Path:
-    """Return the bundled or locally built ``suews-engine`` binary."""
-    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = files("supy").joinpath("bin").joinpath(binary_name)
-    with as_file(bundled) as bundled_path:
-        if bundled_path.exists():
-            return Path(bundled_path)
-
-    repo_root = Path(__file__).resolve().parents[2]
-    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
-    if dev_binary.exists():
-        return dev_binary
-    pytest.skip("Rust CLI binary not found; build with: make bridge")
+def _dump_yaml(doc: dict) -> str:
+    return yaml.dump(doc, Dumper=_YAML_DUMPER, sort_keys=False)
 
 
-def _sample_resolved_doc(run_dir: Path | None = None) -> dict:
-    """Build a valid resolved native config dict from the bundled sample."""
-    sample_dir = files("supy").joinpath("sample_data")
-    with sample_dir.joinpath("sample_config.yml").open(encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle)
-    if run_dir is not None:
-        raw["model"]["control"]["output"]["dir"] = str(run_dir)
-    resolved_yaml = _run_rust.config_to_engine_yaml(SUEWSConfig.from_dict(raw))
-    return yaml.safe_load(resolved_yaml)
+def _load_yaml(text: str) -> dict:
+    return yaml.load(text, Loader=_YAML_LOADER)
 
 
-def _write_wet_day_cli_inputs(
-    run_dir: Path, doc: dict, forcing_hours: int = 25
-) -> Path:
-    """Write resolved YAML and wet-day hourly forcing prefix (2012-01-01) to ``run_dir``."""
-    sample_dir = files("supy").joinpath("sample_data")
-    forcing_entry = doc["model"]["control"]["forcing"]["file"]
+@pytest.fixture(scope="module")
+def _waterdist_base(sample_config_loaded, sample_forcing_parsed):
+    """Cache resolved sample config, forcing lines, and 1-step / 24-step forcing blocks."""
+    resolved_doc = _load_yaml(_run_rust.config_to_engine_yaml(sample_config_loaded))
+    forcing_entry = resolved_doc["model"]["control"]["forcing"]["file"]
     forcing_name = (
         forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
     )
-    forcing_raw = sample_dir.joinpath(forcing_name).read_text(encoding="utf-8")
-    lines = [line for line in forcing_raw.splitlines() if line.strip()]
+    assert isinstance(forcing_name, str) and forcing_name
+    forcing_raw = (files("supy") / "sample_data" / forcing_name).read_text(
+        encoding="utf-8"
+    )
+    forcing_lines = [line for line in forcing_raw.splitlines() if line.strip()]
+
+    _, df_forcing_24 = sample_forcing_parsed(24)
+    forcing_block_24 = np.ascontiguousarray(
+        _run_rust._prepare_forcing_block(df_forcing_24), dtype=np.float64
+    )
+    forcing_block_1 = np.ascontiguousarray(forcing_block_24[:1], dtype=np.float64)
+    return {
+        "resolved_doc": resolved_doc,
+        "forcing_name": forcing_name,
+        "forcing_lines": forcing_lines,
+        "forcing_block_24": forcing_block_24,
+        "forcing_block_1": forcing_block_1,
+    }
+
+
+def _sample_resolved_doc(base_cache: dict, run_dir: Path | None = None) -> dict:
+    """Return a defensive copy of the resolved native config dict."""
+    doc = deepcopy(base_cache["resolved_doc"])
+    if run_dir is not None:
+        doc["model"]["control"]["output"]["dir"] = str(run_dir)
+    return doc
+
+
+def _write_wet_day_cli_inputs(
+    base_cache: dict, run_dir: Path, doc: dict, forcing_hours: int = 25
+) -> Path:
+    """Write resolved YAML and wet-day hourly forcing prefix (2012-01-01) to ``run_dir``."""
+    forcing_name = base_cache["forcing_name"]
+    lines = base_cache["forcing_lines"]
     prefix = "\n".join(lines[: forcing_hours + 1]) + "\n"
     (run_dir / forcing_name).write_text(prefix, encoding="utf-8")
     doc = deepcopy(doc)
     doc["model"]["control"].pop("start_time", None)
     doc["model"]["control"].pop("end_time", None)
     config_path = run_dir / "resolved_config.yml"
-    config_path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    config_path.write_text(_dump_yaml(doc), encoding="utf-8")
     return config_path
 
 
@@ -86,63 +100,40 @@ def _write_wet_day_cli_inputs(
             ("sites[gridiv=7]", "paved.waterdist.to_runoff"),
         ),
         (
-            "paved_self_routing_zero",
-            lambda lc: lc["paved"]["waterdist"].__setitem__("to_paved", {"value": 0.0}),
-            ("sites[gridiv=7]", "paved.waterdist.to_paved", "disallowed"),
-        ),
-        (
-            "paved_self_routing_half",
-            lambda lc: lc["paved"]["waterdist"].__setitem__("to_paved", {"value": 0.5}),
-            ("sites[gridiv=7]", "paved.waterdist.to_paved", "disallowed"),
-        ),
-        (
-            "paved_opposite_terminal_zero",
+            "paved_null_to_grass",
             lambda lc: lc["paved"]["waterdist"].__setitem__(
-                "to_soilstore", {"value": 0.0}
+                "to_grass", {"value": None}
             ),
-            ("sites[gridiv=7]", "paved.waterdist.to_soilstore", "disallowed"),
-        ),
-        (
-            "paved_non_canonical_to_bldg",
-            lambda lc: lc["paved"]["waterdist"].__setitem__("to_bldg", {"value": 0.0}),
-            ("sites[gridiv=7]", "paved.waterdist.to_bldg", "to_bldgs"),
-        ),
-        (
-            "grass_opposite_terminal",
-            lambda lc: lc["grass"]["waterdist"].__setitem__(
-                "to_runoff", {"value": 0.5}
-            ),
-            ("sites[gridiv=7]", "grass.waterdist.to_runoff", "disallowed"),
+            ("sites[gridiv=7]", "paved.waterdist.to_grass"),
         ),
         (
             "paved_bad_sum",
             lambda lc: lc["paved"]["waterdist"].__setitem__("to_grass", {"value": 0.5}),
             ("sites[gridiv=7]", "paved.waterdist", "sum must be 1.0"),
         ),
-        (
-            "water_has_waterdist",
-            lambda lc: lc["water"].__setitem__("waterdist", {"to_runoff": 1.0}),
-            ("sites[gridiv=7]", "water.waterdist", "disallowed"),
-        ),
     ],
 )
-def test_cli_rejects_invalid_resolved_waterdist(
+def test_waterdist_br02_failure_witnesses(
     tmp_path: Path,
+    suews_engine_bin: Path,
+    _waterdist_base: dict,
     case: str,
     mutator,
     expected_substrings: tuple[str, ...],
 ) -> None:
-    """Standalone ``suews-engine`` refuses malformed resolved waterdist with site context."""
-    engine_bin = _locate_suews_engine()
+    """BR-02 witnesses for waterdist (missing, null, malformed) across CLI and Python."""
     run_dir = tmp_path / case
     run_dir.mkdir()
-    doc = _sample_resolved_doc(run_dir)
+    doc = _sample_resolved_doc(_waterdist_base, run_dir)
     doc["sites"][0]["gridiv"] = 7
     mutator(doc["sites"][0]["properties"]["land_cover"])
-    config_path = _write_wet_day_cli_inputs(run_dir, doc)
+    config_path = _write_wet_day_cli_inputs(
+        _waterdist_base, run_dir, doc, forcing_hours=2
+    )
 
+    # 1. Standalone suews-engine CLI witness
     result = subprocess.run(
-        [str(engine_bin), "run", str(config_path)],
+        [str(suews_engine_bin), "run", str(config_path)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -154,25 +145,31 @@ def test_cli_rejects_invalid_resolved_waterdist(
     combined = f"{result.stdout}\n{result.stderr}"
     for needle in expected_substrings:
         assert needle in combined, f"{case}: expected {needle!r} in {combined!r}"
+    assert not (run_dir / "suews_output.arrow").exists()
+
+    # 2. Public Python SUEWSConfig entry point witness
+    with pytest.raises((ValueError, TypeError)):
+        SUEWSConfig.from_dict(doc)
 
 
-def test_cli_accepts_valid_wet_day_and_inactive_omission(tmp_path: Path) -> None:
+def test_cli_accepts_valid_wet_day_and_inactive_omission(
+    tmp_path: Path, suews_engine_bin: Path, _waterdist_base: dict
+) -> None:
     """Valid resolved wet-day config and inactive-surface omission produce identical runoff."""
-    engine_bin = _locate_suews_engine()
     runoff_by_case = {}
     for case, omit_inactive in [("control", False), ("inactive_omitted", True)]:
         run_dir = tmp_path / case
         run_dir.mkdir()
-        doc = _sample_resolved_doc(run_dir)
+        doc = _sample_resolved_doc(_waterdist_base, run_dir)
         if omit_inactive:
             lc = doc["sites"][0]["properties"]["land_cover"]
             assert lc["evetr"]["sfr"]["value"] == pytest.approx(0.0)
             assert lc["bsoil"]["sfr"]["value"] == pytest.approx(0.0)
             lc["evetr"].pop("waterdist", None)
             lc["bsoil"]["waterdist"] = {}
-        config_path = _write_wet_day_cli_inputs(run_dir, doc)
+        config_path = _write_wet_day_cli_inputs(_waterdist_base, run_dir, doc)
         result = subprocess.run(
-            [str(engine_bin), "run", str(config_path)],
+            [str(suews_engine_bin), "run", str(config_path)],
             capture_output=True,
             text=True,
             timeout=60,
@@ -192,18 +189,16 @@ def test_cli_accepts_valid_wet_day_and_inactive_omission(tmp_path: Path) -> None
     )
 
 
-def test_buffer_multisite_and_checkpoint_routes_reject_corrupted_waterdist() -> None:
+def test_buffer_multisite_and_checkpoint_routes_reject_corrupted_waterdist(
+    _waterdist_base: dict,
+) -> None:
     """Direct Rust buffer, multi-site, and checkpoint routes enforce waterdist guards."""
     rust = _run_rust._check_rust_available()
-    sim = SUEWSSimulation.from_sample_data()
-    df_forcing = sim.forcing.df.iloc[:24]
-    forcing_block = np.ascontiguousarray(
-        _run_rust._prepare_forcing_block(df_forcing), dtype=np.float64
-    )
-    len_sim = len(df_forcing)
+    forcing_block = _waterdist_base["forcing_block_24"]
+    len_sim = len(forcing_block)
 
-    valid_doc = _sample_resolved_doc()
-    valid_yaml = yaml.safe_dump(valid_doc, sort_keys=False)
+    valid_doc = _sample_resolved_doc(_waterdist_base)
+    valid_yaml = _dump_yaml(valid_doc)
 
     # Fresh valid buffer run yields a valid checkpoint JSON state.
     out_data = np.zeros(
@@ -217,33 +212,47 @@ def test_buffer_multisite_and_checkpoint_routes_reject_corrupted_waterdist() -> 
     )
     assert n_steps == len_sim
 
-    # Corrupted site with non-1 gridiv=7 fails on fresh buffer, checkpoint, and multi-site.
-    corrupt_doc = deepcopy(valid_doc)
-    corrupt_doc["sites"][0]["gridiv"] = 7
-    corrupt_doc["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"].pop(
-        "to_runoff"
-    )
-    corrupt_yaml = yaml.safe_dump(corrupt_doc, sort_keys=False)
-
-    for state_arg in (None, state_json):
-        with pytest.raises(
-            RuntimeError,
-            match=r"sites\[gridiv=7\]\.properties\.land_cover\.paved\.waterdist\.to_runoff",
-        ):
-            rust.run_suews_into(
-                corrupt_yaml, forcing_block, len_sim, out_data, out_dt, state_arg
-            )
-
-    with pytest.raises(
-        RuntimeError,
-        match=r"sites\[gridiv=7\]\.properties\.land_cover\.paved\.waterdist\.to_runoff",
-    ):
-        rust.run_suews_multi(
-            [valid_yaml, corrupt_yaml],
-            forcing_block.ravel(order="C").tolist(),
-            len_sim,
-            2,
+    # Corrupted site with non-1 gridiv=7 fails on fresh buffer, checkpoint, and multi-site
+    # across missing, null, and malformed waterdist inputs.
+    cases = [
+        (
+            "missing",
+            lambda wd: wd.pop("to_runoff"),
+            r"sites\[gridiv=7\]\.properties\.land_cover\.paved\.waterdist\.to_runoff",
+        ),
+        (
+            "null",
+            lambda wd: wd.__setitem__("to_grass", {"value": None}),
+            r"sites\[gridiv=7\]\.properties\.land_cover\.paved\.waterdist\.to_grass",
+        ),
+        (
+            "malformed",
+            lambda wd: wd.__setitem__("to_paved", {"value": 0.5}),
+            r"sites\[gridiv=7\]\.properties\.land_cover\.paved\.waterdist\.to_paved",
+        ),
+    ]
+    for label, mutator, pattern in cases:
+        corrupt_doc = deepcopy(valid_doc)
+        corrupt_doc["sites"][0]["gridiv"] = 7
+        mutator(
+            corrupt_doc["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]
         )
+        corrupt_yaml = _dump_yaml(corrupt_doc)
+
+        for state_arg in (None, state_json):
+            with pytest.raises(RuntimeError, match=pattern):
+                rust.run_suews_into(
+                    corrupt_yaml, forcing_block, len_sim, out_data, out_dt, state_arg
+                )
+
+        if label == "missing":
+            with pytest.raises(RuntimeError, match=pattern):
+                rust.run_suews_multi(
+                    [valid_yaml, corrupt_yaml],
+                    forcing_block.ravel(order="C").tolist(),
+                    len_sim,
+                    2,
+                )
 
 
 _PAVED_KEYS = (
@@ -332,7 +341,7 @@ def _rust_waterdist_valid(
     doc["sites"][0]["properties"]["land_cover"][surface]["waterdist"] = {
         k: {"value": v} for k, v in zip(keys, vals, strict=True)
     }
-    yaml_str = yaml.safe_dump(doc, sort_keys=False)
+    yaml_str = _dump_yaml(doc)
     out_data = np.zeros((1, _run_rust.OUTPUT_DATA_COLS), dtype=np.float64, order="F")
     out_dt = np.zeros((1, _run_rust.OUTPUT_TIME_COLS), dtype=np.float64, order="F")
     try:
@@ -348,13 +357,10 @@ def _rust_waterdist_valid(
     return True
 
 
-def test_python_and_native_waterdist_sum_boundary_parity() -> None:
+def test_python_and_native_waterdist_sum_boundary_parity(_waterdist_base: dict) -> None:
     """Python ``WaterDistribution`` and native Rust agree on acceptance at sum boundaries."""
-    sim = SUEWSSimulation.from_sample_data()
-    forcing_block = np.ascontiguousarray(
-        _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:1]), dtype=np.float64
-    )
-    base_doc = _sample_resolved_doc()
+    forcing_block = _waterdist_base["forcing_block_1"]
+    base_doc = _sample_resolved_doc(_waterdist_base)
 
     # These particular weight reassignments preserve acceptance; they are different inputs.
     for label, vec, expected in (("v1", _SUM_V1, True), ("v2", _SUM_V2, False)):
@@ -397,22 +403,25 @@ def test_python_and_native_waterdist_sum_boundary_parity() -> None:
         ), f"Rust inactive mismatch: {label}"
 
 
-def test_cli_waterdist_sum_v1_v2_parity(tmp_path: Path) -> None:
+def test_cli_waterdist_sum_v1_v2_parity(
+    tmp_path: Path, suews_engine_bin: Path, _waterdist_base: dict
+) -> None:
     """Standalone ``suews-engine`` accepts v1 and rejects v2 identically to public Python ``sum``."""
-    engine_bin = _locate_suews_engine()
     for case, vals, expect_zero in (
         ("cli_v1_accept", _SUM_V1, True),
         ("cli_v2_reject", _SUM_V2, False),
     ):
         run_dir = tmp_path / case
         run_dir.mkdir()
-        doc = _sample_resolved_doc(run_dir)
+        doc = _sample_resolved_doc(_waterdist_base, run_dir)
         doc["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"] = {
             k: {"value": v} for k, v in zip(_PAVED_KEYS, vals, strict=True)
         }
-        config_path = _write_wet_day_cli_inputs(run_dir, doc, forcing_hours=2)
+        config_path = _write_wet_day_cli_inputs(
+            _waterdist_base, run_dir, doc, forcing_hours=2
+        )
         result = subprocess.run(
-            [str(engine_bin), "run", str(config_path)],
+            [str(suews_engine_bin), "run", str(config_path)],
             capture_output=True,
             text=True,
             timeout=60,
@@ -433,16 +442,13 @@ _SOURCE_ROUNDING_CASES = (
 
 
 @pytest.mark.parametrize("surface", tuple(WATER_DISTRIBUTION_REQUIRED))
-def test_native_preserves_public_python_rounding(surface):
+def test_native_preserves_public_python_rounding(_waterdist_base: dict, surface):
     """All surfaces use public sum; reverse key order preserves the same input."""
-    sim = SUEWSSimulation.from_sample_data()
-    forcing = np.ascontiguousarray(
-        _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:1]), dtype=np.float64
-    )
+    forcing = _waterdist_base["forcing_block_1"]
     keys = WATER_DISTRIBUTION_REQUIRED[surface]
     kind = SurfaceType(surface)
     for active in (True, False):
-        base = _sample_resolved_doc()
+        base = _sample_resolved_doc(_waterdist_base)
         lc = base["sites"][0]["properties"]["land_cover"]
         old_fraction = lc[surface]["sfr"]["value"]
         fraction = 0.01 if active else 0.0

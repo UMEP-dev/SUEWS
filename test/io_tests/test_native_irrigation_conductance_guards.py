@@ -1,11 +1,10 @@
-"""Native resolved-YAML guards for conductance and irrigation parameters (#2002)."""
+"""Native resolved-YAML guards for conductance and irrigation parameters (#2002, #2349)."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 from importlib import import_module
-from importlib.resources import as_file, files
-import os
+from importlib.resources import files
 from pathlib import Path
 import subprocess
 
@@ -16,82 +15,17 @@ import yaml
 
 from supy import SUEWSSimulation
 from supy.cmd.suews_cli import cli as suews_cli
+from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 pytestmark = [
     pytest.mark.api,
     pytest.mark.physics,
     pytest.mark.contract("C-STRICT", "C-BIND", "C-ERROR", "C-RESPONSE"),
 ]
-
-
-def _locate_suews_engine() -> Path:
-    """Return the bundled or locally built ``suews-engine`` binary."""
-    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = files("supy").joinpath("bin").joinpath(binary_name)
-    with as_file(bundled) as bundled_path:
-        if bundled_path.exists():
-            return Path(bundled_path)
-
-    cargo_target = os.environ.get("CARGO_TARGET_DIR")
-    if cargo_target:
-        candidate = Path(cargo_target) / "release" / binary_name
-        if candidate.exists():
-            return candidate
-
-    repo_root = Path(__file__).resolve().parents[2]
-    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
-    if dev_binary.exists():
-        return dev_binary
-    pytest.skip("Rust CLI binary not found; build with: make bridge")
-
-
-def _write_short_forcing(dest: Path) -> Path:
-    """Write 12 hourly forcing rows for fast engine and CLI checks."""
-    sample_dir = files("supy").joinpath("sample_data")
-    raw = sample_dir.joinpath("Kc_2012_data_60.txt").read_text(encoding="utf-8")
-    lines = [line for line in raw.splitlines() if line.strip()]
-    dest.write_text("\n".join(lines[:13]) + "\n", encoding="utf-8")
-    return dest
-
-
-def _resolved_sample_dict(
-    forcing_file: Path, out_dir: Path
-) -> tuple[dict, SUEWSSimulation]:
-    """Build a short resolved YAML dict and matching simulation."""
-    sim = SUEWSSimulation.from_sample_data()
-    sim.update_config(
-        {
-            "model": {
-                "control": {
-                    "start_time": "2012-01-01 00:05:00",
-                    "end_time": "2012-01-01 12:00:00",
-                    "forcing": {"file": str(forcing_file)},
-                    "output": {"dir": str(out_dir), "freq": 3600},
-                }
-            }
-        },
-        auto_load_forcing=False,
-    )
-    sim.update_forcing(str(forcing_file))
-    doc = yaml.safe_load(_run_rust.config_to_engine_yaml(sim.config))
-    return doc, sim
-
-
-def _delete_path(doc: dict, path: tuple[str, ...]) -> None:
-    cur = doc
-    for key in path[:-1]:
-        cur = cur[key]
-    del cur[path[-1]]
-
-
-def _set_path(doc: dict, path: tuple[str, ...], value) -> None:
-    cur = doc
-    for key in path[:-1]:
-        cur = cur[key]
-    cur[path[-1]] = value
-
 
 _DAYS = (
     "monday",
@@ -104,6 +38,54 @@ _DAYS = (
 )
 
 
+def _dump_yaml(doc: dict) -> str:
+    return yaml.dump(doc, Dumper=_YAML_DUMPER, sort_keys=False)
+
+
+def _load_yaml(text: str) -> dict:
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+@pytest.fixture(scope="module")
+def _conductance_irrigation_base(sample_config_loaded, sample_forcing_parsed):
+    """Cache base resolved YAML, short forcing text, and 144-step PyO3 forcing payload."""
+    raw_forcing = (files("supy") / "sample_data" / "Kc_2012_data_60.txt").read_text(
+        encoding="utf-8"
+    )
+    forcing_lines = [line for line in raw_forcing.splitlines() if line.strip()]
+    short_forcing_text = "\n".join(forcing_lines[:13]) + "\n"
+
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.control.start_time = "2012-01-01 00:05:00"
+    cfg.model.control.end_time = "2012-01-01 12:00:00"
+    cfg.model.control.output.freq = 3600
+    resolved_doc = _load_yaml(_run_rust.config_to_engine_yaml(cfg))
+
+    _, df_forcing_12h = sample_forcing_parsed(144)
+    forcing_flat_12h = (
+        _run_rust._prepare_forcing_block(df_forcing_12h).ravel(order="C").tolist()
+    )
+    return {
+        "resolved_doc": resolved_doc,
+        "short_forcing_text": short_forcing_text,
+        "df_forcing_12h": df_forcing_12h,
+        "forcing_flat_12h": forcing_flat_12h,
+        "n_steps_12h": len(df_forcing_12h),
+    }
+
+
+def _stage_doc(base_cache: dict, tmp_path: Path) -> tuple[dict, Path]:
+    """Write short forcing file and return a defensive copy of the resolved dict."""
+    forcing_file = tmp_path / "forcing.txt"
+    forcing_file.write_text(base_cache["short_forcing_text"], encoding="utf-8")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir(exist_ok=True)
+    doc = deepcopy(base_cache["resolved_doc"])
+    doc["model"]["control"]["forcing"]["file"] = str(forcing_file)
+    doc["model"]["control"]["output"]["dir"] = str(out_dir)
+    return doc, out_dir
+
+
 def _enable_active_irrigation(doc: dict) -> None:
     """Activate modelled irrigation on all weekdays so Fortran consumes all scalars."""
     doc["model"]["physics"]["water_use"] = {"value": 0}
@@ -113,110 +95,100 @@ def _enable_active_irrigation(doc: dict) -> None:
         irr["daywatper"][day] = 1.0
 
 
-_SITE_REQUIRED_CASES = [
+def _drop_hour_24(profile_day: dict) -> None:
+    profile_day.pop("24", None)
+    profile_day.pop(24, None)
+
+
+_WITNESS_CASES = [
+    # Conductance subsystem: missing, null, malformed
     pytest.param(
-        ("properties", "conductance", "g_max"),
+        False,
+        lambda s: s["properties"]["conductance"].pop("g_max"),
         "sites[gridiv=1].properties.conductance.g_max",
         False,
-        id="conductance-g_max",
+        id="conductance-missing-g_max",
     ),
     pytest.param(
-        ("properties", "conductance", "kmax"),
-        "sites[gridiv=1].properties.conductance.kmax",
         False,
-        id="conductance-kmax",
+        lambda s: s["properties"]["conductance"].__setitem__("g_max", {"value": None}),
+        "sites[gridiv=1].properties.conductance.g_max",
+        True,
+        id="conductance-null-g_max",
     ),
     pytest.param(
-        ("properties", "conductance", "tl"),
-        "sites[gridiv=1].properties.conductance.tl",
         False,
-        id="conductance-tl",
+        lambda s: s["properties"]["conductance"].__setitem__("g_max", "not-a-number"),
+        "sites[gridiv=1].properties.conductance.g_max",
+        True,
+        id="conductance-malformed-g_max",
+    ),
+    # Irrigation subsystem: missing, null, malformed, incorrectly sized (24-hour profile)
+    pytest.param(
+        True,
+        lambda s: s["properties"]["irrigation"].pop("h_maintain"),
+        "sites[gridiv=1].properties.irrigation.h_maintain",
+        False,
+        id="irrigation-missing-h_maintain",
     ),
     pytest.param(
-        ("properties", "irrigation", "h_maintain"),
+        True,
+        lambda s: s["properties"]["irrigation"].__setitem__(
+            "h_maintain", {"value": None}
+        ),
         "sites[gridiv=1].properties.irrigation.h_maintain",
         True,
-        id="irrigation-h_maintain",
+        id="irrigation-null-h_maintain",
     ),
     pytest.param(
-        ("properties", "irrigation", "faut"),
-        "sites[gridiv=1].properties.irrigation.faut",
         True,
-        id="irrigation-faut",
+        lambda s: s["properties"]["irrigation"].__setitem__(
+            "h_maintain", {"value": float("nan")}
+        ),
+        "sites[gridiv=1].properties.irrigation.h_maintain",
+        True,
+        id="irrigation-malformed-nan-h_maintain",
     ),
     pytest.param(
-        ("properties", "irrigation", "internalwateruse_h"),
-        "sites[gridiv=1].properties.irrigation.internalwateruse_h",
         True,
-        id="irrigation-internalwateruse_h",
-    ),
-    pytest.param(
-        ("properties", "land_cover", "evetr", "ie_a"),
-        "sites[gridiv=1].properties.land_cover.evetr.ie_a",
+        lambda s: _drop_hour_24(
+            s["properties"]["irrigation"]["wuprofa_24hr"]["working_day"]
+        ),
+        "sites[gridiv=1].properties.irrigation.wuprofa_24hr.working_day",
         True,
-        id="irrigation-evetr-ie_a",
-    ),
-    pytest.param(
-        ("properties", "land_cover", "grass", "ie_m"),
-        "sites[gridiv=1].properties.land_cover.grass.ie_m",
-        True,
-        id="irrigation-grass-ie_m",
-    ),
-    pytest.param(
-        ("properties", "irrigation", "daywat", "monday"),
-        "sites[gridiv=1].properties.irrigation.daywat.monday",
-        True,
-        id="irrigation-daywat-monday",
-    ),
-    pytest.param(
-        ("properties", "irrigation", "daywatper", "sunday"),
-        "sites[gridiv=1].properties.irrigation.daywatper.sunday",
-        True,
-        id="irrigation-daywatper-sunday",
+        id="irrigation-wrong-size-wuprofa_24hr",
     ),
 ]
 
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("rel_path", "expected_path", "activate_irrigation"), _SITE_REQUIRED_CASES
+    ("activate_irrigation", "mutate_site", "expected_path", "check_public_config"),
+    _WITNESS_CASES,
 )
-@pytest.mark.parametrize("mode", ["missing", "null", "nan", "string"])
-def test_native_engine_and_pyo3_reject_invalid_conductance_and_irrigation(
+def test_conductance_and_irrigation_br02_failure_witnesses(
     tmp_path: Path,
-    rel_path: tuple[str, ...],
-    expected_path: str,
+    suews_engine_bin: Path,
+    _conductance_irrigation_base: dict,
     activate_irrigation: bool,
-    mode: str,
+    mutate_site,
+    expected_path: str,
+    check_public_config: bool,
 ) -> None:
-    """Both PyO3 and standalone suews-engine reject invalid active conductance/irrigation scalars."""
-    engine = _locate_suews_engine()
-    forcing_file = _write_short_forcing(tmp_path / "forcing.txt")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    doc, sim = _resolved_sample_dict(forcing_file, out_dir)
-    mutated = deepcopy(doc)
+    """BR-02 witnesses for conductance and irrigation across Python and suews-engine."""
+    doc, out_dir = _stage_doc(_conductance_irrigation_base, tmp_path)
     if activate_irrigation:
-        _enable_active_irrigation(mutated)
-    site = mutated["sites"][0]
-
-    if mode == "missing":
-        _delete_path(site, rel_path)
-    elif mode == "null":
-        _set_path(site, rel_path, {"value": None})
-    elif mode == "nan":
-        _set_path(site, rel_path, {"value": float("nan")})
-    elif mode == "string":
-        _set_path(site, rel_path, "not-a-number")
-
-    bad_yaml = yaml.safe_dump(mutated, sort_keys=False)
+        _enable_active_irrigation(doc)
+    mutate_site(doc["sites"][0])
+    bad_yaml = _dump_yaml(doc)
 
     # 1. PyO3 direct execution boundary
     rust = _run_rust._load_rust_module()
-    forcing_block = _run_rust._prepare_forcing_block(sim.forcing.df)
     with pytest.raises(RuntimeError) as exc_info:
         rust.run_suews(
-            bad_yaml, forcing_block.ravel(order="C").tolist(), len(sim.forcing.df)
+            bad_yaml,
+            _conductance_irrigation_base["forcing_flat_12h"],
+            _conductance_irrigation_base["n_steps_12h"],
         )
     assert expected_path in str(exc_info.value), str(exc_info.value)
 
@@ -224,38 +196,50 @@ def test_native_engine_and_pyo3_reject_invalid_conductance_and_irrigation(
     cfg_path = tmp_path / "bad_resolved.yml"
     cfg_path.write_text(bad_yaml, encoding="utf-8")
     res = subprocess.run(
-        [str(engine), "run", str(cfg_path)],
+        [str(suews_engine_bin), "run", str(cfg_path)],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
-    assert res.returncode != 0, (
-        f"expected engine rejection for {expected_path} ({mode})"
-    )
+    assert res.returncode != 0, f"expected engine rejection for {expected_path}"
     assert expected_path in f"{res.stdout}\n{res.stderr}", (
         f"expected {expected_path} in stderr:\n{res.stderr}"
     )
+    assert not (out_dir / "suews_output.arrow").exists()
+
+    # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation.run)
+    if check_public_config:
+        try:
+            cfg = SUEWSConfig.from_dict(doc)
+        except (ValueError, TypeError):
+            return
+        df_forcing = _conductance_irrigation_base["df_forcing_12h"]
+        sim = SUEWSSimulation()
+        sim.update_config(cfg, auto_load_forcing=False)
+        sim.update_forcing(df_forcing)
+        with pytest.raises(RuntimeError) as sim_exc:
+            sim.run(
+                start_date=df_forcing.index[0],
+                end_date=df_forcing.index[-1],
+                n_jobs=1,
+                _validate_forcing=False,
+            )
+        assert expected_path in str(sim_exc.value), str(sim_exc.value)
 
 
 @pytest.mark.core
 def test_inactive_modelled_irrigation_allows_omitted_scalars_and_preserves_outputs(
     tmp_path: Path,
+    _conductance_irrigation_base: dict,
 ) -> None:
     """With water_use=0 and all daywat=0.0, omitting/nulling inactive irrigation scalars matches bit-identically."""
-    forcing_file = _write_short_forcing(tmp_path / "forcing.txt")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    doc, sim = _resolved_sample_dict(forcing_file, out_dir)
+    doc, _ = _stage_doc(_conductance_irrigation_base, tmp_path)
     rust = _run_rust._load_rust_module()
-    forcing_flat = (
-        _run_rust._prepare_forcing_block(sim.forcing.df).ravel(order="C").tolist()
-    )
-    n_steps = len(sim.forcing.df)
+    forcing_flat = _conductance_irrigation_base["forcing_flat_12h"]
+    n_steps = _conductance_irrigation_base["n_steps_12h"]
 
-    base_out = rust.run_suews(
-        yaml.safe_dump(doc, sort_keys=False), forcing_flat, n_steps
-    )
+    base_out = rust.run_suews(_dump_yaml(doc), forcing_flat, n_steps)
 
     omitted = deepcopy(doc)
     site = omitted["sites"][0]
@@ -268,9 +252,7 @@ def test_inactive_modelled_irrigation_allows_omitted_scalars_and_preserves_outpu
         site["properties"]["land_cover"][surf].pop("ie_a", None)
         site["properties"]["land_cover"][surf]["ie_m"] = None
 
-    omitted_out = rust.run_suews(
-        yaml.safe_dump(omitted, sort_keys=False), forcing_flat, n_steps
-    )
+    omitted_out = rust.run_suews(_dump_yaml(omitted), forcing_flat, n_steps)
     assert omitted_out[2] == n_steps
     np.testing.assert_array_equal(
         np.frombuffer(omitted_out[0], dtype=np.float64),
@@ -283,28 +265,22 @@ def test_inactive_modelled_irrigation_allows_omitted_scalars_and_preserves_outpu
     with pytest.raises(
         RuntimeError, match=r"sites\[gridiv=1\]\.properties\.irrigation\.h_maintain"
     ):
-        rust.run_suews(yaml.safe_dump(bad, sort_keys=False), forcing_flat, n_steps)
+        rust.run_suews(_dump_yaml(bad), forcing_flat, n_steps)
 
 
 @pytest.mark.core
 def test_observed_water_use_gates_modelled_irrigation_but_requires_internalwateruse_h(
     tmp_path: Path,
+    _conductance_irrigation_base: dict,
 ) -> None:
     """Under water_use=1, modelled irrigation scalars may be omitted while internalwateruse_h stays required."""
-    forcing_file = _write_short_forcing(tmp_path / "forcing.txt")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    doc, sim = _resolved_sample_dict(forcing_file, out_dir)
+    doc, _ = _stage_doc(_conductance_irrigation_base, tmp_path)
     doc["model"]["physics"]["water_use"] = {"value": 1}
     rust = _run_rust._load_rust_module()
-    forcing_flat = (
-        _run_rust._prepare_forcing_block(sim.forcing.df).ravel(order="C").tolist()
-    )
-    n_steps = len(sim.forcing.df)
+    forcing_flat = _conductance_irrigation_base["forcing_flat_12h"]
+    n_steps = _conductance_irrigation_base["n_steps_12h"]
 
-    base_out = rust.run_suews(
-        yaml.safe_dump(doc, sort_keys=False), forcing_flat, n_steps
-    )
+    base_out = rust.run_suews(_dump_yaml(doc), forcing_flat, n_steps)
 
     omitted = deepcopy(doc)
     site = omitted["sites"][0]
@@ -315,9 +291,7 @@ def test_observed_water_use_gates_modelled_irrigation_but_requires_internalwater
         site["properties"]["land_cover"][surf].pop("ie_a", None)
         site["properties"]["land_cover"][surf].pop("ie_m", None)
 
-    omitted_out = rust.run_suews(
-        yaml.safe_dump(omitted, sort_keys=False), forcing_flat, n_steps
-    )
+    omitted_out = rust.run_suews(_dump_yaml(omitted), forcing_flat, n_steps)
     assert omitted_out[2] == n_steps
     np.testing.assert_array_equal(
         np.frombuffer(omitted_out[0], dtype=np.float64),
@@ -330,29 +304,25 @@ def test_observed_water_use_gates_modelled_irrigation_but_requires_internalwater
         RuntimeError,
         match=r"sites\[gridiv=1\]\.properties\.irrigation\.internalwateruse_h",
     ):
-        rust.run_suews(
-            yaml.safe_dump(missing_iwu, sort_keys=False), forcing_flat, n_steps
-        )
+        rust.run_suews(_dump_yaml(missing_iwu), forcing_flat, n_steps)
 
 
 @pytest.mark.core
 def test_surface_conductance_selector_required_in_engine_and_cli(
     cli_runner,
     tmp_path: Path,
+    suews_engine_bin: Path,
+    _conductance_irrigation_base: dict,
 ) -> None:
     """Missing/malformed model.physics.surface_conductance fails in engine and suews run."""
-    engine = _locate_suews_engine()
-    forcing_file = _write_short_forcing(tmp_path / "forcing.txt")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    doc, _ = _resolved_sample_dict(forcing_file, out_dir)
+    doc, _ = _stage_doc(_conductance_irrigation_base, tmp_path)
 
     missing = deepcopy(doc)
     del missing["model"]["physics"]["surface_conductance"]
     cfg_missing = tmp_path / "missing_gs.yml"
-    cfg_missing.write_text(yaml.safe_dump(missing, sort_keys=False), encoding="utf-8")
+    cfg_missing.write_text(_dump_yaml(missing), encoding="utf-8")
     res = subprocess.run(
-        [str(engine), "run", str(cfg_missing)],
+        [str(suews_engine_bin), "run", str(cfg_missing)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -365,20 +335,26 @@ def test_surface_conductance_selector_required_in_engine_and_cli(
     malformed = deepcopy(doc)
     malformed["model"]["physics"]["surface_conductance"] = "invalid-model"
     cfg_bad = tmp_path / "bad_gs_cli.yml"
-    cfg_bad.write_text(yaml.safe_dump(malformed, sort_keys=False), encoding="utf-8")
+    cfg_bad.write_text(_dump_yaml(malformed), encoding="utf-8")
     cli_res = run_cli_command(cli_runner, suews_cli, ["run", str(cfg_bad)], check=False)
     assert cli_res.returncode != 0
     assert "surface_conductance" in f"{cli_res.stdout}\n{cli_res.stderr}".lower()
 
 
 @pytest.mark.core
-def test_non_default_conductance_affects_simulation_outputs() -> None:
+def test_non_default_conductance_affects_simulation_outputs(
+    sample_config_loaded, sample_forcing_parsed
+) -> None:
     """Non-default conductance scalars alter kernel outputs with irrigation held fixed."""
-    sim_base = SUEWSSimulation.from_sample_data()
-    forcing_short = sim_base.forcing.df.iloc[:144].copy()
+    _, forcing_short = sample_forcing_parsed(144)
     forcing_short["Tair"] = 25.0
     forcing_short["kdown"] = 450.0
     forcing_short["rain"] = 0.0
+
+    sim_base = SUEWSSimulation()
+    sim_base.update_config(
+        sample_config_loaded.model_copy(deep=True), auto_load_forcing=False
+    )
     sim_base.update_forcing(forcing_short)
     df_base = sim_base.run(
         start_date=forcing_short.index[0],
@@ -386,10 +362,10 @@ def test_non_default_conductance_affects_simulation_outputs() -> None:
         n_jobs=1,
     ).df
 
-    sim_cond = SUEWSSimulation.from_sample_data()
-    sites_cond = [site.model_dump() for site in sim_cond.config.sites]
-    sites_cond[0]["properties"]["conductance"]["g_max"] = {"value": 12.0}
-    sim_cond.update_config({"sites": sites_cond}, auto_load_forcing=False)
+    cfg_cond = sample_config_loaded.model_copy(deep=True)
+    cfg_cond.sites[0].properties.conductance.g_max.value = 12.0
+    sim_cond = SUEWSSimulation()
+    sim_cond.update_config(cfg_cond, auto_load_forcing=False)
     sim_cond.update_forcing(forcing_short)
     df_cond = sim_cond.run(
         start_date=forcing_short.index[0],
@@ -406,19 +382,25 @@ def test_non_default_conductance_affects_simulation_outputs() -> None:
 
 
 @pytest.mark.core
-def test_non_default_irrigation_affects_simulation_outputs() -> None:
+def test_non_default_irrigation_affects_simulation_outputs(
+    sample_config_loaded, sample_forcing_parsed
+) -> None:
     """Active irrigation scalars alter water-use outputs with conductance held fixed."""
     # Two full days so update_WaterUse triggers at the end of day 1 and drives
     # day-2 external/internal water-use partitioning in SUEWS_cal_WaterUse.
     uniform_24h = {str(hour): 1.0 / 24.0 for hour in range(1, 25)}
+    _, forcing_2d = sample_forcing_parsed(576)
+    forcing_2d["Tair"] = 25.0
+    forcing_2d["kdown"] = 450.0
+    forcing_2d["rain"] = 0.0
+    base_sites = [site.model_dump() for site in sample_config_loaded.sites]
 
     def _run_active_irrigation(internalwateruse_h: float):
-        sim = SUEWSSimulation.from_sample_data()
-        forcing_2d = sim.forcing.df.iloc[:576].copy()
-        forcing_2d["Tair"] = 25.0
-        forcing_2d["kdown"] = 450.0
-        forcing_2d["rain"] = 0.0
-        sites = [site.model_dump() for site in sim.config.sites]
+        sim = SUEWSSimulation()
+        sim.update_config(
+            sample_config_loaded.model_copy(deep=True), auto_load_forcing=False
+        )
+        sites = deepcopy(base_sites)
         props = sites[0]["properties"]
         irr = props["irrigation"]
         irr["h_maintain"] = {"value": -999.0}

@@ -42,7 +42,7 @@ use module_ctrl_type, only: SUEWS_STATE
 use module_ctrl_const_datain, only: SuppressWarnings
 implicit none
 integer :: mode, n, i, ipass
-real(kind(1d0)) :: zzd, z0m, u, ra, z0v, a, b, c
+real(kind(1d0)) :: zzd, z0m, u, ra, z0v, a, b, c, zl, ustar
 type(SUEWS_STATE) :: state
 SuppressWarnings = 0
 read(*, *) mode, n
@@ -51,6 +51,12 @@ do i = 1, n
     read(*, *) a, b, c
     ipass = nint(c)
     write(*, '(ES25.17)') relax_zl(a, b, ipass)
+  else if (mode == 4) then
+    read(*, *) zzd, z0m, u, zl, ustar
+    ! stability method 2 (with the minimum velocity scale), K75 functions, no w_f
+    call state%errorstate%clear_log()
+    call AerodynamicResistance(zzd, z0m, u, zzd/zl, ustar, 0.0d0, 0.0d0, 2, 3, 2, ra, z0v, state)
+    write(*, '(ES25.17)') ra
   else
     read(*, *) zzd, z0m, u
     ! neutral method (1); stability inputs are unused by it
@@ -176,12 +182,34 @@ def test_relax_zl_factor_decays_after_the_first_passes(probe):
     assert np.all(np.diff(factor) <= 0.0)
 
 
+def test_stable_clip_resistance_exceeds_the_former_cap(probe):
+    """The stability-corrected resistance, minimum velocity scale included,
+    is returned above the former cap of 120 s m-1 on light-wind stable steps:
+    at the (z-d)/L clip it stays finite and well above it at every wind up to
+    1 m s-1 (#1979). It is not monotone in U there, because z0v follows u*."""
+    # ARRANGE: the stable clip at light winds, u* from the log profile
+    zzd, z0m = 10.0, 1.0
+    wind = np.geomspace(0.01, 1.0, 50)
+    ustar = 0.4 * wind / np.log(zzd / z0m)
+    rows = [[zzd, z0m, u, 0.5, us] for u, us in zip(wind, ustar)]
+
+    # ACT
+    ra = probe(4, rows)
+
+    # ASSERT: finite and above twice the former cap at every wind
+    assert np.isfinite(ra).all()
+    assert ra.min() > 2 * RA_FORMER_CAP
+
+
 @pytest.mark.medium
 def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):
     """On 13 April 2012 the uncapped plain iteration flipped (z-d)/L between
     unstable and the stable clip on every pass and stopped at the pass limit;
     the capped code also failed there. With relaxation the whole sample year
-    converges, while the published RA exceeds the former cap elsewhere."""
+    converges, and no sensible heat flux has the sign opposite to (z-d)/L.
+    The sample year's largest RA (118 s m-1 with the minimum velocity scale)
+    does not reach the former cap, so the cap's absence is tested on the
+    resistance itself (test_stable_clip_resistance_exceeds_the_former_cap)."""
     # ARRANGE / ACT
     df_output, _ = sample_run_cached(None)
     passes = df_output[("debug", "iter")]
@@ -192,7 +220,7 @@ def test_former_sign_flip_steps_converge_without_the_cap(sample_run_cached):
     assert len(passes.loc[window]) == 9
     assert passes.loc[window].max() < MAX_OUTER_PASSES
     assert (passes < MAX_OUTER_PASSES).all()
-    assert ra.max() > RA_FORMER_CAP
+    assert np.isfinite(ra).all() and ra.min() >= RA_FLOOR
     assert (df_output[("SUEWS", "QH")] * df_output[("SUEWS", "zL")] <= 0).all()
 
 

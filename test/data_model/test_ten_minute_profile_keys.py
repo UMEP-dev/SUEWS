@@ -502,10 +502,10 @@ def test_validation_pipeline_phases_a_b_c_normalise_zero_padded_ten_minute_keys(
     )
 
 
-def test_phase_a_to_c_does_not_pad_null_on_malformed_ten_minute_key(
+def test_phase_a_to_c_preserves_malformed_ten_minute_key_for_rejection(
     tmp_path: Path,
 ) -> None:
-    """Phase A leaves malformed 10-min mappings unpadded so Phase C rejects the real bad key."""
+    """Phase A preserves malformed 10-min keys so Phase C rejects the invalid key."""
     raw = _load_sample_config_dict()
     wd = raw["sites"][0]["properties"]["building_archetype"]["profile_metabolism"][
         "working_day"
@@ -530,7 +530,6 @@ def test_phase_a_to_c_does_not_pad_null_on_malformed_ten_minute_key(
     a_wd = data_a["sites"][0]["properties"]["building_archetype"]["profile_metabolism"][
         "working_day"
     ]
-    assert "1" not in a_wd
     assert "+1" in a_wd
 
     report_c = run_phase_c(
@@ -544,6 +543,38 @@ def test_phase_a_to_c_does_not_pad_null_on_malformed_ten_minute_key(
     assert any(
         "Invalid 10-minute profile key" in issue.message for issue in report_c.issues
     )
+
+
+def test_phase_a_missing_ten_minute_slot_preserves_supplied_values_across_df_state_roundtrip(
+    tmp_path: Path,
+) -> None:
+    """Phase A -> from_yaml -> ArchetypeProperties to_df_state/from_df_state preserves supplied values when a slot is missing."""
+    raw = _load_sample_config_dict()
+    wd = raw["sites"][0]["properties"]["building_archetype"]["profile_metabolism"][
+        "working_day"
+    ]
+    wd["1"] = 0.7
+    wd.pop("144")
+    in_yaml = tmp_path / "missing_144.yml"
+    in_yaml.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+
+    out_a_yaml = tmp_path / "updatedA_missing_144.yml"
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as std_path:
+        run_phase_a(
+            str(in_yaml),
+            str(std_path),
+            str(out_a_yaml),
+            str(tmp_path / "reportA_missing_144.txt"),
+            mode="public",
+            silent=True,
+            forcing="off",
+        )
+
+    loaded = SUEWSConfig.from_yaml(str(out_a_yaml))
+    archetype = loaded.sites[0].properties.building_archetype
+    df_arch = archetype.to_df_state(1)
+    reconstructed = ArchetypeProperties.from_df_state(df_arch, 1)
+    assert reconstructed.profile_metabolism.working_day["1"] == pytest.approx(0.7)
 
 
 def test_archetype_to_df_state_rejects_null_ten_minute_day_profile() -> None:

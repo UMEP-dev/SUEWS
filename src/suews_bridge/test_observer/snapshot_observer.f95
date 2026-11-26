@@ -1,6 +1,6 @@
 ! Opt-in native observation of SUEWS_DEBUG stage transitions (via SUEWS_cal_Main)
-! and multiline block capture (via run_multitsteps_block). Test-only under feature `capi-observer`; no production
-! snapshot wire is added or advertised.
+! and multiline batch parity (SUEWS_cal_multitsteps vs SUEWS_cal_Main).
+! Test-only under feature `capi-observer`; no production snapshot wire is added or advertised.
 SUBMODULE (SUEWS_Driver) test_snapshot_observer
    IMPLICIT NONE
 CONTAINS
@@ -440,17 +440,16 @@ CONTAINS
       err = 0_c_int
    END SUBROUTINE snapshot_observe_lumps_first_iter
 
-   SUBROUTINE multiline_block_observe( &
+   SUBROUTINE multiline_batch_observe( &
       config_flat, timer_flat, scalars, site_flat, site_len, site_toc, &
       state_flat, state_len, state_toc, nlayer, ndepth_in, &
       forcing_rows, &
-      block_widths, state_block_out, output_block_out, final_debug_out, mode_flags, &
-      wall_rect_len, wall_temp_block_out, wall_temp_ref_out, &
-      wall_final_len, wall_temp_dts_final_out, err) &
-      BIND(C, name='multiline_block_observe')
+      batch_final_state_out, batch_output_out, &
+      wall_rect_len, wall_temp_ref_out, &
+      wall_final_len, wall_temp_batch_final_out, err) &
+      BIND(C, name='multiline_batch_observe')
       USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double
-      USE module_c_api_driver, ONLY: unpack_config, unpack_timer, unpack_site_scalars, &
-         unpack_site_members, unpack_state_members
+      USE module_c_api_driver, ONLY: unpack_config, unpack_timer
       IMPLICIT NONE
 
       REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
@@ -458,43 +457,32 @@ CONTAINS
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
       REAL(c_double), INTENT(IN) :: forcing_rows(24, 3)
-      INTEGER(c_int), INTENT(OUT) :: block_widths(11)
-      REAL(c_double), INTENT(OUT) :: state_block_out(16, 3)
-      REAL(c_double), INTENT(OUT) :: output_block_out(20, 3)
-      REAL(c_double), INTENT(OUT) :: final_debug_out(15)
-      INTEGER(c_int), INTENT(OUT) :: mode_flags(5)
+      REAL(c_double), INTENT(OUT) :: batch_final_state_out(16)
+      REAL(c_double), INTENT(OUT) :: batch_output_out(20, 3)
       INTEGER(c_int), VALUE :: wall_rect_len, wall_final_len
-      REAL(c_double), INTENT(OUT) :: wall_temp_block_out(wall_rect_len)
       REAL(c_double), INTENT(OUT) :: wall_temp_ref_out(wall_rect_len)
-      REAL(c_double), INTENT(OUT) :: wall_temp_dts_final_out(wall_final_len)
+      REAL(c_double), INTENT(OUT) :: wall_temp_batch_final_out(wall_final_len)
       INTEGER(c_int), INTENT(OUT) :: err
 
       INTEGER, PARAMETER :: nsteps = 3
       TYPE(SUEWS_CONFIG) :: cfg_base, cfg_run
-      TYPE(SUEWS_TIMER) :: tmr_base, tmr_run, tmr_final
+      TYPE(SUEWS_TIMER) :: tmr_base, tmr_run
       TYPE(SUEWS_SITE) :: site
-      TYPE(SUEWS_STATE) :: state_init, state_ref, state_m0, state_m1, state_m2, state_m3, state_m4, state_dts
-      TYPE(SUEWS_STATE) :: ref_states(nsteps), step_start_final, oracle_state
-      TYPE(SUEWS_FORCING) :: forcing, forcing_final
-      TYPE(SUEWS_DEBUG), ALLOCATABLE :: ref_debug, oracle_debug, dbg_m2, dbg_m3, dbg_m4
-      TYPE(SUEWS_STATE_BLOCK) :: blk_m1, blk_m3, blk_m4
+      TYPE(SUEWS_STATE) :: state_init, state_ref, state_batch
+      TYPE(SUEWS_STATE) :: ref_states(nsteps)
+      TYPE(SUEWS_FORCING) :: forcing
       TYPE(output_line) :: ref_lines(nsteps)
-      TYPE(output_block) :: ob_m0, ob_m1, ob_m2, ob_m3, ob_m4
       REAL(KIND(1D0)) :: met24(nsteps, 24), met32(nsteps, 32)
-      REAL(KIND(1D0)), ALLOCATABLE :: dts_data(:, :), dts_dates(:, :)
+      REAL(KIND(1D0)), ALLOCATABLE :: batch_data(:, :), batch_dates(:, :)
       REAL(c_double) :: dummy_wu(7)
-      INTEGER(c_int) :: dims_tmp(2, 15, 3)
-      INTEGER :: r, il, id_w, widx, total_data_cols, off
+      INTEGER :: r, il, id_w, widx, total_data_cols
+      INTEGER :: off_suews, off_snow, off_beers, off_estm, off_ehc
+      INTEGER :: off_dailystate, off_rsl, off_debug, off_spartacus, off_stebbs, off_nhood
 
-      ALLOCATE (ref_debug, oracle_debug, dbg_m2, dbg_m3, dbg_m4)
-      block_widths = 0_c_int
-      state_block_out = 0.0_c_double
-      output_block_out = 0.0_c_double
-      final_debug_out = 0.0_c_double
-      mode_flags = 0_c_int
-      wall_temp_block_out = 0.0_c_double
+      batch_final_state_out = 0.0_c_double
+      batch_output_out = 0.0_c_double
       wall_temp_ref_out = 0.0_c_double
-      wall_temp_dts_final_out = 0.0_c_double
+      wall_temp_batch_final_out = 0.0_c_double
       err = 0_c_int
       dummy_wu = 0.0_c_double
 
@@ -521,11 +509,11 @@ CONTAINS
       met32 = 0.0D0
       met32(:, 1:24) = met24
 
-      ! Independent Reference 1: step-by-step SUEWS_cal_Main with final-row debug snapshot.
+      ! Independent Reference: step-by-step SUEWS_cal_Main with flag_test = .FALSE..
       state_ref = state_init
       tmr_run = tmr_base
       cfg_run = cfg_base
-      cfg_run%flag_test = .TRUE.
+      cfg_run%flag_test = .FALSE.
       DO r = 1, nsteps
          tmr_run%iy = INT(met24(r, 1))
          tmr_run%id = INT(met24(r, 2))
@@ -533,14 +521,7 @@ CONTAINS
          tmr_run%imin = INT(met24(r, 4))
          tmr_run%isec = 0
          CALL load_row_forcing(forcing, forcing_rows(:, r), dummy_wu)
-         IF (r == nsteps) THEN
-            tmr_final = tmr_run
-            forcing_final = forcing
-            step_start_final = state_ref
-            CALL SUEWS_cal_Main(tmr_run, forcing, cfg_run, site, state_ref, ref_lines(r), ref_debug)
-         ELSE
-            CALL SUEWS_cal_Main(tmr_run, forcing, cfg_run, site, state_ref, ref_lines(r))
-         END IF
+         CALL SUEWS_cal_Main(tmr_run, forcing, cfg_run, site, state_ref, ref_lines(r))
          IF (supy_error_flag()) THEN
             err = 201_c_int
             RETURN
@@ -548,414 +529,143 @@ CONTAINS
          ref_states(r) = state_ref
          tmr_run%dt_since_start = tmr_run%dt_since_start + tmr_run%tstep
       END DO
-
-      ! Independent stage-by-stage oracle on the final timestep (outside
-      ! SUEWS_cal_Main_impl) so shared capture corruption cannot cancel between
-      ! ref_debug and dbg_m2/dbg_m3.
-      CALL replay_timestep_stages( &
-         tmr_final, forcing_final, cfg_run, site, step_start_final, oracle_debug, oracle_state, err)
+      CALL check_state_allocs(state_ref, nlayer, ndepth_in, .TRUE., 204_c_int, 205_c_int, err)
       IF (err /= 0_c_int) RETURN
-      IF (.NOT. states_equal(oracle_state, state_ref)) THEN
-         err = 204_c_int
-         RETURN
-      END IF
-      IF (.NOT. debug_snapshots_equal(ref_debug, oracle_debug, cfg_base%SnowUse)) THEN
-         err = 205_c_int
-         RETURN
-      END IF
 
-      ! Independent Reference 2: active SUEWS_cal_multitsteps concatenated output table.
-      total_data_cols = &
-         (ncolumnsDataOutSUEWS - 5) + (ncolumnsDataOutSnow - 5) + &
-         (ncolumnsDataOutBEERS - 5) + (ncolumnsDataOutESTM - 5) + &
-         (ncolumnsDataOutEHC - 5) + (ncolumnsDataOutDailyState - 5) + &
-         (ncolumnsDataOutRSL - 5) + (ncolumnsDataOutDebug - 5) + &
-         (ncolumnsDataOutSPARTACUS - 5) + (ncolumnsDataOutSTEBBS - 5) + &
-         (ncolumnsDataOutNHood - 5)
-      ALLOCATE (dts_data(nsteps, total_data_cols), dts_dates(nsteps, 5))
-      dts_data = 0.0D0
-      dts_dates = 0.0D0
-      state_dts = state_init
+      ! Production multiline batch driver: SUEWS_cal_multitsteps.
+      off_suews = 0
+      off_snow = off_suews + (ncolumnsDataOutSUEWS - 5)
+      off_beers = off_snow + (ncolumnsDataOutSnow - 5)
+      off_estm = off_beers + (ncolumnsDataOutBEERS - 5)
+      off_ehc = off_estm + (ncolumnsDataOutESTM - 5)
+      off_dailystate = off_ehc + (ncolumnsDataOutEHC - 5)
+      off_rsl = off_dailystate + (ncolumnsDataOutDailyState - 5)
+      off_debug = off_rsl + (ncolumnsDataOutRSL - 5)
+      off_spartacus = off_debug + (ncolumnsDataOutDebug - 5)
+      off_stebbs = off_spartacus + (ncolumnsDataOutSPARTACUS - 5)
+      off_nhood = off_stebbs + (ncolumnsDataOutSTEBBS - 5)
+      total_data_cols = off_nhood + (ncolumnsDataOutNHood - 5)
+      ALLOCATE (batch_data(nsteps, total_data_cols), batch_dates(nsteps, 5))
+      batch_data = 0.0D0
+      batch_dates = 0.0D0
+      state_batch = state_init
       tmr_run = tmr_base
       cfg_run = cfg_base
       cfg_run%flag_test = .FALSE.
       CALL SUEWS_cal_multitsteps( &
-         tmr_run, met32, nsteps, cfg_run, site, state_dts, dts_data, dts_dates)
+         tmr_run, met32, nsteps, cfg_run, site, state_batch, batch_data, batch_dates)
       IF (supy_error_flag()) THEN
          err = 202_c_int
          RETURN
       END IF
-
-      ! Mode 0: both optional arguments absent, flag_test = .FALSE.
-      state_m0 = state_init
-      tmr_run = tmr_base
-      cfg_run = cfg_base
-      cfg_run%flag_test = .FALSE.
-      CALL run_multitsteps_block(tmr_run, met24, nsteps, cfg_run, site, state_m0, ob_m0)
-      IF (supy_error_flag()) THEN
-         err = 210_c_int
-         RETURN
-      END IF
-      IF (.NOT. states_equal(state_m0, state_ref)) THEN
-         err = 211_c_int
-         RETURN
-      END IF
-      mode_flags(1) = 1_c_int
-
-      ! Mode 1: block_mod_state present, state_debug absent, flag_test = .FALSE.
-      state_m1 = state_init
-      tmr_run = tmr_base
-      cfg_run = cfg_base
-      cfg_run%flag_test = .FALSE.
-      CALL run_multitsteps_block( &
-         tmr_run, met24, nsteps, cfg_run, site, state_m1, ob_m1, block_mod_state=blk_m1)
-      IF (supy_error_flag()) THEN
-         err = 220_c_int
-         RETURN
-      END IF
-      IF (.NOT. ALLOCATED(blk_m1%BLOCK)) THEN
-         err = 221_c_int
-         RETURN
-      END IF
-      IF (SIZE(blk_m1%BLOCK) /= nsteps) THEN
-         err = 222_c_int
-         RETURN
-      END IF
-      IF (.NOT. output_blocks_equal(ob_m0, ob_m1)) THEN
-         err = 223_c_int
-         RETURN
-      END IF
-      IF (.NOT. states_equal(state_m1, state_ref)) THEN
-         err = 225_c_int
-         RETURN
-      END IF
-      DO r = 1, nsteps
-         IF (.NOT. states_equal(blk_m1%BLOCK(r), ref_states(r))) THEN
-            err = 224_c_int
-            RETURN
-         END IF
-      END DO
-      mode_flags(2) = 1_c_int
-
-      ! Mode 2: state_debug present, block_mod_state absent, flag_test = .TRUE.
-      state_m2 = state_init
-      tmr_run = tmr_base
-      cfg_run = cfg_base
-      cfg_run%flag_test = .TRUE.
-      CALL run_multitsteps_block( &
-         tmr_run, met24, nsteps, cfg_run, site, state_m2, ob_m2, state_debug=dbg_m2)
-      IF (supy_error_flag()) THEN
-         err = 230_c_int
-         RETURN
-      END IF
-      IF (.NOT. output_blocks_equal_flag_test_pair(ob_m2, ob_m0)) THEN
-         err = 231_c_int
-         RETURN
-      END IF
-      IF (.NOT. states_equal(state_m2, state_ref)) THEN
-         err = 233_c_int
-         RETURN
-      END IF
-      CALL check_all_stage_allocs(dbg_m2, 1, nlayer, ndepth_in, cfg_base%SnowUse, dims_tmp, err)
+      CALL check_state_allocs(state_batch, nlayer, ndepth_in, .TRUE., 206_c_int, 207_c_int, err)
       IF (err /= 0_c_int) RETURN
-      IF (.NOT. debug_snapshots_equal(dbg_m2, oracle_debug, cfg_base%SnowUse)) THEN
-         err = 232_c_int
-         RETURN
-      END IF
-      IF (.NOT. debug_snapshots_equal(dbg_m2, ref_debug, cfg_base%SnowUse)) THEN
-         err = 234_c_int
-         RETURN
-      END IF
-      mode_flags(3) = 1_c_int
 
-      ! Mode 3: both state_debug and block_mod_state present, flag_test = .TRUE.
-      state_m3 = state_init
-      tmr_run = tmr_base
-      cfg_run = cfg_base
-      cfg_run%flag_test = .TRUE.
-      CALL run_multitsteps_block( &
-         tmr_run, met24, nsteps, cfg_run, site, state_m3, ob_m3, &
-         state_debug=dbg_m3, block_mod_state=blk_m3)
-      IF (supy_error_flag()) THEN
-         err = 240_c_int
-         RETURN
-      END IF
-      IF (.NOT. output_blocks_equal_flag_test_pair(ob_m3, ob_m0)) THEN
-         err = 241_c_int
-         RETURN
-      END IF
-      IF (.NOT. ALLOCATED(blk_m3%BLOCK)) THEN
-         err = 242_c_int
-         RETURN
-      END IF
-      IF (SIZE(blk_m3%BLOCK) /= nsteps) THEN
-         err = 243_c_int
-         RETURN
-      END IF
-      IF (.NOT. states_equal(state_m3, state_ref)) THEN
-         err = 248_c_int
-         RETURN
-      END IF
-      CALL check_all_stage_allocs(dbg_m3, 1, nlayer, ndepth_in, cfg_base%SnowUse, dims_tmp, err)
-      IF (err /= 0_c_int) RETURN
-      IF (.NOT. debug_snapshots_equal(dbg_m3, oracle_debug, cfg_base%SnowUse)) THEN
-         err = 244_c_int
-         RETURN
-      END IF
-      IF (.NOT. debug_snapshots_equal(dbg_m3, ref_debug, cfg_base%SnowUse)) THEN
-         err = 249_c_int
+      ! Cross-check SUEWS_cal_multitsteps directly against step-by-step SUEWS_cal_Main:
+      ! datetime prefix, every output group slice in store_output_line order, and final 13-sub-state parity.
+      IF (ANY(batch_data(:, off_debug + 1) /= 0.0D0)) THEN
+         err = 261_c_int
          RETURN
       END IF
       DO r = 1, nsteps
-         CALL check_state_allocs(blk_m3%BLOCK(r), nlayer, ndepth_in, .TRUE., 245_c_int, 246_c_int, err)
-         IF (err /= 0_c_int) RETURN
-         IF (.NOT. states_equal(blk_m3%BLOCK(r), ref_states(r))) THEN
-            err = 247_c_int
+         IF (.NOT. vec_equal(batch_dates(r, :), ref_lines(r)%dataOutLineSUEWS(1:5))) THEN
+            err = 260_c_int
             RETURN
          END IF
-      END DO
-      mode_flags(4) = 1_c_int
-
-      ! Mode 4: both present, flag_test = .FALSE. -> block_mod_state populated,
-      ! state_debug stays unallocated (verifies exact flag_test gate).
-      state_m4 = state_init
-      tmr_run = tmr_base
-      cfg_run = cfg_base
-      cfg_run%flag_test = .FALSE.
-      CALL run_multitsteps_block( &
-         tmr_run, met24, nsteps, cfg_run, site, state_m4, ob_m4, &
-         state_debug=dbg_m4, block_mod_state=blk_m4)
-      IF (supy_error_flag()) THEN
-         err = 250_c_int
-         RETURN
-      END IF
-      IF (.NOT. output_blocks_equal(ob_m0, ob_m4)) THEN
-         err = 251_c_int
-         RETURN
-      END IF
-      IF (.NOT. ALLOCATED(blk_m4%BLOCK)) THEN
-         err = 252_c_int
-         RETURN
-      END IF
-      IF (SIZE(blk_m4%BLOCK) /= nsteps) THEN
-         err = 253_c_int
-         RETURN
-      END IF
-      IF (.NOT. states_equal(state_m4, state_ref)) THEN
-         err = 256_c_int
-         RETURN
-      END IF
-      DO r = 1, nsteps
-         IF (.NOT. states_equal(blk_m4%BLOCK(r), ref_states(r))) THEN
-            err = 254_c_int
+         IF (.NOT. vec_equal(batch_data(r, off_suews + 1:off_snow), ref_lines(r)%dataOutLineSUEWS(6:))) THEN
+            err = 280_c_int
             RETURN
          END IF
-      END DO
-      IF (ALLOCATED(dbg_m4%state_01_dailystate%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_02_soilmoist%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_03_wateruse%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_04_anthroemis%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_05_qn%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_06_qs%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_07_qhqe_lumps%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_08_water%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_09_resist%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_10_qe%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_11_qh%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_12_tsurf%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_13_rsl%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_14_biogenco2%heatState%temp_roof) .OR. &
-          ALLOCATED(dbg_m4%state_15_beers%heatState%temp_roof)) THEN
-         err = 255_c_int
-         RETURN
-      END IF
-      mode_flags(5) = 1_c_int
-
-      ! Verify full-matrix parity between production output_block_suews and both
-      ! independent references (SUEWS_cal_Main lines AND SUEWS_cal_multitsteps).
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockSUEWS(:, 1:5), dts_dates)) THEN
-         err = 260_c_int
-         RETURN
-      END IF
-      DO r = 1, nsteps
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockSUEWS(r, :), ref_lines(r)%dataOutLineSUEWS)) THEN
-            err = 261_c_int
-            RETURN
-         END IF
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockRSL(r, :), ref_lines(r)%dataoutLineRSL)) THEN
-            err = 262_c_int
-            RETURN
-         END IF
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockDebug(r, :), ref_lines(r)%dataOutLineDebug)) THEN
-            err = 263_c_int
-            RETURN
-         END IF
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockSPARTACUS(r, :), ref_lines(r)%dataOutLineSPARTACUS)) THEN
-            err = 264_c_int
-            RETURN
-         END IF
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockDailyState(r, :), ref_lines(r)%dataOutLineDailyState)) THEN
-            err = 265_c_int
-            RETURN
-         END IF
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockSTEBBS(r, :), ref_lines(r)%dataOutLineSTEBBS)) THEN
-            err = 266_c_int
-            RETURN
-         END IF
-         IF (.NOT. vec_equal(ob_m3%dataOutBlockBEERS(r, :), set_nan(ref_lines(r)%dataOutLineBEERS))) THEN
-            err = 267_c_int
-            RETURN
-         END IF
-         IF (cfg_base%SnowUse == 1) THEN
-            IF (.NOT. vec_equal(ob_m3%dataOutBlockSnow(r, :), set_nan(ref_lines(r)%dataOutLineSnow))) THEN
-               err = 268_c_int
-               RETURN
-            END IF
-         ELSE
-            IF (ANY(ob_m3%dataOutBlockSnow(r, :) /= 0.0D0)) THEN
-               err = 269_c_int
-               RETURN
-            END IF
-         END IF
-         IF (cfg_base%StorageHeatMethod == 5) THEN
-            IF (.NOT. vec_equal(ob_m3%dataOutBlockEHC(r, :), set_nan(ref_lines(r)%dataOutLineEHC))) THEN
-               err = 270_c_int
-               RETURN
-            END IF
-         ELSE
-            IF (ANY(ob_m3%dataOutBlockEHC(r, :) /= 0.0D0)) THEN
-               err = 271_c_int
-               RETURN
-            END IF
-         END IF
-         ! Legacy producer boundaries: ESTM stays 0.0D0 (disabled #1802);
-         ! dataOutBlockNHood is not transferred from dataOutBlockNHood_X (stays -999.0D0).
-         IF (ANY(ob_m3%dataOutBlockESTM(r, :) /= 0.0D0)) THEN
-            err = 272_c_int
-            RETURN
-         END IF
-         IF (ANY(ob_m3%dataOutBlockNHood(r, :) /= -999.0D0)) THEN
-            err = 273_c_int
-            RETURN
-         END IF
-      END DO
-
-      ! Cross-check concatenated SUEWS_cal_multitsteps slices against ob_m3.
-      off = 0
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockSUEWS(:, 6:), dts_data(:, off + 1:off + ncolumnsDataOutSUEWS - 5))) THEN
-         err = 280_c_int
-         RETURN
-      END IF
-      off = off + (ncolumnsDataOutSUEWS - 5)
-      IF (cfg_base%SnowUse == 1) THEN
-         IF (.NOT. mat_equal(ob_m3%dataOutBlockSnow(:, 6:), set_nan(dts_data(:, off + 1:off + ncolumnsDataOutSnow - 5)))) THEN
+         IF (.NOT. vec_equal(batch_data(r, off_snow + 1:off_beers), ref_lines(r)%dataOutLineSnow(6:))) THEN
             err = 281_c_int
             RETURN
          END IF
-      END IF
-      off = off + (ncolumnsDataOutSnow - 5)
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockBEERS(:, 6:), set_nan(dts_data(:, off + 1:off + ncolumnsDataOutBEERS - 5)))) THEN
-         err = 282_c_int
-         RETURN
-      END IF
-      off = off + (ncolumnsDataOutBEERS - 5)
-      off = off + (ncolumnsDataOutESTM - 5)
-      IF (cfg_base%StorageHeatMethod == 5) THEN
-         IF (.NOT. mat_equal(ob_m3%dataOutBlockEHC(:, 6:), set_nan(dts_data(:, off + 1:off + ncolumnsDataOutEHC - 5)))) THEN
+         IF (.NOT. vec_equal(batch_data(r, off_beers + 1:off_estm), ref_lines(r)%dataOutLineBEERS(6:))) THEN
+            err = 282_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_estm + 1:off_ehc), ref_lines(r)%dataOutLineESTM(6:))) THEN
             err = 283_c_int
             RETURN
          END IF
-      END IF
-      off = off + (ncolumnsDataOutEHC - 5)
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockDailyState(:, 6:), dts_data(:, off + 1:off + ncolumnsDataOutDailyState - 5))) THEN
-         err = 284_c_int
-         RETURN
-      END IF
-      off = off + (ncolumnsDataOutDailyState - 5)
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockRSL(:, 6:), dts_data(:, off + 1:off + ncolumnsDataOutRSL - 5))) THEN
-         err = 285_c_int
-         RETURN
-      END IF
-      off = off + (ncolumnsDataOutRSL - 5)
-      IF (ANY(ob_m3%dataOutBlockDebug(:, 6) /= 1.0D0) .OR. &
-          ANY(dts_data(:, off + 1) /= 0.0D0) .OR. &
-          .NOT. mat_equal(ob_m3%dataOutBlockDebug(:, 7:), dts_data(:, off + 2:off + ncolumnsDataOutDebug - 5))) THEN
-         err = 286_c_int
-         RETURN
-      END IF
-      off = off + (ncolumnsDataOutDebug - 5)
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockSPARTACUS(:, 6:), dts_data(:, off + 1:off + ncolumnsDataOutSPARTACUS - 5))) THEN
-         err = 287_c_int
-         RETURN
-      END IF
-      off = off + (ncolumnsDataOutSPARTACUS - 5)
-      IF (.NOT. mat_equal(ob_m3%dataOutBlockSTEBBS(:, 6:), dts_data(:, off + 1:off + ncolumnsDataOutSTEBBS - 5))) THEN
-         err = 288_c_int
-         RETURN
-      END IF
-      IF (.NOT. states_equal(blk_m3%BLOCK(nsteps), state_dts)) THEN
+         IF (.NOT. vec_equal(batch_data(r, off_ehc + 1:off_dailystate), ref_lines(r)%dataOutLineEHC(6:))) THEN
+            err = 284_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_dailystate + 1:off_rsl), ref_lines(r)%dataOutLineDailyState(6:))) THEN
+            err = 285_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_rsl + 1:off_debug), ref_lines(r)%dataoutLineRSL(6:))) THEN
+            err = 286_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_debug + 1:off_spartacus), ref_lines(r)%dataOutLineDebug(6:))) THEN
+            err = 287_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_spartacus + 1:off_stebbs), ref_lines(r)%dataOutLineSPARTACUS(6:))) THEN
+            err = 288_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_stebbs + 1:off_nhood), ref_lines(r)%dataOutLineSTEBBS(6:))) THEN
+            err = 290_c_int
+            RETURN
+         END IF
+         IF (.NOT. vec_equal(batch_data(r, off_nhood + 1:total_data_cols), ref_lines(r)%dataOutLineNHood(6:))) THEN
+            err = 291_c_int
+            RETURN
+         END IF
+      END DO
+      IF (.NOT. states_equal(state_batch, state_ref)) THEN
          err = 289_c_int
          RETURN
       END IF
 
-      ! Export runtime column widths in OUTPUT_BLOCK_FIELD_ORDER.
-      block_widths(1) = INT(SIZE(ob_m3%dataOutBlockSUEWS, 2), c_int)
-      block_widths(2) = INT(SIZE(ob_m3%dataOutBlockSnow, 2), c_int)
-      block_widths(3) = INT(SIZE(ob_m3%dataOutBlockESTM, 2), c_int)
-      block_widths(4) = INT(SIZE(ob_m3%dataOutBlockEHC, 2), c_int)
-      block_widths(5) = INT(SIZE(ob_m3%dataOutBlockRSL, 2), c_int)
-      block_widths(6) = INT(SIZE(ob_m3%dataOutBlockBEERS, 2), c_int)
-      block_widths(7) = INT(SIZE(ob_m3%dataOutBlockDebug, 2), c_int)
-      block_widths(8) = INT(SIZE(ob_m3%dataOutBlockSPARTACUS, 2), c_int)
-      block_widths(9) = INT(SIZE(ob_m3%dataOutBlockDailyState, 2), c_int)
-      block_widths(10) = INT(SIZE(ob_m3%dataOutBlockSTEBBS, 2), c_int)
-      block_widths(11) = INT(SIZE(ob_m3%dataOutBlockNHood, 2), c_int)
+      ! Export final state_batch named scalars and per-row representative output columns
+      ! directly from SUEWS_cal_multitsteps.
+      batch_final_state_out(1) = state_batch%heatState%qn
+      batch_final_state_out(2) = state_batch%heatState%qs
+      batch_final_state_out(3) = state_batch%heatState%qf
+      batch_final_state_out(4) = state_batch%heatState%qh
+      batch_final_state_out(5) = state_batch%heatState%qe
+      batch_final_state_out(6) = state_batch%heatState%TSfc_C
+      batch_final_state_out(7) = state_batch%heatState%temp_roof(1, 1)
+      batch_final_state_out(8) = state_batch%hydroState%state_surf(1)
+      batch_final_state_out(9) = state_batch%hydroState%drain_per_tstep
+      batch_final_state_out(10) = state_batch%hydroState%smd
+      batch_final_state_out(11) = state_batch%phenState%lenDay_id
+      batch_final_state_out(12) = state_batch%phenState%g_kdown
+      batch_final_state_out(13) = state_batch%atmState%t2_C
+      batch_final_state_out(14) = state_batch%anthroemisState%Fc_biogen
+      batch_final_state_out(15) = state_batch%stebbsState%kdown_2d
+      batch_final_state_out(16) = MERGE(1.0_c_double, 0.0_c_double, state_batch%flagState%flag_converge)
 
-      ! Export per-row named fields from production block_mod_state%BLOCK(1..3)
-      ! and production output_block_suews%dataOutBlock*.
       DO r = 1, nsteps
-         state_block_out(1, r) = blk_m3%BLOCK(r)%heatState%qn
-         state_block_out(2, r) = blk_m3%BLOCK(r)%heatState%qs
-         state_block_out(3, r) = blk_m3%BLOCK(r)%heatState%qf
-         state_block_out(4, r) = blk_m3%BLOCK(r)%heatState%qh
-         state_block_out(5, r) = blk_m3%BLOCK(r)%heatState%qe
-         state_block_out(6, r) = blk_m3%BLOCK(r)%heatState%TSfc_C
-         state_block_out(7, r) = blk_m3%BLOCK(r)%heatState%temp_roof(1, 1)
-         state_block_out(8, r) = blk_m3%BLOCK(r)%hydroState%state_surf(1)
-         state_block_out(9, r) = blk_m3%BLOCK(r)%hydroState%drain_per_tstep
-         state_block_out(10, r) = blk_m3%BLOCK(r)%hydroState%smd
-         state_block_out(11, r) = blk_m3%BLOCK(r)%phenState%lenDay_id
-         state_block_out(12, r) = blk_m3%BLOCK(r)%phenState%g_kdown
-         state_block_out(13, r) = blk_m3%BLOCK(r)%atmState%t2_C
-         state_block_out(14, r) = blk_m3%BLOCK(r)%anthroemisState%Fc_biogen
-         state_block_out(15, r) = blk_m3%BLOCK(r)%stebbsState%kdown_2d
-         state_block_out(16, r) = MERGE(1.0_c_double, 0.0_c_double, blk_m3%BLOCK(r)%flagState%flag_converge)
-
-         output_block_out(1, r) = ob_m3%dataOutBlockSUEWS(r, 4)
-         output_block_out(2, r) = ob_m3%dataOutBlockSUEWS(r, 11)
-         output_block_out(3, r) = ob_m3%dataOutBlockSUEWS(r, 12)
-         output_block_out(4, r) = ob_m3%dataOutBlockSUEWS(r, 13)
-         output_block_out(5, r) = ob_m3%dataOutBlockSUEWS(r, 14)
-         output_block_out(6, r) = ob_m3%dataOutBlockSUEWS(r, 15)
-         output_block_out(7, r) = ob_m3%dataOutBlockSUEWS(r, 87)
-         output_block_out(8, r) = ob_m3%dataOutBlockSUEWS(r, 67)
-         output_block_out(9, r) = ob_m3%dataOutBlockSnow(r, 6)
-         output_block_out(10, r) = ob_m3%dataOutBlockESTM(r, 6)
-         output_block_out(11, r) = ob_m3%dataOutBlockEHC(r, 6)
-         output_block_out(12, r) = ob_m3%dataOutBlockRSL(r, 66)
-         output_block_out(13, r) = ob_m3%dataOutBlockBEERS(r, 11)
-         output_block_out(14, r) = ob_m3%dataOutBlockBEERS(r, 18)
-         output_block_out(15, r) = ob_m3%dataOutBlockDebug(r, 120)
-         output_block_out(16, r) = ob_m3%dataOutBlockSPARTACUS(r, 6)
-         output_block_out(17, r) = ob_m3%dataOutBlockDailyState(r, 20)
-         output_block_out(18, r) = ob_m3%dataOutBlockDailyState(r, 10)
-         output_block_out(19, r) = ob_m3%dataOutBlockSTEBBS(r, 6)
-         output_block_out(20, r) = ob_m3%dataOutBlockNHood(r, 6)
+         batch_output_out(1, r) = batch_dates(r, 4)
+         batch_output_out(2, r) = batch_data(r, off_suews + 11 - 5)
+         batch_output_out(3, r) = batch_data(r, off_suews + 12 - 5)
+         batch_output_out(4, r) = batch_data(r, off_suews + 13 - 5)
+         batch_output_out(5, r) = batch_data(r, off_suews + 14 - 5)
+         batch_output_out(6, r) = batch_data(r, off_suews + 15 - 5)
+         batch_output_out(7, r) = batch_data(r, off_suews + 87 - 5)
+         batch_output_out(8, r) = batch_data(r, off_suews + 67 - 5)
+         batch_output_out(9, r) = batch_data(r, off_snow + 6 - 5)
+         batch_output_out(10, r) = batch_data(r, off_estm + 6 - 5)
+         batch_output_out(11, r) = batch_data(r, off_ehc + 6 - 5)
+         batch_output_out(12, r) = batch_data(r, off_rsl + 66 - 5)
+         batch_output_out(13, r) = batch_data(r, off_beers + 11 - 5)
+         batch_output_out(14, r) = batch_data(r, off_beers + 18 - 5)
+         batch_output_out(15, r) = batch_data(r, off_debug + 120 - 5)
+         batch_output_out(16, r) = batch_data(r, off_spartacus + 6 - 5)
+         batch_output_out(17, r) = batch_data(r, off_dailystate + 20 - 5)
+         batch_output_out(18, r) = batch_data(r, off_dailystate + 10 - 5)
+         batch_output_out(19, r) = batch_data(r, off_stebbs + 6 - 5)
+         batch_output_out(20, r) = batch_data(r, off_nhood + 6 - 5)
 
          DO il = 1, INT(nlayer)
             DO id_w = 1, INT(ndepth_in)
                widx = ((r - 1)*INT(nlayer) + (il - 1))*INT(ndepth_in) + id_w
-               wall_temp_block_out(widx) = blk_m3%BLOCK(r)%heatState%temp_wall(il, id_w)
                wall_temp_ref_out(widx) = ref_states(r)%heatState%temp_wall(il, id_w)
             END DO
          END DO
@@ -964,19 +674,13 @@ CONTAINS
       DO il = 1, INT(nlayer)
          DO id_w = 1, INT(ndepth_in)
             widx = (il - 1)*INT(ndepth_in) + id_w
-            wall_temp_dts_final_out(widx) = state_dts%heatState%temp_wall(il, id_w)
+            wall_temp_batch_final_out(widx) = state_batch%heatState%temp_wall(il, id_w)
          END DO
       END DO
 
-      CALL extract_debug_witnesses(dbg_m3, final_debug_out)
-      CALL ob_m0%cleanup()
-      CALL ob_m1%cleanup()
-      CALL ob_m2%cleanup()
-      CALL ob_m3%cleanup()
-      CALL ob_m4%cleanup()
-      DEALLOCATE (dts_data, dts_dates)
+      DEALLOCATE (batch_data, batch_dates)
       err = 0_c_int
-   END SUBROUTINE multiline_block_observe
+   END SUBROUTINE multiline_batch_observe
 
    SUBROUTINE init_site_and_state( &
       site, state, nlayer_i, ndepth_i, config, &
@@ -1216,9 +920,9 @@ CONTAINS
    ! Independent stage-by-stage boundary oracle executed outside
    ! SUEWS_cal_Main_impl by calling the individual physics routines directly.
    ! Produces both the full 15-stage oracle_debug snapshot and the final
-   ! oracle_state so any capture corruption inside SUEWS_cal_Main_impl or
-   ! run_multitsteps_block (on any scalar, fixed array, or allocatable field
-   ! of any of the 13 sub-states) is caught independently.
+   ! oracle_state so any capture corruption inside SUEWS_cal_Main_impl (on any
+   ! scalar, fixed array, or allocatable field of any of the 13 sub-states) is
+   ! caught independently.
    SUBROUTINE replay_timestep_stages( &
       timer_in, forcing_in, config_in, siteInfo, state_in, oracle_debug, oracle_state, status)
       USE, INTRINSIC :: iso_c_binding, ONLY: c_int
@@ -1595,29 +1299,6 @@ CONTAINS
       IF (status /= 0_c_int) RETURN
       CALL check_one_stage_nested(dbg%state_15_beers, control_state, control_state, 15, status)
    END SUBROUTINE check_stage_nested_invariants
-
-   SUBROUTINE extract_debug_witnesses(dbg, w)
-      USE, INTRINSIC :: iso_c_binding, ONLY: c_double
-      IMPLICIT NONE
-      TYPE(SUEWS_DEBUG), INTENT(IN) :: dbg
-      REAL(c_double), INTENT(OUT) :: w(15)
-
-      w(1) = dbg%state_01_dailystate%phenState%lenDay_id
-      w(2) = dbg%state_02_soilmoist%hydroState%vsmd
-      w(3) = dbg%state_03_wateruse%hydroState%wu_ext
-      w(4) = dbg%state_04_anthroemis%heatState%qf
-      w(5) = dbg%state_05_qn%heatState%qn
-      w(6) = dbg%state_06_qs%heatState%qs
-      w(7) = dbg%state_07_qhqe_lumps%heatState%QH_LUMPS
-      w(8) = dbg%state_08_water%hydroState%drain_per_tstep
-      w(9) = dbg%state_09_resist%phenState%g_kdown
-      w(10) = dbg%state_10_qe%heatState%qe
-      w(11) = dbg%state_11_qh%heatState%qh
-      w(12) = dbg%state_12_tsurf%heatState%TSfc_C
-      w(13) = dbg%state_13_rsl%atmState%t2_C
-      w(14) = dbg%state_14_biogenco2%anthroemisState%Fc_biogen
-      w(15) = dbg%state_15_beers%stebbsState%kdown_2d
-   END SUBROUTINE extract_debug_witnesses
 
    LOGICAL FUNCTION reals_eq(x, y)
       USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_nan
@@ -2365,45 +2046,6 @@ CONTAINS
          vec_equal(a_true%dataOutLineSTEBBS, b_false%dataOutLineSTEBBS) .AND. &
          vec_equal(a_true%dataOutLineNHood, b_false%dataOutLineNHood)
    END FUNCTION output_lines_equal_flag_test_pair
-
-   LOGICAL FUNCTION output_blocks_equal(a, b)
-      IMPLICIT NONE
-      TYPE(output_block), INTENT(IN) :: a, b
-
-      output_blocks_equal = &
-         mat_equal(a%dataOutBlockSUEWS, b%dataOutBlockSUEWS) .AND. &
-         mat_equal(a%dataOutBlockSnow, b%dataOutBlockSnow) .AND. &
-         mat_equal(a%dataOutBlockESTM, b%dataOutBlockESTM) .AND. &
-         mat_equal(a%dataOutBlockEHC, b%dataOutBlockEHC) .AND. &
-         mat_equal(a%dataOutBlockRSL, b%dataOutBlockRSL) .AND. &
-         mat_equal(a%dataOutBlockBEERS, b%dataOutBlockBEERS) .AND. &
-         mat_equal(a%dataOutBlockDebug, b%dataOutBlockDebug) .AND. &
-         mat_equal(a%dataOutBlockSPARTACUS, b%dataOutBlockSPARTACUS) .AND. &
-         mat_equal(a%dataOutBlockDailyState, b%dataOutBlockDailyState) .AND. &
-         mat_equal(a%dataOutBlockSTEBBS, b%dataOutBlockSTEBBS) .AND. &
-         mat_equal(a%dataOutBlockNHood, b%dataOutBlockNHood)
-   END FUNCTION output_blocks_equal
-
-   LOGICAL FUNCTION output_blocks_equal_flag_test_pair(a_true, b_false)
-      IMPLICIT NONE
-      TYPE(output_block), INTENT(IN) :: a_true, b_false
-
-      output_blocks_equal_flag_test_pair = &
-         mat_equal(a_true%dataOutBlockSUEWS, b_false%dataOutBlockSUEWS) .AND. &
-         mat_equal(a_true%dataOutBlockSnow, b_false%dataOutBlockSnow) .AND. &
-         mat_equal(a_true%dataOutBlockESTM, b_false%dataOutBlockESTM) .AND. &
-         mat_equal(a_true%dataOutBlockEHC, b_false%dataOutBlockEHC) .AND. &
-         mat_equal(a_true%dataOutBlockRSL, b_false%dataOutBlockRSL) .AND. &
-         mat_equal(a_true%dataOutBlockBEERS, b_false%dataOutBlockBEERS) .AND. &
-         ALL(a_true%dataOutBlockDebug(:, 6) == 1.0D0) .AND. &
-         ALL(b_false%dataOutBlockDebug(:, 6) == 0.0D0) .AND. &
-         mat_equal(a_true%dataOutBlockDebug(:, 1:5), b_false%dataOutBlockDebug(:, 1:5)) .AND. &
-         mat_equal(a_true%dataOutBlockDebug(:, 7:), b_false%dataOutBlockDebug(:, 7:)) .AND. &
-         mat_equal(a_true%dataOutBlockSPARTACUS, b_false%dataOutBlockSPARTACUS) .AND. &
-         mat_equal(a_true%dataOutBlockDailyState, b_false%dataOutBlockDailyState) .AND. &
-         mat_equal(a_true%dataOutBlockSTEBBS, b_false%dataOutBlockSTEBBS) .AND. &
-         mat_equal(a_true%dataOutBlockNHood, b_false%dataOutBlockNHood)
-   END FUNCTION output_blocks_equal_flag_test_pair
 
    ! Complete deep comparison of all 13 sub-states of SUEWS_STATE (including
    ! every scalar, fixed array, and allocatable roof/wall/surface/building

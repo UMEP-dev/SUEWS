@@ -1,13 +1,12 @@
 //! Native Fortran receiver proofs for `SUEWS_DEBUG` (all 15 stages via
-//! `SUEWS_cal_Main`), `SUEWS_STATE_BLOCK`, and `output_block` (via the shared
-//! multiline core `run_multitsteps_block`). Test-only under `capi-observer`; no production
-//! snapshot wire is created or advertised.
+//! `SUEWS_cal_Main`) and the production batch loop `SUEWS_cal_multitsteps`
+//! against step-by-step `SUEWS_cal_Main`. Test-only under `capi-observer`; no
+//! production snapshot wire is created or advertised.
 // contract: C-CAPI, C-SEQUENCE
 
 use suews_bridge::{
     encode_site_members_flat, encode_site_scalars_flat, encode_state_members_flat,
-    load_run_config_from_str, output_block_field_names, output_block_schema_info, ConductancePrm,
-    RunConfig,
+    load_run_config_from_str, ConductancePrm, RunConfig,
 };
 
 extern "C" {
@@ -51,7 +50,7 @@ extern "C" {
         err: *mut i32,
     );
 
-    fn multiline_block_observe(
+    fn multiline_batch_observe(
         config: *const f64,
         timer: *const f64,
         scalars: *const f64,
@@ -64,16 +63,12 @@ extern "C" {
         nlayer: i32,
         ndepth: i32,
         forcing_rows: *const f64,
-        block_widths: *mut i32,
-        state_block_out: *mut f64,
-        output_block_out: *mut f64,
-        final_debug_out: *mut f64,
-        mode_flags: *mut i32,
+        batch_final_state_out: *mut f64,
+        batch_output_out: *mut f64,
         wall_rect_len: i32,
-        wall_temp_block_out: *mut f64,
         wall_temp_ref_out: *mut f64,
         wall_final_len: i32,
-        wall_temp_dts_final_out: *mut f64,
+        wall_temp_batch_final_out: *mut f64,
         err: *mut i32,
     );
 }
@@ -144,27 +139,19 @@ struct LumpsFirstIterObservation {
 struct MultilineObservation {
     nlayer: usize,
     ndepth: usize,
-    block_widths: [i32; 11],
-    state_block: [[f64; 16]; 3],
-    output_block: [[f64; 20]; 3],
-    final_debug: [f64; 15],
-    mode_flags: [i32; 5],
-    wall_temp_block: Vec<f64>,
+    batch_final_state: [f64; 16],
+    batch_output: [[f64; 20]; 3],
     wall_temp_ref: Vec<f64>,
-    wall_temp_dts_final: Vec<f64>,
+    wall_temp_batch_final: Vec<f64>,
 }
 
 impl MultilineObservation {
-    fn wall_block_at(&self, row: usize, layer: usize, depth: usize) -> f64 {
-        self.wall_temp_block[(row * self.nlayer + layer) * self.ndepth + depth]
-    }
-
     fn wall_ref_at(&self, row: usize, layer: usize, depth: usize) -> f64 {
         self.wall_temp_ref[(row * self.nlayer + layer) * self.ndepth + depth]
     }
 
-    fn wall_dts_final_at(&self, layer: usize, depth: usize) -> f64 {
-        self.wall_temp_dts_final[layer * self.ndepth + depth]
+    fn wall_batch_final_at(&self, layer: usize, depth: usize) -> f64 {
+        self.wall_temp_batch_final[layer * self.ndepth + depth]
     }
 }
 
@@ -324,20 +311,16 @@ fn run_multiline_observer(run: &RunConfig, rows: &[MetRow; 3]) -> MultilineObser
     let wall_rect_len = wall_final_len.checked_mul(3).unwrap();
 
     let forcing_flat = flatten_forcing_rows(rows);
-    let mut block_widths = [0_i32; 11];
-    let mut state_block_flat = [f64::NAN; 48];
-    let mut output_block_flat = [f64::NAN; 60];
-    let mut final_debug = [f64::NAN; 15];
-    let mut mode_flags = [0_i32; 5];
-    let mut wall_temp_block = vec![f64::NAN; wall_rect_len];
+    let mut batch_final_state = [f64::NAN; 16];
+    let mut batch_output_flat = [f64::NAN; 60];
     let mut wall_temp_ref = vec![f64::NAN; wall_rect_len];
-    let mut wall_temp_dts_final = vec![f64::NAN; wall_final_len];
+    let mut wall_temp_batch_final = vec![f64::NAN; wall_final_len];
     let mut err = -1_i32;
 
     // Checked buffers match the test-only bind(c) contract. Inputs are live,
     // nonoverlapping immutable buffers; outputs and status are exclusive.
     unsafe {
-        multiline_block_observe(
+        multiline_batch_observe(
             config.as_ptr(),
             timer.as_ptr(),
             scalars.as_ptr(),
@@ -350,38 +333,28 @@ fn run_multiline_observer(run: &RunConfig, rows: &[MetRow; 3]) -> MultilineObser
             run.nlayer,
             run.ndepth,
             forcing_flat.as_ptr(),
-            block_widths.as_mut_ptr(),
-            state_block_flat.as_mut_ptr(),
-            output_block_flat.as_mut_ptr(),
-            final_debug.as_mut_ptr(),
-            mode_flags.as_mut_ptr(),
+            batch_final_state.as_mut_ptr(),
+            batch_output_flat.as_mut_ptr(),
             i32::try_from(wall_rect_len).unwrap(),
-            wall_temp_block.as_mut_ptr(),
             wall_temp_ref.as_mut_ptr(),
             i32::try_from(wall_final_len).unwrap(),
-            wall_temp_dts_final.as_mut_ptr(),
+            wall_temp_batch_final.as_mut_ptr(),
             &mut err,
         );
     }
-    assert_eq!(err, 0, "multiline_block_observe failed with err={err}");
+    assert_eq!(err, 0, "multiline_batch_observe failed with err={err}");
 
-    let mut state_block = [[f64::NAN; 16]; 3];
-    let mut output_block = [[f64::NAN; 20]; 3];
-    for r in 0..3 {
-        state_block[r].copy_from_slice(&state_block_flat[r * 16..(r + 1) * 16]);
-        output_block[r].copy_from_slice(&output_block_flat[r * 20..(r + 1) * 20]);
+    let mut batch_output = [[f64::NAN; 20]; 3];
+    for (r, out_row) in batch_output.iter_mut().enumerate() {
+        out_row.copy_from_slice(&batch_output_flat[r * 20..(r + 1) * 20]);
     }
     MultilineObservation {
         nlayer,
         ndepth,
-        block_widths,
-        state_block,
-        output_block,
-        final_debug,
-        mode_flags,
-        wall_temp_block,
+        batch_final_state,
+        batch_output,
         wall_temp_ref,
-        wall_temp_dts_final,
+        wall_temp_batch_final,
     }
 }
 
@@ -582,50 +555,27 @@ fn expected_lumps_qhqe(
     (qh_lumps, qe_lumps, veg_phen_lumps, temp_veg)
 }
 
-fn assert_wall_rectangle_matches_noblock(obs: &MultilineObservation, label: &str) {
-    assert_eq!(
-        obs.wall_temp_block.len(),
-        3 * obs.nlayer * obs.ndepth,
-        "{label}: wall_temp_block rectangle length mismatch"
-    );
+fn assert_wall_final_matches_ref(obs: &MultilineObservation, label: &str) {
     assert_eq!(
         obs.wall_temp_ref.len(),
         3 * obs.nlayer * obs.ndepth,
         "{label}: wall_temp_ref rectangle length mismatch"
     );
     assert_eq!(
-        obs.wall_temp_dts_final.len(),
+        obs.wall_temp_batch_final.len(),
         obs.nlayer * obs.ndepth,
-        "{label}: wall_temp_dts_final rectangle length mismatch"
+        "{label}: wall_temp_batch_final length mismatch"
     );
-    for r in 0..3 {
-        for layer in 0..obs.nlayer {
-            for depth in 0..obs.ndepth {
-                let actual = obs.wall_block_at(r, layer, depth);
-                let expected = obs.wall_ref_at(r, layer, depth);
-                assert_approx(
-                    actual,
-                    expected,
-                    1e-12,
-                    &format!(
-                        "{label}: block temp_wall({},{}) row {r} vs no-block SUEWS_cal_Main",
-                        layer + 1,
-                        depth + 1
-                    ),
-                );
-            }
-        }
-    }
     for layer in 0..obs.nlayer {
         for depth in 0..obs.ndepth {
-            let actual = obs.wall_block_at(2, layer, depth);
-            let expected = obs.wall_dts_final_at(layer, depth);
+            let actual = obs.wall_batch_final_at(layer, depth);
+            let expected = obs.wall_ref_at(2, layer, depth);
             assert_approx(
                 actual,
                 expected,
                 1e-12,
                 &format!(
-                    "{label}: final-row block temp_wall({},{}) vs no-block SUEWS_cal_multitsteps",
+                    "{label}: final-row SUEWS_cal_multitsteps temp_wall({},{}) vs step-by-step SUEWS_cal_Main",
                     layer + 1,
                     depth + 1
                 ),
@@ -1406,21 +1356,8 @@ fn activating_ehc_and_biogenic_co2_case_discriminates_lumps_ehc_and_stage14() {
     );
 }
 
-fn assert_widths_match_schema(widths: &[i32; 11]) {
-    let schema = output_block_schema_info().unwrap();
-    let names = output_block_field_names();
-    assert_eq!(names.len(), 11);
-    for (idx, name) in names.iter().enumerate() {
-        let expected_cols = schema.allocatable_dims.get(name).unwrap()[1];
-        assert_eq!(
-            widths[idx] as usize, expected_cols,
-            "production output_block width mismatch for {name}"
-        );
-    }
-}
-
 #[test]
-fn production_multiline_driver_captures_state_block_output_block_and_optional_debug() {
+fn production_multiline_batch_matches_step_by_step_reference() {
     // Case 1A: Observed QN/QS/QF baseline + reversed row-order control.
     let mut run_a = load_sample_fixture();
     run_a.config.net_radiation_method = 0;
@@ -1432,170 +1369,83 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
     let rows_a = sample_met_rows_ascending();
     let obs_a = run_multiline_observer(&run_a, &rows_a);
 
-    assert_eq!(obs_a.mode_flags, [1, 1, 1, 1, 1]);
-    assert_widths_match_schema(&obs_a.block_widths);
     for (r, &met) in rows_a.iter().enumerate() {
-        let sb = obs_a.state_block[r];
-        let ob = obs_a.output_block[r];
+        let ob = obs_a.batch_output[r];
         assert_approx(ob[0], met.imin, 1e-12, "Case 1A SUEWS imin");
-        assert_approx(sb[0], met.qn1_obs, 1e-12, "Case 1A block_mod_state QN");
-        assert_approx(sb[1], met.qs_obs, 1e-12, "Case 1A block_mod_state QS");
-        assert_approx(sb[2], met.qf_obs, 1e-12, "Case 1A block_mod_state QF");
-        assert_approx(
-            ob[1],
-            sb[0],
-            1e-12,
-            "Case 1A output_block SUEWS QN == state_block",
-        );
-        assert_approx(
-            ob[2],
-            sb[2],
-            1e-12,
-            "Case 1A output_block SUEWS QF == state_block",
-        );
-        assert_approx(
-            ob[3],
-            sb[1],
-            1e-12,
-            "Case 1A output_block SUEWS QS == state_block",
-        );
-        assert_approx(
-            ob[4],
-            sb[3],
-            1e-12,
-            "Case 1A output_block SUEWS QH == state_block",
-        );
-        assert_approx(
-            ob[5],
-            sb[4],
-            1e-12,
-            "Case 1A output_block SUEWS QE == state_block",
-        );
-        assert_approx(
-            ob[6],
-            sb[12],
-            1e-12,
-            "Case 1A output_block SUEWS T2 == state_block",
-        );
-        assert_eq!(ob[8], 0.0, "Case 1A Snow inactive -> 0.0");
-        assert_eq!(ob[9], 0.0, "Case 1A ESTM disabled -> 0.0");
-        assert_eq!(ob[10], 0.0, "Case 1A EHC inactive -> 0.0");
+        assert_approx(ob[1], met.qn1_obs, 1e-12, "Case 1A batch_data SUEWS QN");
+        assert_approx(ob[2], met.qf_obs, 1e-12, "Case 1A batch_data SUEWS QF");
+        assert_approx(ob[3], met.qs_obs, 1e-12, "Case 1A batch_data SUEWS QS");
+        assert_eq!(ob[8], -999.0, "Case 1A Snow inactive -> -999.0");
+        assert_eq!(ob[9], -999.0, "Case 1A ESTM disabled -> -999.0");
+        assert_eq!(ob[10], -999.0, "Case 1A EHC inactive -> -999.0");
         assert!(ob[11].is_finite() && ob[11] > 5.0, "Case 1A RSL T_1 active");
-        assert_approx(
-            ob[12],
-            sb[14],
-            1e-12,
-            "Case 1A BEERS Kdown2d == state_block",
-        );
         assert!(ob[13] > 250.0, "Case 1A BEERS Lup2d active");
-        assert_approx(
-            ob[14],
-            sb[11],
-            1e-12,
-            "Case 1A Debug g_kdown == state_block",
-        );
         assert_eq!(ob[15], -999.0, "Case 1A SPARTACUS inactive -> -999.0");
-        assert_approx(
-            sb[10],
-            (r + 1) as f64 / 12.0,
-            1e-12,
-            "Case 1A block_mod_state lenDay_id",
-        );
         assert_eq!(
             ob[16], -999.0,
             "Case 1A mid-day DailyState DLHrs stays -999.0"
         );
         assert_eq!(ob[18], -999.0, "Case 1A STEBBS inactive -> -999.0");
         assert_eq!(ob[19], -999.0, "Case 1A NHood legacy unassigned -> -999.0");
-        assert_eq!(sb[15], 1.0, "Case 1A converged");
     }
-    assert_ne!(obs_a.state_block[0][3], obs_a.state_block[2][3]);
-    assert_ne!(obs_a.state_block[0][7], obs_a.state_block[2][7]);
-    // Final-row state_debug captured by run_multitsteps_block matches row 2.
-    assert_approx(
-        obs_a.final_debug[4],
-        rows_a[2].qn1_obs,
-        1e-12,
-        "Case 1A final_debug QN",
-    );
-    assert_approx(
-        obs_a.final_debug[5],
-        rows_a[2].qs_obs,
-        1e-12,
-        "Case 1A final_debug QS",
-    );
-    assert_approx(
-        obs_a.final_debug[10],
-        obs_a.state_block[2][3],
-        1e-12,
-        "Case 1A final_debug QH",
-    );
-    assert_approx(
-        obs_a.final_debug[14],
-        obs_a.state_block[2][14],
-        1e-12,
-        "Case 1A final_debug kdown_2d",
-    );
+    assert_ne!(obs_a.batch_output[0][4], obs_a.batch_output[2][4]);
+    assert_ne!(obs_a.batch_output[0][5], obs_a.batch_output[2][5]);
+
+    // Final-row state_batch scalars match row 2 outputs from SUEWS_cal_multitsteps.
+    let sb = obs_a.batch_final_state;
+    let ob_a2 = obs_a.batch_output[2];
+    assert_approx(sb[0], rows_a[2].qn1_obs, 1e-12, "Case 1A final state_batch QN");
+    assert_approx(sb[1], rows_a[2].qs_obs, 1e-12, "Case 1A final state_batch QS");
+    assert_approx(sb[2], rows_a[2].qf_obs, 1e-12, "Case 1A final state_batch QF");
+    assert_approx(ob_a2[4], sb[3], 1e-12, "Case 1A SUEWS QH == state_batch");
+    assert_approx(ob_a2[5], sb[4], 1e-12, "Case 1A SUEWS QE == state_batch");
+    assert_approx(ob_a2[6], sb[12], 1e-12, "Case 1A SUEWS T2 == state_batch");
+    assert_approx(ob_a2[12], sb[14], 1e-12, "Case 1A BEERS Kdown2d == state_batch");
+    assert_approx(ob_a2[14], sb[11], 1e-12, "Case 1A Debug g_kdown == state_batch");
+    assert_approx(sb[10], 3.0 / 12.0, 1e-12, "Case 1A final state_batch lenDay_id");
+    assert_eq!(sb[15], 1.0, "Case 1A converged");
     let exp_g_a2 = expected_g_kdown(rows_a[2].kdown, &run_a.site.conductance);
     assert_approx(
-        obs_a.final_debug[8],
+        sb[11],
         exp_g_a2,
         1e-12,
-        "Case 1A final_debug stage 09 g_kdown analytical formula",
+        "Case 1A final state_batch stage 09 g_kdown analytical formula",
     );
-    assert_approx(
-        obs_a.final_debug[8],
-        obs_a.state_block[2][11],
-        1e-12,
-        "Case 1A final_debug stage 09 g_kdown == state_block",
-    );
-    assert_approx(
-        obs_a.final_debug[8],
-        obs_a.output_block[2][14],
-        1e-12,
-        "Case 1A final_debug stage 09 g_kdown == output_block Debug(120)",
-    );
-    assert_wall_rectangle_matches_noblock(&obs_a, "Case 1A");
+    assert_wall_final_matches_ref(&obs_a, "Case 1A");
 
-    // Reversed row-order control on run_multitsteps_block.
+    // Reversed row-order control on SUEWS_cal_multitsteps.
     let mut rows_a_rev = [rows_a[2], rows_a[1], rows_a[0]];
     for (r, row) in rows_a_rev.iter_mut().enumerate() {
         row.imin = 5.0 * (r + 1) as f64;
     }
     let obs_a_rev = run_multiline_observer(&run_a, &rows_a_rev);
     assert_approx(
-        obs_a_rev.state_block[0][0],
-        340.0,
-        1e-12,
-        "Case 1A reversed row 0 QN",
-    );
-    assert_approx(
-        obs_a_rev.state_block[2][0],
-        150.0,
-        1e-12,
-        "Case 1A reversed row 2 QN",
-    );
-    assert_approx(
-        obs_a_rev.output_block[0][1],
+        obs_a_rev.batch_output[0][1],
         340.0,
         1e-12,
         "Case 1A reversed output row 0 QN",
     );
     assert_approx(
-        obs_a_rev.output_block[2][1],
+        obs_a_rev.batch_output[2][1],
         150.0,
         1e-12,
         "Case 1A reversed output row 2 QN",
     );
     assert_approx(
-        obs_a_rev.final_debug[8],
+        obs_a_rev.batch_final_state[0],
+        150.0,
+        1e-12,
+        "Case 1A reversed final state_batch QN",
+    );
+    assert_approx(
+        obs_a_rev.batch_output[2][14],
         expected_g_kdown(rows_a_rev[2].kdown, &run_a.site.conductance),
         1e-12,
-        "Case 1A reversed final_debug stage 09 g_kdown analytical formula",
+        "Case 1A reversed Debug(120) g_kdown analytical formula",
     );
-    assert_wall_rectangle_matches_noblock(&obs_a_rev, "Case 1A reversed");
+    assert_wall_final_matches_ref(&obs_a_rev, "Case 1A reversed");
 
-    // Case 1B: Activating EHC + NARP + biogenic CO2 -> populates dataOutBlockEHC & Fc.
+    // Case 1B: Activating EHC + NARP + biogenic CO2 -> populates EHC & Fc.
     let mut run_b = load_sample_fixture();
     run_b.config.net_radiation_method = 3;
     run_b.config.storage_heat_method = 5;
@@ -1604,33 +1454,31 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
     run_b.config.snow_use = 0;
     prepare_wet_partially_dry_state(&mut run_b);
     let obs_b = run_multiline_observer(&run_b, &rows_a);
-    assert_eq!(obs_b.mode_flags, [1, 1, 1, 1, 1]);
-    assert_widths_match_schema(&obs_b.block_widths);
-    for r in 0..3 {
+    for (r, out_row) in obs_b.batch_output.iter().enumerate() {
         assert!(
-            obs_b.output_block[r][10] > 0.0 && obs_b.output_block[r][10] < 80.0,
-            "Case 1B dataOutBlockEHC Ts_Paved active on row {r}: {}",
-            obs_b.output_block[r][10]
+            out_row[10] > 0.0 && out_row[10] < 80.0,
+            "Case 1B EHC Ts_Paved active on row {r}: {}",
+            out_row[10]
         );
-        assert!(
-            obs_b.state_block[r][13] != 0.0,
-            "Case 1B block_mod_state Fc_biogen active on row {r}"
-        );
-        assert!(obs_b.output_block[r][7] != 0.0, "Case 1B SUEWS Fc active");
+        assert!(out_row[7] != 0.0, "Case 1B SUEWS Fc active");
     }
+    assert!(
+        obs_b.batch_final_state[13] != 0.0,
+        "Case 1B final state_batch Fc_biogen active"
+    );
     assert_ne!(
-        obs_b.output_block[0][10], obs_b.output_block[2][10],
-        "Case 1B dataOutBlockEHC Ts_Paved must evolve across timesteps"
+        obs_b.batch_output[0][10], obs_b.batch_output[2][10],
+        "Case 1B EHC Ts_Paved must evolve across timesteps"
     );
     assert_approx(
-        obs_b.final_debug[8],
+        obs_b.batch_output[2][14],
         expected_g_kdown(rows_a[2].kdown, &run_b.site.conductance),
         1e-12,
-        "Case 1B final_debug stage 09 g_kdown analytical formula",
+        "Case 1B Debug(120) g_kdown analytical formula",
     );
-    assert_wall_rectangle_matches_noblock(&obs_b, "Case 1B");
+    assert_wall_final_matches_ref(&obs_b, "Case 1B");
 
-    // Case 1C: Activating Snow (SnowUse == 1, sub-zero snowfall) -> populates dataOutBlockSnow.
+    // Case 1C: Activating Snow (SnowUse == 1, sub-zero snowfall) -> populates Snow.
     let mut run_c = load_sample_fixture();
     run_c.config.net_radiation_method = 0;
     run_c.config.storage_heat_method = 0;
@@ -1654,21 +1502,19 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
         row.l_down = 250.0;
     }
     let obs_c = run_multiline_observer(&run_c, &rows_c);
-    assert_eq!(obs_c.mode_flags, [1, 1, 1, 1, 1]);
-    assert_widths_match_schema(&obs_c.block_widths);
     assert!(
-        obs_c.output_block[0][8] > 2.0
-            && obs_c.output_block[1][8] > obs_c.output_block[0][8]
-            && obs_c.output_block[2][8] > obs_c.output_block[1][8],
-        "Case 1C dataOutBlockSnow SWE_Paved must accumulate snowfall: {:?}",
+        obs_c.batch_output[0][8] > 2.0
+            && obs_c.batch_output[1][8] > obs_c.batch_output[0][8]
+            && obs_c.batch_output[2][8] > obs_c.batch_output[1][8],
+        "Case 1C Snow SWE_Paved must accumulate snowfall: {:?}",
         [
-            obs_c.output_block[0][8],
-            obs_c.output_block[1][8],
-            obs_c.output_block[2][8]
+            obs_c.batch_output[0][8],
+            obs_c.batch_output[1][8],
+            obs_c.batch_output[2][8]
         ]
     );
 
-    // Case 1D: Activating STEBBS + SPARTACUS fixture -> populates dataOutBlockSPARTACUS & STEBBS.
+    // Case 1D: Activating STEBBS + SPARTACUS fixture -> populates SPARTACUS & STEBBS.
     let run_d = load_run_config_from_str(include_str!(
         "../../../test/fixtures/bridge/stebbs_resolved.yml"
     ))
@@ -1684,27 +1530,25 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
         row.rain = 0.0;
     }
     let obs_d = run_multiline_observer(&run_d, &rows_d);
-    assert_eq!(obs_d.mode_flags, [1, 1, 1, 1, 1]);
-    assert_widths_match_schema(&obs_d.block_widths);
-    for (r, out_row) in obs_d.output_block.iter().enumerate() {
+    for (r, out_row) in obs_d.batch_output.iter().enumerate() {
         assert!(
             out_row[15] > 0.0 && out_row[15] < 1.0,
-            "Case 1D dataOutBlockSPARTACUS alb active on row {r}: {}",
+            "Case 1D SPARTACUS alb active on row {r}: {}",
             out_row[15]
         );
         assert!(
             out_row[18] > 0.0 && out_row[18] < 20.0,
-            "Case 1D dataOutBlockSTEBBS ws_10 active on row {r}: {}",
+            "Case 1D STEBBS ws_10 active on row {r}: {}",
             out_row[18]
         );
     }
     assert_ne!(
-        obs_d.output_block[0][18], obs_d.output_block[2][18],
-        "Case 1D dataOutBlockSTEBBS ws_10 must vary across forcing rows"
+        obs_d.batch_output[0][18], obs_d.batch_output[2][18],
+        "Case 1D STEBBS ws_10 must vary across forcing rows"
     );
 
     // Case 1E: End-of-day boundary (23:45, 23:50, 23:55) activates real
-    // dataOutBlockDailyState population on row 2 while rows 0..1 stay -999.0.
+    // DailyState population on row 2 while rows 0..1 stay -999.0.
     let mut rows_e = sample_met_rows_ascending();
     for (r, row) in rows_e.iter_mut().enumerate() {
         row.it = 23.0;
@@ -1712,38 +1556,36 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
         row.kdown = 25.0;
     }
     let obs_e = run_multiline_observer(&run_a, &rows_e);
-    assert_eq!(obs_e.mode_flags, [1, 1, 1, 1, 1]);
-    assert_widths_match_schema(&obs_e.block_widths);
     assert_eq!(
-        obs_e.output_block[0][16], -999.0,
+        obs_e.batch_output[0][16], -999.0,
         "Case 1E row 0 pre-EOD DailyState"
     );
     assert_eq!(
-        obs_e.output_block[1][16], -999.0,
+        obs_e.batch_output[1][16], -999.0,
         "Case 1E row 1 pre-EOD DailyState"
     );
     assert_approx(
-        obs_e.output_block[2][16],
+        obs_e.batch_output[2][16],
         3.0 / 12.0,
         1e-12,
         "Case 1E row 2 (23:55) populated DailyState DLHrs",
     );
     assert_approx(
-        obs_e.output_block[2][17],
+        obs_e.batch_output[2][17],
         rows_e[0].rain + rows_e[1].rain + rows_e[2].rain,
         1e-12,
         "Case 1E row 2 (23:55) populated DailyState P_day",
     );
-    assert_wall_rectangle_matches_noblock(&obs_c, "Case 1C");
-    assert_wall_rectangle_matches_noblock(&obs_d, "Case 1D");
-    assert_wall_rectangle_matches_noblock(&obs_e, "Case 1E");
+    assert_wall_final_matches_ref(&obs_c, "Case 1C");
+    assert_wall_final_matches_ref(&obs_d, "Case 1D");
+    assert_wall_final_matches_ref(&obs_e, "Case 1E");
 
     // Case 1F: Facet-resolved SPARTACUS + EHC (NetRadiationMethod = 1003 > 1000,
     // StorageHeatMethod = 5) on building-active KCL site (sfr_bldgs = 0.38,
     // nlayer = 3, ndepth = 5). Exercises live 1D wall heat conduction across all
-    // 3 rows and 3 vertical layers so block_mod_state%BLOCK(r)%heatState%temp_wall
-    // (including temp_wall(1,1)) is non-zero, physically evolving, layer-distinct,
-    // and proved element-by-element against independently produced no-block state.
+    // 3 rows and 3 vertical layers so final state_batch%heatState%temp_wall is
+    // non-zero, physically evolving, layer-distinct, and proved element-by-element
+    // against independently produced step-by-step SUEWS_cal_Main state.
     let mut run_f = load_sample_fixture();
     run_f.config.net_radiation_method = 1003;
     run_f.config.storage_heat_method = 5;
@@ -1765,23 +1607,21 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
     );
     let init_wall_11 = run_f.state.heat_state.temp_wall[0];
     let obs_f = run_multiline_observer(&run_f, &rows_a);
-    assert_eq!(obs_f.mode_flags, [1, 1, 1, 1, 1]);
-    assert_widths_match_schema(&obs_f.block_widths);
-    assert_wall_rectangle_matches_noblock(&obs_f, "Case 1F");
+    assert_wall_final_matches_ref(&obs_f, "Case 1F");
     for r in 0..3 {
         assert!(
-            obs_f.output_block[r][10].is_finite() && obs_f.output_block[r][10] > 0.0,
+            obs_f.batch_output[r][10].is_finite() && obs_f.batch_output[r][10] > 0.0,
             "Case 1F EHC active on row {r}: {}",
-            obs_f.output_block[r][10]
+            obs_f.batch_output[r][10]
         );
         assert!(
-            obs_f.output_block[r][15] > 0.0 && obs_f.output_block[r][15] < 1.0,
+            obs_f.batch_output[r][15] > 0.0 && obs_f.batch_output[r][15] < 1.0,
             "Case 1F SPARTACUS albedo active on row {r}: {}",
-            obs_f.output_block[r][15]
+            obs_f.batch_output[r][15]
         );
         for layer in 0..obs_f.nlayer {
             for depth in 0..obs_f.ndepth {
-                let tw = obs_f.wall_block_at(r, layer, depth);
+                let tw = obs_f.wall_ref_at(r, layer, depth);
                 assert!(
                     tw.is_finite() && tw > 0.0 && tw < 80.0,
                     "Case 1F non-trivial physical wall temp at row {r} layer {} depth {}: {tw}",
@@ -1791,9 +1631,9 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
             }
         }
     }
-    let w11_r0 = obs_f.wall_block_at(0, 0, 0);
-    let w11_r1 = obs_f.wall_block_at(1, 0, 0);
-    let w11_r2 = obs_f.wall_block_at(2, 0, 0);
+    let w11_r0 = obs_f.wall_ref_at(0, 0, 0);
+    let w11_r1 = obs_f.wall_ref_at(1, 0, 0);
+    let w11_r2 = obs_f.wall_batch_final_at(0, 0);
     assert_ne!(
         w11_r0, init_wall_11,
         "Case 1F temp_wall(1,1) must evolve away from initial seed {init_wall_11}"
@@ -1802,9 +1642,9 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
         w11_r0 != w11_r1 && w11_r1 != w11_r2 && w11_r0 != w11_r2,
         "Case 1F temp_wall(1,1) must be distinct across all 3 rows: [{w11_r0}, {w11_r1}, {w11_r2}]"
     );
-    let w21_r0 = obs_f.wall_block_at(0, 1, 0);
-    let w21_r1 = obs_f.wall_block_at(1, 1, 0);
-    let w21_r2 = obs_f.wall_block_at(2, 1, 0);
+    let w21_r0 = obs_f.wall_ref_at(0, 1, 0);
+    let w21_r1 = obs_f.wall_ref_at(1, 1, 0);
+    let w21_r2 = obs_f.wall_batch_final_at(1, 0);
     assert!(
         w21_r0 != w21_r1 && w21_r1 != w21_r2,
         "Case 1F layer-2 temp_wall(2,1) must evolve across rows: [{w21_r0}, {w21_r1}, {w21_r2}]"
@@ -1815,13 +1655,13 @@ fn production_multiline_driver_captures_state_block_output_block_and_optional_de
     );
     assert_ne!(
         w11_r2,
-        obs_f.wall_block_at(2, 0, obs_f.ndepth - 1),
+        obs_f.wall_batch_final_at(0, obs_f.ndepth - 1),
         "Case 1F outer vs inner wall depth nodes must differ"
     );
     assert_approx(
-        obs_f.final_debug[8],
+        obs_f.batch_output[2][14],
         expected_g_kdown(rows_a[2].kdown, &run_f.site.conductance),
         1e-12,
-        "Case 1F final_debug stage 09 g_kdown analytical formula",
+        "Case 1F Debug(120) g_kdown analytical formula",
     );
 }

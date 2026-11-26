@@ -27,8 +27,7 @@ MODULE SUEWS_Driver
                             HYDRO_STATE, HEAT_STATE, &
                             ROUGHNESS_STATE, solar_State, atm_state, flag_STATE, &
                             SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, STEBBS_BLDG, &
-                            SUEWS_STATE_BLOCK, &
-                            output_line, output_block
+                            output_line
    USE module_type_surface, ONLY: ANOHM_MAX_SAMPLES, ANOHM_MIN_VALID_SAMPLES
    USE module_phys_anohm, ONLY: AnOHM
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
@@ -85,7 +84,7 @@ MODULE SUEWS_Driver
    PUBLIC :: supy_error_flag, get_supy_error
    PUBLIC :: reset_supy_error, set_supy_error
    PRIVATE :: SUEWS_cal_Main_impl
-   PRIVATE :: store_output_line, SUEWS_load_forcing_row, run_multitsteps_block
+   PRIVATE :: store_output_line, SUEWS_load_forcing_row
 
    INTERFACE
       MODULE SUBROUTINE store_output_line(line_out, ir, dataOutBlockData, datetimeBlock)
@@ -99,23 +98,6 @@ MODULE SUEWS_Driver
          REAL(KIND(1D0)), DIMENSION(:, :), INTENT(IN) :: MetForcingBlock
          INTEGER, INTENT(IN) :: ir
       END SUBROUTINE SUEWS_load_forcing_row
-
-      MODULE SUBROUTINE run_multitsteps_block( &
-         timer, MetForcingBlock, len_sim, &
-         config, siteInfo, &
-         mod_state, &
-         output_block_suews, &
-         state_debug, block_mod_state)
-         TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
-         INTEGER, INTENT(IN) :: len_sim
-         REAL(KIND(1D0)), DIMENSION(len_sim, 24), INTENT(IN) :: MetForcingBlock
-         TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-         TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-         TYPE(SUEWS_STATE), INTENT(INOUT) :: mod_state
-         TYPE(output_block), INTENT(OUT) :: output_block_suews
-         TYPE(SUEWS_DEBUG), INTENT(OUT), OPTIONAL :: state_debug
-         TYPE(SUEWS_STATE_BLOCK), INTENT(OUT), OPTIONAL :: block_mod_state
-      END SUBROUTINE run_multitsteps_block
    END INTERFACE
 
    ! Per-timestep EHC output diagnostics: recomputed every timestep and written
@@ -4758,78 +4740,6 @@ CONTAINS
       res_filled = RESHAPE(res_valid, [n_fill], pad=[NAN])
    END FUNCTION fill_sim_res
 
-!==============Update output arrays=========================
-   SUBROUTINE SUEWS_update_output( &
-      SnowUse, storageheatmethod, & !input
-      ReadLinesMetdata, NumberOfGrids, &
-      ir, gridiv, &
-      dataOutLineSUEWS, dataOutLineSnow, dataOutLineESTM, dataoutLineRSL, dataOutLineBEERS, &
-      dataoutlineDebug, dataoutlineSPARTACUS, dataOutLineEHC, &
-      dataOutLineSTEBBS, &
-      dataOutLineNHood, & !input
-      dataOutSUEWS, dataOutSnow, dataOutESTM, dataOutRSL, dataOutBEERS, dataOutDebug, dataOutSPARTACUS, &
-      dataOutEHC, &
-      dataOutSTEBBS, &
-      dataOutNHood &
-      ) !inout
-      IMPLICIT NONE
-
-      INTEGER, INTENT(in) :: ReadLinesMetdata
-      INTEGER, INTENT(in) :: NumberOfGrids
-      INTEGER, INTENT(in) :: Gridiv
-      INTEGER, INTENT(in) :: SnowUse
-      INTEGER, INTENT(in) :: storageheatmethod
-      INTEGER, INTENT(in) :: ir
-
-      ! REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS), INTENT(in) :: dataOutLineSUEWS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM), INTENT(in) :: dataOutLineESTM
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutEHC), INTENT(in) :: dataOutLineEHC
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow), INTENT(in) :: dataOutLineSnow
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL), INTENT(in) :: dataoutLineRSL
-      REAL(KIND(1D0)), DIMENSION(ncolumnsdataOutBEERS), INTENT(in) :: dataOutLineBEERS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsdataOutDebug), INTENT(in) :: dataOutLineDebug
-      REAL(KIND(1D0)), DIMENSION(ncolumnsdataOutSPARTACUS), INTENT(in) :: dataOutLineSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS), INTENT(in) :: dataOutLineSTEBBS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutNHood), INTENT(in) :: dataOutLineNHood
-
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutSUEWS(ReadLinesMetdata, ncolumnsDataOutSUEWS, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutSnow(ReadLinesMetdata, ncolumnsDataOutSnow, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutESTM(ReadLinesMetdata, ncolumnsDataOutESTM, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutEHC(ReadLinesMetdata, ncolumnsDataOutEHC, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutRSL(ReadLinesMetdata, ncolumnsDataOutRSL, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutBEERS(ReadLinesMetdata, ncolumnsdataOutBEERS, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutDebug(ReadLinesMetdata, ncolumnsDataOutDebug, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutSPARTACUS(ReadLinesMetdata, ncolumnsDataOutSPARTACUS, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutSTEBBS(ReadLinesMetdata, ncolumnsDataOutSTEBBS, NumberOfGrids)
-      REAL(KIND(1D0)), INTENT(inout) :: dataOutNHood(ReadLinesMetdata, ncolumnsDataOutNHood, NumberOfGrids)
-
-      !====================== update output arrays ==============================
-      !Define the overall output matrix to be printed out step by step
-      dataOutSUEWS(ir, 1:ncolumnsDataOutSUEWS, Gridiv) = [(dataOutLineSUEWS)]
-      ! dataOutSUEWS(ir, 1:ncolumnsDataOutSUEWS, Gridiv) = [ set_nan(dataOutLineSUEWS)]
-      dataOutRSL(ir, 1:ncolumnsDataOutRSL, Gridiv) = [(dataoutLineRSL)]
-      dataOutDebug(ir, 1:ncolumnsDataOutDebug, Gridiv) = [(dataOutLineDebug)]
-      dataOutSPARTACUS(ir, 1:ncolumnsDataOutSPARTACUS, Gridiv) = [(dataOutLineSPARTACUS)]
-      ! dataOutRSL(ir, 1:ncolumnsDataOutRSL, Gridiv) = [ set_nan(dataoutLineRSL)]
-      dataOutBEERS(ir, 1:ncolumnsdataOutBEERS, Gridiv) = [set_nan(dataOutLineBEERS)]
-      ! ! set invalid values to NAN
-      ! dataOutSUEWS(ir,6:ncolumnsDataOutSUEWS,Gridiv)=set_nan(dataOutSUEWS(ir,6:ncolumnsDataOutSUEWS,Gridiv))
-      dataOutSTEBBS(ir, 1:ncolumnsDataOutSTEBBS, Gridiv) = [(dataOutLineSTEBBS)]
-
-      IF (SnowUse == 1) THEN
-         dataOutSnow(ir, 1:ncolumnsDataOutSnow, Gridiv) = [set_nan(dataOutLineSnow)]
-      END IF
-
-      IF (storageheatmethod == SHM_EHC) THEN
-         dataOutEHC(ir, 1:ncolumnsDataOutEHC, Gridiv) = [set_nan(dataOutLineEHC)]
-      END IF
-
-      dataOutNHood(ir, 1:ncolumnsDataOutNHood, Gridiv) = [set_nan(dataOutLineNHood)]
-      !====================update output arrays end==============================
-
-   END SUBROUTINE SUEWS_update_output
-
 ! calculate several surface fraction related parameters
    SUBROUTINE SUEWS_cal_surf( &
       StorageHeatMethod, NetRadiationMethod, & !input
@@ -4904,26 +4814,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE SUEWS_cal_surf
-
-!===============set variable of invalid value to NAN=====================
-   ELEMENTAL FUNCTION set_nan(x) RESULT(xx)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), PARAMETER :: pNAN = 30000 ! 30000 to prevent water_state being filtered out as it can be large
-      REAL(KIND(1D0)), PARAMETER :: pZERO = 1E-8 ! to prevent inconsistency caused by positive or negative zero
-      REAL(KIND(1D0)), PARAMETER :: NAN = -999
-      REAL(KIND(1D0)), INTENT(in) :: x
-      REAL(KIND(1D0)) :: xx
-
-      IF (ABS(x) > pNAN) THEN
-         xx = NAN
-      ELSEIF (ABS(x) < pZERO) THEN
-         xx = 0
-      ELSE
-         xx = x
-      END IF
-
-   END FUNCTION set_nan
-!========================================================================
 
    SUBROUTINE validate_outputline_layout(outputLine)
       ! Validate output_line storage against compile-time column constants.
@@ -5546,131 +5436,4 @@ CONTAINS
       END SUBROUTINE store_group
 
    END PROCEDURE store_output_line
-
-   ! Legacy multiline execution and block-capture body, now called only by the
-   ! opt-in native receiver tests (feature `capi-observer`). Preserves the
-   ! exact legacy row capture, optional state_debug / block_mod_state semantics,
-   ! and output_block_suews population (including leaving dataOutBlockNHood at
-   ! its output_block%init sentinel and dataOutBlockESTM at zero).
-   MODULE PROCEDURE run_multitsteps_block
-      INTEGER, PARAMETER :: gridiv_x = 1
-      INTEGER :: ir
-      TYPE(SUEWS_FORCING) :: forcing
-      TYPE(output_line) :: output_line_suews
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDailyState) :: dataOutBlockDailyState
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS, 1) :: dataOutBlockSUEWS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSnow, 1) :: dataOutBlockSnow_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutESTM, 1) :: dataOutBlockESTM_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutEHC, 1) :: dataOutBlockEHC_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutRSL, 1) :: dataOutBlockRSL_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsdataOutBEERS, 1) :: dataOutBlockBEERS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutDebug, 1) :: dataOutBlockDebug_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSPARTACUS, 1) :: dataOutBlockSPARTACUS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSTEBBS, 1) :: dataOutBlockSTEBBS_X
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutNHood, 1) :: dataOutBlockNHood_X
-
-      dataOutBlockDailyState = 0.0D0
-      dataOutBlockSUEWS_X = 0.0D0
-      dataOutBlockSnow_X = 0.0D0
-      dataOutBlockESTM_X = 0.0D0
-      dataOutBlockEHC_X = 0.0D0
-      dataOutBlockRSL_X = 0.0D0
-      dataOutBlockBEERS_X = 0.0D0
-      dataOutBlockDebug_X = 0.0D0
-      dataOutBlockSPARTACUS_X = 0.0D0
-      dataOutBlockSTEBBS_X = 0.0D0
-      dataOutBlockNHood_X = 0.0D0
-
-      IF (PRESENT(block_mod_state)) THEN
-         IF (.NOT. ALLOCATED(block_mod_state%BLOCK)) THEN
-            CALL block_mod_state%init(siteInfo%nlayer, ndepth, len_sim)
-         END IF
-      END IF
-
-      DO ir = 1, len_sim, 1
-         timer%iy = INT(MetForcingBlock(ir, 1))
-         timer%id = INT(MetForcingBlock(ir, 2))
-         timer%it = INT(MetForcingBlock(ir, 3))
-         timer%imin = INT(MetForcingBlock(ir, 4))
-         timer%isec = 0
-
-         CALL SUEWS_cal_timer_reference( &
-            timer, siteInfo, siteInfo%anthroemis, &
-            config%ForcingTimestampReference)
-
-         forcing%qn1_obs = MetForcingBlock(ir, 5)
-         forcing%qs_obs = MetForcingBlock(ir, 8)
-         forcing%qf_obs = MetForcingBlock(ir, 9)
-         forcing%U = MetForcingBlock(ir, 10)
-         forcing%RH = MetForcingBlock(ir, 11)
-         forcing%temp_c = MetForcingBlock(ir, 12)
-         forcing%pres = MetForcingBlock(ir, 13)
-         forcing%rain = MetForcingBlock(ir, 14)
-         forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snow_fraction = MetForcingBlock(ir, 16)
-         forcing%l_down = MetForcingBlock(ir, 17)
-         forcing%f_cloud = MetForcingBlock(ir, 18)
-         forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_evetr = MetForcingBlock(ir, 21)
-         forcing%LAI_dectr = MetForcingBlock(ir, 22)
-         forcing%LAI_grass = MetForcingBlock(ir, 23)
-
-         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
-            CALL SUEWS_cal_Main_impl( &
-               timer, forcing, config, siteInfo, &
-               mod_state, &
-               output_line_suews, &
-               state_debug)
-         ELSE
-            CALL SUEWS_cal_Main_impl( &
-               timer, forcing, config, siteInfo, &
-               mod_state, &
-               output_line_suews)
-         END IF
-         IF (supy_error_flag()) THEN
-            CALL sync_error_to_state(mod_state, timer)
-            EXIT
-         END IF
-         timer%dt_since_start = timer%dt_since_start + timer%tstep
-
-         dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
-
-         IF (PRESENT(block_mod_state)) THEN
-            block_mod_state%BLOCK(ir) = mod_state
-         END IF
-
-         CALL SUEWS_update_output( &
-            config%SnowUse, config%StorageHeatMethod, &
-            len_sim, 1, &
-            ir, gridiv_x, &
-            output_line_suews%dataOutLineSUEWS, &
-            output_line_suews%dataOutLineSnow, &
-            output_line_suews%dataOutLineESTM, &
-            output_line_suews%dataoutLineRSL, &
-            output_line_suews%dataOutLineBEERS, &
-            output_line_suews%dataOutLinedebug, &
-            output_line_suews%dataOutLineSPARTACUS, &
-            output_line_suews%dataOutLineEHC, &
-            output_line_suews%dataOutLineSTEBBS, &
-            output_line_suews%dataOutLineNHood, &
-            dataOutBlockSUEWS_X, dataOutBlockSnow_X, dataOutBlockESTM_X, &
-            dataOutBlockRSL_X, dataOutBlockBEERS_X, dataOutBlockDebug_X, dataOutBlockSPARTACUS_X, dataOutBlockEHC_X, &
-            dataOutBlockSTEBBS_X, &
-            dataOutBlockNHood_X &
-            )
-      END DO
-
-      CALL output_block_suews%cleanup()
-      CALL output_block_suews%init(len_sim)
-      output_block_suews%dataOutBlockSUEWS = dataOutBlockSUEWS_X(:, :, 1)
-      output_block_suews%dataOutBlockSnow = dataOutBlockSnow_X(:, :, 1)
-      output_block_suews%dataOutBlockESTM = dataOutBlockESTM_X(:, :, 1)
-      output_block_suews%dataOutBlockEHC = dataOutBlockEHC_X(:, :, 1)
-      output_block_suews%dataOutBlockRSL = dataOutBlockRSL_X(:, :, 1)
-      output_block_suews%dataOutBlockBEERS = dataOutBlockBEERS_X(:, :, 1)
-      output_block_suews%dataOutBlockDebug = dataOutBlockDebug_X(:, :, 1)
-      output_block_suews%dataOutBlockSPARTACUS = dataOutBlockSPARTACUS_X(:, :, 1)
-      output_block_suews%dataOutBlockDailyState = dataOutBlockDailyState
-      output_block_suews%dataOutBlockSTEBBS = dataOutBlockSTEBBS_X(:, :, 1)
-   END PROCEDURE run_multitsteps_block
 END SUBMODULE SUEWS_driver_io

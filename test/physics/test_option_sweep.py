@@ -15,9 +15,10 @@ defensive copies so shared state is never mutated.
 What the sweep asserts for each runnable value:
 
 - all active output groups (`SUEWS`, `BEERS`, `RSL`, `debug`, `DailyState`,
-  plus `EHC` / `SPARTACUS` / `snow` when enabled) are finite and non-sentinel
-  on the exact forcing timestamps, with `SUEWS.Fcld` matching supplied
-  forcing, and
+  plus `EHC` / `SPARTACUS` / `STEBBS` / `snow` when enabled) are finite and
+  non-sentinel on the exact forcing timestamps, with `SUEWS.Fcld` matching
+  supplied forcing and any kernel-documented absent diagnostics remaining
+  100% `NaN`, and
 - the water balance closes to the same 1e-4 mm bound
   `test_core_physics.test_water_balance_consistency` uses.
 
@@ -25,9 +26,11 @@ Values the sample cannot support are not silently skipped. They fall into
 three declared tables, each with its reason:
 
 - `OPTION_VALUES_REFUSED` -- needs a forcing column or input block the sample
-  does not carry, or a method combination the kernel cannot run. The model
-  refuses these with an explicit message, so the sweep asserts the refusal
-  rather than dropping the value.
+  does not carry, or a method combination the kernel cannot run. The single-
+  option sweep asserts the refusal rather than dropping the value, and
+  `COUPLED_OPTION_RUNS` exercises every one of those 17 refused entries end to
+  end with its required paired forcing columns, input blocks, and options
+  (`test_coupled_runs_cover_all_refused_options` enforces complete coverage).
 - `OPTION_VALUES_XFAIL` -- runs, but violates an invariant above. Recorded
   `xfail(strict=True)` against an open issue, so the entry fails the moment
   the defect is fixed.
@@ -35,14 +38,16 @@ three declared tables, each with its reason:
   construction and on assignment, so no run is attempted. The sweep asserts
   that rejection and its message.
 
-`test_option_tables_name_real_values` keeps the three tables and the
-representative multi-option combination table from rotting: a key naming a
-field or value that no longer exists fails.
+`test_option_tables_name_real_values` keeps the three tables, the
+representative multi-option combination table, and `COUPLED_OPTION_RUNS` from
+rotting: a key naming a field, value, or forcing column that no longer exists
+fails.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import Enum
 from importlib import import_module
 from pathlib import Path
@@ -52,8 +57,11 @@ from typing import Any, get_args
 
 from conftest import TIMESTEPS_PER_DAY
 from layer5_checks import (
+    SUEWS_ABSENT_UNDER_OBSERVED_QN,
+    SUEWS_ABSENT_UNDER_OBSERVED_SMD,
     assert_forcing_cloud,
     assert_simulation_output_finiteness,
+    expected_dailystate_mask,
     strict_finite_array,
 )
 import numpy as np
@@ -71,15 +79,20 @@ from supy.data_model.core.model import (
     GSModel,
     HeatRoughnessMethod,
     KdownSplitMethod,
+    LAIMethod,
     ModelPhysics,
     MomentumRoughnessMethod,
     NetRadiationMethod,
     OhmIncQf,
     RSLLevel,
     RSLMethod,
+    SMDMethod,
     StabilityMethod,
     StorageHeatMethod,
+    WaterUseMethod,
 )
+from supy.data_model.core.site import SoilObservationConfig
+from supy.data_model.forcing import FORCING_REGISTRY
 
 pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
 
@@ -169,8 +182,9 @@ OPTION_VALUES_REJECTED = {
 
 # Representative valid multi-option physics combinations exercised end-to-end
 # through on-disk YAML -> SUEWSSimulation -> Rust on the bundled 1-day forcing.
-# Coupled runs for OPTION_VALUES_REFUSED entries and cold-snow / 7-surface /
-# observed-sm anchors live in dedicated follow-up slices of #2100.
+# Coupled runs for OPTION_VALUES_REFUSED entries live in COUPLED_OPTION_RUNS
+# below; cold-snow / 7-surface / observed-sm anchors live in follow-up slices
+# of #2100.
 REPRESENTATIVE_OPTION_COMBINATIONS: dict[str, dict[str, Enum]] = {
     "ehc_implicit_macdonald_ward": {
         "storage_heat": StorageHeatMethod.EHC,
@@ -211,6 +225,169 @@ REPRESENTATIVE_OPTION_COMBINATIONS: dict[str, dict[str, Enum]] = {
         "emissions": EmissionsMethod.L11,
     },
 }
+
+# Realistic synthetic 1-day forcing constants for COUPLED_OPTION_RUNS, chosen
+# strictly inside FORCING_REGISTRY validation ranges and consistent with the
+# bundled winter London sample day.
+_STEFAN_BOLTZMANN_W_M2_K4 = 5.670374419e-8
+_COUPLED_LDOWN_EMISSIVITY = 0.85
+_COUPLED_QN_NIGHT_OFFSET_W_M2 = -25.0
+_COUPLED_QN_KDOWN_SLOPE = 0.65
+_COUPLED_QS_NIGHT_OFFSET_W_M2 = -10.0
+_COUPLED_QS_KDOWN_SLOPE = 0.25
+_COUPLED_FCLD_CYCLE = (0.2, 0.5, 0.8, 0.4)
+_COUPLED_QF_W_M2 = 25.0
+_COUPLED_WUH_MM_PER_STEP = 0.005
+_COUPLED_SM_KG_M2 = 120.0
+_COUPLED_LAI_M2_M2 = 1.5
+# Sample active non-water surfaces carry soil_depth=350 mm and
+# soil_store_capacity=150 kg m-2, so fc=0.5 gives fc*d=175 >= 150 kg m-2.
+_COUPLED_SOIL_FIELD_CAPACITY = 0.5
+_COUPLED_SOIL_NOT_ROCKS = 0.8
+_COUPLED_SOIL_BULK_DENSITY_KG_M3 = 1250.0
+
+
+@dataclass(frozen=True)
+class CoupledOptionCase:
+    """One coupled 1-day configuration covering refused single-option entries."""
+
+    case_id: str
+    covers: tuple[tuple[str, Enum], ...]
+    physics_overrides: Mapping[str, Enum]
+    forcing_columns: tuple[str, ...] = ()
+    enable_stebbs: bool = False
+    spartacus_vertical_layers: bool = False
+    soil_observation: bool = False
+
+
+# Coupled 1-day runs exercising every entry of OPTION_VALUES_REFUSED with its
+# required paired forcing columns, input blocks, and physics options.
+# SPARTACUS methods (1001-1003) are paired with STEBBS (storage_heat=7) rather
+# than EHC (storage_heat=5) while #2196 remains open.
+COUPLED_OPTION_RUNS: tuple[CoupledOptionCase, ...] = (
+    CoupledOptionCase(
+        case_id="net_radiation_observed",
+        covers=(("net_radiation", NetRadiationMethod.OBSERVED),),
+        physics_overrides={"net_radiation": NetRadiationMethod.OBSERVED},
+        forcing_columns=("qn",),
+    ),
+    CoupledOptionCase(
+        case_id="net_radiation_ldown_observed",
+        covers=(("net_radiation", NetRadiationMethod.LDOWN_OBSERVED),),
+        physics_overrides={"net_radiation": NetRadiationMethod.LDOWN_OBSERVED},
+        forcing_columns=("ldown",),
+    ),
+    CoupledOptionCase(
+        case_id="net_radiation_ldown_cloud",
+        covers=(("net_radiation", NetRadiationMethod.LDOWN_CLOUD),),
+        physics_overrides={"net_radiation": NetRadiationMethod.LDOWN_CLOUD},
+        forcing_columns=("fcld",),
+    ),
+    CoupledOptionCase(
+        case_id="net_radiation_ldown_surface",
+        covers=(("net_radiation", NetRadiationMethod.LDOWN_SURFACE),),
+        physics_overrides={"net_radiation": NetRadiationMethod.LDOWN_SURFACE},
+        forcing_columns=("ldown",),
+    ),
+    CoupledOptionCase(
+        case_id="net_radiation_ldown_cloud_surface",
+        covers=(("net_radiation", NetRadiationMethod.LDOWN_CLOUD_SURFACE),),
+        physics_overrides={"net_radiation": NetRadiationMethod.LDOWN_CLOUD_SURFACE},
+        forcing_columns=("fcld",),
+    ),
+    CoupledOptionCase(
+        case_id="net_radiation_ldown_zenith",
+        covers=(("net_radiation", NetRadiationMethod.LDOWN_ZENITH),),
+        physics_overrides={"net_radiation": NetRadiationMethod.LDOWN_ZENITH},
+        forcing_columns=("ldown",),
+    ),
+    CoupledOptionCase(
+        case_id="net_radiation_ldown_cloud_zenith",
+        covers=(("net_radiation", NetRadiationMethod.LDOWN_CLOUD_ZENITH),),
+        physics_overrides={"net_radiation": NetRadiationMethod.LDOWN_CLOUD_ZENITH},
+        forcing_columns=("fcld",),
+    ),
+    CoupledOptionCase(
+        case_id="spartacus_ldown_observed_stebbs",
+        covers=(
+            ("net_radiation", NetRadiationMethod.LDOWN_SS_OBSERVED),
+            ("storage_heat", StorageHeatMethod.STEBBS),
+        ),
+        physics_overrides={
+            "net_radiation": NetRadiationMethod.LDOWN_SS_OBSERVED,
+            "storage_heat": StorageHeatMethod.STEBBS,
+        },
+        forcing_columns=("ldown",),
+        enable_stebbs=True,
+        spartacus_vertical_layers=True,
+    ),
+    CoupledOptionCase(
+        case_id="spartacus_ldown_cloud_stebbs",
+        covers=(
+            ("net_radiation", NetRadiationMethod.LDOWN_SS_CLOUD),
+            ("storage_heat", StorageHeatMethod.STEBBS),
+        ),
+        physics_overrides={
+            "net_radiation": NetRadiationMethod.LDOWN_SS_CLOUD,
+            "storage_heat": StorageHeatMethod.STEBBS,
+        },
+        forcing_columns=("fcld",),
+        enable_stebbs=True,
+        spartacus_vertical_layers=True,
+    ),
+    CoupledOptionCase(
+        case_id="spartacus_ldown_air_stebbs",
+        covers=(
+            ("net_radiation", NetRadiationMethod.LDOWN_SS_AIR),
+            ("storage_heat", StorageHeatMethod.STEBBS),
+        ),
+        physics_overrides={
+            "net_radiation": NetRadiationMethod.LDOWN_SS_AIR,
+            "storage_heat": StorageHeatMethod.STEBBS,
+        },
+        enable_stebbs=True,
+        spartacus_vertical_layers=True,
+    ),
+    CoupledOptionCase(
+        case_id="emissions_observed",
+        covers=(("emissions", EmissionsMethod.OBSERVED),),
+        physics_overrides={"emissions": EmissionsMethod.OBSERVED},
+        forcing_columns=("qf",),
+    ),
+    CoupledOptionCase(
+        case_id="storage_heat_observed",
+        covers=(("storage_heat", StorageHeatMethod.OBSERVED),),
+        physics_overrides={"storage_heat": StorageHeatMethod.OBSERVED},
+        forcing_columns=("qs",),
+    ),
+    CoupledOptionCase(
+        case_id="soil_moisture_observed",
+        covers=(("soil_moisture", SMDMethod.OBSERVED),),
+        physics_overrides={"soil_moisture": SMDMethod.OBSERVED},
+        forcing_columns=("sm",),
+        soil_observation=True,
+    ),
+    CoupledOptionCase(
+        case_id="water_use_observed",
+        covers=(("water_use", WaterUseMethod.OBSERVED),),
+        physics_overrides={"water_use": WaterUseMethod.OBSERVED},
+        forcing_columns=("Wuh",),
+    ),
+    CoupledOptionCase(
+        case_id="lai_observed",
+        covers=(("laimethod", LAIMethod.OBSERVED),),
+        physics_overrides={"laimethod": LAIMethod.OBSERVED},
+        forcing_columns=("lai",),
+    ),
+    CoupledOptionCase(
+        case_id="stability_w16_most",
+        covers=(("stability", StabilityMethod.HOEGSTROM),),
+        physics_overrides={
+            "stability": StabilityMethod.HOEGSTROM,
+            "roughness_sublayer": RSLMethod.MOST,
+        },
+    ),
+)
 
 
 def _unwrap_value(value: Any) -> Any:
@@ -307,6 +484,76 @@ def build_sweep_config(
     for field, value in physics_overrides.items():
         setattr(patched.model.physics, field, value)
     return patched
+
+
+def _apply_coupled_forcing(
+    base_forcing: pd.DataFrame,
+    columns: tuple[str, ...],
+) -> pd.DataFrame:
+    """Return a defensive forcing copy populated with realistic synthetic columns."""
+    forcing = base_forcing.copy()
+    n_steps = len(forcing)
+    kdown = forcing["kdown"].to_numpy(dtype=float)
+    tair_k = forcing["Tair"].to_numpy(dtype=float) + 273.15
+    generators: dict[str, np.ndarray] = {
+        "qn": _COUPLED_QN_NIGHT_OFFSET_W_M2 + _COUPLED_QN_KDOWN_SLOPE * kdown,
+        "ldown": _COUPLED_LDOWN_EMISSIVITY * _STEFAN_BOLTZMANN_W_M2_K4 * (tair_k**4),
+        "fcld": np.resize(_COUPLED_FCLD_CYCLE, n_steps),
+        "qf": np.full(n_steps, _COUPLED_QF_W_M2, dtype=float),
+        "qs": _COUPLED_QS_NIGHT_OFFSET_W_M2 + _COUPLED_QS_KDOWN_SLOPE * kdown,
+        "sm": np.full(n_steps, _COUPLED_SM_KG_M2, dtype=float),
+        "Wuh": np.full(n_steps, _COUPLED_WUH_MM_PER_STEP, dtype=float),
+        "lai": np.full(n_steps, _COUPLED_LAI_M2_M2, dtype=float),
+    }
+    for col in columns:
+        if col not in generators:
+            raise ValueError(f"Unsupported coupled forcing column {col!r}")
+        forcing[col] = generators[col]
+    return forcing
+
+
+def build_coupled_case(
+    base_config: SUEWSConfig,
+    base_forcing: pd.DataFrame,
+    case: CoupledOptionCase,
+) -> tuple[SUEWSConfig, pd.DataFrame]:
+    """Build defensive ``(SUEWSConfig, df_forcing)`` inputs for one coupled case."""
+    config = build_sweep_config(base_config, case.physics_overrides)
+    if case.enable_stebbs:
+        config.model.physics.stebbs.enabled = True
+    if case.spartacus_vertical_layers:
+        for site in config.sites:
+            # The top vertical layer in the sample sits above both tree crowns.
+            layers = site.properties.vertical_layers
+            layers.veg_frac.value[-1] = 0.0
+            layers.veg_scale.value[-1] = 0.0
+    if case.soil_observation:
+        non_water = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil")
+        for site in config.sites:
+            land_cover = site.properties.land_cover
+            active_depths_mm = [
+                float(_unwrap_value(getattr(land_cover, name).soil_depth))
+                for name in non_water
+                if float(_unwrap_value(getattr(land_cover, name).sfr)) > 0.0
+            ]
+            assert active_depths_mm, "Sample site must have active non-water surfaces"
+            layer_depth_m = active_depths_mm[0] / 1000.0
+            assert all(
+                np.isclose(depth / 1000.0, layer_depth_m, rtol=0.0, atol=1e-6)
+                for depth in active_depths_mm
+            ), f"Active non-water soil_depth values differ: {active_depths_mm}"
+            site.properties.soil_observation = SoilObservationConfig(
+                layer_top=0.0,
+                layer_depth=layer_depth_m,
+                soil_not_rocks=_COUPLED_SOIL_NOT_ROCKS,
+                bulk_density=_COUPLED_SOIL_BULK_DENSITY_KG_M3,
+            )
+            for name in non_water:
+                surface = getattr(land_cover, name)
+                if float(_unwrap_value(surface.sfr)) > 0.0:
+                    surface.soil_field_capacity = RefValue(_COUPLED_SOIL_FIELD_CAPACITY)
+    forcing = _apply_coupled_forcing(base_forcing, case.forcing_columns)
+    return config, forcing
 
 
 def patch_physics(
@@ -477,7 +724,22 @@ def assert_sweep_invariants(
     suews = df_output.loc[grid, "SUEWS"]
     assert "Fcld" in suews, "SUEWS: missing required output column Fcld"
     assert_forcing_cloud(suews["Fcld"], df_forcing)
-    strict_finite_array(suews.drop(columns="Fcld"), label="SUEWS")
+    suews_absent: tuple[str, ...] = ()
+    if isinstance(state_or_config, SUEWSConfig):
+        physics = state_or_config.model.physics
+        if int(_unwrap_value(physics.net_radiation)) == 0:
+            suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_QN
+        if int(_unwrap_value(physics.soil_moisture)) == 1:
+            suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_SMD
+    if suews_absent:
+        unexpectedly_populated = [
+            col for col in suews_absent if not suews[col].isna().all()
+        ]
+        assert not unexpectedly_populated, (
+            f"SUEWS: columns declared absent actually hold values: "
+            f"{unexpectedly_populated}"
+        )
+    strict_finite_array(suews.drop(columns=["Fcld", *suews_absent]), label="SUEWS")
 
     if check_all_active_groups and isinstance(state_or_config, SUEWSConfig):
         physics = state_or_config.model.physics
@@ -493,6 +755,7 @@ def assert_sweep_invariants(
         tstep = int(_unwrap_value(state_or_config.model.control.tstep))
         nlayer = int(_unwrap_value(site.properties.vertical_layers.nlayer))
         has_buildings = float(_unwrap_value(site.properties.land_cover.bldgs.sfr)) > 0.0
+        stebbs_enabled = bool(_unwrap_value(physics.stebbs.enabled))
         assert_simulation_output_finiteness(
             df_output,
             expected_grids=(grid,),
@@ -501,6 +764,8 @@ def assert_sweep_invariants(
             storage_heat=int(_unwrap_value(physics.storage_heat)),
             net_radiation=int(_unwrap_value(physics.net_radiation)),
             snow_use=int(_unwrap_value(physics.snow_use)),
+            soil_moisture=int(_unwrap_value(physics.soil_moisture)),
+            stebbs_enabled=stebbs_enabled,
             nlayer=nlayer,
             has_buildings=has_buildings,
             forcing=df_forcing,
@@ -510,6 +775,95 @@ def assert_sweep_invariants(
         f"{case_label}: water balance not closed, max residual {residual:.3e} mm"
     )
     return residual
+
+
+def _assert_coupled_option_response(
+    df_output: pd.DataFrame,
+    df_forcing: pd.DataFrame,
+    case_config: SUEWSConfig,
+    case: CoupledOptionCase,
+    *,
+    grid: int = 1,
+) -> None:
+    """Confirm paired forcing inputs and physics options actually engaged."""
+    grid_df = df_output.loc[grid]
+    suews = grid_df["SUEWS"]
+    if "qn" in case.forcing_columns:
+        np.testing.assert_allclose(
+            suews["QN"].to_numpy(dtype=float),
+            df_forcing["qn"].to_numpy(dtype=float),
+            rtol=0.0,
+            atol=1e-9,
+        )
+    if "ldown" in case.forcing_columns:
+        np.testing.assert_allclose(
+            suews["Ldown"].to_numpy(dtype=float),
+            df_forcing["ldown"].to_numpy(dtype=float),
+            rtol=0.0,
+            atol=1e-9,
+        )
+    if "qf" in case.forcing_columns:
+        np.testing.assert_allclose(
+            suews["QF"].to_numpy(dtype=float),
+            df_forcing["qf"].to_numpy(dtype=float),
+            rtol=0.0,
+            atol=1e-9,
+        )
+    if "qs" in case.forcing_columns:
+        np.testing.assert_allclose(
+            suews["QS"].to_numpy(dtype=float),
+            df_forcing["qs"].to_numpy(dtype=float),
+            rtol=0.0,
+            atol=1e-9,
+        )
+    if "Wuh" in case.forcing_columns:
+        np.testing.assert_allclose(
+            suews["Irr"].to_numpy(dtype=float),
+            df_forcing["Wuh"].to_numpy(dtype=float),
+            rtol=0.0,
+            atol=1e-9,
+        )
+    if "sm" in case.forcing_columns:
+        site = next(
+            s for s in case_config.sites if int(_unwrap_value(s.gridiv)) == int(grid)
+        )
+        land_cover = site.properties.land_cover
+        non_water = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil")
+        area = 0.0
+        field_content = 0.0
+        for name in non_water:
+            surface = getattr(land_cover, name)
+            fraction = float(_unwrap_value(surface.sfr))
+            if fraction <= 0.0:
+                continue
+            area += fraction
+            field_content += (
+                fraction
+                * float(_unwrap_value(surface.soil_field_capacity))
+                * float(_unwrap_value(surface.soil_depth))
+            )
+        expected_smd = (field_content / area) - df_forcing["sm"].to_numpy(dtype=float)
+        np.testing.assert_allclose(
+            suews["SMD"].to_numpy(dtype=float),
+            expected_smd,
+            rtol=0.0,
+            atol=1e-9,
+        )
+    if "lai" in case.forcing_columns:
+        tstep = int(_unwrap_value(case_config.model.control.tstep))
+        eod_mask = expected_dailystate_mask(df_forcing.index, tstep)
+        ds_eod = grid_df["DailyState"].loc[eod_mask]
+        for col in ("LAI_EveTr", "LAI_DecTr", "LAI_Grass"):
+            np.testing.assert_allclose(
+                ds_eod[col].to_numpy(dtype=float),
+                _COUPLED_LAI_M2_M2,
+                rtol=0.0,
+                atol=1e-9,
+            )
+    if case.physics_overrides.get("roughness_sublayer") == RSLMethod.MOST:
+        np.testing.assert_array_equal(
+            grid_df["RSL"]["flag_RSL"].to_numpy(dtype=float), 0.0
+        )
 
 
 @pytest.mark.parametrize(("field", "value"), list(_sweep_params()))
@@ -655,8 +1009,73 @@ def test_yaml_roundtrip_matches_in_memory_config_run(sample_sweep_base, tmp_path
     pd.testing.assert_frame_equal(df_mem, df_yaml, check_exact=True)
 
 
+@pytest.mark.parametrize(
+    "case",
+    [pytest.param(case, id=case.case_id) for case in COUPLED_OPTION_RUNS],
+)
+def test_coupled_refused_options_run_finite_and_conserve_water(
+    case, sample_sweep_base, tmp_path
+):
+    """Every single-option-refused value runs finite and closes water when coupled."""
+    # ARRANGE
+    base_config, base_forcing = sample_sweep_base
+    case_config, df_forcing = build_coupled_case(base_config, base_forcing, case)
+
+    # ACT
+    df_output, _ = run_simulation(
+        df_forcing,
+        case_config,
+        serial_mode=True,
+        round_trip_yaml=True,
+        work_dir=tmp_path,
+    )
+
+    # ASSERT
+    assert_sweep_invariants(
+        df_output,
+        df_forcing,
+        case_config,
+        case_label=case.case_id,
+        check_all_active_groups=True,
+    )
+    _assert_coupled_option_response(df_output, df_forcing, case_config, case)
+
+
+def test_coupled_runs_cover_all_refused_options():
+    """COUPLED_OPTION_RUNS must cover every key declared in OPTION_VALUES_REFUSED."""
+    # ARRANGE
+    case_ids = [case.case_id for case in COUPLED_OPTION_RUNS]
+    assert len(case_ids) == len(set(case_ids)), (
+        f"Duplicate case_id entries in COUPLED_OPTION_RUNS: {case_ids}"
+    )
+
+    covered: set[tuple[str, int]] = set()
+    for case in COUPLED_OPTION_RUNS:
+        assert case.covers, (
+            f"COUPLED_OPTION_RUNS[{case.case_id!r}] must declare at least one "
+            "covered OPTION_VALUES_REFUSED entry"
+        )
+        for field, member in case.covers:
+            assert case.physics_overrides.get(field) == member, (
+                f"COUPLED_OPTION_RUNS[{case.case_id!r}] claims coverage of "
+                f"{(field, member.value)!r} without setting it in physics_overrides"
+            )
+            covered.add((field, member.value))
+
+    # ACT / ASSERT
+    refused = set(OPTION_VALUES_REFUSED)
+    missing = sorted(refused - covered)
+    assert not missing, (
+        f"OPTION_VALUES_REFUSED entries missing from COUPLED_OPTION_RUNS: {missing}"
+    )
+    extra = sorted(covered - refused)
+    assert not extra, (
+        f"COUPLED_OPTION_RUNS covers entries not in OPTION_VALUES_REFUSED: {extra}"
+    )
+
+
 def test_option_tables_name_real_values():
-    """Every exclusion, refusal, xfail, and combination key names a real option.
+    """Every exclusion, refusal, xfail, combination, and coupled key is real.
 
     Without this the tables rot silently: a renamed field or a dropped enum
     member would leave an entry that excuses nothing, and the value it was
@@ -705,4 +1124,28 @@ def test_option_tables_name_real_values():
             assert key not in excluded, (
                 f"REPRESENTATIVE_OPTION_COMBINATIONS[{case_name!r}] overlaps "
                 f"excluded single-option table on {key!r}"
+            )
+
+    disallowed_in_coupled = set(OPTION_VALUES_XFAIL) | set(OPTION_VALUES_REJECTED)
+    for case in COUPLED_OPTION_RUNS:
+        for field, member in case.covers:
+            key = (field, member.value)
+            assert key in known, (
+                f"COUPLED_OPTION_RUNS[{case.case_id!r}].covers names "
+                f"unknown option {key!r}"
+            )
+        for field, member in case.physics_overrides.items():
+            key = (field, member.value)
+            assert key in known, (
+                f"COUPLED_OPTION_RUNS[{case.case_id!r}].physics_overrides names "
+                f"unknown option {key!r}"
+            )
+            assert key not in disallowed_in_coupled, (
+                f"COUPLED_OPTION_RUNS[{case.case_id!r}] uses xfail/rejected "
+                f"option {key!r}"
+            )
+        for col in case.forcing_columns:
+            assert FORCING_REGISTRY.by_file_name(col) is not None, (
+                f"COUPLED_OPTION_RUNS[{case.case_id!r}] names unknown forcing "
+                f"column {col!r}"
             )

@@ -61,6 +61,12 @@ _DEFINE_CLOSE_RE = re.compile(r"^ *endef\b")
 _INCLUDE_RE = re.compile(r"^ *(?:-include|sinclude|include)[ \t]+")
 _TOPLEVEL_EXPANSION_RE = re.compile(r"^ *\$[({]")
 _EVAL_CALL_RE = re.compile(r"\$[({][ \t]*eval\b")
+_COMPUTED_ASSIGN_RE = re.compile(
+    r"^ *(?:[^#\t:=]+:[ \t]*)?"
+    r"(?:(?:override|export|private)[ \t]+)*"
+    r"[^#\t=:]*\$[^#\t=:]*[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
+)
+_COMPUTED_UNDEFINE_RE = re.compile(r"^ *(?:override[ \t]+)?undefine[ \t]+.*\$")
 _PORTABLE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
 _MENTIONS_TARGET_RE = re.compile(r"\bTEST_DEFAULT_PATHS\b")
 _PLAIN_ASSIGN_RE = re.compile(
@@ -315,6 +321,11 @@ def _reject_unsupported_makefile_line(code: str) -> None:
             "Makefile top-level expansion or eval is unsupported when parsing "
             f"TEST_DEFAULT_PATHS: {code.strip()}"
         )
+    if _COMPUTED_ASSIGN_RE.match(code) or _COMPUTED_UNDEFINE_RE.match(code):
+        raise ValueError(
+            "Makefile computed variable name is unsupported when parsing "
+            f"TEST_DEFAULT_PATHS: {code.strip()}"
+        )
 
 
 def _apply_makefile_target_line(
@@ -398,9 +409,6 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     in_rule = False
 
     for line in _join_makefile_continuations(text):
-        stripped = line.lstrip()
-        if not stripped or stripped.startswith("#"):
-            continue
         if define_depth > 0:
             define_depth = _update_define_depth(line, define_depth)
             continue
@@ -411,15 +419,20 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
                     f"TEST_DEFAULT_PATHS: {line.strip()}"
                 )
             continue
+        stripped = line.lstrip()
+        if not stripped or stripped.startswith("#"):
+            continue
 
         code = _strip_makefile_comment(line)
         _reject_unsupported_makefile_line(code)
 
         define_match = _DEFINE_OPEN_RE.match(code)
         if define_match is not None:
-            if define_match.group("name").rstrip(":=") == "TEST_DEFAULT_PATHS":
+            defined_name = define_match.group("name").rstrip(":=")
+            if defined_name == "TEST_DEFAULT_PATHS" or "$" in defined_name:
                 raise ValueError(
-                    "TEST_DEFAULT_PATHS uses unsupported Make define block"
+                    "TEST_DEFAULT_PATHS or computed name in Make define block "
+                    "is unsupported"
                 )
             define_depth = 1
             in_rule = False

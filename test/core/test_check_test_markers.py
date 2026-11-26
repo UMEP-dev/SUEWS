@@ -267,7 +267,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "define TEST_DEFAULT_PATHS\ntest/core\nendef\n",
-            "unsupported Make define block",
+            "Make define block is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\nundefine TEST_DEFAULT_PATHS\n",
@@ -323,6 +323,34 @@ def test_makefile_continuations_comments_append_and_recipes(
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "UNUSED := \\#$(eval TEST_DEFAULT_PATHS := test/core)\n",
             "top-level expansion or eval is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "define TRIM\n"
+            "# $(eval TEST_DEFAULT_PATHS := test/core)\n"
+            "endef\n"
+            "UNUSED := $(TRIM)\n",
+            "eval inside define block is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test:\n"
+            "\t# $(eval TEST_DEFAULT_PATHS := test/core)\n",
+            "eval inside recipe is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "suffix := PATHS\n"
+            "TEST_DEFAULT_$(suffix) := test/core\n",
+            "computed variable name is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "suffix := PATHS\n"
+            "define TEST_DEFAULT_$(suffix)\n"
+            "test/core\n"
+            "endef\n",
+            "Make define block is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\\extra\n",

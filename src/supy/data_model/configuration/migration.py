@@ -107,6 +107,7 @@ class SchemaMigrator:
             if to_version in SCHEMA_VERSIONS:
                 from packaging.version import Version  # noqa: PLC0415
                 from ...util.converter.yaml_upgrade import (  # noqa: PLC0415
+                    _advise_land_cover_and_dst_policy,
                     _check_and_normalise_integer_doys,
                     _check_and_normalise_ten_minute_profile_keys,
                     validate_active_soil_depth_raw,
@@ -122,6 +123,8 @@ class SchemaMigrator:
                     config = _check_and_normalise_integer_doys(config)
                 if target_ver >= Version("2026.6.dev20"):
                     config = _check_and_normalise_ten_minute_profile_keys(config)
+                if target_ver >= Version("2026.6.dev21"):
+                    config = _advise_land_cover_and_dst_policy(config)
             logger.info(f"Configuration already at schema version {to_version}")
             return config
 

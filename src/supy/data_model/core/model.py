@@ -920,6 +920,37 @@ class StebbsPhysics(DataModelBase):
         return coerce_nested_to_flat(info.field_name, value)
 
 
+# Required physics switches under ``model.physics`` and nested
+# ``model.physics.stebbs`` that users must declare explicitly (Pydantic backs
+# them with enum defaults, so validators check raw presence explicitly;
+# ``stebbs.enabled`` and ``stebbs.parameters`` default safely when omitted).
+REQUIRED_PHYSICS_OPTIONS: tuple[str, ...] = (
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+)
+
+REQUIRED_STEBBS_SWITCHES: tuple[str, ...] = (
+    "capacitance",
+    "setpoint",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+)
+
+
 class ModelPhysics(DataModelBase):
     """
     Model physics configuration options.

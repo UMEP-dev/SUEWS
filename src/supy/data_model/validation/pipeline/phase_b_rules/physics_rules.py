@@ -3,6 +3,7 @@ from .rules_core import (
     ValidationResult,
 )
 from ..document import read_scalar, unwrap_entry
+from ....core.model import REQUIRED_PHYSICS_OPTIONS, REQUIRED_STEBBS_SWITCHES
 from ...core.yaml_helpers import get_value_safe
 from ...required_fields import BUILDING_PRESENT_SFR_TOL
 from ...rules.advisory import check_same_surface_unchecked_advisory
@@ -107,46 +108,17 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         )
         return results
 
-    required_physics_params = [
-        "net_radiation",
-        "emissions",
-        "storage_heat",
-        "ohm_inc_qf",
-        "roughness_length_momentum",
-        "roughness_length_heat",
-        "stability",
-        "soil_moisture",
-        "water_use",
-        "roughness_sublayer",
-        "frontal_area_index",
-        "roughness_sublayer_level",
-        "surface_conductance",
-        "snow_use",
-    ]
-
-    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*.
-    # `enabled`/`parameters` (master toggle) carry sensible defaults and are
-    # not required; the remaining switches are required, but checked against
-    # the nested `stebbs` sub-object rather than the flat physics dict.
-    required_stebbs_params = [
-        "capacitance",
-        "setpoint",
-        "same_albedo_wall",
-        "same_albedo_roof",
-        "same_emissivity_wall",
-        "same_emissivity_roof",
-    ]
     stebbs_block = view.physics.stebbs_block
 
     # (display path, container, key) for every required physics switch.
     # The family switches are read from the flat model.physics dict; the
     # relocated STEBBS switches (gh#1456) from the nested model.physics.stebbs
-    # sub-object.
+    # sub-object; `enabled`/`parameters` carry safe defaults and stay optional.
     required_checks = [
-        (f"model.physics.{param}", physics, param) for param in required_physics_params
+        (f"model.physics.{param}", physics, param) for param in REQUIRED_PHYSICS_OPTIONS
     ] + [
         (f"model.physics.stebbs.{param}", stebbs_block, param)
-        for param in required_stebbs_params
+        for param in REQUIRED_STEBBS_SWITCHES
     ]
 
     # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the

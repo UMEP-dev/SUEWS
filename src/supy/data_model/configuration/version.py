@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev20"
+CURRENT_SCHEMA_VERSION = "2026.6.dev21"
 
 # Schema version history and descriptions.
 #
@@ -279,6 +279,20 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "malformed keys and canonical collisions. The (2026.6.dev19 -> "
         "2026.6.dev20) migration normalises valid non-canonical 10-minute "
         "profile keys and rejects malformed or colliding keys explicitly."
+    ),
+    "2026.6.dev21": (
+        "Unify required physics options in core.model, enforce blocking "
+        "Phase B validation for half-specified daylight saving (startdls/"
+        "enddls), and apply the shared three-band land-cover surface fraction "
+        "sum kernel across Phase B, Phase C, SUEWSConfig.validate_for_engine(), "
+        "and SUEWSSimulation.run() (#2347). Sums within 1e-6 pass, drift "
+        "between 1e-6 and 1e-4 is auto-normalisable under --science-fixes "
+        "apply (or reported as a warning), and deviations exceeding 1e-4 (or "
+        "all-zero/invalid fractions) are rejected while raw SUEWSConfig "
+        "loading continues to accept off-sum configurations for inspection. "
+        "The (2026.6.dev20 -> 2026.6.dev21) migration preserves values "
+        "unchanged and logs advisories for off-sum land-cover fractions or "
+        "half-specified daylight saving windows."
     ),
 }
 

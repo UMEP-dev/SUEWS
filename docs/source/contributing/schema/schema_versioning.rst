@@ -30,7 +30,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev20"`` describes the shape of the configuration
+``schema_version: "2026.6.dev21"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -43,7 +43,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev20"
+   schema_version: "2026.6.dev21"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -61,7 +61,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number -- ``2026.6.dev20`` comes after ``2026.6.dev19``,
+as a floating-point number -- ``2026.6.dev21`` comes after ``2026.6.dev20``,
+which comes after ``2026.6.dev19``,
 which comes after ``2026.6.dev18``,
 which comes after ``2026.6.dev17``,
 which comes after ``2026.6.dev16``,
@@ -130,7 +131,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev20 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev21 (compatible)
 
    A migration path is available. Upgrade the file with
    :doc:`/inputs/converter` before loading it if it uses retired selectors or
@@ -139,13 +140,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev20.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev21.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev20.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev21.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -195,7 +196,21 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev20** (current development version)
+**Schema 2026.6.dev21** (current development version)
+
+   Centralises required physics options in ``core.model``, enforces blocking
+   Phase B validation for half-specified daylight saving (``startdls`` /
+   ``enddls``), and shares one three-band land-cover surface fraction sum
+   kernel across Phase B, Phase C, ``SUEWSConfig.validate_for_engine()``, and
+   ``SUEWSSimulation.run()``. Sums within ``1e-6`` pass, small drift between
+   ``1e-6`` and ``1e-4`` is auto-normalisable under
+   ``--science-fixes apply`` (or reported as a warning), and deviations
+   exceeding ``1e-4`` (or all-zero/invalid fractions) are rejected while raw
+   ``SUEWSConfig`` loading continues to accept off-sum configurations for
+   inspection. Migration preserves existing values and logs advisories for
+   affected sites. See :ref:`schema_dev21_land_cover_sum_and_dst`.
+
+**Schema 2026.6.dev20** (development)
 
    Aligns Python ``TenMinuteProfile`` (``HeatingSetpointProfile``,
    ``CoolingSetpointProfile``) and Rust ``apply_day_profile_overrides`` key

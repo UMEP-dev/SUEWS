@@ -24,6 +24,9 @@ from supy.data_model.core.model import Model, ModelPhysics, WaterUseMethod
 from supy.data_model.core.profile import WeeklyProfile
 from supy.data_model.core.site import Site, SiteProperties, StebbsProperties
 from supy.data_model.core.type import RefValue
+from supy.data_model.validation.pipeline.patches import (
+    plan_land_cover_fraction_patches,
+)
 from supy.data_model.validation.pipeline.phase_b_rules import (
     RulesRegistry,
     ValidationContext,
@@ -34,13 +37,17 @@ from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
     validate_spartacus_dependencies,
     validate_storageheatmethod_dependencies,
 )
+from supy.data_model.validation.pipeline.yaml_annotator import YAMLAnnotator
 from supy.data_model.validation.rules.advisory import (
     check_irrigation_season_advisory,
     check_spartacus_lowest_layer_advisories,
 )
 from supy.data_model.validation.rules.hard_invariants import (
+    LAND_COVER_SUM_AUTO_FIX_TOL,
+    LAND_COVER_SUM_PASS_TOL,
     check_dls_doy_pair,
     check_irrigation_doy_pair,
+    check_land_cover_fraction_sum,
     check_same_surface_property,
     check_spartacus_storage_heat,
     check_stebbs_internal_shading,
@@ -1161,3 +1168,423 @@ def test_phase_b_cli_reports_malformed_sites_instead_of_silently_skipping(
         envelope = json.loads(proc.stdout)
         assert envelope["status"] == "error", f"{label}: {envelope}"
         assert expected_param in proc.stdout, f"{label}: {proc.stdout}"
+
+
+@pytest.mark.parametrize(
+    ("fractions", "expected_band", "expected_severity", "expected_code"),
+    [
+        ({"paved": 0.6, "bldgs": 0.4}, "pass", "PASS", None),
+        ({"paved": 0.5 + 2**-20, "bldgs": 0.5}, "pass", "PASS", None),
+        ({"paved": 0.5, "bldgs": 0.5 - 5e-7}, "pass", "PASS", None),
+        (
+            {"paved": 0.6, "bldgs": 0.4 + 2e-6},
+            "auto_fix",
+            "WARNING",
+            "LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT",
+        ),
+        (
+            {"paved": 0.5 + LAND_COVER_SUM_AUTO_FIX_TOL, "bldgs": 0.5},
+            "auto_fix",
+            "WARNING",
+            "LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT",
+        ),
+        (
+            {"paved": 0.6, "bldgs": 0.4 + 2e-4},
+            "error",
+            "ERROR",
+            "LAND_COVER.SURFACE_FRACTIONS.SUM_ERROR",
+        ),
+        (
+            {"paved": 0.6, "bldgs": 0.4 - 2e-4},
+            "error",
+            "ERROR",
+            "LAND_COVER.SURFACE_FRACTIONS.SUM_ERROR",
+        ),
+        (
+            {"paved": 0.0, "bldgs": 0.0},
+            "error",
+            "ERROR",
+            "LAND_COVER.SURFACE_FRACTIONS.ALL_ZERO",
+        ),
+        ({}, "error", "ERROR", "LAND_COVER.SURFACE_FRACTIONS.ALL_ZERO"),
+        (
+            {"paved": -0.2, "bldgs": 1.2},
+            "error",
+            "ERROR",
+            "LAND_COVER.SFR.OUT_OF_RANGE",
+        ),
+        (
+            {"paved": 1.1, "bldgs": 0.0},
+            "error",
+            "ERROR",
+            "LAND_COVER.SFR.OUT_OF_RANGE",
+        ),
+        (
+            {"paved": float("nan"), "bldgs": 1.0},
+            "error",
+            "ERROR",
+            "LAND_COVER.SFR.NON_FINITE",
+        ),
+        (
+            {"paved": True, "bldgs": 0.0},
+            "error",
+            "ERROR",
+            "LAND_COVER.SFR.NON_FINITE",
+        ),
+    ],
+)
+def test_check_land_cover_fraction_sum_bands(
+    fractions: dict[str, object],
+    expected_band: str,
+    expected_severity: str,
+    expected_code: str | None,
+) -> None:
+    """Shared land-cover sum kernel enforces the 1e-6 pass and 1e-4 auto-fix bands."""
+    assert LAND_COVER_SUM_PASS_TOL == 1e-6
+    assert LAND_COVER_SUM_AUTO_FIX_TOL == 1e-4
+    result = check_land_cover_fraction_sum(fractions)
+    assert result.band == expected_band
+    assert result.severity == expected_severity
+    if expected_code is None:
+        assert result.violation is None
+        assert result.correction is None
+    else:
+        assert result.violation is not None
+        assert result.violation.code == expected_code
+        if expected_band == "auto_fix":
+            assert result.max_surface == "paved"
+            assert result.correction is not None
+            assert result.total + result.correction == pytest.approx(1.0, abs=1e-12)
+
+
+def _land_cover_ctx(
+    paved_sfr: float | str, bldgs_sfr: float | str, effective_fixes: str
+) -> ValidationContext:
+    return ValidationContext(
+        effective_fixes=effective_fixes,
+        yaml_data={
+            "model": {"physics": {}},
+            "sites": [
+                {
+                    "gridiv": 1,
+                    "properties": {
+                        "land_cover": {
+                            "paved": {
+                                "sfr": paved_sfr,
+                                "alb": 0.1,
+                                "emis": 0.95,
+                                "state_limit": 0.5,
+                                "wet_threshold": 10.0,
+                                "soil_depth": 100.0,
+                                "soil_store_capacity": 150.0,
+                                "saturated_hydraulic_conductivity": 0.0005,
+                            },
+                            "bldgs": {
+                                "sfr": bldgs_sfr,
+                                "alb": 0.15,
+                                "emis": 0.95,
+                                "bldgh": 10.0,
+                                "state_limit": 0.5,
+                                "wet_threshold": 10.0,
+                                "soil_depth": 100.0,
+                                "soil_store_capacity": 150.0,
+                                "saturated_hydraulic_conductivity": 0.0005,
+                            },
+                        }
+                    },
+                }
+            ],
+        },
+    )
+
+
+def test_land_cover_sum_parity_phase_b_patches_and_phase_c(tmp_path: Path) -> None:
+    """Phase B rule, patch planner, and public Phase C API/CLI share the sum kernel."""
+    from click.testing import CliRunner
+    import supy
+    from supy.cmd.suews_cli import cli as suews_cli
+
+    rule = RulesRegistry()["land_cover"]
+
+    apply_info = [
+        r
+        for r in rule(_land_cover_ctx(0.6, 0.4 + 5e-5, "apply"))
+        if r.code == "LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT"
+    ]
+    assert len(apply_info) == 1
+    assert apply_info[0].status == "INFO"
+
+    for mode in ("suggest", "off"):
+        notices = [
+            r
+            for r in rule(_land_cover_ctx(0.6, 0.4 + 5e-5, mode))
+            if r.code == "LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT"
+        ]
+        assert len(notices) == 1
+        assert notices[0].status == "WARNING"
+
+    for mode in ("apply", "suggest", "off"):
+        errs = [
+            r
+            for r in rule(_land_cover_ctx(0.6, 0.4 + 2e-4, mode))
+            if r.code == "LAND_COVER.SURFACE_FRACTIONS.SUM_ERROR"
+        ]
+        assert len(errs) == 1
+        assert errs[0].status == "ERROR"
+
+    assert plan_land_cover_fraction_patches(_land_cover_ctx(0.6, 0.4, "apply").yaml_data).patches == []
+    assert plan_land_cover_fraction_patches(_land_cover_ctx(0.6, 0.4 + 2e-4, "apply").yaml_data).patches == []
+    fix_plan = plan_land_cover_fraction_patches(_land_cover_ctx(0.6, 0.4 + 5e-5, "apply").yaml_data)
+    assert len(fix_plan.patches) == 1
+    assert fix_plan.patches[0].path == "sites[0].properties.land_cover.paved.sfr"
+    assert fix_plan.patches[0].new_value == pytest.approx(0.6 - 5e-5, abs=1e-12)
+
+    # Public Phase C API and CLI enforce the same three-band kernel (without
+    # rejecting raw SUEWSConfig loading).
+    sample_raw = yaml.safe_load(
+        (files("supy") / "sample_data" / "sample_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    runner = CliRunner()
+    for delta, expected_valid, expected_code in (
+        (0.0, True, None),
+        (5e-5, True, "C.LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT"),
+        (2e-4, False, "C.LAND_COVER.SURFACE_FRACTIONS.SUM_ERROR"),
+    ):
+        case_data = copy.deepcopy(sample_raw)
+        case_data["sites"][0]["properties"]["land_cover"]["bldgs"]["sfr"]["value"] += delta
+        case_path = tmp_path / f"phase_c_{delta}.yml"
+        case_path.write_text(yaml.safe_dump(case_data, sort_keys=False), encoding="utf-8")
+
+        report = supy.validate_config(case_path, pipeline="C", forcing="off")
+        assert report.is_valid is expected_valid
+        lc_issues = [
+            i for i in report.issues if i.code.startswith("C.LAND_COVER.")
+        ]
+        if expected_code is None:
+            assert lc_issues == []
+        else:
+            assert any(i.code == expected_code for i in lc_issues), lc_issues
+
+        dry_res = runner.invoke(
+            suews_cli,
+            ["validate", "-p", "C", "--dry-run", "--format", "json", str(case_path)],
+        )
+        assert dry_res.exit_code == (0 if expected_valid else 1), dry_res.output
+        payload = json.loads(dry_res.stdout)
+        assert payload["data"]["is_valid"] is expected_valid
+        if delta == 5e-5:
+            assert payload["status"] == "warning"
+            assert any(
+                "Surface fractions sum to" in str(w.get("message", w))
+                for w in payload["warnings"]
+            ), payload["warnings"]
+            abc_dry = runner.invoke(
+                suews_cli,
+                ["validate", "-p", "ABC", "--dry-run", "--format", "json", str(case_path)],
+            )
+            assert abc_dry.exit_code == 0, abc_dry.output
+            abc_payload = json.loads(abc_dry.stdout)
+            assert abc_payload["status"] == "warning"
+            assert any(
+                "Surface fractions sum to" in str(w.get("message", w))
+                for w in abc_payload["warnings"]
+            ), abc_payload["warnings"]
+            table_dry = runner.invoke(
+                suews_cli,
+                ["validate", "-p", "C", "--dry-run", "--format", "table", str(case_path)],
+            )
+            assert table_dry.exit_code == 0, table_dry.output
+            assert "Surface fractions sum to" in table_dry.stdout
+
+
+def test_numeric_string_sfr_parity_between_rule_planner_and_public_apply(
+    tmp_path: Path,
+) -> None:
+    """Numeric-string ``sfr`` values are admitted and patched identically across rule, planner, dry-run, and CLI apply."""
+    from click.testing import CliRunner
+    import supy
+    from supy.cmd.suews_cli import cli as suews_cli
+    from supy.data_model.validation.pipeline.patches import plan_seasonal_patches
+
+    # 1. Shared kernel and patch planner agree on numeric strings within auto-fix band.
+    str_sum = check_land_cover_fraction_sum({"paved": "0.6", "bldgs": "0.40005"})
+    assert str_sum.band == "auto_fix"
+    assert str_sum.max_surface == "paved"
+    assert str_sum.correction == pytest.approx(-5e-5, abs=1e-12)
+
+    str_ctx = _land_cover_ctx("0.6", "0.40005", "apply")
+    rule = RulesRegistry()["land_cover"]
+    rule_hits = [
+        r
+        for r in rule(str_ctx)
+        if r.code == "LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT"
+    ]
+    assert len(rule_hits) == 1
+    assert rule_hits[0].status == "INFO"
+
+    plan = plan_land_cover_fraction_patches(str_ctx.yaml_data)
+    assert len(plan.patches) == 1
+    assert plan.patches[0].path == "sites[0].properties.land_cover.paved.sfr"
+    assert plan.patches[0].new_value == pytest.approx(0.6 - 5e-5, abs=1e-12)
+
+    # 2. Non-numeric string is rejected identically with zero patches.
+    bad_ctx = _land_cover_ctx("not_a_number", "0.4", "apply")
+    assert any(r.status == "ERROR" for r in rule(bad_ctx))
+    assert plan_land_cover_fraction_patches(bad_ctx.yaml_data).patches == []
+
+    # 3. Public Phase B, C/ABC dry-run, and ABC --science-fixes apply handle numeric-string sfr identically.
+    sample_raw = yaml.safe_load(
+        (files("supy") / "sample_data" / "sample_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    lc = sample_raw["sites"][0]["properties"]["land_cover"]
+    for surf in ("evetr", "dectr", "grass", "bsoil", "water"):
+        lc[surf]["sfr"] = {"value": "0.0"}
+    lc["paved"]["sfr"] = {"value": "0.6"}
+    lc["bldgs"]["sfr"] = {"value": "0.40005"}
+    cfg_path = tmp_path / "str_sfr.yml"
+    cfg_path.write_text(yaml.safe_dump(sample_raw, sort_keys=False), encoding="utf-8")
+
+    # Winter seasonal albedo patches must treat numeric 0.0 and numeric-string "0.0" identically.
+    num_winter = copy.deepcopy(sample_raw)
+    str_winter = copy.deepcopy(sample_raw)
+    for cfg_w, zero_val in ((num_winter, 0.0), (str_winter, "0.0")):
+        cfg_w["sites"][0]["properties"]["land_cover"]["grass"]["sfr"] = {"value": zero_val}
+        cfg_w["sites"][0]["properties"]["land_cover"]["dectr"]["sfr"] = {"value": zero_val}
+        cfg_w["sites"][0]["properties"]["land_cover"]["evetr"]["sfr"] = {"value": zero_val}
+        cfg_w["sites"][0]["initial_states"]["grass"]["alb_id"] = {"value": 0.99}
+        cfg_w["sites"][0]["initial_states"]["dectr"]["alb_id"] = {"value": 0.99}
+        cfg_w["sites"][0]["initial_states"]["evetr"]["alb_id"] = {"value": 0.99}
+    num_plan = plan_seasonal_patches(num_winter, "2012-01-15", 2012)
+    str_plan = plan_seasonal_patches(str_winter, "2012-01-15", 2012)
+    assert num_plan.patches == str_plan.patches
+    assert not any("alb_id" in p.path for p in str_plan.patches)
+
+    rep_b = supy.validate_config(
+        cfg_path, pipeline="B", forcing="off", science_fixes="apply"
+    )
+    assert rep_b.is_valid, rep_b.to_text()
+    assert any(i.yaml_path == "paved.sfr" for i in rep_b.applied_fixes)
+
+    runner = CliRunner()
+    for pipe in ("C", "ABC"):
+        dry_str = runner.invoke(
+            suews_cli,
+            ["validate", "-p", pipe, "--dry-run", "--format", "json", str(cfg_path)],
+        )
+        assert dry_str.exit_code == 0, (pipe, dry_str.output)
+        dry_env = json.loads(dry_str.stdout)
+        assert dry_env["data"]["is_valid"] is True
+        assert dry_env["status"] == "warning"
+        assert any(
+            "Surface fractions sum to" in str(w.get("message", w))
+            for w in dry_env["warnings"]
+        ), dry_env["warnings"]
+
+    cli_res = runner.invoke(
+        suews_cli,
+        [
+            "validate",
+            "-p",
+            "ABC",
+            "--forcing",
+            "off",
+            "--science-fixes",
+            "apply",
+            "--format",
+            "json",
+            str(cfg_path),
+        ],
+    )
+    assert cli_res.exit_code == 0, cli_res.output
+    envelope = json.loads(cli_res.stdout)
+    updated_path = Path(envelope["data"]["updated_yaml"])
+    updated_data = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated_lc = updated_data["sites"][0]["properties"]["land_cover"]
+    total = sum(
+        float(
+            updated_lc[s]["sfr"]["value"]
+            if isinstance(updated_lc[s]["sfr"], dict)
+            else updated_lc[s]["sfr"]
+        )
+        for s in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+    )
+    assert total == pytest.approx(1.0, abs=1e-12)
+
+
+def test_boolean_sfr_rejected_across_model_assignment_phase_b_phase_c_and_dry_run(
+    tmp_path: Path,
+) -> None:
+    """Boolean ``sfr`` values (bare, wrapped, or assigned) are rejected across B, C, model, and dry-run."""
+    from click.testing import CliRunner
+    import supy
+    from supy.cmd.suews_cli import cli as suews_cli
+    from supy.data_model.core.type import RefValue
+
+    sample_raw = yaml.safe_load(
+        (files("supy") / "sample_data" / "sample_config.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    runner = CliRunner()
+    for label, bad_val in (("bare_false", False), ("wrapped_false", {"value": False})):
+        case_data = copy.deepcopy(sample_raw)
+        # Water has sfr=0.0 in sample_config; replacing 0.0 with False must fail everywhere.
+        case_data["sites"][0]["properties"]["land_cover"]["water"]["sfr"] = bad_val
+        case_path = tmp_path / f"bool_sfr_{label}.yml"
+        case_path.write_text(
+            yaml.safe_dump(case_data, sort_keys=False), encoding="utf-8"
+        )
+
+        with pytest.raises(ValueError, match="sfr must be numeric; boolean"):
+            SUEWSConfig.from_yaml(str(case_path))
+
+        for pipe in ("B", "C", "ABC"):
+            rep = supy.validate_config(case_path, pipeline=pipe, forcing="off")
+            assert not rep.is_valid, (label, pipe, rep.to_text())
+
+        for pipe in ("C", "ABC"):
+            dry = runner.invoke(
+                suews_cli,
+                ["validate", "-p", pipe, "--dry-run", "--format", "json", str(case_path)],
+            )
+            assert dry.exit_code == 1, (label, pipe, dry.output)
+
+    # Post-construction assignment paths reject Python and NumPy booleans too.
+    import numpy as np
+
+    cfg = SUEWSConfig.model_validate(sample_raw)
+    water = cfg.sites[0].properties.land_cover.water
+    for bad_bool in (False, np.bool_(False), np.bool_(True)):
+        with pytest.raises(ValueError, match="boolean"):
+            water.sfr = bad_bool
+        with pytest.raises(ValueError, match="boolean"):
+            water.sfr.value = bad_bool
+        with pytest.raises(ValueError, match="boolean"):
+            water.sfr = RefValue(bad_bool)
+
+    # Shared kernel, patch planner, and in-memory Phase B/C/ABC API reject NumPy bool_.
+    from supy.data_model.validation.rules.hard_invariants import (
+        coerce_land_cover_fraction,
+    )
+
+    assert coerce_land_cover_fraction(np.bool_(False)) is None
+    assert coerce_land_cover_fraction(np.bool_(True)) is None
+    np_sum = check_land_cover_fraction_sum({"paved": 1.0, "water": np.bool_(False)})
+    assert np_sum.band == "error"
+    assert np_sum.violation is not None
+    assert np_sum.violation.code == "LAND_COVER.SFR.NON_FINITE"
+
+    np_ctx = _land_cover_ctx(1.0, np.bool_(False), "apply")
+    assert plan_land_cover_fraction_patches(np_ctx.yaml_data).patches == []
+
+    np_cfg = copy.deepcopy(sample_raw)
+    np_cfg["sites"][0]["properties"]["land_cover"]["water"]["sfr"] = np.bool_(False)
+    for pipe in ("B", "C", "ABC"):
+        rep = supy.validate_config(
+            np_cfg, pipeline=pipe, forcing="off", science_fixes="off"
+        )
+        assert not rep.is_valid, (pipe, rep.to_text())

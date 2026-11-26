@@ -74,7 +74,10 @@ def test_load_requires_consumed_coefficient(
 @pytest.mark.parametrize("mutation", ["field", "value"])
 def test_mutable_handoff_checks_current_surface_values(data, field, surface, mutation):
     config = SUEWSConfig(**data)
-    land = getattr(config.sites[0].properties.land_cover, surface)
+    lc = config.sites[0].properties.land_cover
+    land = getattr(lc, surface)
+    counterpart = getattr(lc, "bldgs" if surface == "paved" else "paved")
+    counterpart.sfr.value = round(counterpart.sfr.value - (0.1 - land.sfr.value), 6)
     land.sfr.value = 0.1
     land.storage_drain_params.drain_eq.value = 3
     if mutation == "field":
@@ -617,6 +620,8 @@ def test_inactive_missing_coefficients_survive_dataframe_roundtrip(data, equatio
     assert evergreen.storage_drain_params.drain_coef_2.value == 0.0
     config_to_engine_yaml(restored)
     # Activating the surface cannot turn the retained absence into zero.
+    paved = restored.sites[0].properties.land_cover.paved
+    paved.sfr.value = round(paved.sfr.value - 0.1, 6)
     evergreen.sfr.value = 0.1
     with pytest.raises(ValueError, match="evetr.storage_drain_params.drain_coef_1"):
         config_to_engine_yaml(restored)

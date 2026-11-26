@@ -308,7 +308,9 @@ def test_post_construction_mutation_rejected_at_all_engine_handoffs(
     cfg_inactive = SUEWSConfig.from_dict(inactive_data)
     sim_mut = SUEWSSimulation.from_sample_data()
     sim_mut.update_config(cfg_inactive, auto_load_forcing=False)
-    getattr(cfg_inactive.sites[0].properties.land_cover, surface).sfr = RefValue(0.05)
+    lc_inactive = cfg_inactive.sites[0].properties.land_cover
+    lc_inactive.paved.sfr = RefValue(round(lc_inactive.paved.sfr.value - 0.05, 6))
+    getattr(lc_inactive, surface).sfr = RefValue(0.05)
 
     with pytest.raises(ValueError) as exc_run:
         sim_mut.run()

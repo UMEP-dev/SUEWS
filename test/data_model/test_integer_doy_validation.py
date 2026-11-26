@@ -38,6 +38,7 @@ from pydantic import ValidationError
 import pytest
 import yaml
 
+import supy
 from supy import SUEWSSimulation
 from supy.cmd.suews_cli import cli as suews_cli
 from supy.cmd.validate_config import cli as validate_cli
@@ -47,7 +48,10 @@ from supy.data_model.core.human_activity import (
     IrrigationParams,
 )
 from supy.data_model.core.type import RefValue
+from supy.data_model.validation.core.yaml_helpers import DLSCheck
 from supy.data_model.validation.pipeline import phase_b
+from supy.data_model.validation.pipeline.document import ConfigDocument
+from supy.data_model.validation.pipeline.patches import plan_seasonal_patches
 from supy.data_model.validation.pipeline.phase_b_rules import (
     other_rules as phase_b_other_rules,
 )
@@ -1175,3 +1179,748 @@ def test_schema_dev17_migration_and_historical_boundaries(
         p17 = json.dumps(s17["$defs"][model_name]["properties"][field_name])
         assert "RefValue_float_" in p16 and '"type": "number"' in p16
         assert '"type": "integer"' in p17 and '"minimum": 1' in p17 and '"maximum": 366' in p17
+
+
+@pytest.mark.parametrize("science_fixes", ["apply", "suggest", "off"])
+@pytest.mark.parametrize("has_dst", [True, False], ids=["site_with_dst", "site_without_dst"])
+@pytest.mark.parametrize(
+    ("present_key", "user_val", "omit_missing"),
+    [
+        ("startdls", 90, False),
+        ("enddls", 295, True),
+    ],
+    ids=["only_startdls_null_enddls", "only_enddls_omitted_startdls"],
+)
+def test_half_specified_dst_policy_and_site_dst_matrix(
+    sample_config_dict: dict,
+    tmp_path: Path,
+    science_fixes: str,
+    has_dst: bool,
+    present_key: str,
+    user_val: int,
+    omit_missing: bool,
+) -> None:
+    """Half-specified DST obeys ``apply``/``suggest``/``off`` x DST/non-DST sites."""
+    cfg = copy.deepcopy(sample_config_dict)
+    props = cfg["sites"][0]["properties"]
+    if has_dst:
+        lat, lng = 51.5, -0.1
+    else:
+        lat, lng = 1.35, 103.82
+    props["lat"]["value"] = lat
+    props["lng"]["value"] = lng
+    props["timezone"] = {"value": 0 if has_dst else 8}
+    cfg["model"]["control"]["start_time"] = "2012-01-01"
+    cfg["model"]["control"]["end_time"] = "2012-12-31"
+    cfg["model"]["control"]["forcing"]["file"] = None
+
+    missing_key = "enddls" if present_key == "startdls" else "startdls"
+    anthro = props["anthropogenic_emissions"]
+    anthro[present_key] = {"value": user_val}
+    if omit_missing:
+        anthro.pop(missing_key, None)
+    else:
+        anthro[missing_key] = None
+
+    calc_start, calc_end, _ = DLSCheck(lat=lat, lng=lng, year=2012).compute_dst_transitions()
+    if has_dst:
+        assert calc_start and calc_end
+        expected_missing = calc_end if missing_key == "enddls" else calc_start
+    else:
+        assert not (calc_start and calc_end)
+        expected_missing = None
+
+    report = supy.validate_config(
+        cfg,
+        pipeline="ABC",
+        mode="public",
+        forcing="off",
+        science_fixes=science_fixes,
+    )
+    b_issues = [i for i in report.phases[1].issues if "startdls,enddls" in (i.yaml_path or "")]
+
+    if has_dst and science_fixes == "apply":
+        assert report.is_valid, report.to_text()
+        assert not report.has_errors
+        assert any(i.severity == "INFO" for i in b_issues)
+        applied_params = {i.yaml_path for i in report.applied_fixes}
+        assert f"anthropogenic_emissions.{missing_key}" in applied_params
+        assert f"anthropogenic_emissions.{present_key}" not in applied_params
+
+        cfg_path = tmp_path / "half_dst.yml"
+        cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        cli_res = CliRunner().invoke(
+            validate_cli,
+            [
+                "-p",
+                "ABC",
+                "--forcing",
+                "off",
+                "--science-fixes",
+                "apply",
+                str(cfg_path),
+            ],
+        )
+        assert cli_res.exit_code == 0, cli_res.output
+        updated_path = tmp_path / "updated_half_dst.yml"
+        updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+        updated_anthro = updated["sites"][0]["properties"]["anthropogenic_emissions"]
+        assert updated_anthro[present_key] == {"value": user_val}
+        expected_filled = (
+            {"value": expected_missing} if omit_missing else expected_missing
+        )
+        assert updated_anthro[missing_key] == expected_filled
+        reloaded = SUEWSConfig.from_yaml(str(updated_path))
+        assert getattr(reloaded.sites[0].properties.anthropogenic_emissions, present_key).value == user_val
+        missing_loaded = getattr(reloaded.sites[0].properties.anthropogenic_emissions, missing_key)
+        assert (missing_loaded.value if isinstance(missing_loaded, RefValue) else missing_loaded) == expected_missing
+    else:
+        assert not report.is_valid
+        assert report.has_errors
+        dls_errors = [i for i in report.phases[1].issues if i.severity == "ERROR" and "startdls,enddls" in (i.yaml_path or "")]
+        assert len(dls_errors) == 1
+        if has_dst:
+            assert dls_errors[0].suggested_value == expected_missing
+        else:
+            assert f"Remove {present_key}" in str(dls_errors[0].suggested_value)
+
+
+def test_half_specified_dst_apply_without_year_still_errors(
+    sample_config_dict: dict,
+) -> None:
+    """When simulation year cannot be resolved, half-specified DST still fails under apply."""
+    cfg = copy.deepcopy(sample_config_dict)
+    cfg["model"]["control"]["start_time"] = None
+    cfg["model"]["control"]["end_time"] = None
+    cfg["model"]["control"]["forcing"]["file"] = None
+    anthro = cfg["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro["startdls"] = {"value": 90}
+    anthro["enddls"] = None
+
+    report = supy.validate_config(
+        cfg,
+        pipeline="ABC",
+        mode="public",
+        forcing="off",
+        science_fixes="apply",
+    )
+    assert not report.is_valid
+    assert any(
+        i.severity == "ERROR" and "startdls,enddls" in (i.yaml_path or "")
+        for i in report.errors
+    )
+
+
+def test_plan_seasonal_patches_half_dst_and_full_pair_behaviour() -> None:
+    """``plan_seasonal_patches`` fills only the missing half and keeps full-pair overwrite."""
+    calc_start, calc_end, _ = DLSCheck(lat=51.5, lng=-0.1, year=2012).compute_dst_transitions()
+    assert calc_start and calc_end
+
+    def _make_site_cfg(lat: float, lng: float, tz: int, anthro: dict) -> dict:
+        return {
+            "sites": [
+                {
+                    "gridiv": 1,
+                    "properties": {
+                        "lat": lat,
+                        "lng": lng,
+                        "timezone": tz,
+                        "anthropogenic_emissions": anthro,
+                    },
+                }
+            ]
+        }
+
+    # 1. Half case: startdls kept at 90, enddls filled.
+    only_start = _make_site_cfg(51.5, -0.1, 0, {"startdls": 90, "enddls": None})
+    plan_s = plan_seasonal_patches(only_start, "2012-01-01", 2012)
+    assert [a.parameter for a in plan_s.adjustments] == ["anthropogenic_emissions.enddls"]
+    applied_s = ConfigDocument.from_dict(only_start, normalise=False).apply_patches(plan_s.patches).data
+    assert applied_s["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] == 90
+    assert applied_s["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] == calc_end
+
+    # 2. Half case: enddls kept at 295, startdls filled even when key omitted.
+    only_end = _make_site_cfg(51.5, -0.1, 0, {"enddls": 295})
+    plan_e = plan_seasonal_patches(only_end, "2012-01-01", 2012)
+    assert [a.parameter for a in plan_e.adjustments] == ["anthropogenic_emissions.startdls"]
+    applied_e = ConfigDocument.from_dict(only_end, normalise=False).apply_patches(plan_e.patches).data
+    assert applied_e["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] == 295
+    assert applied_e["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] == {"value": calc_start}
+
+    # 3. Full pair retains existing overwrite behaviour (deferred to h).
+    both = _make_site_cfg(51.5, -0.1, 0, {"startdls": 90, "enddls": 295})
+    plan_both = plan_seasonal_patches(both, "2012-01-01", 2012)
+    assert [a.parameter for a in plan_both.adjustments] == [
+        "anthropogenic_emissions.startdls",
+        "anthropogenic_emissions.enddls",
+    ]
+    applied_both = ConfigDocument.from_dict(both, normalise=False).apply_patches(plan_both.patches).data
+    assert applied_both["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] == calc_start
+    assert applied_both["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] == calc_end
+
+    # 4. Site without DST emits no DLS patch.
+    no_dst = _make_site_cfg(1.35, 103.82, 8, {"startdls": 90, "enddls": None})
+    plan_nodst = plan_seasonal_patches(no_dst, "2012-01-01", 2012)
+    assert plan_nodst.patches == []
+
+
+def test_half_dst_unavailable_timezone_lookup_does_not_claim_no_dst(
+    sample_config_dict: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When DLSCheck returns (None, None, None), Phase B reports unavailable lookup rather than non-DST."""
+    from supy.data_model.validation.pipeline.phase_b_rules import other_rules
+
+    class _UnavailableDLSCheck:
+        def __init__(self, **_kwargs):
+            pass
+
+        def compute_dst_transitions(self):
+            return None, None, None
+
+    monkeypatch.setattr(other_rules, "DLSCheck", _UnavailableDLSCheck)
+    cfg = copy.deepcopy(sample_config_dict)
+    anthro = cfg["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro["startdls"] = {"value": 90}
+    anthro["enddls"] = None
+
+    report = supy.validate_config(
+        cfg,
+        pipeline="B",
+        mode="public",
+        forcing="off",
+        science_fixes="suggest",
+    )
+    assert not report.is_valid
+    dls_errors = [
+        i for i in report.errors if "startdls,enddls" in (i.yaml_path or "")
+    ]
+    assert len(dls_errors) == 1
+    msg = dls_errors[0].message.lower()
+    assert "no daylight saving transition" not in msg
+    assert "unavailable" in msg
+    assert "both" in msg
+
+
+def test_half_dst_partial_lookup_and_first_of_month_transition(
+    sample_config_dict: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """First-of-month DST transitions are detected, and partial lookups never claim no-DST."""
+    from supy.data_model.validation.pipeline import phase_b
+    from supy.data_model.validation.pipeline.phase_b_rules import other_rules
+
+    # 1. Australia/Sydney 2012 ended DST on April 1 (DOY 92) and started on October 7 (DOY 281).
+    syd_start, syd_end, syd_tz = DLSCheck(
+        lat=-33.87, lng=151.21, year=2012
+    ).compute_dst_transitions()
+    assert syd_start == 281
+    assert syd_end == 92
+    assert syd_tz == 10
+
+    syd_cfg = copy.deepcopy(sample_config_dict)
+    syd_cfg["sites"][0]["properties"]["lat"] = {"value": -33.87}
+    syd_cfg["sites"][0]["properties"]["lng"] = {"value": 151.21}
+    syd_cfg["sites"][0]["properties"]["timezone"] = {"value": 10}
+    syd_cfg["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {
+        "value": 281
+    }
+    syd_cfg["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    syd_apply = supy.validate_config(
+        syd_cfg, pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert syd_apply.is_valid, syd_apply.to_text()
+    assert any(
+        "enddls" in (fix.yaml_path or "") and str(fix.suggested_value) == "92"
+        for fix in syd_apply.applied_fixes
+    ), syd_apply.applied_fixes
+
+    # 2. Partial lookup (None, 92, 10): filling enddls succeeds under apply, while
+    #    missing startdls reports unavailable lookup rather than claiming "no DST".
+    class _PartialDLSCheck:
+        def __init__(self, **_kwargs):
+            pass
+
+        def compute_dst_transitions(self):
+            return None, 92, 10
+
+    monkeypatch.setattr(other_rules, "DLSCheck", _PartialDLSCheck)
+    monkeypatch.setattr(phase_b, "DLSCheck", _PartialDLSCheck)
+
+    only_start = copy.deepcopy(sample_config_dict)
+    only_start["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {
+        "value": 281
+    }
+    only_start["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    partial_ok = supy.validate_config(
+        only_start, pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert partial_ok.is_valid, partial_ok.to_text()
+    assert any(
+        "enddls" in (fix.yaml_path or "") and str(fix.suggested_value) == "92"
+        for fix in partial_ok.applied_fixes
+    ), partial_ok.applied_fixes
+
+    only_end = copy.deepcopy(sample_config_dict)
+    only_end["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = None
+    only_end["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = {
+        "value": 92
+    }
+    partial_missing = supy.validate_config(
+        only_end, pipeline="B", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert not partial_missing.is_valid
+    dls_errs = [
+        i for i in partial_missing.errors if "startdls,enddls" in (i.yaml_path or "")
+    ]
+    assert len(dls_errs) == 1
+    assert "no daylight saving transition" not in dls_errs[0].message.lower()
+    assert "unavailable" in dls_errs[0].message.lower()
+
+
+@pytest.mark.parametrize("science_fixes", ["suggest", "apply"])
+def test_multi_period_dst_africa_casablanca_2012_public_api_and_cli(
+    sample_config_dict: dict,
+    tmp_path: Path,
+    science_fixes: str,
+) -> None:
+    """Multi-period DST years (Africa/Casablanca 2012) never silently truncate or partially patch."""
+    casablanca_lat = 33.5731
+    casablanca_lng = -7.5898
+
+    schedule = DLSCheck(
+        lat=casablanca_lat, lng=casablanca_lng, year=2012
+    ).inspect_dst_schedule()
+    assert schedule.timezone == "Africa/Casablanca"
+    assert schedule.has_multiple_periods is True
+    assert schedule.starts == (120, 233)
+    assert schedule.ends == (202, 274)
+    assert DLSCheck(
+        lat=casablanca_lat, lng=casablanca_lng, year=2012
+    ).compute_dst_transitions() == (None, None, 0)
+
+    def _casablanca_cfg(startdls: int | None, enddls: int | None) -> dict:
+        cfg = copy.deepcopy(sample_config_dict)
+        props = cfg["sites"][0]["properties"]
+        props["lat"] = {"value": casablanca_lat}
+        props["lng"] = {"value": casablanca_lng}
+        props["timezone"] = {"value": 0}
+        cfg["model"]["control"]["start_time"] = "2012-01-01"
+        cfg["model"]["control"]["end_time"] = "2012-12-31"
+        cfg["model"]["control"]["forcing"]["file"] = None
+        anthro = props["anthropogenic_emissions"]
+        anthro["startdls"] = {"value": startdls} if startdls is not None else None
+        anthro["enddls"] = {"value": enddls} if enddls is not None else None
+        return cfg
+
+    # 1. Half-configured input remains blocking under both suggest and apply,
+    #    with explicit unsupported-schedule diagnostic and zero DST patches.
+    for start_val, end_val in ((120, None), (None, 202)):
+        half_cfg = _casablanca_cfg(start_val, end_val)
+        rep_half = supy.validate_config(
+            half_cfg,
+            pipeline="ABC",
+            mode="public",
+            forcing="off",
+            science_fixes=science_fixes,
+        )
+        assert not rep_half.is_valid, (science_fixes, rep_half.to_text())
+        dls_errs = [
+            i for i in rep_half.errors if "startdls,enddls" in (i.yaml_path or "")
+        ]
+        assert len(dls_errs) == 1, rep_half.errors
+        err_msg = dls_errs[0].message
+        assert "Africa/Casablanca" in err_msg
+        assert "multiple daylight saving periods" in err_msg.lower()
+        assert "120, 233" in err_msg and "202, 274" in err_msg
+        assert not any(
+            "startdls" in (f.yaml_path or "") or "enddls" in (f.yaml_path or "")
+            for f in rep_half.applied_fixes
+        )
+
+    half_dir = tmp_path / f"casablanca_half_{science_fixes}"
+    half_dir.mkdir()
+    half_path = half_dir / "casablanca_half.yml"
+    half_path.write_text(
+        yaml.safe_dump(_casablanca_cfg(120, None), sort_keys=False),
+        encoding="utf-8",
+    )
+    cli_half_dry = CliRunner().invoke(
+        validate_cli,
+        [
+            "-p",
+            "ABC",
+            "--dry-run",
+            "--forcing",
+            "off",
+            "--science-fixes",
+            science_fixes,
+            "--format",
+            "json",
+            str(half_path),
+        ],
+    )
+    assert cli_half_dry.exit_code == 1, cli_half_dry.output
+    half_env = json.loads(cli_half_dry.stdout)
+    assert any(
+        "Africa/Casablanca" in str(err.get("message", ""))
+        and "multiple daylight saving periods" in str(err.get("message", "")).lower()
+        for err in half_env["errors"]
+    ), half_env["errors"]
+
+    cli_half_staged = CliRunner().invoke(
+        validate_cli,
+        [
+            "-p",
+            "ABC",
+            "--forcing",
+            "off",
+            "--science-fixes",
+            science_fixes,
+            str(half_path),
+        ],
+    )
+    assert cli_half_staged.exit_code == 1, cli_half_staged.output
+    updated_half_path = half_dir / "updated_casablanca_half.yml"
+    if updated_half_path.exists():
+        updated_half = yaml.safe_load(updated_half_path.read_text(encoding="utf-8"))
+        updated_half_anthro = updated_half["sites"][0]["properties"][
+            "anthropogenic_emissions"
+        ]
+        assert updated_half_anthro["startdls"] == {"value": 120}
+        assert updated_half_anthro["enddls"] is None
+
+    # 2. Already-paired input emits an explicit unsupported-schedule warning
+    #    and preserves existing startdls/enddls bounds untouched under both suggest and apply.
+    paired_cfg = _casablanca_cfg(120, 274)
+    rep_paired = supy.validate_config(
+        paired_cfg,
+        pipeline="ABC",
+        mode="public",
+        forcing="off",
+        science_fixes=science_fixes,
+    )
+    assert rep_paired.is_valid, rep_paired.to_text()
+    dls_warns = [
+        i for i in rep_paired.warnings if "startdls,enddls" in (i.yaml_path or "")
+    ]
+    assert len(dls_warns) == 1, rep_paired.warnings
+    assert "Africa/Casablanca" in dls_warns[0].message
+    assert "multiple daylight saving periods" in dls_warns[0].message.lower()
+    assert not any(
+        "startdls" in (i.yaml_path or "") or "enddls" in (i.yaml_path or "")
+        for i in (*rep_paired.applied_fixes, *rep_paired.suggestions)
+    )
+
+    paired_dir = tmp_path / f"casablanca_paired_{science_fixes}"
+    paired_dir.mkdir()
+    paired_path = paired_dir / "casablanca_paired.yml"
+    paired_path.write_text(
+        yaml.safe_dump(paired_cfg, sort_keys=False),
+        encoding="utf-8",
+    )
+    cli_paired_dry = CliRunner().invoke(
+        validate_cli,
+        [
+            "-p",
+            "ABC",
+            "--dry-run",
+            "--forcing",
+            "off",
+            "--science-fixes",
+            science_fixes,
+            "--format",
+            "json",
+            str(paired_path),
+        ],
+    )
+    assert cli_paired_dry.exit_code == 0, cli_paired_dry.output
+    paired_env = json.loads(cli_paired_dry.stdout)
+    assert paired_env["data"]["is_valid"] is True
+    assert any(
+        "Africa/Casablanca" in str(w.get("message", ""))
+        and "multiple daylight saving periods" in str(w.get("message", "")).lower()
+        for w in paired_env["warnings"]
+    ), paired_env["warnings"]
+
+    cli_paired_staged = CliRunner().invoke(
+        validate_cli,
+        [
+            "-p",
+            "ABC",
+            "--forcing",
+            "off",
+            "--science-fixes",
+            science_fixes,
+            str(paired_path),
+        ],
+    )
+    assert cli_paired_staged.exit_code == 0, cli_paired_staged.output
+    updated_paired = yaml.safe_load(
+        (paired_dir / "updated_casablanca_paired.yml").read_text(encoding="utf-8")
+    )
+    updated_anthro = updated_paired["sites"][0]["properties"]["anthropogenic_emissions"]
+    assert updated_anthro["startdls"] == {"value": 120}
+    assert updated_anthro["enddls"] == {"value": 274}
+
+
+def test_dst_base_offset_and_transitions_derived_together_for_casablanca_2019(
+    sample_config_dict: dict,
+) -> None:
+    """Mid-year Ramadan drop (Africa/Casablanca 2019) derives base offset 0 with consistent DST bounds."""
+    casablanca_lat = 33.5731
+    casablanca_lng = -7.5898
+
+    schedule = DLSCheck(
+        lat=casablanca_lat, lng=casablanca_lng, year=2019
+    ).inspect_dst_schedule()
+    assert schedule.timezone == "Africa/Casablanca"
+    assert schedule.scan_complete is True
+    assert schedule.has_multiple_periods is False
+    # In 2019 Morocco stayed at UTC+1 except May 5 (DOY 125) to Jun 9 (DOY 160) at UTC+0.
+    # Deriving standard offset from the full year yields base 0 with DST wrap [160..125).
+    assert schedule.utc_offset_hours == 0
+    assert schedule.start == 160
+    assert schedule.end == 125
+    assert DLSCheck(
+        lat=casablanca_lat, lng=casablanca_lng, year=2019
+    ).compute_dst_transitions() == (160, 125, 0)
+
+    cfg = copy.deepcopy(sample_config_dict)
+    props = cfg["sites"][0]["properties"]
+    props["lat"] = {"value": casablanca_lat}
+    props["lng"] = {"value": casablanca_lng}
+    props["timezone"] = {"value": 1}
+    cfg["model"]["control"]["start_time"] = "2019-01-01"
+    cfg["model"]["control"]["end_time"] = "2019-12-31"
+    cfg["model"]["control"]["forcing"]["file"] = None
+    props["anthropogenic_emissions"]["startdls"] = {"value": 160}
+    props["anthropogenic_emissions"]["enddls"] = None
+
+    rep = supy.validate_config(
+        cfg, pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert rep.is_valid, rep.to_text()
+    applied = {fix.yaml_path: str(fix.suggested_value) for fix in rep.applied_fixes}
+    assert applied.get("anthropogenic_emissions.enddls") == "125"
+    assert applied.get("timezone") == "0"
+
+
+def test_dst_failed_daily_localisation_marks_scan_incomplete_and_blocks_auto_patch(
+    sample_config_dict: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Any daily localisation exception marks the DST scan incomplete and suppresses auto-repair."""
+    import pytz
+
+    from supy.data_model.validation.core import yaml_helpers
+
+    real_tz = pytz.timezone("Europe/London")
+
+    class _FlakyTZ:
+        def localize(self, dt, is_dst=None):
+            if dt.month == 3 and dt.day == 25:
+                raise RuntimeError("simulated localisation failure on transition day")
+            return real_tz.localize(dt, is_dst=is_dst)
+
+    monkeypatch.setattr(yaml_helpers.pytz, "timezone", lambda _name: _FlakyTZ())
+
+    schedule = DLSCheck(lat=51.5, lng=-0.1, year=2012).inspect_dst_schedule()
+    assert schedule.scan_complete is False
+    assert schedule.start is None
+    assert schedule.end is None
+    assert schedule.has_no_dst is False
+
+    cfg = copy.deepcopy(sample_config_dict)
+    cfg["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {"value": 85}
+    cfg["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    rep = supy.validate_config(
+        cfg, pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert not rep.is_valid
+    assert not any(
+        "startdls" in (f.yaml_path or "") or "enddls" in (f.yaml_path or "")
+        for f in rep.applied_fixes
+    )
+
+
+def test_dst_timezone_lookup_exception_preserves_valid_pair_and_reports_half_pair_cleanly(
+    sample_config_dict: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unknown timezone errors never invalidate complete DST pairs and stay actionable on half pairs."""
+    import pytz
+
+    from supy.data_model.validation.core import yaml_helpers
+
+    def _raise_unknown(_name: str):
+        raise pytz.UnknownTimeZoneError("Simulated/Unknown")
+
+    monkeypatch.setattr(yaml_helpers.pytz, "timezone", _raise_unknown)
+
+    # Complete valid pair stays valid across off, suggest, and apply.
+    paired_cfg = copy.deepcopy(sample_config_dict)
+    paired_cfg["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {
+        "value": 85
+    }
+    paired_cfg["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = {
+        "value": 302
+    }
+    for mode_fix in ("off", "suggest", "apply"):
+        rep = supy.validate_config(
+            paired_cfg,
+            pipeline="ABC",
+            mode="public",
+            forcing="off",
+            science_fixes=mode_fix,
+        )
+        assert rep.is_valid, (mode_fix, rep.to_text())
+        assert not any(i.code.startswith("VALIDATOR.RULE_FAILED") for i in rep.issues)
+
+    # Half-configured pair returns actionable GEOGRAPHY error, never a rule crash.
+    half_cfg = copy.deepcopy(sample_config_dict)
+    half_cfg["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {
+        "value": 85
+    }
+    half_cfg["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    rep_half = supy.validate_config(
+        half_cfg, pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert not rep_half.is_valid
+    assert not any(i.code.startswith("VALIDATOR.RULE_FAILED") for i in rep_half.issues)
+    assert any(
+        "startdls,enddls" in (e.yaml_path or "") and "unavailable" in e.message.lower()
+        for e in rep_half.errors
+    ), rep_half.errors
+
+
+def test_reordered_land_cover_keys_deduplicate_small_drift_warning_in_dry_run(
+    sample_config_dict: dict, tmp_path: Path
+) -> None:
+    """Reordering land_cover YAML keys still deduplicates Phase B/C small-drift warnings in dry-run."""
+    cfg = copy.deepcopy(sample_config_dict)
+    lc = cfg["sites"][0]["properties"]["land_cover"]
+    lc["paved"]["sfr"]["value"] = float(lc["paved"]["sfr"]["value"]) + 5e-5
+    reordered_lc = {key: lc[key] for key in reversed(list(lc.keys()))}
+    cfg["sites"][0]["properties"]["land_cover"] = reordered_lc
+
+    cfg_path = tmp_path / "reordered_lc_drift.yml"
+    cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+
+    res = CliRunner().invoke(
+        validate_cli,
+        ["-p", "ABC", "--dry-run", "--forcing", "off", "--format", "json", str(cfg_path)],
+    )
+    assert res.exit_code == 0, res.output
+    envelope = json.loads(res.stdout)
+    drift_warnings = [
+        w
+        for w in envelope["warnings"]
+        if isinstance(w, dict)
+        and str(w.get("issue_code", "")).endswith(
+            "LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT"
+        )
+    ]
+    assert len(drift_warnings) == 1, envelope["warnings"]
+
+
+def test_non_hourly_dst_lord_howe_reports_explicit_diagnostic_without_auto_patch(
+    sample_config_dict: dict,
+) -> None:
+    """Half-hour DST (Australia/Lord_Howe 2012) emits an explicit non-hourly diagnostic."""
+    lord_howe_lat = -31.555
+    lord_howe_lng = 159.082
+    schedule = DLSCheck(
+        lat=lord_howe_lat, lng=lord_howe_lng, year=2012
+    ).inspect_dst_schedule()
+    assert schedule.timezone == "Australia/Lord_Howe"
+    assert schedule.has_non_hourly_dst is True
+    assert schedule.offset_step_hours == pytest.approx(0.5)
+    assert schedule.start is None
+    assert schedule.end is None
+
+    def _lh_cfg(startdls: int | None, enddls: int | None) -> dict:
+        cfg = copy.deepcopy(sample_config_dict)
+        props = cfg["sites"][0]["properties"]
+        props["lat"] = {"value": lord_howe_lat}
+        props["lng"] = {"value": lord_howe_lng}
+        props["timezone"] = {"value": 10.5}
+        cfg["model"]["control"]["start_time"] = "2012-01-01"
+        cfg["model"]["control"]["end_time"] = "2012-12-31"
+        cfg["model"]["control"]["forcing"]["file"] = None
+        anthro = props["anthropogenic_emissions"]
+        anthro["startdls"] = {"value": startdls} if startdls is not None else None
+        anthro["enddls"] = {"value": enddls} if enddls is not None else None
+        return cfg
+
+    # Half-configured stays blocking with explicit non-hourly message (not unavailable).
+    rep_half = supy.validate_config(
+        _lh_cfg(281, None), pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert not rep_half.is_valid
+    assert any(
+        "non-hourly daylight saving shift" in e.message.lower()
+        and "unavailable" not in e.message.lower()
+        for e in rep_half.errors
+    ), rep_half.errors
+
+    # Already-paired stays valid with explicit non-hourly warning and zero DST patches.
+    rep_paired = supy.validate_config(
+        _lh_cfg(281, 92), pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert rep_paired.is_valid, rep_paired.to_text()
+    assert any(
+        "non-hourly daylight saving shift" in w.message.lower()
+        for w in rep_paired.warnings
+    ), rep_paired.warnings
+    assert not any(
+        "startdls" in (f.yaml_path or "") or "enddls" in (f.yaml_path or "")
+        for f in rep_paired.applied_fixes
+    )
+
+    # Phase C-only public validation and direct SUEWSConfig.from_dict() also surface
+    # the explicit non-hourly DST diagnostic rather than silently omitting it.
+    rep_c_only = supy.validate_config(
+        _lh_cfg(281, 92), pipeline="C", mode="public", forcing="off"
+    )
+    assert rep_c_only.is_valid, rep_c_only.to_text()
+    assert any(
+        "non-hourly daylight saving shift" in i.message.lower()
+        for i in rep_c_only.issues
+    ), rep_c_only.issues
+
+    lh_model = SUEWSConfig.from_dict(_lh_cfg(281, 92))
+    info_msgs = lh_model._validation_summary.get("info_messages", [])
+    assert any(
+        "non-hourly daylight saving shift" in msg.lower() for msg in info_msgs
+    ), info_msgs
+
+    # Jan 1 non-hourly boundary shift (Asia/Kathmandu 1986: UTC+5:30 -> UTC+5:45)
+    # must also be classified as non-hourly and never auto-patch startdls=1.
+    ktm_schedule = DLSCheck(
+        lat=27.7172, lng=85.3240, year=1986
+    ).inspect_dst_schedule()
+    assert ktm_schedule.timezone == "Asia/Kathmandu"
+    assert ktm_schedule.has_non_hourly_dst is True
+    assert ktm_schedule.offset_step_hours == pytest.approx(0.25)
+    assert ktm_schedule.start is None
+    assert ktm_schedule.end is None
+
+    ktm_cfg = copy.deepcopy(sample_config_dict)
+    ktm_props = ktm_cfg["sites"][0]["properties"]
+    ktm_props["lat"] = {"value": 27.7172}
+    ktm_props["lng"] = {"value": 85.3240}
+    ktm_props["timezone"] = {"value": 5.75}
+    ktm_cfg["model"]["control"]["start_time"] = "1986-01-01"
+    ktm_cfg["model"]["control"]["end_time"] = "1986-12-31"
+    ktm_cfg["model"]["control"]["forcing"]["file"] = None
+    ktm_props["anthropogenic_emissions"]["startdls"] = None
+    ktm_props["anthropogenic_emissions"]["enddls"] = {"value": 295}
+    ktm_rep = supy.validate_config(
+        ktm_cfg, pipeline="ABC", mode="public", forcing="off", science_fixes="apply"
+    )
+    assert not ktm_rep.is_valid
+    assert any(
+        "non-hourly daylight saving shift" in e.message.lower()
+        for e in ktm_rep.errors
+    ), ktm_rep.errors
+    assert not any(
+        "startdls" in (f.yaml_path or "") or "enddls" in (f.yaml_path or "")
+        for f in ktm_rep.applied_fixes
+    )

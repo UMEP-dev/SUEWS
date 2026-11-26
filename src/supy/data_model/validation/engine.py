@@ -923,6 +923,7 @@ def _run_phase_b_in_memory(
             yaml_data=data,
             start_date=start_date,
             model_year=model_year,
+            effective_fixes=effective_fixes,
         )
         validation_results = bound_notes + RulesRegistry(
             context=validation_context

@@ -36,7 +36,15 @@ from pathlib import Path
 import warnings
 
 from ._yaml_io import safe_load_yaml
-from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
+from .model import (
+    FAIMethod,
+    LAIMethod,
+    Model,
+    ModelPhysics,
+    OutputTimestampReference,
+    REQUIRED_PHYSICS_OPTIONS,
+    REQUIRED_STEBBS_SWITCHES,
+)
 from .profile import (
     _CANONICAL_HOUR_KEY_SET,
     normalise_hourly_profile_mapping,
@@ -71,6 +79,7 @@ from ..validation.required_fields import (
     STEBBS_SHADING_REQUIRED_MODES,
     stebbs_shading_requirements,
 )
+from ..validation.rules.hard_invariants import check_land_cover_fraction_sum
 
 from datetime import datetime
 import pytz
@@ -3470,15 +3479,11 @@ class SUEWSConfig(DataModelBase):
 
         Notes
         -----
-        - The list of critical parameters is defined in CRITICAL_PHYSICS_PARAMS.
+        - The list of critical parameters is defined in ``core.model``
+          (``REQUIRED_PHYSICS_OPTIONS`` + ``REQUIRED_STEBBS_SWITCHES``).
         - Handles both direct values and RefValue wrappers.
         - Returns an empty list if all critical parameters are set.
         """
-        # Single source of truth for the critical-physics list lives in the
-        # validation pipeline orchestrator (gh#1409); imported lazily to
-        # avoid a circular import at module load time.
-        from ..validation.pipeline.orchestrator import CRITICAL_PHYSICS_PARAMS
-
         critical_issues = []
 
         if not hasattr(self, "model") or not self.model or not self.model.physics:
@@ -3490,7 +3495,7 @@ class SUEWSConfig(DataModelBase):
         # top-level physics first, then the nested stebbs container.
         stebbs = getattr(physics, "stebbs", None)
 
-        for param_name in CRITICAL_PHYSICS_PARAMS:
+        for param_name in REQUIRED_PHYSICS_OPTIONS + REQUIRED_STEBBS_SWITCHES:
             if hasattr(physics, param_name):
                 container = physics
             elif stebbs is not None and hasattr(stebbs, param_name):
@@ -3994,6 +3999,47 @@ class SUEWSConfig(DataModelBase):
                         )
         return bound_errors
 
+    @staticmethod
+    def _extract_land_cover_fractions(land_cover: Any) -> dict[str, Any]:
+        """Extract unwrapped surface fractions for the seven canonical surfaces."""
+        fractions: dict[str, Any] = {}
+        for surface_type, _ in _LAND_COVER_SURFACE_TYPES:
+            surface = getattr(land_cover, surface_type, None)
+            if surface is not None and hasattr(surface, "sfr"):
+                sfr_raw = _unwrap_value(surface.sfr)
+                fractions[surface_type] = 0.0 if sfr_raw is None else sfr_raw
+            else:
+                fractions[surface_type] = 0.0
+        return fractions
+
+    def validate_land_cover_fractions(self) -> None:
+        """Enforce the three-band land-cover fraction sum policy before engine handoff.
+
+        Raises ``ValueError`` when ``|sum(sfr) - 1.0| > 1e-4`` (or all zero /
+        invalid), and emits a site-specific ``UserWarning`` without mutating
+        the configuration when ``1e-6 < |sum(sfr) - 1.0| <= 1e-4``.
+        """
+        errors: list[str] = []
+        for idx, site in enumerate(getattr(self, "sites", None) or []):
+            props = getattr(site, "properties", None)
+            land_cover = getattr(props, "land_cover", None) if props is not None else None
+            if land_cover is None:
+                continue
+            fractions = self._extract_land_cover_fractions(land_cover)
+            sum_check = check_land_cover_fraction_sum(fractions)
+            if sum_check.band == "error" and sum_check.violation is not None:
+                site_label = self._format_site_label(site, idx)
+                errors.append(f"{site_label}: {sum_check.violation.message}")
+            elif sum_check.band == "auto_fix" and sum_check.violation is not None:
+                site_label = self._format_site_label(site, idx)
+                warnings.warn(
+                    f"{site_label}: {sum_check.violation.message}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        if errors:
+            raise ValueError("\n".join(errors))
+
     def validate_for_engine(
         self,
         *,
@@ -4057,6 +4103,7 @@ class SUEWSConfig(DataModelBase):
             )
 
         self.validate_non_null_ref_values()
+        self.validate_land_cover_fractions()
         self.validate_soil_depths()
         self.validate_active_veg_lai_max()
         self.validate_water_distributions()
@@ -5125,35 +5172,17 @@ class SUEWSConfig(DataModelBase):
                                         level="WARNING",
                                     )
 
-        # Check land cover fractions sum to 1.0
-        surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
-        fractions = {}
-
-        for surface_type in surface_types:
-            if hasattr(land_cover, surface_type):
-                surface = getattr(land_cover, surface_type)
-                if surface and hasattr(surface, "sfr") and surface.sfr is not None:
-                    sfr_value = getattr(surface.sfr, "value", surface.sfr)
-                    fractions[surface_type] = (
-                        float(sfr_value) if sfr_value is not None else 0.0
-                    )
-                else:
-                    fractions[surface_type] = 0.0
-            else:
-                fractions[surface_type] = 0.0
-
-        total_fraction = sum(fractions.values())
-        tolerance = 1e-6
-
-        if abs(total_fraction - 1.0) > tolerance:
-            fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
-            difference = abs(total_fraction - 1.0)
+        # Check land cover fractions sum to 1.0 via shared kernel.
+        fractions = self._extract_land_cover_fractions(land_cover)
+        sum_check = check_land_cover_fraction_sum(fractions)
+        if sum_check.band != "pass" and sum_check.violation is not None:
             annotator.add_issue(
                 path=f"sites[{site_index}]/properties/land_cover",
                 param="surface_fractions",
-                message=f"Land cover fractions must sum to 1.0 within tolerance {tolerance} (got {total_fraction:.6f}, difference {difference:.2e}): {fraction_details}",
-                fix=f"Adjust surface fractions so they sum to 1.0 within tolerance {tolerance}",
-                level="WARNING",
+                message=sum_check.violation.message,
+                fix=sum_check.violation.suggested_value
+                or "Adjust surface fractions so they sum to 1.0",
+                level=sum_check.severity,
             )
 
     # @model_validator(mode="after")
@@ -5840,13 +5869,34 @@ class SUEWSConfig(DataModelBase):
 
                 if lat_val is not None and lng_val is not None and year:
                     # Import DLSCheck dynamically to avoid circular imports
-                    from ..validation.core.yaml_helpers import DLSCheck
+                    from ..validation.core.yaml_helpers import (
+                        DLSCheck,
+                        resolve_dst_schedule,
+                    )
 
                     # Calculate what DLS values should be
                     dls = DLSCheck(lat=lat_val, lng=lng_val, year=year)
-                    calculated_start, calculated_end, _ = dls.compute_dst_transitions()
+                    schedule = resolve_dst_schedule(dls)
+                    calculated_start = schedule.start
+                    calculated_end = schedule.end
 
-                    if calculated_start and calculated_end:
+                    if schedule.has_multiple_periods:
+                        info_msg = (
+                            f"{site_name}: Cannot compare DLS values automatically "
+                            f"because {schedule.describe_multiple_periods(year)}, which "
+                            "cannot be represented by a single startdls/enddls pair."
+                        )
+                        self._validation_summary["detailed_messages"].append(info_msg)
+                        self._validation_summary["info_messages"].append(info_msg)
+                    elif schedule.has_non_hourly_dst:
+                        info_msg = (
+                            f"{site_name}: Cannot compare DLS values automatically "
+                            f"because {schedule.describe_non_hourly_dst(year)}, whereas "
+                            "SUEWS startdls/enddls assumes a 1-hour DST shift."
+                        )
+                        self._validation_summary["detailed_messages"].append(info_msg)
+                        self._validation_summary["info_messages"].append(info_msg)
+                    elif calculated_start and calculated_end:
                         # Compare user values with calculated values
                         # Create separate messages for each parameter
 

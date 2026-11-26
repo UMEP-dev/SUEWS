@@ -110,6 +110,10 @@ const SURFACE_YAML_ORDER: [(&str, usize); 7] = [
 
 const VEG_SURFACE_YAML_ORDER: [(&str, usize); 3] = [("evetr", 0), ("dectr", 1), ("grass", 2)];
 
+/// Hard-invariant tolerance for the sum of the seven land-cover area fractions,
+/// matching `LAND_COVER_SUM_AUTO_FIX_TOL` in `hard_invariants.py`.
+const LAND_COVER_SUM_AUTO_FIX_TOL: f64 = 1.0e-4;
+
 const OHM_SEASONS: [&str; 4] = ["summer_dry", "summer_wet", "winter_dry", "winter_wet"];
 
 fn get_path<'a>(root: &'a Value, path: &[&str]) -> Option<&'a Value> {
@@ -5008,6 +5012,12 @@ fn apply_site_scalar_overrides(
         require_mapping(site_root, &["properties", "land_cover", surface_name], &at)?;
         site_scalars.sfr_surf[idx] = require_surface_sfr(site_root, surface_name, &at)?;
     }
+    let sfr_total: f64 = site_scalars.sfr_surf.iter().sum();
+    if !sfr_total.is_finite() || (sfr_total - 1.0).abs() > LAND_COVER_SUM_AUTO_FIX_TOL {
+        return Err(format!(
+            "`{at}.properties.land_cover.*.sfr` sum to {sfr_total:.6}, which differs from 1.0 by more than {LAND_COVER_SUM_AUTO_FIX_TOL:.1e}; adjust surface fractions to sum to 1.0"
+        ));
+    }
 
     let non_water_active = site_scalars.sfr_surf[..6].iter().any(|&s| s > 0.0);
     let bldg_sfr = site_scalars.sfr_surf[1];
@@ -6888,6 +6898,24 @@ mod tests {
         }
     }
 
+    /// Adjust `compensator`'s `sfr` so all seven surface fractions sum to `1.0`.
+    fn rebalance_sfr(site: &mut Value, compensator: &str) {
+        let other_sum: f64 = SURFACE_YAML_ORDER
+            .iter()
+            .filter(|(name, _)| *name != compensator)
+            .map(|(name, _)| {
+                read_numeric(site, &["properties", "land_cover", name, "sfr"]).expect("surface sfr")
+            })
+            .sum();
+        let comp_val = 1.0 - other_sum;
+        assert!(
+            (0.0..=1.0).contains(&comp_val),
+            "cannot rebalance {compensator} to {comp_val} (other_sum={other_sum})"
+        );
+        *get_path_mut(site, &["properties", "land_cover", compensator, "sfr"]).unwrap() =
+            Value::from(comp_val);
+    }
+
     #[test]
     fn zero_area_and_water_may_omit_the_whole_drainage_block() {
         let mut root = stebbs_fixture_root();
@@ -6905,6 +6933,7 @@ mod tests {
             }
             lc.remove(Value::String("storage_drain_params".into()));
         }
+        rebalance_sfr(site, "paved");
         load_run_config_from_value(&mut root).unwrap();
     }
 
@@ -7078,6 +7107,7 @@ mod tests {
                 sdp.remove(Value::String("drain_coef_1".into()));
                 sdp.insert(Value::String("drain_coef_2".into()), Value::Null);
             }
+            rebalance_sfr(site, "bldgs");
             let cfg = load_run_config_from_value(&mut root).unwrap();
             assert_eq!(cfg.state.phenology_state.store_drain_prm[0][2], 0.0);
             assert_eq!(cfg.state.phenology_state.store_drain_prm[0][3], 2.75);
@@ -7210,6 +7240,7 @@ mod tests {
                 serde_yaml::from_str("0.05").unwrap(),
             );
             water.remove(Value::String("storage_drain_params".into()));
+            rebalance_sfr(site, "paved");
             let err = load_run_config_from_value(&mut root).unwrap_err();
             assert!(
                 err.contains(
@@ -7351,6 +7382,7 @@ mod tests {
                 serde_yaml::from_str("0.0").unwrap(),
             );
             bldgs.remove(Value::String("storage_drain_params".into()));
+            rebalance_sfr(site, "paved");
             let cfg = load_run_config_from_value(&mut root).unwrap();
             assert_eq!(cfg.state.phenology_state.store_drain_prm[1][5], 0.0);
         }
@@ -7395,6 +7427,9 @@ mod tests {
                 Value::String("storage_drain_params".into()),
                 Value::String("bad".into()),
             );
+            if surface == "evetr" {
+                rebalance_sfr(site, "paved");
+            }
             let err = load_run_config_from_value(&mut root).unwrap_err();
             assert!(
                 err.contains(&format!(
@@ -7434,6 +7469,7 @@ mod tests {
                         Value::String(field.into()),
                         serde_yaml::from_str(bad).unwrap(),
                     );
+                rebalance_sfr(site, "paved");
                 let err = load_run_config_from_value(&mut root).unwrap_err();
                 assert!(
                     err.contains(&format!(
@@ -8845,6 +8881,7 @@ mod tests {
                     serde_yaml::from_str("{value: 150.0}").unwrap();
                 *get_path_mut(lc, &["soil_depth"]).unwrap() =
                     serde_yaml::from_str(literal).unwrap();
+                rebalance_sfr(site, if surface == "paved" { "bldgs" } else { "paved" });
                 let err = load_run_config_from_value(&mut root)
                     .expect_err("zero soil_depth on active positive-capacity surface must fail");
                 assert!(
@@ -8918,6 +8955,7 @@ mod tests {
             serde_yaml::from_str("{value: 150.0}").unwrap();
         *get_path_mut(water, &["soil_depth"]).unwrap() =
             serde_yaml::from_str("{value: 0.0}").unwrap();
+        rebalance_sfr(site, "bldgs");
 
         let run_cfg = load_run_config_from_value(&mut root)
             .expect("zero capacity, inactive, and water surfaces must allow zero soil_depth");
@@ -9005,6 +9043,7 @@ mod tests {
                     serde_yaml::from_str("{value: 0.1}").unwrap();
                 *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                     serde_yaml::from_str(literal).unwrap();
+                rebalance_sfr(site, "paved");
                 let err = load_run_config_from_value(&mut root).expect_err(
                     "non-positive lai_max on active vegetated surface must be rejected",
                 );
@@ -9032,6 +9071,7 @@ mod tests {
                     serde_yaml::from_str("{value: 0.1}").unwrap();
                 *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                     serde_yaml::from_str(malformed).unwrap();
+                rebalance_sfr(site, "paved");
                 let err = load_run_config_from_value(&mut root)
                     .expect_err("malformed lai_max on active vegetated surface must be rejected");
                 assert!(
@@ -9051,6 +9091,7 @@ mod tests {
             *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
             let lai = get_path_mut(lc, &["lai"]).expect("lai block exists");
             remove_key(lai, "lai_max");
+            rebalance_sfr(site, "paved");
             let err = load_run_config_from_value(&mut root)
                 .expect_err("omitted lai_max on active vegetated surface must be rejected");
             assert!(
@@ -9075,6 +9116,7 @@ mod tests {
                 serde_yaml::from_str("{value: 0.0}").unwrap(),
             );
         }
+        rebalance_sfr(site, "paved");
         let err = load_run_config_from_value(&mut root)
             .expect_err("legacy zero laimax on active grass must fail");
         assert!(
@@ -9100,6 +9142,7 @@ mod tests {
             *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                 serde_yaml::from_str("{value: 0.0}").unwrap();
         }
+        rebalance_sfr(site, "paved");
         let run_cfg = load_run_config_from_value(&mut root.clone())
             .expect("inactive vegetated surfaces with explicit zero lai_max must parse");
         assert_eq!(run_cfg.site.lc_evetr.lai.lai_max, 0.0);
@@ -9129,6 +9172,7 @@ mod tests {
             *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                 serde_yaml::from_str(&format!("{{value: {val}}}")).unwrap();
         }
+        rebalance_sfr(site_pos, "paved");
         let run_cfg_pos = load_run_config_from_value(&mut root_pos)
             .expect("active vegetated surfaces with small positive lai_max must parse");
         assert!((run_cfg_pos.site.lc_evetr.lai.lai_max - 1.0e-6).abs() < 1.0e-12);
@@ -9563,11 +9607,10 @@ mod tests {
                     root["model"]["physics"]["storage_heat"] = Value::from(6);
                 }
                 if let Some(wsfr) = set_water_sfr {
-                    *get_path_mut(
-                        first_site_mut(&mut root).unwrap(),
-                        &["properties", "land_cover", "water", "sfr"],
-                    )
-                    .unwrap() = Value::from(wsfr);
+                    let site = first_site_mut(&mut root).unwrap();
+                    *get_path_mut(site, &["properties", "land_cover", "water", "sfr"]).unwrap() =
+                        Value::from(wsfr);
+                    rebalance_sfr(site, "paved");
                 }
                 let props = first_site_mut(&mut root).unwrap()["properties"]
                     .as_mapping_mut()
@@ -9687,11 +9730,10 @@ mod tests {
         ] {
             let mut root = base_root.clone();
             if matches!(surface, "evetr" | "water") {
-                *get_path_mut(
-                    first_site_mut(&mut root).unwrap(),
-                    &["properties", "land_cover", surface, "sfr"],
-                )
-                .unwrap() = Value::from(0.1);
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "land_cover", surface, "sfr"]).unwrap() =
+                    Value::from(0.1);
+                rebalance_sfr(site, "paved");
             }
             let lc = get_path_mut(
                 first_site_mut(&mut root).unwrap(),
@@ -10470,6 +10512,7 @@ mod tests {
                 serde_yaml::from_str("{value: 0.0}").unwrap();
             *get_path_mut(site, &["properties", "land_cover", "evetr", "sfr"]).unwrap() =
                 serde_yaml::from_str("{value: 0.0}").unwrap();
+            rebalance_sfr(site, "grass");
             remove_key(
                 get_path_mut(site, &["properties", "snow"]).unwrap(),
                 "snow_depth_limit_paved",
@@ -11019,6 +11062,7 @@ mod tests {
             let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
             *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
             remove_key(lc, key);
+            rebalance_sfr(site, if surface == "paved" { "bldgs" } else { "paved" });
             let err = load_run_config_from_value(&mut root)
                 .expect_err("omitted active static OHM threshold must be rejected");
             assert!(
@@ -11627,6 +11671,7 @@ mod tests {
                 serde_yaml::from_str("{value: 0.005}").unwrap();
             let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
             remove_key(grass, resp_key);
+            rebalance_sfr(site, "paved");
             let err = load_run_config_from_value(&mut root)
                 .expect_err("exact boundary veg_frac_sum=0.01, sfr=0.005 must require respiration");
             assert!(
@@ -11648,6 +11693,7 @@ mod tests {
             for key in ["resp_a", "resp_b", "min_res_bioco2"] {
                 remove_key(grass, key);
             }
+            rebalance_sfr(site, "paved");
             load_run_config_from_value(&mut root).expect(
                 "surface strictly below f32 0.005 threshold does not read respiration keys",
             );
@@ -13243,5 +13289,74 @@ mod tests {
                 && missing_wall_spec.contains("wall_specular_frac"),
             "unexpected error: {missing_wall_spec}"
         );
+    }
+
+    #[test]
+    fn land_cover_sfr_sum_contract_enforced_at_native_boundary() {
+        let yaml_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test/fixtures/bridge/sample_resolved.yml");
+        let base_text = std::fs::read_to_string(&yaml_path).expect("sample_resolved.yml");
+        let base_root: Value = serde_yaml::from_str(&base_text).expect("parse sample YAML");
+
+        let paved_sfr = read_numeric(
+            &base_root["sites"][0],
+            &["properties", "land_cover", "paved", "sfr"],
+        )
+        .expect("paved.sfr");
+
+        // 1. Drift outside 1e-4 (+0.0002) is rejected across value, str, and file entry points.
+        let mut drift_bad = base_root.clone();
+        *get_path_mut(
+            first_site_mut(&mut drift_bad).unwrap(),
+            &["properties", "land_cover", "paved", "sfr"],
+        )
+        .unwrap() = Value::from(paved_sfr + 0.0002);
+        let bad_yaml = serde_yaml::to_string(&drift_bad).expect("serialise bad YAML");
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "suews_sfr_sum_contract_{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&tmp_dir).expect("create temp dir");
+        let bad_file = tmp_dir.join("bad_sfr.yml");
+        std::fs::write(&bad_file, &bad_yaml).expect("write bad YAML");
+
+        for (label, res) in [
+            ("value", load_run_config_from_value(&mut drift_bad.clone())),
+            ("str", load_run_config_from_str(&bad_yaml)),
+            ("file", load_run_config(&bad_file)),
+        ] {
+            let err = res.expect_err(&format!("{label}: drift > 1e-4 must be rejected"));
+            assert!(
+                err.contains("land_cover") && err.contains("sfr") && err.contains("1.0"),
+                "{label}: unexpected error: {err}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+
+        // 2. All-zero surface fractions are rejected.
+        let mut all_zero = base_root.clone();
+        for (surf, _) in SURFACE_YAML_ORDER {
+            *get_path_mut(
+                first_site_mut(&mut all_zero).unwrap(),
+                &["properties", "land_cover", surf, "sfr"],
+            )
+            .unwrap() = Value::from(0.0);
+        }
+        let err_zero = load_run_config_from_value(&mut all_zero)
+            .expect_err("all-zero surface fractions must be rejected");
+        assert!(
+            err_zero.contains("land_cover") && err_zero.contains("sfr"),
+            "unexpected all-zero error: {err_zero}"
+        );
+
+        // 3. Small drift within 1e-4 (+5e-5) remains accepted.
+        let mut drift_ok = base_root.clone();
+        *get_path_mut(
+            first_site_mut(&mut drift_ok).unwrap(),
+            &["properties", "land_cover", "paved", "sfr"],
+        )
+        .unwrap() = Value::from(paved_sfr + 5.0e-5);
+        load_run_config_from_value(&mut drift_ok)
+            .expect("drift within 1e-4 should remain accepted at native boundary");
     }
 }

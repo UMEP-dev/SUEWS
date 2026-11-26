@@ -104,11 +104,13 @@ def _status_text(message: str, ok: bool) -> Text:
 
 
 def _normalise_config_for_current_schema(config: object) -> object:
-    """Normalise accepted legacy physics/rename forms on a copy for current JSON Schema.
+    """Normalise accepted legacy physics/rename forms and numeric-string ``sfr`` on a copy.
 
-    Matches ``ValidationEngine`` and ``SUEWSConfig.from_yaml`` so dry-run
-    accepts supported legacy representations (such as flat ``stebbs: 0`` plus
-    flat STEBBS switches) consistently under ``suggest``, ``off``, and ``apply``.
+    Matches ``ValidationEngine``, ``SUEWSConfig.from_yaml``, and
+    ``coerce_land_cover_fraction`` so dry-run accepts supported legacy
+    representations (such as flat ``stebbs: 0`` plus flat STEBBS switches) and
+    valid numeric-string ``sfr`` scalars consistently under ``suggest``,
+    ``off``, and ``apply``, while invalid strings and booleans stay untouched.
     """
     if not isinstance(config, dict):
         return config
@@ -117,6 +119,7 @@ def _normalise_config_for_current_schema(config: object) -> object:
         normalise_yaml_renames,
     )
     from ..data_model.validation.rules.hard_invariants import (
+        coerce_land_cover_fraction,
         is_modelled_irrigation_active,
     )
 
@@ -143,12 +146,29 @@ def _normalise_config_for_current_schema(config: object) -> object:
             if not isinstance(site, dict):
                 continue
             props = site.get("properties")
-            irr = props.get("irrigation") if isinstance(props, dict) else None
+            if not isinstance(props, dict):
+                continue
+            irr = props.get("irrigation")
             if isinstance(irr, dict) and not is_modelled_irrigation_active(
                 water_use_raw, irr
             ):
                 irr.pop("ie_start", None)
                 irr.pop("ie_end", None)
+            land_cover = props.get("land_cover")
+            if not isinstance(land_cover, dict):
+                continue
+            for surface in land_cover.values():
+                if not isinstance(surface, dict) or "sfr" not in surface:
+                    continue
+                raw_sfr = surface["sfr"]
+                if isinstance(raw_sfr, str):
+                    parsed = coerce_land_cover_fraction(raw_sfr)
+                    if parsed is not None:
+                        surface["sfr"] = parsed
+                elif isinstance(raw_sfr, dict) and isinstance(raw_sfr.get("value"), str):
+                    parsed = coerce_land_cover_fraction(raw_sfr["value"])
+                    if parsed is not None:
+                        raw_sfr["value"] = parsed
     return schema_cfg
 
 
@@ -211,8 +231,10 @@ def validate_single_file(
 
         flatten_physics_in_config(config)
 
-        # Validate against schema (skipped when ABC --science-fixes apply
-        # validates the effective transformed document through ValidationEngine)
+        # Validate against schema (coercing valid numeric-string sfr scalars on
+        # a copy for current schema so dry-run aligns with Phase B/C/Pydantic;
+        # skipped when ABC --science-fixes apply validates the effective
+        # transformed document through ValidationEngine).
         if run_schema:
             schema_input = (
                 _normalise_config_for_current_schema(config)
@@ -279,10 +301,12 @@ def validate_single_file(
 
         # Try configuration consistency validation for additional checks.
         # Mirror schema_cli: explicit older target versions stay schema-only,
-        # while default/current validation follows the public from_yaml() path.
+        # while default/current validation follows the public from_yaml() path
+        # plus the Phase C shared land-cover fraction sum check (without
+        # tightening raw SUEWSConfig loading).
         if target_is_current and run_pydantic:
             try:
-                SUEWSConfig.from_yaml(str(file_path))
+                loaded_cfg = SUEWSConfig.from_yaml(str(file_path))
             except Exception as e:
                 if ValidationError:
                     errors.append(
@@ -297,6 +321,58 @@ def validate_single_file(
                     errors.append(
                         f"Configuration consistency validation: {str(e)}"
                     )
+            else:
+                from ..data_model.validation.pipeline.document import (
+                    site_gridid_map,
+                )
+                from ..data_model.validation.pipeline.phase_c import (
+                    _collect_land_cover_sum_issues,
+                )
+                from ..data_model.validation.pipeline.report_schema import (
+                    SEVERITY_ERROR,
+                    SEVERITY_WARNING,
+                )
+
+                gridid_map = site_gridid_map(config) if isinstance(config, dict) else {}
+                for lc_issue in _collect_land_cover_sum_issues(loaded_cfg, gridid_map):
+                    field_key = lc_issue.yaml_path or "land_cover.surface_fractions"
+                    lc_details = {
+                        "phase": "C",
+                        "issue_code": lc_issue.code,
+                    }
+                    if lc_issue.site_index is not None:
+                        lc_details["site_index"] = lc_issue.site_index
+                    if lc_issue.site_gridid is not None:
+                        lc_details["site_gridid"] = lc_issue.site_gridid
+                    if lc_issue.severity == SEVERITY_ERROR:
+                        if ValidationError and ErrorCode:
+                            errors.append(
+                                ValidationError(
+                                    code=ErrorCode.VALIDATION_FAILED,
+                                    message=lc_issue.message,
+                                    field=field_key,
+                                    location=str(file_path),
+                                    details=lc_details,
+                                )
+                            )
+                        else:
+                            errors.append(f"{field_key}: {lc_issue.message}")
+                    elif (
+                        lc_issue.severity == SEVERITY_WARNING
+                        and warnings is not None
+                    ):
+                        warn_entry = {
+                            "file": str(file_path),
+                            "message": lc_issue.message,
+                            "schema_path": field_key,
+                            "issue_code": lc_issue.code,
+                            "phase": "C",
+                        }
+                        if lc_issue.site_index is not None:
+                            warn_entry["site_index"] = lc_issue.site_index
+                        if lc_issue.site_gridid is not None:
+                            warn_entry["site_gridid"] = lc_issue.site_gridid
+                        warnings.append(warn_entry)
 
         return (len(errors) == 0, errors)
 
@@ -346,7 +422,12 @@ def _validation_issues_text(errors: list[dict | str]) -> Text:
     lines = []
     for error in errors[:3]:
         if isinstance(error, dict):
-            path = error.get("path") or error.get("field") or error.get("location")
+            path = (
+                error.get("path")
+                or error.get("schema_path")
+                or error.get("field")
+                or error.get("location")
+            )
             message = error.get("message", "")
             lines.append(f"{path}: {message}" if path else message)
         else:
@@ -570,15 +651,15 @@ def _append_dry_run_engine_errors(
         return
 
     if warnings is not None:
-        seen_warn_keys: set[tuple[int | None, str, str]] = {
-            (w.get("site_index"), w.get("issue_code", ""), w.get("message", ""))
+        seen_warn_keys: set[tuple[int | None, str]] = {
+            (w.get("site_index"), w.get("message", ""))
             for w in warnings
             if isinstance(w, dict)
         }
         for warn_issue in engine_report.warnings:
             if warn_issue.code in _DRY_RUN_SUPPRESSED_ADVISORY_CODES:
                 continue
-            warn_key = (warn_issue.site_index, warn_issue.code, warn_issue.message)
+            warn_key = (warn_issue.site_index, warn_issue.message)
             if warn_key in seen_warn_keys:
                 continue
             seen_warn_keys.add(warn_key)
@@ -785,6 +866,7 @@ def cli(
             all_valid = True
             for file_path in files:
                 path = Path(file_path)
+                file_warnings: List = []
                 with (
                     silent_supy_logger() if out_format == "json" else _nullcontext()
                 ):
@@ -793,6 +875,7 @@ def cli(
                         schema,
                         show_details=True,
                         schema_version=target_version,
+                        warnings=file_warnings,
                     )
                     _append_dry_run_engine_errors(
                         path,
@@ -801,6 +884,7 @@ def cli(
                         forcing="off",
                         errors=errors,
                         target_is_current=target_is_current,
+                        warnings=file_warnings,
                     )
                     is_valid = len(errors) == 0
                 if not is_valid:
@@ -818,6 +902,7 @@ def cli(
                     "file": str(path),
                     "valid": is_valid,
                     "errors": error_list if not is_valid else [],
+                    "warnings": file_warnings,
                     "error_count": len(errors) if not is_valid else 0,
                 })
 
@@ -833,7 +918,9 @@ def cli(
                 table.add_column("Issues", style="yellow")
                 for r in results:
                     status = _status_text("Valid" if r["valid"] else "Invalid", r["valid"])
-                    issues = _validation_issues_text(r["errors"])
+                    issues = _validation_issues_text(
+                        r["errors"] if not r["valid"] else r.get("warnings", [])
+                    )
                     table.add_row(_console_text(Path(r["file"]).name), status, issues)
                 console.print(table)
                 console.print(

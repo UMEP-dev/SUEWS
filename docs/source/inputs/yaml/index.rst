@@ -268,7 +268,7 @@ What Gets Fixed Automatically
 The validator automatically corrects these issues:
 
 - **Missing parameters** - Adds default-backed fields; mandatory active-surface routing fields inside an explicit ``waterdist`` block (``sfr > 0``) and physics-required site parameters are reported as blocking errors rather than autofilled
-- **Surface fractions** - Normalizes to sum to exactly 1.0
+- **Surface fractions** - Normalises small floating-point drift (within ``1e-4``, above ``1e-6``) on the largest surface fraction when ``--science-fixes apply`` is enabled
 - **Initial temperatures** - Sets based on location and season using climate data
 - **Physics options** - Ensures compatible model settings
 - **Parameter names** - Corrects common typos and outdated names
@@ -285,7 +285,7 @@ Common Issues and Solutions
    A surface's ``waterdist`` block received a non-zero inapplicable destination (self-routing ``to_<self>``, ``to_soilstore`` on impervious ``paved``/``bldgs``, or ``to_runoff`` on pervious surfaces), or an inapplicable field (including ``0.0``) was introduced by live mutation after load. Omit inapplicable destinations or set them to ``null`` (see :ref:`waterdist_yaml_rules`).
 
 **"Surface fractions don't sum to 1.0"**
-   Automatically normalized. Original values are proportionally adjusted.
+   Automatically normalised on the largest surface fraction only when the sum deviates by more than ``1e-6`` and at most ``1e-4``, and only when ``--science-fixes apply`` is enabled (reported as a non-blocking notice otherwise). Deviations larger than ``1e-4`` are blocking errors and must be corrected before running a simulation.
 
 **"Invalid physics option combination"**
    The validator suggests compatible options. Manual selection may be needed.

@@ -806,6 +806,17 @@ def _match_documented_group_or_surface_prose(
     ):
         return True
 
+    # Documented group validator #4: Land-cover surface fraction sum (`land_cover.*.sfr`)
+    if (
+        mut_surf is not None
+        and leaf == "sfr"
+        and (
+            "surface fractions sum to" in core_msg.lower()
+            or "all surface fractions are zero" in core_msg.lower()
+        )
+    ):
+        return True
+
     # Documented group validator #2: VerticalLayers coupled array lengths / heights
     if parent == "vertical_layers":
         lower_msg = core_msg.lower()

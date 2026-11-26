@@ -39,7 +39,7 @@ def validate_config(
       (wrong types, unknown extras, malformed nesting).
     - **Critical-physics structural-presence** — every required
       field under ``model.physics`` (``net_radiation``, ``emissions``,
-      ``storage_heat``, … 21 fields total) must be declared
+      ``storage_heat``, ... 20 fields total) must be declared
       explicitly in the YAML. Pydantic auto-fills these with enum
       defaults, so this check is what stops a YAML with
       ``model.physics: {}`` from looking valid.

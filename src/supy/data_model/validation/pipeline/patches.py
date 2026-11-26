@@ -26,6 +26,11 @@ from ..core.yaml_helpers import (
     get_stebbs_block,
     get_stebbsmethod_value,
     get_value_safe,
+    resolve_dst_schedule,
+)
+from ..rules.hard_invariants import (
+    check_land_cover_fraction_sum,
+    coerce_land_cover_fraction,
 )
 from .document import (
     ConfigDocument,
@@ -36,8 +41,8 @@ from .document import (
     read_scalar,
     site_gridid,
     thaw_copy,
+    unwrap_entry,
 )
-from .phase_b_rules import SFR_FRACTION_TOL
 
 SURFACE_TYPES: tuple[str, ...] = (
     "paved",
@@ -600,8 +605,6 @@ def plan_surface_temperature_patches(
 def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
     """Plan auto-correction patches for small floating-point ``sfr`` sum drift."""
     plan = PatchPlan()
-    lower = 1.0 - SFR_FRACTION_TOL
-    upper = 1.0 + SFR_FRACTION_TOL
 
     for site_idx, site in enumerate(_iter_sites(yaml_data)):
         if not isinstance(site, Mapping):
@@ -612,30 +615,31 @@ def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
             continue
         gid = site_gridid(site)
 
-        surface_fractions: dict[str, float] = {}
-        sfr_sum = 0.0
-        for surface_type, surface_props in land_cover.items():
+        surface_fractions: dict[str, Any] = {}
+        for surface_type, raw_surface in land_cover.items():
+            surface_props = unwrap_entry(raw_surface)
             if isinstance(surface_props, Mapping):
                 sfr_value = get_ref_or_bare(surface_props, "sfr")
                 if sfr_value is not None:
-                    surface_fractions[surface_type] = sfr_value
-                    sfr_sum += sfr_value
+                    coerced = coerce_land_cover_fraction(sfr_value)
+                    surface_fractions[surface_type] = (
+                        coerced if coerced is not None else sfr_value
+                    )
 
         if not surface_fractions:
             continue
 
-        correction: float | None = None
-        if lower <= sfr_sum < 1.0:
-            correction = 1.0 - sfr_sum
-        elif 1.0 < sfr_sum <= upper:
-            correction = -(sfr_sum - 1.0)
-
-        if correction is None:
+        sum_check = check_land_cover_fraction_sum(surface_fractions)
+        if (
+            sum_check.band != "auto_fix"
+            or sum_check.max_surface is None
+            or sum_check.correction is None
+        ):
             continue
 
-        max_surface = max(surface_fractions, key=lambda k: surface_fractions[k])
-        old_value = surface_fractions[max_surface]
-        new_value = old_value + correction
+        max_surface = sum_check.max_surface
+        old_value = float(surface_fractions[max_surface])
+        new_value = old_value + sum_check.correction
 
         plan.patches.append(
             ConfigPatch(
@@ -645,34 +649,19 @@ def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
                 old_value=old_value,
             )
         )
-        if abs(correction) >= 1e-6:
-            plan.record(
-                PlannedAdjustment(
-                    parameter=f"{max_surface}.sfr",
-                    site_index=site_idx,
-                    site_gridid=gid,
-                    old_value=f"{old_value:.6f}",
-                    new_value=f"{new_value:.6f}",
-                    reason=(
-                        f"Auto-corrected {max_surface}.sfr to have sum from "
-                        f"{sfr_sum:.6f} to 1.0 (small floating point error)"
-                    ),
-                )
+        plan.record(
+            PlannedAdjustment(
+                parameter=f"{max_surface}.sfr",
+                site_index=site_idx,
+                site_gridid=gid,
+                old_value=f"{old_value:.6f}",
+                new_value=f"{new_value:.6f}",
+                reason=(
+                    f"Auto-corrected {max_surface}.sfr to have sum from "
+                    f"{sum_check.total:.6f} to 1.0 (small floating point error)"
+                ),
             )
-        else:
-            plan.record(
-                PlannedAdjustment(
-                    parameter=f"{max_surface}.sfr",
-                    site_index=site_idx,
-                    site_gridid=gid,
-                    old_value="rounded to achieve sum of land cover fractions equal to 1.0",
-                    new_value=f"tolerance level: {abs(correction):.2e}",
-                    reason=(
-                        "Small floating point rounding applied to surface with "
-                        "max surface fraction value"
-                    ),
-                )
-            )
+        )
 
     return plan
 
@@ -892,7 +881,7 @@ def _plan_site_seasonal_lai_patches(
     dectr = land_cover.get("dectr") if isinstance(land_cover, Mapping) else None
     if not isinstance(dectr, Mapping) or not dectr:
         return
-    sfr = get_ref_or_bare(dectr, "sfr", 0)
+    sfr = coerce_land_cover_fraction(get_ref_or_bare(dectr, "sfr", 0))
     if sfr is None or sfr <= 0:
         return
     lai = dectr.get("lai") or {}
@@ -961,7 +950,8 @@ def _plan_site_seasonal_albedo_patches(
         surf_props = land_cover.get(surf_key)
         if not isinstance(surf_props, Mapping):
             continue
-        if not get_ref_or_bare(surf_props, "sfr", 0):
+        sfr_val = coerce_land_cover_fraction(get_ref_or_bare(surf_props, "sfr", 0))
+        if sfr_val is None or sfr_val <= 0:
             continue
         surf_state = initial_states.get(surf_key, {})
         if not isinstance(surf_state, Mapping):
@@ -1016,14 +1006,19 @@ def _plan_site_dls_and_tz_patches(
 ) -> None:
     """Append DST transition and timezone offset patches for one site."""
     dls = dls_cls(lat=lat, lng=lng, year=model_year)
-    start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
+    schedule = resolve_dst_schedule(dls)
+    start_dls = schedule.start
+    end_dls = schedule.end
+    tz_offset = schedule.utc_offset_hours
 
     anthro_emissions = props.get("anthropogenic_emissions")
     if (
         isinstance(anthro_emissions, Mapping)
         and anthro_emissions
-        and start_dls
-        and end_dls
+        and schedule.scan_complete
+        and not schedule.has_multiple_periods
+        and not schedule.has_non_hourly_dst
+        and (start_dls is not None or end_dls is not None)
     ):
         from ...core.human_activity import coerce_integer_doy_scalar  # noqa: PLC0415
 
@@ -1036,37 +1031,49 @@ def _plan_site_dls_and_tz_patches(
         e_state, current_enddls = _classify_doy_entry(
             anthro_emissions, "enddls", max_dls_doy, coerce_integer_doy_scalar
         )
-        if not (
-            (s_state == "absent" and e_state == "absent")
-            or s_state == "invalid"
-            or e_state == "invalid"
+        if s_state == "valid" and e_state == "absent" and end_dls is not None:
+            dls_pairs: tuple[tuple[str, Any, Any, str], ...] = (
+                ("enddls", current_enddls, end_dls, "end"),
+            )
+        elif s_state == "absent" and e_state == "valid" and start_dls is not None:
+            dls_pairs = (("startdls", current_startdls, start_dls, "start"),)
+        elif (
+            s_state == "valid"
+            and e_state == "valid"
+            and start_dls is not None
+            and end_dls is not None
         ):
-            for key, current_val, new_val, label in (
+            # Full-pair overwrite behaviour is retained here and deferred.
+            dls_pairs = (
                 ("startdls", current_startdls, start_dls, "start"),
                 ("enddls", current_enddls, end_dls, "end"),
-            ):
-                if current_val != new_val:
-                    plan.patches.append(
-                        ConfigPatch(
-                            path=f"sites[{site_idx}].properties.anthropogenic_emissions.{key}",
-                            action="set",
-                            new_value=new_val,
-                            old_value=current_val,
-                        )
+            )
+        else:
+            dls_pairs = ()
+
+        for key, current_val, new_val, label in dls_pairs:
+            if current_val != new_val:
+                plan.patches.append(
+                    ConfigPatch(
+                        path=f"sites[{site_idx}].properties.anthropogenic_emissions.{key}",
+                        action="set",
+                        new_value=new_val,
+                        old_value=current_val,
                     )
-                    plan.record(
-                        PlannedAdjustment(
-                            parameter=f"anthropogenic_emissions.{key}",
-                            site_index=site_idx,
-                            site_gridid=gid,
-                            old_value=str(current_val),
-                            new_value=str(new_val),
-                            reason=(
-                                f"Calculated DLS {label} for coordinates "
-                                f"({lat:.2f}, {lng:.2f})"
-                            ),
-                        )
+                )
+                plan.record(
+                    PlannedAdjustment(
+                        parameter=f"anthropogenic_emissions.{key}",
+                        site_index=site_idx,
+                        site_gridid=gid,
+                        old_value=str(current_val),
+                        new_value=str(new_val),
+                        reason=(
+                            f"Calculated DLS {label} for coordinates "
+                            f"({lat:.2f}, {lng:.2f})"
+                        ),
                     )
+                )
 
     if tz_offset is not None:
         current_timezone = get_ref_or_bare(props, "timezone")

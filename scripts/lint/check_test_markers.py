@@ -292,6 +292,17 @@ def _validate_relative_token(token: str, source_label: str) -> str:
     return normalised
 
 
+def _strip_makefile_comment(line: str) -> str:
+    """Strip an unescaped ``#`` comment from a Makefile logical line."""
+    for idx, ch in enumerate(line):
+        if ch != "#":
+            continue
+        backslashes = idx - len(line[:idx].rstrip("\\"))
+        if backslashes % 2 == 0:
+            return line[:idx]
+    return line
+
+
 def _reject_unsupported_makefile_line(code: str) -> None:
     """Reject top-level Make directives that can mutate variables indirectly."""
     if _INCLUDE_RE.match(code):
@@ -394,9 +405,14 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
             define_depth = _update_define_depth(line, define_depth)
             continue
         if line.startswith("\t") and in_rule:
+            if _EVAL_CALL_RE.search(line):
+                raise ValueError(
+                    "Makefile eval inside recipe is unsupported when parsing "
+                    f"TEST_DEFAULT_PATHS: {line.strip()}"
+                )
             continue
 
-        code = line.split("#", 1)[0]
+        code = _strip_makefile_comment(line)
         _reject_unsupported_makefile_line(code)
 
         define_match = _DEFINE_OPEN_RE.match(code)
@@ -508,6 +524,63 @@ def _collect_covered_lanes(
     return (errors, covered_files, covered_dirs)
 
 
+def _check_lane_coverage(
+    repo_root: Path,
+    *,
+    makefile_path: Path | None = None,
+    test_root: Path | None = None,
+    peripheral_dirs: tuple[str, ...] = PERIPHERAL_TEST_DIRS,
+) -> tuple[list[Path], list[str], list[str]]:
+    """Walk ``test_root`` once and return ``(test_files, errors, orphans)``."""
+    resolved_root = repo_root.resolve()
+    raw_test_root = test_root if test_root is not None else resolved_root / "test"
+    if _is_link_or_junction(raw_test_root):
+        rel_test_root = (
+            raw_test_root.relative_to(resolved_root).as_posix()
+            if raw_test_root.is_relative_to(resolved_root)
+            else raw_test_root.name
+        )
+        return ([], [f"unsupported directory symlink or junction: {rel_test_root}"], [])
+
+    resolved_test_root = raw_test_root.resolve()
+    if not resolved_test_root.is_relative_to(resolved_root):
+        return (
+            [],
+            [f"test root escapes repository root: {raw_test_root.as_posix()}"],
+            [],
+        )
+
+    discovered_files, walk_errors = _walk_test_tree(resolved_root, resolved_test_root)
+
+    makefile = (
+        makefile_path if makefile_path is not None else resolved_root / "Makefile"
+    )
+    if not makefile.is_file():
+        return (
+            discovered_files,
+            [*walk_errors, f"Makefile not found at {makefile.as_posix()}"],
+            [],
+        )
+
+    try:
+        default_paths = parse_makefile_test_default_paths(makefile)
+    except (OSError, UnicodeError, ValueError) as exc:
+        return (discovered_files, [*walk_errors, str(exc)], [])
+
+    errors, covered_files, covered_dirs = _collect_covered_lanes(
+        resolved_root, resolved_test_root, default_paths, peripheral_dirs
+    )
+    errors.extend(walk_errors)
+
+    orphans: list[str] = []
+    for path in discovered_files:
+        rel = path.relative_to(resolved_root)
+        if not _is_covered_by_lane(rel, covered_files, covered_dirs):
+            orphans.append(rel.as_posix())
+
+    return (discovered_files, errors, orphans)
+
+
 def find_orphan_test_files(
     repo_root: Path,
     *,
@@ -536,43 +609,12 @@ def find_orphan_test_files(
         symlink/junction, traversal, or invalid-path failures and ``orphans``
         lists uncovered test files as POSIX paths relative to ``repo_root``.
     """
-    resolved_root = repo_root.resolve()
-    raw_test_root = test_root if test_root is not None else resolved_root / "test"
-    if _is_link_or_junction(raw_test_root):
-        rel_test_root = (
-            raw_test_root.relative_to(resolved_root).as_posix()
-            if raw_test_root.is_relative_to(resolved_root)
-            else raw_test_root.name
-        )
-        return ([f"unsupported directory symlink or junction: {rel_test_root}"], [])
-
-    resolved_test_root = raw_test_root.resolve()
-    if not resolved_test_root.is_relative_to(resolved_root):
-        return ([f"test root escapes repository root: {raw_test_root.as_posix()}"], [])
-
-    makefile = (
-        makefile_path if makefile_path is not None else resolved_root / "Makefile"
+    _, errors, orphans = _check_lane_coverage(
+        repo_root,
+        makefile_path=makefile_path,
+        test_root=test_root,
+        peripheral_dirs=peripheral_dirs,
     )
-    if not makefile.is_file():
-        return ([f"Makefile not found at {makefile.as_posix()}"], [])
-
-    try:
-        default_paths = parse_makefile_test_default_paths(makefile)
-    except (OSError, UnicodeError, ValueError) as exc:
-        return ([str(exc)], [])
-
-    errors, covered_files, covered_dirs = _collect_covered_lanes(
-        resolved_root, resolved_test_root, default_paths, peripheral_dirs
-    )
-    discovered_files, walk_errors = _walk_test_tree(resolved_root, resolved_test_root)
-    errors.extend(walk_errors)
-
-    orphans: list[str] = []
-    for path in discovered_files:
-        rel = path.relative_to(resolved_root)
-        if not _is_covered_by_lane(rel, covered_files, covered_dirs):
-            orphans.append(rel.as_posix())
-
     return (errors, orphans)
 
 
@@ -637,8 +679,9 @@ def main(argv: list[str]) -> int:
         print(_to_ascii(f"[X] test/ not found under {repo_root}"), file=sys.stderr)
         return 1
 
-    lane_errors, orphans = find_orphan_test_files(repo_root, test_root=test_root)
-    test_files, _ = _walk_test_tree(repo_root, test_root)
+    test_files, lane_errors, orphans = _check_lane_coverage(
+        repo_root, test_root=test_root
+    )
     checked, auto_applied, missing, read_errors = _check_nature_markers(
         repo_root, test_files
     )

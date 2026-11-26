@@ -313,6 +313,18 @@ def test_makefile_continuations_comments_append_and_recipes(
             "eval inside define block is unsupported",
         ),
         (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test:\n"
+            "\t$(eval TEST_DEFAULT_PATHS := test/core)\n"
+            "\tpytest $(TEST_DEFAULT_PATHS)\n",
+            "eval inside recipe is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "UNUSED := \\#$(eval TEST_DEFAULT_PATHS := test/core)\n",
+            "top-level expansion or eval is unsupported",
+        ),
+        (
             "TEST_DEFAULT_PATHS := test/core\\extra\n",
             "unsupported path characters",
         ),

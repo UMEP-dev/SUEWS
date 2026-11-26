@@ -54,7 +54,14 @@ from .core import (
     TimezoneOffset,
 )
 
-# Import from new validation module
+# Import from validation module
+from .validation import (
+    ValidationEngine,
+    ValidationReport,
+    validate_config,
+)
+
+# Legacy validation exports (retired in follow-up PR)
 try:
     from .validation import (
         ValidationController,
@@ -111,6 +118,9 @@ __all__ = [
     "SurfaceType",
     "TimezoneOffset",
     # Validation
+    "validate_config",
+    "ValidationEngine",
+    "ValidationReport",
     "ValidationController",
     "ValidationResult",
     "validate_suews_config_conditional",

@@ -1224,7 +1224,10 @@ def parse_simulation_bounds(
         ``(errors, model_year, start_date, end_date)``; ``errors`` is empty
         when both bounds parse.
     """
-    control = data.get("model", {}).get("control", {})
+    model = data.get("model") if isinstance(data, Mapping) else None
+    control = model.get("control") if isinstance(model, Mapping) else None
+    if not isinstance(control, Mapping):
+        control = {}
     errors: List[str] = []
     bounds = {}
     for name in ("start_time", "end_time"):

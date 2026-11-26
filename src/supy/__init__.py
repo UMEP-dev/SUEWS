@@ -37,6 +37,9 @@ __all__ = [
     "util",
     "data_model",
     # Validation
+    "validate_config",
+    "ValidationEngine",
+    "ValidationReport",
     "validate_suews_config_conditional",
     "ValidationController",
     "ValidationResult",
@@ -116,6 +119,22 @@ def __getattr__(name):
         return _lazy_cache[name]
 
     # Validation functionality
+    if name in {
+        "validate_config",
+        "ValidationEngine",
+        "ValidationReport",
+    }:
+        from .data_model.validation import (
+            ValidationEngine,
+            ValidationReport,
+            validate_config,
+        )
+
+        _lazy_cache["validate_config"] = validate_config
+        _lazy_cache["ValidationEngine"] = ValidationEngine
+        _lazy_cache["ValidationReport"] = ValidationReport
+        return _lazy_cache[name]
+
     if name in {
         "validate_suews_config_conditional",
         "ValidationController",

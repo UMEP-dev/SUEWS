@@ -187,7 +187,7 @@ if [[ "${FULL_MATRIX}" == "true" ]]; then
   PR_MATRIX_NOTE="0-ci:full-matrix label - reduced platforms"
 fi
 
-if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; then
+if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]] && [[ "${AXIS_SCHEMA}" -eq 1 ]]; then
   if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
     echo "Draft PR with fortran/rust changes - ${PR_MATRIX_NOTE}, core tests"
     echo "test_tier=core" >> "$GITHUB_OUTPUT"
@@ -201,36 +201,39 @@ if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; the
   echo "buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "api_buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
-  NATIVE_BUILDPLAT="$PR_MATRIX_PLATFORMS"
-  ABI3_SMOKE_BUILDPLAT="$PR_MATRIX_PLATFORMS"
-  OS_COMPAT_BUILDPLAT="$PR_MATRIX_PLATFORMS"
 
 elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
   # Schema 1: every ready PR runs standard (gh#2094: never silently deselect
   # newly added or edited non-smoke unit/API tests), on Linux unless
   # 0-ci:full-matrix is set.
-  # Schema 2 (#2349): full physics runs automatically on fortran/rust/build
-  # changes (standard) or 0-physics:change/0-numerics:change (physics-full);
-  # other wheel-building Python PRs run physics-core (smoke + exact reference
-  # witness) while tooling/unit/native keep their full ready suites.
+  # Schema 2 (#2349): applies the four automatic full-physics triggers across
+  # all pull requests (draft and ready) with no draft exemption:
+  # fortran/rust/build changes -> standard, 0-physics:change/0-numerics:change
+  # -> physics-full, and other wheel-building Python PRs -> physics-core
+  # (smoke + exact sample-output witness) while tooling/unit/native keep their
+  # full suites.
   if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    PR_KIND="Ready PR"
+    if [[ "${IS_DRAFT}" == "true" ]]; then
+      PR_KIND="Draft PR"
+    fi
     if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
       TIER=standard
       FULL_PHYSICS=true
       PHYSICS_FULL_TRIGGER=compiled_or_build_change
-      echo "Ready PR (schema 2) with fortran/rust/build changes - ${PR_MATRIX_NOTE}, full physics (standard)"
+      echo "${PR_KIND} (schema 2) with fortran/rust/build changes - ${PR_MATRIX_NOTE}, full physics (standard)"
     else
       TIER=physics-core
       FULL_PHYSICS=false
       PHYSICS_FULL_TRIGGER=none
       if [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
-        echo "Ready PR (schema 2) with python/util changes - ${PR_MATRIX_NOTE}, physics-core"
+        echo "${PR_KIND} (schema 2) with python/util changes - ${PR_MATRIX_NOTE}, physics-core"
       elif [[ "${TESTS_CHANGED}" == "true" ]]; then
-        echo "Ready PR (schema 2) with tests changes - ${PR_MATRIX_NOTE}, physics-core"
+        echo "${PR_KIND} (schema 2) with tests changes - ${PR_MATRIX_NOTE}, physics-core"
       elif [[ "${CI_CHANGED}" == "true" ]]; then
-        echo "Ready PR (schema 2) with ci-only changes - ${PR_MATRIX_NOTE}, physics-core"
+        echo "${PR_KIND} (schema 2) with ci-only changes - ${PR_MATRIX_NOTE}, physics-core"
       else
-        echo "Ready PR (schema 2) with tests/other changes - ${PR_MATRIX_NOTE}, physics-core"
+        echo "${PR_KIND} (schema 2) with tests/other changes - ${PR_MATRIX_NOTE}, physics-core"
       fi
     fi
   else
@@ -296,7 +299,7 @@ elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   # queue's job is to validate the combined tree, so repeat it only on the
   # abi3 floor, on Linux.
   API_PYTHON="$BUILD_PYTHON"
-  NATIVE_BUILDPLAT="$MERGE_API_PLATFORMS"
+  NATIVE_BUILDPLAT="$MERGE_PLATFORMS"
   ABI3_SMOKE_BUILDPLAT="[]"
   OS_COMPAT_BUILDPLAT="$MERGE_PLATFORMS"
 

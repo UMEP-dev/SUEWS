@@ -1671,11 +1671,22 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
     assert mq_py["physics_full_trigger"] == "merge_group"
     assert json.loads(mq_py["abi3_smoke_python"]) == []
     assert json.loads(mq_py["abi3_smoke_buildplat"]) == []
-    assert [p[1] for p in json.loads(mq_py["native_buildplat"])] == ["manylinux"]
+    assert [p[1] for p in json.loads(mq_py["native_buildplat"])] == [
+        "manylinux",
+        "win",
+    ]
     assert [p[1] for p in json.loads(mq_py["os_compat_buildplat"])] == [
         "manylinux",
         "win",
     ]
+
+    mq_tests = _run_determine_matrix(
+        tmp_path,
+        {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "merge_group", "TESTS_CHANGED": "true"},
+    )
+    assert mq_tests["test_tier"] == "standard"
+    assert [p[1] for p in json.loads(mq_tests["native_buildplat"])] == ["manylinux"]
+    assert [p[1] for p in json.loads(mq_tests["os_compat_buildplat"])] == ["manylinux"]
 
     mq_phys = _run_determine_matrix(
         tmp_path,
@@ -1714,13 +1725,15 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
 def test_determine_matrix_schema2_draft_tag_dispatch_and_ci_tiers_parity(
     tmp_path: Path,
 ) -> None:
-    """Schema 2 handles draft PRs, tags, workflow_dispatch, and aligns with ci_tiers/ci_test_layout."""
-    # Draft PR tiers stay fast (core/cfg/smoke).
-    for overrides, expected_tier in (
-        ({"FORTRAN_CHANGED": "true"}, "core"),
-        ({"RUST_CHANGED": "true"}, "core"),
-        ({"BUILD_CHANGED": "true"}, "cfg"),
-        ({"PYTHON_CHANGED": "true"}, "smoke"),
+    """Schema 2 applies PR triggers to drafts, keeps tags/dispatch, and aligns with ci_tiers."""
+    # Under Schema 2, draft PRs follow the same four-trigger / physics-core rules as ready PRs
+    # (no draft exemption in Multi-Axis CI Topology).
+    for overrides, expected_tier, expected_full, expected_trigger in (
+        ({"FORTRAN_CHANGED": "true"}, "standard", "true", "compiled_or_build_change"),
+        ({"RUST_CHANGED": "true"}, "standard", "true", "compiled_or_build_change"),
+        ({"BUILD_CHANGED": "true"}, "standard", "true", "compiled_or_build_change"),
+        ({"PHYSICS_CHANGE": "true"}, "physics-full", "true", "classification_label"),
+        ({"PYTHON_CHANGED": "true"}, "physics-core", "false", "none"),
     ):
         draft = _run_determine_matrix(
             tmp_path,
@@ -1731,8 +1744,9 @@ def test_determine_matrix_schema2_draft_tag_dispatch_and_ci_tiers_parity(
                 **overrides,
             },
         )
-        assert draft["test_tier"] == expected_tier
-        assert draft["full_physics"] == "false"
+        assert draft["test_tier"] == expected_tier, overrides
+        assert draft["full_physics"] == expected_full, overrides
+        assert draft["physics_full_trigger"] == expected_trigger, overrides
         assert ci_tiers.tier_expression("physics", expected_tier, schema=2)
         assert ci_test_layout.native_cells("cp312", expected_tier)
 

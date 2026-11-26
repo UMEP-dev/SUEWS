@@ -618,6 +618,10 @@ test('Schema 2 lane status table renders canonical lanes, ASCII badges, and sani
   assert.match(body, /\| `os_compat` \| \[-\] skipped \|/);
   assert.match(body, /\| `abi3_smoke` \| \[X\] cancelled \|/);
 
+  // timed_out classifies as failure ([X]) even though sanitiseInlineText escapes underscores.
+  const timedOut = laneStatusSection({ physics: 'timed_out' });
+  assert.match(timedOut, /\| `physics` \| \[X\] timed\\_out \|/);
+
   // LANE_STATUSES_JSON works and sanitises untrusted values against HTML comment injection.
   const forged = laneStatusSection({
     tooling: 'success',

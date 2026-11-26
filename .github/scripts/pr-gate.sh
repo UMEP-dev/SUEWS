@@ -268,22 +268,35 @@ check_schema2_lane() {
 }
 
 if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  WHEEL_REQUIRED=false
+  if [[ "${NEEDS_BUILD}" == "true" ]] || [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+    WHEEL_REQUIRED=true
+  fi
+
+  MANDATORY_OS_COMPAT=false
+  if [[ "${WHEEL_REQUIRED}" == "true" ]]; then
+    MANDATORY_OS_COMPAT=true
+  fi
   if [[ "${OS_COMPAT_REQUIRED}" == "unset" ]]; then
-    if [[ "${NEEDS_BUILD}" == "true" ]]; then
-      EFFECTIVE_OS_COMPAT_REQUIRED="true"
-    else
-      EFFECTIVE_OS_COMPAT_REQUIRED="false"
-    fi
+    EFFECTIVE_OS_COMPAT_REQUIRED="${MANDATORY_OS_COMPAT}"
+  elif [[ "${OS_COMPAT_REQUIRED}" == "false" ]] && [[ "${MANDATORY_OS_COMPAT}" == "true" ]]; then
+    echo "[X] Schema 2 OS_COMPAT_REQUIRED=false cannot suppress mandatory os_compat coverage when wheels are required"
+    VALIDATION_PASSED=false
+    EFFECTIVE_OS_COMPAT_REQUIRED="true"
   else
     EFFECTIVE_OS_COMPAT_REQUIRED="${OS_COMPAT_REQUIRED}"
   fi
 
+  MANDATORY_ABI3_SMOKE=false
+  if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${WHEEL_REQUIRED}" == "true" ]]; then
+    MANDATORY_ABI3_SMOKE=true
+  fi
   if [[ "${ABI3_SMOKE_REQUIRED}" == "unset" ]]; then
-    if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${NEEDS_BUILD}" == "true" ]]; then
-      EFFECTIVE_ABI3_SMOKE_REQUIRED="true"
-    else
-      EFFECTIVE_ABI3_SMOKE_REQUIRED="false"
-    fi
+    EFFECTIVE_ABI3_SMOKE_REQUIRED="${MANDATORY_ABI3_SMOKE}"
+  elif [[ "${ABI3_SMOKE_REQUIRED}" == "false" ]] && [[ "${MANDATORY_ABI3_SMOKE}" == "true" ]]; then
+    echo "[X] Schema 2 ABI3_SMOKE_REQUIRED=false cannot suppress mandatory abi3_smoke coverage on wheel-building pull_request"
+    VALIDATION_PASSED=false
+    EFFECTIVE_ABI3_SMOKE_REQUIRED="true"
   else
     EFFECTIVE_ABI3_SMOKE_REQUIRED="${ABI3_SMOKE_REQUIRED}"
   fi
@@ -316,7 +329,7 @@ if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
     check_schema2_lane "abi3_smoke" "${ABI3_SMOKE_RESULT}" "${EFFECTIVE_ABI3_SMOKE_REQUIRED}"
 
   elif [[ "${PHYSICS_CHANGE}" == "true" ]]; then
-    echo "Classification label present without code-filter changes (schema 2) - validating wheel and physics lanes..."
+    echo "Classification label present without code-filter changes (schema 2) - validating wheel and axis lanes..."
     if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
       echo "[OK] Wheel and physics build passed"
     else
@@ -334,7 +347,7 @@ if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
     echo "Validating Schema 2 axis lanes..."
     check_schema2_lane "tooling" "${TOOLING_RESULT}" "false"
     check_schema2_lane "unit" "${UNIT_RESULT}" "false"
-    check_schema2_lane "native" "${NATIVE_RESULT}" "false"
+    check_schema2_lane "native" "${NATIVE_RESULT}" "true"
     check_schema2_lane "physics" "${PHYSICS_RESULT}" "true"
     check_schema2_lane "os_compat" "${OS_COMPAT_RESULT}" "${EFFECTIVE_OS_COMPAT_REQUIRED}"
     check_schema2_lane "abi3_smoke" "${ABI3_SMOKE_RESULT}" "${EFFECTIVE_ABI3_SMOKE_REQUIRED}"

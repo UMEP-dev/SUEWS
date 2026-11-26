@@ -113,13 +113,14 @@ function collectSchema2LaneStatuses(env) {
 }
 
 function formatLaneStatusBadge(status) {
-  const clean = sanitiseInlineText(status);
-  if (clean === 'success') return '[OK] success';
-  if (clean === 'skipped') return '[-] skipped';
-  if (clean === 'failure' || clean === 'cancelled' || clean === 'timed_out') {
-    return `[X] ${clean}`;
+  const raw = String(status).trim();
+  const display = sanitiseInlineText(raw);
+  if (raw === 'success') return '[OK] success';
+  if (raw === 'skipped') return '[-] skipped';
+  if (raw === 'failure' || raw === 'cancelled' || raw === 'timed_out') {
+    return `[X] ${display}`;
   }
-  return `[?] ${clean || 'unknown'}`;
+  return `[?] ${display || 'unknown'}`;
 }
 
 function laneStatusSection(statuses) {

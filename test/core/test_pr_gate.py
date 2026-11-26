@@ -432,6 +432,16 @@ class GateTests(unittest.TestCase):
                 res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
                 self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
 
+            # Explicit =false overrides cannot suppress mandatory wheel-building PR coverage.
+            with self.subTest(suppress_mandatory=req_var):
+                env = {
+                    **_schema2_green_env("pull_request", "physics-core"),
+                    req_var: "false",
+                    res_var: "skipped",
+                }
+                res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
             for bad_flag in ("", "yes", "1"):
                 with self.subTest(invalid_flag=req_var, value=bad_flag):
                     env = {
@@ -440,6 +450,21 @@ class GateTests(unittest.TestCase):
                     }
                     res = _run_pr_gate(env, drop_vars=("TEST_BRIDGE_RESULT",))
                     self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+
+        # Even on merge_group, OS_COMPAT_REQUIRED=false cannot suppress mandatory os_compat when wheels build.
+        res_mq_suppress = _run_pr_gate(
+            {
+                **_schema2_green_env("merge_group", "standard"),
+                "OS_COMPAT_REQUIRED": "false",
+                "OS_COMPAT_RESULT": "skipped",
+            },
+            drop_vars=("TEST_BRIDGE_RESULT",),
+        )
+        self.assertEqual(
+            res_mq_suppress.returncode,
+            1,
+            res_mq_suppress.stdout + res_mq_suppress.stderr,
+        )
 
     def test_schema2_core_guard_enforces_physics_core_and_rejects_invalid_tier(self):
         """Schema 2 requires core_guard on physics-core, standard, and physics-full."""
@@ -504,13 +529,16 @@ class GateTests(unittest.TestCase):
                 self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
 
         # Label-only physics change (NEEDS_BUILD=false, PHYSICS_CHANGE=true):
-        # requires build_wheels + physics + core_guard (at physics-full).
+        # wheels are required, so native, physics, os_compat, and (on PR) abi3_smoke must succeed.
         label_only = {
             **docs_env,
             "PHYSICS_CHANGE": "true",
             "TEST_TIER": "physics-full",
             "BUILD_WHEELS_RESULT": "success",
+            "NATIVE_RESULT": "success",
             "PHYSICS_RESULT": "success",
+            "OS_COMPAT_RESULT": "success",
+            "ABI3_SMOKE_RESULT": "success",
             "CORE_GUARD_RESULT": "success",
         }
         res_label_ok = _run_pr_gate(label_only, drop_vars=("TEST_BRIDGE_RESULT",))
@@ -518,14 +546,33 @@ class GateTests(unittest.TestCase):
             res_label_ok.returncode, 0, res_label_ok.stdout + res_label_ok.stderr
         )
 
-        res_label_skip_phys = _run_pr_gate(
-            {**label_only, "PHYSICS_RESULT": "skipped"},
-            drop_vars=("TEST_BRIDGE_RESULT",),
-        )
+        for req_lane in (
+            "NATIVE_RESULT",
+            "PHYSICS_RESULT",
+            "OS_COMPAT_RESULT",
+            "ABI3_SMOKE_RESULT",
+        ):
+            with self.subTest(label_only_skip=req_lane):
+                res_skip = _run_pr_gate(
+                    {**label_only, req_lane: "skipped"},
+                    drop_vars=("TEST_BRIDGE_RESULT",),
+                )
+                self.assertEqual(
+                    res_skip.returncode, 1, res_skip.stdout + res_skip.stderr
+                )
+
+        # Label-only physics change on merge_group allows abi3_smoke=skipped,
+        # but still requires native, physics, and os_compat.
+        mq_label_only = {
+            **label_only,
+            "EVENT_NAME": "merge_group",
+            "ABI3_SMOKE_RESULT": "skipped",
+        }
+        res_mq_label_ok = _run_pr_gate(mq_label_only, drop_vars=("TEST_BRIDGE_RESULT",))
         self.assertEqual(
-            res_label_skip_phys.returncode,
-            1,
-            res_label_skip_phys.stdout + res_label_skip_phys.stderr,
+            res_mq_label_ok.returncode,
+            0,
+            res_mq_label_ok.stdout + res_mq_label_ok.stderr,
         )
 
         # Schema 2 never falls back to pre-Stage-2 lenient mode when EVENT_NAME is unset.

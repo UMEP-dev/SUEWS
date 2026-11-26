@@ -461,7 +461,10 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
         if not stripped or stripped.startswith("#"):
             continue
 
-        if _RULE_HEADER_RE.match(stripped) and ";" in stripped:
+        is_assignment = bool(
+            _ANY_VAR_ASSIGN_RE.match(stripped) or _COMPUTED_ASSIGN_RE.match(stripped)
+        )
+        if not is_assignment and _RULE_HEADER_RE.match(stripped) and ";" in stripped:
             header_part, inline_recipe = stripped.split(";", 1)
             if _DYNAMIC_MAKE_CALL_RE.search(inline_recipe):
                 raise ValueError(
@@ -683,9 +686,11 @@ def _check_nature_markers(
         rel = path.relative_to(repo_root)
         try:
             target = path.resolve(strict=True)
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError) as exc:
+            read_errors.append(f"{rel.as_posix()}: {exc}")
             continue
         if not target.is_relative_to(repo_root):
+            read_errors.append(f"{rel.as_posix()}: resolved path escapes repo root")
             continue
         if is_auto_applied(rel):
             auto_applied += 1

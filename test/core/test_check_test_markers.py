@@ -209,7 +209,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         "\tTEST_DEFAULT_PATHS := test/recipe_ignored\n"
         "TEST_DEFAULT_PATHS := \\\n"
         "    test/test_surface.py \\\n"
-        "    test/core # avoid $(eval ...) here\n"
+        "    test/core # explanation; avoid $(eval ...) here\n"
         "TEST_DEFAULT_PATHS += test/io_tests\n"
     )
     repo = _make_repo(
@@ -379,6 +379,10 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\\extra\n",
+            "unsupported path characters",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core; true\n",
             "unsupported path characters",
         ),
         (

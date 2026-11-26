@@ -8,7 +8,7 @@
 !
 ! Design guardrails:
 ! - No new physical parameterisation is introduced here.
-! - Scalar formulas mirror `module_phys_ohm` kernels (`OHM_dqndt_cal_X`, `OHM_QS_cal`).
+! - Scalar formulas mirror `module_phys_ohm` kernels (`OHM_dqndt_cal`, `OHM_QS_cal`).
 ! - Physics changes must continue to be made in `module_phys_ohm` first.
 !
 ! Bridge extension in this revision:

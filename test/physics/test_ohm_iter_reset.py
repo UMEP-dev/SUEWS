@@ -1,7 +1,7 @@
 """Regression tests for OHM_STATE iteration reset, unaliasing, AnOHM, and DyOHM.
 
 Setting ``OHM_STATE%iter_safe = .FALSE.`` ensures running-mean net radiation
-histories (``OHM_dqndt_cal_X``) and daily running averages/coefficients in
+histories (``OHM_dqndt_cal``) and daily running averages/coefficients in
 AnOHM and DyOHM advance once per converged timestep rather than once per inner
 surface-temperature pass. Companion fixes remove illegal Fortran 2018
 ``INTENT(IN)``/``INTENT(OUT)`` aliasing at ``CALL OHM`` and ``CALL AnOHM``,
@@ -52,7 +52,7 @@ def _ohm_dqndt_single_pass_series(
     qn_av_init: float = 0.0,
     dqndt_init: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
-    """Evaluate ``OHM_dqndt_cal_X`` once per timestep on a converged ``QN`` series."""
+    """Evaluate ``OHM_dqndt_cal`` once per timestep on a converged ``QN`` series."""
     dt_s = float(tstep)
     dt_hr = dt_s / SECONDS_PER_HOUR
     w2 = math.exp(-dt_s / OHM_TAU2_S)
@@ -257,7 +257,7 @@ def test_ohm_dqndt_single_pass_consistency(short_sample_yaml_path):
         dqndt_single,
         rtol=1.0e-10,
         atol=1.0e-9,
-        err_msg="OHM dqndt diverges from single-pass OHM_dqndt_cal_X recurrence",
+        err_msg="OHM dqndt diverges from single-pass OHM_dqndt_cal recurrence",
     )
     np.testing.assert_allclose(
         df_out.loc[1, ("SUEWS", "QS")].to_numpy(dtype=float),
@@ -298,7 +298,7 @@ def test_anohm_uses_updated_dqndt_next_and_commits_cleanly():
         dqndt_single,
         rtol=1.0e-10,
         atol=1.0e-9,
-        err_msg="AnOHM dqndt diverges from single-pass OHM_dqndt_cal_X recurrence",
+        err_msg="AnOHM dqndt diverges from single-pass OHM_dqndt_cal recurrence",
     )
 
     ohm_state = _decode_ohm_checkpoint(sim)

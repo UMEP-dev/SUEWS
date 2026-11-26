@@ -443,8 +443,8 @@ CONTAINS
             IF (dyohm_building_only) THEN
                ! Hybrid method: start from ordinary grid OHM, then replace
                ! only the building contribution with DyOHM storage heat.
-               CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                                 qn_av_next, dqndt_next)
+               CALL OHM_dqndt_cal(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                                  qn_av_next, dqndt_next)
                CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)
                qs = qs_ohm_grid
                ! Per-surface static-OHM fluxes from each surface's own
@@ -469,10 +469,10 @@ CONTAINS
                   END IF
                END DO
                IF (sfr_surf(BldgSurf) > 0.0D0) THEN
-                  CALL OHM_dqndt_cal_X(tstep, dt_since_start, &
-                                       qn_surf_prev(BldgSurf), qn1_surf(BldgSurf), &
-                                       dqndt_surf_prev(BldgSurf), &
-                                       qn_surf_next(BldgSurf), dqndt_surf_next(BldgSurf))
+                  CALL OHM_dqndt_cal(tstep, dt_since_start, &
+                                     qn_surf_prev(BldgSurf), qn1_surf(BldgSurf), &
+                                     dqndt_surf_prev(BldgSurf), &
+                                     qn_surf_next(BldgSurf), dqndt_surf_next(BldgSurf))
                   qs_bldg_static = qs_surf(BldgSurf)
                   CALL OHM_QS_cal(qn1_surf(BldgSurf), dqndt_surf_next(BldgSurf), &
                                   a1_bldg, a2_bldg, a3_bldg, qs_bldg_dyohm)
@@ -482,8 +482,8 @@ CONTAINS
             ELSE
                ! Calculate dqndt_next for each surface in full DyOHM modes.
                DO i_surf = 1, nsurf
-                  CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
-                                    qn_surf_next(i_surf), dqndt_surf_next(i_surf))
+                  CALL OHM_dqndt_cal(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
+                                     qn_surf_next(i_surf), dqndt_surf_next(i_surf))
                END DO
                CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
                IF (dyohm_all_surfaces) THEN
@@ -516,8 +516,8 @@ CONTAINS
 
          ELSE
             ! traditional OHM
-            CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                              qn_av_next, dqndt_next)
+            CALL OHM_dqndt_cal(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                               qn_av_next, dqndt_next)
             ! print*, 'new dqndt',dqndt
             CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
             IF (DiagQS == DIAG_ON) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
@@ -555,8 +555,8 @@ CONTAINS
             ! Store instantaneous qn1 values for previous hour (qn1_store_grid) and average (qn1_av)
             ! CALL OHM_dqndt_cal(nsh,qn1_S,qn1_S_store_grid,qn1_S_av_store_grid,dqndt)
 
-            CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_s_av_prev, qn1_S, dqnsdt_prev, &
-                                 qn_s_av_next, dqnsdt_next)
+            CALL OHM_dqndt_cal(tstep, dt_since_start, qn_s_av_prev, qn1_S, dqnsdt_prev, &
+                               qn_s_av_next, dqnsdt_next)
 
             ! Calculate net storage heat flux for snow surface using winter_wet
             ! coefficients OHM_coef(nsurf + 1, 3, 1:3) = (a1, a2, a3).
@@ -693,7 +693,7 @@ CONTAINS
    END SUBROUTINE OHM_coef_cal
 
 ! Updated OHM calculations for WRF-SUEWS coupling (v2018b onwards) weighted mean (TS Apr 2018)
-   SUBROUTINE OHM_dqndt_cal_X(dt, dt_since_start, qn1_av_prev, qn1, dqndt_prev, qn1_av_next, dqndt_next)
+   SUBROUTINE OHM_dqndt_cal(dt, dt_since_start, qn1_av_prev, qn1, dqndt_prev, qn1_av_next, dqndt_next)
       IMPLICIT NONE
       INTEGER, INTENT(in) :: dt ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
@@ -703,7 +703,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
       ! First-moment (mean-age) matched time constants for the 2016 1 h boxcar + 2 h diff
-      ! (OHM_dqndt_cal): boxcar centroid T1/2 = 0.5 h and backward-diff centroid T2/2 = 1.0 h.
+      ! formulation: boxcar centroid T1/2 = 0.5 h and backward-diff centroid T2/2 = 1.0 h.
       REAL(KIND(1D0)), PARAMETER :: tau1_hr = 0.5D0 ! stage-1 Q* low-pass timescale [h]
       REAL(KIND(1D0)), PARAMETER :: tau2_hr = 1.0D0 ! stage-2 dQ*/dt low-pass timescale [h]
       REAL(KIND(1D0)), PARAMETER :: sec_hr = REAL(sec_per_hour, KIND(1D0))
@@ -724,44 +724,6 @@ CONTAINS
          qn1_av_next = w1*qn1_av_prev + (1.0D0 - w1)*qn1
          w2 = EXP(-dt_s/tau2_s)
          dqndt_next = w2*dqndt_prev + (1.0D0 - w2)*((qn1_av_next - qn1_av_prev)/dt_hr)
-      END IF
-
-   END SUBROUTINE OHM_dqndt_cal_X
-
-! New OHM calculations (v2017a-v2018a) using running mean (HCW Dec 2016)
-   SUBROUTINE OHM_dqndt_cal(nsh, qn, qn_store_grid, qn_av_store_grid, dqndt)
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: nsh ! number of timesteps in one hour
-      REAL(KIND(1D0)), INTENT(in) :: qn
-      REAL(KIND(1D0)), INTENT(inout) :: qn_store_grid(nsh) ! instantaneous qn1 values for previous hour
-      REAL(KIND(1D0)), INTENT(inout) :: qn_av_store_grid(2*nsh + 1) ! average qn1 values for previous hour
-      REAL(KIND(1D0)), INTENT(out) :: dqndt !dQ* per dt for 60 min
-
-      REAL(KIND(1D0)) :: qn_av
-      INTEGER :: nsh_nna
-
-      dqndt = -999 ! initialise as -999
-
-      ! Store instantaneous qn1 values for previous hour (qn1_store_grid) and average (qn1_av)
-      IF (nsh > 1) THEN
-         qn_store_grid = CSHIFT(qn_store_grid, 1) ! shift to left with one place
-         qn_store_grid(nsh) = qn
-         nsh_nna = COUNT(qn_store_grid /= -999, dim=1) !Find how many are not -999s  !bug fixed HCW 08 Feb 2017
-         qn_av = SUM(qn_store_grid, mask=qn_store_grid /= -999)/nsh_nna
-      ELSEIF (nsh == 1) THEN
-         qn_store_grid(:) = qn
-         qn_av = qn
-      END IF
-      ! Store hourly average values (calculated every timestep) for previous 2 hours
-      IF (nsh >= 1) THEN
-         qn_av_store_grid = CSHIFT(qn_av_store_grid, 1)
-         qn_av_store_grid(2*nsh + 1) = qn_av
-      END IF
-      ! Calculate dQ* per dt for 60 min (using running mean Q* at t hours and (t-2) hours)
-      IF (ANY(qn_av_store_grid == -999)) THEN
-         dqndt = 0 ! Set dqndt term to zero for spinup
-      ELSE
-         dqndt = 0.5*(qn_av_store_grid((2*nsh + 1)) - qn_av_store_grid(1))
       END IF
 
    END SUBROUTINE OHM_dqndt_cal

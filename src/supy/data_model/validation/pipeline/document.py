@@ -445,6 +445,67 @@ class ConfigPatch:
     default_wrapped: bool = True
 
 
+def apply_patches_in_place(
+    target: dict[str, Any], patches: Sequence[ConfigPatch]
+) -> dict[str, Any]:
+    """Apply a sequence of :class:`ConfigPatch` mutations to *target* in place.
+
+    Shared by :meth:`ConfigDocument.apply_patches`, :meth:`PatchPlan.apply_to_dict`,
+    and selective suggestion application so all entry points enforce identical
+    validation semantics:
+
+    - ``set`` raises :class:`ValueError` if the path cannot be written.
+    - ``delete`` raises :class:`ValueError` if the parent container does not
+      exist or is not a mapping / leaf is not a string key; deleting a missing
+      key from an existing mapping parent is an idempotent no-op.
+    - ``nullify_tree`` raises :class:`ValueError` if the path cannot be resolved.
+    """
+    for patch in patches:
+        if patch.action not in _VALID_PATCH_ACTIONS:
+            raise ValueError(
+                f"Unsupported patch action {patch.action!r} at path {patch.path!r}"
+            )
+        if patch.action == "set":
+            applied = write_path(
+                target,
+                patch.path,
+                patch.new_value,
+                default_wrapped=patch.default_wrapped,
+            )
+            if not applied:
+                raise ValueError(
+                    f"Failed to apply 'set' patch at path {patch.path!r}"
+                )
+        elif patch.action == "delete":
+            tokens = parse_path_tokens(patch.path)
+            located = _ensure_parent_container(
+                target, tokens, create_missing=False
+            )
+            if located is None:
+                raise ValueError(
+                    f"Failed to apply 'delete' patch at path {patch.path!r}: "
+                    "parent container not found"
+                )
+            parent, leaf = located
+            if not isinstance(parent, dict) or not isinstance(leaf, str):
+                raise ValueError(
+                    f"Failed to apply 'delete' patch at path {patch.path!r}: "
+                    "target must be a mapping key"
+                )
+            parent.pop(leaf, None)
+        elif patch.action == "nullify_tree":
+            applied = apply_nullify_tree_at_path(
+                target,
+                patch.path,
+                skip_keys=frozenset(patch.skip_keys),
+            )
+            if not applied:
+                raise ValueError(
+                    f"Failed to apply 'nullify_tree' patch at path {patch.path!r}"
+                )
+    return target
+
+
 class ConfigDocument:
     """Canonical in-memory representation of a SUEWS YAML configuration.
 
@@ -526,43 +587,7 @@ class ConfigDocument:
     def apply_patches(self, patches: Sequence[ConfigPatch]) -> ConfigDocument:
         """Return a new :class:`ConfigDocument` with *patches* applied in order."""
         target = self.clone()
-        for patch in patches:
-            if patch.action not in _VALID_PATCH_ACTIONS:
-                raise ValueError(
-                    f"Unsupported patch action {patch.action!r} at path {patch.path!r}"
-                )
-            if patch.action == "set":
-                applied = write_path(
-                    target.data,
-                    patch.path,
-                    patch.new_value,
-                    default_wrapped=patch.default_wrapped,
-                )
-                if not applied:
-                    raise ValueError(
-                        f"Failed to apply 'set' patch at path {patch.path!r}"
-                    )
-            elif patch.action == "delete":
-                tokens = parse_path_tokens(patch.path)
-                located = _ensure_parent_container(
-                    target.data, tokens, create_missing=False
-                )
-                if located is None:
-                    raise ValueError(
-                        f"Failed to apply 'delete' patch at path {patch.path!r}: "
-                        "parent container not found"
-                    )
-                delete_path(target.data, patch.path)
-            elif patch.action == "nullify_tree":
-                applied = apply_nullify_tree_at_path(
-                    target.data,
-                    patch.path,
-                    skip_keys=frozenset(patch.skip_keys),
-                )
-                if not applied:
-                    raise ValueError(
-                        f"Failed to apply 'nullify_tree' patch at path {patch.path!r}"
-                    )
+        apply_patches_in_place(target.data, patches)
         target.raw_text = None
         return target
 

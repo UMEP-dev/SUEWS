@@ -439,6 +439,49 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
 
 ---
 
+## Multi-Axis CI Topology (transitional, #2349)
+
+The current gate's nature markers are `physics | api`, and its `api` lane is
+switched per platform by `run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+
+The topology below is the target. Its axis selection takes effect once
+`pyproject.toml` registers `tooling`, `unit` and `native` (#2349 `W1-4`), and
+its lanes once `build-publish_to_pypi.yml` enables `GATE_AXIS_SCHEMA=2` (#2349
+`W1-6`); until then, the existing `physics | api` policy in "Test Tier
+Definitions", "Test Tier Assignment by Event" and "Merge Queue Coverage
+Policy" remains active, and this section does not describe what CI runs. From
+`W1-6` it also supersedes the
+physics worked example in "Where a new expensive check goes" below (slow
+physics tests gating a pull request only through a classification label); the
+general guidance in that section is unchanged. The superseded parts of the
+sections above are pruned in their own pull request after `W1-6` lands, so
+each lane is stated in one place. [decision: software maintainer, 2026-11-26]
+
+- **One required check.** Every axis reports through the existing required
+  check `PR build validation`; no required check is added or renamed. [decision: software maintainer, 2026-11-26]
+  The job that carries that check exists today. [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
+- **From source at t=0.** `tooling` and `unit` start with the workflow, from a
+  source checkout, without waiting for a wheel. [decision: software maintainer, 2026-11-26]
+- **`native` on one Python per OS.** `native` runs once per built OS on cp312
+  (the abi3 build floor), not across Python versions, because the same abi3
+  binary is under test. An installed-wheel `abi3_smoke` lane covers the other
+  interpreters: cp315 on pull requests, cp313 to cp315 on the nightly and on
+  release. [decision: software maintainer, 2026-11-26]
+- **`os_compat` on Windows and macOS.** The `os_compat` slice runs on the
+  Windows and macOS builds as well as Linux; the rest of `tooling` and `unit`
+  runs on Linux only. [decision: software maintainer, 2026-11-26]
+- **Full `physics` selected automatically on exactly four triggers:** (1) pull
+  requests that touch Fortran, Rust or the build (the `fortran`, `rust` and
+  `build` filter categories); (2) pull requests labelled `0-physics:change` or
+  `0-numerics:change`; (3) the merge queue; (4) the nightly. Every other
+  wheel-building Python pull request runs `physics-core`: the smoke tests plus
+  `test/core/test_sample_output_exact.py` (about 50 s). Outside that automatic
+  selection, tag releases keep the full matrix at tier `all`, a manual
+  dispatch keeps its `test_tier` input, and the publish jobs require every axis
+  to have succeeded. [decision: software maintainer, 2026-11-26]
+
+---
+
 ## The Nightly as the Scientific Tier
 
 The nightly scheduled run (2 AM UTC, `build-publish_to_pypi.yml`) is where the

@@ -1576,3 +1576,67 @@ def test_dev20_self_target_normalises_and_rejects_and_dev19_stays_unchanged(caps
         "profile_metabolism"
     ]["working_day"] == {"01": 0.5}
     assert capsys.readouterr().err == ""
+
+
+def test_dev8_observed_soil_migration_does_not_leak_dev20_profile_validation():
+    """Observed-soil dev8 -> dev9 validation preserves pre-dev20 keys for <=dev19 and raises YamlUpgradeError for dev20."""
+    from importlib.resources import as_file, files  # noqa: PLC0415
+
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext  # noqa: PLC0415
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    dev8 = deepcopy(base_cfg)
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    bad_wd = dev8["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"]
+    val_1 = bad_wd.pop("1")
+    bad_wd["+1"] = val_1
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    migrator = SchemaMigrator()
+
+    # Historical target dev19 preserves pre-dev20 key behaviour without leaking dev20 validation.
+    to_dev19 = migrator.migrate(
+        deepcopy(dev8), to_version="2026.6.dev19", migration_context=ctx
+    )
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert (
+        "+1"
+        in to_dev19["sites"][0]["properties"]["building_archetype"][
+            "profile_metabolism"
+        ]["working_day"]
+    )
+
+    # Targeting dev20 reaches the dev20 migration delta and raises YamlUpgradeError (not Pydantic ValidationError).
+    with pytest.raises(
+        YamlUpgradeError, match=r"profile_metabolism\.working_day.*Invalid 10-minute profile key '\+1'"
+    ):
+        migrator.migrate(
+            deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
+        )

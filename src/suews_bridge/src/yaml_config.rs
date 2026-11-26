@@ -6286,38 +6286,50 @@ mod tests {
         let mut root: Value =
             serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
-        let working_day = get_path_mut(
-            site,
-            &[
-                "properties",
-                "building_archetype",
-                "profile_setpoint_temperature_cooling_air",
-                "working_day",
-            ],
-        )
-        .expect("fixture should contain cooling working-day profile");
-        let Value::Mapping(day_map) = working_day else {
-            panic!("cooling working-day profile should be a mapping");
-        };
-        let mut rewritten = serde_yaml::Mapping::new();
-        for step in 1..=144_u64 {
-            let val = day_map
-                .get(Value::String(step.to_string()))
-                .cloned()
-                .expect("fixture should define all 144 slices");
-            let new_key = match step {
-                1 => Value::String("001".to_string()),
-                2..=9 => Value::String(format!("{step:02}")),
-                10..=20 => Value::Number(step.into()),
-                144 => Value::String("0144".to_string()),
-                _ => Value::String(step.to_string()),
+        for (day_name, base) in [("working_day", 20.0_f64), ("holiday", 30.0_f64)] {
+            let day_node = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "building_archetype",
+                    "profile_setpoint_temperature_cooling_air",
+                    day_name,
+                ],
+            )
+            .expect("fixture should contain cooling day profile");
+            let Value::Mapping(day_map) = day_node else {
+                panic!("cooling day profile should be a mapping");
             };
-            rewritten.insert(new_key, val);
+            let mut rewritten = serde_yaml::Mapping::new();
+            for step in 1..=144_u64 {
+                let distinct_val = base + (step as f64) * 0.05;
+                let new_key = match step {
+                    1 => Value::String("001".to_string()),
+                    2..=9 => Value::String(format!("{step:02}")),
+                    10..=20 => Value::Number(step.into()),
+                    144 => Value::String("0144".to_string()),
+                    _ => Value::String(step.to_string()),
+                };
+                rewritten.insert(new_key, Value::Number(serde_yaml::Number::from(distinct_val)));
+            }
+            *day_map = rewritten;
         }
-        *day_map = rewritten;
 
-        load_run_config_from_value(&mut root)
+        let run_cfg = load_run_config_from_value(&mut root)
             .expect("zero-padded and integer 1..144 step keys should be accepted");
+        let cooling = &run_cfg.site
+            .building_archtype
+            .coolingsetpointtemperatureprofile;
+        for (day_idx, base) in [(0_usize, 20.0_f64), (1_usize, 30.0_f64)] {
+            for step in 1..=144_usize {
+                let expected = base + (step as f64) * 0.05;
+                let actual = cooling[day_idx][step - 1];
+                assert!(
+                    (actual - expected).abs() < 1e-12,
+                    "day_idx={day_idx} step={step}: expected {expected}, got {actual}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -1,16 +1,23 @@
-"""Breadth sweep over the physics-option space.
+"""Breadth sweep over the physics-option space via YAML -> Rust ``SUEWSSimulation``.
 
 The rest of `test/physics/` exercises two to five hand-picked points of the
 physics-option space. A single day of the bundled sample configuration costs
-about 0.16 s of model time, so running *every* value of *every*
+about 0.1 s of model time, so running *every* value of *every*
 `ModelPhysics` enum -- one option varied at a time from the sample's defaults
 -- costs seconds and turns the option space from "the values we happened to
 pick" into "the values that exist".
 
+Every case executes through the public `SUEWSSimulation` (YAML / `SUEWSConfig`
+-> Rust engine) path rather than the legacy `to_df_state()` / `from_state()`
+adapter, reusing session-scoped fixtures from `test/conftest.py` with
+defensive copies so shared state is never mutated.
+
 What the sweep asserts for each runnable value:
 
-- SUEWS cloud observations match supplied forcing, all other SUEWS
-  outputs are finite and non-sentinel, and
+- all active output groups (`SUEWS`, `BEERS`, `RSL`, `debug`, `DailyState`,
+  plus `EHC` / `SPARTACUS` / `snow` when enabled) are finite and non-sentinel
+  on the exact forcing timestamps, with `SUEWS.Fcld` matching supplied
+  forcing, and
 - the water balance closes to the same 1e-4 mm bound
   `test_core_physics.test_water_balance_consistency` uses.
 
@@ -28,20 +35,55 @@ three declared tables, each with its reason:
   construction and on assignment, so no run is attempted. The sweep asserts
   that rejection and its message.
 
-`test_option_tables_name_real_values` keeps the three tables from rotting: a
-key naming a field or value that no longer exists fails.
+`test_option_tables_name_real_values` keeps the three tables and the
+representative multi-option combination table from rotting: a key naming a
+field or value that no longer exists fails.
 """
 
+from __future__ import annotations
+
+from collections.abc import Mapping
 from enum import Enum
+from importlib import import_module
+from pathlib import Path
 import re
-from typing import get_args
+import tempfile
+from typing import Any, get_args
 
-from conftest import TIMESTEPS_PER_DAY, run_simulation
-from layer5_checks import assert_forcing_cloud, strict_finite_array
+from conftest import TIMESTEPS_PER_DAY
+from layer5_checks import (
+    DAILYSTATE_ABSENT_UNDER_EHC,
+    RSL_ABSENT_UNDER_MOST,
+    assert_forcing_cloud,
+    assert_simulation_output_finiteness,
+    expected_dailystate_mask,
+    expected_group_columns,
+    strict_finite_array,
+)
 import numpy as np
+import pandas as pd
 import pytest
+import yaml
 
-from supy.data_model.core.model import ModelPhysics
+from supy import SUEWSSimulation
+from supy.data_model import RefValue, SUEWSConfig
+from supy.data_model.core.model import (
+    EHCStabilityControl,
+    EHCSurfaceCoupling,
+    EmissionsMethod,
+    FAIMethod,
+    GSModel,
+    HeatRoughnessMethod,
+    KdownSplitMethod,
+    ModelPhysics,
+    MomentumRoughnessMethod,
+    NetRadiationMethod,
+    OhmIncQf,
+    RSLLevel,
+    RSLMethod,
+    StabilityMethod,
+    StorageHeatMethod,
+)
 
 pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE")]
 
@@ -49,6 +91,18 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-BALANCE", "C-RESPONSE
 # is exact by construction, so this is a numerical-noise margin, not a
 # physical tolerance.
 WATER_CLOSURE_TOLERANCE_MM = 1e-4
+
+# Canonical surface order matching Fortran (PavSurf..WaterSurf) and debug
+# soil-storage columns (`ss_<Surface>_next`).
+_SURFACE_ORDER: tuple[tuple[str, str], ...] = (
+    ("paved", "Paved"),
+    ("bldgs", "Bldgs"),
+    ("evetr", "EveTr"),
+    ("dectr", "DecTr"),
+    ("grass", "Grass"),
+    ("bsoil", "BSoil"),
+    ("water", "Water"),
+)
 
 # Values needing missing inputs or an implemented method combination.
 # Each maps to a fragment of the message the model refuses it with.
@@ -117,6 +171,62 @@ OPTION_VALUES_REJECTED = {
     ): "roughness_length_momentum=5 (ALTERNATIVE) is not available",
 }
 
+# Representative valid multi-option physics combinations exercised end-to-end
+# through on-disk YAML -> SUEWSSimulation -> Rust on the bundled 1-day forcing.
+# Coupled runs for OPTION_VALUES_REFUSED entries and cold-snow / 7-surface /
+# observed-sm anchors live in dedicated follow-up slices of #2100.
+REPRESENTATIVE_OPTION_COMBINATIONS: dict[str, dict[str, Enum]] = {
+    "ehc_implicit_macdonald_ward": {
+        "storage_heat": StorageHeatMethod.EHC,
+        "ehc_surface_coupling": EHCSurfaceCoupling.IMPLICIT,
+        "control_ehc_stability": EHCStabilityControl.RELAX,
+        "roughness_length_momentum": MomentumRoughnessMethod.MACDONALD,
+        "surface_conductance": GSModel.WARD,
+    },
+    "ehc_explicit_kawai_most": {
+        "storage_heat": StorageHeatMethod.EHC,
+        "ehc_surface_coupling": EHCSurfaceCoupling.EXPLICIT,
+        "roughness_length_heat": HeatRoughnessMethod.KAWAI,
+        "roughness_sublayer": RSLMethod.MOST,
+    },
+    "dyohm_biogen_co2_reindl": {
+        "storage_heat": StorageHeatMethod.DyOHM,
+        "emissions": EmissionsMethod.BIOGEN_RECT_J11,
+        "kdown_split_method": KdownSplitMethod.REINDL,
+        "roughness_sublayer_level": RSLLevel.DETAILED,
+    },
+    "dyohm_building_jarvi_businger": {
+        "storage_heat": StorageHeatMethod.DyOHM_BUILDING,
+        "surface_conductance": GSModel.JARVI,
+        "stability": StabilityMethod.BUSINGER_HOEGSTROM,
+        "roughness_length_heat": HeatRoughnessMethod.ADAPTIVE,
+    },
+    "anohm_lambdap_fai_modelled": {
+        "storage_heat": StorageHeatMethod.ANOHM,
+        "roughness_length_momentum": MomentumRoughnessMethod.LAMBDAP_DEPENDENT,
+        "frontal_area_index": FAIMethod.MODELLED,
+        "roughness_sublayer": RSLMethod.RST,
+    },
+    "narp_zenith_ohm_inc_qf": {
+        "net_radiation": NetRadiationMethod.LDOWN_AIR_ZENITH,
+        "ohm_inc_qf": OhmIncQf.INCLUDE,
+        "kdown_split_method": KdownSplitMethod.PEREZ,
+        "emissions": EmissionsMethod.L11,
+    },
+}
+
+
+def _unwrap_value(value: Any) -> Any:
+    """Unwrap ``RefValue`` and ``Enum`` wrappers to the underlying primitive."""
+    inner = value.value if isinstance(value, RefValue) else value
+    return inner.value if isinstance(inner, Enum) else inner
+
+
+def _option_label(value: Any) -> str:
+    """Return a readable name for an Enum, ``RefValue[Enum]``, or stub value."""
+    inner = value.value if isinstance(value, RefValue) else value
+    return str(getattr(inner, "name", inner))
+
 
 def _enum_class(annotation):
     """The Enum behind a `ModelPhysics` field annotation, or None.
@@ -179,54 +289,153 @@ def _rejected_params():
 
 
 @pytest.fixture(scope="module")
-def sample_state_and_forcing(sample_config_loaded, sample_data_loaded):
-    """The sample's `(df_state, one-day df_forcing)`, built once per module.
+def sample_sweep_base(sample_config_loaded, sample_data_loaded):
+    """Read-only `(sample_config, one-day df_forcing)` built from session fixtures.
 
-    `SUEWSConfig.to_df_state()` costs about 0.55 s, which would dominate a
-    ninety-case sweep if paid per case, so the base state is built once here
-    and each case patches only the physics columns (see `patch_physics`).
-
-    READ-ONLY, shared across the module: `patch_physics` copies before
-    writing and the forcing frame is never mutated.
+    Reuses the session-scoped `sample_config_loaded` and `sample_data_loaded`
+    fixtures without calling `to_df_state()`. Every consumer copies before
+    mutating (`build_sweep_config` / `patch_physics` deep-copy the config and
+    `run_simulation` copies the forcing slice).
     """
     _, df_forcing = sample_data_loaded
-    return (
-        sample_config_loaded.to_df_state(),
-        df_forcing.iloc[:TIMESTEPS_PER_DAY].copy(),
-    )
+    return sample_config_loaded, df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()
 
 
-def patch_physics(df_state_base, config, field, value):
-    """`df_state_base` with one physics option changed to `value`.
+def build_sweep_config(
+    base_config: SUEWSConfig,
+    physics_overrides: Mapping[str, Any],
+) -> SUEWSConfig:
+    """Return a defensive copy of ``base_config`` with validated physics overrides."""
+    patched = base_config.model_copy(deep=True)
+    for field, value in physics_overrides.items():
+        setattr(patched.model.physics, field, value)
+    return patched
 
-    The change goes through the data model twice over: assignment onto a
-    `ModelPhysics` copy is validated (`validate_assignment=True`), and the
-    replacement columns come from that model's own `to_df_state`, not from a
-    hand-written column poke. `test_patched_state_matches_full_config_state`
-    pins the assumption this rests on -- that no column outside
-    `ModelPhysics.to_df_state`'s own output is derived from physics.
+
+def patch_physics(
+    base_source: SUEWSConfig | pd.DataFrame,
+    config: SUEWSConfig | None,
+    field: str,
+    value: Any,
+) -> SUEWSConfig:
+    """Return a defensive `SUEWSConfig` copy with one physics option changed.
+
+    Accepts a `SUEWSConfig` as `base_source` (the primary YAML -> Rust sweep
+    path) or falls back to `config` when a contract-control test passes a
+    legacy `(df_state, df_forcing)` pair. Assignment onto `ModelPhysics`
+    triggers Pydantic `validate_assignment=True`.
     """
-    physics = config.model.physics.model_copy(deep=True)
-    setattr(physics, field, value)
-    df_physics = physics.to_df_state(df_state_base.index[0])
-    df_state = df_state_base.copy()
-    for col in df_physics.columns:
-        df_state[col] = df_physics[col].values
-    return df_state
+    source = base_source if isinstance(base_source, SUEWSConfig) else config
+    if not isinstance(source, SUEWSConfig):
+        raise TypeError(
+            "patch_physics requires a SUEWSConfig via base_source or config"
+        )
+    return build_sweep_config(source, {field: value})
 
 
-def water_balance_residual_mm(df_output, df_state, grid=1):
+def run_simulation(
+    df_forcing: pd.DataFrame,
+    config_or_yaml: SUEWSConfig | Path | str,
+    *,
+    serial_mode: bool = True,
+    round_trip_yaml: bool = False,
+    work_dir: Path | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Execute one sweep case through public ``SUEWSSimulation`` -> Rust engine.
+
+    When ``round_trip_yaml=True``, serialises a ``SUEWSConfig`` to an on-disk
+    YAML file and loads it back through ``SUEWSSimulation.update_config(path)``
+    so the full YAML parser, validator, and Rust engine boundary are exercised.
+    """
+    forcing = df_forcing.copy()
+    sim = SUEWSSimulation()
+    if isinstance(config_or_yaml, (str, Path)):
+        sim.update_config(Path(config_or_yaml), auto_load_forcing=False)
+    elif isinstance(config_or_yaml, SUEWSConfig):
+        if round_trip_yaml:
+            if work_dir is not None:
+                yaml_path = Path(work_dir) / "sweep_case.yml"
+                config_or_yaml.to_yaml(yaml_path)
+                sim.update_config(yaml_path, auto_load_forcing=False)
+            else:
+                with tempfile.TemporaryDirectory(prefix="suews_sweep_") as tmp_dir:
+                    yaml_path = Path(tmp_dir) / "sweep_case.yml"
+                    config_or_yaml.to_yaml(yaml_path)
+                    sim.update_config(yaml_path, auto_load_forcing=False)
+        else:
+            sim.update_config(
+                config_or_yaml.model_copy(deep=True),
+                auto_load_forcing=False,
+            )
+    else:
+        raise TypeError(
+            f"run_simulation expects a SUEWSConfig or YAML path, got {type(config_or_yaml)!r}"
+        )
+
+    sim.update_forcing(forcing)
+    output = sim.run(
+        start_date=forcing.index[0],
+        end_date=forcing.index[-1],
+        n_jobs=1 if serial_mode else -1,
+    )
+    return output.df, output.state_final
+
+
+def _extract_surface_fractions(
+    df_state_or_config: SUEWSConfig | pd.DataFrame,
+    *,
+    grid: int,
+) -> np.ndarray:
+    """Return the 7 surface fractions for ``grid`` in canonical Fortran order."""
+    if isinstance(df_state_or_config, SUEWSConfig):
+        matching = [
+            site
+            for site in df_state_or_config.sites
+            if int(_unwrap_value(site.gridiv)) == int(grid)
+        ]
+        assert len(matching) == 1, (
+            f"Expected exactly one site for grid={grid}, found {len(matching)}"
+        )
+        land_cover = matching[0].properties.land_cover
+        weights = np.array(
+            [
+                float(_unwrap_value(getattr(land_cover, field).sfr))
+                for field, _ in _SURFACE_ORDER
+            ],
+            dtype=float,
+        )
+        invalid_names = [
+            field
+            for (field, _), weight in zip(_SURFACE_ORDER, weights, strict=True)
+            if not np.isfinite(weight) or weight == -999
+        ]
+        assert not invalid_names, f"Invalid sfr_surf at grid={grid}: {invalid_names}"
+        return weights
+
+    fractions = df_state_or_config["sfr_surf"].loc[grid, [f"({i},)" for i in range(7)]]
+    weights = fractions.to_numpy(dtype=float)
+    invalid_fractions = fractions.index[~np.isfinite(weights) | (weights == -999)]
+    assert invalid_fractions.empty, (
+        f"Invalid sfr_surf at grid={grid}: {invalid_fractions.tolist()}"
+    )
+    return weights
+
+
+def water_balance_residual_mm(
+    df_output: pd.DataFrame,
+    df_state: SUEWSConfig | pd.DataFrame,
+    grid: int = 1,
+) -> float:
     """Largest per-timestep water-balance residual, in mm.
 
     P + I = E + RO + dS, with storage taken as the surface-fraction-weighted
     soil store from the debug group plus the surface water state -- the same
     accounting `test_core_physics.test_water_balance_consistency` uses.
+    Accepts either a `SUEWSConfig` (YAML -> Rust sweep path) or a `df_state`
+    DataFrame (used by `test_core_physics.py` and assertion-control tests).
     """
     columns = [("SUEWS", name) for name in ("State", "Rain", "Irr", "Evap", "RO")]
-    columns += [
-        ("debug", f"ss_{surface}_next")
-        for surface in ("Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water")
-    ]
+    columns += [("debug", f"ss_{surface}_next") for _, surface in _SURFACE_ORDER]
     missing = [col for col in columns if col not in df_output.columns]
     assert not missing, f"Missing water balance columns for grid={grid}: {missing}"
     water = df_output.loc[grid, columns]
@@ -242,12 +451,7 @@ def water_balance_residual_mm(df_output, df_state, grid=1):
         f"{columns[col]} at grid={grid}, time={water.index[row]}: {values[row, col]}"
         for row, col in invalid[:5]
     )
-    fractions = df_state["sfr_surf"].loc[grid, [f"({i},)" for i in range(7)]]
-    weights = fractions.to_numpy(dtype=float)
-    invalid_fractions = fractions.index[~np.isfinite(weights) | (weights == -999)]
-    assert invalid_fractions.empty, (
-        f"Invalid sfr_surf at grid={grid}: {invalid_fractions.tolist()}"
-    )
+    weights = _extract_surface_fractions(df_state, grid=grid)
     suews = water["SUEWS"]
     soil_store = water["debug"].dot(weights)
     total_store = soil_store + suews.State
@@ -256,35 +460,194 @@ def water_balance_residual_mm(df_output, df_state, grid=1):
     return float((total_store.diff().iloc[1:] - net_input.iloc[1:]).abs().max())
 
 
-@pytest.mark.parametrize(("field", "value"), list(_sweep_params()))
-def test_option_value_runs_finite_and_conserves_water(
-    field, value, sample_config_loaded, sample_state_and_forcing
-):
-    """One sample day per physics-option value: finite output, water closes."""
-    # ARRANGE
-    df_state_base, df_forcing = sample_state_and_forcing
-    df_state = patch_physics(df_state_base, sample_config_loaded, field, value)
+# Indoor EHC diagnostics emitted as -999 -> NaN under explicit EHC coupling
+# (ehc_surface_coupling=0, matching test/core/test_ehc_implicit.py).
+_EHC_ABSENT_UNDER_EXPLICIT: tuple[str, ...] = ("QIndoor_EHC", "T_Indoor_EHC")
+_LAYER_SUFFIX_RE = re.compile(r"_(\d+)$")
 
-    # ACT
-    df_output, _ = run_simulation(df_forcing, df_state, serial_mode=True)
 
-    # ASSERT
-    actual_times = df_output.loc[1].index
+def _unused_layer_cols(columns: tuple[str, ...], nlayer: int) -> tuple[str, ...]:
+    """Return fixed-width vertical-layer columns above ``nlayer``."""
+    return tuple(
+        col
+        for col in columns
+        if (m := _LAYER_SUFFIX_RE.search(col)) is not None and int(m.group(1)) > nlayer
+    )
+
+
+def _assert_rsl_and_dailystate_for_explicit_ehc(
+    grid_df: pd.DataFrame,
+    *,
+    expected_timestamps: pd.DatetimeIndex,
+    tstep: int,
+) -> None:
+    """Assert RSL and DailyState finiteness under explicit EHC."""
+    rsl = grid_df["RSL"]
+    rsl_cols = expected_group_columns("RSL")
+    flag_rsl = strict_finite_array(rsl["flag_RSL"], label="RSL.flag_RSL")
+    rsl_mask = np.equal(flag_rsl, 1.0)
+    most_mask = np.equal(flag_rsl, 0.0)
+    assert bool((rsl_mask | most_mask).all())
+    if bool(rsl_mask.any()):
+        strict_finite_array(rsl.loc[rsl_mask, list(rsl_cols)], label="RSL[flag_RSL=1]")
+    if bool(most_mask.any()):
+        assert rsl.loc[most_mask, list(RSL_ABSENT_UNDER_MOST)].isna().all().all()
+        most_active = [c for c in rsl_cols if c not in RSL_ABSENT_UNDER_MOST]
+        strict_finite_array(rsl.loc[most_mask, most_active], label="RSL[flag_RSL=0]")
+
+    ds = grid_df["DailyState"]
+    ds_cols = expected_group_columns("DailyState")
+    eod_mask = expected_dailystate_mask(expected_timestamps, tstep)
+    assert bool(eod_mask.any())
+    if bool((~eod_mask).any()):
+        assert ds.loc[~eod_mask, list(ds_cols)].isna().all().all()
+    assert ds.loc[eod_mask, list(DAILYSTATE_ABSENT_UNDER_EHC)].isna().all().all()
+    ds_active = [c for c in ds_cols if c not in DAILYSTATE_ABSENT_UNDER_EHC]
+    strict_finite_array(ds.loc[eod_mask, ds_active], label="DailyState[EOD]")
+
+
+def _assert_explicit_ehc_active_groups(
+    grid_df: pd.DataFrame,
+    *,
+    expected_timestamps: pd.DatetimeIndex,
+    tstep: int,
+    net_radiation: int,
+    snow_use: int,
+    nlayer: int,
+    has_buildings: bool,
+) -> None:
+    """Assert active output groups under explicit EHC (storage_heat=5, coupling=0)."""
+    for group in ("debug", "BEERS"):
+        sub = grid_df[group]
+        cols = expected_group_columns(group)
+        missing = sorted(set(cols) - set(sub.columns))
+        assert not missing, f"{group}: missing required output columns: {missing}"
+        if group == "BEERS" and not has_buildings:
+            assert sub[list(cols)].isna().all().all()
+        else:
+            strict_finite_array(sub[list(cols)], label=group)
+
+    _assert_rsl_and_dailystate_for_explicit_ehc(
+        grid_df, expected_timestamps=expected_timestamps, tstep=tstep
+    )
+
+    ehc = grid_df["EHC"]
+    ehc_cols = expected_group_columns("EHC")
+    missing_ehc = sorted(set(ehc_cols) - set(ehc.columns))
+    assert not missing_ehc, f"EHC: missing required output columns: {missing_ehc}"
+    ehc_absent = (*_EHC_ABSENT_UNDER_EXPLICIT, *_unused_layer_cols(ehc_cols, nlayer))
+    assert ehc[list(ehc_absent)].isna().all().all(), (
+        f"EHC[explicit]: expected all-NaN columns {ehc_absent}"
+    )
+    ehc_active = [c for c in ehc_cols if c not in ehc_absent]
+    strict_finite_array(ehc[ehc_active], label="EHC[explicit]")
+
+    if net_radiation > 1000:
+        sp = grid_df["SPARTACUS"]
+        sp_cols = expected_group_columns("SPARTACUS")
+        sp_unused = _unused_layer_cols(sp_cols, nlayer)
+        if sp_unused:
+            assert sp[list(sp_unused)].isna().all().all()
+        strict_finite_array(
+            sp[[c for c in sp_cols if c not in sp_unused]], label="SPARTACUS"
+        )
+    if snow_use == 1:
+        strict_finite_array(
+            grid_df["snow"][list(expected_group_columns("snow"))], label="snow"
+        )
+
+
+def assert_sweep_invariants(
+    df_output: pd.DataFrame,
+    df_forcing: pd.DataFrame,
+    state_or_config: SUEWSConfig | pd.DataFrame,
+    *,
+    case_label: str,
+    grid: int = 1,
+    check_all_active_groups: bool = False,
+) -> float:
+    """Assert timestamp alignment, active finiteness, cloud parity, and water closure."""
+    actual_times = df_output.loc[grid].index
     assert actual_times.equals(df_forcing.index), (
-        "Incomplete or misordered water output rows for grid=1: "
+        f"Incomplete or misordered water output rows for grid={grid}: "
         f"missing={df_forcing.index.difference(actual_times).tolist()}, "
         f"unexpected={actual_times.difference(df_forcing.index).tolist()}"
     )
-    residual = water_balance_residual_mm(df_output, df_state)
-    suews = df_output.loc[1, "SUEWS"]
+    residual = water_balance_residual_mm(df_output, state_or_config, grid=grid)
+    suews = df_output.loc[grid, "SUEWS"]
     assert "Fcld" in suews, "SUEWS: missing required output column Fcld"
     assert_forcing_cloud(suews["Fcld"], df_forcing)
-    suews = suews.drop(columns="Fcld")
-    strict_finite_array(suews, label="SUEWS")
+    strict_finite_array(suews.drop(columns="Fcld"), label="SUEWS")
+
+    if check_all_active_groups and isinstance(state_or_config, SUEWSConfig):
+        physics = state_or_config.model.physics
+        matching = [
+            site
+            for site in state_or_config.sites
+            if int(_unwrap_value(site.gridiv)) == int(grid)
+        ]
+        assert len(matching) == 1, (
+            f"Expected exactly one site for grid={grid}, found {len(matching)}"
+        )
+        site = matching[0]
+        tstep = int(_unwrap_value(state_or_config.model.control.tstep))
+        nlayer = int(_unwrap_value(site.properties.vertical_layers.nlayer))
+        has_buildings = float(_unwrap_value(site.properties.land_cover.bldgs.sfr)) > 0.0
+        storage_heat = int(_unwrap_value(physics.storage_heat))
+        net_radiation = int(_unwrap_value(physics.net_radiation))
+        snow_use = int(_unwrap_value(physics.snow_use))
+        ehc_coupling = int(_unwrap_value(physics.ehc_surface_coupling))
+        if storage_heat == int(StorageHeatMethod.EHC.value) and ehc_coupling == int(
+            EHCSurfaceCoupling.EXPLICIT.value
+        ):
+            _assert_explicit_ehc_active_groups(
+                df_output.xs(grid, level=0),
+                expected_timestamps=df_forcing.index,
+                tstep=tstep,
+                net_radiation=net_radiation,
+                snow_use=snow_use,
+                nlayer=nlayer,
+                has_buildings=has_buildings,
+            )
+        else:
+            assert_simulation_output_finiteness(
+                df_output,
+                expected_grids=(grid,),
+                expected_timestamps=df_forcing.index,
+                tstep=tstep,
+                storage_heat=storage_heat,
+                net_radiation=net_radiation,
+                snow_use=snow_use,
+                nlayer=nlayer,
+                has_buildings=has_buildings,
+                forcing=df_forcing,
+            )
 
     assert residual < WATER_CLOSURE_TOLERANCE_MM, (
-        f"{field}={value.name}: water balance not closed, max residual "
-        f"{residual:.3e} mm"
+        f"{case_label}: water balance not closed, max residual {residual:.3e} mm"
+    )
+    return residual
+
+
+@pytest.mark.parametrize(("field", "value"), list(_sweep_params()))
+def test_option_value_runs_finite_and_conserves_water(
+    field, value, sample_config_loaded, sample_sweep_base
+):
+    """One sample day per physics-option value: finite output, water closes."""
+    # ARRANGE
+    base_source, df_forcing = sample_sweep_base
+    case_config = patch_physics(base_source, sample_config_loaded, field, value)
+
+    # ACT
+    df_output, _ = run_simulation(df_forcing, case_config, serial_mode=True)
+
+    # ASSERT
+    assert_sweep_invariants(
+        df_output,
+        df_forcing,
+        case_config,
+        case_label=f"{field}={_option_label(value)}",
+        check_all_active_groups=isinstance(case_config, SUEWSConfig),
     )
 
 
@@ -292,7 +655,7 @@ def test_option_value_runs_finite_and_conserves_water(
     ("field", "value", "message_fragment"), list(_refusal_params())
 )
 def test_option_value_unsupported_by_sample_is_refused(
-    field, value, message_fragment, sample_config_loaded, sample_state_and_forcing
+    field, value, message_fragment, sample_config_loaded, sample_sweep_base
 ):
     """Missing inputs or unsupported combinations fail with a usable message.
 
@@ -301,12 +664,12 @@ def test_option_value_unsupported_by_sample_is_refused(
     skip would give it no coverage at all.
     """
     # ARRANGE
-    df_state_base, df_forcing = sample_state_and_forcing
-    df_state = patch_physics(df_state_base, sample_config_loaded, field, value)
+    base_source, df_forcing = sample_sweep_base
+    case_config = patch_physics(base_source, sample_config_loaded, field, value)
 
     # ACT / ASSERT
     with pytest.raises((ValueError, RuntimeError), match=re.escape(message_fragment)):
-        run_simulation(df_forcing, df_state, serial_mode=True)
+        run_simulation(df_forcing, case_config, serial_mode=True)
 
 
 @pytest.mark.parametrize(
@@ -329,36 +692,87 @@ def test_option_value_rejected_at_configuration(
         setattr(physics, field, value)
 
 
-def test_patched_state_matches_full_config_state(
-    sample_config_loaded, sample_state_and_forcing
+@pytest.mark.parametrize(
+    ("case_name", "overrides"),
+    [
+        pytest.param(name, overrides, id=name)
+        for name, overrides in REPRESENTATIVE_OPTION_COMBINATIONS.items()
+    ],
+)
+def test_yaml_rust_option_combinations_run_finite_and_conserve_water(
+    case_name, overrides, sample_sweep_base, tmp_path
 ):
-    """Patching the physics columns equals rebuilding the whole config state.
-
-    The sweep patches only the columns `ModelPhysics.to_df_state` writes,
-    which is sound just as long as nothing outside them is derived from
-    physics. This pins that: if a future config section starts reading
-    `model.physics`, the sweep's shortcut fails here rather than quietly
-    running the wrong state.
-    """
+    """Representative valid physics combinations pass end-to-end YAML -> Rust."""
     # ARRANGE
-    df_state_base, _ = sample_state_and_forcing
-    field, value = "storage_heat", 5  # EHC: reaches the extended-facet branch
+    base_config, df_forcing = sample_sweep_base
+    case_config = build_sweep_config(base_config, overrides)
 
     # ACT
-    patched = patch_physics(df_state_base, sample_config_loaded, field, value)
-    rebuilt_config = sample_config_loaded.model_copy(deep=True)
-    setattr(rebuilt_config.model.physics, field, value)
-    rebuilt = rebuilt_config.to_df_state()
+    df_output, _ = run_simulation(
+        df_forcing,
+        case_config,
+        serial_mode=True,
+        round_trip_yaml=True,
+        work_dir=tmp_path,
+    )
 
     # ASSERT
-    assert list(patched.columns) == list(rebuilt.columns)
-    np.testing.assert_array_equal(
-        patched.to_numpy(dtype=object), rebuilt.to_numpy(dtype=object)
+    assert_sweep_invariants(
+        df_output,
+        df_forcing,
+        case_config,
+        case_label=case_name,
+        check_all_active_groups=True,
     )
 
 
+def test_yaml_roundtrip_matches_in_memory_config_run(sample_sweep_base, tmp_path):
+    """On-disk YAML and in-memory SUEWSConfig produce identical engine output.
+
+    Pins the shortcut used by the single-option sweep: patching a deep copy of
+    the session `SUEWSConfig` leaves the session fixture untouched and emits
+    the same resolved engine YAML and bit-identical output as serialising to
+    YAML and re-parsing through `SUEWSConfig.from_yaml`.
+    """
+    # ARRANGE
+    config_to_engine_yaml = import_module("supy._run_rust").config_to_engine_yaml
+    base_config, df_forcing = sample_sweep_base
+    original_storage_heat = _unwrap_value(base_config.model.physics.storage_heat)
+    case_config = build_sweep_config(
+        base_config, {"storage_heat": StorageHeatMethod.EHC}
+    )
+
+    # ACT
+    yaml_path = tmp_path / "ehc_case.yml"
+    case_config.to_yaml(yaml_path)
+    reloaded = SUEWSConfig.from_yaml(str(yaml_path))
+    df_mem, _ = run_simulation(
+        df_forcing, case_config, serial_mode=True, round_trip_yaml=False
+    )
+    df_yaml, _ = run_simulation(
+        df_forcing, yaml_path, serial_mode=True, round_trip_yaml=False
+    )
+
+    # ASSERT
+    assert (
+        _unwrap_value(base_config.model.physics.storage_heat) == original_storage_heat
+    )
+    mem_payload = {
+        k: v
+        for k, v in yaml.safe_load(config_to_engine_yaml(case_config)).items()
+        if not str(k).startswith("_")
+    }
+    yaml_payload = {
+        k: v
+        for k, v in yaml.safe_load(config_to_engine_yaml(reloaded)).items()
+        if not str(k).startswith("_")
+    }
+    assert mem_payload == yaml_payload
+    pd.testing.assert_frame_equal(df_mem, df_yaml, check_exact=True)
+
+
 def test_option_tables_name_real_values():
-    """Every exclusion, refusal and xfail key names a field and value that exist.
+    """Every exclusion, refusal, xfail, and combination key names a real option.
 
     Without this the tables rot silently: a renamed field or a dropped enum
     member would leave an entry that excuses nothing, and the value it was
@@ -387,3 +801,24 @@ def test_option_tables_name_real_values():
         | set(OPTION_VALUES_XFAIL) & set(OPTION_VALUES_REJECTED)
     )
     assert not overlap, f"a value is in more than one table: {overlap}"
+
+    excluded = (
+        set(OPTION_VALUES_REFUSED)
+        | set(OPTION_VALUES_XFAIL)
+        | set(OPTION_VALUES_REJECTED)
+    )
+    for case_name, overrides in REPRESENTATIVE_OPTION_COMBINATIONS.items():
+        assert len(overrides) >= 2, (
+            f"REPRESENTATIVE_OPTION_COMBINATIONS[{case_name!r}] must combine at "
+            "least two physics options"
+        )
+        for field, member in overrides.items():
+            key = (field, member.value)
+            assert key in known, (
+                f"REPRESENTATIVE_OPTION_COMBINATIONS[{case_name!r}] names "
+                f"unknown option {key!r}"
+            )
+            assert key not in excluded, (
+                f"REPRESENTATIVE_OPTION_COMBINATIONS[{case_name!r}] overlaps "
+                f"excluded single-option table on {key!r}"
+            )

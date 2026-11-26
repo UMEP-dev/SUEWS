@@ -16,12 +16,19 @@ Checks two invariants under ``test/``:
    every entry in ``TEST_DEFAULT_PATHS`` parses cleanly and exists under
    ``test/``.
 
+The ``Makefile`` parser intentionally supports only direct literal
+``TEST_DEFAULT_PATHS`` assignments (plus backslash continuations, inline
+comments, and ``+=`` appends) and fails closed on dynamic Make constructs
+(``include``, ``eval``, variable references, conditionals, ``define``
+overrides, and unsupported operators).
+
 Exits 0 when every check passes, 1 otherwise.
 """
 
 from __future__ import annotations
 
 import ast
+import fnmatch
 import os
 from pathlib import Path
 import re
@@ -71,6 +78,82 @@ def _to_ascii(text: str) -> str:
     return text.encode("ascii", errors="backslashreplace").decode("ascii")
 
 
+def _is_link_or_junction(path: Path) -> bool:
+    """Return True if ``path`` is a symlink or a Windows directory junction."""
+    return path.is_symlink() or path.is_junction()
+
+
+def _is_test_filename(filename: str) -> bool:
+    """Return True if ``filename`` matches pytest's default test-file globs."""
+    return fnmatch.fnmatch(filename, "test_*.py") or fnmatch.fnmatch(
+        filename, "*_test.py"
+    )
+
+
+def _walk_test_tree(
+    resolved_root: Path,
+    test_root: Path,
+) -> tuple[list[Path], list[str]]:
+    """Walk ``test_root`` once, collecting test files and layout/traversal errors."""
+    discovered: list[Path] = []
+    errors: list[str] = []
+
+    def _on_walk_error(exc: OSError) -> None:
+        raw_path = getattr(exc, "filename", None)
+        if raw_path is not None:
+            path_obj = Path(raw_path)
+            label = (
+                path_obj.relative_to(resolved_root).as_posix()
+                if path_obj.is_relative_to(resolved_root)
+                else path_obj.as_posix()
+            )
+            errors.append(f"unable to traverse test directory {label}: {exc}")
+        else:
+            errors.append(f"unable to traverse test directory: {exc}")
+
+    for dirpath, dirnames, filenames in os.walk(
+        test_root, followlinks=False, onerror=_on_walk_error
+    ):
+        current_dir = Path(dirpath)
+        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
+
+        kept_dirs: list[str] = []
+        for dirname in dirnames:
+            entry = current_dir / dirname
+            if _is_link_or_junction(entry):
+                rel = entry.relative_to(resolved_root).as_posix()
+                errors.append(
+                    f"unsupported directory symlink or junction under test/: {rel}"
+                )
+            else:
+                kept_dirs.append(dirname)
+        dirnames[:] = kept_dirs
+
+        for filename in sorted(filenames):
+            entry = current_dir / filename
+            if _is_link_or_junction(entry):
+                rel = entry.relative_to(resolved_root).as_posix()
+                try:
+                    target = entry.resolve(strict=True)
+                except FileNotFoundError:
+                    errors.append(f"broken symlink under test/: {rel}")
+                    continue
+                except (OSError, RuntimeError):
+                    errors.append(f"cyclic or unresolvable symlink under test/: {rel}")
+                    continue
+                if not target.is_relative_to(resolved_root):
+                    errors.append(f"symlink under test/ escapes repository root: {rel}")
+                    continue
+                if _is_test_filename(filename) and target.is_file():
+                    discovered.append(entry)
+                continue
+
+            if _is_test_filename(filename) and entry.is_file():
+                discovered.append(entry)
+
+    return (sorted(discovered), errors)
+
+
 def iter_test_files(test_root: Path) -> list[Path]:
     """Return sorted pytest-discoverable files under ``test_root``.
 
@@ -83,16 +166,22 @@ def iter_test_files(test_root: Path) -> list[Path]:
     -------
     list[Path]
         Sorted list of unique ``test_*.py`` and ``*_test.py`` files,
-        excluding ``__pycache__`` entries.
+        excluding ``__pycache__`` entries and directory symlinks/junctions.
     """
-    discovered: set[Path] = set()
-    for pattern in ("test_*.py", "*_test.py"):
-        for path in test_root.rglob(pattern):
-            if not path.is_file():
+    discovered: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(test_root, followlinks=False):
+        current_dir = Path(dirpath)
+        dirnames[:] = sorted(
+            d
+            for d in dirnames
+            if d != "__pycache__" and not _is_link_or_junction(current_dir / d)
+        )
+        for filename in sorted(filenames):
+            if not _is_test_filename(filename):
                 continue
-            if "__pycache__" in path.relative_to(test_root).parts:
-                continue
-            discovered.add(path)
+            entry = current_dir / filename
+            if entry.is_file():
+                discovered.append(entry)
     return sorted(discovered)
 
 
@@ -162,12 +251,18 @@ def is_auto_applied(rel: Path) -> bool:
     return any(rel_posix.startswith(prefix) for prefix in AUTO_APPLIED_DIRS)
 
 
+def _has_odd_trailing_backslashes(line: str) -> bool:
+    """Return True when ``line`` ends with an odd count of backslashes."""
+    trailing = len(line) - len(line.rstrip("\\"))
+    return trailing % 2 == 1
+
+
 def _join_makefile_continuations(text: str) -> list[str]:
-    """Join GNU Make backslash-continued lines into logical lines."""
+    """Join GNU Make backslash-continued lines respecting backslash parity."""
     logical_lines: list[str] = []
     buffer = ""
     for raw_line in text.splitlines():
-        if raw_line.endswith("\\"):
+        if _has_odd_trailing_backslashes(raw_line):
             part = raw_line[:-1]
             buffer = f"{buffer} {part.lstrip()}" if buffer else part
         elif buffer:
@@ -248,7 +343,12 @@ def _apply_makefile_target_line(
 
 
 def _update_define_depth(line: str, define_depth: int) -> int:
-    """Update nested ``define``/``endef`` depth while inside an active block."""
+    """Update nested ``define``/``endef`` depth while rejecting hidden ``eval``."""
+    if _EVAL_CALL_RE.search(line):
+        raise ValueError(
+            "Makefile eval inside define block is unsupported when parsing "
+            f"TEST_DEFAULT_PATHS: {line.strip()}"
+        )
     if _DEFINE_OPEN_RE.match(line):
         return define_depth + 1
     if _DEFINE_CLOSE_RE.match(line):
@@ -351,41 +451,6 @@ def _is_covered_by_lane(
     return any(rel_path.is_relative_to(directory) for directory in covered_dirs)
 
 
-def _find_symlink_errors(resolved_root: Path, test_root: Path) -> list[str]:
-    """Return errors for unsupported directory symlinks or invalid symlinks."""
-    errors: list[str] = []
-    for dirpath, dirnames, filenames in os.walk(test_root, followlinks=False):
-        current_dir = Path(dirpath)
-        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
-
-        kept_dirs: list[str] = []
-        for dirname in dirnames:
-            entry = current_dir / dirname
-            if entry.is_symlink():
-                rel = entry.relative_to(resolved_root).as_posix()
-                errors.append(f"unsupported directory symlink under test/: {rel}")
-            else:
-                kept_dirs.append(dirname)
-        dirnames[:] = kept_dirs
-
-        for filename in sorted(filenames):
-            entry = current_dir / filename
-            if not entry.is_symlink():
-                continue
-            rel = entry.relative_to(resolved_root).as_posix()
-            try:
-                target = entry.resolve(strict=True)
-            except FileNotFoundError:
-                errors.append(f"broken symlink under test/: {rel}")
-                continue
-            except (OSError, RuntimeError):
-                errors.append(f"cyclic or unresolvable symlink under test/: {rel}")
-                continue
-            if not target.is_relative_to(resolved_root):
-                errors.append(f"symlink under test/ escapes repository root: {rel}")
-    return errors
-
-
 def _collect_covered_lanes(
     resolved_root: Path,
     resolved_test_root: Path,
@@ -399,6 +464,11 @@ def _collect_covered_lanes(
 
     for entry in default_paths:
         raw_candidate = resolved_root / entry
+        if raw_candidate.is_dir() and _is_link_or_junction(raw_candidate):
+            errors.append(
+                f"TEST_DEFAULT_PATHS entry is a directory symlink or junction: {entry}"
+            )
+            continue
         try:
             candidate = raw_candidate.resolve(strict=True)
         except FileNotFoundError:
@@ -463,18 +533,18 @@ def find_orphan_test_files(
     -------
     tuple[list[str], list[str]]
         ``(errors, orphans)`` where ``errors`` describes ``Makefile`` parse,
-        symlink, or invalid-path failures and ``orphans`` lists uncovered
-        test files as POSIX paths relative to ``repo_root``.
+        symlink/junction, traversal, or invalid-path failures and ``orphans``
+        lists uncovered test files as POSIX paths relative to ``repo_root``.
     """
     resolved_root = repo_root.resolve()
     raw_test_root = test_root if test_root is not None else resolved_root / "test"
-    if raw_test_root.is_symlink():
+    if _is_link_or_junction(raw_test_root):
         rel_test_root = (
             raw_test_root.relative_to(resolved_root).as_posix()
             if raw_test_root.is_relative_to(resolved_root)
             else raw_test_root.name
         )
-        return ([f"unsupported directory symlink: {rel_test_root}"], [])
+        return ([f"unsupported directory symlink or junction: {rel_test_root}"], [])
 
     resolved_test_root = raw_test_root.resolve()
     if not resolved_test_root.is_relative_to(resolved_root):
@@ -494,10 +564,11 @@ def find_orphan_test_files(
     errors, covered_files, covered_dirs = _collect_covered_lanes(
         resolved_root, resolved_test_root, default_paths, peripheral_dirs
     )
-    errors.extend(_find_symlink_errors(resolved_root, resolved_test_root))
+    discovered_files, walk_errors = _walk_test_tree(resolved_root, resolved_test_root)
+    errors.extend(walk_errors)
 
     orphans: list[str] = []
-    for path in iter_test_files(resolved_test_root):
+    for path in discovered_files:
         rel = path.relative_to(resolved_root)
         if not _is_covered_by_lane(rel, covered_files, covered_dirs):
             orphans.append(rel.as_posix())
@@ -509,20 +580,19 @@ def _check_nature_markers(
     repo_root: Path,
     test_files: list[Path],
 ) -> tuple[int, int, list[str], list[str]]:
-    """Scan test files for nature markers without reading escaping symlinks."""
+    """Scan test files for nature markers after confirming in-repo containment."""
     missing: list[str] = []
     read_errors: list[str] = []
     checked = 0
     auto_applied = 0
     for path in test_files:
         rel = path.relative_to(repo_root)
-        if path.is_symlink():
-            try:
-                target = path.resolve(strict=True)
-            except (OSError, RuntimeError):
-                continue
-            if not target.is_relative_to(repo_root):
-                continue
+        try:
+            target = path.resolve(strict=True)
+        except (OSError, RuntimeError):
+            continue
+        if not target.is_relative_to(repo_root):
+            continue
         if is_auto_applied(rel):
             auto_applied += 1
             continue
@@ -554,10 +624,11 @@ def main(argv: list[str]) -> int:
     """
     repo_root = Path(argv[1]).resolve() if len(argv) > 1 else Path.cwd().resolve()
     test_root = repo_root / "test"
-    if test_root.is_symlink():
+    if _is_link_or_junction(test_root):
         print(
             _to_ascii(
-                "[X] gh#2349 lane-coverage lint: unsupported directory symlink: test"
+                "[X] gh#2349 lane-coverage lint: "
+                "unsupported directory symlink or junction: test"
             ),
             file=sys.stderr,
         )
@@ -567,7 +638,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     lane_errors, orphans = find_orphan_test_files(repo_root, test_root=test_root)
-    test_files = iter_test_files(test_root)
+    test_files, _ = _walk_test_tree(repo_root, test_root)
     checked, auto_applied, missing, read_errors = _check_nature_markers(
         repo_root, test_files
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -302,6 +303,14 @@ def test_makefile_continuations_comments_append_and_recipes(
             "endef\n"
             "$(eval $(TRIM))\n",
             "top-level expansion or eval is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "define TRIM\n"
+            "$(eval TEST_DEFAULT_PATHS := test/core)\n"
+            "endef\n"
+            "UNUSED := $(TRIM)\n",
+            "eval inside define block is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\\extra\n",
@@ -615,6 +624,98 @@ def test_broken_symlink_reports_structured_error(tmp_path: Path, capsys) -> None
     assert rc == 1
     assert "broken symlink under test/" in captured.err
     assert "test/core/test_broken.py" in captured.err
+    assert captured.err.isascii()
+
+
+def test_even_trailing_backslashes_do_not_swallow_next_assignment(
+    tmp_path: Path, capsys
+) -> None:
+    """Two trailing backslashes in a comment do not absorb the next assignment."""
+    makefile = (
+        "TEST_DEFAULT_PATHS := test/core test/orphan_dir\n"
+        "# Two trailing backslashes: \\\\\n"
+        "TEST_DEFAULT_PATHS := test/core\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan_dir/test_stray.py": API_TEST_SOURCE,
+        },
+        makefile=makefile,
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/orphan_dir/test_stray.py" in captured.err
+
+
+def test_unreadable_directory_reports_traversal_error(tmp_path: Path, capsys) -> None:
+    """An unreadable directory under test/ fails instead of silently passing."""
+    if sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0):
+        pytest.skip("POSIX non-root directory permissions required for chmod(0o000)")
+
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/unreadable_dir/test_hidden.py": UNMARKED_TEST_SOURCE,
+        },
+    )
+    blocked = repo / "test" / "unreadable_dir"
+    blocked.chmod(0o000)
+    try:
+        rc = _run(repo)
+    finally:
+        blocked.chmod(0o755)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unable to traverse test directory" in captured.err
+    assert "test/unreadable_dir" in captured.err
+    assert captured.err.isascii()
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Windows directory junctions exist only on Windows",
+)
+def test_windows_directory_junction_under_test_is_rejected(
+    tmp_path: Path, capsys
+) -> None:
+    """A Windows directory junction under test/ fails closed instead of escaping."""
+    external_dir = tmp_path / "external_suite"
+    external_dir.mkdir()
+    (external_dir / "test_hidden.py").write_text(API_TEST_SOURCE, encoding="utf-8")
+    repo = _make_repo(
+        tmp_path / "repo",
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+        },
+    )
+    junction_dir = repo / "test" / "core" / "external_junction"
+    proc = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction_dir), str(external_dir)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        pytest.skip(f"mklink /J unavailable on this runner: {proc.stderr.strip()}")
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unsupported directory symlink or junction" in captured.err
+    assert "test/core/external_junction" in captured.err
     assert captured.err.isascii()
 
 

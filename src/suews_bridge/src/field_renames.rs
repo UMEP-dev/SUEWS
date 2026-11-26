@@ -27,6 +27,7 @@
 //! `src/supy/data_model/core/field_renames.py`. Drift is enforced by
 //! `scripts/lint/check_rust_yaml_aliases.py`.
 
+use crate::option_codes::{OhmIncQf, RcMethod, SetpointMethod, StebbsMethod, StorageHeatMethod};
 use serde_yaml::Value;
 
 /// Ordered list of `(new_name, old_name)` pairs.
@@ -806,24 +807,42 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
     (
         "storage_heat",
         &[
-            ("observed", 0),
-            ("ohm", 1),
-            ("ohm_without_qf", 1),
-            ("anohm", 3),
-            ("s17", 3),
-            ("estm", 4),
-            ("o05", 4),
-            ("ehc", 5),
-            ("dyohm", 6),
-            ("l25", 6),
-            ("stebbs", 7),
-            ("dyohm_building", 8),
-            ("dyohm_buildings", 8),
-            ("dyohm_bldg", 8),
-            ("dyohm_bldgs", 8),
+            ("observed", StorageHeatMethod::Observed.as_i32() as i64),
+            ("ohm", StorageHeatMethod::Ohm.as_i32() as i64),
+            ("ohm_without_qf", StorageHeatMethod::Ohm.as_i32() as i64),
+            ("anohm", StorageHeatMethod::Anohm.as_i32() as i64),
+            ("s17", StorageHeatMethod::Anohm.as_i32() as i64),
+            ("estm", StorageHeatMethod::Estm.as_i32() as i64),
+            ("o05", StorageHeatMethod::Estm.as_i32() as i64),
+            ("ehc", StorageHeatMethod::Ehc.as_i32() as i64),
+            ("dyohm", StorageHeatMethod::Dyohm.as_i32() as i64),
+            ("l25", StorageHeatMethod::Dyohm.as_i32() as i64),
+            ("stebbs", StorageHeatMethod::Stebbs.as_i32() as i64),
+            (
+                "dyohm_building",
+                StorageHeatMethod::DyohmBuilding.as_i32() as i64,
+            ),
+            (
+                "dyohm_buildings",
+                StorageHeatMethod::DyohmBuilding.as_i32() as i64,
+            ),
+            (
+                "dyohm_bldg",
+                StorageHeatMethod::DyohmBuilding.as_i32() as i64,
+            ),
+            (
+                "dyohm_bldgs",
+                StorageHeatMethod::DyohmBuilding.as_i32() as i64,
+            ),
         ],
     ),
-    ("ohm_inc_qf", &[("exclude", 0), ("include", 1)]),
+    (
+        "ohm_inc_qf",
+        &[
+            ("exclude", OhmIncQf::Exclude.as_i32() as i64),
+            ("include", OhmIncQf::Include.as_i32() as i64),
+        ],
+    ),
     (
         "roughness_length_momentum",
         &[
@@ -882,20 +901,37 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
         &[("jarvi", 1), ("j11", 1), ("ward", 2), ("w16", 2)],
     ),
     ("snow_use", &[("disabled", 0), ("enabled", 1)]),
-    ("stebbs", &[("none", 0), ("default", 1), ("provided", 2)]),
-    ("parameters", &[("default", 1), ("provided", 2)]),
+    (
+        "stebbs",
+        &[
+            ("none", StebbsMethod::None.as_i32() as i64),
+            ("default", StebbsMethod::Default.as_i32() as i64),
+            ("provided", StebbsMethod::Provided.as_i32() as i64),
+        ],
+    ),
+    (
+        "parameters",
+        &[
+            ("default", StebbsMethod::Default.as_i32() as i64),
+            ("provided", StebbsMethod::Provided.as_i32() as i64),
+        ],
+    ),
     (
         "capacitance",
         &[
-            ("default", 0),
-            ("provided", 1),
-            ("parameterise", 2),
-            ("parameterize", 2),
+            ("default", RcMethod::Default.as_i32() as i64),
+            ("provided", RcMethod::Provided.as_i32() as i64),
+            ("parameterise", RcMethod::Parameterise.as_i32() as i64),
+            ("parameterize", RcMethod::Parameterise.as_i32() as i64),
         ],
     ),
     (
         "setpoint",
-        &[("constant", 0), ("dependent", 1), ("scheduled", 2)],
+        &[
+            ("constant", SetpointMethod::Constant.as_i32() as i64),
+            ("dependent", SetpointMethod::Dependent.as_i32() as i64),
+            ("scheduled", SetpointMethod::Scheduled.as_i32() as i64),
+        ],
     ),
     ("same_albedo_wall", &[("disabled", 0), ("enabled", 1)]),
     ("same_albedo_roof", &[("disabled", 0), ("enabled", 1)]),
@@ -1499,14 +1535,16 @@ fn fold_kdown_split_constant_direct_fraction(root: &mut Value) -> Result<(), Str
 }
 
 fn normalise_include_qf_value(value: Value) -> Result<Value, String> {
+    let include = OhmIncQf::Include.as_i32() as i64;
+    let exclude = OhmIncQf::Exclude.as_i32() as i64;
     let code = match value {
-        Value::Bool(true) => 1,
-        Value::Bool(false) => 0,
-        Value::Number(n) if n.as_i64() == Some(1) => 1,
-        Value::Number(n) if n.as_i64() == Some(0) => 0,
+        Value::Bool(true) => include,
+        Value::Bool(false) => exclude,
+        Value::Number(n) if n.as_i64() == Some(include) => include,
+        Value::Number(n) if n.as_i64() == Some(exclude) => exclude,
         Value::String(raw) => match raw.trim().to_ascii_lowercase().as_str() {
-            "include" | "included" | "true" | "yes" | "y" | "on" | "1" => 1,
-            "exclude" | "excluded" | "false" | "no" | "n" | "off" | "0" => 0,
+            "include" | "included" | "true" | "yes" | "y" | "on" | "1" => include,
+            "exclude" | "excluded" | "false" | "no" | "n" | "off" | "0" => exclude,
             _ => return Err(
                 "Nested 'storage_heat.ohm.include_qf' expects a boolean or 'include'/'exclude'."
                     .to_string(),
@@ -1958,16 +1996,20 @@ fn read_parameters_code(entry: &Value) -> Result<i64, String> {
         Value::Number(n) => {
             if let Some(code) = n.as_i64() {
                 match code {
-                    1 | 2 => Ok(code),
+                    code if code == i64::from(StebbsMethod::Default.as_i32())
+                        || code == i64::from(StebbsMethod::Provided.as_i32()) =>
+                    {
+                        Ok(code)
+                    }
                     _ => Err(format!(
                         "model.physics.stebbs.parameters expects 1 or 2, got {code}"
                     )),
                 }
             } else if let Some(code) = n.as_f64() {
-                if code == 1.0 {
-                    Ok(1)
-                } else if code == 2.0 {
-                    Ok(2)
+                if code == f64::from(StebbsMethod::Default.as_i32()) {
+                    Ok(i64::from(StebbsMethod::Default.as_i32()))
+                } else if code == f64::from(StebbsMethod::Provided.as_i32()) {
+                    Ok(i64::from(StebbsMethod::Provided.as_i32()))
                 } else {
                     Err(format!(
                         "model.physics.stebbs.parameters expects 1 or 2, got {code}"
@@ -1977,7 +2019,7 @@ fn read_parameters_code(entry: &Value) -> Result<i64, String> {
                 Err("model.physics.stebbs.parameters expects 1 or 2".to_string())
             }
         }
-        Value::Bool(true) => Ok(1),
+        Value::Bool(true) => Ok(i64::from(StebbsMethod::Default.as_i32())),
         Value::Bool(false) => {
             Err("model.physics.stebbs.parameters expects 1 or 2, got false".to_string())
         }
@@ -2093,14 +2135,18 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
     let parameters_key = Value::String("parameters".into());
     let parameters_code = match stebbs_block.get(&parameters_key) {
         Some(value) => read_parameters_code(value)?,
-        None => 1,
+        None => i64::from(StebbsMethod::Default.as_i32()),
     };
     let enabled = stebbs_block
         .get(Value::String("enabled".into()))
         .map(read_enabled_flag)
         .transpose()?
         .unwrap_or(false);
-    let stebbsmethod_value = if !enabled { 0 } else { parameters_code };
+    let stebbsmethod_value = if !enabled {
+        i64::from(StebbsMethod::None.as_i32())
+    } else {
+        parameters_code
+    };
     let mut stebbsmethod_flat = serde_yaml::Mapping::new();
     stebbsmethod_flat.insert(
         Value::String("value".into()),

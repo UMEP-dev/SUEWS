@@ -1,4 +1,6 @@
 MODULE module_ctrl_type
+   USE module_ctrl_const_options, ONLY: &
+      SHM_EHC
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, nvegsurf, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
@@ -710,7 +712,7 @@ CONTAINS
          PervFraction = 1 - ImpervFraction
          NonWaterFraction = 1 - sfr_surf(WaterSurf)
 
-         IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
+         IF (StorageHeatMethod == SHM_EHC .OR. NetRadiationMethod > 1000) THEN
             ! get individual building fractions of each layer
             ! NB.: sum(sfr_roof) = building_frac(1)
             sfr_roof = 0.

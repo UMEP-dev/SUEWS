@@ -1,5 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_ohm
+   USE module_ctrl_const_options, ONLY: &
+      DIAG_ON, SHM_DYOHM, SHM_DYOHM_BUILDING, SHM_STEBBS
    ! USE module_ctrl_const_allocate
    ! USE module_ctrl_const_datain
    ! USE module_ctrl_const_default
@@ -165,9 +167,9 @@ CONTAINS
       !real(kind(1d0)):: OHM_TForSummer = 10  !Use summer coefficients if 5-day Tair >= 10 degC - modified for UK HCW 14 Dec 2015
       !real(kind(1d0)):: OHM_SMForWet = 0.9  !Use wet coefficients if SM close to soil capacity
 
-      dyohm_all_surfaces = StorageHeatMethod == 6
-      dyohm_with_stebbs = StorageHeatMethod == 7
-      dyohm_building_only = StorageHeatMethod == 8
+      dyohm_all_surfaces = StorageHeatMethod == SHM_DYOHM
+      dyohm_with_stebbs = StorageHeatMethod == SHM_STEBBS
+      dyohm_building_only = StorageHeatMethod == SHM_DYOHM_BUILDING
       dyohm_active = dyohm_all_surfaces .OR. dyohm_with_stebbs .OR. dyohm_building_only
 
       ! Preserve previous radiation histories on branches that do not update all six
@@ -524,7 +526,7 @@ CONTAINS
                               qn_av_next, dqndt_next)
             ! print*, 'new dqndt',dqndt
             CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
-            IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
+            IF (DiagQS == DIAG_ON) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
          END IF
 
       ELSE

@@ -107,6 +107,7 @@ mod lumps;
 mod nhood;
 mod ohm_coef_lc;
 mod ohm_prm;
+pub mod option_codes;
 mod output_block;
 #[cfg(all(feature = "physics", feature = "arrow-output"))]
 mod output_io;

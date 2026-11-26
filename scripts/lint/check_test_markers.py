@@ -51,32 +51,34 @@ PERIPHERAL_TEST_DIRS: tuple[str, ...] = (
     "test/umep",
 )
 
-# Make parser regexes.
-_COND_OPEN_RE = re.compile(r"^ *(?:ifeq|ifneq|ifdef|ifndef)\b")
-_COND_CLOSE_RE = re.compile(r"^ *endif\b")
+# Make parser regexes (applied to comment-stripped, leading-whitespace-trimmed lines
+# after distinguishing tab-prefixed rule recipes).
+_COND_OPEN_RE = re.compile(r"^(?:ifeq|ifneq|ifdef|ifndef)\b")
+_COND_CLOSE_RE = re.compile(r"^endif\b")
 _DEFINE_OPEN_RE = re.compile(
-    r"^ *(?:(?:override|export|private)[ \t]+)*define[ \t]+(?P<name>\S+)"
+    r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+(?P<name>\S+)"
 )
-_DEFINE_CLOSE_RE = re.compile(r"^ *endef\b")
-_INCLUDE_RE = re.compile(r"^ *(?:-include|sinclude|include)[ \t]+")
-_TOPLEVEL_EXPANSION_RE = re.compile(r"^ *\$[({]")
-_EVAL_CALL_RE = re.compile(r"\$[({][ \t]*eval\b")
+_DEFINE_CLOSE_RE = re.compile(r"^endef\b")
+_INCLUDE_RE = re.compile(r"^(?:-include|sinclude|include)[ \t]+")
+_TOPLEVEL_EXPANSION_RE = re.compile(r"^\$[({]")
+_DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t]*(?:eval|call)\b")
+_RECIPEPREFIX_RE = re.compile(r"\.RECIPEPREFIX\b")
 _COMPUTED_ASSIGN_RE = re.compile(
-    r"^ *(?:[^#\t:=]+:[ \t]*)?"
+    r"^(?:[^#\t:=]+:[ \t]*)?"
     r"(?:(?:override|export|private)[ \t]+)*"
     r"[^#\t=:]*\$[^#\t=:]*[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
 )
-_COMPUTED_UNDEFINE_RE = re.compile(r"^ *(?:override[ \t]+)?undefine[ \t]+.*\$")
+_COMPUTED_UNDEFINE_RE = re.compile(r"^(?:override[ \t]+)?undefine[ \t]+.*\$")
 _PORTABLE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
 _MENTIONS_TARGET_RE = re.compile(r"\bTEST_DEFAULT_PATHS\b")
 _PLAIN_ASSIGN_RE = re.compile(
-    r"^ *TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|=)(?P<value>.*)$"
+    r"^TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|=)(?P<value>.*)$"
 )
 _ANY_VAR_ASSIGN_RE = re.compile(
-    r"^ *(?:(?:override|export|private)[ \t]+)*"
+    r"^(?:(?:override|export|private)[ \t]+)*"
     r"[A-Za-z_][A-Za-z0-9_.-]*[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
 )
-_RULE_HEADER_RE = re.compile(r"^ *[^#\t][^:=]*:")
+_RULE_HEADER_RE = re.compile(r"^[^#\t][^:=]*:")
 
 
 def _to_ascii(text: str) -> str:
@@ -316,9 +318,13 @@ def _reject_unsupported_makefile_line(code: str) -> None:
             "Makefile include directives are unsupported when parsing "
             "TEST_DEFAULT_PATHS"
         )
-    if _EVAL_CALL_RE.search(code) or _TOPLEVEL_EXPANSION_RE.match(code):
+    if _RECIPEPREFIX_RE.search(code):
         raise ValueError(
-            "Makefile top-level expansion or eval is unsupported when parsing "
+            "Makefile .RECIPEPREFIX is unsupported when parsing TEST_DEFAULT_PATHS"
+        )
+    if _DYNAMIC_MAKE_CALL_RE.search(code) or _TOPLEVEL_EXPANSION_RE.match(code):
+        raise ValueError(
+            "Makefile top-level expansion, eval, or call is unsupported when parsing "
             f"TEST_DEFAULT_PATHS: {code.strip()}"
         )
     if _COMPUTED_ASSIGN_RE.match(code) or _COMPUTED_UNDEFINE_RE.match(code):
@@ -365,15 +371,16 @@ def _apply_makefile_target_line(
 
 
 def _update_define_depth(line: str, define_depth: int) -> int:
-    """Update nested ``define``/``endef`` depth while rejecting hidden ``eval``."""
-    if _EVAL_CALL_RE.search(line):
+    """Update nested ``define``/``endef`` depth while rejecting hidden eval/call."""
+    if _DYNAMIC_MAKE_CALL_RE.search(line):
         raise ValueError(
-            "Makefile eval inside define block is unsupported when parsing "
+            "Makefile eval/call inside define block is unsupported when parsing "
             f"TEST_DEFAULT_PATHS: {line.strip()}"
         )
-    if _DEFINE_OPEN_RE.match(line):
+    trimmed = line.lstrip(" \t")
+    if _DEFINE_OPEN_RE.match(trimmed):
         return define_depth + 1
-    if _DEFINE_CLOSE_RE.match(line):
+    if _DEFINE_CLOSE_RE.match(trimmed):
         return define_depth - 1
     return define_depth
 
@@ -397,9 +404,9 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     ValueError
         If ``TEST_DEFAULT_PATHS`` is missing, empty, uses unsupported Make
         syntax (conditionals, variable references, ``include``, ``eval``,
-        directive prefixes, ``define``/``undefine``, ``:::=``/``!=``,
-        target-specific assignments, or tab-indented assignments outside a
-        recipe), or contains an invalid path token.
+        ``call``, directive prefixes, ``define``/``undefine``,
+        ``:::=``/``!=``, target-specific assignments, or tab-indented
+        assignments outside a recipe), or contains an invalid path token.
     """
     text = makefile_path.read_text(encoding="utf-8")
     found = False
@@ -413,17 +420,17 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
             define_depth = _update_define_depth(line, define_depth)
             continue
         if line.startswith("\t") and in_rule:
-            if _EVAL_CALL_RE.search(line):
+            if _DYNAMIC_MAKE_CALL_RE.search(line):
                 raise ValueError(
-                    "Makefile eval inside recipe is unsupported when parsing "
+                    "Makefile eval/call inside recipe is unsupported when parsing "
                     f"TEST_DEFAULT_PATHS: {line.strip()}"
                 )
             continue
-        stripped = line.lstrip()
+        stripped = line.lstrip(" \t")
         if not stripped or stripped.startswith("#"):
             continue
 
-        code = _strip_makefile_comment(line)
+        code = _strip_makefile_comment(stripped)
         _reject_unsupported_makefile_line(code)
 
         define_match = _DEFINE_OPEN_RE.match(code)

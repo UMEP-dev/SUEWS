@@ -294,7 +294,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "top-level expansion or eval is unsupported",
+            "top-level expansion, eval, or call is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -302,7 +302,7 @@ def test_makefile_continuations_comments_append_and_recipes(
             "TEST_DEFAULT_PATHS := test/core\n"
             "endef\n"
             "$(eval $(TRIM))\n",
-            "top-level expansion or eval is unsupported",
+            "top-level expansion, eval, or call is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -310,19 +310,26 @@ def test_makefile_continuations_comments_append_and_recipes(
             "$(eval TEST_DEFAULT_PATHS := test/core)\n"
             "endef\n"
             "UNUSED := $(TRIM)\n",
-            "eval inside define block is unsupported",
+            "eval/call inside define block is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "test:\n"
             "\t$(eval TEST_DEFAULT_PATHS := test/core)\n"
             "\tpytest $(TEST_DEFAULT_PATHS)\n",
-            "eval inside recipe is unsupported",
+            "eval/call inside recipe is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "test:\n"
+            "\t$(call eval,TEST_DEFAULT_PATHS := test/core)\n"
+            "\tpytest $(TEST_DEFAULT_PATHS)\n",
+            "eval/call inside recipe is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "UNUSED := \\#$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "top-level expansion or eval is unsupported",
+            "top-level expansion, eval, or call is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -330,13 +337,20 @@ def test_makefile_continuations_comments_append_and_recipes(
             "# $(eval TEST_DEFAULT_PATHS := test/core)\n"
             "endef\n"
             "UNUSED := $(TRIM)\n",
-            "eval inside define block is unsupported",
+            "eval/call inside define block is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "test:\n"
             "\t# $(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "eval inside recipe is unsupported",
+            "eval/call inside recipe is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\n"
+            " \tifeq (0,1)\n"
+            "TEST_DEFAULT_PATHS += test/orphan\n"
+            " \tendif\n",
+            "inside Make conditional",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -747,7 +761,11 @@ def test_windows_directory_junction_under_test_is_rejected(
         check=False,
     )
     if proc.returncode != 0:
-        pytest.skip(f"mklink /J unavailable on this runner: {proc.stderr.strip()}")
+        combined = f"{proc.stdout}\n{proc.stderr}"
+        lowered = combined.lower()
+        if "privilege" in lowered or "access is denied" in lowered:
+            pytest.skip(f"mklink /J requires elevated privileges: {combined.strip()}")
+        pytest.fail(f"mklink /J failed unexpectedly (rc={proc.returncode}): {combined}")
 
     rc = _run(repo)
     captured = capsys.readouterr()

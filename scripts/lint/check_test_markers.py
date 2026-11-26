@@ -58,7 +58,7 @@ _DEFINE_DIRECTIVE_RE = re.compile(
     r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+[^ \t]+"
 )
 _INCLUDE_RE = re.compile(r"^(?:-include|sinclude|include)[ \t]+")
-_DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t]*(?:eval|call)\b")
+_DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t\f\v]*(?:eval|call)\b")
 _RECIPEPREFIX_RE = re.compile(r"\.RECIPEPREFIX\b")
 _PORTABLE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
 _WINDOWS_RESERVED_NAMES: frozenset[str] = frozenset({
@@ -325,10 +325,11 @@ def _join_makefile_continuations(text: str) -> list[str]:
     raw_parts = text.split("\n")
     last_idx = len(raw_parts) - 1
     for idx, raw_part in enumerate(raw_parts):
+        has_newline = idx < last_idx
         raw_line = (
-            raw_part[:-1] if idx < last_idx and raw_part.endswith("\r") else raw_part
+            raw_part[:-1] if has_newline and raw_part.endswith("\r") else raw_part
         )
-        if _has_odd_trailing_backslashes(raw_line):
+        if has_newline and _has_odd_trailing_backslashes(raw_line):
             part = raw_line[:-1]
             if in_continuation:
                 trimmed = part.lstrip(_MAKE_WHITESPACE)
@@ -344,8 +345,6 @@ def _join_makefile_continuations(text: str) -> list[str]:
             in_continuation = False
         else:
             logical_lines.append(raw_line)
-    if in_continuation:
-        logical_lines.append(buffer)
     return logical_lines
 
 
@@ -392,6 +391,11 @@ def _split_makefile_code_and_inline_recipe(
 
 def _reject_unsupported_makefile_line(code: str) -> None:
     """Reject top-level Make directives or expansions that can mutate variables."""
+    if any((ord(ch) < 0x20 and ch != "\t") or ch == "\x7f" for ch in code):
+        raise ValueError(
+            "Makefile contains unsupported control character: "
+            f"{code.strip(_MAKE_WHITESPACE)}"
+        )
     if _INCLUDE_RE.match(code):
         raise ValueError(
             "Makefile include directives are unsupported when parsing "

@@ -471,22 +471,45 @@ def test_bare_carriage_return_at_eof_is_rejected(tmp_path: Path, capsys) -> None
 
     assert rc == 1
     assert "[X]" in captured.err
-    assert "unsupported path characters" in captured.err
+    assert "unsupported control character" in captured.err
     assert captured.err.isascii()
 
 
 @pytest.mark.parametrize(
-    "makefile_content",
+    ("makefile_content", "expected_fragment"),
     [
-        "TEST_DEFAULT_PATHS := test/core\u00a0test/orphan\n",
-        "TEST_DEFAULT_PATHS := test/core\\\n\u00a0test/orphan\n",
-        "TEST_DEFAULT_PATHS := test/core\x0ctest/orphan\n",
+        (
+            "TEST_DEFAULT_PATHS := test/core\u00a0test/orphan\n",
+            "unsupported path characters",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\\\n\u00a0test/orphan\n",
+            "unsupported path characters",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\x0ctest/orphan\n",
+            "unsupported control character",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\n"
+            "\fifeq (0,1)\n"
+            "TEST_DEFAULT_PATHS += test/orphan\n"
+            "endif\n",
+            "unsupported control character",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\n"
+            "\vifeq (0,1)\n"
+            "TEST_DEFAULT_PATHS += test/orphan\n"
+            "endif\n",
+            "unsupported control character",
+        ),
     ],
 )
-def test_non_make_whitespace_does_not_split_paths(
-    tmp_path: Path, capsys, makefile_content: str
+def test_non_make_whitespace_and_control_chars_are_rejected(
+    tmp_path: Path, capsys, makefile_content: str, expected_fragment: str
 ) -> None:
-    """Unicode NBSP and form-feed characters fail portable-path validation."""
+    """Unicode NBSP and leading/inline ASCII control chars fail closed."""
     repo = _make_repo(
         tmp_path,
         {
@@ -495,6 +518,26 @@ def test_non_make_whitespace_does_not_split_paths(
         },
         makefile=makefile_content,
     )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert expected_fragment in captured.err
+    assert captured.err.isascii()
+
+
+def test_trailing_backslash_at_eof_without_newline_is_rejected(
+    tmp_path: Path, capsys
+) -> None:
+    """A backslash at EOF with no following newline is preserved and rejected."""
+    repo = _make_repo(
+        tmp_path,
+        {"test/core/test_ok.py": API_TEST_SOURCE},
+        makefile=None,
+    )
+    (repo / "Makefile").write_bytes(b"TEST_DEFAULT_PATHS := test/core\\")
 
     rc = _run(repo)
     captured = capsys.readouterr()

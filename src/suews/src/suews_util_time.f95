@@ -378,7 +378,14 @@ CONTAINS
       endDLS = ahemisPrm%end_dls
 
       DLS = 0
-      IF (id > startDLS .AND. id < endDLS) dls = 1
+      IF (startDLS <= 0 .OR. endDLS <= 0 .OR. startDLS == endDLS) RETURN
+      IF (startDLS < endDLS) THEN
+         ! Northern Hemisphere (intra-year window): active strictly between startDLS and endDLS.
+         IF (id > startDLS .AND. id < endDLS) DLS = 1
+      ELSE
+         ! Southern Hemisphere (year-wrapping window, startDLS > endDLS): active after startDLS or before endDLS.
+         IF (id > startDLS .OR. id < endDLS) DLS = 1
+      END IF
 
    END SUBROUTINE SUEWS_cal_DLS
 

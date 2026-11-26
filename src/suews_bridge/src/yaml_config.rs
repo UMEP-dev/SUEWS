@@ -60,6 +60,7 @@ use crate::building_archetype_prm::{
 use crate::config::{suews_config_default_from_fortran, SuewsConfig};
 use crate::core::NSURF;
 use crate::field_renames::{normalize_field_names, FIELD_RENAMES};
+use crate::option_codes::{is_dyohm, StebbsMethod, StorageHeatMethod};
 use crate::run_period::{parse_run_period, RunPeriod};
 use crate::sim::SiteScalars;
 use crate::stebbs_prm::{stebbs_prm_from_map, stebbs_prm_to_map};
@@ -1243,12 +1244,22 @@ fn apply_ohm_overrides(
     storage_heat_method: i32,
     soil_store_capacity: f64,
 ) -> Result<(), String> {
-    let anohm_required = storage_heat_method == 3;
-    let ohm_thresh_required = matches!(storage_heat_method, 1 | 3 | 6 | 7 | 8);
+    let anohm_required = storage_heat_method == StorageHeatMethod::Anohm.as_i32();
+    let ohm_thresh_required = matches!(
+        StorageHeatMethod::try_from(storage_heat_method),
+        Ok(StorageHeatMethod::Ohm
+            | StorageHeatMethod::Anohm
+            | StorageHeatMethod::Dyohm
+            | StorageHeatMethod::Stebbs
+            | StorageHeatMethod::DyohmBuilding)
+    );
     let wet_dry_thresh_required = ohm_thresh_required
         && matches!(surface_name, "evetr" | "dectr" | "grass" | "bsoil")
         && soil_store_capacity > 0.0;
-    let static_coef_required = matches!(storage_heat_method, 1 | 3 | 8);
+    let static_coef_required = matches!(
+        StorageHeatMethod::try_from(storage_heat_method),
+        Ok(StorageHeatMethod::Ohm | StorageHeatMethod::Anohm | StorageHeatMethod::DyohmBuilding)
+    );
 
     if let Some(v) = require_anohm_field(lc_root, "ch_anohm", "chanohm", at, anohm_required)? {
         ohm.chanohm = v;
@@ -1966,7 +1977,7 @@ fn vegetation_layers_are_read(spartacus_on: bool) -> bool {
 /// surfaces and of the nlayer roofs and walls (copied to its output arrays in
 /// both of its branches), and the surface inner boundary temperatures.
 pub(crate) fn ehc_is_on(storage_heat_method: i32) -> bool {
-    storage_heat_method == 5
+    storage_heat_method == StorageHeatMethod::Ehc.as_i32()
 }
 
 /// Whether EHC resolves the roof and wall facets: storage heat method 5 with
@@ -1985,7 +1996,15 @@ fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
 /// (AnOHM) spin-up, and `OHM` (`suews_phys_ohm.f95`) evaluates snow storage
 /// heat `deltaQi` from `OHM_coef(nsurf + 1, 3, 1:3)` when `SnowUse == 1`.
 fn snow_ohm_is_read(snow_use: i32, storage_heat_method: i32) -> bool {
-    snow_use == 1 && matches!(storage_heat_method, 1 | 3 | 6 | 7 | 8)
+    snow_use == 1
+        && matches!(
+            StorageHeatMethod::try_from(storage_heat_method),
+            Ok(StorageHeatMethod::Ohm
+                | StorageHeatMethod::Anohm
+                | StorageHeatMethod::Dyohm
+                | StorageHeatMethod::Stebbs
+                | StorageHeatMethod::DyohmBuilding)
+        )
 }
 
 /// Read `properties.vertical_layers`. Where the kernel reads the building
@@ -2714,8 +2733,9 @@ fn apply_land_cover_overrides(
     sfr_surf: &[f64; NSURF],
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
-    let emis_all =
-        config.net_radiation_method > 0 || config.snow_use != 0 || config.storage_heat_method == 3;
+    let emis_all = config.net_radiation_method > 0
+        || config.snow_use != 0
+        || config.storage_heat_method == StorageHeatMethod::Anohm.as_i32();
     let bldg_sfr = sfr_surf[1];
     let evetr_sfr = sfr_surf[2];
     let dectr_sfr = sfr_surf[3];
@@ -3472,9 +3492,9 @@ fn apply_config_overrides(
     config.lai_method = require_i32(root, &["model", "physics", "laimethod"], "")?;
     config.rsl_level = require_i32(root, &["model", "physics", "rsllevel"], "")?;
     config.stebbs_method = require_i32(root, &["model", "physics", "stebbsmethod"], "")?;
-    if config.stebbs_method != 0 {
-        config.rc_method = require_i32(root, &["model", "physics", "rcmethod"], "")
-            .map_err(&map_stebbs_err)?;
+    if config.stebbs_method != StebbsMethod::None.as_i32() {
+        config.rc_method =
+            require_i32(root, &["model", "physics", "rcmethod"], "").map_err(&map_stebbs_err)?;
         config.setpoint_method = require_i32(root, &["model", "physics", "setpointmethod"], "")
             .map_err(&map_stebbs_err)?;
     } else {
@@ -3663,19 +3683,21 @@ fn apply_ehc_overrides(
         // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
         // Row-major layout: element [surf_idx * ndepth + depth_idx].
         for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
-            let surface_depth = match storage_heat_method {
-                5 => ndepth,
-                7 if surface_name == "bldgs" => 0,
-                8 if surface_name != "bldgs" => 0,
+            let surface_depth = match StorageHeatMethod::try_from(storage_heat_method) {
+                Ok(StorageHeatMethod::Ehc) => ndepth,
+                Ok(StorageHeatMethod::Stebbs) if surface_name == "bldgs" => 0,
+                Ok(StorageHeatMethod::DyohmBuilding) if surface_name != "bldgs" => 0,
                 _ => 1,
             };
             // The diagnostic DyOHM temperature update reads k and cp outside
             // methods 5-8 when thermal_layers are supplied, but OHM/AnOHM/LUMPS
             // configurations do not require thermal_layers to be present; dz is
             // only used by the thermal storage schemes (methods 5-8).
-            let require_surface_thermal =
-                (5..=8).contains(&storage_heat_method) && surface_depth > 0;
-            let thickness_depth = if (5..=8).contains(&storage_heat_method) {
+            let require_surface_thermal = (ehc_is_on(storage_heat_method)
+                || is_dyohm(storage_heat_method))
+                && surface_depth > 0;
+            let thickness_depth = if ehc_is_on(storage_heat_method) || is_dyohm(storage_heat_method)
+            {
                 surface_depth
             } else {
                 0
@@ -4324,7 +4346,8 @@ fn apply_drainage_overrides(
         let store_cap_required = (active
             && state.phenology_state.store_drain_prm[surface_idx][1] == 1.0)
             || (fractions[surface_idx] > 0.0
-                && (config.evap_method == 1 || config.storage_heat_method == 3))
+                && (config.evap_method == 1
+                    || config.storage_heat_method == StorageHeatMethod::Anohm.as_i32()))
             || ehc_bldg_scaling;
         if let Some(v) = require_if_active_numeric(
             site_root,
@@ -5045,7 +5068,10 @@ fn apply_site_scalar_overrides(
 
     // `lambda_c` is consumed only by building DyOHM (`StorageHeatMethod` 6 or 8);
     // non-building surfaces use the constant `lambda_c1 = 1.0`.
-    let lambda_c_active = matches!(config.storage_heat_method, 6 | 8);
+    let lambda_c_active = matches!(
+        StorageHeatMethod::try_from(config.storage_heat_method),
+        Ok(StorageHeatMethod::Dyohm | StorageHeatMethod::DyohmBuilding)
+    );
     if let Some(v) =
         require_if_active_numeric(site_root, &["properties", "lambda_c"], &at, lambda_c_active)?
     {

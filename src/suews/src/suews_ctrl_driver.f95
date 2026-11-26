@@ -11,6 +11,10 @@
 ! - Additional atmospheric variables passed from WRF
 !========================================================================================
 MODULE SUEWS_Driver
+   USE module_ctrl_const_options, ONLY: &
+      OHM_QF_EXCLUDE, OHM_QF_INCLUDE, SHM_ANOHM, SHM_DYOHM, &
+      SHM_DYOHM_BUILDING, SHM_EHC, SHM_OBSERVED, SHM_OHM, &
+      SHM_STEBBS, STEBBS_DEFAULT, STEBBS_PROVIDED
    ! only the following immutable objects are imported:
    ! 1. functions/subroutines
    ! 2. constant variables
@@ -238,11 +242,11 @@ CONTAINS
          RETURN
       END IF
 
-      use_ehc_stability = config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1 &
+      use_ehc_stability = config%StorageHeatMethod == SHM_EHC .AND. config%EHCSurfaceCoupling == 1 &
                           .AND. config%control_ehc_stability > 0
       verify_ehc_stability = .FALSE.
       relax_ehc_stability = .FALSE.
-      IF (config%StorageHeatMethod == 5 .AND. &
+      IF (config%StorageHeatMethod == SHM_EHC .AND. &
           (config%control_ehc_stability < 0 .OR. config%control_ehc_stability > 2)) THEN
          CALL set_supy_error(116, 'SUEWS_cal_Main: control_ehc_stability must be 0, 1 or 2')
          CALL sync_error_to_state(modState, timer)
@@ -322,7 +326,7 @@ CONTAINS
             ! timestep-start snapshot that every nonlinear pass restores.
             ! Checkpoint entry disables the option in prepare_checkpoint_input;
             ! elapsed time also prevents reinitialisation on later timesteps.
-            IF (config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1 &
+            IF (config%StorageHeatMethod == SHM_EHC .AND. config%EHCSurfaceCoupling == 1 &
                 .AND. config%control_ehc_initial_profile .AND. config%NetRadiationMethod > 1000 &
                 .AND. timer%dt_since_start == timer%tstep) THEN
                CALL ehc_init_envelope(config, timer, forcing, siteInfo, modState)
@@ -381,7 +385,7 @@ CONTAINS
             ! save surface temperature at the beginning of the time step
             tsfc_surf_stepstart = tsfc_surf
             ! ! TODO: ESTM work: to allow heterogeneous surface temperatures
-            IF (config%StorageHeatMethod == 5 .OR. config%NetRadiationMethod > 1000) THEN
+            IF (config%StorageHeatMethod == SHM_EHC .OR. config%NetRadiationMethod > 1000) THEN
                tsfc_roof_stepstart = tsfc_roof
                tsfc_wall_stepstart = tsfc_wall
             END IF
@@ -436,7 +440,7 @@ CONTAINS
                      timer%dt_since_start_prev = timer_dt_since_start_prev_start
                      timer%new_day = timer_new_day_start
                   END IF
-                  IF (config%StorageHeatMethod == 5) THEN
+                  IF (config%StorageHeatMethod == SHM_EHC) THEN
                      CALL reset_ehc_heat_state_for_tsurf_iteration( &
                         modState%heatState, modState_tstepstart%heatState)
                   END IF
@@ -671,7 +675,7 @@ CONTAINS
                END IF
                !============ Sensible heat flux end ===============
 
-               IF (config%StorageHeatMethod == 5) THEN
+               IF (config%StorageHeatMethod == SHM_EHC) THEN
                   IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance with EHC residual QH...'
                   ! Relax once per pass: the residual-QH call relaxes against the values
                   ! accepted on the previous pass, not against the first call of this
@@ -825,7 +829,7 @@ CONTAINS
                RETURN
             END IF
 
-            IF (config%StorageHeatMethod == 5) THEN
+            IF (config%StorageHeatMethod == SHM_EHC) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling EHC_update_outputLine...'
                CALL EHC_update_outputLine( &
                   timer, & !input
@@ -1130,8 +1134,8 @@ CONTAINS
             temp_c => forcing%temp_c &
             )
 
-            use_building_facets_for_ehc = StorageHeatMethod == 5 .AND. NetRadiationMethod > 1000
-            use_implicit = StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1
+            use_building_facets_for_ehc = StorageHeatMethod == SHM_EHC .AND. NetRadiationMethod > 1000
+            use_implicit = StorageHeatMethod == SHM_EHC .AND. config%EHCSurfaceCoupling == 1
             IF (use_implicit) THEN
                CALL ehc_implicit_qf_surface(sfr_surf, ehcDiag%ehc_q_indoor, qf_surf_ehc)
             END IF
@@ -1150,7 +1154,7 @@ CONTAINS
                                          QN_surf(WaterSurf) + qf_surf_ehc(WaterSurf) - QS_surf(WaterSurf) &
                                          - QE_surf(WaterSurf), avdens, avcp, RA_h, temp_c)
                END IF
-            ELSE IF (StorageHeatMethod == 5) THEN
+            ELSE IF (StorageHeatMethod == SHM_EHC) THEN
                ! EHC solves QS from the current surface-temperature boundary.
                ! The next Tsurf iterate is therefore the temperature that would
                ! make aerodynamic sensible heat match the current surface energy
@@ -1191,7 +1195,7 @@ CONTAINS
                END DO
             END IF
 
-            IF (StorageHeatMethod /= 5) THEN
+            IF (StorageHeatMethod /= SHM_EHC) THEN
                ! Exclude absent surfaces (sfr_surf == 0) from convergence
                ! stopping so their uncoupled temperatures cannot add
                ! iterations and leak into grid-scale fluxes.
@@ -1270,7 +1274,7 @@ CONTAINS
                   END IF
                END IF
                TSfc_C = DOT_PRODUCT(tsfc_surf, sfr_surf)
-            ELSE IF (StorageHeatMethod == 5) THEN
+            ELSE IF (StorageHeatMethod == SHM_EHC) THEN
                ! The EHC Tsurf update is a fixed-point iterate inferred from the
                ! residual sensible heat flux. Keep that numerical iterate within
                ! a physical envelope so a bad residual cannot pollute heat or
@@ -1346,7 +1350,7 @@ CONTAINS
                ! PRINT *, ' abs. dif_tsfc: ', dif_tsfc_iter
             END IF
 
-            IF (StorageHeatMethod == 5) THEN
+            IF (StorageHeatMethod == SHM_EHC) THEN
                ! EHC keeps the fixed-point iterate inside a symmetric physical
                ! envelope around air temperature.
                tsfc0_out_surf = MAX(MIN(tsfc_surf, Temp_C + tsfc_air_limit), Temp_C - tsfc_air_limit)
@@ -1411,13 +1415,13 @@ CONTAINS
             ! to STEBBS and updates only its non-building DyOHM surfaces.
             ! Method 6 updates every surface. Other methods retain the
             ! pre-existing diagnostic update.
-            IF (StorageHeatMethod == 8) RETURN
+            IF (StorageHeatMethod == SHM_DYOHM_BUILDING) RETURN
 
             nz = 5
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
             ! Loop over surfaces
             DO i_surf = 1, nsurf
-               IF (StorageHeatMethod == 7 .AND. i_surf == BldgSurf) CYCLE
+               IF (StorageHeatMethod == SHM_STEBBS .AND. i_surf == BldgSurf) CYCLE
                ALLOCATE(prev_profile(nz), next_profile(nz))
                prev_profile = heatState%temp_surf_dyohm(i_surf, :)
 
@@ -1904,7 +1908,7 @@ CONTAINS
 
          ! Safely resolve roof/wall surface temps without MERGE on
          ! possibly-unallocated or zero-length allocatable arrays.
-         IF (config%StorageHeatMethod == 7 &
+         IF (config%StorageHeatMethod == SHM_STEBBS &
              .AND. ALLOCATED(stebbsState%buildings)) THEN
             IF (SIZE(stebbsState%buildings) >= 1) THEN
                IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
@@ -1926,7 +1930,7 @@ CONTAINS
             tsfc_wall_local = heatState%tsfc_wall
          END IF
          tsfc_surf_storage = heatState%tsfc_surf
-         IF (config%StorageHeatMethod == 6 .OR. config%StorageHeatMethod == 7) THEN
+         IF (config%StorageHeatMethod == SHM_DYOHM .OR. config%StorageHeatMethod == SHM_STEBBS) THEN
             tsfc_surf_storage = heatState%tsfc_surf_dyohm
          END IF
 
@@ -2352,7 +2356,7 @@ CONTAINS
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-               IF (storageheatmethod /= 6 .AND. storageheatmethod /= 7) THEN
+               IF (storageheatmethod /= SHM_DYOHM .AND. storageheatmethod /= SHM_STEBBS) THEN
                   OHM_coef(1, 1, 1) = pavedPrm%ohm%ohm_coef_lc(1)%summer_wet
                   OHM_coef(1, 2, 1) = pavedPrm%ohm%ohm_coef_lc(1)%summer_dry
                   OHM_coef(1, 3, 1) = pavedPrm%ohm%ohm_coef_lc(1)%winter_wet
@@ -2552,15 +2556,15 @@ CONTAINS
                a3 = -999
 
                ! calculate qn if qf should be included
-               IF (OHMIncQF == 1) THEN
+               IF (OHMIncQF == OHM_QF_INCLUDE) THEN
                   qn_use = qf + qn
-               ELSEIF (OHMIncQF == 0) THEN
+               ELSEIF (OHMIncQF == OHM_QF_EXCLUDE) THEN
                   qn_use = qn
                END IF
 
                !==============use STEBBS to get localised surface temperature and storage heat flux==================
                ! MP 12 Sep 2024: STEBBS is a simplified BEM
-               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+               IF (config%stebbsmethod == STEBBS_DEFAULT .OR. config%stebbsmethod == STEBBS_PROVIDED) THEN
                   IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
                   CALL stebbsonlinecouple( &
                      timer, config, forcing, siteInfo, & ! input
@@ -2569,19 +2573,19 @@ CONTAINS
                      dataOutLineSTEBBS) ! output
                END IF
 
-               IF (StorageHeatMethod == 3) THEN
+               IF (StorageHeatMethod == SHM_ANOHM) THEN
                   ! Promote any completed calendar-day buffer before AnOHM dispatch so
                   ! day-rollover steps diagnose the new day's coefficients consistently
                   ! on every pass and leave live coefficients in checkpoints.
                   CALL anohm_rollover_if_needed(timer, ohmState)
                END IF
 
-               IF (StorageHeatMethod == 0) THEN !Use observed QS
+               IF (StorageHeatMethod == SHM_OBSERVED) THEN !Use observed QS
                   qs = qs_obs
 
-               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7 .OR. &
-                       StorageHeatMethod == 8 .OR. &
-                       (StorageHeatMethod == 3 .AND. .NOT. ohmState%anohm_coeff_ready)) THEN !OHM, or AnOHM spin-up fallback
+               ELSEIF (StorageHeatMethod == SHM_OHM .OR. StorageHeatMethod == SHM_DYOHM .OR. StorageHeatMethod == SHM_STEBBS .OR. &
+                       StorageHeatMethod == SHM_DYOHM_BUILDING .OR. &
+                       (StorageHeatMethod == SHM_ANOHM .AND. .NOT. ohmState%anohm_coeff_ready)) THEN !OHM, or AnOHM spin-up fallback
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
                   qn_av_prev_ohm = ohmState%qn_av
@@ -2618,13 +2622,13 @@ CONTAINS
                            a1_water, a2_water, a3_water, &
                            a1, a2, a3, qs, qs_surf, deltaQi, &
                            modState)
-                  IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7 .AND. StorageHeatMethod /= 8) THEN
+                  IF (StorageHeatMethod /= SHM_DYOHM .AND. StorageHeatMethod /= SHM_STEBBS .AND. StorageHeatMethod /= SHM_DYOHM_BUILDING) THEN
                      QS_surf = qs
                      QS_roof = qs
                      QS_wall = qs
                   ELSE
                      ! Methods 6, 7, and 8 preserve surface-specific storage heat fluxes.
-                     IF (StorageHeatMethod == 7) THEN !for method 7 when STEBBS is used for building
+                     IF (StorageHeatMethod == SHM_STEBBS) THEN !for method 7 when STEBBS is used for building
                         qs = qs + QS_stebbs * sfr_surf(2)
                         QS_surf(2) = QS_stebbs
                      END IF
@@ -2639,7 +2643,7 @@ CONTAINS
                   ! most recently completed day held in the calendar-day buffer, so no
                   ! future forcing data is required. During spin-up (buffer not
                   ! ready) the OHM branch above produces QS instead.
-               ELSEIF (StorageHeatMethod == 3) THEN
+               ELSEIF (StorageHeatMethod == SHM_ANOHM) THEN
                   DO is_anohm = 1, nsurf
                      IF (StoreDrainPrm(6, is_anohm) > 0.0D0) THEN
                         moist_surf(is_anohm) = MAX(0.0D0, MIN(1.0D0, state_id(is_anohm)/StoreDrainPrm(6, is_anohm)))
@@ -2672,7 +2676,7 @@ CONTAINS
                   QS_roof = qs
                   QS_wall = qs
 
-               ELSEIF (StorageHeatMethod == 5) THEN
+               ELSEIF (StorageHeatMethod == SHM_EHC) THEN
                   IF (Diagnose == 1) WRITE (*, *) 'Calling extended ESTM...'
                   ! facets: seven suews standard facets + extra for buildings [roof, wall] (can be extended for heterogeneous buildings)
                   !
@@ -2924,7 +2928,7 @@ CONTAINS
 
             state_id = hydroState%state_surf
             StoreDrainPrm = phenState%storage_drain_params
-            IF (config%StorageHeatMethod == 3) THEN
+            IF (config%StorageHeatMethod == SHM_ANOHM) THEN
                ! AnOHM: accumulate the current calendar-day forcing buffer
                CALL anohm_rollover_if_needed(timer, modState%ohmState)
                CALL anohm_append_sample(timer, forcing, modState%heatState%qf, modState%ohmState)
@@ -3549,7 +3553,7 @@ CONTAINS
 
       ! load dim constants
       nlayer = siteInfo%nlayer
-      use_building_facets_for_ehc = config%StorageHeatMethod == 5 &
+      use_building_facets_for_ehc = config%StorageHeatMethod == SHM_EHC &
                                     .AND. config%NetRadiationMethod > 1000 &
                                     .AND. siteInfo%sfr_surf(BldgSurf) > 0.0D0
       state_building = 0.0D0
@@ -3726,7 +3730,7 @@ CONTAINS
                   rss_surf, ev0_surf, qe0_surf) !output
 
                ! MP: Use EHC
-               IF (storageheatmethod == 5 .AND. use_building_facets_for_ehc) THEN
+               IF (storageheatmethod == SHM_EHC .AND. use_building_facets_for_ehc) THEN
                      ! --- roofs ---
                      ! net available energy for evaporation
                      qn_e_roof = qn_roof - qs_roof ! qn1 changed to qn1_snowfree, lj in May 2013
@@ -3786,7 +3790,7 @@ CONTAINS
                qe_surf = tlv*ev_surf
 
                ! --- update building related ---
-               IF (storageheatmethod == 5 .AND. use_building_facets_for_ehc) THEN
+               IF (storageheatmethod == SHM_EHC .AND. use_building_facets_for_ehc) THEN
                   ! update building specific values
                   qe_surf(BldgSurf) = qe_building
                   state_surf(BldgSurf) = state_building
@@ -3824,7 +3828,7 @@ CONTAINS
 
                ! state_id_out = state_id_out
                ! soilstore_id_out = soilstore_id
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == SHM_EHC) THEN
                   IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE soilstore_building = ', soilstore_building
                   IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_builing = ', capStore_builing
                   IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_surf(BldgSurf) = ', capStore_surf(BldgSurf)
@@ -3955,13 +3959,13 @@ CONTAINS
             ! tsfc_wall = heatState_out%tsfc_wall
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            use_building_facets_for_ehc = storageheatmethod == 5 .AND. NetRadiationMethod > 1000
-            IF (storageheatmethod == 5 .AND. config%EHCSurfaceCoupling == 1) THEN
+            use_building_facets_for_ehc = storageheatmethod == SHM_EHC .AND. NetRadiationMethod > 1000
+            IF (storageheatmethod == SHM_EHC .AND. config%EHCSurfaceCoupling == 1) THEN
                CALL ehc_implicit_qf_surface(sfr_surf, ehcDiag%ehc_q_indoor, qf_surf_ehc)
             ELSE
                qf_surf_ehc = qf
             END IF
-            IF (storageheatmethod == 5) THEN
+            IF (storageheatmethod == SHM_EHC) THEN
                ! QF that enters no surface energy balance: on the explicit
                ! facet route the building tile's share, in the implicit
                ! coupling everything but the indoor input to the envelope
@@ -4285,7 +4289,7 @@ CONTAINS
                ! iteration; the remaining Tsfc -> QH -> L -> r_a feedback
                ! can oscillate in stable conditions. Retain the 0.5 r_a
                ! damping on relaxed passes from outer pass 2 onwards.
-               IF (apply_relaxation .AND. config%StorageHeatMethod == 5 .AND. config%EHCSurfaceCoupling == 1 &
+               IF (apply_relaxation .AND. config%StorageHeatMethod == SHM_EHC .AND. config%EHCSurfaceCoupling == 1 &
                    .AND. modState%flagState%i_iter > 1 .AND. ra_prev_iter > 0.0D0) THEN
                   RA = ra_prev_iter + ehc_implicit_ra_relax*(RA - ra_prev_iter)
                END IF
@@ -4817,7 +4821,7 @@ CONTAINS
          dataOutSnow(ir, 1:ncolumnsDataOutSnow, Gridiv) = [set_nan(dataOutLineSnow)]
       END IF
 
-      IF (storageheatmethod == 5) THEN
+      IF (storageheatmethod == SHM_EHC) THEN
          dataOutEHC(ir, 1:ncolumnsDataOutEHC, Gridiv) = [set_nan(dataOutLineEHC)]
       END IF
 
@@ -4871,7 +4875,7 @@ CONTAINS
       PervFraction = 1 - ImpervFraction
       NonWaterFraction = 1 - sfr_surf(WaterSurf)
 
-      IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
+      IF (StorageHeatMethod == SHM_EHC .OR. NetRadiationMethod > 1000) THEN
          ! get individual building fractions of each layer
          ! NB.: sum(sfr_roof) = building_frac(1)
          sfr_roof = 0.
@@ -6547,7 +6551,7 @@ CONTAINS
       porosity_id = phenState%porosity_id
       StoreDrainPrm = phenState%storage_drain_params
 
-      IF (config%StorageHeatMethod == 5) THEN
+      IF (config%StorageHeatMethod == SHM_EHC) THEN
          ! ESTM_ehc related
          temp_roof = heatState%temp_roof
          temp_wall = heatState%temp_wall
@@ -6789,7 +6793,7 @@ CONTAINS
          seb%t_indoor = t_indoor_default
          IF (stebbsState%indoor_air_start_temperature /= 0.0D0) &
             seb%t_indoor = stebbsState%indoor_air_start_temperature
-         IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+         IF (config%stebbsmethod == STEBBS_DEFAULT .OR. config%stebbsmethod == STEBBS_PROVIDED) THEN
             IF (ALLOCATED(stebbsState%buildings) .AND. modState%flagState%stebbs_bldg_init == 1) THEN
                IF (SIZE(stebbsState%buildings) >= 1) seb%t_indoor = stebbsState%buildings(1)%Tair_ind - C2K
             END IF

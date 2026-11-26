@@ -23,6 +23,7 @@ use crate::lc_paved_prm::lc_paved_prm_from_ordered_values;
 use crate::lc_water_prm::lc_water_prm_from_ordered_values;
 use crate::lumps::lumps_prm_from_ordered_values;
 use crate::nhood::nhood_state_from_ordered_values;
+use crate::option_codes::{is_dyohm, StebbsMethod, StorageHeatMethod};
 use crate::phenology::phenology_state_from_ordered_values;
 use crate::roughness::roughness_state_from_ordered_values;
 use crate::snow::snow_state_from_ordered_values;
@@ -878,7 +879,10 @@ fn validate_checkpoint_ehc_temperatures(run_cfg: &RunConfig) -> Result<(), Bridg
 /// `buildings(:)` dimensions are incompatible with the resumed configuration
 /// (`BR-06`).
 fn validate_checkpoint_stebbs_state(run_cfg: &RunConfig) -> Result<(), BridgeError> {
-    if !matches!(run_cfg.config.stebbs_method, 1 | 2) {
+    if !matches!(
+        StebbsMethod::try_from(run_cfg.config.stebbs_method),
+        Ok(StebbsMethod::Default | StebbsMethod::Provided)
+    ) {
         return Ok(());
     }
     let nlayer = usize::try_from(run_cfg.nlayer).unwrap_or(0);
@@ -904,11 +908,13 @@ fn validate_checkpoint_stebbs_state(run_cfg: &RunConfig) -> Result<(), BridgeErr
 
 fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError> {
     let storage_heat_method = run_cfg.config.storage_heat_method;
-    if !matches!(storage_heat_method, 6..=8) {
+    if !is_dyohm(storage_heat_method) {
         return Ok(());
     }
 
-    if storage_heat_method == 7 && !matches!(run_cfg.config.net_radiation_method, 1001..=1003) {
+    if storage_heat_method == StorageHeatMethod::Stebbs.as_i32()
+        && !matches!(run_cfg.config.net_radiation_method, 1001..=1003)
+    {
         return Err(simulation_error(format!(
             "STEBBS storage heat (method 7) requires SPARTACUS-Surface net radiation (1001, 1002, or 1003); got {}",
             run_cfg.config.net_radiation_method
@@ -922,7 +928,10 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
 
     // Methods 6 and 8 calculate building DyOHM coefficients, whose
     // parameterisation uses the building surface-to-plan-area ratio.
-    if matches!(storage_heat_method, 6 | 8) {
+    if matches!(
+        StorageHeatMethod::try_from(storage_heat_method),
+        Ok(StorageHeatMethod::Dyohm | StorageHeatMethod::DyohmBuilding)
+    ) {
         let lambda_c = run_cfg.site_scalars.lambda_c;
         if !lambda_c.is_finite() || lambda_c <= 0.0 {
             return Err(simulation_error(format!(
@@ -932,13 +941,13 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
     }
 
     for (surf_idx, &surface_name) in SURFACE_NAMES.iter().enumerate() {
-        let material_is_used = match storage_heat_method {
+        let material_is_used = match StorageHeatMethod::try_from(storage_heat_method) {
             // Full DyOHM uses every SUEWS surface. STEBBS owns the building
             // storage heat and temperatures in method 7, so only non-building
             // surfaces use DyOHM materials. Building-only DyOHM uses buildings.
-            6 => true,
-            7 => surf_idx != BUILDING_SURFACE_INDEX,
-            8 => surf_idx == BUILDING_SURFACE_INDEX,
+            Ok(StorageHeatMethod::Dyohm) => true,
+            Ok(StorageHeatMethod::Stebbs) => surf_idx != BUILDING_SURFACE_INDEX,
+            Ok(StorageHeatMethod::DyohmBuilding) => surf_idx == BUILDING_SURFACE_INDEX,
             _ => false,
         };
         if !material_is_used {
@@ -1375,7 +1384,10 @@ pub fn run_simulation_into(
 
     let out_stebbs_bldg_count = if !input.state.stebbs_state.buildings.is_empty() {
         input.state.stebbs_state.buildings.len()
-    } else if matches!(input.config.stebbs_method, 1 | 2) {
+    } else if matches!(
+        StebbsMethod::try_from(input.config.stebbs_method),
+        Ok(StebbsMethod::Default | StebbsMethod::Provided)
+    ) {
         1
     } else {
         0

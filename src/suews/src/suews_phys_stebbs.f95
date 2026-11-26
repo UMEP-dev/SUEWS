@@ -567,6 +567,7 @@ MODULE module_phys_stebbs_couple
    END TYPE
 END MODULE module_phys_stebbs_couple
 MODULE module_phys_stebbs
+   USE module_ctrl_const_options, ONLY: SETPOINT_CONSTANT, SETPOINT_DEPENDENT, SETPOINT_SCHEDULED
 
    USE module_phys_stebbs_precision, ONLY: rprc
    ! use modulestebbs, ONLY: blds, cases, resolution
@@ -869,10 +870,10 @@ CONTAINS
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
             building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants_state
             SELECT CASE (config%setpointmethod)
-            CASE (0) !constant setpoint
+            CASE (SETPOINT_CONSTANT) !constant setpoint
                buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
                buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
-            CASE (1) !setpoints dependent on occupant activity
+            CASE (SETPOINT_DEPENDENT) !setpoints dependent on occupant activity
                IF (building_is_active) THEN
                   buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
                   buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
@@ -880,7 +881,7 @@ CONTAINS
                   buildings(1)%ts(1) = Unused_heating_setpoint_C + C2K
                   buildings(1)%ts(2) = Unused_cooling_setpoint_C + C2K
                END IF
-            CASE (2) !scheduled setpoints
+            CASE (SETPOINT_SCHEDULED) !scheduled setpoints
                buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature_profile(idx, iu) + C2K
                buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature_profile(idx, iu) + C2K
             CASE DEFAULT
@@ -2430,6 +2431,7 @@ END SUBROUTINE reinitialiseTemperatures
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer, errorState)
 
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
+   USE module_ctrl_const_options, ONLY: SETPOINT_SCHEDULED, RC_DEFAULT, RC_PROVIDED, RC_PARAMETERISE
    USE module_phys_stebbs_func, ONLY: calculate_x1
    USE module_ctrl_const_physconst, ONLY: C2K, sec_per_hour
    IMPLICIT NONE
@@ -2584,7 +2586,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%t_ext_window = stebbsState%window_outdoor_surface_temperature + C2K ! # Window outdoor surface temperature (K)
    self%t_int_ground_floor = stebbsState%ground_floor_indoor_surface_temperature + C2K ! # Ground floor indoor surface temperature (K)
    self%t_ext_ground_floor = stebbsState%ground_floor_outdoor_surface_temperature + C2K ! # Ground floor outdoor surface temperature (K)
-   IF (config%setpointmethod == 2) THEN
+   IF (config%setpointmethod == SETPOINT_SCHEDULED) THEN
       self%ts = (/building_archtype%heating_setpoint_temperature_profile(0, 1) + C2K, &
                    building_archtype%cooling_setpoint_temperature_profile(0, 1) + C2K/)
    ELSE
@@ -2649,15 +2651,15 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    self%hw_power_average = (/30000, 30000, 30000/)
 
-   IF (config%rcmethod  == 0) THEN !default value
+   IF (config%rcmethod  == RC_DEFAULT) THEN !default value
       self%weighting_factor_heatcapacity_wall = 0.5
       self%weighting_factor_heatcapacity_roof = 0.5
 
-   ELSEIF (config%rcmethod  == 1) THEN !provided fractional value
+   ELSEIF (config%rcmethod  == RC_PROVIDED) THEN !provided fractional value
       self%weighting_factor_heatcapacity_wall = building_archtype%wall_outer_heat_capacity_fraction
       self%weighting_factor_heatcapacity_roof = building_archtype%roof_outer_heat_capacity_fraction  
 
-   ELSEIF (config%rcmethod == 2) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
+   ELSEIF (config%rcmethod == RC_PARAMETERISE) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &

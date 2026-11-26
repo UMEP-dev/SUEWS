@@ -67,7 +67,7 @@ Data crosses four layers during a simulation:
                                       v
 +-----------------------------------------------------------------------------+
 | 4. Fortran kernel (src/suews/src/)                                          |
-|    suews_ctrl_driver.f95::SUEWS_cal_multitsteps_dts                         |
+|    suews_ctrl_driver.f95::SUEWS_cal_multitsteps                             |
 |    suews_type_*.f95, suews_ctrl_type.f95, suews_ctrl_const.f95, phys_*.f95  |
 +-----------------------------------------------------------------------------+
 ```
@@ -89,7 +89,7 @@ Data crosses four layers during a simulation:
   invokes `ffi::suews_cal_multitsteps_c`.
 - **Fortran unpack:** `c_api/driver.f95` slices each TOC span, calls the
   corresponding `c_api/<type>.f95` `*_unpack` routine into fresh kernel derived
-  types, and calls `SUEWS_cal_multitsteps_dts`.
+  types, and calls `SUEWS_cal_multitsteps`.
 
 For the step-by-step procedure and pitfalls when adding or modifying a
 parameter, see [dev-ref/RUST_BRIDGE_ADD_PARAMETER.md](../../dev-ref/RUST_BRIDGE_ADD_PARAMETER.md).
@@ -250,7 +250,7 @@ field order with the module's own Fortran pack and unpack routines.
 | File(s) | Role |
 |---|---|
 | `c_api/common.f95` | Shared `SUEWS_CAPI_*` error codes, error text lookup and null-terminated Fortran-to-C string copy (`copy_to_c_buffer`). |
-| `c_api/driver.f95` | Batch simulation C entry point `suews_cal_multitsteps_c` (`physics`-gated): validates lengths/TOCs, copies `intent(in)` `forcing_flat` into a local `metforcing_block`, unpacks timer/config/site scalars/18 site members/13 state members, calls `SUEWS_cal_multitsteps_dts`, writes outputs/warnings and packs post-run state/timer. |
+| `c_api/driver.f95` | Batch simulation C entry point `suews_cal_multitsteps_c` (`physics`-gated): validates lengths/TOCs, copies `intent(in)` `forcing_flat` into a local `metforcing_block`, unpacks timer/config/site scalars/18 site members/13 state members, calls `SUEWS_cal_multitsteps`, writes outputs/warnings and packs post-run state/timer. |
 | `c_api/sunposition.f95` | Thin `bind(c)` wrapper around `module_phys_narp::NARP_cal_SunPosition` (`physics`-gated). |
 | 45 per-type `c_api/<type>.f95` | Per-type Fortran C-API facades (`3` non-per-type files above + `45` per-type = `48` total): `30` provide direct `*_unpack` routines (including `c_api/stebbs_prm.f95` as the annotated reference facade and `c_api/ohm.f95`, which also carries the legacy scalar OHM helper routines recorded as a BR-01 duplication in `dev-ref/RUST_BRIDGE_AUDIT.md`), and `15` provide schema/default routines only (`8` nested parameter types unpacked inline by parent facades, `config.f95` and `timer.f95` unpacked inside `driver.f95`, plus `forcing.f95`, `output_line.f95`, `output_block.f95`, `error_entry.f95` and `error_state.f95`). |
 

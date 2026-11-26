@@ -625,7 +625,7 @@ fn assert_wall_rectangle_matches_noblock(obs: &MultilineObservation, label: &str
                 expected,
                 1e-12,
                 &format!(
-                    "{label}: final-row block temp_wall({},{}) vs no-block SUEWS_cal_multitsteps_dts",
+                    "{label}: final-row block temp_wall({},{}) vs no-block SUEWS_cal_multitsteps",
                     layer + 1,
                     depth + 1
                 ),

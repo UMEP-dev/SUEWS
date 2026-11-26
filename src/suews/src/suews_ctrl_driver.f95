@@ -881,7 +881,7 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_Main_impl
 ! ================================================================================
 
-   ! Batch DTS execution subroutine - loops internally over timesteps for efficiency
+   ! Batch multi-timestep execution subroutine - loops internally over timesteps for efficiency
    ! This avoids Python->Fortran call overhead when processing multiple timesteps
    !
    ! Output layout: the data columns of all 11 output groups concatenated per row,
@@ -898,7 +898,7 @@ CONTAINS
    ! are INTENT(INOUT) because the rows outside this block belong to other
    ! grids, possibly written by other threads during this call, and must be
    ! left as they are.
-   SUBROUTINE SUEWS_cal_multitsteps_dts( &
+   SUBROUTINE SUEWS_cal_multitsteps( &
       timer, MetForcingBlock, len_sim, &
       config, siteInfo, &
       modState, &
@@ -957,7 +957,7 @@ CONTAINS
 
       END DO
 
-   END SUBROUTINE SUEWS_cal_multitsteps_dts
+   END SUBROUTINE SUEWS_cal_multitsteps
 
 
 ! ================================================================================

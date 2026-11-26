@@ -42,7 +42,7 @@ unsafe extern "C" {
     // Batch multi-timestep simulation driver (`c_api/driver.f95`, physics)
     // -----------------------------------------------------------------------
 
-    /// Execute `SUEWS_cal_multitsteps_dts` over `len_sim` forcing timesteps.
+    /// Execute `SUEWS_cal_multitsteps` over `len_sim` forcing timesteps.
     ///
     /// Unpacks `timer_flat`, `config_flat`, `site_scalars_flat`, the 18-member
     /// `site_flat` + `site_toc` buffer and the 13-member `state_flat` +

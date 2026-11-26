@@ -1,8 +1,8 @@
 ! -----------------------------------------------------------------------------
-! SUEWS Rust bridge C API facade for batch DTS simulation.
+! SUEWS Rust bridge C API facade for batch simulation.
 !
 ! Notes:
-! - This adapter exposes the batch entry point `SUEWS_cal_multitsteps_dts`.
+! - This adapter exposes the batch entry point `SUEWS_cal_multitsteps`.
 ! - Site/state member payloads are transferred via concatenated buffers and TOC
 !   arrays. Post-simulation state is packed from the modified Fortran types
 !   back into the flat output buffer for Rust codec round-trip.
@@ -56,7 +56,7 @@ use module_c_api_roughness, only: roughness_state_unpack
 use module_c_api_stebbs_state, only: SUEWS_CAPI_STEBBS_STATE_BASE_LEN, &
                                      stebbs_state_unpack, stebbs_state_pack_real
 use module_c_api_nhood, only: nhood_state_unpack
-use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps_dts
+use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps
 
 implicit none
 
@@ -415,7 +415,7 @@ subroutine suews_cal_multitsteps_c( &
    end if
 
    call state_local%errorState%reset()
-   call SUEWS_cal_multitsteps_dts( &
+   call SUEWS_cal_multitsteps( &
       timer_local, metforcing_block, len_sim_i, &
       config_local, site_local, &
       state_local, output_flat(1:len_sim_i, 1:ncols_data), &

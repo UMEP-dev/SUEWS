@@ -7,13 +7,15 @@ detect a +10% slowdown without flooding pull requests with false positives.
 
 This script scales each metrics artefact independently relative to unchanged
 reference tests in a committed baseline
-(``scripts/lint/test_duration_baseline.json``).  Scaling per artefact cancels
-bimodal runner speed differences across both API and physics shards (2-way or
-4-way SHA-256 sharding via ``scripts/suews/pytest_shard.py``) and reports cost
-relative to that reference cohort (note: a uniform slowdown affecting every
-reference test equally is absorbed into the cohort factor).  After scaling,
-shards of the same lane are aggregated so each test is judged once, whichever
-shard ran it.
+(``scripts/lint/test_duration_baseline.json``).  Both baseline schemas are
+supported: schema 1 (legacy ``api`` and ``physics`` lanes) and schema 2
+(multi-axis ``tooling``, ``unit``, ``native``, and ``physics`` lanes/cohorts).
+Scaling per artefact cancels bimodal runner speed differences across both
+unsharded and sharded lanes (2-way or 4-way SHA-256 sharding via
+``scripts/suews/pytest_shard.py``) and reports cost relative to that reference
+cohort (note: a uniform slowdown affecting every reference test equally is
+absorbed into the cohort factor).  After scaling, shards of the same lane are
+aggregated so each test is judged once, whichever shard ran it.
 
 Two conditions are reported (both advisory; CI runs this job with
 ``continue-on-error`` and never adds it to ``pr-gate``):
@@ -72,8 +74,21 @@ except ImportError:
     import check_cost_markers as cost_markers  # type: ignore[no-redef]
 
 BASELINE_SCHEMA_VERSION = 1
+MULTI_AXIS_BASELINE_SCHEMA_VERSION = 2
+SUPPORTED_BASELINE_SCHEMA_VERSIONS = (
+    BASELINE_SCHEMA_VERSION,
+    MULTI_AXIS_BASELINE_SCHEMA_VERSION,
+)
 DEFAULT_BASELINE_PATH = Path("scripts") / "lint" / "test_duration_baseline.json"
-LANES = ("api", "physics")
+LEGACY_LANES = ("api", "physics")
+MULTI_AXIS_LANES = ("tooling", "unit", "native", "physics")
+LANES = LEGACY_LANES
+ALL_LANES = ("api", "tooling", "unit", "native", "physics")
+SCHEMA_REQUIRED_LANES: dict[int, tuple[str, ...]] = {
+    BASELINE_SCHEMA_VERSION: LEGACY_LANES,
+    MULTI_AXIS_BASELINE_SCHEMA_VERSION: MULTI_AXIS_LANES,
+}
+_CI_METRICS_PREFIXES = ("ci-metrics-", "ci_metrics_")
 DEFAULT_MAX_REGRESSION = 0.10
 DEFAULT_MIN_REFERENCE_SECONDS = 1.0
 DEFAULT_MAX_REFERENCES_PER_LANE = 200
@@ -795,35 +810,89 @@ def _session_metadata(
     return exit_code, collected_count, recorded_count, invalid
 
 
+def _validate_allowed_lanes(
+    allowed_lanes: Iterable[str] | None,
+) -> tuple[str, ...]:
+    """Return validated lane names, defaulting to ``ALL_LANES``."""
+    if allowed_lanes is None:
+        return ALL_LANES
+    lanes = tuple(allowed_lanes)
+    unknown = [lane for lane in lanes if lane not in ALL_LANES]
+    if unknown:
+        raise ValueError(
+            f"unknown lane(s) {', '.join(repr(lane) for lane in unknown)}; "
+            f"expected subset of {ALL_LANES}"
+        )
+    return lanes
+
+
+def _lane_from_stem(stem: str) -> tuple[str | None, bool]:
+    """Extract a unique lane token from a filename stem, flagging ambiguity."""
+    toks = _tokens(stem)
+    matched = [lane for lane in ALL_LANES if lane in toks]
+    if len(matched) == 1:
+        return matched[0], False
+    if len(matched) > 1:
+        return None, True
+    return None, False
+
+
+def _lane_from_parent_name(name: str) -> tuple[str | None, bool]:
+    """Extract a lane from an immediate parent directory name.
+
+    Matches exact lane directories (``unit``), ``ci-metrics-<lane>*`` artefact
+    directories, or ``<lane>-*`` / ``<lane>_*`` lane folders so unrelated
+    temporary parent names (such as pytest's ``test_unit_...``) never collide.
+    """
+    lowered = name.lower()
+    if lowered in ALL_LANES:
+        return lowered, False
+    is_lane_dir = lowered.startswith(_CI_METRICS_PREFIXES) or any(
+        lowered.startswith((f"{lane}-", f"{lane}_")) for lane in ALL_LANES
+    )
+    if not is_lane_dir:
+        return None, False
+    matched = [lane for lane in ALL_LANES if lane in _tokens(lowered)]
+    if len(matched) == 1:
+        return matched[0], False
+    return None, len(matched) > 1
+
+
 def infer_lane(
     path: Path,
     tests: Sequence[cost_markers.TestCost],
+    *,
+    allowed_lanes: Iterable[str] | None = None,
 ) -> str | None:
-    """Infer whether an artefact belongs to ``api`` or ``physics``.
+    """Infer which CI test lane an artefact belongs to.
 
-    Checks the filename stem first, then the immediate parent directory name
-    (never higher ancestors, so test temporary paths cannot collide), and
-    finally falls back to test markers when the filename carries no lane token.
+    Supports both schema 1 (``api``, ``physics``) and schema 2
+    (``tooling``, ``unit``, ``native``, ``physics``). Checks the filename stem
+    first, then the immediate parent directory name (never higher ancestors,
+    so test temporary paths cannot collide), and finally falls back to test
+    markers when the path carries no lane token. When ``allowed_lanes`` is
+    given, marker fallback is scoped to those lanes so transitional
+    dual-marked tests (for example ``unit`` plus compatibility ``api``)
+    resolve against the active baseline schema.
     """
-    for candidate in (path.stem, path.parent.name):
-        toks = _tokens(candidate)
-        has_api = "api" in toks
-        has_physics = "physics" in toks
-        if has_api and not has_physics:
-            return "api"
-        if has_physics and not has_api:
-            return "physics"
+    candidate_lanes = _validate_allowed_lanes(allowed_lanes)
+
+    for lane, ambiguous in (
+        _lane_from_stem(path.stem),
+        _lane_from_parent_name(path.parent.name),
+    ):
+        if ambiguous or lane is not None:
+            return None if ambiguous else lane
 
     measured = [test for test in tests if test.measured]
     if not measured:
         return None
-    has_api_marker = any("api" in test.markers for test in measured)
-    has_physics_marker = any("physics" in test.markers for test in measured)
-    if has_api_marker and not has_physics_marker:
-        return "api"
-    if has_physics_marker and not has_api_marker:
-        return "physics"
-    return None
+    present = [
+        lane
+        for lane in candidate_lanes
+        if any(lane in test.markers for test in measured)
+    ]
+    return present[0] if len(present) == 1 else None
 
 
 def load_artefacts(
@@ -831,14 +900,21 @@ def load_artefacts(
     *,
     phase: str = cost_markers.DEFAULT_PHASE,
     skipped: list[str] | None = None,
+    allowed_lanes: Iterable[str] | None = None,
 ) -> list[ArtefactTests]:
     """Load per-test measurements grouped by artefact file and inferred lane.
 
     Skips non-pytest JSON files (``-phases.json``, ``-wheel-job.json``, etc.)
     through ``check_cost_markers._pytest_payload`` while propagating
     ``UnsupportedMetricsSchema`` if a per-test artefact carries an unknown
-    schema version.
+    schema version. When ``allowed_lanes`` is provided, artefacts belonging to
+    other lanes are skipped cleanly.
     """
+    allowed_set = (
+        frozenset(_validate_allowed_lanes(allowed_lanes))
+        if allowed_lanes is not None
+        else None
+    )
     artefacts: list[ArtefactTests] = []
     existing_paths = [path for path in paths if path.exists()]
     for path in cost_markers.iter_artefact_paths(existing_paths):
@@ -900,8 +976,8 @@ def load_artefacts(
                     ),
                 )
             )
-        lane = infer_lane(path, tests)
-        if lane is None:
+        lane = infer_lane(path, tests, allowed_lanes=allowed_set)
+        if lane is None or (allowed_set is not None and lane not in allowed_set):
             if skipped is not None:
                 skipped.append(path.as_posix())
             continue
@@ -924,29 +1000,58 @@ def load_artefacts(
     return artefacts
 
 
-def load_baseline(path: Path) -> DurationBaseline:
-    """Read and validate a committed duration baseline JSON file."""
-    safe_path = _sanitise_identifier(path.as_posix())
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError(f"{safe_path}: baseline root must be a JSON object")
-    version = payload.get("schema_version")
-    if version != BASELINE_SCHEMA_VERSION or isinstance(version, bool):
-        raise ValueError(
-            f"{safe_path}: unsupported baseline schema {version!r} "
-            f"(expected {BASELINE_SCHEMA_VERSION})"
-        )
-    raw_lanes = payload.get("lanes")
+def _extract_raw_baseline_lanes(
+    payload: dict[str, Any],
+    version: int,
+    safe_path: str,
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Validate and return the raw lane/cohort mapping and required lane order."""
+    expected_lanes = SCHEMA_REQUIRED_LANES[version]
+    if version == BASELINE_SCHEMA_VERSION:
+        raw_lanes = payload.get("lanes")
+    else:
+        has_lanes = "lanes" in payload
+        has_cohorts = "cohorts" in payload
+        if has_lanes and has_cohorts:
+            raise ValueError(
+                f"{safe_path}: baseline schema {version} cannot define both "
+                "'lanes' and 'cohorts'"
+            )
+        raw_lanes = payload.get("lanes") if has_lanes else payload.get("cohorts")
     if not isinstance(raw_lanes, dict) or not raw_lanes:
         raise ValueError(f"{safe_path}: baseline must define required lanes")
-    missing_lanes = [lane for lane in LANES if lane not in raw_lanes]
+    missing_lanes = [lane for lane in expected_lanes if lane not in raw_lanes]
     if missing_lanes:
         raise ValueError(
             f"{safe_path}: baseline is missing required lane(s): "
             f"{', '.join(missing_lanes)}"
         )
+    unknown_lanes = sorted(set(raw_lanes) - set(expected_lanes))
+    if unknown_lanes:
+        raise ValueError(
+            f"{safe_path}: baseline schema {version} contains unexpected lane(s): "
+            f"{', '.join(unknown_lanes)}"
+        )
+    return raw_lanes, expected_lanes
+
+
+def load_baseline(path: Path) -> DurationBaseline:
+    """Read and validate a committed duration baseline JSON file (schema 1 or 2)."""
+    safe_path = _sanitise_identifier(path.as_posix())
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{safe_path}: baseline root must be a JSON object")
+    version = payload.get("schema_version")
+    if isinstance(version, bool) or version not in SCHEMA_REQUIRED_LANES:
+        supported = ", ".join(str(v) for v in SUPPORTED_BASELINE_SCHEMA_VERSIONS)
+        raise ValueError(
+            f"{safe_path}: unsupported baseline schema {version!r} "
+            f"(expected one of {supported})"
+        )
+    raw_lanes, expected_lanes = _extract_raw_baseline_lanes(payload, version, safe_path)
     lanes: dict[str, LaneBaseline] = {}
-    for lane_name, lane_data in raw_lanes.items():
+    for lane_name in expected_lanes:
+        lane_data = raw_lanes[lane_name]
         if not isinstance(lane_data, dict):
             raise ValueError(f"{safe_path}: lane {lane_name!r} must be an object")
         total = _parse_positive_finite(lane_data.get("total_cpu_seconds"))
@@ -997,7 +1102,7 @@ def load_baseline(path: Path) -> DurationBaseline:
             f"{safe_path}: max_references_per_lane must be a positive integer"
         )
     return DurationBaseline(
-        schema_version=BASELINE_SCHEMA_VERSION,
+        schema_version=version,
         phase=str(payload.get("phase", cost_markers.DEFAULT_PHASE)),
         min_reference_seconds=min_ref,
         max_references_per_lane=max_refs,
@@ -1278,15 +1383,23 @@ def build_baseline(
     min_reference_seconds: float = DEFAULT_MIN_REFERENCE_SECONDS,
     max_references_per_lane: int = DEFAULT_MAX_REFERENCES_PER_LANE,
     min_reference_matches: int = DEFAULT_MIN_REFERENCE_MATCHES,
+    schema_version: int = BASELINE_SCHEMA_VERSION,
 ) -> DurationBaseline:
     """Build a duration baseline from one or more run artefact directories.
 
     Each entry in ``run_paths`` represents one CI run and must provide
-    complete, measured artefacts for every required lane in ``LANES`` (both
-    ``api`` and ``physics``).  Only the basename of each directory is recorded
-    in ``generated_from_runs`` so local filesystem paths never enter the
-    committed baseline.
+    complete, measured artefacts for every lane required by ``schema_version``
+    (schema 1: ``api`` and ``physics``; schema 2: ``tooling``, ``unit``,
+    ``native``, and ``physics``). Only the basename of each directory is
+    recorded in ``generated_from_runs`` so local filesystem paths never enter
+    the committed baseline.
     """
+    if isinstance(schema_version, bool) or schema_version not in SCHEMA_REQUIRED_LANES:
+        supported = ", ".join(str(v) for v in SUPPORTED_BASELINE_SCHEMA_VERSIONS)
+        raise ValueError(
+            f"unsupported baseline schema {schema_version!r} "
+            f"(expected one of {supported})"
+        )
     if not run_paths:
         raise ValueError("at least one run directory is required to build a baseline")
     if not _is_finite_positive(min_reference_seconds):
@@ -1296,20 +1409,25 @@ def build_baseline(
     if min_reference_matches < 1:
         raise ValueError("min_reference_matches must be at least 1")
 
-    per_lane_runs: dict[str, list[list[ArtefactTests]]] = {lane: [] for lane in LANES}
+    required_lanes = SCHEMA_REQUIRED_LANES[schema_version]
+    per_lane_runs: dict[str, list[list[ArtefactTests]]] = {
+        lane: [] for lane in required_lanes
+    }
     run_labels: list[str] = []
 
     for run_path in run_paths:
         run_label = _sanitise_filename(run_path.name)
         run_labels.append(run_path.name)
-        artefacts = load_artefacts([run_path], phase=phase)
-        by_lane: dict[str, list[ArtefactTests]] = {lane: [] for lane in LANES}
+        artefacts = load_artefacts(
+            [run_path], phase=phase, allowed_lanes=required_lanes
+        )
+        by_lane: dict[str, list[ArtefactTests]] = {lane: [] for lane in required_lanes}
         for artefact in artefacts:
             if artefact.lane in by_lane:
                 by_lane[artefact.lane].append(artefact)
         missing_lanes = [
             lane
-            for lane in LANES
+            for lane in required_lanes
             if not any(test.measured for art in by_lane[lane] for test in art.tests)
         ]
         if missing_lanes:
@@ -1317,7 +1435,7 @@ def build_baseline(
                 f"run {run_label!r} is missing measured artefacts for required "
                 f"lane(s): {', '.join(missing_lanes)}"
             )
-        for lane in LANES:
+        for lane in required_lanes:
             per_lane_runs[lane].append(by_lane[lane])
 
     lane_baselines = {
@@ -1328,11 +1446,11 @@ def build_baseline(
             max_references_per_lane=max_references_per_lane,
             min_reference_matches=min_reference_matches,
         )
-        for lane in LANES
+        for lane in required_lanes
     }
 
     return DurationBaseline(
-        schema_version=BASELINE_SCHEMA_VERSION,
+        schema_version=schema_version,
         phase=phase,
         min_reference_seconds=min_reference_seconds,
         max_references_per_lane=max_references_per_lane,
@@ -1343,12 +1461,17 @@ def build_baseline(
 
 def baseline_to_dict(baseline: DurationBaseline) -> dict[str, Any]:
     """Serialise a ``DurationBaseline`` to a deterministic JSON dictionary."""
+    schema_flag = (
+        f" --baseline-schema {baseline.schema_version}"
+        if baseline.schema_version != BASELINE_SCHEMA_VERSION
+        else ""
+    )
     return {
         "schema_version": baseline.schema_version,
         "description": (
             "Runner-normalised Linux cp312 call-phase CPU baseline for the "
             "report-only CI test-duration guard. Regenerate with: "
-            "python scripts/lint/check_test_duration.py --write-baseline <run_dirs...>"
+            f"python scripts/lint/check_test_duration.py --write-baseline{schema_flag} <run_dirs...>"
         ),
         "phase": baseline.phase,
         "metric": "cpu_seconds",
@@ -1934,7 +2057,9 @@ def check_durations(
         marker_warnings=marker_warnings,
         checked_changed_tests=len(judged),
         restricted_to=restricted_to,
-        sources=[artefact.source for artefact in artefact_list],
+        sources=[
+            artefact.source for artefact in artefact_list if artefact.lane in by_lane
+        ],
     )
 
 
@@ -1962,6 +2087,17 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--write-baseline",
         action="store_true",
         help="regenerate the baseline JSON from the given run directories",
+    )
+    parser.add_argument(
+        "--baseline-schema",
+        type=int,
+        choices=SUPPORTED_BASELINE_SCHEMA_VERSIONS,
+        default=BASELINE_SCHEMA_VERSION,
+        help=(
+            "baseline schema version when generating a baseline with "
+            "--write-baseline (1 = api/physics, 2 = tooling/unit/native/physics; "
+            f"default {BASELINE_SCHEMA_VERSION})"
+        ),
     )
     parser.add_argument(
         "--min-reference-seconds",
@@ -2117,6 +2253,7 @@ def main(argv: list[str] | None = None) -> int:
                 min_reference_seconds=args.min_reference_seconds,
                 max_references_per_lane=args.max_references,
                 min_reference_matches=args.min_reference_matches,
+                schema_version=args.baseline_schema,
             )
             write_baseline(baseline, args.baseline)
         except (OSError, ValueError, cost_markers.UnsupportedMetricsSchema) as exc:
@@ -2142,7 +2279,12 @@ def main(argv: list[str] | None = None) -> int:
 
     skipped: list[str] = []
     try:
-        artefacts = load_artefacts(args.paths, phase=baseline.phase, skipped=skipped)
+        artefacts = load_artefacts(
+            args.paths,
+            phase=baseline.phase,
+            skipped=skipped,
+            allowed_lanes=tuple(baseline.lanes),
+        )
     except cost_markers.UnsupportedMetricsSchema as exc:
         _emit_cli_error("", exc, emit_annotations=args.annotations)
         return 2

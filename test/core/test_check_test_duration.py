@@ -1498,3 +1498,413 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
     )
     assert "scripts/lint/**" in filters["ci"]
     assert "**/*.py" in filters["encoding_audit"]
+
+
+def _write_multi_axis_run(
+    root: Path,
+    *,
+    factors: dict[str, float],
+    unit_shard_factors: tuple[float, float],
+    include_tooling: bool = True,
+    extra_native: tuple[str, float] | None = None,
+    extra_unit: tuple[str, float] | None = None,
+    include_legacy_api: bool = False,
+) -> None:
+    tooling_nodes = [f"test/core/test_tool_{i:02d}.py::test_t" for i in range(8)]
+    unit_nodes = [f"test/data_model/test_unit_{i:02d}.py::test_u" for i in range(30)]
+    native_nodes = [f"test/core/test_native_{i:02d}.py::test_n" for i in range(10)]
+    phys_nodes = [f"test/physics/test_phys_{i:02d}.py::test_p" for i in range(10)]
+
+    if include_tooling:
+        _write_artefact(
+            root / "tooling" / "tooling-cp312-linux-x86_64.json",
+            [
+                _record(nid, call=1.5 * factors["tooling"], markers=("tooling",))
+                for nid in tooling_nodes
+            ],
+        )
+    for shard_idx, s_factor in enumerate(unit_shard_factors, start=1):
+        recs = [
+            _record(nid, call=2.0 * s_factor, markers=("unit",))
+            for nid in unit_nodes
+            if _shard_of(nid, 2) == shard_idx
+        ]
+        if extra_unit is not None and shard_idx == 1:
+            recs.append(
+                _record(extra_unit[0], call=extra_unit[1] * s_factor, markers=("unit",))
+            )
+        _write_artefact(
+            root
+            / "unit"
+            / f"ci-metrics-unit-cp312-linux-x86_64-shard-{shard_idx}-of-2"
+            / f"unit-cp312-linux-x86_64-shard-{shard_idx}-of-2.json",
+            recs,
+        )
+    native_recs = [
+        _record(nid, call=3.0 * factors["native"], markers=("native",))
+        for nid in native_nodes
+    ]
+    if extra_native is not None:
+        native_recs.append(
+            _record(
+                extra_native[0],
+                call=extra_native[1] * factors["native"],
+                markers=("native",),
+            )
+        )
+    _write_artefact(root / "native" / "native-cp312-manylinux-x86_64.json", native_recs)
+    _write_artefact(
+        root / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [
+            _record(nid, call=4.0 * factors["physics"], markers=("physics",))
+            for nid in phys_nodes
+        ],
+    )
+    if include_legacy_api:
+        # Transitional legacy API artefact must be ignored when building/evaluating schema 2.
+        _write_artefact(
+            root / "api" / "api-cp312-manylinux-x86_64.json",
+            [_record("test/core/test_legacy.py::test_old", call=5.0, markers=("api",))],
+        )
+
+
+def _build_schema2_baseline_file(tmp_path: Path) -> Path:
+    unit_factors = {"tooling": 1.0, "native": 1.0, "physics": 1.0}
+    run1 = tmp_path / "runs" / "2001"
+    run2 = tmp_path / "runs" / "2002"
+    _write_multi_axis_run(
+        run1,
+        factors=unit_factors,
+        unit_shard_factors=(0.8, 1.2),
+        include_legacy_api=True,
+    )
+    _write_multi_axis_run(
+        run2,
+        factors=unit_factors,
+        unit_shard_factors=(1.2, 0.8),
+        include_legacy_api=True,
+    )
+    baseline_path = tmp_path / "baseline_v2.json"
+    rc = guard.main([
+        "--write-baseline",
+        "--baseline-schema",
+        "2",
+        "--baseline",
+        str(baseline_path),
+        str(run1),
+        str(run2),
+    ])
+    assert rc == 0
+    return baseline_path
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_schema2_multi_axis_baseline_build_and_clean_bimodal_eval(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Schema 2 (`tooling|unit|native|physics`) builds, loads, and normalises bimodal shards."""
+    baseline_path = _build_schema2_baseline_file(tmp_path)
+    capsys.readouterr()
+
+    raw = json.loads(baseline_path.read_text(encoding="utf-8"))
+    assert raw["schema_version"] == 2
+    assert list(raw["lanes"]) == ["tooling", "unit", "native", "physics"]
+    assert raw["lanes"]["tooling"]["total_cpu_seconds"] == pytest.approx(12.0)
+    assert raw["lanes"]["unit"]["total_cpu_seconds"] == pytest.approx(60.0)
+    assert raw["lanes"]["native"]["total_cpu_seconds"] == pytest.approx(30.0)
+    assert raw["lanes"]["physics"]["total_cpu_seconds"] == pytest.approx(40.0)
+    loaded = guard.load_baseline(baseline_path)
+    assert loaded.schema_version == 2
+    assert tuple(loaded.lanes) == ("tooling", "unit", "native", "physics")
+
+    clean_run = tmp_path / "eval_clean"
+    _write_multi_axis_run(
+        clean_run,
+        factors={"tooling": 0.75, "native": 1.35, "physics": 1.60},
+        unit_shard_factors=(0.70, 1.50),
+        include_legacy_api=True,
+    )
+    clean_json = tmp_path / "clean_v2.json"
+    clean_md = tmp_path / "clean_v2.md"
+    rc = guard.main([
+        str(clean_run),
+        "--baseline",
+        str(baseline_path),
+        "--no-changed-test-files",
+        "--json",
+        str(clean_json),
+        "--markdown",
+        str(clean_md),
+        "--annotations",
+    ])
+    capsys.readouterr()
+    assert rc == 0
+    payload = json.loads(clean_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["complete"] is True
+    assert set(payload["lanes"]) == {"tooling", "unit", "native", "physics"}
+    assert "api-cp312-manylinux-x86_64.json" not in payload["sources"]
+    assert payload["lanes"]["unit"]["artefact_count"] == 2
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_schema2_multi_axis_detects_regression_marker_drift_and_missing_lane(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Schema 2 flags lane regressions, under-marked changed tests, and missing axes."""
+    baseline_path = _build_schema2_baseline_file(tmp_path)
+    capsys.readouterr()
+
+    drift_run = tmp_path / "eval_drift"
+    _write_multi_axis_run(
+        drift_run,
+        factors={"tooling": 1.0, "native": 1.2, "physics": 1.0},
+        unit_shard_factors=(0.70, 1.40),
+        extra_native=("test/core/test_added_native.py::test_slow_bridge", 4.5),
+        extra_unit=("test/data_model/test_added_unit.py::test_heavy_unit", 25.0),
+    )
+    drift_json = tmp_path / "drift_v2.json"
+    rc_drift = guard.main([
+        str(drift_run),
+        "--baseline",
+        str(baseline_path),
+        "--test-file",
+        "test/data_model/test_added_unit.py",
+        "--json",
+        str(drift_json),
+        "--annotations",
+    ])
+    drift_out = capsys.readouterr().out
+    assert rc_drift == 1
+    drift_payload = json.loads(drift_json.read_text(encoding="utf-8"))
+    assert drift_payload["lanes"]["native"]["regressed"] is True
+    assert drift_payload["lanes"]["native"]["delta_ratio"] == pytest.approx(0.15)
+    assert len(drift_payload["marker_warnings"]) == 1
+    assert drift_payload["marker_warnings"][0]["lane"] == "unit"
+    assert drift_payload["marker_warnings"][0]["wanted"] == "medium"
+    assert "::warning title=Test duration regression::native lane" in drift_out
+    assert (
+        "::warning title=Test cost marker::"
+        "test/data_model/test_added_unit.py::test_heavy_unit (unit)" in drift_out
+    )
+
+    missing_tooling = tmp_path / "eval_missing_tooling"
+    _write_multi_axis_run(
+        missing_tooling,
+        factors={"tooling": 1.0, "native": 1.0, "physics": 1.0},
+        unit_shard_factors=(1.0, 1.0),
+        include_tooling=False,
+    )
+    incomplete_json = tmp_path / "incomplete_v2.json"
+    rc_inc = guard.main([
+        str(missing_tooling),
+        "--baseline",
+        str(baseline_path),
+        "--no-changed-test-files",
+        "--json",
+        str(incomplete_json),
+    ])
+    capsys.readouterr()
+    assert rc_inc == 1
+    inc_payload = json.loads(incomplete_json.read_text(encoding="utf-8"))
+    assert inc_payload["complete"] is False
+    assert inc_payload["status"] == "incomplete"
+    assert inc_payload["incomplete_lanes"] == ["tooling"]
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_schema2_cohorts_alias_and_schema_validation_fail_closed(
+    tmp_path: Path,
+) -> None:
+    """Schema 2 accepts `lanes` or `cohorts`, and both schemas fail closed on mismatches."""
+    v2_base = guard.DurationBaseline(
+        schema_version=2,
+        phase="call",
+        min_reference_seconds=1.0,
+        max_references_per_lane=200,
+        generated_from_runs=("2001",),
+        lanes={
+            lane: guard.LaneBaseline(
+                lane,
+                10.0,
+                5,
+                {f"test/core/test_{lane}_{i}.py::test_r": 2.0 for i in range(5)},
+            )
+            for lane in ("tooling", "unit", "native", "physics")
+        },
+    )
+    v2_dict = guard.baseline_to_dict(v2_base)
+
+    # Schema 2 with `cohorts` alias loads identically to `lanes`.
+    cohorts_path = tmp_path / "v2_cohorts.json"
+    cohorts_path.write_text(
+        json.dumps({
+            **{k: v for k, v in v2_dict.items() if k != "lanes"},
+            "cohorts": v2_dict["lanes"],
+        }),
+        encoding="utf-8",
+    )
+    loaded = guard.load_baseline(cohorts_path)
+    assert loaded.schema_version == 2
+    assert tuple(loaded.lanes) == ("tooling", "unit", "native", "physics")
+
+    # Schema 2 defining both `lanes` and `cohorts` is rejected.
+    both_path = tmp_path / "v2_both.json"
+    both_path.write_text(
+        json.dumps({**v2_dict, "cohorts": v2_dict["lanes"]}), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="cannot define both 'lanes' and 'cohorts'"):
+        guard.load_baseline(both_path)
+
+    # Schema 2 missing any required axis or carrying unexpected lanes is rejected.
+    for drop_lane in ("tooling", "unit", "native", "physics"):
+        missing_dict = json.loads(json.dumps(v2_dict))
+        del missing_dict["lanes"][drop_lane]
+        bad_path = tmp_path / f"v2_missing_{drop_lane}.json"
+        bad_path.write_text(json.dumps(missing_dict), encoding="utf-8")
+        with pytest.raises(ValueError, match=rf"missing required lane.*{drop_lane}"):
+            guard.load_baseline(bad_path)
+
+    for extra_lane in ("api", "bogus"):
+        extra_dict = json.loads(json.dumps(v2_dict))
+        extra_dict["lanes"][extra_lane] = extra_dict["lanes"]["unit"]
+        bad_path = tmp_path / f"v2_extra_{extra_lane}.json"
+        bad_path.write_text(json.dumps(extra_dict), encoding="utf-8")
+        with pytest.raises(ValueError, match=rf"unexpected lane.*{extra_lane}"):
+            guard.load_baseline(bad_path)
+
+    # Schema 1 rejects `cohorts` alias, extra schema 2 lanes, and invalid schema versions.
+    v1_dict = guard.baseline_to_dict(_synthetic_baseline())
+    bad_v1_cohorts = tmp_path / "v1_cohorts.json"
+    bad_v1_cohorts.write_text(
+        json.dumps({
+            **{k: v for k, v in v1_dict.items() if k != "lanes"},
+            "cohorts": v1_dict["lanes"],
+        }),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="must define required lanes"):
+        guard.load_baseline(bad_v1_cohorts)
+
+    v1_extra = json.loads(json.dumps(v1_dict))
+    v1_extra["lanes"]["tooling"] = v1_extra["lanes"]["api"]
+    bad_v1_extra = tmp_path / "v1_extra.json"
+    bad_v1_extra.write_text(json.dumps(v1_extra), encoding="utf-8")
+    with pytest.raises(ValueError, match=r"unexpected lane.*tooling"):
+        guard.load_baseline(bad_v1_extra)
+
+    for bad_ver in (0, 3, True):
+        bad_ver_path = tmp_path / f"bad_ver_{bad_ver}.json"
+        bad_ver_path.write_text(
+            json.dumps({**v1_dict, "schema_version": bad_ver}), encoding="utf-8"
+        )
+        with pytest.raises(ValueError, match="unsupported baseline schema"):
+            guard.load_baseline(bad_ver_path)
+        with pytest.raises(ValueError, match="unsupported baseline schema"):
+            guard.build_baseline([tmp_path], schema_version=bad_ver)  # type: ignore[arg-type]
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_infer_lane_dual_schema_ambiguity_and_transitional_shim_isolation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`infer_lane` handles schema 1/2 paths, transitional shim markers, and cross-schema isolation."""
+    # Path-based inference across schema 1 & 2, plus ambiguity & tmp_path collision resistance.
+    assert (
+        guard.infer_lane(tmp_path / "tooling-cp312-linux-x86_64.json", []) == "tooling"
+    )
+    assert guard.infer_lane(tmp_path / "unit-cp312-linux-x86_64.json", []) == "unit"
+    assert (
+        guard.infer_lane(tmp_path / "native-cp312-manylinux-x86_64.json", [])
+        == "native"
+    )
+    assert (
+        guard.infer_lane(
+            tmp_path / "physics-core-cp312-manylinux-x86_64-pytest.json", []
+        )
+        == "physics"
+    )
+    assert (
+        guard.infer_lane(
+            tmp_path / "ci-metrics-native-cp312-manylinux-x86_64" / "pytest.json", []
+        )
+        == "native"
+    )
+    assert guard.infer_lane(tmp_path / "api-physics.json", []) is None
+    assert guard.infer_lane(tmp_path / "unit-native-cp312.json", []) is None
+    assert (
+        guard.infer_lane(tmp_path / "ci-metrics-unit-native-cp312" / "pytest.json", [])
+        is None
+    )
+
+    # Unrelated pytest temp dir containing `unit` must not override marker fallback.
+    api_test = cost_markers.TestCost(
+        "test/core/test_x.py::test_a", ("api",), 1.0, 1.2, "results.json"
+    )
+    assert (
+        guard.infer_lane(tmp_path / "test_unit_something0" / "results.json", [api_test])
+        == "api"
+    )
+
+    # Transitional dual-marked (`unit` + `api` shim) artefact with generic filename resolves
+    # by active `allowed_lanes` and fails closed when unscoped.
+    shim_test = cost_markers.TestCost(
+        "test/data_model/test_x.py::test_u", ("api", "unit"), 1.0, 1.2, "results.json"
+    )
+    generic_path = tmp_path / "run_x" / "results.json"
+    assert guard.infer_lane(generic_path, [shim_test]) is None
+    assert (
+        guard.infer_lane(generic_path, [shim_test], allowed_lanes=("api", "physics"))
+        == "api"
+    )
+    assert (
+        guard.infer_lane(
+            generic_path,
+            [shim_test],
+            allowed_lanes=("tooling", "unit", "native", "physics"),
+        )
+        == "unit"
+    )
+
+    # Cross-schema CLI isolation: schema 2 artefacts evaluated against a schema 1 baseline
+    # must NOT misclassify a `unit` artefact (even with `api` shim markers) as `api`.
+    v1_baseline = _synthetic_baseline()
+    v1_path = tmp_path / "v1_baseline.json"
+    guard.write_baseline(v1_baseline, v1_path)
+
+    mixed_dir = tmp_path / "schema2_artefacts"
+    _write_artefact(
+        mixed_dir / "unit" / "unit-cp312-linux-x86_64.json",
+        [
+            _record(nid, call=cpu, markers=("api", "unit"))
+            for nid, cpu in v1_baseline.lanes["api"].reference_tests.items()
+        ],
+    )
+    _write_artefact(
+        mixed_dir / "physics" / "physics-cp312-manylinux-x86_64-pytest.json",
+        [
+            _record(nid, call=cpu, markers=("physics",))
+            for nid, cpu in v1_baseline.lanes["physics"].reference_tests.items()
+        ],
+    )
+    out_json = tmp_path / "cross_schema.json"
+    rc = guard.main([
+        str(mixed_dir),
+        "--baseline",
+        str(v1_path),
+        "--no-changed-test-files",
+        "--json",
+        str(out_json),
+    ])
+    capsys.readouterr()
+    assert rc == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["complete"] is False
+    assert payload["lanes"]["physics"]["status"] == "ok"
+    assert payload["lanes"]["api"]["status"] == "missing"
+    assert payload["incomplete_lanes"] == ["api"]
+    assert "unit-cp312-linux-x86_64.json" not in payload["sources"]

@@ -8,8 +8,8 @@ took 169 s and 343 s on the same runner class on the same day. The markers are
 therefore defined by process CPU seconds of the test body (the `call` phase)
 on the Linux reference runner (`ubuntu-latest`, cp312), which the metrics
 plugin (`scripts/suews/pytest_ci_metrics.py`) records per test in the
-`ci-metrics-api-cp312-manylinux-x86_64` and
-`ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run.
+per-axis Linux cp312 metrics artefacts (schema 1: `api` and `physics`;
+schema 2: `tooling`, `unit`, `native`, and `physics`) of every nightly run.
 
 This script reads one or more of those artefacts (files, or directories as
 `gh run download` leaves them) and reports every test whose marker disagrees
@@ -64,6 +64,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -80,7 +81,11 @@ BAND = 2.0
 # session fixture to whichever test reaches it first on each worker.
 DEFAULT_PHASE = "call"
 PHASES = ("setup", "call", "teardown", "total")
-AXES = ("api", "physics")
+LEGACY_AXES = ("api", "physics")
+MULTI_AXES = ("tooling", "unit", "native", "physics")
+AXES = ("api", "tooling", "unit", "native", "physics")
+_TOKEN_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+_CI_METRICS_PREFIXES = ("ci-metrics-", "ci_metrics_")
 COST_MARKERS = ("medium", "slow")
 # Outcomes whose call phase ran and so carry a measurement.
 MEASURED_OUTCOMES = frozenset({"passed", "failed", "xpassed"})
@@ -302,16 +307,53 @@ def _pytest_payload(payload: Any, path: Path) -> dict[str, Any] | None:
     return payload
 
 
-def source_axis(path: Path) -> str | None:
-    """Return the CI test axis (``api`` or ``physics``) a metrics artefact belongs to."""
-    stem = path.stem.lower()
+def _axis_tokens(name: str) -> set[str]:
+    """Return recognised axis tokens present in a filename or directory name."""
+    return {tok for tok in _TOKEN_SPLIT_RE.split(name.lower()) if tok in AXES}
+
+
+def _axis_from_prefixed_name(name: str) -> tuple[str | None, bool]:
+    """Extract an axis from a prefixed artefact name, flagging multi-axis ambiguity."""
+    lowered = name.lower()
+    for prefix in _CI_METRICS_PREFIXES:
+        if lowered.startswith(prefix):
+            lowered = lowered[len(prefix) :]
+            break
+    tokens = _axis_tokens(lowered)
+    if len(tokens) > 1:
+        return None, True
     for axis in AXES:
-        if stem == axis or stem.startswith(f"{axis}-") or stem.startswith(f"{axis}_"):
-            return axis
+        if (
+            lowered == axis
+            or lowered.startswith(f"{axis}-")
+            or lowered.startswith(f"{axis}_")
+            or lowered.startswith(f"{axis}.")
+        ):
+            return axis, False
+    return None, False
+
+
+def source_axis(path: Path) -> str | None:
+    """Return the CI test axis a metrics artefact belongs to.
+
+    Recognises both schema 1 (``api``, ``physics``) and schema 2
+    (``tooling``, ``unit``, ``native``, ``physics``, including
+    ``physics-core``). Returns ``None`` when the path carries no axis label or
+    names multiple axes ambiguously.
+    """
+    axis, ambiguous = _axis_from_prefixed_name(path.stem)
+    if ambiguous or axis is not None:
+        return None if ambiguous else axis
     for parent in path.parents:
         name = parent.name.lower()
         if name in AXES:
             return name
+        if name in {"physics-core", "physics_core"}:
+            return "physics"
+        if name.startswith(_CI_METRICS_PREFIXES):
+            parent_axis, parent_ambiguous = _axis_from_prefixed_name(name)
+            if parent_ambiguous or parent_axis is not None:
+                return None if parent_ambiguous else parent_axis
     return None
 
 
@@ -566,8 +608,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action="append",
         choices=AXES,
         help=(
-            "require at least one measured test from this lane axis (api or physics); "
-            "repeat to require both axes before reporting clean"
+            "require at least one measured test from this lane axis "
+            f"({', '.join(AXES)}); repeat to require multiple axes before reporting clean"
         ),
     )
     return parser.parse_args(argv)

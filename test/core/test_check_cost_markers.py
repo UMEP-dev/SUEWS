@@ -523,6 +523,8 @@ def test_source_axis_supports_schema1_and_schema2_paths_and_rejects_ambiguity(
         (tmp_path / "unit-native" / "unit-cp312.json", None),
         (tmp_path / "ci-metrics-native-cp312" / "unit-cp312.json", None),
         (tmp_path / "native" / "unit-cp312.json", None),
+        (tmp_path / "ci-metrics-native-cp312" / "unit" / "pytest.json", None),
+        (tmp_path / "native" / "ci-metrics-unit-cp312" / "pytest.json", None),
     ]
     for path, expected in cases:
         assert checker.source_axis(path) == expected, path
@@ -583,7 +585,8 @@ def test_require_axis_supports_schema2_multi_axis_lanes_and_fails_closed(
     out = capsys.readouterr().out
     assert "missing measured metrics for required axis/axes: native" in out
 
-    # Labelled filename inside an ambiguous directory must NOT satisfy --require-axis native.
+    # Labelled filename inside an ambiguous directory, or generic filename under
+    # conflicting enclosing axis directories, must NOT satisfy --require-axis native.
     ambig_path = (
         metrics_dir
         / "ci-metrics-unit-native-cp312"
@@ -593,6 +596,20 @@ def test_require_axis_supports_schema2_multi_axis_lanes_and_fails_closed(
     _artefact(
         ambig_path,
         [_record("test/core/test_native.py::test_ambig", call=0.5, markers=("native",))],
+    )
+    conflict_parent_path = (
+        metrics_dir / "ci-metrics-unit-cp312" / "native" / "pytest.json"
+    )
+    conflict_parent_path.parent.mkdir(parents=True, exist_ok=True)
+    _artefact(
+        conflict_parent_path,
+        [
+            _record(
+                "test/core/test_native.py::test_conflict_parent",
+                call=0.5,
+                markers=("native",),
+            )
+        ],
     )
     assert checker.main([str(metrics_dir), *req_args]) == 2
     assert not out_json.exists()
@@ -615,7 +632,7 @@ def test_require_axis_supports_schema2_multi_axis_lanes_and_fails_closed(
     )
     assert checker.main([str(metrics_dir), *req_args]) == 0
     payload = json.loads(out_json.read_text(encoding="utf-8"))
-    assert (payload["ok"], payload["flagged"], payload["measured"]) == (True, 0, 5)
+    assert (payload["ok"], payload["flagged"], payload["measured"]) == (True, 0, 6)
     capsys.readouterr()
 
     # Unknown axis is rejected directly by missing_required_axes.

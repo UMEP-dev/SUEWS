@@ -360,22 +360,23 @@ def source_axis(path: Path) -> str | None:
     if stem_ambiguous:
         return None
     parent_axis: str | None = None
+    parent_from_artefact_dir = False
     for depth, parent in enumerate(path.parents):
         axis, ambiguous = _axis_from_parent_dir(parent.name, immediate=(depth == 0))
         if ambiguous:
             return None
-        if axis is not None:
-            if (
-                stem_axis is not None
-                and axis != stem_axis
-                and (
-                    depth == 0
-                    or parent.name.lower().startswith(_CI_METRICS_PREFIXES)
-                )
-            ):
-                return None
-            if parent_axis is None:
-                parent_axis = axis
+        if axis is None:
+            continue
+        is_artefact_dir = depth == 0 or parent.name.lower().startswith(
+            _CI_METRICS_PREFIXES
+        )
+        if stem_axis is not None and axis != stem_axis and is_artefact_dir:
+            return None
+        if parent_axis is None:
+            parent_axis = axis
+            parent_from_artefact_dir = is_artefact_dir
+        elif axis != parent_axis and (is_artefact_dir or parent_from_artefact_dir):
+            return None
     return stem_axis if stem_axis is not None else parent_axis
 
 

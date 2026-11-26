@@ -208,20 +208,20 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
   # 0-ci:full-matrix is set.
   # Schema 2 (#2349): applies the four automatic full-physics triggers across
   # all pull requests (draft and ready) with no draft exemption:
-  # fortran/rust/build changes -> standard, 0-physics:change/0-numerics:change
-  # -> physics-full, and other wheel-building Python PRs -> physics-core
-  # (smoke + exact sample-output witness) while tooling/unit/native keep their
-  # full suites.
+  # fortran/rust/build changes and 0-physics:change/0-numerics:change both
+  # select physics-full (full `-m physics`, incl. slow), while other
+  # wheel-building Python PRs select physics-core (smoke + exact sample-output
+  # witness) and tooling/unit/native keep their full suites.
   if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
     PR_KIND="Ready PR"
     if [[ "${IS_DRAFT}" == "true" ]]; then
       PR_KIND="Draft PR"
     fi
     if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
-      TIER=standard
+      TIER=physics-full
       FULL_PHYSICS=true
       PHYSICS_FULL_TRIGGER=compiled_or_build_change
-      echo "${PR_KIND} (schema 2) with fortran/rust/build changes - ${PR_MATRIX_NOTE}, full physics (standard)"
+      echo "${PR_KIND} (schema 2) with fortran/rust/build changes - ${PR_MATRIX_NOTE}, full physics (physics-full)"
     else
       TIER=physics-core
       FULL_PHYSICS=false
@@ -268,11 +268,15 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
   echo "test_tier=$TIER" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
-  # gh#1576: the merge queue otherwise runs `standard` (slow excluded), which is
-  # how a known output-changing PR landed without the shift being caught. When
-  # the queued PR carries 0-physics:change or 0-numerics:change, run the full
-  # physics tier here too.
+  # gh#1576: in Schema 1, the merge queue runs `standard` (slow excluded) unless
+  # the queued PR carries 0-physics:change or 0-numerics:change.
+  # Under Schema 2 (#2349), the merge queue is one of the four automatic
+  # full-physics triggers and always selects `physics-full` (full `-m physics`,
+  # incl. slow).
   MERGE_TIER=standard
+  if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    MERGE_TIER=physics-full
+  fi
   MERGE_PLATFORMS="$MERGE_QUEUE_PLATFORMS"
   MERGE_API_PLATFORMS="$MINIMAL_PLATFORMS"
   FULL_PHYSICS=true
@@ -409,7 +413,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
   esac
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"
   case "${INPUT_TEST_TIER}" in
-    standard|physics-full|all)
+    physics-full|all)
       FULL_PHYSICS=true
       PHYSICS_FULL_TRIGGER=workflow_dispatch
       ;;

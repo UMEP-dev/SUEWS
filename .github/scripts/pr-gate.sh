@@ -381,28 +381,35 @@ if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
 
   echo "Validating the core-test guard (schema 2)..."
   if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
-    case "${TEST_TIER}" in
-      physics-core|standard|physics-full)
-        if [[ "${CORE_GUARD_RESULT}" == "success" ]]; then
-          echo "[OK] Every core test passed on Linux (schema 2, tier ${TEST_TIER})"
-        else
-          echo "[X] Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
-          VALIDATION_PASSED=false
+    # Under Schema 2, pr-gate only runs on pull_request and merge_group and
+    # there is no draft-tier exemption: merge_group must run physics-full,
+    # pull_request with PHYSICS_CHANGE=true must run physics-full, other
+    # pull_request builds must run physics-core or physics-full, and every
+    # successful wheel build requires core_guard == success.
+    SCHEMA2_TIER_VALID=false
+    if [[ "${EVENT_NAME}" == "merge_group" ]]; then
+      if [[ "${TEST_TIER}" == "physics-full" ]]; then
+        SCHEMA2_TIER_VALID=true
+      fi
+    elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
+      if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+        if [[ "${TEST_TIER}" == "physics-full" ]]; then
+          SCHEMA2_TIER_VALID=true
         fi
-        ;;
-      smoke|core|cfg|all)
-        if [[ "${CORE_GUARD_RESULT}" == "success" ]] || [[ "${CORE_GUARD_RESULT}" == "skipped" ]]; then
-          echo "[OK] Core-test guard not required (tier ${TEST_TIER}, build_wheels ${BUILD_WHEELS_RESULT})"
-        else
-          echo "[X] Core-test guard finished with '${CORE_GUARD_RESULT}'"
-          VALIDATION_PASSED=false
-        fi
-        ;;
-      *)
-        echo "[X] Core-test guard received invalid or empty Schema 2 TEST_TIER '${TEST_TIER}'"
-        VALIDATION_PASSED=false
-        ;;
-    esac
+      elif [[ "${TEST_TIER}" == "physics-core" ]] || [[ "${TEST_TIER}" == "physics-full" ]]; then
+        SCHEMA2_TIER_VALID=true
+      fi
+    fi
+
+    if [[ "${SCHEMA2_TIER_VALID}" != "true" ]]; then
+      echo "[X] Schema 2 ${EVENT_NAME} build rejected invalid or reduced TEST_TIER '${TEST_TIER}' (physics_change=${PHYSICS_CHANGE})"
+      VALIDATION_PASSED=false
+    elif [[ "${CORE_GUARD_RESULT}" == "success" ]]; then
+      echo "[OK] Every core test passed on Linux (schema 2, tier ${TEST_TIER})"
+    else
+      echo "[X] Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
+      VALIDATION_PASSED=false
+    fi
   else
     if [[ "${CORE_GUARD_RESULT}" == "success" ]] || [[ "${CORE_GUARD_RESULT}" == "skipped" ]]; then
       echo "[OK] Core-test guard not required (tier ${TEST_TIER:-unset}, build_wheels ${BUILD_WHEELS_RESULT})"

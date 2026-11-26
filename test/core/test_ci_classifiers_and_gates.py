@@ -1576,23 +1576,28 @@ def test_determine_matrix_schema1_parity_and_invalid_schema_fail_closed(
 def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
     tmp_path: Path,
 ) -> None:
-    """Schema 2 selects full physics on the exact 4 automatic triggers and physics-core otherwise."""
-    # Trigger 1: ready PRs touching fortran, rust, or build -> standard (full physics).
+    """Schema 2 selects full physics (incl. slow) on the exact 4 automatic triggers and physics-core otherwise."""
+    slow_non_core_physics = ("physics", "slow")
+    smoke_physics = ("physics", "smoke")
+
+    # Trigger 1: PRs touching fortran, rust, or build -> physics-full (includes non-core slow physics).
     for flag in ("FORTRAN_CHANGED", "RUST_CHANGED", "BUILD_CHANGED"):
         out = _run_determine_matrix(
             tmp_path,
             {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "pull_request", flag: "true"},
         )
         assert out["gate_axis_schema"] == "2"
-        assert out["test_tier"] == "standard", flag
+        assert out["test_tier"] == "physics-full", flag
         assert out["full_physics"] == "true", flag
         assert out["physics_full_trigger"] == "compiled_or_build_change", flag
+        expr = ci_tiers.tier_expression("physics", out["test_tier"], schema=2)
+        assert ci_tiers.matches(expr, slow_non_core_physics), flag
         assert json.loads(out["source_lanes"]) == ["tooling", "unit"]
         assert json.loads(out["native_python"]) == ["cp312"]
         assert json.loads(out["abi3_smoke_python"]) == ["cp315"]
         assert json.loads(out["os_compat_buildplat"]) == json.loads(out["buildplat"])
 
-    # Trigger 2: ready PRs carrying 0-physics:change or 0-numerics:change -> physics-full.
+    # Trigger 2: PRs carrying 0-physics:change or 0-numerics:change -> physics-full.
     for extra in ({}, {"FORTRAN_CHANGED": "true"}, {"PYTHON_CHANGED": "true"}):
         out = _run_determine_matrix(
             tmp_path,
@@ -1606,8 +1611,10 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
         assert out["test_tier"] == "physics-full", extra
         assert out["full_physics"] == "true", extra
         assert out["physics_full_trigger"] == "classification_label", extra
+        expr = ci_tiers.tier_expression("physics", out["test_tier"], schema=2)
+        assert ci_tiers.matches(expr, slow_non_core_physics), extra
 
-    # Other ready PRs (python, util, tests, ci, other) -> physics-core.
+    # Other wheel-building Python PRs (python, util, tests, ci, other) -> physics-core.
     for extra in (
         {"PYTHON_CHANGED": "true"},
         {"UTIL_CHANGED": "true"},
@@ -1622,6 +1629,9 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
         assert out["test_tier"] == "physics-core", extra
         assert out["full_physics"] == "false", extra
         assert out["physics_full_trigger"] == "none", extra
+        expr = ci_tiers.tier_expression("physics", out["test_tier"], schema=2)
+        assert ci_tiers.matches(expr, smoke_physics), extra
+        assert not ci_tiers.matches(expr, slow_non_core_physics), extra
         assert json.loads(out["source_lanes"]) == ["tooling", "unit"]
         assert [p[1] for p in json.loads(out["source_buildplat"])] == ["manylinux"]
         assert json.loads(out["abi3_smoke_python"]) == ["cp315"]
@@ -1656,8 +1666,8 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
         "win",
     ]
 
-    # Trigger 3: merge_group runs full physics (standard or physics-full), no abi3_smoke,
-    # and os_compat on built OSes (Linux + Windows for code/CI, Linux for tests-only).
+    # Trigger 3: merge_group always runs full physics (physics-full, incl. slow), no abi3_smoke,
+    # and native + os_compat on built OSes (Linux + Windows for code/CI, Linux for tests-only).
     mq_py = _run_determine_matrix(
         tmp_path,
         {
@@ -1666,9 +1676,13 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
             "PYTHON_CHANGED": "true",
         },
     )
-    assert mq_py["test_tier"] == "standard"
+    assert mq_py["test_tier"] == "physics-full"
     assert mq_py["full_physics"] == "true"
     assert mq_py["physics_full_trigger"] == "merge_group"
+    assert ci_tiers.matches(
+        ci_tiers.tier_expression("physics", mq_py["test_tier"], schema=2),
+        slow_non_core_physics,
+    )
     assert json.loads(mq_py["abi3_smoke_python"]) == []
     assert json.loads(mq_py["abi3_smoke_buildplat"]) == []
     assert [p[1] for p in json.loads(mq_py["native_buildplat"])] == [
@@ -1684,7 +1698,7 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
         tmp_path,
         {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "merge_group", "TESTS_CHANGED": "true"},
     )
-    assert mq_tests["test_tier"] == "standard"
+    assert mq_tests["test_tier"] == "physics-full"
     assert [p[1] for p in json.loads(mq_tests["native_buildplat"])] == ["manylinux"]
     assert [p[1] for p in json.loads(mq_tests["os_compat_buildplat"])] == ["manylinux"]
 
@@ -1700,13 +1714,17 @@ def test_determine_matrix_schema2_four_full_physics_triggers_and_physics_core(
     assert mq_phys["full_physics"] == "true"
     assert mq_phys["physics_full_trigger"] == "classification_label"
 
-    # Trigger 4: nightly schedule -> all, 4 built OSes, abi3_smoke cp313..cp315.
+    # Trigger 4: nightly schedule -> all (includes non-core slow physics), 4 built OSes, abi3_smoke cp313..cp315.
     nightly = _run_determine_matrix(
         tmp_path, {"GATE_AXIS_SCHEMA": "2", "EVENT_NAME": "schedule"}
     )
     assert nightly["test_tier"] == "all"
     assert nightly["full_physics"] == "true"
     assert nightly["physics_full_trigger"] == "schedule"
+    assert ci_tiers.matches(
+        ci_tiers.tier_expression("physics", nightly["test_tier"], schema=2),
+        slow_non_core_physics,
+    )
     assert len(json.loads(nightly["buildplat"])) == 4
     assert len(json.loads(nightly["native_buildplat"])) == 4
     assert len(json.loads(nightly["os_compat_buildplat"])) == 4
@@ -1729,9 +1747,24 @@ def test_determine_matrix_schema2_draft_tag_dispatch_and_ci_tiers_parity(
     # Under Schema 2, draft PRs follow the same four-trigger / physics-core rules as ready PRs
     # (no draft exemption in Multi-Axis CI Topology).
     for overrides, expected_tier, expected_full, expected_trigger in (
-        ({"FORTRAN_CHANGED": "true"}, "standard", "true", "compiled_or_build_change"),
-        ({"RUST_CHANGED": "true"}, "standard", "true", "compiled_or_build_change"),
-        ({"BUILD_CHANGED": "true"}, "standard", "true", "compiled_or_build_change"),
+        (
+            {"FORTRAN_CHANGED": "true"},
+            "physics-full",
+            "true",
+            "compiled_or_build_change",
+        ),
+        (
+            {"RUST_CHANGED": "true"},
+            "physics-full",
+            "true",
+            "compiled_or_build_change",
+        ),
+        (
+            {"BUILD_CHANGED": "true"},
+            "physics-full",
+            "true",
+            "compiled_or_build_change",
+        ),
         ({"PHYSICS_CHANGE": "true"}, "physics-full", "true", "classification_label"),
         ({"PYTHON_CHANGED": "true"}, "physics-core", "false", "none"),
     ):

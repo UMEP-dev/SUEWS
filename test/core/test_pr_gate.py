@@ -365,8 +365,8 @@ class GateTests(unittest.TestCase):
     def test_schema2_green_across_ready_tiers_and_merge_group(self):
         """Schema 2 passes when every required axis lane and core_guard succeed."""
         for event_name, tiers in (
-            ("pull_request", ("physics-core", "standard", "physics-full")),
-            ("merge_group", ("standard", "physics-full")),
+            ("pull_request", ("physics-core", "physics-full")),
+            ("merge_group", ("physics-full",)),
         ):
             for tier in tiers:
                 with self.subTest(event=event_name, tier=tier):
@@ -411,7 +411,7 @@ class GateTests(unittest.TestCase):
         # but failure/cancelled/unset/empty or explicit ABI3_SMOKE_REQUIRED=true fail closed.
         for bad_mq_abi3 in ("failure", "cancelled", "", "unset"):
             with self.subTest(merge_group_abi3=bad_mq_abi3):
-                env = _schema2_green_env("merge_group", "standard")
+                env = _schema2_green_env("merge_group", "physics-full")
                 if bad_mq_abi3 == "unset":
                     env.pop("ABI3_SMOKE_RESULT")
                 else:
@@ -425,7 +425,7 @@ class GateTests(unittest.TestCase):
         ):
             with self.subTest(explicit_required=req_var):
                 env = {
-                    **_schema2_green_env("merge_group", "standard"),
+                    **_schema2_green_env("merge_group", "physics-full"),
                     req_var: "true",
                     res_var: "skipped",
                 }
@@ -454,7 +454,7 @@ class GateTests(unittest.TestCase):
         # Even on merge_group, OS_COMPAT_REQUIRED=false cannot suppress mandatory os_compat when wheels build.
         res_mq_suppress = _run_pr_gate(
             {
-                **_schema2_green_env("merge_group", "standard"),
+                **_schema2_green_env("merge_group", "physics-full"),
                 "OS_COMPAT_REQUIRED": "false",
                 "OS_COMPAT_RESULT": "skipped",
             },
@@ -466,28 +466,47 @@ class GateTests(unittest.TestCase):
             res_mq_suppress.stdout + res_mq_suppress.stderr,
         )
 
-    def test_schema2_core_guard_enforces_physics_core_and_rejects_invalid_tier(self):
-        """Schema 2 requires core_guard on physics-core, standard, and physics-full."""
+    def test_schema2_core_guard_enforces_event_tier_policy_and_rejects_reduced_tiers(
+        self,
+    ):
+        """Schema 2 requires event-valid tiers and core_guard==success on every wheel build."""
         cases = (
-            ("physics-core", "success", 0),
-            ("physics-core", "skipped", 1),
-            ("physics-core", "failure", 1),
-            ("physics-core", "cancelled", 1),
-            ("physics-core", "unset", 1),
-            ("standard", "skipped", 1),
-            ("physics-full", "skipped", 1),
-            ("smoke", "skipped", 0),
-            ("core", "skipped", 0),
-            ("cfg", "skipped", 0),
-            ("smoke", "failure", 1),
-            ("smoke", "unset", 1),
-            ("", "success", 1),
-            ("physics_core", "success", 1),
+            # event_name, physics_change, tier, core_guard, expected_rc
+            ("pull_request", "false", "physics-core", "success", 0),
+            ("pull_request", "false", "physics-full", "success", 0),
+            ("pull_request", "true", "physics-full", "success", 0),
+            ("merge_group", "false", "physics-full", "success", 0),
+            # Missing, skipped, failed, or cancelled core_guard fails closed.
+            ("pull_request", "false", "physics-core", "skipped", 1),
+            ("pull_request", "false", "physics-core", "failure", 1),
+            ("pull_request", "false", "physics-core", "cancelled", 1),
+            ("pull_request", "false", "physics-core", "unset", 1),
+            ("pull_request", "false", "physics-full", "skipped", 1),
+            ("merge_group", "false", "physics-full", "skipped", 1),
+            # Reduced/non-policy tiers cannot bypass Schema 2 core_guard or full physics.
+            ("pull_request", "false", "smoke", "skipped", 1),
+            ("pull_request", "false", "smoke", "success", 1),
+            ("pull_request", "false", "core", "skipped", 1),
+            ("pull_request", "false", "cfg", "skipped", 1),
+            ("pull_request", "false", "standard", "success", 1),
+            ("pull_request", "false", "all", "skipped", 1),
+            ("pull_request", "true", "physics-core", "success", 1),
+            ("merge_group", "false", "physics-core", "success", 1),
+            ("merge_group", "false", "standard", "success", 1),
+            ("merge_group", "false", "smoke", "skipped", 1),
+            ("pull_request", "false", "", "success", 1),
+            ("pull_request", "false", "physics_core", "success", 1),
         )
-        for tier, guard, expected_rc in cases:
-            with self.subTest(tier=tier, guard=guard):
+        for event_name, phys_change, tier, guard, expected_rc in cases:
+            with self.subTest(
+                event=event_name,
+                physics_change=phys_change,
+                tier=tier,
+                guard=guard,
+            ):
                 env = {
-                    **_schema2_green_env("pull_request", tier),
+                    **_schema2_green_env(event_name, tier),
+                    "PHYSICS_CHANGE": phys_change,
                 }
                 if guard == "unset":
                     env.pop("CORE_GUARD_RESULT")

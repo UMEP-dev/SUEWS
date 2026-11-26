@@ -134,6 +134,8 @@ function laneStatusSection(statuses) {
   }
   if (rows.length === 0) return '';
   return [
+    '### Schema 2 Lane Statuses',
+    '',
     '| Lane | Status |',
     '|---|---|',
     ...rows,
@@ -144,13 +146,13 @@ function describeSchema2PhysicsLane(testTier, trigger) {
   if (testTier === 'physics-core') {
     return 'physics-core (smoke + exact sample-output witness)';
   }
-  if (testTier === 'standard') {
-    return trigger && trigger !== 'none'
-      ? `full physics (standard; trigger: ${sanitiseInlineText(trigger)})`
-      : 'full physics (standard)';
-  }
   if (testTier === 'physics-full') {
-    return 'full physics incl. slow (0-physics:change / 0-numerics:change)';
+    return trigger && trigger !== 'none'
+      ? `full physics incl. slow (trigger: ${sanitiseInlineText(trigger)})`
+      : 'full physics incl. slow';
+  }
+  if (testTier === 'standard') {
+    return 'standard physics (non-slow + core regressions)';
   }
   if (testTier === 'all') {
     return 'full physics (all)';
@@ -334,17 +336,25 @@ function buildBody(env, { isDraft, owner, repo }) {
   if (testsChanged) rationale.push('Test files changed -> validation build');
   if (axisSchema === 2 && needsBuild && testTier === 'physics-core') {
     rationale.push('No Fortran/Rust/build or physics-label trigger -> physics-core (smoke + exact sample-output witness); full tooling/unit/native');
-  } else if (axisSchema === 2 && needsBuild && testTier === 'standard' && (fortranChanged || rustChanged || buildChanged)) {
-    rationale.push('Fortran/Rust/build changed -> full physics tier triggered');
+  } else if (axisSchema === 2 && needsBuild && testTier === 'physics-full') {
+    const trigger = env.PHYSICS_FULL_TRIGGER;
+    if (trigger === 'compiled_or_build_change' || (!trigger && (fortranChanged || rustChanged || buildChanged) && env.PHYSICS_CHANGE !== 'true')) {
+      rationale.push('Fortran/Rust/build changed -> full physics tier (incl. slow) triggered');
+    } else if (trigger === 'merge_group') {
+      rationale.push('Merge queue -> full physics tier (incl. slow) triggered');
+    } else {
+      rationale.push('0-physics:change or 0-numerics:change label -> full physics tier (incl. slow) required before merge');
+    }
+  } else if (testTier === 'physics-full') {
+    rationale.push('0-physics:change or 0-numerics:change label -> full physics tier (incl. slow) required before merge');
   }
-  if (testTier === 'physics-full') rationale.push('0-physics:change or 0-numerics:change label -> full physics tier (incl. slow) required before merge');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');
 
   // Compose the comment
   const marker = '<!-- ci-build-plan -->';
-  const parts = [
+  const baseBody = [
     marker,
     '## CI Build Plan',
     '',
@@ -354,19 +364,18 @@ function buildBody(env, { isDraft, owner, repo }) {
     '### Build Configuration',
     '',
     configSection,
-  ];
-  if (laneStatusBlock) {
-    parts.push('### Schema 2 Lane Statuses', '', `${laneStatusBlock}\n`);
-  }
-  parts.push(
     '### Rationale',
     '',
     rationaleSection,
     '',
     '---',
     `<sub>Updated by CI on each push. See <a href="https://github.com/${owner}/${repo}/blob/${env.COMMIT_SHA}/.github/path-filters.yml">path-filters.yml</a> for category definitions.</sub>`,
-  );
-  return parts.join('\n');
+  ].join('\n');
+
+  if (laneStatusBlock) {
+    return withLaneStatusSection(baseBody, laneStatusBlock);
+  }
+  return baseBody;
 }
 
 const MARKER = '<!-- ci-build-plan -->';

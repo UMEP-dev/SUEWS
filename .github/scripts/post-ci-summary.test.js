@@ -573,12 +573,12 @@ test('Schema 2 buildBody renders 4+1 axis configuration and physics-core rationa
   assert.match(pyPr, /\| \*\*Physics lane\*\* \| physics-core \(smoke \+ exact sample-output witness\) \|/);
   assert.match(pyPr, /No Fortran\/Rust\/build or physics-label trigger -> physics-core/);
 
-  // Compiled change triggers full physics (standard) and multiplatform os_compat when full-matrix is active.
+  // Compiled change triggers full physics (physics-full, incl. slow) and multiplatform os_compat when full-matrix is active.
   const fortranPr = buildBody(
     envFor({
       GATE_AXIS_SCHEMA: '2',
       FORTRAN_CHANGED: 'true',
-      TEST_TIER: 'standard',
+      TEST_TIER: 'physics-full',
       BUILDPLAT_JSON: PR,
       PYTHON_JSON: '["cp312"]',
       ABI3_SMOKE_PYTHON_JSON: '[]',
@@ -590,8 +590,9 @@ test('Schema 2 buildBody renders 4+1 axis configuration and physics-core rationa
   );
   assert.match(fortranPr, /\| \*\*abi3 smoke\*\* \| skipped \(none scheduled\) \|/);
   assert.match(fortranPr, /\| \*\*os_compat\*\* \| Linux x86_64, macOS ARM64, Windows x64 \|/);
-  assert.match(fortranPr, /\| \*\*Physics lane\*\* \| full physics \(standard; trigger: compiled\\_or\\_build\\_change\) \|/);
-  assert.match(fortranPr, /Fortran\/Rust\/build changed -> full physics tier triggered/);
+  assert.match(fortranPr, /\| \*\*Physics lane\*\* \| full physics incl\. slow \(trigger: compiled\\_or\\_build\\_change\) \|/);
+  assert.match(fortranPr, /Fortran\/Rust\/build changed -> full physics tier \(incl\. slow\) triggered/);
+  assert.doesNotMatch(fortranPr, /0-physics:change or 0-numerics:change label/);
 });
 
 test('Schema 2 lane status table renders canonical lanes, ASCII badges, and sanitises untrusted text', () => {
@@ -610,6 +611,7 @@ test('Schema 2 lane status table renders canonical lanes, ASCII badges, and sani
     }),
     ctx,
   );
+  assert.match(body, /<!-- schema2-lanes:start -->/);
   assert.match(body, /### Schema 2 Lane Statuses/);
   assert.match(body, /\| `tooling` \| \[OK\] success \|/);
   assert.match(body, /\| `unit` \| \[OK\] success \|/);
@@ -617,6 +619,28 @@ test('Schema 2 lane status table renders canonical lanes, ASCII badges, and sani
   assert.match(body, /\| `physics` \| \[X\] failure \|/);
   assert.match(body, /\| `os_compat` \| \[-\] skipped \|/);
   assert.match(body, /\| `abi3_smoke` \| \[X\] cancelled \|/);
+
+  // Replacing or clearing statuses on a Schema 2 body produced by buildBody replaces in place
+  // without leaving duplicate tables or stale failures behind.
+  const updated = withLaneStatusSection(
+    body,
+    laneStatusSection({
+      tooling: 'success',
+      unit: 'success',
+      native: 'success',
+      physics: 'success',
+      os_compat: 'success',
+      abi3_smoke: 'success',
+    }),
+  );
+  assert.equal((updated.match(/### Schema 2 Lane Statuses/g) || []).length, 1);
+  assert.equal((updated.match(/<!-- schema2-lanes:start -->/g) || []).length, 1);
+  assert.doesNotMatch(updated, /\[X\] failure/);
+  assert.match(updated, /\| `physics` \| \[OK\] success \|/);
+
+  const withoutStatuses = buildBody(envFor({ GATE_AXIS_SCHEMA: '2', TEST_TIER: 'physics-core' }), ctx);
+  assert.equal(withLaneStatusSection(body, ''), withoutStatuses);
+  assert.doesNotMatch(withLaneStatusSection(body, ''), /Schema 2 Lane Statuses/);
 
   // timed_out classifies as failure ([X]) even though sanitiseInlineText escapes underscores.
   const timedOut = laneStatusSection({ physics: 'timed_out' });

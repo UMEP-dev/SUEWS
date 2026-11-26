@@ -98,6 +98,19 @@ When fixing CI issues that affect existing PRs:
 3. Rebase the original problematic PR to trigger fresh CI
 4. The rebased PR will use the corrected workflow
 
+### Break-Glass Recovery for Faulty Base-Read Scripts
+
+Several jobs in `.github/workflows/build-publish_to_pypi.yml` sparse-checkout `.github/scripts` at `github.event.pull_request.base.sha` (some with a `|| github.sha` fallback). [fact: git grep -n -A 5 'ref: \${{ github\.event\.pull_request\.base\.sha' .github/workflows/build-publish_to_pypi.yml]
+If a faulty base-read script under `.github/scripts/**` on a required validation path (such as `determine_matrix` or `pr-gate`) lands on `master`, subsequent pull requests -- including a plain revert or fix PR for that script -- still execute the broken copy from `pull_request.base.sha`, deadlocking `PR build validation`.
+
+When that deadlock occurs, a maintainer-approved break-glass recovery is permitted under the following rules: [decision: software maintainer, 2026-11-26]
+
+1. **Trigger and scope:** Use this procedure only when `pull_request.base.sha` holds a faulty base-read script under `.github/scripts/**` that prevents a normal revert or fix PR from passing required CI checks. Do not use it to bypass a failing check on a feature, physics, or general code PR (`.claude/rules/autonomous-workflow.md`, "Gates"). [decision: software maintainer, 2026-11-26]
+2. **Emergency PR (pin to a known-good `master` SHA):** Open a dedicated emergency PR that temporarily pins the affected `.github/scripts` checkout `ref:` in `.github/workflows/build-publish_to_pypi.yml` from `pull_request.base.sha` (with any `|| github.sha` fallback) to an immutable, full 40-character commit SHA already on `master` that predates the fault (never a branch name, tag, or unmerged commit), together with the revert or minimal fix to the faulty script under `.github/scripts/**` (or the pin alone, immediately followed by the script revert or fix PR). If pinning `pr-gate`'s checkout `ref:` trips a workflow-contract test asserting that exact expression (currently `test/core/test_dependency_floors.py`), the emergency PR may include the minimal temporary assertion update for that exact pinned SHA so the emergency PR can pass CI. State the faulty `master` commit, the known-good `master` SHA, and why a normal revert is deadlocked in the PR description, and bundle no unrelated code, test, or `.claude/**` changes. [decision: software maintainer, 2026-11-26]
+3. **Human approval gate:** Explicit software maintainer approval (`MAINTAINERS.md`) is required before merge. An agent may draft the emergency PR when escalated, but never merges or enqueues it (`.claude/rules/autonomous-workflow.md`, "Gating model"). [decision: software maintainer, 2026-11-26]
+4. **Immediate restore PR:** Once `master` holds the repaired script, follow immediately with a tiny restore PR that reverts the temporary `ref:` pin in `.github/workflows/build-publish_to_pypi.yml` back to its original `pull_request.base.sha` expression (`${{ github.event.pull_request.base.sha || github.sha }}` or `${{ github.event.pull_request.base.sha }}`) and restores verbatim any workflow-contract test assertion adjusted in step 2 (and nothing else). Because the restore PR runs against the updated `pull_request.base.sha`, its green `PR build validation` check confirms the repaired base-read script works before normal PR flow resumes. [decision: software maintainer, 2026-11-26]
+5. **No unrelated merges while pinned:** Do not merge unrelated PRs while the `ref:` pin is active on `master`, so no unrelated change skips the current `master` gate scripts. [decision: software maintainer, 2026-11-26]
+
 ---
 
 ## Best Practices

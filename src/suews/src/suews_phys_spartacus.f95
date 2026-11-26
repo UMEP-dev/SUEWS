@@ -213,7 +213,6 @@ CONTAINS
       USE radsurf_boundary_conds_out, ONLY: boundary_conds_out_type
       USE radsurf_canopy_flux, ONLY: canopy_flux_type
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
-      ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
       USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE

@@ -52,9 +52,10 @@ PERIPHERAL_TEST_DIRS: tuple[str, ...] = (
 )
 
 # Make parser regexes (applied to leading-whitespace-trimmed non-recipe lines).
+_MAKE_WHITESPACE = " \t"
 _COND_DIRECTIVE_RE = re.compile(r"^(?:ifeq|ifneq|ifdef|ifndef)(?:[ \t(]|$)")
 _DEFINE_DIRECTIVE_RE = re.compile(
-    r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+\S+"
+    r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+[^ \t]+"
 )
 _INCLUDE_RE = re.compile(r"^(?:-include|sinclude|include)[ \t]+")
 _DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t]*(?:eval|call)\b")
@@ -311,22 +312,33 @@ def _has_odd_trailing_backslashes(line: str) -> bool:
     return trailing % 2 == 1
 
 
+def _split_make_words(value: str) -> list[str]:
+    """Split on GNU Make ASCII blanks (space and tab) only."""
+    return [token for token in re.split(r"[ \t]+", value) if token]
+
+
 def _join_makefile_continuations(text: str) -> list[str]:
     """Join GNU Make physical-newline continuations respecting backslash parity."""
     logical_lines: list[str] = []
     buffer = ""
     in_continuation = False
-    for raw_part in text.split("\n"):
-        raw_line = raw_part[:-1] if raw_part.endswith("\r") else raw_part
+    raw_parts = text.split("\n")
+    last_idx = len(raw_parts) - 1
+    for idx, raw_part in enumerate(raw_parts):
+        raw_line = (
+            raw_part[:-1] if idx < last_idx and raw_part.endswith("\r") else raw_part
+        )
         if _has_odd_trailing_backslashes(raw_line):
             part = raw_line[:-1]
             if in_continuation:
-                buffer = f"{buffer} {part.lstrip()}" if buffer else part.lstrip()
+                trimmed = part.lstrip(_MAKE_WHITESPACE)
+                buffer = f"{buffer} {trimmed}" if buffer else trimmed
             else:
                 buffer = part
             in_continuation = True
         elif in_continuation:
-            joined = f"{buffer} {raw_line.lstrip()}" if buffer else raw_line.lstrip()
+            trimmed = raw_line.lstrip(_MAKE_WHITESPACE)
+            joined = f"{buffer} {trimmed}" if buffer else trimmed
             logical_lines.append(joined)
             buffer = ""
             in_continuation = False
@@ -427,7 +439,7 @@ def _apply_makefile_target_line(
             f"{value.strip()}"
         )
     op = match.group("op")
-    tokens = value.split()
+    tokens = _split_make_words(value)
     if op in {":=", "::=", "="}:
         return (tokens, True)
     if op == "?=":
@@ -459,7 +471,8 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
         variable names, or tab-indented assignments outside a recipe), or
         contains an invalid path token.
     """
-    text = makefile_path.read_text(encoding="utf-8")
+    with makefile_path.open("r", encoding="utf-8", newline="") as handle:
+        text = handle.read()
     found = False
     raw_tokens: list[str] = []
     in_rule = False
@@ -473,7 +486,7 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
                 )
             continue
 
-        stripped = line.lstrip(" \t")
+        stripped = line.lstrip(_MAKE_WHITESPACE)
         if not stripped or stripped.startswith("#"):
             continue
 

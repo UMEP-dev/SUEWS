@@ -432,6 +432,79 @@ def test_invalid_makefile_fails_with_diagnostic(
     assert captured.err.isascii()
 
 
+def test_bare_carriage_return_in_comment_does_not_create_phantom_lane(
+    tmp_path: Path, capsys
+) -> None:
+    """A bare CR inside a Makefile comment stays commented out like GNU Make."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan/test_stray.py": API_TEST_SOURCE,
+        },
+        makefile=None,
+    )
+    (repo / "Makefile").write_bytes(
+        b"TEST_DEFAULT_PATHS := test/core\n# note\rTEST_DEFAULT_PATHS += test/orphan\n"
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/orphan/test_stray.py" in captured.err
+    assert captured.err.isascii()
+
+
+def test_bare_carriage_return_at_eof_is_rejected(tmp_path: Path, capsys) -> None:
+    """A trailing bare CR without LF is not stripped as CRLF."""
+    repo = _make_repo(
+        tmp_path,
+        {"test/core/test_ok.py": API_TEST_SOURCE},
+        makefile=None,
+    )
+    (repo / "Makefile").write_bytes(b"TEST_DEFAULT_PATHS := test/core\r")
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unsupported path characters" in captured.err
+    assert captured.err.isascii()
+
+
+@pytest.mark.parametrize(
+    "makefile_content",
+    [
+        "TEST_DEFAULT_PATHS := test/core\u00a0test/orphan\n",
+        "TEST_DEFAULT_PATHS := test/core\\\n\u00a0test/orphan\n",
+        "TEST_DEFAULT_PATHS := test/core\x0ctest/orphan\n",
+    ],
+)
+def test_non_make_whitespace_does_not_split_paths(
+    tmp_path: Path, capsys, makefile_content: str
+) -> None:
+    """Unicode NBSP and form-feed characters fail portable-path validation."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan/test_stray.py": API_TEST_SOURCE,
+        },
+        makefile=makefile_content,
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unsupported path characters" in captured.err
+    assert captured.err.isascii()
+
+
 @pytest.mark.parametrize(
     ("source", "should_pass"),
     [

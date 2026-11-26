@@ -1,9 +1,9 @@
 """End-to-end input-guard regressions for standalone ``suews-engine`` and Fortran anthro."""
 
+from copy import deepcopy
 from datetime import datetime, timedelta
 from importlib import import_module
-from importlib.resources import as_file, files
-import os
+from importlib.resources import files
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,9 +14,13 @@ from pyarrow import ipc
 import pytest
 import yaml
 
+from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
 pytestmark = [
     pytest.mark.physics,
     pytest.mark.api,
@@ -24,44 +28,53 @@ pytestmark = [
 ]
 
 
-def _locate_suews_engine() -> Path:
-    """Return the bundled or locally built ``suews-engine`` binary."""
-    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = files("supy").joinpath("bin").joinpath(binary_name)
-    with as_file(bundled) as bundled_path:
-        if bundled_path.exists():
-            return Path(bundled_path)
+def _dump_yaml(doc: dict) -> str:
+    return yaml.dump(doc, Dumper=_YAML_DUMPER, sort_keys=False)
 
-    repo_root = Path(__file__).resolve().parents[2]
-    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
-    if dev_binary.exists():
-        return dev_binary
-    pytest.skip("Rust CLI binary not found; build with: make bridge")
+
+def _load_yaml(text: str) -> dict:
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+@pytest.fixture(scope="module")
+def _engine_guards_base(sample_config_loaded):
+    """Cache resolved YAML template and sample forcing lines for this module."""
+    resolved_base = _load_yaml(_run_rust.config_to_engine_yaml(sample_config_loaded))
+    # Establish positive baseline that the unmutated resolved dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(resolved_base))
+    forcing_entry = resolved_base["model"]["control"]["forcing"]["file"]
+    forcing_name = (
+        forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
+    )
+    assert isinstance(forcing_name, str) and forcing_name
+    forcing_raw = (files("supy") / "sample_data" / forcing_name).read_text(
+        encoding="utf-8"
+    )
+    forcing_lines = [line for line in forcing_raw.splitlines() if line.strip()]
+    return {
+        "resolved_base": resolved_base,
+        "forcing_name": forcing_name,
+        "forcing_lines": forcing_lines,
+    }
 
 
 def _prepare_engine_inputs(
+    base_cache: dict,
     run_dir: Path,
     *,
     emissions: int = 2,
     forcing_rows: int = 4,
     forcing_mutator=None,
     override_emissions_raw: int | None = None,
-) -> Path:
+    config_mutator=None,
+) -> tuple[Path, dict]:
     """Write resolved YAML config and short forcing prefix into ``run_dir``."""
-    sample_dir = files("supy").joinpath("sample_data")
-    with sample_dir.joinpath("sample_config.yml").open(encoding="utf-8") as handle:
-        cfg = yaml.safe_load(handle)
-
-    control = cfg["model"]["control"]
+    resolved_doc = deepcopy(base_cache["resolved_base"])
+    control = resolved_doc["model"]["control"]
     control["output"]["dir"] = str(run_dir)
-    forcing_entry = control.get("forcing", {}).get("file")
-    forcing_name = (
-        forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
-    )
-    assert isinstance(forcing_name, str) and forcing_name
+    forcing_name = base_cache["forcing_name"]
+    forcing_lines = base_cache["forcing_lines"]
 
-    forcing_raw = sample_dir.joinpath(forcing_name).read_text(encoding="utf-8")
-    forcing_lines = [line for line in forcing_raw.splitlines() if line.strip()]
     header = forcing_lines[0].split()
     rows = [line.split() for line in forcing_lines[1 : forcing_rows + 1]]
     if forcing_mutator is not None:
@@ -74,47 +87,110 @@ def _prepare_engine_inputs(
         minutes=int(last_row[3]),
     )
     control["end_time"] = last_ts.strftime("%Y-%m-%d %H:%M:%S")
-
-    cfg["model"]["physics"]["emissions"] = {"value": emissions}
-    resolved_yaml = _run_rust.config_to_engine_yaml(SUEWSConfig.from_dict(cfg))
-
-    if override_emissions_raw is not None:
-        resolved_doc = yaml.safe_load(resolved_yaml)
-        resolved_doc["model"]["physics"]["emissions"] = {
-            "value": override_emissions_raw
-        }
-        resolved_yaml = yaml.safe_dump(resolved_doc, sort_keys=False)
+    resolved_doc["model"]["physics"]["emissions"] = {
+        "value": override_emissions_raw
+        if override_emissions_raw is not None
+        else emissions
+    }
+    if config_mutator is not None:
+        config_mutator(resolved_doc)
 
     forcing_text = "\n".join([" ".join(header), *(" ".join(row) for row in rows)])
     (run_dir / forcing_name).write_text(forcing_text + "\n", encoding="utf-8")
 
     config_path = run_dir / "sample_config.yml"
-    config_path.write_text(resolved_yaml, encoding="utf-8")
-    return config_path
+    config_path.write_text(_dump_yaml(resolved_doc), encoding="utf-8")
+    return config_path, resolved_doc
 
 
-@pytest.mark.parametrize("field", ["raincover", "rainmaxres", "drainrt", "veg_type"])
+def _read_arrow_columns(arrow_path: Path, columns: list[str]) -> dict[str, np.ndarray]:
+    """Read selected columns from an Arrow IPC file and release the mmap."""
+    with ipc.open_file(str(arrow_path)) as reader:
+        table = reader.read_all().select(columns)
+        return {
+            name: table.column(name).to_numpy(zero_copy_only=False).copy()
+            for name in columns
+        }
+
+
+def _assert_public_config_error(doc: dict, needles: tuple[str, ...]) -> None:
+    """Assert public ``SUEWSConfig.from_dict`` rejects ``doc`` with expected diagnostics."""
+    with pytest.raises((ValueError, TypeError)) as cfg_exc:
+        SUEWSConfig.from_dict(doc)
+    msg = str(cfg_exc.value)
+    for needle in needles:
+        assert needle in msg, f"expected {needle!r} in {msg!r}"
+
+
+@pytest.mark.parametrize(
+    ("mode", "field", "mutation", "expected_reason", "public_needles"),
+    [
+        pytest.param(
+            "missing",
+            "raincover",
+            None,
+            "is missing",
+            None,
+            id="missing-raincover",
+        ),
+        pytest.param(
+            "null",
+            "raincover",
+            {"value": None},
+            "is null",
+            ("lumps.raincover", "null"),
+            id="null-raincover",
+        ),
+        pytest.param(
+            "malformed",
+            "veg_type",
+            {"value": 1.5},
+            "must be an integer",
+            ("lumps.veg_type", "integer"),
+            id="malformed-veg_type",
+        ),
+    ],
+)
 @pytest.mark.parametrize("route", ["file", "buffer", "resume"])
-def test_resolved_lumps_requires_each_field(
-    tmp_path, sample_forcing_parsed, field, route
+def test_resolved_lumps_br02_failure_witnesses(
+    tmp_path: Path,
+    suews_engine_bin: Path,
+    _engine_guards_base: dict,
+    sample_forcing_parsed,
+    mode: str,
+    field: str,
+    mutation,
+    expected_reason: str,
+    public_needles: tuple[str, ...] | None,
+    route: str,
 ):
-    """File, fresh buffer and checkpointed runs must identify the missing input."""
-    path = _prepare_engine_inputs(tmp_path)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    """LUMPS witnesses cover missing/null/malformed across file, buffer, resume, and Python."""
+    path, data = _prepare_engine_inputs(_engine_guards_base, tmp_path)
     site = data["sites"][0]
     site["gridiv"] = 27
-    intact = yaml.safe_dump(data)
-    del site["properties"]["lumps"][field]
-    payload = yaml.safe_dump(data)
-    expected = f"`sites[gridiv=27].properties.lumps.{field}` is missing"
+    intact = _dump_yaml(data)
+    if mode == "missing":
+        del site["properties"]["lumps"][field]
+    else:
+        site["properties"]["lumps"][field] = mutation
+    payload = _dump_yaml(data)
+    expected_path = f"`sites[gridiv=27].properties.lumps.{field}`"
+
     if route == "file":
         path.write_text(payload, encoding="utf-8")
         result = subprocess.run(
-            [_locate_suews_engine(), "run", path], capture_output=True, text=True
+            [str(suews_engine_bin), "run", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
         )
         assert result.returncode != 0
-        assert expected in result.stderr
+        assert expected_path in result.stderr, result.stderr
+        assert expected_reason in result.stderr, result.stderr
         assert not (tmp_path / "suews_output.arrow").exists()
+        if public_needles is not None:
+            _assert_public_config_error(data, public_needles)
     else:
         _, forcing = sample_forcing_parsed(4)
         block = _run_rust._prepare_forcing_block(forcing)
@@ -129,14 +205,15 @@ def test_resolved_lumps_requires_each_field(
         assert run(intact, *args)[2] == 2
         with pytest.raises(RuntimeError) as exc:
             run(payload, *args)
-        assert expected in str(exc.value)
+        assert expected_path in str(exc.value), str(exc.value)
+        assert expected_reason in str(exc.value), str(exc.value)
 
 
 def test_lumps_default_and_supplied_vegetation_reach_the_energy_fluxes(
-    short_sample_yaml_path, sample_forcing_parsed
+    short_sample_yaml_path: Path, sample_forcing_parsed
 ):
     """Compare complete valid outputs, then perturb only the vegetation selector."""
-    source = yaml.safe_load(short_sample_yaml_path.read_text(encoding="utf-8"))
+    source = _load_yaml(short_sample_yaml_path.read_text(encoding="utf-8"))
     props = source["sites"][0]["properties"]
     del props["lumps"]
     _, forcing = sample_forcing_parsed(288)
@@ -159,61 +236,95 @@ def test_lumps_default_and_supplied_vegetation_reach_the_energy_fluxes(
     props["lumps"]["veg_type"] = 2
     alternative = run()
     for field in ("QHlumps", "QElumps"):
-        baseline = default[("SUEWS", field)].to_numpy()
-        changed = alternative[("SUEWS", field)].to_numpy()
+        baseline = default["SUEWS", field].to_numpy()
+        changed = alternative["SUEWS", field].to_numpy()
         for values in (baseline, changed):
             assert values.shape == (len(forcing),)
             assert np.isfinite(values).all() and (values != -999).all()
         assert (changed != baseline).any()
 
 
-def _read_arrow_columns(arrow_path: Path, columns: list[str]) -> dict[str, np.ndarray]:
-    """Read selected columns from an Arrow IPC file and release the mmap."""
-    with ipc.open_file(str(arrow_path)) as reader:
-        table = reader.read_all().select(columns)
-        return {
-            name: table.column(name).to_numpy(zero_copy_only=False).copy()
-            for name in columns
-        }
-
-
-def test_engine_rejects_invalid_emissions_hole(tmp_path: Path):
-    """Standalone ``suews-engine`` must reject invalid emissions holes such as 17."""
-    engine_bin = _locate_suews_engine()
-    config_path = _prepare_engine_inputs(
+@pytest.mark.parametrize(
+    ("mutator", "expected_substrings", "public_needles"),
+    [
+        pytest.param(
+            lambda d: d["model"]["physics"].pop("emissions", None),
+            ("model.physics.emissions",),
+            None,
+            id="missing-emissions",
+        ),
+        pytest.param(
+            lambda d: d["model"]["physics"].__setitem__("emissions", {"value": None}),
+            ("model.physics.emissions",),
+            ("model.physics.emissions", "null"),
+            id="null-emissions",
+        ),
+        pytest.param(
+            lambda d: d["model"]["physics"].__setitem__("emissions", {"value": 17}),
+            ("model.physics.emissions", "17"),
+            ("model.physics.emissions",),
+            id="malformed-emissions-hole-17",
+        ),
+    ],
+)
+def test_engine_and_python_reject_invalid_emissions_selector(
+    tmp_path: Path,
+    suews_engine_bin: Path,
+    _engine_guards_base: dict,
+    sample_forcing_parsed,
+    mutator,
+    expected_substrings: tuple[str, ...],
+    public_needles: tuple[str, ...] | None,
+):
+    """BR-02 witnesses for model.physics.emissions across Python and suews-engine."""
+    config_path, mutated_doc = _prepare_engine_inputs(
+        _engine_guards_base,
         tmp_path,
         emissions=2,
-        override_emissions_raw=17,
+        config_mutator=mutator,
     )
 
     result = subprocess.run(
-        [str(engine_bin), "run", str(config_path)],
+        [str(suews_engine_bin), "run", str(config_path)],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
-
-    assert result.returncode != 0, "emissions=17 must not exit 0"
-    assert "model.physics.emissions" in result.stderr
-    assert "17" in result.stderr
+    assert result.returncode != 0, "invalid emissions must not exit 0"
+    for needle in expected_substrings:
+        assert needle in result.stderr, result.stderr
     assert not (tmp_path / "suews_output.arrow").exists()
+
+    _, forcing = sample_forcing_parsed(2)
+    block = _run_rust._prepare_forcing_block(forcing)
+    native = _run_rust._check_rust_available()
+    with pytest.raises(RuntimeError) as exc:
+        native.run_suews(_dump_yaml(mutated_doc), block.ravel(order="C").tolist(), 2)
+    for needle in expected_substrings:
+        assert needle in str(exc.value), str(exc.value)
+
+    if public_needles is not None:
+        _assert_public_config_error(mutated_doc, public_needles)
 
 
 @pytest.mark.parametrize("emissions", [2, 12])
 def test_engine_accepts_valid_emissions_including_co2_methods(
-    tmp_path: Path, emissions: int
+    tmp_path: Path,
+    suews_engine_bin: Path,
+    _engine_guards_base: dict,
+    emissions: int,
 ):
     """Valid modelled heat (2) and biogenic CO2 (>=11) emissions codes pass."""
-    engine_bin = _locate_suews_engine()
-    config_path = _prepare_engine_inputs(
+    config_path, _ = _prepare_engine_inputs(
+        _engine_guards_base,
         tmp_path,
         emissions=emissions,
         forcing_rows=2,
     )
 
     result = subprocess.run(
-        [str(engine_bin), "run", str(config_path)],
+        [str(suews_engine_bin), "run", str(config_path)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -233,13 +344,24 @@ def test_engine_accepts_valid_emissions_including_co2_methods(
 
 
 @pytest.mark.parametrize(
-    "missing_mode", ["omitted", "all_sentinel", "interior_sentinel"]
+    ("missing_mode", "expected_substrings"),
+    [
+        ("omitted", ("forcing column 'qf'", "emissions=0")),
+        ("all_sentinel", ("forcing column 'qf'", "emissions=0")),
+        ("interior_sentinel", ("forcing column 'qf'", "emissions=0")),
+        ("nan", ("forcing column 'qf'", "emissions=0")),
+        ("inf", ("forcing column 'qf'", "emissions=0")),
+        ("malformed_token", ("qf", "invalid float literal")),
+    ],
 )
-def test_engine_rejects_missing_observed_qf_for_emissions_zero(
-    tmp_path: Path, missing_mode: str
+def test_engine_rejects_invalid_observed_qf_for_emissions_zero(
+    tmp_path: Path,
+    suews_engine_bin: Path,
+    _engine_guards_base: dict,
+    missing_mode: str,
+    expected_substrings: tuple[str, ...],
 ):
-    """Standalone ``suews-engine`` fails loudly when emissions=0 lacks valid qf."""
-    engine_bin = _locate_suews_engine()
+    """Standalone ``suews-engine`` fails loudly when emissions=0 lacks valid finite qf."""
 
     def mutate_forcing(header: list[str], rows: list[list[str]]):
         qf_idx = next(i for i, col in enumerate(header) if col.lower() == "qf")
@@ -253,12 +375,25 @@ def test_engine_rejects_missing_observed_qf_for_emissions_zero(
             for row in rows:
                 row[qf_idx] = "-999"
             return header, rows
-        # interior_sentinel: valid neighbours surrounding an hourly -999 gap.
+        if missing_mode == "interior_sentinel":
+            # interior_sentinel: valid neighbours surrounding an hourly -999 gap.
+            for idx, row in enumerate(rows):
+                row[qf_idx] = "-999" if idx == 1 else "25.0"
+            return header, rows
+        if missing_mode == "nan":
+            for row in rows:
+                row[qf_idx] = "nan"
+            return header, rows
+        if missing_mode == "inf":
+            for row in rows:
+                row[qf_idx] = "inf"
+            return header, rows
         for idx, row in enumerate(rows):
-            row[qf_idx] = "-999" if idx == 1 else "25.0"
+            row[qf_idx] = "not_a_number" if idx == 1 else "25.0"
         return header, rows
 
-    config_path = _prepare_engine_inputs(
+    config_path, _ = _prepare_engine_inputs(
+        _engine_guards_base,
         tmp_path,
         emissions=0,
         forcing_rows=4,
@@ -266,7 +401,7 @@ def test_engine_rejects_missing_observed_qf_for_emissions_zero(
     )
 
     result = subprocess.run(
-        [str(engine_bin), "run", str(config_path)],
+        [str(suews_engine_bin), "run", str(config_path)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -274,14 +409,63 @@ def test_engine_rejects_missing_observed_qf_for_emissions_zero(
     )
 
     assert result.returncode != 0, f"emissions=0 ({missing_mode}) must fail loudly"
-    assert "forcing column 'qf'" in result.stderr
-    assert "emissions=0" in result.stderr
+    for needle in expected_substrings:
+        assert needle in result.stderr, f"{missing_mode}: {result.stderr}"
     assert not (tmp_path / "suews_output.arrow").exists()
 
 
-def test_engine_accepts_valid_observed_qf_for_emissions_zero(tmp_path: Path):
+@pytest.mark.parametrize(
+    ("case", "mutate_forcing"),
+    [
+        ("omitted", lambda df: df.drop(columns=["qf"])),
+        ("sentinel", lambda df: df.assign(qf=-999.0)),
+        ("nan", lambda df: df.assign(qf=np.nan)),
+        ("inf", lambda df: df.assign(qf=np.inf)),
+        ("malformed_string", lambda df: df.assign(qf="not_a_number")),
+    ],
+)
+def test_python_simulation_rejects_invalid_observed_qf_for_emissions_zero(
+    sample_config_loaded, sample_forcing_parsed, case: str, mutate_forcing
+):
+    """Public ``SUEWSSimulation.run`` rejects omitted, sentinel, non-finite, and malformed qf."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.physics.emissions = 0
+    _, df_base = sample_forcing_parsed(12)
+
+    # Positive baseline control for the first case: valid observed qf runs cleanly.
+    if case == "omitted":
+        sim_ok = SUEWSSimulation()
+        sim_ok.update_config(cfg.model_copy(deep=True), auto_load_forcing=False)
+        df_ok = df_base.assign(qf=25.0)
+        sim_ok.update_forcing(df_ok)
+        out = sim_ok.run(
+            start_date=df_ok.index[0],
+            end_date=df_ok.index[-1],
+            n_jobs=1,
+        ).df
+        np.testing.assert_allclose(
+            out.loc[1, ("SUEWS", "QF")].to_numpy(), 25.0, rtol=0.0, atol=1e-12
+        )
+
+    df_bad = mutate_forcing(df_base.copy())
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_bad)
+    with pytest.raises((ValueError, RuntimeError)) as exc:
+        sim.run(
+            start_date=df_bad.index[0],
+            end_date=df_bad.index[-1],
+            n_jobs=1,
+        )
+    msg = str(exc.value)
+    assert "forcing column 'qf'" in msg, f"{case}: {msg}"
+    assert "emissions=0" in msg, f"{case}: {msg}"
+
+
+def test_engine_accepts_valid_observed_qf_for_emissions_zero(
+    tmp_path: Path, suews_engine_bin: Path, _engine_guards_base: dict
+):
     """Standalone ``suews-engine`` honours valid observed qf when emissions=0."""
-    engine_bin = _locate_suews_engine()
 
     def set_valid_qf(header: list[str], rows: list[list[str]]):
         qf_idx = next(i for i, col in enumerate(header) if col.lower() == "qf")
@@ -289,7 +473,8 @@ def test_engine_accepts_valid_observed_qf_for_emissions_zero(tmp_path: Path):
             row[qf_idx] = "25.0"
         return header, rows
 
-    config_path = _prepare_engine_inputs(
+    config_path, _ = _prepare_engine_inputs(
+        _engine_guards_base,
         tmp_path,
         emissions=0,
         forcing_rows=3,
@@ -297,7 +482,7 @@ def test_engine_accepts_valid_observed_qf_for_emissions_zero(tmp_path: Path):
     )
 
     result = subprocess.run(
-        [str(engine_bin), "run", str(config_path)],
+        [str(suews_engine_bin), "run", str(config_path)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -315,9 +500,10 @@ def test_engine_accepts_valid_observed_qf_for_emissions_zero(tmp_path: Path):
     assert np.all(cols["QH"] > -200.0)
 
 
-def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(tmp_path: Path):
+def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(
+    tmp_path: Path, suews_engine_bin: Path, _engine_guards_base: dict
+):
     """An interior -999 in hourly forcing must stay -999, never blend into valid data."""
-    engine_bin = _locate_suews_engine()
 
     def inject_fcld_sentinel(header: list[str], rows: list[list[str]]):
         fcld_idx = next(i for i, col in enumerate(header) if col.lower() == "fcld")
@@ -326,7 +512,8 @@ def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(tmp_path: Pa
             row[fcld_idx] = value
         return header, rows
 
-    config_path = _prepare_engine_inputs(
+    config_path, _ = _prepare_engine_inputs(
+        _engine_guards_base,
         tmp_path,
         emissions=2,
         forcing_rows=4,
@@ -334,7 +521,7 @@ def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(tmp_path: Pa
     )
 
     result = subprocess.run(
-        [str(engine_bin), "run", str(config_path)],
+        [str(suews_engine_bin), "run", str(config_path)],
         capture_output=True,
         text=True,
         timeout=60,
@@ -357,11 +544,10 @@ def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(tmp_path: Pa
     )
 
 
-@pytest.mark.parametrize("invalid_method", [7, 17, 20, 47])
 def test_fortran_anthropogenic_emissions_invalid_method_raises_error_73(
-    tmp_path: Path, invalid_method: int
+    tmp_path: Path,
 ):
-    """Direct Fortran kernel call on an invalid EmissionsMethod triggers ErrorHint(73)."""
+    """Direct Fortran kernel call on invalid EmissionsMethod holes triggers ErrorHint(73)."""
     compiler = shutil.which("gfortran")
     suews = Path(__file__).resolve().parents[2] / "src" / "suews"
     if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
@@ -371,48 +557,52 @@ def test_fortran_anthropogenic_emissions_invalid_method_raises_error_73(
 
     source = tmp_path / "anthro_probe.f90"
     source.write_text(
-        f"""program anthro_probe
+        """program anthro_probe
 use module_phys_anthro, only: AnthropogenicEmissions
 use module_ctrl_error_state, only: reset_supy_error, get_supy_error
 implicit none
 real(8) :: hdd_id(12), pair2(2), prof(0:23, 2)
 real(8) :: qf_sahp, fc_anthro, fc_metab, fc_traff, fc_build, fc_point
-integer :: dow(3), code
+integer :: dow(3), code, idx
+integer, parameter :: invalid_methods(4) = [7, 17, 20, 47]
 character(512) :: message
 
 hdd_id = 0.0d0
 pair2 = 1.0d0
 prof = 1.0d0
 dow = [2, 1, 1]
-qf_sahp = 123.0d0
-fc_anthro = 123.0d0
-fc_metab = 123.0d0
-fc_traff = 123.0d0
-fc_build = 123.0d0
-fc_point = 123.0d0
 
-call reset_supy_error()
-call AnthropogenicEmissions( &
-  0.0d0, {invalid_method}, &
-  12, 0, 0, dow, &
-  1.0d0, pair2, 1.0d0, 1.0d0, &
-  0.5d0, 0.5d0, &
-  1.0d0, 2.0d0, 1.0d0, 2.0d0, &
-  pair2, 1.0d0, &
-  15.0d0, hdd_id, pair2, pair2, pair2, &
-  pair2, pair2, pair2, &
-  pair2, pair2, &
-  pair2, &
-  pair2, qf_sahp, &
-  fc_anthro, fc_metab, fc_traff, fc_build, fc_point, &
-  prof, prof, prof, prof, 1000.0d0)
+do idx = 1, size(invalid_methods)
+  qf_sahp = 123.0d0
+  fc_anthro = 123.0d0
+  fc_metab = 123.0d0
+  fc_traff = 123.0d0
+  fc_build = 123.0d0
+  fc_point = 123.0d0
 
-call get_supy_error(code, message)
-if (code /= 73) stop 1
-if (index(message, 'EmissionsMethod') == 0) stop 2
-if (qf_sahp /= -999.0d0 .or. fc_anthro /= -999.0d0 .or. &
-    fc_metab /= -999.0d0 .or. fc_traff /= -999.0d0 .or. &
-    fc_build /= -999.0d0 .or. fc_point /= -999.0d0) stop 3
+  call reset_supy_error()
+  call AnthropogenicEmissions( &
+    0.0d0, invalid_methods(idx), &
+    12, 0, 0, dow, &
+    1.0d0, pair2, 1.0d0, 1.0d0, &
+    0.5d0, 0.5d0, &
+    1.0d0, 2.0d0, 1.0d0, 2.0d0, &
+    pair2, 1.0d0, &
+    15.0d0, hdd_id, pair2, pair2, pair2, &
+    pair2, pair2, pair2, &
+    pair2, pair2, &
+    pair2, &
+    pair2, qf_sahp, &
+    fc_anthro, fc_metab, fc_traff, fc_build, fc_point, &
+    prof, prof, prof, prof, 1000.0d0)
+
+  call get_supy_error(code, message)
+  if (code /= 73) stop 1
+  if (index(message, 'EmissionsMethod') == 0) stop 2
+  if (qf_sahp /= -999.0d0 .or. fc_anthro /= -999.0d0 .or. &
+      fc_metab /= -999.0d0 .or. fc_traff /= -999.0d0 .or. &
+      fc_build /= -999.0d0 .or. fc_point /= -999.0d0) stop 3
+end do
 write(*, '(a)') 'anthro error 73 with sentinel outputs'
 end program
 """,

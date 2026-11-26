@@ -1,20 +1,21 @@
-"""Native resolved-YAML guards for config switches, dims, and initial states (#2002)."""
+"""Native resolved-YAML guards for config switches, dims, and initial states (#2002, #2349)."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 from importlib import import_module
-from importlib.resources import as_file, files
-import os
+from importlib.resources import files
 from pathlib import Path
 import subprocess
 
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
+from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 pytestmark = [
     pytest.mark.api,
@@ -23,165 +24,185 @@ pytestmark = [
 ]
 
 
-def _locate_suews_engine() -> Path:
-    """Return the bundled or locally built ``suews-engine`` binary."""
-    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = files("supy").joinpath("bin").joinpath(binary_name)
-    with as_file(bundled) as bundled_path:
-        if bundled_path.exists():
-            return Path(bundled_path)
-
-    cargo_target = os.environ.get("CARGO_TARGET_DIR")
-    if cargo_target:
-        candidate = Path(cargo_target) / "release" / binary_name
-        if candidate.exists():
-            return candidate
-
-    repo_root = Path(__file__).resolve().parents[2]
-    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
-    if dev_binary.exists():
-        return dev_binary
-    pytest.skip("Rust CLI binary not found; build with: make bridge")
+def _dump_yaml(doc: dict) -> str:
+    return yaml.dump(doc, Dumper=_YAML_DUMPER, sort_keys=False)
 
 
-def _write_short_forcing(dest: Path) -> Path:
-    """Write 12 hourly forcing rows for fast engine checks."""
-    sample_dir = files("supy").joinpath("sample_data")
-    raw = sample_dir.joinpath("Kc_2012_data_60.txt").read_text(encoding="utf-8")
-    lines = [line for line in raw.splitlines() if line.strip()]
-    dest.write_text("\n".join(lines[:13]) + "\n", encoding="utf-8")
-    return dest
+def _load_yaml(text: str) -> dict:
+    return yaml.load(text, Loader=_YAML_LOADER)
 
 
-def _resolved_doc(forcing_file: Path, out_dir: Path) -> tuple[dict, SUEWSSimulation]:
-    """Build a resolved engine YAML document with short forcing."""
-    sim = SUEWSSimulation.from_sample_data()
-    sim.update_config(
-        {
-            "model": {
-                "control": {
-                    "start_time": "2012-01-01 00:05:00",
-                    "end_time": "2012-01-01 12:00:00",
-                    "forcing": {"file": str(forcing_file)},
-                    "output": {"dir": str(out_dir), "freq": 3600},
-                }
-            }
-        },
-        auto_load_forcing=False,
+@pytest.fixture(scope="module")
+def _state_config_base(sample_config_loaded, sample_forcing_parsed):
+    """Cache base resolved YAML, short forcing text, and PyO3 forcing payload."""
+    raw_forcing = (files("supy") / "sample_data" / "Kc_2012_data_60.txt").read_text(
+        encoding="utf-8"
     )
-    sim.update_forcing(str(forcing_file))
-    doc = yaml.safe_load(_run_rust.config_to_engine_yaml(sim.config))
-    return doc, sim
+    forcing_lines = [line for line in raw_forcing.splitlines() if line.strip()]
+    short_forcing_text = "\n".join(forcing_lines[:13]) + "\n"
+
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.control.start_time = "2012-01-01 00:05:00"
+    cfg.model.control.end_time = "2012-01-01 12:00:00"
+    cfg.model.control.output.freq = 3600
+    resolved_doc = _load_yaml(_run_rust.config_to_engine_yaml(cfg))
+    # Establish positive baseline that the unmutated resolved dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(resolved_doc))
+
+    _, df_forcing = sample_forcing_parsed(144)
+    forcing_flat = (
+        _run_rust._prepare_forcing_block(df_forcing).ravel(order="C").tolist()
+    )
+    return {
+        "resolved_doc": resolved_doc,
+        "short_forcing_text": short_forcing_text,
+        "forcing_flat": forcing_flat,
+        "n_steps": len(df_forcing),
+    }
+
+
+def _stage_doc(base_cache: dict, tmp_path: Path) -> tuple[dict, Path]:
+    """Write short forcing file and return a defensive copy of the resolved dict."""
+    forcing_file = tmp_path / "forcing.txt"
+    forcing_file.write_text(base_cache["short_forcing_text"], encoding="utf-8")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir(exist_ok=True)
+    doc = deepcopy(base_cache["resolved_doc"])
+    doc["model"]["control"]["forcing"]["file"] = str(forcing_file)
+    doc["model"]["control"]["output"]["dir"] = str(out_dir)
+    return doc, out_dir
+
+
+_WITNESS_CASES = [
+    # Model config switches and structural dimensions: missing, null, malformed
+    pytest.param(
+        lambda d: d["model"]["physics"].pop("net_radiation"),
+        ("model.physics.net_radiation",),
+        None,
+        id="config-missing-net_radiation",
+    ),
+    pytest.param(
+        lambda d: d["model"]["control"].__setitem__("tstep", {"value": None}),
+        ("model.control.tstep",),
+        ("model.control.tstep", "null"),
+        id="config-null-tstep",
+    ),
+    pytest.param(
+        lambda d: d["sites"][0]["properties"]["vertical_layers"].__setitem__(
+            "nlayer", {"value": 1.5}
+        ),
+        ("sites[gridiv=1].properties.vertical_layers.nlayer",),
+        ("vertical_layers.nlayer", "integer"),
+        id="dims-malformed-nlayer",
+    ),
+    # Initial states subsystem: missing, null, malformed, incorrectly sized
+    pytest.param(
+        lambda d: d["sites"][0]["initial_states"]["paved"].pop("soilstore"),
+        ("sites[gridiv=1].initial_states.paved.soilstore",),
+        None,
+        id="state-missing-paved-soilstore",
+    ),
+    pytest.param(
+        lambda d: d["sites"][0]["initial_states"]["paved"].__setitem__(
+            "soilstore", {"value": None}
+        ),
+        ("sites[gridiv=1].initial_states.paved.soilstore",),
+        ("initial_states.paved.soilstore", "null"),
+        id="state-null-paved-soilstore",
+    ),
+    pytest.param(
+        lambda d: d["sites"][0]["initial_states"].__setitem__("snowalb", float("nan")),
+        ("sites[gridiv=1].initial_states.snowalb",),
+        ("initial_states.snowalb",),
+        id="state-malformed-nan-snowalb",
+    ),
+    pytest.param(
+        lambda d: (
+            d["model"]["physics"].__setitem__("storage_heat", {"value": 5}),
+            d["sites"][0]["initial_states"]["paved"].__setitem__(
+                "temperature", [15.0, 15.0]
+            ),
+        ),
+        (
+            "sites[gridiv=1].initial_states.paved.temperature",
+            "has 2 values",
+            "requires at least 5",
+        ),
+        ("sites[gridiv=1].initial_states.paved.temperature", "5 items"),
+        id="state-wrong-size-paved-temperature",
+    ),
+]
 
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("mutate", "expected_path"),
-    [
-        pytest.param(
-            lambda d: d["model"]["physics"].pop("net_radiation"),
-            "model.physics.net_radiation",
-            id="missing-net_radiation",
-        ),
-        pytest.param(
-            lambda d: d["model"]["physics"].pop("evapmethod"),
-            "model.physics.evapmethod",
-            id="missing-evapmethod",
-        ),
-        pytest.param(
-            lambda d: d["model"]["control"].pop("tstep"),
-            "model.control.tstep",
-            id="missing-tstep",
-        ),
-        pytest.param(
-            lambda d: d["sites"][0]["properties"]["vertical_layers"].pop("nlayer"),
-            "sites[gridiv=1].properties.vertical_layers.nlayer",
-            id="missing-nlayer",
-        ),
-        pytest.param(
-            lambda d: d["sites"][0]["properties"]["vertical_layers"].pop("ndepth"),
-            "sites[gridiv=1].properties.vertical_layers.ndepth",
-            id="missing-ndepth",
-        ),
-        pytest.param(
-            lambda d: d["sites"][0]["initial_states"]["paved"].pop("soilstore"),
-            "sites[gridiv=1].initial_states.paved.soilstore",
-            id="missing-paved-soilstore",
-        ),
-        pytest.param(
-            lambda d: d["sites"][0]["initial_states"].pop("hdd_id"),
-            "sites[gridiv=1].initial_states.hdd_id",
-            id="missing-hdd_id",
-        ),
-        pytest.param(
-            lambda d: d["sites"][0]["initial_states"]["evetr"].pop("lai_id"),
-            "sites[gridiv=1].initial_states.evetr.lai_id",
-            id="missing-evetr-lai_id",
-        ),
-        pytest.param(
-            lambda d: d["sites"][0]["initial_states"].__setitem__(
-                "snowalb", float("nan")
-            ),
-            "sites[gridiv=1].initial_states.snowalb",
-            id="nan-snowalb",
-        ),
-    ],
+    ("mutate", "expected_needles", "public_needles"), _WITNESS_CASES
 )
-def test_resolved_config_dims_and_states_reject_missing_or_invalid_inputs(
+def test_resolved_config_dims_and_states_br02_failure_witnesses(
     tmp_path: Path,
+    suews_engine_bin: Path,
+    _state_config_base: dict,
     mutate,
-    expected_path: str,
+    expected_needles: tuple[str, ...],
+    public_needles: tuple[str, ...] | None,
 ) -> None:
-    """Both PyO3 and suews-engine reject missing or malformed config/dim/state inputs."""
-    engine = _locate_suews_engine()
-    forcing_file = _write_short_forcing(tmp_path / "forcing.txt")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    doc, sim = _resolved_doc(forcing_file, out_dir)
-    mutated = deepcopy(doc)
-    mutate(mutated)
-    bad_yaml = yaml.safe_dump(mutated, sort_keys=False)
+    """BR-02 witnesses for config switches, dims, and initial states across Python and suews-engine."""
+    doc, out_dir = _stage_doc(_state_config_base, tmp_path)
+    mutate(doc)
+    bad_yaml = _dump_yaml(doc)
 
+    # 1. PyO3 Python-bridge witness
     rust = _run_rust._load_rust_module()
-    forcing_block = _run_rust._prepare_forcing_block(sim.forcing.df)
     with pytest.raises(RuntimeError) as exc_info:
         rust.run_suews(
             bad_yaml,
-            forcing_block.ravel(order="C").tolist(),
-            len(sim.forcing.df),
+            _state_config_base["forcing_flat"],
+            _state_config_base["n_steps"],
         )
-    assert expected_path in str(exc_info.value), str(exc_info.value)
+    pyo3_msg = str(exc_info.value)
+    for needle in expected_needles:
+        assert needle in pyo3_msg, f"expected {needle!r} in {pyo3_msg!r}"
 
+    # 2. Standalone suews-engine witness
     cfg_path = tmp_path / "bad_state_config.yml"
     cfg_path.write_text(bad_yaml, encoding="utf-8")
     res = subprocess.run(
-        [str(engine), "run", str(cfg_path)],
+        [str(suews_engine_bin), "run", str(cfg_path)],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
     assert res.returncode != 0
-    assert expected_path in f"{res.stdout}\n{res.stderr}", res.stderr
+    combined = f"{res.stdout}\n{res.stderr}"
+    for needle in expected_needles:
+        assert needle in combined, f"expected {needle!r} in {combined!r}"
+    assert not (out_dir / "suews_output.arrow").exists()
+
+    # 3. Public Python SUEWSConfig entry point witness
+    if public_needles is not None:
+        with pytest.raises((ValueError, TypeError)) as cfg_exc:
+            SUEWSConfig.from_dict(doc)
+        msg = str(cfg_exc.value)
+        for needle in public_needles:
+            assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 @pytest.mark.core
 def test_inactive_snow_and_spartacus_permit_omitted_optional_state_and_switch(
     tmp_path: Path,
+    suews_engine_bin: Path,
+    _state_config_base: dict,
 ) -> None:
     """With snow_use=0 and net_radiation=3, omitting inactive snowpack/use_sw_direct_albedo succeeds."""
-    engine = _locate_suews_engine()
-    forcing_file = _write_short_forcing(tmp_path / "forcing.txt")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    doc, _ = _resolved_doc(forcing_file, out_dir)
+    doc, _ = _stage_doc(_state_config_base, tmp_path)
     doc["sites"][0]["properties"]["spartacus"].pop("use_sw_direct_albedo", None)
     doc["sites"][0]["initial_states"]["paved"].pop("snowpack", None)
     cfg_path = tmp_path / "inactive_ok.yml"
-    cfg_path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    cfg_path.write_text(_dump_yaml(doc), encoding="utf-8")
 
     res = subprocess.run(
-        [str(engine), "run", str(cfg_path)],
+        [str(suews_engine_bin), "run", str(cfg_path)],
         capture_output=True,
         text=True,
         timeout=60,

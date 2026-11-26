@@ -442,18 +442,20 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
 ## Multi-Axis CI Topology (transitional, #2349)
 
 The sections "Test Tier Definitions", "Test Tier Assignment by Event" and
-"Merge Queue Coverage Policy" describe the current two-lane gate: a `physics`
-lane on the build Python and an `api` lane across Python versions. Its tests
-are selected by the `physics | api` nature markers, and the `api` lane is
-switched per platform by `run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+"Merge Queue Coverage Policy" describe the current gate. Its nature markers
+are `physics | api`, and its `api` lane is switched per platform by
+`run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
 
 The topology below is the target. Its axis selection takes effect once
 `pyproject.toml` registers `tooling`, `unit` and `native` (#2349 `W1-4`), and
 its lanes once `build-publish_to_pypi.yml` enables `GATE_AXIS_SCHEMA=2` (#2349
 `W1-6`); until then, the `physics | api` gate above remains active, and this
-section does not describe what CI runs. The superseded parts of the sections
-above are pruned in their own pull request after `W1-6` lands, so each lane is
-stated in one place. [decision: pending software maintainer approval on #2350]
+section does not describe what CI runs. From `W1-6` it also supersedes the
+physics worked example in "Where a new expensive check goes" below (slow
+physics tests gating a pull request only through a classification label); the
+general guidance in that section is unchanged. The superseded parts of the
+sections above are pruned in their own pull request after `W1-6` lands, so
+each lane is stated in one place. [decision: pending software maintainer approval on #2350]
 
 - **One required check.** Every axis reports through the existing required
   check `PR build validation`; no required check is added or renamed. [decision: pending software maintainer approval on #2350]
@@ -468,14 +470,15 @@ stated in one place. [decision: pending software maintainer approval on #2350]
 - **`os_compat` on Windows and macOS.** The `os_compat` slice runs on the
   Windows and macOS builds as well as Linux; the rest of `tooling` and `unit`
   runs on Linux only. [decision: pending software maintainer approval on #2350]
-- **Full `physics` on exactly four triggers:** (1) pull requests that touch
-  Fortran, Rust or the build (the `fortran`, `rust` and `build` filter
-  categories); (2) pull requests labelled `0-physics:change` or
+- **Full `physics` selected automatically on exactly four triggers:** (1) pull
+  requests that touch Fortran, Rust or the build (the `fortran`, `rust` and
+  `build` filter categories); (2) pull requests labelled `0-physics:change` or
   `0-numerics:change`; (3) the merge queue; (4) the nightly. Every other
   wheel-building Python pull request runs `physics-core`: the smoke tests plus
-  `test/core/test_sample_output_exact.py` (about 50 s). Tag releases keep the
-  full matrix at tier `all`, and the publish jobs require every axis to have
-  succeeded. [decision: pending software maintainer approval on #2350]
+  `test/core/test_sample_output_exact.py` (about 50 s). Outside that automatic
+  selection, tag releases keep the full matrix at tier `all`, a manual
+  dispatch keeps its `test_tier` input, and the publish jobs require every axis
+  to have succeeded. [decision: pending software maintainer approval on #2350]
 
 ---
 

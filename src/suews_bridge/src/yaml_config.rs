@@ -6297,7 +6297,7 @@ mod tests {
         // defaults (0 / 1) and the simulation runs wrong physics.
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
-        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert_eq!(run_cfg.config.emissions_method, 7);
         assert!((run_cfg.site.spartacus.sw_dn_direct_frac - 0.45).abs() < 1.0e-12);
 
         // gh#1456: STEBBS switches sourced from the nested
@@ -6327,7 +6327,7 @@ mod tests {
 
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
-        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert_eq!(run_cfg.config.emissions_method, 7);
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
     }
 
@@ -6383,7 +6383,7 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         // The rest remain in new spelling and must still be read.
-        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert_eq!(run_cfg.config.emissions_method, 7);
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
     }
 
@@ -7019,6 +7019,8 @@ mod tests {
                 Value::String("storage_heat".into()),
                 Value::Number(3.into()),
             );
+            // Use J11 QF with AnOHM.
+            physics.insert(Value::String("emissions".into()), Value::from(2));
             let site = first_site_mut(&mut root).unwrap();
             let water = get_path_mut(site, &["properties", "land_cover", "water"])
                 .unwrap()
@@ -7041,6 +7043,7 @@ mod tests {
         // 4. EHC building soil-store scaling (storage_heat == 5 and
         //    net_radiation > 1000 with bldgs.sfr > 0) consumes
         //    StoreDrainPrm(6, BldgSurf) even when evapmethod == 2 and drain_eq == 2 or 3.
+        //    Use J11 QF for these EHC cases.
         for equation in [2, 3] {
             for mutation in [None, Some("null"), Some("{value: null}")] {
                 let mut root = stebbs_fixture_root();
@@ -7052,6 +7055,7 @@ mod tests {
                     Value::String("storage_heat".into()),
                     Value::Number(5.into()),
                 );
+                physics.insert(Value::String("emissions".into()), Value::from(2));
                 physics.insert(
                     Value::String("net_radiation".into()),
                     Value::Number(1001.into()),
@@ -7096,6 +7100,7 @@ mod tests {
                 Value::String("storage_heat".into()),
                 Value::Number(5.into()),
             );
+            physics.insert(Value::String("emissions".into()), Value::from(2));
             physics.insert(
                 Value::String("net_radiation".into()),
                 Value::Number(1001.into()),
@@ -7128,6 +7133,7 @@ mod tests {
                 Value::String("storage_heat".into()),
                 Value::Number(5.into()),
             );
+            physics.insert(Value::String("emissions".into()), Value::from(2));
             physics.insert(
                 Value::String("net_radiation".into()),
                 Value::Number(3.into()),
@@ -7156,6 +7162,7 @@ mod tests {
                 Value::String("storage_heat".into()),
                 Value::Number(5.into()),
             );
+            physics.insert(Value::String("emissions".into()), Value::from(2));
             physics.insert(
                 Value::String("net_radiation".into()),
                 Value::Number(1001.into()),
@@ -7562,6 +7569,8 @@ mod tests {
         // index, rather than stand in a value for it.
         let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        // EHC uses J11 QF rather than the coupled STEBBS source.
+        root["model"]["physics"]["emissions"] = Value::from(2);
         *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
             serde_yaml::from_str("{value: 5}").unwrap();
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
@@ -7678,6 +7687,10 @@ mod tests {
             serde_yaml::from_str(&format!("{{value: {net_radiation}}}")).unwrap();
         *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
             serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();
+        if storage_heat != 7 || !(1001..=1003).contains(&net_radiation) {
+            // Use J11 QF for configurations outside the STEBBS coupling.
+            root["model"]["physics"]["emissions"] = Value::from(2);
+        }
         edit(first_site_mut(&mut root).unwrap());
         load_run_config_from_value(&mut root)
     }
@@ -7870,6 +7883,8 @@ mod tests {
     fn missing_layer_emissivity_is_carried_as_absent_without_spartacus() {
         let yaml_str = stebbs_fixture_yaml();
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        // Use J11 QF with the uncoupled OHM/NARP configuration.
+        root["model"]["physics"]["emissions"] = Value::from(2);
         let netrad = get_path_mut(&mut root, &["model", "physics", "net_radiation"])
             .expect("fixture should define model.physics.net_radiation");
         *netrad = serde_yaml::from_str("{value: 3}").unwrap();
@@ -7952,13 +7967,9 @@ mod tests {
         edit: impl FnOnce(&mut Value),
     ) -> Result<RunConfig, String> {
         // SPARTACUS on (net_radiation 1003), nlayer 3.
-        let yaml_str = stebbs_fixture_yaml();
-        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        *get_path_mut(&mut root, &["model", "physics", "storage_heat"]).unwrap() =
-            serde_yaml::from_str(&format!("{{value: {storage_heat}}}")).unwrap();
-        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
-        edit(get_path_mut(site, &["properties", "vertical_layers"]).unwrap());
-        load_run_config_from_value(&mut root)
+        fixture_with_options(1003, storage_heat, |site| {
+            edit(get_path_mut(site, &["properties", "vertical_layers"]).unwrap());
+        })
     }
 
     #[test]
@@ -9845,6 +9856,8 @@ mod tests {
             ),
         ] {
             let mut ohm_spartacus = base.clone();
+            // Use J11 QF for OHM rather than coupled STEBBS storage.
+            ohm_spartacus["model"]["physics"]["emissions"] = Value::from(2);
             *get_path_mut(&mut ohm_spartacus, &["model", "physics", "storage_heat"]).unwrap() =
                 serde_yaml::from_str("{value: 1}").unwrap();
             let (parent, leaf) = path.split_at(path.len() - 1);
@@ -9858,6 +9871,7 @@ mod tests {
         }
         {
             let mut ohm_spartacus = base.clone();
+            ohm_spartacus["model"]["physics"]["emissions"] = Value::from(2);
             *get_path_mut(&mut ohm_spartacus, &["model", "physics", "storage_heat"]).unwrap() =
                 serde_yaml::from_str("{value: 1}").unwrap();
             let roofs = get_path_mut(
@@ -10010,6 +10024,8 @@ mod tests {
     fn spartacus_vertical_layers_and_ehc_enforce_active_and_allow_inactive_absence() {
         // Active SPARTACUS + facet-resolved EHC (stebbs fixture with storage_heat 5).
         let mut base: Value = serde_yaml::from_str(stebbs_fixture_yaml()).unwrap();
+        // EHC uses J11 QF rather than the coupled STEBBS source.
+        base["model"]["physics"]["emissions"] = Value::from(2);
         *get_path_mut(&mut base, &["model", "physics", "storage_heat"]).unwrap() =
             serde_yaml::from_str("{value: 5}").unwrap();
 

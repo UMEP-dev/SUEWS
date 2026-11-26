@@ -71,6 +71,8 @@ def _load_stebbs_config_and_forcing(
         # SPARTACUS (net_radiation=1003) requires a facet-resolved storage heat method
         # (EHC=5 or coupled STEBBS=7); uncoupled STEBBS (storage_heat=1) pairs with NARP (3).
         physics_update["net_radiation"] = {"value": 3}
+        # STEBBS QF also requires coupled storage; retain J11 for this case.
+        physics_update["emissions"] = {"heat": "j11"}
     base_sim.update_config(
         {"model": {"physics": physics_update}},
         auto_load_forcing=False,

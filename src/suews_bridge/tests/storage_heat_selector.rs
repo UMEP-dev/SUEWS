@@ -16,6 +16,8 @@ fn config_with_storage_heat(fixture: &str, key: &str, value_yaml: Option<&str>) 
     let mut root: Value = serde_yaml::from_str(fixture).unwrap();
     // Both fixtures also pass through the file loader, which requires output.dir.
     root["model"]["control"]["output"]["dir"] = ".".into();
+    // Use J11 QF while testing storage selectors independently of STEBBS coupling.
+    root["model"]["physics"]["emissions"] = Value::from(2);
     let physics = root["model"]["physics"].as_mapping_mut().unwrap();
     physics.remove("storage_heat");
     physics.remove("storage_heat_method");

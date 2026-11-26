@@ -2965,7 +2965,7 @@ fn assert_decoded_options(label: &str, rc: &RunConfig, expected: ExpectedOptions
 /// `config_to_engine_yaml` output:
 /// 0. `sample_ohm` (`sample_resolved.yml`)
 /// 1. `stebbs_spartacus` (`stebbs_resolved.yml`)
-/// 2. `stebbs_ehc_spartacus` (`stebbs_resolved.yml` + `storage_heat = 5`)
+/// 2. `stebbs_ehc_spartacus` (`stebbs_resolved.yml` + `storage_heat = 5`, `emissions = 2`)
 /// 3. `sample_dyohm` (`sample_resolved.yml` + `storage_heat = 6`)
 /// 4. `sample_snow` (`sample_resolved.yml` + `snow_use = 1`)
 /// 5. `sample_co2` (`sample_resolved.yml` + `emissions = 12`)
@@ -2974,6 +2974,8 @@ fn build_option_anchors() -> [(&'static str, Value, ExpectedOptions); 6] {
     let stebbs_root: Value = serde_yaml::from_str(STEBBS_YAML).expect("stebbs YAML must parse");
 
     let mut ehc_spartacus = stebbs_root.clone();
+    // EHC requires an independent QF source; use J11 for this anchor.
+    ehc_spartacus["model"]["physics"]["emissions"] = Value::from(2);
     assert!(set_scalar_or_ref_value(
         &mut ehc_spartacus,
         &[
@@ -3036,7 +3038,7 @@ fn build_option_anchors() -> [(&'static str, Value, ExpectedOptions); 6] {
             ExpectedOptions {
                 net_radiation_method: 1003,
                 storage_heat_method: 7,
-                emissions_method: 2,
+                emissions_method: 7,
                 snow_use: 0,
                 stebbs_method: 1,
                 rc_method: 2,

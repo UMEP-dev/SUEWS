@@ -4,7 +4,7 @@
 >
 > Active workflow contracts, CI matrix rules, and coordination skills supersede this guide whenever details drift. Always read:
 > - Rules: [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/ci/conventions.md`](../.claude/rules/ci/conventions.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md)
-> - Skills: `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), and `/triage-pr` ([`.claude/skills/triage-pr/SKILL.md`](../.claude/skills/triage-pr/SKILL.md))
+> - Skills: `/queue-pr` ([`.agents/skills/queue-pr/SKILL.md`](../.agents/skills/queue-pr/SKILL.md)), `/audit-pr` ([`.agents/skills/audit-pr/SKILL.md`](../.agents/skills/audit-pr/SKILL.md)), and `/triage-pr` ([`.agents/skills/triage-pr/SKILL.md`](../.agents/skills/triage-pr/SKILL.md))
 
 ## Overview
 
@@ -51,18 +51,18 @@ GitHub's merge queue tests each PR (or batch of PRs) against the latest `master`
 
 ### Coordinating Multiple PRs with `/queue-pr`
 
-When several PRs or worktrees are ready at once, use `.claude/skills/queue-pr/SKILL.md` to detect shared high-risk files (`CHANGELOG.md`, `meson.build`, `src/supy/meson.build`, `.github/workflows/*`, generated docs/schema files, reference fixtures) and run a temporary-worktree merge preflight before queueing:
+When several PRs or worktrees are ready at once, use `.agents/skills/queue-pr/SKILL.md` to detect shared high-risk files (`CHANGELOG.md`, `meson.build`, `src/supy/meson.build`, `.github/workflows/*`, generated docs/schema files, reference fixtures) and run a temporary-worktree merge preflight before queueing:
 
 ```bash
 # Dry-run scan and low-risk ordering across open ready-for-review PRs
 git fetch origin
-.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master
+.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master
 
 # Local branch overlap & merge preflight
-.claude/skills/queue-pr/scripts/preflight.sh --base origin/master branch-a branch-b
+.agents/skills/queue-pr/scripts/preflight.sh --base origin/master branch-a branch-b
 
 # Enqueue in coordinated order (ONLY with explicit human approval)
-.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
+.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
 ```
 
 ### Enqueuing a Single Approved PR

@@ -123,7 +123,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # Regenerated via: uv run python scripts/lint/audit_docstrings.py
 # Remove a file's entry once its docstrings are cleaned.
 ".claude/scripts/validate-claude-md.py" = ["D202", "D205", "D401"]
-".claude/skills/log-changes/scripts/changelog_helper.py" = ["D101", "D103", "D205", "D400", "D401"]
+".agents/skills/log-changes/scripts/changelog_helper.py" = ["D101", "D103", "D205", "D400", "D401"]
 ".github/scripts/classify_pyproject.py" = ["D103"]
 "docs/generate_output_variable_rst.py" = ["D406", "D407"]
 "docs/source/_ext/input_domain.py" = ["D401"]

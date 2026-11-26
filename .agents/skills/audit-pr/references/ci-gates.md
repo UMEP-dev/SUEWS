@@ -59,7 +59,7 @@ actually gate the merge, and project convention adds more:
 - **Informational** -- summary/observability jobs, `skipping` entries for release
   paths, and anything `continue-on-error`. Note, do not block.
 
-`.claude/skills/triage-pr/references/rubric.md` -> "Part C" is the canonical
+`.agents/skills/triage-pr/references/rubric.md` -> "Part C" is the canonical
 green / near-green / red definition, and it keys on ruleset-required checks alone.
 audit-pr's `CI gate` field applies Part C with **one named amendment**: a red
 convention-blocking check counts as `red` here, where Part C alone would read it as
@@ -233,7 +233,7 @@ workflow's `on:` / `paths:` rather than assuming.
     `MAINTAINERS.md`, `.impeccable.md`, `.claude/README.md`,
     `.claude/settings.json`, `.claude/scripts/**`, `.claude/reference/**`,
     `.claude/hooks/**`, `.claude/agents/**`, `.claude/rules/**`,
-    `.claude/skills/**/*.md`, `dev-ref/**/*.md`, and
+    `.agents/skills/**/*.md`, `dev-ref/**/*.md`, and
     `.github/workflows/validate-claude-md.yml`.
   - Enforces: `.claude/scripts/test_validate_agents_md.py`,
     `.claude/scripts/validate-claude-md.py`, plus a content-reduction guard on

@@ -7,7 +7,7 @@ case-insensitively, mirroring ``src/supy/data_model/forcing/variables.py``.
 Pure stdlib so the Skill never pulls supy.
 
 Usage:
-    python .claude/skills/suews/scripts/check_forcing_columns.py <forcing_file>
+    python .agents/skills/suews/scripts/check_forcing_columns.py <forcing_file>
 
 Exit codes: 0 = all baseline columns present; 1 = missing baseline columns
 or a comma-separated header.

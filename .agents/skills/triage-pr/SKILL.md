@@ -62,7 +62,7 @@ Use this skill when asked to:
 Run the read-only scanner to collect candidates:
 
 ```
-bash .claude/skills/triage-pr/scripts/scan-prs.sh --stale-days 14
+bash .agents/skills/triage-pr/scripts/scan-prs.sh --stale-days 14
 ```
 
 The scanner prints a `Scope:` line followed by one TSV row per candidate PR:
@@ -77,13 +77,13 @@ procedure in `references/methodology.md`.
 For a different staleness threshold or a non-default repository:
 
 ```
-bash .claude/skills/triage-pr/scripts/scan-prs.sh --repo UMEP-dev/SUEWS --stale-days 7
+bash .agents/skills/triage-pr/scripts/scan-prs.sh --repo UMEP-dev/SUEWS --stale-days 7
 ```
 
 For JSON output (for scripting):
 
 ```
-bash .claude/skills/triage-pr/scripts/scan-prs.sh --json 2>/dev/null | jq .
+bash .agents/skills/triage-pr/scripts/scan-prs.sh --json 2>/dev/null | jq .
 ```
 
 ---

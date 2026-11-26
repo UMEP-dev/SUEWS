@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the SUEWS agent-plugin distribution repository.
 
-The main SUEWS repository keeps `.claude/skills/suews/` as the single source of
+The main SUEWS repository keeps `.agents/skills/suews/` as the single source of
 truth. This script writes a self-contained marketplace repository for agent
 hosts that need different packaging layouts:
 
@@ -420,7 +420,7 @@ def _build(output: Path, *, lock: bool = True) -> None:
     _write_json(plugin_out / CODEX_MCP_FILE, _pinned_mcp(source_commit))
     _vendor_server(plugin_out, lock=lock)
     _copy_tree(
-        REPO / ".claude" / "skills" / PLUGIN_NAME,
+        REPO / ".agents" / "skills" / PLUGIN_NAME,
         plugin_out / "skills" / PLUGIN_NAME,
     )
     for subdir in ("assets", ".claude-plugin"):

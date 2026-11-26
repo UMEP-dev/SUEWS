@@ -678,7 +678,7 @@ test/fixtures/gh846/*.zip
 site/schemas/
 
 # Generated plugin bundle: `make plugin` (scripts/build_plugin.py) copies the
-# single-source skill from .claude/skills/suews into the distributable plugin.
+# single-source skill from .agents/skills/suews into the distributable plugin.
 # It is a build artifact (regenerated locally / in CI before publishing), so the
 # duplicated skill copy is not committed; only the plugin manifests + assets are.
 plugins/suews/skills/

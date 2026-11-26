@@ -71,6 +71,9 @@ class GovernanceFixture(unittest.TestCase):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("# Skill guidance\n", encoding="utf-8")
+        compat = self.root / VALIDATOR.SKILLS_COMPAT_LINK
+        compat.parent.mkdir(parents=True, exist_ok=True)
+        compat.symlink_to(VALIDATOR.SKILLS_COMPAT_TARGET)
 
         indexed_rules, parse_warnings = VALIDATOR.parse_shared_rule_index(
             agents_content
@@ -270,6 +273,30 @@ class SharedInstructionValidation(GovernanceFixture):
             "AGENTS.md `## References`: Missing file dev-ref/CODEBASE_AUDIT_PROTOCOL.md",
             result.stdout,
         )
+
+    def test_missing_skills_compat_symlink_fails(self):
+        """Missing .claude/skills compatibility symlink exits 1."""
+        (self.root / VALIDATOR.SKILLS_COMPAT_LINK).unlink()
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Missing .claude/skills compatibility symlink", result.stdout)
+
+    def test_wrong_skills_compat_symlink_fails(self):
+        """A .claude/skills symlink pointing elsewhere exits 1."""
+        compat = self.root / VALIDATOR.SKILLS_COMPAT_LINK
+        compat.unlink()
+        compat.symlink_to("../other/skills")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(".claude/skills symlink target", result.stdout)
+
+    def test_windows_text_stub_skills_compat_passes(self):
+        """A plain-text symlink stub (Windows git checkout) passes."""
+        compat = self.root / VALIDATOR.SKILLS_COMPAT_LINK
+        compat.unlink()
+        compat.write_text(VALIDATOR.SKILLS_COMPAT_TARGET, encoding="utf-8")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_non_ascii_or_missing_sections_in_audit_protocol_fails(self):
         """Non-ASCII or missing canonical sections in CODEBASE_AUDIT_PROTOCOL.md exits 1."""

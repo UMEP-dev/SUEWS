@@ -48,7 +48,7 @@ python test/fixtures/sample_short/make_sample_short.py
   ```bash
   python scripts/suews/check_dist_license.py dist/*.whl
   ```
-- Distributable skill bundle (`plugins/suews/skills/`) is generated from `.claude/skills/` and guarded by `test/mcp/test_packaging_manifests.py`:
+- Distributable skill bundle (`plugins/suews/skills/`) is generated from `.agents/skills/` and guarded by `test/mcp/test_packaging_manifests.py`:
   ```bash
   make plugin   # runs python scripts/build_plugin.py
   ```

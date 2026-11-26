@@ -4,7 +4,7 @@
 >
 > Active sizing, workflow, and code-design rules supersede this guide whenever an example drifts. Always read:
 > - Rules: [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), [`.claude/rules/pr-description.md`](../.claude/rules/pr-description.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/code-design.md`](../.claude/rules/code-design.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/labels.md`](../.claude/rules/labels.md)
-> - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md)), `/fix-issue` ([`.claude/skills/fix-issue/SKILL.md`](../.claude/skills/fix-issue/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), `/split-pr` ([`.claude/skills/split-pr/SKILL.md`](../.claude/skills/split-pr/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
+> - Skills: `/triage-issue` ([`.agents/skills/triage-issue/SKILL.md`](../.agents/skills/triage-issue/SKILL.md)), `/fix-issue` ([`.agents/skills/fix-issue/SKILL.md`](../.agents/skills/fix-issue/SKILL.md)), `/audit-pr` ([`.agents/skills/audit-pr/SKILL.md`](../.agents/skills/audit-pr/SKILL.md)), `/split-pr` ([`.agents/skills/split-pr/SKILL.md`](../.agents/skills/split-pr/SKILL.md)), and `/queue-pr` ([`.agents/skills/queue-pr/SKILL.md`](../.agents/skills/queue-pr/SKILL.md))
 
 ## Overview
 

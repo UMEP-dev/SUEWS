@@ -4,7 +4,7 @@
 >
 > Active standing rules and review skills supersede this overview whenever an example drifts. Always read:
 > - Rules: [`.claude/rules/pr-description.md`](../.claude/rules/pr-description.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), [`.claude/rules/labels.md`](../.claude/rules/labels.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md), and [`.claude/rules/review-convergence.md`](../.claude/rules/review-convergence.md)
-> - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md)), `/triage-pr` ([`.claude/skills/triage-pr/SKILL.md`](../.claude/skills/triage-pr/SKILL.md)), `/audit-pr` ([`.claude/skills/audit-pr/SKILL.md`](../.claude/skills/audit-pr/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
+> - Skills: `/triage-issue` ([`.agents/skills/triage-issue/SKILL.md`](../.agents/skills/triage-issue/SKILL.md)), `/triage-pr` ([`.agents/skills/triage-pr/SKILL.md`](../.agents/skills/triage-pr/SKILL.md)), `/audit-pr` ([`.agents/skills/audit-pr/SKILL.md`](../.agents/skills/audit-pr/SKILL.md)), and `/queue-pr` ([`.agents/skills/queue-pr/SKILL.md`](../.agents/skills/queue-pr/SKILL.md))
 
 ## Overview
 
@@ -33,7 +33,7 @@ paths needs a review request. Who the maintainers are is recorded in
 | Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | both maintainers |
 | Roles, owners and reviewers | `MAINTAINERS.md` | both maintainers |
 | Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | both maintainers |
-| Agent rules, skills, and audit protocol | `AGENTS.md`, `.claude/rules/`, `.claude/skills/`, `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` | both maintainers |
+| Agent rules, skills, and audit protocol | `AGENTS.md`, `.claude/rules/`, `.agents/skills/`, `dev-ref/CODEBASE_AUDIT_PROTOCOL.md` | both maintainers |
 | GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | software maintainer |
 
 ## Review Workflow

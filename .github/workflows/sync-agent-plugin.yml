@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - '.claude/skills/suews/**'
+      - '.agents/skills/suews/**'
       - '.claude-plugin/marketplace.json'
       - '.agents/plugins/marketplace.json'
       - '.mcp.json'
@@ -62,7 +62,7 @@ jobs:
           import json
           from pathlib import Path
 
-          source = Path(".claude/skills/suews")
+          source = Path(".agents/skills/suews")
           output = Path("suews-agent")
 
           def manifest(root: Path) -> dict[str, str]:

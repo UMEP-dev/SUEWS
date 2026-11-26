@@ -34,7 +34,7 @@ Details: `references/checks-detail.md`
 - `.github/workflows/build-wheels-reusable.yml` and `.github/workflows/build-publish_to_pypi.yml` -- CI wheel build and PyPI publishing
 - `src/supy/data_model/configuration/version.py` -- `CURRENT_SCHEMA_VERSION`
 - `src/supy/sample_data/sample_config.yml` and `test/fixtures/sample_short/sample_config_short.yml` -- canonical and short sample configurations
-- `scripts/build_plugin.py` -- generates `plugins/suews/skills/` from `.claude/skills/` (`make plugin`)
+- `scripts/build_plugin.py` -- generates `plugins/suews/skills/` from `.agents/skills/` (`make plugin`)
 
 ## Single-Wheel ABI Note
 

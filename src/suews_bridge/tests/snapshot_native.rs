@@ -1,7 +1,6 @@
 //! Native Fortran receiver proofs for `SUEWS_DEBUG` (all 15 stages via
 //! `SUEWS_cal_Main`), `SUEWS_STATE_BLOCK`, and `output_block` (via the shared
-//! production multiline core `run_multitsteps_block` used by
-//! `SUEWS_cal_multitsteps`). Test-only under `capi-observer`; no production
+//! multiline core `run_multitsteps_block`). Test-only under `capi-observer`; no production
 //! snapshot wire is created or advertised.
 // contract: C-CAPI, C-SEQUENCE
 

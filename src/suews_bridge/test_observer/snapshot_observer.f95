@@ -1,6 +1,5 @@
 ! Opt-in native observation of SUEWS_DEBUG stage transitions (via SUEWS_cal_Main)
-! and production multiline block capture (via run_multitsteps_block, shared with
-! SUEWS_cal_multitsteps). Test-only under feature `capi-observer`; no production
+! and multiline block capture (via run_multitsteps_block). Test-only under feature `capi-observer`; no production
 ! snapshot wire is added or advertised.
 SUBMODULE (SUEWS_Driver) test_snapshot_observer
    IMPLICIT NONE

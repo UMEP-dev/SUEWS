@@ -30,7 +30,13 @@ def probe(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "EHC solver probe",
         libraries=("libsuewsphys.a", "libsuewsutil.a"),
-        modules=("module_phys_ehc_heatflux.mod",),
+        modules=(
+            "module_ctrl_const_allocate.mod",
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_ehc.mod",
+            "module_phys_ehc_heatflux.mod",
+        ),
     )
     executable = tmp_path_factory.mktemp("ehc_implicit") / "probe"
     compiled = subprocess.run(

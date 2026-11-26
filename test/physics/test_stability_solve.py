@@ -74,7 +74,11 @@ def probe(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "Native stability solve probe",
         libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_atmmoiststab.mod",),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_phys_atmmoiststab.mod",
+            "module_phys_resist.mod",
+        ),
     )
     directory = tmp_path_factory.mktemp("stability_solve")
     source = directory / "probe.f95"

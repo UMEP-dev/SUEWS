@@ -10,6 +10,7 @@ from inspect import signature
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 import subprocess
@@ -607,6 +608,24 @@ def _is_editable_source_install(repo_root: Path = _REPO_ROOT) -> bool:
         return False
 
 
+def _has_source_build_artifacts(repo_root: Path = _REPO_ROOT) -> bool:
+    """Return True when *repo_root* contains compiled Fortran build artefacts.
+
+    Distinguishes a partial or non-editable source build (which has compiled
+    archives, module files, or a build fingerprint under ``src/suews/``) from
+    a clean repository checkout testing an installed wheel (which has only
+    tracked source files and no compiled ``.a``/``.mod`` artefacts).
+    """
+    suews_dir = repo_root / "src" / "suews"
+    lib_dir = suews_dir / "lib"
+    mod_dir = suews_dir / "mod"
+    return (
+        (suews_dir / ".suews_build_fingerprint").is_file()
+        or (lib_dir.is_dir() and any(lib_dir.glob("*.a")))
+        or (mod_dir.is_dir() and any(mod_dir.glob("*.mod")))
+    )
+
+
 def _fortran_probes_required_by_env() -> bool:
     """Return True when CI environment variables require Fortran probes."""
     return (
@@ -620,11 +639,64 @@ def fortran_probes_required(repo_root: Path = _REPO_ROOT) -> bool:
 
     Probes are mandatory in CI reference and prebuilt-probe lanes
     (``SUEWS_REQUIRE_FORTRAN_PROBES=1`` or
-    ``SUEWS_FORTRAN_PROBES_PREBUILT=1``) and in editable source builds of
-    *repo_root*. Only installed-wheel runs without prebuilt probe archives
-    may skip probe tests cleanly.
+    ``SUEWS_FORTRAN_PROBES_PREBUILT=1``), in editable source builds of
+    *repo_root*, and whenever *repo_root* already holds compiled Fortran
+    source-build artefacts under ``src/suews/``. Only clean installed-wheel
+    runs without a source build may skip probe tests.
     """
-    return _fortran_probes_required_by_env() or _is_editable_source_install(repo_root)
+    return (
+        _fortran_probes_required_by_env()
+        or _is_editable_source_install(repo_root)
+        or _has_source_build_artifacts(repo_root)
+    )
+
+
+def _is_non_gnu_fortran_build(suews_dir: Path) -> bool:
+    """Return True when build metadata or env explicitly names a non-GNU compiler."""
+    profile = os.environ.get("PROFILE", "").strip().lower()
+    if profile and profile != "gfortran":
+        return True
+    ver_file = suews_dir / "src" / "suews_ctrl_ver.f95"
+    if not ver_file.is_file():
+        return False
+    try:
+        text = ver_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    match = re.search(r"compiler_ver\s*=\s*'([^']*)'", text)
+    if not match:
+        return False
+    compiler_ver = match.group(1).strip().lower()
+    return bool(compiler_ver) and (
+        "gnu fortran" not in compiler_ver and "gfortran" not in compiler_ver
+    )
+
+
+def _classify_fortran_module(mod_path: Path, suews_dir: Path) -> str:
+    """Classify a Fortran ``.mod`` file as missing, gnu, non_gnu, or corrupt."""
+    if not mod_path.is_file():
+        return "missing"
+    try:
+        with mod_path.open("rb") as stream:
+            header = stream.read(16)
+    except OSError:
+        header = b""
+    if not header:
+        return "corrupt"
+    if header.startswith(b"\x1f\x8b"):
+        try:
+            with gzip.open(mod_path, "rb") as gz_stream:
+                is_gnu = gz_stream.readline().startswith(b"GFORTRAN")
+        except (gzip.BadGzipFile, EOFError, OSError):
+            is_gnu = False
+        return "gnu" if is_gnu else "corrupt"
+    if header.startswith(b"GFORTRAN"):
+        return "gnu"
+    is_non_gnu = header.startswith((
+        b"\xef\xbb\xbf!mod$",
+        b"!mod$",
+    )) or _is_non_gnu_fortran_build(suews_dir)
+    return "non_gnu" if is_non_gnu else "corrupt"
 
 
 def fortran_probe_unavailable(
@@ -663,7 +735,7 @@ def require_fortran_probe_toolchain(
         for probes that compile directly from Fortran source files.
     modules : tuple of str, optional
         GNU Fortran ``.mod`` filenames required under ``src/suews/mod/``. Each
-        must exist and carry a gzipped ``GFORTRAN`` header.
+        must exist and carry a valid ``GFORTRAN`` header.
     source_dir : Path or None, optional
         Optional Fortran source directory that must exist for direct-source
         probes.
@@ -697,26 +769,29 @@ def require_fortran_probe_toolchain(
 
     for mod_name in modules:
         mod_path = suews_dir / "mod" / mod_name
-        if not mod_path.is_file():
+        status = _classify_fortran_module(mod_path, suews_dir)
+        if status == "gnu":
+            continue
+        if status == "missing":
             fortran_probe_unavailable(
                 f"{description} requires GNU Fortran module file {mod_name} "
                 f"under {suews_dir / 'mod'}; model/driver tests cover installed wheels",
                 repo_root=repo_root,
             )
-        try:
-            with gzip.open(mod_path, "rb") as stream:
-                is_gnu = stream.readline().startswith(b"GFORTRAN")
-        except (gzip.BadGzipFile, EOFError, OSError):
-            is_gnu = False
-        if not is_gnu:
-            # A non-GNU .mod file (e.g. Intel Fortran local build) cannot be
-            # read by gfortran; fail in CI probe lanes, skip only locally.
+        if status == "non_gnu":
+            # A recognised non-GNU local build (e.g. Intel Fortran or Flang)
+            # cannot be read by gfortran; fail in CI probe lanes, skip locally.
             fortran_probe_unavailable(
                 f"{description} requires GNU Fortran module files "
-                f"({mod_name} is not a gfortran module)",
+                f"({mod_name} is from a non-GNU Fortran build)",
                 repo_root=repo_root,
                 require_env_only=True,
             )
+        fortran_probe_unavailable(
+            f"{description} found unreadable or corrupt Fortran module file "
+            f"{mod_name} under {suews_dir / 'mod'}",
+            repo_root=repo_root,
+        )
 
     return compiler, suews_dir
 

@@ -22,7 +22,10 @@ def stability_probe(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "Native stability selector probe",
         libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_atmmoiststab.mod",),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_phys_atmmoiststab.mod",
+        ),
     )
     directory = tmp_path_factory.mktemp("stability")
     source = directory / "probe.f95"
@@ -245,7 +248,13 @@ def stability_nonfinite_probe(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "Native stability non-finite probe",
         libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_atmmoiststab.mod",),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_atmmoiststab.mod",
+            "module_phys_resist.mod",
+            "module_phys_rslprof.mod",
+        ),
     )
 
     directory = tmp_path_factory.mktemp("stability_nonfinite")

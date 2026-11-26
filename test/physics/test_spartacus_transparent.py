@@ -91,7 +91,8 @@ end subroutine matrices
             raise
         fortran_probe_unavailable(
             f"gfortran runtime DLLs not loadable on this runner ({error}); "
-            "the solver maths is checked on Linux and macOS"
+            "the solver maths is checked on Linux and macOS",
+            require_env_only=True,
         )
     array_arg = np.ctypeslib.ndpointer(dtype=np.float64, flags="F_CONTIGUOUS")
     native.argtypes = [ctypes.c_int] * 4 + [array_arg] * 6

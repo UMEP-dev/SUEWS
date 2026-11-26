@@ -22,7 +22,18 @@ def fatal_probe(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "Native fatal-error probe",
         libraries=("libspartacus.a",),
-        modules=("radiation_io.mod",),
+        modules=(
+            "radiation_io.mod",
+            "radsurf_boundary_conds_out.mod",
+            "radsurf_canopy_flux.mod",
+            "radsurf_canopy_properties.mod",
+            "radsurf_config.mod",
+            "radsurf_interface.mod",
+            "radsurf_lw_spectral_properties.mod",
+            "radsurf_overlap.mod",
+            "radsurf_simple_spectrum.mod",
+            "radsurf_sw_spectral_properties.mod",
+        ),
     )
     directory = tmp_path_factory.mktemp("fatal_radiation")
     source = directory / "probe.f90"
@@ -142,7 +153,10 @@ def test_surface_resistance_fatal_initialises_outputs(tmp_path):
     compiler, suews = require_fortran_probe_toolchain(
         "Native resistance check",
         libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_resist.mod",),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_phys_resist.mod",
+        ),
     )
     source = tmp_path / "resistance.f90"
     source.write_text(

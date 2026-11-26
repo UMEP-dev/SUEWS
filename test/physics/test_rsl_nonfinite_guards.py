@@ -33,7 +33,12 @@ def rsl_nonfinite_probe(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "Native RSL non-finite probe",
         libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_rslprof.mod",),
+        modules=(
+            "module_ctrl_const_allocate.mod",
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_rslprof.mod",
+        ),
     )
 
     directory = tmp_path_factory.mktemp("rsl_nonfinite")

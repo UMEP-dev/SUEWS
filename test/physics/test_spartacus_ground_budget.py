@@ -28,7 +28,12 @@ def ground_radiation(tmp_path_factory):
     compiler, suews = require_fortran_probe_toolchain(
         "Native radiation probe",
         libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_spartacus.mod",),
+        modules=(
+            "module_ctrl_const_allocate.mod",
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_spartacus.mod",
+        ),
     )
     executable = tmp_path_factory.mktemp("ground_budget") / "probe"
     compiled = subprocess.run(

@@ -35,7 +35,7 @@ that a DOI matches its paper; use the user-level `refs-checker` skill for that.
 Base audit (no network, no key; non-zero exit on any violation):
 
 ```bash
-uv run --no-project --with requests python .claude/skills/audit-docs/scripts/audit.py \
+uv run --no-project --with requests python .agents/skills/audit-docs/scripts/audit.py \
     docs/source/assets/refs/refs-SUEWS.bib \
     docs/source/assets/refs/refs-community.bib
 ```
@@ -45,7 +45,7 @@ Enrichment fills missing `abstract` fields in place and is idempotent. It reads
 `--crossref-only`:
 
 ```bash
-uv run --no-project --with requests python .claude/skills/audit-docs/scripts/enrich.py \
+uv run --no-project --with requests python .agents/skills/audit-docs/scripts/enrich.py \
     docs/source/assets/refs/refs-SUEWS.bib \
     docs/source/assets/refs/refs-community.bib
 ```

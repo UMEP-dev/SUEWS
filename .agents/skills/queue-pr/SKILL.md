@@ -41,7 +41,7 @@ Scan ready-for-review PRs and propose a coordination order:
 
 ```bash
 git fetch origin
-.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master
+.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master
 ```
 
 Write or update one coordination comment on each of your own non-draft PRs
@@ -49,7 +49,7 @@ Write or update one coordination comment on each of your own non-draft PRs
 is passed after explicit user approval):
 
 ```bash
-.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment
+.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment
 ```
 
 For a central repair wave, keep the coordinator worktree on its own branch and
@@ -66,32 +66,32 @@ avoid head-of-line blocking under `ALLGREEN` / `maximumEntriesToBuild = 5`):
 
 ```bash
 # Fast conflict-free wave first (up to 5 PRs)
-.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --lane fast --max-batch 5 --enqueue
+.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master --lane fast --max-batch 5 --enqueue
 
 # Or enqueue all queueable PRs in CI-lane + risk order
-.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
+.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
 ```
 
 Inspect or adjust the live GitHub merge queue (read-only `status`; human-gated `dequeue` and `jump`):
 
 ```bash
-.claude/skills/queue-pr/scripts/manage-merge-queue.sh status --base master
-.claude/skills/queue-pr/scripts/manage-merge-queue.sh dequeue <PR> --base master
-.claude/skills/queue-pr/scripts/manage-merge-queue.sh jump <PR> --base master
+.agents/skills/queue-pr/scripts/manage-merge-queue.sh status --base master
+.agents/skills/queue-pr/scripts/manage-merge-queue.sh dequeue <PR> --base master
+.agents/skills/queue-pr/scripts/manage-merge-queue.sh jump <PR> --base master
 ```
 
 For the current local branch:
 
 ```bash
 git fetch origin
-.claude/skills/queue-pr/scripts/preflight.sh --base origin/master
+.agents/skills/queue-pr/scripts/preflight.sh --base origin/master
 ```
 
 For several local branches:
 
 ```bash
 git fetch origin
-.claude/skills/queue-pr/scripts/preflight.sh --base origin/master branch-a branch-b branch-c
+.agents/skills/queue-pr/scripts/preflight.sh --base origin/master branch-a branch-b branch-c
 ```
 
 Run the relevant project check before queueing:
@@ -106,7 +106,7 @@ make test-smoke
    - Prefer the queue scanner when the user asks about all ready PRs, merge
      queue ordering, or queue bounce-backs across several PRs.
    - Run `git fetch origin`, then:
-     `.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master`.
+     `.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master`.
    - Treat "ready for review" as open and non-draft. The scanner skips PRs
      with changes requested, merge conflicts, dirty merge state, unknown
      mergeability, or failing checks unless a future operator deliberately
@@ -139,7 +139,7 @@ make test-smoke
 
 2. **Comment before queueing**
    - Treat comments as the normal coordination mechanism. Run:
-     `.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment`.
+     `.agents/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment`.
    - The script writes or updates one marker-based comment on each non-draft
      PR. The comment includes current queue position, why the PR has that
      position, shared/high-risk files, and specific suggestions for the PR's

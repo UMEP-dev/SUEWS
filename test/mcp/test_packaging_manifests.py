@@ -215,9 +215,8 @@ def _skill_manifest(root: Path) -> dict[str, str]:
 def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -> None:
     """The generated `suews-agent` repo is the self-contained install surface.
 
-    It carries Claude Code's canonical `.claude/skills/suews/` path and Codex's
-    required `plugins/suews/skills/suews/` path, both byte-identical to the
-    source skill.
+    It builds `plugins/suews/skills/suews/` byte-identical to the canonical
+    `.agents/skills/suews/` source skill.
     """
     output = tmp_path / "suews-agent"
     subprocess.run(
@@ -274,7 +273,7 @@ def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -
     assert "generated distribution mirror" in readme
     assert "SUEWS agent-plugin sync workflow" in readme
 
-    source = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    source = _skill_manifest(REPO_ROOT / ".agents" / "skills" / "suews")
     assert _skill_manifest(plugin_dir / "skills" / "suews") == source
 
 
@@ -356,7 +355,7 @@ def test_agent_plugin_folder_meets_directory_basics(tmp_path: Path) -> None:
 
 def test_build_plugin_generates_single_skill_bundle_from_source() -> None:
     """`scripts/build_plugin.py` (`make plugin`) generates the distributable
-    bundle from the single source `.claude/skills/suews/`. The bundle
+    bundle from the single source `.agents/skills/suews/`. The bundle
     (`plugins/suews/skills/`) is a gitignored build artifact — there is no
     committed copy to drift — so this runs the generator and verifies its
     output: exactly one skill (`suews`; fresh-site setup is a reference inside
@@ -371,10 +370,10 @@ def test_build_plugin_generates_single_skill_bundle_from_source() -> None:
     dirs = sorted(p.name for p in bundle_skills.iterdir() if p.is_dir())
     assert dirs == ["suews"], f"bundle should ship only 'suews', found: {dirs}"
 
-    src = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    src = _skill_manifest(REPO_ROOT / ".agents" / "skills" / "suews")
     bundle = _skill_manifest(bundle_skills / "suews")
     assert src == bundle, (
-        "build_plugin.py output differs from .claude/skills/suews/ — generator bug. "
+        "build_plugin.py output differs from .agents/skills/suews/ — generator bug. "
         f"source-only: {sorted(set(src) - set(bundle))}; "
         f"bundle-only: {sorted(set(bundle) - set(src))}; "
         f"differing: {sorted(k for k in src if k in bundle and src[k] != bundle[k])}"

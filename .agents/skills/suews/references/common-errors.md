@@ -31,7 +31,7 @@ the fix.
   coordinates (`iy`, `id`, `it`, `imin`) or meteorological drivers (`U`, `RH`,
   `Tair`, `pres`, `rain`, `kdown`; note the spelling `pres`, not `Press`). Fix:
   rename or supply the missing column, then run
-  `python .claude/skills/suews/scripts/check_forcing_columns.py <forcing>`
+  `python .agents/skills/suews/scripts/check_forcing_columns.py <forcing>`
   (or `plugins/suews/skills/suews/scripts/check_forcing_columns.py` when
   installed as a plugin).
 - **Forcing time axis irregular** -- gaps or duplicate rows in the time

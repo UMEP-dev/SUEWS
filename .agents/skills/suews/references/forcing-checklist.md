@@ -54,7 +54,7 @@ the schema and the Pydantic model, never reads the forcing file, skips the
 Phase B science rules and never reports warnings. The full run writes a report
 and an updated YAML next to the config.
 
-Run `python .claude/skills/suews/scripts/check_forcing_columns.py <forcing>`
+Run `python .agents/skills/suews/scripts/check_forcing_columns.py <forcing>`
 (or `plugins/suews/skills/suews/scripts/check_forcing_columns.py` when installed
 as a plugin) to verify required headers; it exits non-zero when baseline columns
 are missing.

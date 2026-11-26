@@ -30,7 +30,7 @@ Authority runs from evidence, to the decisions of named people where evidence ru
 
 ### Authority and amendment
 
-- **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.claude/skills/` and `.claude/agents/`; `dev-ref/`.
+- **Authority among instruction files**, highest first: this file; `.claude/rules/`; `.agents/skills/` and `.claude/agents/`; `dev-ref/`.
   When two disagree, follow the higher one for the task in hand and report the disagreement.
 - **Where the rules are silent**, the principles guide the choice.
   They never permit what a rule reserves for a person.
@@ -49,7 +49,7 @@ Claude Code loads `.claude/rules/` automatically according to each rule's scope.
 - `.claude/rules/00-project-essentials.md` - Setup, the rules that apply to all work, and what to run before committing
 - `.claude/rules/` - Facts, recorded decisions, and procedure for the principles
 - `.claude/README.md` - The workspace: available skills, hooks, and how rules and skills relate
-- `.claude/skills/` - Skill procedures
+- `.agents/skills/` - Skill procedures (`.claude/skills` is a compatibility symlink for Claude Code)
 - `.claude/agents/` - Review subagents
 - `dev-ref/REGRESSION_CHECKLIST.md` - Lessons from past failures, each with a trigger readable from the diff; read by `audit-pr` and `fix-issue`
 - `.impeccable.md` - Design direction for SUEWS-facing surfaces (site/, landing, docs)

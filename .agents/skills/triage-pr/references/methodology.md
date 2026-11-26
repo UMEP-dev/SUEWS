@@ -14,7 +14,7 @@ live in `rubric.md`; this file covers the procedure for applying them.
 1. **Run the scanner** for the target PR:
 
    ```
-   bash .claude/skills/triage-pr/scripts/scan-prs.sh --repo UMEP-dev/SUEWS
+   bash .agents/skills/triage-pr/scripts/scan-prs.sh --repo UMEP-dev/SUEWS
    ```
 
    Or to scan a single PR directly by inspecting its open-PR entry in the

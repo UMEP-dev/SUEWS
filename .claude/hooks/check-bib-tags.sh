@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Hook: Check SUEWS bib files for topic-tag convention violations
 # Triggered by PostToolUse for Edit/Write on docs/source/assets/refs/*.bib
-# Complements the audit-docs skill (.claude/skills/audit-docs/)
+# Complements the audit-docs skill (.agents/skills/audit-docs/)
 
 set -euo pipefail
 
@@ -37,7 +37,7 @@ if [[ -z "$PYTHON" ]]; then
     exit 0
 fi
 
-AUDIT="$CLAUDE_PROJECT_DIR/.claude/skills/audit-docs/scripts/audit.py"
+AUDIT="$CLAUDE_PROJECT_DIR/.agents/skills/audit-docs/scripts/audit.py"
 if [[ ! -f "$AUDIT" ]]; then
     exit 0
 fi

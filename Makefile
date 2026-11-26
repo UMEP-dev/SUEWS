@@ -317,7 +317,7 @@ format:
 	fprettify src/suews/src/*.f95 || true
 
 # Regenerate the distributable plugin bundle (plugins/suews/skills/) from the
-# single source of truth (.claude/skills/). Run after editing a skill; the
+# single source of truth (.agents/skills/). Run after editing a skill; the
 # parity test in test/mcp/test_packaging_manifests.py guards against drift.
 plugin:
 	$(PYTHON) scripts/build_plugin.py

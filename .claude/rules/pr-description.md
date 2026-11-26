@@ -45,7 +45,7 @@ For any bug fix, feature, refactor, physics or numerical change, bridge or schem
    - `## Numerical change` when `0-numerics:change` applies (`.claude/rules/physics-change-evidence.md`).
    - `## Bridge contract` when `src/suews_bridge/**` or either side of its boundary changes (`.claude/rules/rust/bridge-contract.md`).
    - `## Schema migration` when `CURRENT_SCHEMA_VERSION` bumps (`.claude/rules/python/schema-versioning.md`).
-   - `## Stack` when the PR is part of a stacked series (`.claude/skills/split-pr/SKILL.md`).
+   - `## Stack` when the PR is part of a stacked series (`.agents/skills/split-pr/SKILL.md`).
 5. **`## How to review`**: a short reviewer map listing: [decision: software maintainer, 2026-11-19]
    - **Start here:** the one to three files or symbols that hold the real logic, in reading order, with one clause on what to check in each.
    - **Skip / skim:** regenerated fixtures, generated docs, formatting commits, or mechanical moves that need no line-by-line reading (omit if none).

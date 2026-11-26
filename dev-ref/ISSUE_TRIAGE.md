@@ -4,7 +4,7 @@
 >
 > Active standing rules and automated triage skills supersede this guide whenever an example drifts. Always read:
 > - Rules: [`.claude/rules/labels.md`](../.claude/rules/labels.md), [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md), and [`.claude/rules/work-sizing.md`](../.claude/rules/work-sizing.md)
-> - Skills: `/triage-issue` ([`.claude/skills/triage-issue/SKILL.md`](../.claude/skills/triage-issue/SKILL.md) and [`.claude/skills/triage-issue/references/label-hierarchy.md`](../.claude/skills/triage-issue/references/label-hierarchy.md)) and `/triage-pr` ([`.claude/skills/triage-pr/SKILL.md`](../.claude/skills/triage-pr/SKILL.md))
+> - Skills: `/triage-issue` ([`.agents/skills/triage-issue/SKILL.md`](../.agents/skills/triage-issue/SKILL.md) and [`.agents/skills/triage-issue/references/label-hierarchy.md`](../.agents/skills/triage-issue/references/label-hierarchy.md)) and `/triage-pr` ([`.agents/skills/triage-pr/SKILL.md`](../.agents/skills/triage-pr/SKILL.md))
 
 This guide describes how issues in `UMEP-dev/SUEWS` are triaged, scoped, and labelled under the repository's tiered label hierarchy.
 

@@ -6,7 +6,7 @@
     "url": "https://github.com/UMEP-dev"
   },
   "metadata": {
-    "description": "SUEWS plugin for AI agent ecosystems - runtime workflow rules and the suews-mcp server for running, validating, and analysing simulations. Contributor/maintainer skills live in the repository under .claude/skills/ and are not published as a separate plugin.",
+    "description": "SUEWS plugin for AI agent ecosystems - runtime workflow rules and the suews-mcp server for running, validating, and analysing simulations. Contributor/maintainer skills live in the repository under .agents/skills/ and are not published as a separate plugin.",
     "version": "1.3.0",
     "repository": "https://github.com/UMEP-dev/SUEWS"
   },
@@ -16,7 +16,7 @@
       "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles workflow rules, the `suews-mcp` Model Context Protocol server (validation, inspection, summarise/compare/diagnose, init/convert, versioned knowledge pack), fresh-site simulation guidance with assumption ledgers/readiness levels, forcing-data checks, output interpretation, and common-error diagnostics.",
       "source": "./",
       "skills": [
-        "./.claude/skills/suews"
+        "./.agents/skills/suews"
       ],
       "mcpServers": "./.mcp.json"
     }

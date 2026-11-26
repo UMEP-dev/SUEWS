@@ -19,8 +19,8 @@ Checks two invariants under ``test/``:
 The ``Makefile`` parser intentionally supports only direct literal
 ``TEST_DEFAULT_PATHS`` assignments (plus backslash continuations, inline
 comments, and ``+=`` appends) and fails closed on dynamic Make constructs
-(``include``, ``eval``, variable references, conditionals, ``define``
-overrides, and unsupported operators).
+(``include``, ``eval``, ``call``, ``define``, conditionals, variable
+references, computed names, and unsupported operators).
 
 Exits 0 when every check passes, 1 otherwise.
 """
@@ -32,6 +32,7 @@ import fnmatch
 import os
 from pathlib import Path
 import re
+import stat
 import sys
 
 NATURE_MARKERS: frozenset[str] = frozenset({"physics", "api"})
@@ -51,14 +52,11 @@ PERIPHERAL_TEST_DIRS: tuple[str, ...] = (
     "test/umep",
 )
 
-# Make parser regexes (applied to comment-stripped, leading-whitespace-trimmed lines
-# after distinguishing tab-prefixed rule recipes).
-_COND_OPEN_RE = re.compile(r"^(?:ifeq|ifneq|ifdef|ifndef)\b")
-_COND_CLOSE_RE = re.compile(r"^endif\b")
-_DEFINE_OPEN_RE = re.compile(
-    r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+(?P<name>\S+)"
+# Make parser regexes (applied to leading-whitespace-trimmed non-recipe lines).
+_COND_DIRECTIVE_RE = re.compile(r"^(?:ifeq|ifneq|ifdef|ifndef)(?:[ \t(]|$)")
+_DEFINE_DIRECTIVE_RE = re.compile(
+    r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+\S+"
 )
-_DEFINE_CLOSE_RE = re.compile(r"^endef\b")
 _INCLUDE_RE = re.compile(r"^(?:-include|sinclude|include)[ \t]+")
 _TOPLEVEL_EXPANSION_RE = re.compile(r"^\$[({]")
 _DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t]*(?:eval|call)\b")
@@ -98,6 +96,57 @@ def _is_test_filename(filename: str) -> bool:
     )
 
 
+def _lstat_entry(
+    entry: Path,
+    resolved_root: Path,
+    errors: list[str],
+) -> os.stat_result | None:
+    """Return ``os.lstat(entry)`` or append a structured error on ``OSError``."""
+    try:
+        return os.lstat(entry)
+    except OSError as exc:
+        rel = entry.relative_to(resolved_root).as_posix()
+        errors.append(f"unable to stat test entry {rel}: {exc}")
+        return None
+
+
+def _is_junction_entry(
+    entry: Path,
+    resolved_root: Path,
+    errors: list[str],
+) -> bool:
+    """Return ``entry.is_junction()``, recording any ``OSError``."""
+    try:
+        return entry.is_junction()
+    except OSError as exc:
+        rel = entry.relative_to(resolved_root).as_posix()
+        errors.append(f"unable to inspect test entry {rel}: {exc}")
+        return False
+
+
+def _validate_link_file(
+    entry: Path,
+    filename: str,
+    resolved_root: Path,
+    errors: list[str],
+) -> bool:
+    """Validate a symlinked file entry and report whether it is a test file."""
+    rel = entry.relative_to(resolved_root).as_posix()
+    try:
+        target = entry.resolve(strict=True)
+        target_stat = os.stat(target)
+    except FileNotFoundError:
+        errors.append(f"broken symlink under test/: {rel}")
+        return False
+    except (OSError, RuntimeError):
+        errors.append(f"cyclic or unresolvable symlink under test/: {rel}")
+        return False
+    if not target.is_relative_to(resolved_root):
+        errors.append(f"symlink under test/ escapes repository root: {rel}")
+        return False
+    return _is_test_filename(filename) and stat.S_ISREG(target_stat.st_mode)
+
+
 def _walk_test_tree(
     resolved_root: Path,
     test_root: Path,
@@ -128,7 +177,12 @@ def _walk_test_tree(
         kept_dirs: list[str] = []
         for dirname in dirnames:
             entry = current_dir / dirname
-            if _is_link_or_junction(entry):
+            st = _lstat_entry(entry, resolved_root, errors)
+            if st is None:
+                continue
+            if stat.S_ISLNK(st.st_mode) or _is_junction_entry(
+                entry, resolved_root, errors
+            ):
                 rel = entry.relative_to(resolved_root).as_posix()
                 errors.append(
                     f"unsupported directory symlink or junction under test/: {rel}"
@@ -139,24 +193,16 @@ def _walk_test_tree(
 
         for filename in sorted(filenames):
             entry = current_dir / filename
-            if _is_link_or_junction(entry):
-                rel = entry.relative_to(resolved_root).as_posix()
-                try:
-                    target = entry.resolve(strict=True)
-                except FileNotFoundError:
-                    errors.append(f"broken symlink under test/: {rel}")
-                    continue
-                except (OSError, RuntimeError):
-                    errors.append(f"cyclic or unresolvable symlink under test/: {rel}")
-                    continue
-                if not target.is_relative_to(resolved_root):
-                    errors.append(f"symlink under test/ escapes repository root: {rel}")
-                    continue
-                if _is_test_filename(filename) and target.is_file():
+            st = _lstat_entry(entry, resolved_root, errors)
+            if st is None:
+                continue
+            if stat.S_ISLNK(st.st_mode) or _is_junction_entry(
+                entry, resolved_root, errors
+            ):
+                if _validate_link_file(entry, filename, resolved_root, errors):
                     discovered.append(entry)
                 continue
-
-            if _is_test_filename(filename) and entry.is_file():
+            if _is_test_filename(filename) and stat.S_ISREG(st.st_mode):
                 discovered.append(entry)
 
     return (sorted(discovered), errors)
@@ -312,19 +358,27 @@ def _strip_makefile_comment(line: str) -> str:
 
 
 def _reject_unsupported_makefile_line(code: str) -> None:
-    """Reject top-level Make directives that can mutate variables indirectly."""
+    """Reject top-level Make directives that can mutate variables dynamically."""
     if _INCLUDE_RE.match(code):
         raise ValueError(
             "Makefile include directives are unsupported when parsing "
             "TEST_DEFAULT_PATHS"
         )
+    if _DEFINE_DIRECTIVE_RE.match(code):
+        raise ValueError(
+            "Makefile define blocks are unsupported when parsing TEST_DEFAULT_PATHS"
+        )
+    if _COND_DIRECTIVE_RE.match(code):
+        raise ValueError(
+            "Makefile conditionals are unsupported when parsing TEST_DEFAULT_PATHS"
+        )
     if _RECIPEPREFIX_RE.search(code):
         raise ValueError(
             "Makefile .RECIPEPREFIX is unsupported when parsing TEST_DEFAULT_PATHS"
         )
-    if _DYNAMIC_MAKE_CALL_RE.search(code) or _TOPLEVEL_EXPANSION_RE.match(code):
+    if _TOPLEVEL_EXPANSION_RE.match(code):
         raise ValueError(
-            "Makefile top-level expansion, eval, or call is unsupported when parsing "
+            "Makefile top-level expansion is unsupported when parsing "
             f"TEST_DEFAULT_PATHS: {code.strip()}"
         )
     if _COMPUTED_ASSIGN_RE.match(code) or _COMPUTED_UNDEFINE_RE.match(code):
@@ -337,7 +391,6 @@ def _reject_unsupported_makefile_line(code: str) -> None:
 def _apply_makefile_target_line(
     raw_line: str,
     code: str,
-    cond_depth: int,
     raw_tokens: list[str],
     found: bool,
 ) -> tuple[list[str], bool]:
@@ -345,10 +398,6 @@ def _apply_makefile_target_line(
     if raw_line.startswith("\t"):
         raise ValueError(
             "TEST_DEFAULT_PATHS uses unsupported tab-indented construct outside a recipe"
-        )
-    if cond_depth > 0:
-        raise ValueError(
-            "TEST_DEFAULT_PATHS reference inside Make conditional is unsupported"
         )
     match = _PLAIN_ASSIGN_RE.match(code)
     if match is None:
@@ -370,21 +419,6 @@ def _apply_makefile_target_line(
     return ([*raw_tokens, *tokens], True)
 
 
-def _update_define_depth(line: str, define_depth: int) -> int:
-    """Update nested ``define``/``endef`` depth while rejecting hidden eval/call."""
-    if _DYNAMIC_MAKE_CALL_RE.search(line):
-        raise ValueError(
-            "Makefile eval/call inside define block is unsupported when parsing "
-            f"TEST_DEFAULT_PATHS: {line.strip()}"
-        )
-    trimmed = line.lstrip(" \t")
-    if _DEFINE_OPEN_RE.match(trimmed):
-        return define_depth + 1
-    if _DEFINE_CLOSE_RE.match(trimmed):
-        return define_depth - 1
-    return define_depth
-
-
 def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     """Parse ``TEST_DEFAULT_PATHS`` directly from a ``Makefile``.
 
@@ -404,21 +438,17 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     ValueError
         If ``TEST_DEFAULT_PATHS`` is missing, empty, uses unsupported Make
         syntax (conditionals, variable references, ``include``, ``eval``,
-        ``call``, directive prefixes, ``define``/``undefine``,
-        ``:::=``/``!=``, target-specific assignments, or tab-indented
-        assignments outside a recipe), or contains an invalid path token.
+        ``call``, ``define``, ``undefine``, ``.RECIPEPREFIX``, directive
+        prefixes, ``:::=``/``!=``, target-specific assignments, computed
+        variable names, or tab-indented assignments outside a recipe), or
+        contains an invalid path token.
     """
     text = makefile_path.read_text(encoding="utf-8")
     found = False
     raw_tokens: list[str] = []
-    cond_depth = 0
-    define_depth = 0
     in_rule = False
 
     for line in _join_makefile_continuations(text):
-        if define_depth > 0:
-            define_depth = _update_define_depth(line, define_depth)
-            continue
         if line.startswith("\t") and in_rule:
             if _DYNAMIC_MAKE_CALL_RE.search(line):
                 raise ValueError(
@@ -426,35 +456,22 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
                     f"TEST_DEFAULT_PATHS: {line.strip()}"
                 )
             continue
+
         stripped = line.lstrip(" \t")
         if not stripped or stripped.startswith("#"):
             continue
+        if _DYNAMIC_MAKE_CALL_RE.search(stripped):
+            raise ValueError(
+                "Makefile eval/call is unsupported when parsing "
+                f"TEST_DEFAULT_PATHS: {stripped}"
+            )
 
         code = _strip_makefile_comment(stripped)
         _reject_unsupported_makefile_line(code)
 
-        define_match = _DEFINE_OPEN_RE.match(code)
-        if define_match is not None:
-            defined_name = define_match.group("name").rstrip(":=")
-            if defined_name == "TEST_DEFAULT_PATHS" or "$" in defined_name:
-                raise ValueError(
-                    "TEST_DEFAULT_PATHS or computed name in Make define block "
-                    "is unsupported"
-                )
-            define_depth = 1
-            in_rule = False
-            continue
-
-        if _COND_OPEN_RE.match(code):
-            cond_depth += 1
-            continue
-        if _COND_CLOSE_RE.match(code):
-            cond_depth = max(0, cond_depth - 1)
-            continue
-
         if _MENTIONS_TARGET_RE.search(code):
             raw_tokens, found = _apply_makefile_target_line(
-                line, code, cond_depth, raw_tokens, found
+                line, code, raw_tokens, found
             )
             in_rule = False
             continue

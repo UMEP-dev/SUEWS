@@ -207,9 +207,6 @@ def test_makefile_continuations_comments_append_and_recipes(
         "# Comment with TEST_DEFAULT_PATHS := test/ignored\n"
         "dummy:\n"
         "\tTEST_DEFAULT_PATHS := test/recipe_ignored\n"
-        "define UNRELATED_MACRO\n"
-        "TEST_DEFAULT_PATHS := test/macro_ignored\n"
-        "endef\n"
         "TEST_DEFAULT_PATHS := \\\n"
         "    test/test_surface.py \\\n"
         "    test/core # inline comment\n"
@@ -259,7 +256,15 @@ def test_makefile_continuations_comments_append_and_recipes(
             "ifeq (0,1)\n"
             "TEST_DEFAULT_PATHS += test/stray\n"
             "endif\n",
-            "inside Make conditional",
+            "Makefile conditionals are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\n"
+            "ifeq (0,1)\n"
+            "endif-extra := ignored\n"
+            "TEST_DEFAULT_PATHS += test/orphan\n"
+            "endif\n",
+            "Makefile conditionals are unsupported",
         ),
         (
             "override TEST_DEFAULT_PATHS := test/core\n",
@@ -267,7 +272,15 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "define TEST_DEFAULT_PATHS\ntest/core\nendef\n",
-            "Make define block is unsupported",
+            "Makefile define blocks are unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\n"
+            "define UNUSED\n"
+            "\tendef\n"
+            "TEST_DEFAULT_PATHS += test/orphan\n"
+            "endef\n",
+            "Makefile define blocks are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\nundefine TEST_DEFAULT_PATHS\n",
@@ -294,7 +307,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "top-level expansion, eval, or call is unsupported",
+            "Makefile eval/call is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -302,7 +315,7 @@ def test_makefile_continuations_comments_append_and_recipes(
             "TEST_DEFAULT_PATHS := test/core\n"
             "endef\n"
             "$(eval $(TRIM))\n",
-            "top-level expansion, eval, or call is unsupported",
+            "Makefile define blocks are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -310,7 +323,7 @@ def test_makefile_continuations_comments_append_and_recipes(
             "$(eval TEST_DEFAULT_PATHS := test/core)\n"
             "endef\n"
             "UNUSED := $(TRIM)\n",
-            "eval/call inside define block is unsupported",
+            "Makefile define blocks are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -328,16 +341,14 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
-            "UNUSED := \\#$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "top-level expansion, eval, or call is unsupported",
+            "test: ; # $(eval TEST_DEFAULT_PATHS := test/core)\n"
+            "\tpytest $(TEST_DEFAULT_PATHS)\n",
+            "Makefile eval/call is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
-            "define TRIM\n"
-            "# $(eval TEST_DEFAULT_PATHS := test/core)\n"
-            "endef\n"
-            "UNUSED := $(TRIM)\n",
-            "eval/call inside define block is unsupported",
+            "UNUSED := \\#$(eval TEST_DEFAULT_PATHS := test/core)\n",
+            "Makefile eval/call is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -350,7 +361,7 @@ def test_makefile_continuations_comments_append_and_recipes(
             " \tifeq (0,1)\n"
             "TEST_DEFAULT_PATHS += test/orphan\n"
             " \tendif\n",
-            "inside Make conditional",
+            "Makefile conditionals are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -364,7 +375,7 @@ def test_makefile_continuations_comments_append_and_recipes(
             "define TEST_DEFAULT_$(suffix)\n"
             "test/core\n"
             "endef\n",
-            "Make define block is unsupported",
+            "Makefile define blocks are unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\\extra\n",
@@ -606,10 +617,8 @@ def test_symlinked_test_root_is_rejected(tmp_path: Path, capsys) -> None:
     assert captured.err.isascii()
 
 
-def test_nested_define_blocks_do_not_expose_inactive_assignment(
-    tmp_path: Path, capsys
-) -> None:
-    """Nested define/endef blocks cannot leak an inactive TEST_DEFAULT_PATHS append."""
+def test_nested_define_blocks_are_rejected(tmp_path: Path, capsys) -> None:
+    """Makefile define blocks are rejected fail-closed rather than skipped."""
     makefile = (
         "TEST_DEFAULT_PATHS := test/core\n"
         "define OUTER\n"
@@ -633,7 +642,7 @@ def test_nested_define_blocks_do_not_expose_inactive_assignment(
 
     assert rc == 1
     assert "[X]" in captured.err
-    assert "test/orphan_dir/test_stray.py" in captured.err
+    assert "Makefile define blocks are unsupported" in captured.err
 
 
 def test_cyclic_symlink_reports_structured_error_without_masking(
@@ -705,6 +714,37 @@ def test_even_trailing_backslashes_do_not_swallow_next_assignment(
     assert rc == 1
     assert "[X]" in captured.err
     assert "test/orphan_dir/test_stray.py" in captured.err
+
+
+def test_non_searchable_directory_reports_stat_error_without_masking(
+    tmp_path: Path, capsys
+) -> None:
+    """A 0o400 directory (readable, non-searchable) reports stat errors without masking."""
+    if sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0):
+        pytest.skip("POSIX non-root directory permissions required for chmod(0o400)")
+
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_unmarked.py": UNMARKED_TEST_SOURCE,
+            "test/non_searchable/test_hidden.py": API_TEST_SOURCE,
+        },
+    )
+    blocked = repo / "test" / "non_searchable"
+    blocked.chmod(0o400)
+    try:
+        rc = _run(repo)
+    finally:
+        blocked.chmod(0o755)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unable to stat test entry" in captured.err
+    assert "test/non_searchable/test_hidden.py" in captured.err
+    assert "test/core/test_unmarked.py" in captured.err
+    assert captured.err.isascii()
 
 
 def test_unreadable_directory_reports_traversal_error(tmp_path: Path, capsys) -> None:

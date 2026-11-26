@@ -10,8 +10,10 @@ preparation, so they carry pairwise witnesses: every value and every surface
 meets both the bare and the wrapped form. Live-mutation handoffs pair every
 mutation with every surface and every value. Finite round trips give each
 surface a different value in one configuration and rotate the assignment, so
-every (surface, value) pair still crosses every export and the engine. Large
-YAML documents are parsed and written with libyaml when it is available.
+every (surface, value) pair still crosses every export, and distinct values
+expose a misrouted field. The daily-output engine check shares one all-zero
+baseline per route and moves one surface at a time. Large YAML documents are
+parsed and written with libyaml when it is available.
 """
 
 import copy
@@ -45,7 +47,7 @@ SURFACES = ("evetr", "dectr", "grass")
 NONFINITE = (float("nan"), float("inf"), -float("inf"))
 NONFINITE_IDS = ("nan", "inf", "minus_inf")
 FINITE = (-450.0, 0.0, 12.5)
-DAILY_VALUES = (-17.0, 0.0, 12.5)
+NEGATIVE_SDD, POSITIVE_SDD = -17.0, 12.5
 BOOLEANS = (True, False, np.bool_(True), np.bool_(False))
 BOOLEAN_IDS = ("true", "false", "np_true", "np_false")
 REF = {"desc": "Finite senescence regression input"}
@@ -480,15 +482,17 @@ def test_signed_finite_state_reaches_daily_output(
     Positive SDD remains admissible; daily phenology may reset it according
     to its existing science. This test does not impose a positive bound.
 
-    Each run gives every surface a different value and the three runs rotate
-    them, so each surface meets each value once. Daily SDD advances per
-    vegetation surface from that surface's own previous value
-    (``update_gddlai`` in ``suews_phys_lai.f95``), so comparing one surface's
-    column across runs isolates that surface's initial value.
+    Each route shares one all-zero baseline run, moves one surface at a time
+    to the negative value, and runs every surface at the positive value once.
+    A moved surface's DailyState column must differ from the baseline while
+    the other two columns stay identical to it, so a difference cannot come
+    from another surface's input.
     """
-    daily = {surface: {} for surface in SURFACES}
-    for offset in range(len(DAILY_VALUES)):
-        values = _rotation(DAILY_VALUES, offset)
+    zero = dict.fromkeys(SURFACES, 0.0)
+    runs = {"zero": zero, "positive": dict.fromkeys(SURFACES, POSITIVE_SDD)}
+    runs.update({surface: {**zero, surface: NEGATIVE_SDD} for surface in SURFACES})
+    daily = {}
+    for name, values in runs.items():
         cfg = _daily_config(route, values, sample_dict, sample_config_loaded, tmp_path)
         sim = SUEWSSimulation()
         sim.update_config(cfg, auto_load_forcing=False)
@@ -498,15 +502,23 @@ def test_signed_finite_state_reaches_daily_output(
         fluxes = output.df["SUEWS"][["QN", "QH", "QE", "QS"]]
         assert not fluxes.empty
         assert np.isfinite(fluxes.to_numpy()).all()
-        for surface, value in values.items():
-            daily[surface][value] = output.df["DailyState", DAILY_SDD[surface]]
-    for surface, by_value in daily.items():
-        for value, series in by_value.items():
+        daily[name] = output.df["DailyState"]
+    for surface, column in DAILY_SDD.items():
+        for value, name in (
+            (NEGATIVE_SDD, surface),
+            (0.0, "zero"),
+            (POSITIVE_SDD, "positive"),
+        ):
             record_property(
                 f"{route}.{surface}.{value}.daily_sdd",
-                json.dumps(series.dropna().unique().tolist()),
+                json.dumps(daily[name][column].dropna().unique().tolist()),
             )
-        assert not by_value[-17.0].equals(by_value[0.0]), surface
+        assert not daily[surface][column].equals(daily["zero"][column]), surface
+        for other in SURFACES:
+            if other != surface:
+                pd.testing.assert_series_equal(
+                    daily[surface][DAILY_SDD[other]], daily["zero"][DAILY_SDD[other]]
+                )
 
 
 @pytest.mark.parametrize("reverse", [False, True])

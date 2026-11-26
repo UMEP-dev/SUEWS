@@ -29,8 +29,10 @@ def test_get_spinup_state_730d_real_simulation_evolves_states(
     sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
 ) -> None:
     """Real >= 730-day spin-up completes without error and writes evolved states."""
-    # ARRANGE: 730-day forcing ending in spring so LAI, porosity, soilstore evolve.
-    # Start 2018-01-01 so April 2019 aligns with spring forcing from the sample year.
+    # ARRANGE: 730-day forcing ending in spring so LAI, GDD, porosity, soilstore evolve.
+    # Start 2018-01-01 so spring 2019 aligns with spring forcing from the sample year.
+    # A 30-day window ending in late May accumulates enough spring GDD for LAI to move
+    # even when gdd_base is positive.
     df_state_raw, df_forcing_raw = sample_data_loaded
     df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
     df_state_init = df_state_raw.copy()
@@ -39,8 +41,8 @@ def test_get_spinup_state_730d_real_simulation_evolves_states(
     df_state_spinup, df_output_lc, df_state_lc = get_spinup_state(
         df_state_init,
         df_forcing,
-        start_analysis="2019-04-15",
-        spinup_days=10,
+        start_analysis="2019-05-20",
+        spinup_days=30,
         save_spinup=True,
     )
 
@@ -76,15 +78,13 @@ def test_get_spinup_state_730d_real_simulation_evolves_states(
         assert df_state_spinup.loc[grid_id, ("alb", col)] == pytest.approx(
             df_state_lc.loc[surf_idx, ("alb", col)]
         )
-    assert df_state_spinup.loc[grid_id, ("lai_id", "(0,)")] == pytest.approx(
-        df_state_lc.loc[2, ("lai_id", "(0,)")]
-    )
-    assert df_state_spinup.loc[grid_id, ("lai_id", "(1,)")] == pytest.approx(
-        df_state_lc.loc[3, ("lai_id", "(1,)")]
-    )
-    assert df_state_spinup.loc[grid_id, ("lai_id", "(2,)")] == pytest.approx(
-        df_state_lc.loc[4, ("lai_id", "(2,)")]
-    )
+    for grid_idx, veg_idx in ((2, 0), (3, 1), (4, 2)):
+        veg_col = f"({veg_idx},)"
+        for pheno_var in ("lai_id", "gdd_id", "sdd_id"):
+            assert df_state_spinup.loc[grid_id, (pheno_var, veg_col)] == pytest.approx(
+                df_state_lc.loc[grid_idx, (pheno_var, veg_col)]
+            )
+    assert df_state_spinup.loc[grid_id, ("gdd_id", "(1,)")] > 0.0
     assert df_state_spinup.loc[grid_id, ("albdectr_id", "0")] == pytest.approx(
         df_state_lc.loc[3, ("albdectr_id", "0")]
     )
@@ -100,6 +100,67 @@ def test_get_spinup_state_730d_real_simulation_evolves_states(
     assert sim_next.state_init.loc[grid_id, ("porosity_id", "0")] == pytest.approx(
         df_state_spinup.loc[grid_id, ("porosity_id", "0")]
     )
+    assert sim_next.state_init.loc[grid_id, ("gdd_id", "(1,)")] == pytest.approx(
+        df_state_spinup.loc[grid_id, ("gdd_id", "(1,)")]
+    )
+    assert sim_next.state_init.loc[grid_id, ("sdd_id", "(1,)")] == pytest.approx(
+        df_state_spinup.loc[grid_id, ("sdd_id", "(1,)")]
+    )
+
+
+def test_get_spinup_state_transfers_evolved_gdd_and_sdd(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    """Spin-up hands off evolved gdd_id (growth) and sdd_id (senescence) alongside lai_id."""
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+    grid_id = df_state_raw.index[0]
+
+    # Growth season: start from zero GDD/SDD and verify positive GDD evolves and hands off.
+    df_init_spring = df_state_raw.copy()
+    for veg_idx in range(3):
+        df_init_spring.loc[:, ("gdd_id", f"({veg_idx},)")] = 0.0
+        df_init_spring.loc[:, ("sdd_id", f"({veg_idx},)")] = 0.0
+
+    df_spring, _, df_spring_lc = get_spinup_state(
+        df_init_spring,
+        df_forcing,
+        start_analysis="2019-05-20",
+        spinup_days=15,
+        save_spinup=True,
+    )
+    for grid_idx, veg_idx in ((2, 0), (3, 1), (4, 2)):
+        col = f"({veg_idx},)"
+        assert df_spring.loc[grid_id, ("gdd_id", col)] > 0.0
+        assert df_spring.loc[grid_id, ("gdd_id", col)] == pytest.approx(
+            df_spring_lc.loc[grid_idx, ("gdd_id", col)]
+        )
+        assert df_spring.loc[grid_id, ("sdd_id", col)] == pytest.approx(
+            df_spring_lc.loc[grid_idx, ("sdd_id", col)]
+        )
+
+    # Senescence season: start from zero GDD/SDD in October and verify negative SDD hands off.
+    df_init_autumn = df_state_raw.copy()
+    for veg_idx in range(3):
+        df_init_autumn.loc[:, ("gdd_id", f"({veg_idx},)")] = 0.0
+        df_init_autumn.loc[:, ("sdd_id", f"({veg_idx},)")] = 0.0
+
+    df_autumn, _, df_autumn_lc = get_spinup_state(
+        df_init_autumn,
+        df_forcing,
+        start_analysis="2019-11-15",
+        spinup_days=15,
+        save_spinup=True,
+    )
+    for grid_idx, veg_idx in ((2, 0), (3, 1), (4, 2)):
+        col = f"({veg_idx},)"
+        assert df_autumn.loc[grid_id, ("sdd_id", col)] < 0.0
+        assert df_autumn.loc[grid_id, ("sdd_id", col)] == pytest.approx(
+            df_autumn_lc.loc[grid_idx, ("sdd_id", col)]
+        )
+        assert df_autumn.loc[grid_id, ("gdd_id", col)] == pytest.approx(
+            df_autumn_lc.loc[grid_idx, ("gdd_id", col)]
+        )
 
 
 def test_get_spinup_state_1_to_2_year_forcing_duplicates_and_runs(

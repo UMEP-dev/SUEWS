@@ -612,17 +612,21 @@ def _has_source_build_artifacts(repo_root: Path = _REPO_ROOT) -> bool:
     """Return True when *repo_root* contains compiled Fortran build artefacts.
 
     Distinguishes a partial or non-editable source build (which has compiled
-    archives, module files, or a build fingerprint under ``src/suews/``) from
-    a clean repository checkout testing an installed wheel (which has only
-    tracked source files and no compiled ``.a``/``.mod`` artefacts).
+    archives, module files, object files, or a build fingerprint under
+    ``src/suews/``) from a clean repository checkout testing an installed wheel
+    (which has only tracked source files and no compiled artefacts).
     """
     suews_dir = repo_root / "src" / "suews"
     lib_dir = suews_dir / "lib"
     mod_dir = suews_dir / "mod"
+    src_dir = suews_dir / "src"
+    ext_lib_dir = suews_dir / "ext_lib"
     return (
         (suews_dir / ".suews_build_fingerprint").is_file()
         or (lib_dir.is_dir() and any(lib_dir.glob("*.a")))
         or (mod_dir.is_dir() and any(mod_dir.glob("*.mod")))
+        or (src_dir.is_dir() and any(src_dir.glob("*.o")))
+        or (ext_lib_dir.is_dir() and any(ext_lib_dir.rglob("*.o")))
     )
 
 
@@ -651,15 +655,6 @@ def fortran_probes_required(repo_root: Path = _REPO_ROOT) -> bool:
     )
 
 
-_RECOGNISED_NON_GNU_PROFILES = frozenset({
-    "ifort",
-    "ifx",
-    "intel",
-    "flang",
-    "nvfortran",
-    "pgi",
-    "nagfor",
-})
 _RECOGNISED_NON_GNU_COMPILER_TOKENS = (
     "ifort",
     "ifx",
@@ -669,13 +664,17 @@ _RECOGNISED_NON_GNU_COMPILER_TOKENS = (
     "pgfortran",
     "nagfor",
 )
+_STATIC_ARCHIVE_MAGICS = (b"!<arch>\n", b"!<thin>\n")
+_MIN_NON_GNU_MOD_HEADER_BYTES = 16
 
 
 def _is_non_gnu_fortran_build(suews_dir: Path) -> bool:
-    """Return True when build metadata or env positively names a non-GNU compiler."""
-    profile = os.environ.get("PROFILE", "").strip().lower()
-    if profile in _RECOGNISED_NON_GNU_PROFILES:
-        return True
+    """Return True when generated build metadata positively names a non-GNU compiler.
+
+    Reads ``src/suews/src/suews_ctrl_ver.f95`` (written by ``src/suews/Makefile``
+    from ``$(FC) --version``) rather than ambient environment variables, so an
+    unrelated shell ``PROFILE`` cannot override a GNU build or mask corruption.
+    """
     ver_file = suews_dir / "src" / "suews_ctrl_ver.f95"
     if not ver_file.is_file():
         return False
@@ -692,13 +691,23 @@ def _is_non_gnu_fortran_build(suews_dir: Path) -> bool:
     return any(token in compiler_ver for token in _RECOGNISED_NON_GNU_COMPILER_TOKENS)
 
 
+def _is_valid_static_archive(archive_path: Path) -> bool:
+    """Return True when *archive_path* is a readable Unix/MinGW ``ar`` archive."""
+    try:
+        with archive_path.open("rb") as stream:
+            magic = stream.read(8)
+    except OSError:
+        return False
+    return magic in _STATIC_ARCHIVE_MAGICS
+
+
 def _classify_fortran_module(mod_path: Path, suews_dir: Path) -> str:
     """Classify a Fortran ``.mod`` file as missing, gnu, non_gnu, or corrupt."""
     if not mod_path.is_file():
         return "missing"
     try:
         with mod_path.open("rb") as stream:
-            header = stream.read(16)
+            header = stream.read(_MIN_NON_GNU_MOD_HEADER_BYTES)
     except OSError:
         header = b""
     if not header:
@@ -712,10 +721,11 @@ def _classify_fortran_module(mod_path: Path, suews_dir: Path) -> str:
         return "gnu" if is_gnu else "corrupt"
     if header.startswith(b"GFORTRAN"):
         return "gnu"
-    is_non_gnu = header.startswith((
-        b"\xef\xbb\xbf!mod$",
-        b"!mod$",
-    )) or _is_non_gnu_fortran_build(suews_dir)
+    if header.startswith((b"\xef\xbb\xbf!mod$", b"!mod$")):
+        return "non_gnu"
+    is_non_gnu = len(
+        header
+    ) >= _MIN_NON_GNU_MOD_HEADER_BYTES and _is_non_gnu_fortran_build(suews_dir)
     return "non_gnu" if is_non_gnu else "corrupt"
 
 
@@ -777,6 +787,18 @@ def require_fortran_probe_toolchain(
             f"{description} requires source-build libraries "
             f"({', '.join(missing_libs)} missing under {suews_dir / 'lib'}); "
             "model/driver tests cover installed wheels",
+            repo_root=repo_root,
+        )
+
+    corrupt_libs = [
+        lib
+        for lib in libraries
+        if not _is_valid_static_archive(suews_dir / "lib" / lib)
+    ]
+    if corrupt_libs:
+        fortran_probe_unavailable(
+            f"{description} found unreadable or corrupt static archive(s) "
+            f"{', '.join(corrupt_libs)} under {suews_dir / 'lib'}",
             repo_root=repo_root,
         )
 

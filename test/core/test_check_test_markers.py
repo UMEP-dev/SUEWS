@@ -209,7 +209,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         "\tTEST_DEFAULT_PATHS := test/recipe_ignored\n"
         "TEST_DEFAULT_PATHS := \\\n"
         "    test/test_surface.py \\\n"
-        "    test/core # inline comment\n"
+        "    test/core # avoid $(eval ...) here\n"
         "TEST_DEFAULT_PATHS += test/io_tests\n"
     )
     repo = _make_repo(
@@ -343,7 +343,7 @@ def test_makefile_continuations_comments_append_and_recipes(
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "test: ; # $(eval TEST_DEFAULT_PATHS := test/core)\n"
             "\tpytest $(TEST_DEFAULT_PATHS)\n",
-            "Makefile eval/call is unsupported",
+            "eval/call inside inline recipe is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -714,6 +714,39 @@ def test_even_trailing_backslashes_do_not_swallow_next_assignment(
     assert rc == 1
     assert "[X]" in captured.err
     assert "test/orphan_dir/test_stray.py" in captured.err
+
+
+def test_non_searchable_default_lane_entry_reports_error_without_masking(
+    tmp_path: Path, capsys
+) -> None:
+    """An inaccessible child explicitly listed in TEST_DEFAULT_PATHS does not crash."""
+    if sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0):
+        pytest.skip("POSIX non-root directory permissions required for chmod(0o400)")
+
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_unmarked.py": UNMARKED_TEST_SOURCE,
+            "test/non_searchable/test_hidden.py": API_TEST_SOURCE,
+        },
+        makefile=(
+            "TEST_DEFAULT_PATHS := test/core test/non_searchable/test_hidden.py\n"
+        ),
+    )
+    blocked = repo / "test" / "non_searchable"
+    blocked.chmod(0o400)
+    try:
+        rc = _run(repo)
+    finally:
+        blocked.chmod(0o755)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "TEST_DEFAULT_PATHS entry cannot be inspected" in captured.err
+    assert "test/non_searchable/test_hidden.py" in captured.err
+    assert "test/core/test_unmarked.py" in captured.err
+    assert captured.err.isascii()
 
 
 def test_non_searchable_directory_reports_stat_error_without_masking(

@@ -460,13 +460,23 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
         stripped = line.lstrip(" \t")
         if not stripped or stripped.startswith("#"):
             continue
-        if _DYNAMIC_MAKE_CALL_RE.search(stripped):
+
+        if _RULE_HEADER_RE.match(stripped) and ";" in stripped:
+            header_part, inline_recipe = stripped.split(";", 1)
+            if _DYNAMIC_MAKE_CALL_RE.search(inline_recipe):
+                raise ValueError(
+                    "Makefile eval/call inside inline recipe is unsupported when "
+                    f"parsing TEST_DEFAULT_PATHS: {stripped}"
+                )
+            code = _strip_makefile_comment(header_part)
+        else:
+            code = _strip_makefile_comment(stripped)
+
+        if _DYNAMIC_MAKE_CALL_RE.search(code):
             raise ValueError(
                 "Makefile eval/call is unsupported when parsing "
-                f"TEST_DEFAULT_PATHS: {stripped}"
+                f"TEST_DEFAULT_PATHS: {code.strip()}"
             )
-
-        code = _strip_makefile_comment(stripped)
         _reject_unsupported_makefile_line(code)
 
         if _MENTIONS_TARGET_RE.search(code):
@@ -517,19 +527,24 @@ def _collect_covered_lanes(
 
     for entry in default_paths:
         raw_candidate = resolved_root / entry
-        if raw_candidate.is_dir() and _is_link_or_junction(raw_candidate):
-            errors.append(
-                f"TEST_DEFAULT_PATHS entry is a directory symlink or junction: {entry}"
-            )
-            continue
         try:
+            raw_stat = os.lstat(raw_candidate)
+            is_link_or_junc = (
+                stat.S_ISLNK(raw_stat.st_mode) or raw_candidate.is_junction()
+            )
             candidate = raw_candidate.resolve(strict=True)
+            target_stat = os.stat(candidate)
         except FileNotFoundError:
             errors.append(f"TEST_DEFAULT_PATHS entry does not exist: {entry}")
             continue
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError) as exc:
             errors.append(
-                f"TEST_DEFAULT_PATHS entry has cyclic or unresolvable symlink: {entry}"
+                f"TEST_DEFAULT_PATHS entry cannot be inspected ({entry}): {exc}"
+            )
+            continue
+        if stat.S_ISDIR(target_stat.st_mode) and is_link_or_junc:
+            errors.append(
+                f"TEST_DEFAULT_PATHS entry is a directory symlink or junction: {entry}"
             )
             continue
         if not candidate.is_relative_to(resolved_root):
@@ -539,9 +554,9 @@ def _collect_covered_lanes(
             errors.append(f"TEST_DEFAULT_PATHS entry is outside test/: {entry}")
             continue
         rel_entry = Path(entry)
-        if raw_candidate.is_file():
+        if stat.S_ISREG(target_stat.st_mode):
             covered_files.add(rel_entry)
-        elif raw_candidate.is_dir():
+        elif stat.S_ISDIR(target_stat.st_mode):
             covered_dirs.add(rel_entry)
         else:
             errors.append(

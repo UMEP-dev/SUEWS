@@ -28,7 +28,6 @@ Exits 0 when every check passes, 1 otherwise.
 from __future__ import annotations
 
 import ast
-import fnmatch
 import os
 from pathlib import Path
 import re
@@ -91,9 +90,9 @@ def _is_link_or_junction(path: Path) -> bool:
 
 
 def _is_test_filename(filename: str) -> bool:
-    """Return True if ``filename`` matches pytest's default test-file globs."""
-    return fnmatch.fnmatch(filename, "test_*.py") or fnmatch.fnmatch(
-        filename, "*_test.py"
+    """Return True if ``filename`` matches pytest's exact ``.py`` test-file rules."""
+    return filename.endswith(".py") and (
+        filename.startswith("test_") or filename.endswith("_test.py")
     )
 
 
@@ -313,19 +312,27 @@ def _has_odd_trailing_backslashes(line: str) -> bool:
 
 
 def _join_makefile_continuations(text: str) -> list[str]:
-    """Join GNU Make backslash-continued lines respecting backslash parity."""
+    """Join GNU Make physical-newline continuations respecting backslash parity."""
     logical_lines: list[str] = []
     buffer = ""
-    for raw_line in text.splitlines():
+    in_continuation = False
+    for raw_part in text.split("\n"):
+        raw_line = raw_part[:-1] if raw_part.endswith("\r") else raw_part
         if _has_odd_trailing_backslashes(raw_line):
             part = raw_line[:-1]
-            buffer = f"{buffer} {part.lstrip()}" if buffer else part
-        elif buffer:
-            logical_lines.append(f"{buffer} {raw_line.lstrip()}")
+            if in_continuation:
+                buffer = f"{buffer} {part.lstrip()}" if buffer else part.lstrip()
+            else:
+                buffer = part
+            in_continuation = True
+        elif in_continuation:
+            joined = f"{buffer} {raw_line.lstrip()}" if buffer else raw_line.lstrip()
+            logical_lines.append(joined)
             buffer = ""
+            in_continuation = False
         else:
             logical_lines.append(raw_line)
-    if buffer:
+    if in_continuation:
         logical_lines.append(buffer)
     return logical_lines
 

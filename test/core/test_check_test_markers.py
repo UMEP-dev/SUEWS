@@ -181,13 +181,14 @@ def test_orphan_test_file_fails_with_diagnostic(
 
 
 def test_non_test_helpers_and_pycache_are_ignored(tmp_path: Path, capsys) -> None:
-    """Fixture helper modules and __pycache__ files are not flagged as orphans."""
+    """Fixture helpers, uppercase .PY files, and __pycache__ files are ignored."""
     repo = _make_repo(
         tmp_path,
         {
             "test/test_surface.py": API_TEST_SOURCE,
             "test/core/test_ok.py": API_TEST_SOURCE,
             "test/fixtures/helper_module.py": "VALUE = 1\n",
+            "test/orphan_dir/test_UPPER.PY": UNMARKED_TEST_SOURCE,
             "test/orphan_dir/__pycache__/test_cached.py": UNMARKED_TEST_SOURCE,
         },
     )
@@ -706,6 +707,56 @@ def test_broken_symlink_reports_structured_error(tmp_path: Path, capsys) -> None
     assert "broken symlink under test/" in captured.err
     assert "test/core/test_broken.py" in captured.err
     assert captured.err.isascii()
+
+
+def test_form_feed_inside_comment_does_not_split_line(tmp_path: Path, capsys) -> None:
+    """Non-Make separators like form-feed stay inside comments."""
+    makefile = (
+        "TEST_DEFAULT_PATHS := test/core\n"
+        "# note\fTEST_DEFAULT_PATHS += test/orphan_dir\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan_dir/test_stray.py": API_TEST_SOURCE,
+        },
+        makefile=makefile,
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/orphan_dir/test_stray.py" in captured.err
+
+
+def test_standalone_backslash_continuation_preserves_reassignment(
+    tmp_path: Path, capsys
+) -> None:
+    """A standalone backslash joins the following tab-prefixed assignment."""
+    makefile = (
+        "TEST_DEFAULT_PATHS := test/core test/orphan_dir\n"
+        "dummy:\n"
+        "\\\n"
+        "\tTEST_DEFAULT_PATHS := test/core\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan_dir/test_stray.py": API_TEST_SOURCE,
+        },
+        makefile=makefile,
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "test/orphan_dir/test_stray.py" in captured.err
 
 
 def test_even_trailing_backslashes_do_not_swallow_next_assignment(

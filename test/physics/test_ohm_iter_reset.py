@@ -5,9 +5,10 @@ histories (``OHM_dqndt_cal_X``) and daily running averages/coefficients in
 AnOHM and DyOHM advance once per converged timestep rather than once per inner
 surface-temperature pass. Companion fixes remove illegal Fortran 2018
 ``INTENT(IN)``/``INTENT(OUT)`` aliasing at ``CALL OHM`` and ``CALL AnOHM``,
-pass ``dqndt_next`` into ``OHM_QS_cal`` inside ``AnOHM``, and restore
-``timer%dt_since_start_prev`` and ``timer%new_day`` alongside ``ohmState`` on
-inner retry passes.
+pass ``dqndt_next`` into ``OHM_QS_cal`` inside ``AnOHM``, and restore the
+DyOHM day latch (``OHM_STATE%new_day`` and ``OHM_STATE%dt_since_start_prev``,
+moved out of ``SUEWS_TIMER`` by gh#2333) with the rest of ``ohmState`` on inner
+retry passes.
 """
 
 from __future__ import annotations
@@ -467,3 +468,84 @@ def test_resume_from_old_style_checkpoint_ignores_stored_ohm_iter_safe():
     )
     pd.testing.assert_frame_equal(df_old, df_current)
     assert _decode_ohm_checkpoint(sim_old)["iter_safe"] == pytest.approx(0.0)
+
+
+DYOHM_BLDG_COEFFS = ("dyn_a1.bldg", "dyn_a2.bldg", "dyn_a3.bldg")
+
+
+def _with_ohm_state_values(checkpoint, **values):
+    """Return ``checkpoint`` with the given ``OHM_STATE`` fields overwritten."""
+    bridge = import_module("supy.suews_bridge")
+    grid_states = {}
+    for grid_id, state_json in checkpoint.grid_states.items():
+        payload = json.loads(state_json)
+        ohm_payload = payload["state"]["members"]["ohm_state"]
+        state = bridge.OhmState.from_values_payload(
+            ohm_payload["schema_version"], ohm_payload["values"]
+        )
+        state.update_from_dict(values)
+        schema_version, values_out = state.to_values_payload()
+        ohm_payload["schema_version"] = schema_version
+        ohm_payload["values"] = values_out
+        grid_states[grid_id] = json.dumps(payload)
+    return dataclasses.replace(checkpoint, grid_states=grid_states)
+
+
+@pytest.mark.core
+def test_dyohm_day_latch_travels_in_ohm_state_across_midnight():
+    """The DyOHM midnight update reads its day latch from ``OHM_STATE`` (gh#2333).
+
+    The run is split so that the last step of a day ends the first segment and
+    the following midnight starts the second. The latch set on that last step
+    must reach the next step through the saved model state alone: the resumed
+    run matches an uninterrupted one and recomputes the building coefficients,
+    while clearing ``ohm_state.new_day`` in the checkpoint stops the update.
+    """
+    sim_template = sp.SUEWSSimulation.from_sample_data()
+    cfg = copy.deepcopy(sim_template.config)
+    cfg.model.physics.storage_heat = StorageHeatMethod.DyOHM
+    df_forcing = sim_template.forcing.df.iloc[: TIMESTEPS_PER_DAY * 3].copy()
+    midnights = np.flatnonzero(
+        (df_forcing.index.hour == 0) & (df_forcing.index.minute == 0)
+    )
+    # The first midnight only starts the running means; split at the second.
+    cut = int(midnights[1])
+    df_first = df_forcing.iloc[:cut]
+    df_second = df_forcing.iloc[cut : cut + 2]
+
+    sim_first, _ = _run_config(cfg, df_first)
+    ohm_before = _decode_ohm_checkpoint(sim_first)
+    assert ohm_before["new_day"] == pytest.approx(1.0)
+    assert ohm_before["dt_since_start_prev"] == pytest.approx(
+        cut * float(cfg.model.control.tstep)
+    )
+
+    def resume(checkpoint):
+        sim = sp.SUEWSSimulation.from_checkpoint(cfg, checkpoint)
+        sim.update_forcing(df_second)
+        df_out = sim.run(
+            start_date=df_second.index[0], end_date=df_second.index[-1], n_jobs=1
+        ).df
+        return _decode_ohm_checkpoint(sim), df_out
+
+    ohm_resumed, df_resumed = resume(sim_first.checkpoint)
+    sim_whole, df_whole = _run_config(cfg, df_forcing.iloc[: cut + 2])
+    ohm_whole = _decode_ohm_checkpoint(sim_whole)
+
+    assert ohm_resumed["new_day"] == pytest.approx(0.0)
+    for name in DYOHM_BLDG_COEFFS:
+        assert ohm_resumed[name] != pytest.approx(ohm_before[name]), name
+        assert ohm_resumed[name] == pytest.approx(
+            ohm_whole[name], rel=1.0e-12, abs=1.0e-12
+        ), name
+    np.testing.assert_allclose(
+        df_resumed.loc[1, ("SUEWS", "QS")].to_numpy(dtype=float),
+        df_whole.loc[1, ("SUEWS", "QS")].to_numpy(dtype=float)[-len(df_second) :],
+        rtol=1.0e-12,
+        atol=1.0e-12,
+    )
+
+    # Negative control: without the latch the midnight update does not run.
+    ohm_unlatched, _ = resume(_with_ohm_state_values(sim_first.checkpoint, new_day=0.0))
+    for name in DYOHM_BLDG_COEFFS:
+        assert ohm_unlatched[name] == pytest.approx(ohm_before[name]), name

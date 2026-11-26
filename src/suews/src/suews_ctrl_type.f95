@@ -242,7 +242,6 @@ MODULE module_ctrl_type
       INTEGER :: tstep = 0 ! Current timestep [s]
       INTEGER :: tstep_prev = 0 ! Previous timestep [s] - for WRF adaptive stepping (equals tstep in standalone)
       INTEGER :: dt_since_start = 0 !
-      INTEGER :: dt_since_start_prev = 0 !
 
       ! values that are derived from tstep
       INTEGER :: nsh = 0 ! number of timesteps per hour
@@ -254,7 +253,6 @@ MODULE module_ctrl_type
 
       INTEGER :: DLS = 0 !daylight saving time offset [h]
 
-      INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
 
       ! Fixed-offset local-standard-time fields for solar and profile consumers.
       ! They are derived internally and intentionally excluded from the C timer ABI.

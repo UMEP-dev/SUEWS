@@ -8,7 +8,7 @@ use crate::timer::{
 };
 use std::os::raw::c_char;
 
-pub const ERROR_ENTRY_SCHEMA_VERSION: u32 = 1;
+pub const ERROR_ENTRY_SCHEMA_VERSION: u32 = 2;
 pub const ERROR_ENTRY_MESSAGE_LEN: usize = 256;
 pub const ERROR_ENTRY_LOCATION_LEN: usize = 64;
 

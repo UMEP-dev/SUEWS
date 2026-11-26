@@ -13,8 +13,9 @@ import pandas as pd
 
 from ._version_scm import __version__
 
-CURRENT_CHECKPOINT_SCHEMA_VERSION = 2
+CURRENT_CHECKPOINT_SCHEMA_VERSION = 3
 LEGACY_CHECKPOINT_SCHEMA_VERSION = 1
+PRE_OHM_LATCH_CHECKPOINT_SCHEMA_VERSION = 2
 CURRENT_STEBBS_STATE_SCHEMA_VERSION = 3
 
 
@@ -267,8 +268,15 @@ class SUEWSCheckpoint:
         if self.checkpoint_schema_version == LEGACY_CHECKPOINT_SCHEMA_VERSION:
             raise ValueError(
                 "Checkpoint schema version 1 has no elapsed timer metadata. "
-                "Rerun the preceding segment with checkpoint schema version 2 "
-                "before continuing."
+                "Rerun the preceding segment with checkpoint schema version "
+                f"{CURRENT_CHECKPOINT_SCHEMA_VERSION} before continuing."
+            )
+        if self.checkpoint_schema_version == PRE_OHM_LATCH_CHECKPOINT_SCHEMA_VERSION:
+            raise ValueError(
+                "Checkpoint schema version 2 keeps the DyOHM day latch in the "
+                "timer, which version 3 moved into the OHM state (gh#2333). "
+                "Rerun the preceding segment with this SuPy version before "
+                "continuing."
             )
         if self.checkpoint_schema_version != CURRENT_CHECKPOINT_SCHEMA_VERSION:
             raise ValueError(

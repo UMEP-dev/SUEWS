@@ -230,9 +230,6 @@ CONTAINS
       TYPE(dts_ehc_stability_iteration) :: ehc_stability
       INTEGER, PARAMETER :: ehc_stability_first_pass = 16
       LOGICAL :: use_ehc_stability, verify_ehc_stability, relax_ehc_stability
-      ! DyOHM guards its daily running averages and midnight coefficient updates via
-      ! timer%dt_since_start_prev and timer%new_day; save/restore them alongside ohmState.
-      INTEGER :: timer_dt_since_start_prev_start, timer_new_day_start
 
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
@@ -338,8 +335,6 @@ CONTAINS
 
             ! save initial values of model states
             modState_tstepstart = modState
-            timer_dt_since_start_prev_start = timer%dt_since_start_prev
-            timer_new_day_start = timer%new_day
 
             ! ########################################3
             ! set initial values for output arrays
@@ -436,10 +431,6 @@ CONTAINS
                ! IMPORTANT: restore some initial states as they SHOULD NOT be changed during iterations
                IF (((.NOT. flag_converge) .AND. i_iter > 1) .OR. (flag_converge .AND. i_iter == 2)) THEN
                   CALL modState%check_and_reset_states(modState_tstepstart)
-                  IF (.NOT. modState%ohmState%iter_safe) THEN
-                     timer%dt_since_start_prev = timer_dt_since_start_prev_start
-                     timer%new_day = timer_new_day_start
-                  END IF
                   IF (config%StorageHeatMethod == SHM_EHC) THEN
                      CALL reset_ehc_heat_state_for_tsurf_iteration( &
                         modState%heatState, modState_tstepstart%heatState)
@@ -2215,7 +2206,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
+      TYPE(SUEWS_TIMER), INTENT(in) :: timer
       TYPE(SUEWS_CONFIG), INTENT(in) :: config
       TYPE(SUEWS_FORCING), INTENT(in) :: forcing
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
@@ -2334,6 +2325,8 @@ CONTAINS
             t2_prev => ohmState%t2_prev, &
             ws_rav => ohmState%ws_rav, &
             qn_rav => ohmState%qn_rav, &
+            dyohm_new_day => ohmState%new_day, &
+            dyohm_dt_since_start_prev => ohmState%dt_since_start_prev, &
             alb => phenState%alb, &
             StoreDrainPrm => phenState%storage_drain_params, &
             id => timer%id, &
@@ -2609,7 +2602,7 @@ CONTAINS
                            BldgSurf, WaterSurf, &
                            SnowUse, SnowFrac, &
                            atmState%U_hbh, atmState%T_half_bldg_C, t2_prev, &
-                           ws_rav, qn_rav, &
+                           ws_rav, qn_rav, dyohm_new_day, dyohm_dt_since_start_prev, &
                            dz_surf, cp_surf, k_surf, &
                            lambda_c, &
                            StorageHeatMethod, DiagQS, timer, &
@@ -5663,10 +5656,6 @@ CONTAINS
       timer%tstep = tstep
       timer%tstep_prev = tstep_prev
       timer%dt_since_start = dt_since_start
-
-      ! For dynamic OHM
-      timer%new_day = 0
-      timer%dt_since_start_prev = 0
 
       config%Diagnose = Diagnose
       config%RSLMethod = RSLMethod

@@ -128,10 +128,11 @@ parameter, see [dev-ref/RUST_BRIDGE_ADD_PARAMETER.md](../../dev-ref/RUST_BRIDGE_
   separate from restart decoding (`BR-06`).
 - After each run, `c_api/driver.f95` packs the updated Fortran `SUEWS_STATE`
   and `SUEWS_TIMER` back into flat buffers. `src/sim.rs` decodes them and
-  `src/checkpoint.rs::suews_checkpoint_to_json` emits a schema-version-2 JSON
-  envelope containing both `timer` (`dt_since_start`, `dt_since_start_prev`,
-  `tstep`, `new_day`) and all 13 `state` members (`src/suews_state.rs`).
-- On restart, `suews_checkpoint_from_json` requires schema version 2, a valid
+  `src/checkpoint.rs::suews_checkpoint_to_json` emits a schema-version-3 JSON
+  envelope containing both `timer` (`dt_since_start`, `tstep`) and all 13
+  `state` members (`src/suews_state.rs`); the DyOHM day latch travels in
+  `ohm_state` (gh#2333).
+- On restart, `suews_checkpoint_from_json` requires schema version 3, a valid
   elapsed timer and the complete 13-member state set; it rejects legacy
   state-only envelopes, missing members and `+/-Inf` while preserving `NaN` as
   JSON `null` for inactive-state sentinels. On the Python side,

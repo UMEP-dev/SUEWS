@@ -1250,7 +1250,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)) :: w_f_pass_prev, zl_pass_start, w_f_pass_start
-      INTEGER :: nl, timer_dt_since_start_prev_start, timer_new_day_start
+      INTEGER :: nl
 
       status = 0_c_int
       tmr = timer_in
@@ -1292,8 +1292,6 @@ CONTAINS
       END IF
 
       st_tstepstart = oracle_state
-      timer_dt_since_start_prev_start = tmr%dt_since_start_prev
-      timer_new_day_start = tmr%new_day
 
       oracle_state%snowState%swe = 0.0D0
       oracle_state%snowState%mwh = 0.0D0
@@ -1353,10 +1351,6 @@ CONTAINS
          IF (((.NOT. oracle_state%flagState%flag_converge) .AND. oracle_state%flagState%i_iter > 1) .OR. &
              (oracle_state%flagState%flag_converge .AND. oracle_state%flagState%i_iter == 2)) THEN
             CALL oracle_state%check_and_reset_states(st_tstepstart)
-            IF (.NOT. oracle_state%ohmState%iter_safe) THEN
-               tmr%dt_since_start_prev = timer_dt_since_start_prev_start
-               tmr%new_day = timer_new_day_start
-            END IF
             IF (config_in%StorageHeatMethod == 5) THEN
                CALL reset_ehc_heat_state_for_tsurf_iteration( &
                   oracle_state%heatState, st_tstepstart%heatState)
@@ -1703,8 +1697,7 @@ CONTAINS
       IF (a%id /= b%id .OR. a%imin /= b%imin .OR. a%isec /= b%isec .OR. &
           a%it /= b%it .OR. a%iy /= b%iy .OR. a%tstep /= b%tstep .OR. &
           a%tstep_prev /= b%tstep_prev .OR. a%dt_since_start /= b%dt_since_start .OR. &
-          a%dt_since_start_prev /= b%dt_since_start_prev .OR. a%nsh /= b%nsh .OR. &
-          a%DLS /= b%DLS .OR. a%new_day /= b%new_day .OR. &
+          a%nsh /= b%nsh .OR. a%DLS /= b%DLS .OR. &
           a%iy_st /= b%iy_st .OR. a%id_st /= b%id_st .OR. &
           a%it_st /= b%it_st .OR. a%imin_st /= b%imin_st) RETURN
       IF (.NOT. int_vec_equal(a%dayofWeek_id, b%dayofWeek_id) .OR. &
@@ -1822,6 +1815,8 @@ CONTAINS
           a%anohm_coeff_day /= b%anohm_coeff_day .OR. &
           a%anohm_coeff_count /= b%anohm_coeff_count .OR. &
           (a%anohm_coeff_ready .NEQV. b%anohm_coeff_ready) .OR. &
+          a%new_day /= b%new_day .OR. &
+          a%dt_since_start_prev /= b%dt_since_start_prev .OR. &
           (a%iter_safe .NEQV. b%iter_safe)) RETURN
       IF (.NOT. vec_equal(a%anohm_working_tHr, b%anohm_working_tHr) .OR. &
           .NOT. vec_equal(a%anohm_working_sd, b%anohm_working_sd) .OR. &

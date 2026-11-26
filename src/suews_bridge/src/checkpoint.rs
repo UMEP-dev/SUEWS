@@ -20,23 +20,25 @@ use serde_json::{json, Map, Value};
 
 /// Current JSON envelope schema version carrying both elapsed timer metadata
 /// and the complete nested `SuewsState` payload.
-pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 2;
+///
+/// Version 3 (gh#2333) moved the DyOHM day latch (`new_day`,
+/// `dt_since_start_prev`) from the envelope timer into `state.ohm_state`.
+/// Version-2 envelopes are rejected, not migrated: their `ohm_state` member
+/// also carries the older OHM_STATE schema.
+pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 3;
 
 /// Elapsed timing metadata carried alongside model state across restart
 /// boundaries.
 ///
 /// Mirrors the continuation fields of [`SuewsTimer`] needed to resume a
-/// multi-segment run without resetting rolling averages or day-boundary flags.
+/// multi-segment run. Rolling averages and the DyOHM day-boundary latch are
+/// model state and travel in `state.ohm_state`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CheckpointTimer {
     /// Elapsed simulation seconds since the original run started (`>= 0`).
     pub dt_since_start: i32,
-    /// Elapsed seconds at the previous timestep (`0 <= dt_since_start_prev <= dt_since_start`).
-    pub dt_since_start_prev: i32,
     /// Model timestep duration in seconds (`> 0`).
     pub tstep: i32,
-    /// Day-boundary flag carried into the next segment (`0` or `1`).
-    pub new_day: i32,
 }
 
 /// Decoded restart checkpoint containing the validated model state and timer.
@@ -73,26 +75,25 @@ fn validate_timer(timer: CheckpointTimer) -> Result<CheckpointTimer, BridgeError
             "timer.dt_since_start must be non-negative",
         ));
     }
-    if timer.dt_since_start_prev < 0 {
-        return Err(invalid_envelope(
-            "timer.dt_since_start_prev must be non-negative",
-        ));
-    }
-    if timer.dt_since_start_prev > timer.dt_since_start {
-        return Err(invalid_envelope(
-            "timer.dt_since_start_prev cannot exceed timer.dt_since_start",
-        ));
-    }
     if timer.tstep <= 0 {
         return Err(invalid_envelope("timer.tstep must be positive"));
-    }
-    if !matches!(timer.new_day, 0 | 1) {
-        return Err(invalid_envelope("timer.new_day must be 0 or 1"));
     }
     Ok(timer)
 }
 
-/// Serialise a post-run model `state` and `timer` into a schema-version-2 JSON
+/// Check the DyOHM running-mean clock against the elapsed timer. The
+/// `OhmState` codec has already checked `new_day` is `0`/`1` and
+/// `dt_since_start_prev` is non-negative.
+fn validate_ohm_clock(state: &SuewsState, timer: CheckpointTimer) -> Result<(), BridgeError> {
+    if state.ohm_state.dt_since_start_prev > timer.dt_since_start {
+        return Err(invalid_envelope(
+            "state.ohm_state.dt_since_start_prev cannot exceed timer.dt_since_start",
+        ));
+    }
+    Ok(())
+}
+
+/// Serialise a post-run model `state` and `timer` into a schema-version-3 JSON
 /// checkpoint envelope.
 ///
 /// Inactive `NaN` state entries are encoded as JSON `null`; `+/-Inf` values
@@ -103,18 +104,15 @@ pub fn suews_checkpoint_to_json(
 ) -> Result<String, BridgeError> {
     let checkpoint_timer = validate_timer(CheckpointTimer {
         dt_since_start: timer.dt_since_start,
-        dt_since_start_prev: timer.dt_since_start_prev,
         tstep: timer.tstep,
-        new_day: timer.new_day,
     })?;
+    validate_ohm_clock(state, checkpoint_timer)?;
     let state_value = suews_state_to_checkpoint_value(state)?;
     let checkpoint = json!({
         "checkpoint_schema_version": SUEWS_CHECKPOINT_SCHEMA_VERSION,
         "timer": {
             "dt_since_start": checkpoint_timer.dt_since_start,
-            "dt_since_start_prev": checkpoint_timer.dt_since_start_prev,
             "tstep": checkpoint_timer.tstep,
-            "new_day": checkpoint_timer.new_day,
         },
         "state": state_value,
     });
@@ -124,7 +122,7 @@ pub fn suews_checkpoint_to_json(
     })
 }
 
-/// Deserialise and validate a schema-version-2 JSON checkpoint envelope.
+/// Deserialise and validate a schema-version-3 JSON checkpoint envelope.
 ///
 /// Rejects legacy version-1 state-only payloads with
 /// [`BridgeError::LegacyCheckpointMissingTimer`], unknown schema versions with
@@ -161,15 +159,14 @@ pub fn suews_checkpoint_from_json(json_text: &str) -> Result<SuewsCheckpointData
         .ok_or_else(|| invalid_envelope("timer must be an object"))?;
     let timer = validate_timer(CheckpointTimer {
         dt_since_start: parse_i32_field(timer_object, "dt_since_start")?,
-        dt_since_start_prev: parse_i32_field(timer_object, "dt_since_start_prev")?,
         tstep: parse_i32_field(timer_object, "tstep")?,
-        new_day: parse_i32_field(timer_object, "new_day")?,
     })?;
 
     let state_value = object
         .get("state")
         .ok_or_else(|| invalid_envelope("state is required"))?;
     let state = suews_state_from_nested_payload(state_value)?;
+    validate_ohm_clock(&state, timer)?;
 
     Ok(SuewsCheckpointData { state, timer })
 }
@@ -182,12 +179,13 @@ mod tests {
 
     #[test]
     fn checkpoint_roundtrip_preserves_elapsed_timer() {
-        let state = suews_state_default_from_fortran().expect("default state should be available");
+        let mut state =
+            suews_state_default_from_fortran().expect("default state should be available");
+        state.ohm_state.new_day = 1;
+        state.ohm_state.dt_since_start_prev = 90_000;
         let timer = SuewsTimer {
             dt_since_start: 90_300,
-            dt_since_start_prev: 90_000,
             tstep: 300,
-            new_day: 1,
             ..SuewsTimer::default()
         };
 
@@ -201,9 +199,40 @@ mod tests {
             restored.timer,
             CheckpointTimer {
                 dt_since_start: 90_300,
-                dt_since_start_prev: 90_000,
                 tstep: 300,
-                new_day: 1,
+            }
+        );
+        assert_eq!(restored.state.ohm_state.new_day, 1);
+        assert_eq!(restored.state.ohm_state.dt_since_start_prev, 90_000);
+    }
+
+    #[test]
+    fn checkpoint_rejects_ohm_clock_ahead_of_timer() {
+        let mut state =
+            suews_state_default_from_fortran().expect("default state should be available");
+        state.ohm_state.dt_since_start_prev = 90_600;
+        let timer = SuewsTimer {
+            dt_since_start: 90_300,
+            tstep: 300,
+            ..SuewsTimer::default()
+        };
+        let error = suews_checkpoint_to_json(&state, &timer)
+            .expect_err("an OHM clock ahead of the timer should be rejected");
+        assert!(matches!(
+            error,
+            BridgeError::InvalidCheckpointEnvelope { .. }
+        ));
+    }
+
+    #[test]
+    fn version_two_checkpoint_is_rejected() {
+        let error = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":2}"#)
+            .expect_err("version-2 checkpoints predate gh#2333 and should be rejected");
+        assert_eq!(
+            error,
+            BridgeError::UnsupportedCheckpointVersion {
+                found: 2,
+                expected: SUEWS_CHECKPOINT_SCHEMA_VERSION,
             }
         );
     }
@@ -244,12 +273,12 @@ mod tests {
 
     #[test]
     fn unsupported_checkpoint_version_is_actionable() {
-        let error = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":3}"#)
+        let error = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":4}"#)
             .expect_err("future checkpoint versions should be rejected");
         assert_eq!(
             error,
             BridgeError::UnsupportedCheckpointVersion {
-                found: 3,
+                found: 4,
                 expected: SUEWS_CHECKPOINT_SCHEMA_VERSION,
             }
         );

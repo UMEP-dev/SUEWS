@@ -1048,7 +1048,6 @@ fn prepare_fresh_input(
     // Match SUEWS standalone stepping semantics: first physics step uses one
     // full timestep elapsed, avoiding dt_since_start/tstep == 0 in DyOHM.
     run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
-    run_cfg.timer.dt_since_start_prev = 0;
     run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
         + run_cfg.timer.it as f64 / 24.0
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
@@ -1208,9 +1207,8 @@ fn prepare_checkpoint_input(
     run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+    // The DyOHM day latch travels in `state.ohm_state` (gh#2333).
     run_cfg.timer.dt_since_start = checkpoint.timer.dt_since_start;
-    run_cfg.timer.dt_since_start_prev = checkpoint.timer.dt_since_start_prev;
-    run_cfg.timer.new_day = checkpoint.timer.new_day;
     run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
         + run_cfg.timer.it as f64 / 24.0
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)

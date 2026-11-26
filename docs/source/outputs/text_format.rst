@@ -249,8 +249,9 @@ This file can be used to:
 The checkpoint contains typed runtime state and elapsed timer metadata, but not
 the YAML configuration or forcing data. To continue a run, load the same YAML
 configuration, attach the next forcing period, and run from
-``SUEWSSimulation.from_checkpoint(...)``. State-only checkpoint schema version 1
-cannot preserve timer continuity and must be regenerated with schema version 2.
+``SUEWSSimulation.from_checkpoint(...)``. Checkpoints with schema version 1
+(state only) or 2 (DyOHM day latch in the timer) must be regenerated with
+schema version 3.
 Chunked and restarted outputs are expected to match uninterrupted outputs within
 relative and absolute tolerances of ``1e-12``; JSON and bridge round-trips may
 otherwise differ in the final floating-point bits.

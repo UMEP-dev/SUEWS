@@ -90,6 +90,14 @@ module module_type_surface
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a1_surf = -999.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a2_surf = -999.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a3_surf = -999.0D0
+      ! DyOHM cross-step memory (gh#2333), kept here rather than in SUEWS_TIMER so it
+      ! survives any entry point that returns modState, and is restored with the rest
+      ! of OHM_STATE across inner surface-temperature iterations.
+      ! new_day: 1 once the last step of a day has run, cleared after the midnight
+      ! coefficient update [-]
+      INTEGER :: new_day = 0
+      ! dt_since_start at the last DyOHM running-mean update [s]
+      INTEGER :: dt_since_start_prev = 0
       ! flag for iteration safety - NO: OHM_dqndt_cal_X advances running-mean radiation
       ! history and DyOHM/AnOHM update running averages once per timestep, not per inner pass.
       LOGICAL :: iter_safe = .FALSE.

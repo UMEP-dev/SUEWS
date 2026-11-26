@@ -32,7 +32,6 @@ fn prepare_sample_input() -> SimulationInput {
     run_cfg.timer.nsh_real = 3600.0 / f64::from(tstep);
     run_cfg.timer.nsh = (3600 / tstep).max(1);
     run_cfg.timer.dt_since_start = tstep;
-    run_cfg.timer.dt_since_start_prev = 0;
     run_cfg.timer.dectime = 0.5;
     run_cfg.timer.dayofweek_id = [1, 1, 2];
 

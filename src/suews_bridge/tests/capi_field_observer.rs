@@ -1563,6 +1563,10 @@ fn build_ohm_state(
         anohm_a1_surf: exp.real_arr_1d::<NSURF>(&p("anohm_a1_surf"), 1),
         anohm_a2_surf: exp.real_arr_1d::<NSURF>(&p("anohm_a2_surf"), 1),
         anohm_a3_surf: exp.real_arr_1d::<NSURF>(&p("anohm_a3_surf"), 1),
+        // OhmState::from_flat enforces new_day in {0, 1}; tie it to the opposite
+        // polarity of anohm_coeff_ready so a swap of the two slots is visible.
+        new_day: exp.int_explicit(&p("new_day"), i32::from(!anohm_coeff_ready)),
+        dt_since_start_prev: exp.int(&p("dt_since_start_prev")),
     }
 }
 
@@ -2716,14 +2720,12 @@ fn observe_suews_timer() {
         tstep: exp.int("tstep"),
         tstep_prev: exp.int("tstep_prev"),
         dt_since_start: exp.int("dt_since_start"),
-        dt_since_start_prev: exp.int("dt_since_start_prev"),
         nsh: exp.int("nsh"),
         nsh_real: exp.real("nsh_real"),
         tstep_real: exp.real("tstep_real"),
         dectime: exp.real("dectime"),
         dayofweek_id: exp.int_arr_1d::<3>("dayofWeek_id", 1),
         dls: exp.int("DLS"),
-        new_day: exp.int("new_day"),
     };
     let flat = timer.to_flat();
     assert_eq!(SuewsTimer::from_flat(&flat).unwrap(), timer);
@@ -3243,14 +3245,12 @@ fn build_suews_timer(exp: &mut ExpectedStruct) -> SuewsTimer {
         tstep: exp.int("tstep"),
         tstep_prev: exp.int("tstep_prev"),
         dt_since_start: exp.int("dt_since_start"),
-        dt_since_start_prev: exp.int("dt_since_start_prev"),
         nsh: exp.int("nsh"),
         nsh_real: exp.real("nsh_real"),
         tstep_real: exp.real("tstep_real"),
         dectime: exp.real("dectime"),
         dayofweek_id: exp.int_arr_1d::<3>("dayofWeek_id", 1),
         dls: exp.int("DLS"),
-        new_day: exp.int("new_day"),
     }
 }
 
@@ -3659,9 +3659,10 @@ fn observe_reverse_nhood_state() {
 fn observe_reverse_suews_state_and_checkpoint() {
     // Full 12-member aggregate reverse proof (all bridged leaves including STEBBS buildings(:))
     // across asymmetric shapes, flipped logical polarities, and schema-v3 checkpoint JSON roundtrip.
-    for (nlayer, ndepth, bldg_count, flip, new_day) in [
-        (3_usize, 5_usize, 0_usize, false, 0_i32),
-        (4_usize, 2_usize, 2_usize, true, 1_i32),
+    // The DyOHM day latch (ohm_state.new_day) follows `flip`, so both values are covered.
+    for (nlayer, ndepth, bldg_count, flip) in [
+        (3_usize, 5_usize, 0_usize, false),
+        (4_usize, 2_usize, 2_usize, true),
     ] {
         let mut exp = ExpectedStruct::new();
         let stebbs_expected = build_stebbs_state(
@@ -3748,24 +3749,16 @@ fn observe_reverse_suews_state_and_checkpoint() {
         let mut timer_exp = ExpectedStruct::new();
         let mut expected_timer = build_suews_timer(&mut timer_exp);
         expected_timer.tstep = 300;
-        expected_timer.dt_since_start_prev = 600;
-        expected_timer.dt_since_start = 900;
-        expected_timer.new_day = new_day;
+        // The checkpoint requires ohm_state.dt_since_start_prev <= dt_since_start.
+        expected_timer.dt_since_start =
+            expected_state.ohm_state.dt_since_start_prev + expected_timer.tstep;
         timer_exp.values.insert(
             ("tstep".to_string(), 0, 0),
             ExpectedVal::Int(i64::from(expected_timer.tstep)),
         );
         timer_exp.values.insert(
-            ("dt_since_start_prev".to_string(), 0, 0),
-            ExpectedVal::Int(i64::from(expected_timer.dt_since_start_prev)),
-        );
-        timer_exp.values.insert(
             ("dt_since_start".to_string(), 0, 0),
             ExpectedVal::Int(i64::from(expected_timer.dt_since_start)),
-        );
-        timer_exp.values.insert(
-            ("new_day".to_string(), 0, 0),
-            ExpectedVal::Int(i64::from(expected_timer.new_day)),
         );
         let timer_seed =
             build_reverse_seed_payload("SUEWS_TIMER", OBS_FIELDS_SUEWS_TIMER, &timer_exp);
@@ -3786,9 +3779,7 @@ fn observe_reverse_suews_state_and_checkpoint() {
             restored.timer,
             CheckpointTimer {
                 dt_since_start: expected_timer.dt_since_start,
-                dt_since_start_prev: expected_timer.dt_since_start_prev,
                 tstep: expected_timer.tstep,
-                new_day: expected_timer.new_day,
             }
         );
 

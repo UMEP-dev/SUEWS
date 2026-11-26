@@ -1938,7 +1938,7 @@ contains
       pos = 0_c_int
       unpack_err = SUEWS_CAPI_OK
       err = SUEWS_CAPI_OK
-      if (n_meta < 56_c_int) then
+      if (n_meta < 58_c_int) then
          err = SUEWS_CAPI_BAD_BUFFER
          return
       end if
@@ -2003,7 +2003,9 @@ contains
       call obs_emit_real_1d(53_c_int, actual%anohm_a1_surf, int(lbound(actual%anohm_a1_surf, 1), c_int), int(ubound(actual%anohm_a1_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_real_1d(54_c_int, actual%anohm_a2_surf, int(lbound(actual%anohm_a2_surf, 1), c_int), int(ubound(actual%anohm_a2_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_real_1d(55_c_int, actual%anohm_a3_surf, int(lbound(actual%anohm_a3_surf, 1), c_int), int(ubound(actual%anohm_a3_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(56_c_int, actual%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(56_c_int, actual%new_day, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(57_c_int, actual%dt_since_start_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(58_c_int, actual%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
 
       n_out = pos
    end subroutine suews_obs_unpack_ohm_state
@@ -6155,7 +6157,7 @@ contains
       pos = 0_c_int
       unpack_err = SUEWS_CAPI_OK
       err = SUEWS_CAPI_OK
-      if (n_meta < 23_c_int) then
+      if (n_meta < 21_c_int) then
          err = SUEWS_CAPI_BAD_BUFFER
          return
       end if
@@ -6173,21 +6175,19 @@ contains
       call obs_emit_int_scalar(6_c_int, actual%tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_int_scalar(7_c_int, actual%tstep_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_int_scalar(8_c_int, actual%dt_since_start, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(9_c_int, actual%dt_since_start_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(10_c_int, actual%nsh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(11_c_int, actual%nsh_real, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(12_c_int, actual%tstep_real, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(13_c_int, actual%dectime, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_1d(14_c_int, actual%dayofWeek_id, int(lbound(actual%dayofWeek_id, 1), c_int), int(ubound(actual%dayofWeek_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(15_c_int, actual%DLS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(16_c_int, actual%new_day, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(17_c_int, actual%iy_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(18_c_int, actual%id_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(19_c_int, actual%it_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(20_c_int, actual%imin_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(21_c_int, actual%dectime_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_1d(22_c_int, actual%dayofWeek_id_st, int(lbound(actual%dayofWeek_id_st, 1), c_int), int(ubound(actual%dayofWeek_id_st, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(23_c_int, actual%tz_solar, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(9_c_int, actual%nsh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(10_c_int, actual%nsh_real, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(11_c_int, actual%tstep_real, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(12_c_int, actual%dectime, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_1d(13_c_int, actual%dayofWeek_id, int(lbound(actual%dayofWeek_id, 1), c_int), int(ubound(actual%dayofWeek_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(14_c_int, actual%DLS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(15_c_int, actual%iy_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(16_c_int, actual%id_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(17_c_int, actual%it_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(18_c_int, actual%imin_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(19_c_int, actual%dectime_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_1d(20_c_int, actual%dayofWeek_id_st, int(lbound(actual%dayofWeek_id_st, 1), c_int), int(ubound(actual%dayofWeek_id_st, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(21_c_int, actual%tz_solar, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
 
       n_out = pos
    end subroutine suews_obs_unpack_suews_timer
@@ -7017,7 +7017,7 @@ contains
       pos = 0_c_int
       unpack_err = SUEWS_CAPI_OK
       err = SUEWS_CAPI_OK
-      if (n_meta < 679_c_int) then
+      if (n_meta < 681_c_int) then
          err = SUEWS_CAPI_BAD_BUFFER
          return
       end if
@@ -7101,364 +7101,348 @@ contains
       call obs_emit_real_1d(70_c_int, actual%ohmState%anohm_a1_surf, int(lbound(actual%ohmState%anohm_a1_surf, 1), c_int), int(ubound(actual%ohmState%anohm_a1_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_real_1d(71_c_int, actual%ohmState%anohm_a2_surf, int(lbound(actual%ohmState%anohm_a2_surf, 1), c_int), int(ubound(actual%ohmState%anohm_a2_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_real_1d(72_c_int, actual%ohmState%anohm_a3_surf, int(lbound(actual%ohmState%anohm_a3_surf, 1), c_int), int(ubound(actual%ohmState%anohm_a3_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(73_c_int, actual%ohmState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(74_c_int, actual%solarState%azimuth_deg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(75_c_int, actual%solarState%zenith_deg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(76_c_int, actual%solarState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(77_c_int, actual%atmState%f_cloud, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(78_c_int, actual%atmState%av_cp, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(79_c_int, actual%atmState%dens_dry, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(80_c_int, actual%atmState%av_density, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(81_c_int, actual%atmState%dq, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(82_c_int, actual%atmState%Ea_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(83_c_int, actual%atmState%Es_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(84_c_int, actual%atmState%lv_J_kg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(85_c_int, actual%atmState%lv_s_j_kg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(86_c_int, actual%atmState%tlv, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(87_c_int, actual%atmState%psyc_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(88_c_int, actual%atmState%psyc_ice_h_pa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(89_c_int, actual%atmState%s_Pa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(90_c_int, actual%atmState%s_hpa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(91_c_int, actual%atmState%s_ice_hpa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(92_c_int, actual%atmState%vpd_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(93_c_int, actual%atmState%vpd_pa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(94_c_int, actual%atmState%U10_ms, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(95_c_int, actual%atmState%U_hbh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(96_c_int, actual%atmState%T2_C, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(97_c_int, actual%atmState%T_half_bldg_C, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(98_c_int, actual%atmState%q2_gkg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(99_c_int, actual%atmState%RH2, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(100_c_int, actual%atmState%L_mod, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(101_c_int, actual%atmState%z_l, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(102_c_int, actual%atmState%RA_h, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(103_c_int, actual%atmState%RS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(104_c_int, actual%atmState%u_star, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(105_c_int, actual%atmState%t_star, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(106_c_int, actual%atmState%RB, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(107_c_int, actual%atmState%Tair_av, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(108_c_int, actual%atmState%rss_surf, int(lbound(actual%atmState%rss_surf, 1), c_int), int(ubound(actual%atmState%rss_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(109_c_int, actual%atmState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(110_c_int, actual%phenState%alb, int(lbound(actual%phenState%alb, 1), c_int), int(ubound(actual%phenState%alb, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(111_c_int, actual%phenState%lai_id, int(lbound(actual%phenState%lai_id, 1), c_int), int(ubound(actual%phenState%lai_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(112_c_int, actual%phenState%GDD_id, int(lbound(actual%phenState%GDD_id, 1), c_int), int(ubound(actual%phenState%GDD_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(113_c_int, actual%phenState%SDD_id, int(lbound(actual%phenState%SDD_id, 1), c_int), int(ubound(actual%phenState%SDD_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(114_c_int, actual%phenState%veg_phen_lumps, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(115_c_int, actual%phenState%porosity_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(116_c_int, actual%phenState%decidcap_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(117_c_int, actual%phenState%albDecTr_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(118_c_int, actual%phenState%albEveTr_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(119_c_int, actual%phenState%albGrass_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(120_c_int, actual%phenState%Tmin_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(121_c_int, actual%phenState%Tmax_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(122_c_int, actual%phenState%lenDay_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(123_c_int, actual%phenState%temp_veg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_2d(124_c_int, actual%phenState%storage_drain_params, int(lbound(actual%phenState%storage_drain_params, 1), c_int), int(ubound(actual%phenState%storage_drain_params, 1), c_int), int(lbound(actual%phenState%storage_drain_params, 2), c_int), int(ubound(actual%phenState%storage_drain_params, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(125_c_int, actual%phenState%g_func, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(126_c_int, actual%phenState%gsc, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(127_c_int, actual%phenState%g_kdown, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(128_c_int, actual%phenState%g_dq, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(129_c_int, actual%phenState%g_ta, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(130_c_int, actual%phenState%g_smd, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(131_c_int, actual%phenState%g_lai, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(132_c_int, actual%phenState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(133_c_int, actual%snowState%snowfall_cum, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(134_c_int, actual%snowState%snow_albedo, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(135_c_int, actual%snowState%chSnow_per_interval, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(136_c_int, actual%snowState%mwh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(137_c_int, actual%snowState%melt_water_store, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(138_c_int, actual%snowState%qn_snow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(139_c_int, actual%snowState%qm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(140_c_int, actual%snowState%qm_freeze, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(141_c_int, actual%snowState%qm_rain, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(142_c_int, actual%snowState%swe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(143_c_int, actual%snowState%z0v_snow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(144_c_int, actual%snowState%ra_snow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(145_c_int, actual%snowState%snow_removal, int(lbound(actual%snowState%snow_removal, 1), c_int), int(ubound(actual%snowState%snow_removal, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(146_c_int, actual%snowState%ice_frac, int(lbound(actual%snowState%ice_frac, 1), c_int), int(ubound(actual%snowState%ice_frac, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(147_c_int, actual%snowState%snow_density, int(lbound(actual%snowState%snow_density, 1), c_int), int(ubound(actual%snowState%snow_density, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(148_c_int, actual%snowState%snow_fraction, int(lbound(actual%snowState%snow_fraction, 1), c_int), int(ubound(actual%snowState%snow_fraction, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(149_c_int, actual%snowState%snow_pack, int(lbound(actual%snowState%snow_pack, 1), c_int), int(ubound(actual%snowState%snow_pack, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(150_c_int, actual%snowState%snow_water, int(lbound(actual%snowState%snow_water, 1), c_int), int(ubound(actual%snowState%snow_water, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(151_c_int, actual%snowState%kup_ind_snow, int(lbound(actual%snowState%kup_ind_snow, 1), c_int), int(ubound(actual%snowState%kup_ind_snow, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(152_c_int, actual%snowState%qn_ind_snow, int(lbound(actual%snowState%qn_ind_snow, 1), c_int), int(ubound(actual%snowState%qn_ind_snow, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(153_c_int, actual%snowState%delta_qi, int(lbound(actual%snowState%delta_qi, 1), c_int), int(ubound(actual%snowState%delta_qi, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(154_c_int, actual%snowState%Tsurf_ind_snow, int(lbound(actual%snowState%Tsurf_ind_snow, 1), c_int), int(ubound(actual%snowState%Tsurf_ind_snow, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(155_c_int, actual%snowState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(156_c_int, actual%hydroState%soil_store_surf, int(lbound(actual%hydroState%soil_store_surf, 1), c_int), int(ubound(actual%hydroState%soil_store_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(157_c_int, actual%hydroState%state_surf, int(lbound(actual%hydroState%state_surf, 1), c_int), int(ubound(actual%hydroState%state_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(158_c_int, actual%hydroState%WUDay_id, int(lbound(actual%hydroState%WUDay_id, 1), c_int), int(ubound(actual%hydroState%WUDay_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(73_c_int, actual%ohmState%new_day, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_int_scalar(74_c_int, actual%ohmState%dt_since_start_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(75_c_int, actual%ohmState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(76_c_int, actual%solarState%azimuth_deg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(77_c_int, actual%solarState%zenith_deg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(78_c_int, actual%solarState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(79_c_int, actual%atmState%f_cloud, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(80_c_int, actual%atmState%av_cp, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(81_c_int, actual%atmState%dens_dry, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(82_c_int, actual%atmState%av_density, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(83_c_int, actual%atmState%dq, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(84_c_int, actual%atmState%Ea_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(85_c_int, actual%atmState%Es_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(86_c_int, actual%atmState%lv_J_kg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(87_c_int, actual%atmState%lv_s_j_kg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(88_c_int, actual%atmState%tlv, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(89_c_int, actual%atmState%psyc_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(90_c_int, actual%atmState%psyc_ice_h_pa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(91_c_int, actual%atmState%s_Pa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(92_c_int, actual%atmState%s_hpa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(93_c_int, actual%atmState%s_ice_hpa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(94_c_int, actual%atmState%vpd_hPa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(95_c_int, actual%atmState%vpd_pa, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(96_c_int, actual%atmState%U10_ms, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(97_c_int, actual%atmState%U_hbh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(98_c_int, actual%atmState%T2_C, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(99_c_int, actual%atmState%T_half_bldg_C, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(100_c_int, actual%atmState%q2_gkg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(101_c_int, actual%atmState%RH2, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(102_c_int, actual%atmState%L_mod, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(103_c_int, actual%atmState%z_l, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(104_c_int, actual%atmState%RA_h, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(105_c_int, actual%atmState%RS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(106_c_int, actual%atmState%u_star, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(107_c_int, actual%atmState%t_star, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(108_c_int, actual%atmState%RB, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(109_c_int, actual%atmState%Tair_av, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(110_c_int, actual%atmState%rss_surf, int(lbound(actual%atmState%rss_surf, 1), c_int), int(ubound(actual%atmState%rss_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(111_c_int, actual%atmState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(112_c_int, actual%phenState%alb, int(lbound(actual%phenState%alb, 1), c_int), int(ubound(actual%phenState%alb, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(113_c_int, actual%phenState%lai_id, int(lbound(actual%phenState%lai_id, 1), c_int), int(ubound(actual%phenState%lai_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(114_c_int, actual%phenState%GDD_id, int(lbound(actual%phenState%GDD_id, 1), c_int), int(ubound(actual%phenState%GDD_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(115_c_int, actual%phenState%SDD_id, int(lbound(actual%phenState%SDD_id, 1), c_int), int(ubound(actual%phenState%SDD_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(116_c_int, actual%phenState%veg_phen_lumps, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(117_c_int, actual%phenState%porosity_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(118_c_int, actual%phenState%decidcap_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(119_c_int, actual%phenState%albDecTr_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(120_c_int, actual%phenState%albEveTr_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(121_c_int, actual%phenState%albGrass_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(122_c_int, actual%phenState%Tmin_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(123_c_int, actual%phenState%Tmax_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(124_c_int, actual%phenState%lenDay_id, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(125_c_int, actual%phenState%temp_veg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_2d(126_c_int, actual%phenState%storage_drain_params, int(lbound(actual%phenState%storage_drain_params, 1), c_int), int(ubound(actual%phenState%storage_drain_params, 1), c_int), int(lbound(actual%phenState%storage_drain_params, 2), c_int), int(ubound(actual%phenState%storage_drain_params, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(127_c_int, actual%phenState%g_func, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(128_c_int, actual%phenState%gsc, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(129_c_int, actual%phenState%g_kdown, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(130_c_int, actual%phenState%g_dq, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(131_c_int, actual%phenState%g_ta, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(132_c_int, actual%phenState%g_smd, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(133_c_int, actual%phenState%g_lai, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(134_c_int, actual%phenState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(135_c_int, actual%snowState%snowfall_cum, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(136_c_int, actual%snowState%snow_albedo, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(137_c_int, actual%snowState%chSnow_per_interval, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(138_c_int, actual%snowState%mwh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(139_c_int, actual%snowState%melt_water_store, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(140_c_int, actual%snowState%qn_snow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(141_c_int, actual%snowState%qm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(142_c_int, actual%snowState%qm_freeze, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(143_c_int, actual%snowState%qm_rain, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(144_c_int, actual%snowState%swe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(145_c_int, actual%snowState%z0v_snow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(146_c_int, actual%snowState%ra_snow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(147_c_int, actual%snowState%snow_removal, int(lbound(actual%snowState%snow_removal, 1), c_int), int(ubound(actual%snowState%snow_removal, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(148_c_int, actual%snowState%ice_frac, int(lbound(actual%snowState%ice_frac, 1), c_int), int(ubound(actual%snowState%ice_frac, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(149_c_int, actual%snowState%snow_density, int(lbound(actual%snowState%snow_density, 1), c_int), int(ubound(actual%snowState%snow_density, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(150_c_int, actual%snowState%snow_fraction, int(lbound(actual%snowState%snow_fraction, 1), c_int), int(ubound(actual%snowState%snow_fraction, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(151_c_int, actual%snowState%snow_pack, int(lbound(actual%snowState%snow_pack, 1), c_int), int(ubound(actual%snowState%snow_pack, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(152_c_int, actual%snowState%snow_water, int(lbound(actual%snowState%snow_water, 1), c_int), int(ubound(actual%snowState%snow_water, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(153_c_int, actual%snowState%kup_ind_snow, int(lbound(actual%snowState%kup_ind_snow, 1), c_int), int(ubound(actual%snowState%kup_ind_snow, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(154_c_int, actual%snowState%qn_ind_snow, int(lbound(actual%snowState%qn_ind_snow, 1), c_int), int(ubound(actual%snowState%qn_ind_snow, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(155_c_int, actual%snowState%delta_qi, int(lbound(actual%snowState%delta_qi, 1), c_int), int(ubound(actual%snowState%delta_qi, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(156_c_int, actual%snowState%Tsurf_ind_snow, int(lbound(actual%snowState%Tsurf_ind_snow, 1), c_int), int(ubound(actual%snowState%Tsurf_ind_snow, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(157_c_int, actual%snowState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(158_c_int, actual%hydroState%soil_store_surf, int(lbound(actual%hydroState%soil_store_surf, 1), c_int), int(ubound(actual%hydroState%soil_store_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(159_c_int, actual%hydroState%state_surf, int(lbound(actual%hydroState%state_surf, 1), c_int), int(ubound(actual%hydroState%state_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(160_c_int, actual%hydroState%WUDay_id, int(lbound(actual%hydroState%WUDay_id, 1), c_int), int(ubound(actual%hydroState%WUDay_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       if (allocated(actual%hydroState%soil_store_roof)) then
-         call obs_emit_real_1d(159_c_int, actual%hydroState%soil_store_roof, int(lbound(actual%hydroState%soil_store_roof, 1), c_int), int(ubound(actual%hydroState%soil_store_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      else
-         call obs_emit_unallocated(159_c_int, out_meta, n_meta, err)
-      end if
-      if (allocated(actual%hydroState%state_roof)) then
-         call obs_emit_real_1d(160_c_int, actual%hydroState%state_roof, int(lbound(actual%hydroState%state_roof, 1), c_int), int(ubound(actual%hydroState%state_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      else
-         call obs_emit_unallocated(160_c_int, out_meta, n_meta, err)
-      end if
-      if (allocated(actual%hydroState%soil_store_wall)) then
-         call obs_emit_real_1d(161_c_int, actual%hydroState%soil_store_wall, int(lbound(actual%hydroState%soil_store_wall, 1), c_int), int(ubound(actual%hydroState%soil_store_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+         call obs_emit_real_1d(161_c_int, actual%hydroState%soil_store_roof, int(lbound(actual%hydroState%soil_store_roof, 1), c_int), int(ubound(actual%hydroState%soil_store_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(161_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%hydroState%state_wall)) then
-         call obs_emit_real_1d(162_c_int, actual%hydroState%state_wall, int(lbound(actual%hydroState%state_wall, 1), c_int), int(ubound(actual%hydroState%state_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%hydroState%state_roof)) then
+         call obs_emit_real_1d(162_c_int, actual%hydroState%state_roof, int(lbound(actual%hydroState%state_roof, 1), c_int), int(ubound(actual%hydroState%state_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(162_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%hydroState%ev_roof)) then
-         call obs_emit_real_1d(163_c_int, actual%hydroState%ev_roof, int(lbound(actual%hydroState%ev_roof, 1), c_int), int(ubound(actual%hydroState%ev_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%hydroState%soil_store_wall)) then
+         call obs_emit_real_1d(163_c_int, actual%hydroState%soil_store_wall, int(lbound(actual%hydroState%soil_store_wall, 1), c_int), int(ubound(actual%hydroState%soil_store_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(163_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%hydroState%ev_wall)) then
-         call obs_emit_real_1d(164_c_int, actual%hydroState%ev_wall, int(lbound(actual%hydroState%ev_wall, 1), c_int), int(ubound(actual%hydroState%ev_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%hydroState%state_wall)) then
+         call obs_emit_real_1d(164_c_int, actual%hydroState%state_wall, int(lbound(actual%hydroState%state_wall, 1), c_int), int(ubound(actual%hydroState%state_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(164_c_int, out_meta, n_meta, err)
       end if
-      call obs_emit_real_1d(165_c_int, actual%hydroState%ev0_surf, int(lbound(actual%hydroState%ev0_surf, 1), c_int), int(ubound(actual%hydroState%ev0_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(166_c_int, actual%hydroState%ev_surf, int(lbound(actual%hydroState%ev_surf, 1), c_int), int(ubound(actual%hydroState%ev_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(167_c_int, actual%hydroState%wu_surf, int(lbound(actual%hydroState%wu_surf, 1), c_int), int(ubound(actual%hydroState%wu_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(168_c_int, actual%hydroState%runoff_soil, int(lbound(actual%hydroState%runoff_soil, 1), c_int), int(ubound(actual%hydroState%runoff_soil, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(169_c_int, actual%hydroState%smd_surf, int(lbound(actual%hydroState%smd_surf, 1), c_int), int(ubound(actual%hydroState%smd_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(170_c_int, actual%hydroState%drain_surf, int(lbound(actual%hydroState%drain_surf, 1), c_int), int(ubound(actual%hydroState%drain_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(171_c_int, actual%hydroState%drain_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(172_c_int, actual%hydroState%ev_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(173_c_int, actual%hydroState%wu_ext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(174_c_int, actual%hydroState%wu_int, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(175_c_int, actual%hydroState%runoff_ag_veg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(176_c_int, actual%hydroState%runoff_ag_impervious, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(177_c_int, actual%hydroState%runoff_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(178_c_int, actual%hydroState%runoff_pipes, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(179_c_int, actual%hydroState%runoff_soil_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(180_c_int, actual%hydroState%runoff_waterbody, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(181_c_int, actual%hydroState%smd, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(182_c_int, actual%hydroState%soil_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(183_c_int, actual%hydroState%state_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(184_c_int, actual%hydroState%surf_chang_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(185_c_int, actual%hydroState%tot_chang_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(186_c_int, actual%hydroState%runoff_per_interval, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(187_c_int, actual%hydroState%nw_state_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(188_c_int, actual%hydroState%soil_moist_cap, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(189_c_int, actual%hydroState%vsmd, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(190_c_int, actual%hydroState%additional_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(191_c_int, actual%hydroState%add_impervious, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(192_c_int, actual%hydroState%add_pipes, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(193_c_int, actual%hydroState%add_veg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(194_c_int, actual%hydroState%add_water_body, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(195_c_int, actual%hydroState%add_water, int(lbound(actual%hydroState%add_water, 1), c_int), int(ubound(actual%hydroState%add_water, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(196_c_int, actual%hydroState%frac_water2runoff, int(lbound(actual%hydroState%frac_water2runoff, 1), c_int), int(ubound(actual%hydroState%frac_water2runoff, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(197_c_int, actual%hydroState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%hydroState%ev_roof)) then
+         call obs_emit_real_1d(165_c_int, actual%hydroState%ev_roof, int(lbound(actual%hydroState%ev_roof, 1), c_int), int(ubound(actual%hydroState%ev_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      else
+         call obs_emit_unallocated(165_c_int, out_meta, n_meta, err)
+      end if
+      if (allocated(actual%hydroState%ev_wall)) then
+         call obs_emit_real_1d(166_c_int, actual%hydroState%ev_wall, int(lbound(actual%hydroState%ev_wall, 1), c_int), int(ubound(actual%hydroState%ev_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      else
+         call obs_emit_unallocated(166_c_int, out_meta, n_meta, err)
+      end if
+      call obs_emit_real_1d(167_c_int, actual%hydroState%ev0_surf, int(lbound(actual%hydroState%ev0_surf, 1), c_int), int(ubound(actual%hydroState%ev0_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(168_c_int, actual%hydroState%ev_surf, int(lbound(actual%hydroState%ev_surf, 1), c_int), int(ubound(actual%hydroState%ev_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(169_c_int, actual%hydroState%wu_surf, int(lbound(actual%hydroState%wu_surf, 1), c_int), int(ubound(actual%hydroState%wu_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(170_c_int, actual%hydroState%runoff_soil, int(lbound(actual%hydroState%runoff_soil, 1), c_int), int(ubound(actual%hydroState%runoff_soil, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(171_c_int, actual%hydroState%smd_surf, int(lbound(actual%hydroState%smd_surf, 1), c_int), int(ubound(actual%hydroState%smd_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(172_c_int, actual%hydroState%drain_surf, int(lbound(actual%hydroState%drain_surf, 1), c_int), int(ubound(actual%hydroState%drain_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(173_c_int, actual%hydroState%drain_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(174_c_int, actual%hydroState%ev_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(175_c_int, actual%hydroState%wu_ext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(176_c_int, actual%hydroState%wu_int, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(177_c_int, actual%hydroState%runoff_ag_veg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(178_c_int, actual%hydroState%runoff_ag_impervious, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(179_c_int, actual%hydroState%runoff_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(180_c_int, actual%hydroState%runoff_pipes, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(181_c_int, actual%hydroState%runoff_soil_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(182_c_int, actual%hydroState%runoff_waterbody, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(183_c_int, actual%hydroState%smd, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(184_c_int, actual%hydroState%soil_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(185_c_int, actual%hydroState%state_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(186_c_int, actual%hydroState%surf_chang_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(187_c_int, actual%hydroState%tot_chang_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(188_c_int, actual%hydroState%runoff_per_interval, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(189_c_int, actual%hydroState%nw_state_per_tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(190_c_int, actual%hydroState%soil_moist_cap, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(191_c_int, actual%hydroState%vsmd, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(192_c_int, actual%hydroState%additional_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(193_c_int, actual%hydroState%add_impervious, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(194_c_int, actual%hydroState%add_pipes, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(195_c_int, actual%hydroState%add_veg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(196_c_int, actual%hydroState%add_water_body, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(197_c_int, actual%hydroState%add_water, int(lbound(actual%hydroState%add_water, 1), c_int), int(ubound(actual%hydroState%add_water, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(198_c_int, actual%hydroState%frac_water2runoff, int(lbound(actual%hydroState%frac_water2runoff, 1), c_int), int(ubound(actual%hydroState%frac_water2runoff, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(199_c_int, actual%hydroState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       if (allocated(actual%heatState%temp_roof)) then
-         call obs_emit_real_2d(198_c_int, actual%heatState%temp_roof, int(lbound(actual%heatState%temp_roof, 1), c_int), int(ubound(actual%heatState%temp_roof, 1), c_int), int(lbound(actual%heatState%temp_roof, 2), c_int), int(ubound(actual%heatState%temp_roof, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      else
-         call obs_emit_unallocated(198_c_int, out_meta, n_meta, err)
-      end if
-      if (allocated(actual%heatState%temp_wall)) then
-         call obs_emit_real_2d(199_c_int, actual%heatState%temp_wall, int(lbound(actual%heatState%temp_wall, 1), c_int), int(ubound(actual%heatState%temp_wall, 1), c_int), int(lbound(actual%heatState%temp_wall, 2), c_int), int(ubound(actual%heatState%temp_wall, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      else
-         call obs_emit_unallocated(199_c_int, out_meta, n_meta, err)
-      end if
-      if (allocated(actual%heatState%temp_surf)) then
-         call obs_emit_real_2d(200_c_int, actual%heatState%temp_surf, int(lbound(actual%heatState%temp_surf, 1), c_int), int(ubound(actual%heatState%temp_surf, 1), c_int), int(lbound(actual%heatState%temp_surf, 2), c_int), int(ubound(actual%heatState%temp_surf, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+         call obs_emit_real_2d(200_c_int, actual%heatState%temp_roof, int(lbound(actual%heatState%temp_roof, 1), c_int), int(ubound(actual%heatState%temp_roof, 1), c_int), int(lbound(actual%heatState%temp_roof, 2), c_int), int(ubound(actual%heatState%temp_roof, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(200_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%temp_surf_dyohm)) then
-         call obs_emit_real_2d(201_c_int, actual%heatState%temp_surf_dyohm, int(lbound(actual%heatState%temp_surf_dyohm, 1), c_int), int(ubound(actual%heatState%temp_surf_dyohm, 1), c_int), int(lbound(actual%heatState%temp_surf_dyohm, 2), c_int), int(ubound(actual%heatState%temp_surf_dyohm, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%temp_wall)) then
+         call obs_emit_real_2d(201_c_int, actual%heatState%temp_wall, int(lbound(actual%heatState%temp_wall, 1), c_int), int(ubound(actual%heatState%temp_wall, 1), c_int), int(lbound(actual%heatState%temp_wall, 2), c_int), int(ubound(actual%heatState%temp_wall, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(201_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_roof)) then
-         call obs_emit_real_1d(202_c_int, actual%heatState%tsfc_roof, int(lbound(actual%heatState%tsfc_roof, 1), c_int), int(ubound(actual%heatState%tsfc_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%temp_surf)) then
+         call obs_emit_real_2d(202_c_int, actual%heatState%temp_surf, int(lbound(actual%heatState%temp_surf, 1), c_int), int(ubound(actual%heatState%temp_surf, 1), c_int), int(lbound(actual%heatState%temp_surf, 2), c_int), int(ubound(actual%heatState%temp_surf, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(202_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_wall)) then
-         call obs_emit_real_1d(203_c_int, actual%heatState%tsfc_wall, int(lbound(actual%heatState%tsfc_wall, 1), c_int), int(ubound(actual%heatState%tsfc_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%temp_surf_dyohm)) then
+         call obs_emit_real_2d(203_c_int, actual%heatState%temp_surf_dyohm, int(lbound(actual%heatState%temp_surf_dyohm, 1), c_int), int(ubound(actual%heatState%temp_surf_dyohm, 1), c_int), int(lbound(actual%heatState%temp_surf_dyohm, 2), c_int), int(ubound(actual%heatState%temp_surf_dyohm, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(203_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_surf)) then
-         call obs_emit_real_1d(204_c_int, actual%heatState%tsfc_surf, int(lbound(actual%heatState%tsfc_surf, 1), c_int), int(ubound(actual%heatState%tsfc_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_roof)) then
+         call obs_emit_real_1d(204_c_int, actual%heatState%tsfc_roof, int(lbound(actual%heatState%tsfc_roof, 1), c_int), int(ubound(actual%heatState%tsfc_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(204_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_surf_dyohm)) then
-         call obs_emit_real_1d(205_c_int, actual%heatState%tsfc_surf_dyohm, int(lbound(actual%heatState%tsfc_surf_dyohm, 1), c_int), int(ubound(actual%heatState%tsfc_surf_dyohm, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_wall)) then
+         call obs_emit_real_1d(205_c_int, actual%heatState%tsfc_wall, int(lbound(actual%heatState%tsfc_wall, 1), c_int), int(ubound(actual%heatState%tsfc_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(205_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_roof_stepstart)) then
-         call obs_emit_real_1d(206_c_int, actual%heatState%tsfc_roof_stepstart, int(lbound(actual%heatState%tsfc_roof_stepstart, 1), c_int), int(ubound(actual%heatState%tsfc_roof_stepstart, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_surf)) then
+         call obs_emit_real_1d(206_c_int, actual%heatState%tsfc_surf, int(lbound(actual%heatState%tsfc_surf, 1), c_int), int(ubound(actual%heatState%tsfc_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(206_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_wall_stepstart)) then
-         call obs_emit_real_1d(207_c_int, actual%heatState%tsfc_wall_stepstart, int(lbound(actual%heatState%tsfc_wall_stepstart, 1), c_int), int(ubound(actual%heatState%tsfc_wall_stepstart, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_surf_dyohm)) then
+         call obs_emit_real_1d(207_c_int, actual%heatState%tsfc_surf_dyohm, int(lbound(actual%heatState%tsfc_surf_dyohm, 1), c_int), int(ubound(actual%heatState%tsfc_surf_dyohm, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(207_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%tsfc_surf_stepstart)) then
-         call obs_emit_real_1d(208_c_int, actual%heatState%tsfc_surf_stepstart, int(lbound(actual%heatState%tsfc_surf_stepstart, 1), c_int), int(ubound(actual%heatState%tsfc_surf_stepstart, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_roof_stepstart)) then
+         call obs_emit_real_1d(208_c_int, actual%heatState%tsfc_roof_stepstart, int(lbound(actual%heatState%tsfc_roof_stepstart, 1), c_int), int(ubound(actual%heatState%tsfc_roof_stepstart, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(208_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%QS_roof)) then
-         call obs_emit_real_1d(209_c_int, actual%heatState%QS_roof, int(lbound(actual%heatState%QS_roof, 1), c_int), int(ubound(actual%heatState%QS_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_wall_stepstart)) then
+         call obs_emit_real_1d(209_c_int, actual%heatState%tsfc_wall_stepstart, int(lbound(actual%heatState%tsfc_wall_stepstart, 1), c_int), int(ubound(actual%heatState%tsfc_wall_stepstart, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(209_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%QN_roof)) then
-         call obs_emit_real_1d(210_c_int, actual%heatState%QN_roof, int(lbound(actual%heatState%QN_roof, 1), c_int), int(ubound(actual%heatState%QN_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%tsfc_surf_stepstart)) then
+         call obs_emit_real_1d(210_c_int, actual%heatState%tsfc_surf_stepstart, int(lbound(actual%heatState%tsfc_surf_stepstart, 1), c_int), int(ubound(actual%heatState%tsfc_surf_stepstart, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(210_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%qe_roof)) then
-         call obs_emit_real_1d(211_c_int, actual%heatState%qe_roof, int(lbound(actual%heatState%qe_roof, 1), c_int), int(ubound(actual%heatState%qe_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%QS_roof)) then
+         call obs_emit_real_1d(211_c_int, actual%heatState%QS_roof, int(lbound(actual%heatState%QS_roof, 1), c_int), int(ubound(actual%heatState%QS_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(211_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%qh_roof)) then
-         call obs_emit_real_1d(212_c_int, actual%heatState%qh_roof, int(lbound(actual%heatState%qh_roof, 1), c_int), int(ubound(actual%heatState%qh_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%QN_roof)) then
+         call obs_emit_real_1d(212_c_int, actual%heatState%QN_roof, int(lbound(actual%heatState%QN_roof, 1), c_int), int(ubound(actual%heatState%QN_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(212_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%qh_resist_roof)) then
-         call obs_emit_real_1d(213_c_int, actual%heatState%qh_resist_roof, int(lbound(actual%heatState%qh_resist_roof, 1), c_int), int(ubound(actual%heatState%qh_resist_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%qe_roof)) then
+         call obs_emit_real_1d(213_c_int, actual%heatState%qe_roof, int(lbound(actual%heatState%qe_roof, 1), c_int), int(ubound(actual%heatState%qe_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(213_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%QS_wall)) then
-         call obs_emit_real_1d(214_c_int, actual%heatState%QS_wall, int(lbound(actual%heatState%QS_wall, 1), c_int), int(ubound(actual%heatState%QS_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%qh_roof)) then
+         call obs_emit_real_1d(214_c_int, actual%heatState%qh_roof, int(lbound(actual%heatState%qh_roof, 1), c_int), int(ubound(actual%heatState%qh_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(214_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%QN_wall)) then
-         call obs_emit_real_1d(215_c_int, actual%heatState%QN_wall, int(lbound(actual%heatState%QN_wall, 1), c_int), int(ubound(actual%heatState%QN_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%qh_resist_roof)) then
+         call obs_emit_real_1d(215_c_int, actual%heatState%qh_resist_roof, int(lbound(actual%heatState%qh_resist_roof, 1), c_int), int(ubound(actual%heatState%qh_resist_roof, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(215_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%qe_wall)) then
-         call obs_emit_real_1d(216_c_int, actual%heatState%qe_wall, int(lbound(actual%heatState%qe_wall, 1), c_int), int(ubound(actual%heatState%qe_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%QS_wall)) then
+         call obs_emit_real_1d(216_c_int, actual%heatState%QS_wall, int(lbound(actual%heatState%QS_wall, 1), c_int), int(ubound(actual%heatState%QS_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(216_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%qh_wall)) then
-         call obs_emit_real_1d(217_c_int, actual%heatState%qh_wall, int(lbound(actual%heatState%qh_wall, 1), c_int), int(ubound(actual%heatState%qh_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%QN_wall)) then
+         call obs_emit_real_1d(217_c_int, actual%heatState%QN_wall, int(lbound(actual%heatState%QN_wall, 1), c_int), int(ubound(actual%heatState%QN_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(217_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%heatState%qh_resist_wall)) then
-         call obs_emit_real_1d(218_c_int, actual%heatState%qh_resist_wall, int(lbound(actual%heatState%qh_resist_wall, 1), c_int), int(ubound(actual%heatState%qh_resist_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%heatState%qe_wall)) then
+         call obs_emit_real_1d(218_c_int, actual%heatState%qe_wall, int(lbound(actual%heatState%qe_wall, 1), c_int), int(ubound(actual%heatState%qe_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
          call obs_emit_unallocated(218_c_int, out_meta, n_meta, err)
       end if
-      call obs_emit_real_1d(219_c_int, actual%heatState%qs_surf, int(lbound(actual%heatState%qs_surf, 1), c_int), int(ubound(actual%heatState%qs_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(220_c_int, actual%heatState%QN_surf, int(lbound(actual%heatState%QN_surf, 1), c_int), int(ubound(actual%heatState%QN_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(221_c_int, actual%heatState%qe0_surf, int(lbound(actual%heatState%qe0_surf, 1), c_int), int(ubound(actual%heatState%qe0_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(222_c_int, actual%heatState%qe_surf, int(lbound(actual%heatState%qe_surf, 1), c_int), int(ubound(actual%heatState%qe_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(223_c_int, actual%heatState%qh_surf, int(lbound(actual%heatState%qh_surf, 1), c_int), int(ubound(actual%heatState%qh_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(224_c_int, actual%heatState%qh_resist_surf, int(lbound(actual%heatState%qh_resist_surf, 1), c_int), int(ubound(actual%heatState%qh_resist_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(225_c_int, actual%heatState%tsurf_ind, int(lbound(actual%heatState%tsurf_ind, 1), c_int), int(ubound(actual%heatState%tsurf_ind, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(226_c_int, actual%heatState%QH_LUMPS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(227_c_int, actual%heatState%QE_LUMPS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(228_c_int, actual%heatState%k_clear, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(229_c_int, actual%heatState%k_up, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(230_c_int, actual%heatState%l_down, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(231_c_int, actual%heatState%l_up, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(232_c_int, actual%heatState%qe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(233_c_int, actual%heatState%qf, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(234_c_int, actual%heatState%QF_SAHP, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(235_c_int, actual%heatState%qh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(236_c_int, actual%heatState%qh_residual, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(237_c_int, actual%heatState%qh_resist, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(238_c_int, actual%heatState%qn, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(239_c_int, actual%heatState%qn_snowfree, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(240_c_int, actual%heatState%qs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(241_c_int, actual%heatState%TSfc_C, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(242_c_int, actual%heatState%tsurf, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(243_c_int, actual%heatState%QH_Init, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(244_c_int, actual%heatState%roof_in_sw_spc, int(lbound(actual%heatState%roof_in_sw_spc, 1), c_int), int(ubound(actual%heatState%roof_in_sw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(245_c_int, actual%heatState%roof_in_lw_spc, int(lbound(actual%heatState%roof_in_lw_spc, 1), c_int), int(ubound(actual%heatState%roof_in_lw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(246_c_int, actual%heatState%wall_in_sw_spc, int(lbound(actual%heatState%wall_in_sw_spc, 1), c_int), int(ubound(actual%heatState%wall_in_sw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(247_c_int, actual%heatState%wall_in_lw_spc, int(lbound(actual%heatState%wall_in_lw_spc, 1), c_int), int(ubound(actual%heatState%wall_in_lw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(248_c_int, actual%heatState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(249_c_int, actual%roughnessState%fai_bldg_use, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(250_c_int, actual%roughnessState%fai_evetree_use, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(251_c_int, actual%roughnessState%fai_dectree_use, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(252_c_int, actual%roughnessState%FAI, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(253_c_int, actual%roughnessState%PAI, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(254_c_int, actual%roughnessState%Zh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(255_c_int, actual%roughnessState%z0m, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(256_c_int, actual%roughnessState%z0v, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(257_c_int, actual%roughnessState%zdm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(258_c_int, actual%roughnessState%ZZD, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(259_c_int, actual%roughnessState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(260_c_int, actual%stebbsState%kdown_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(261_c_int, actual%stebbsState%kup_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(262_c_int, actual%stebbsState%k_west, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(263_c_int, actual%stebbsState%k_south, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(264_c_int, actual%stebbsState%k_north, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(265_c_int, actual%stebbsState%k_east, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(266_c_int, actual%stebbsState%ldown_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(267_c_int, actual%stebbsState%lup_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(268_c_int, actual%stebbsState%l_west, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(269_c_int, actual%stebbsState%l_south, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(270_c_int, actual%stebbsState%l_north, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(271_c_int, actual%stebbsState%l_east, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(272_c_int, actual%stebbsState%z_array, int(lbound(actual%stebbsState%z_array, 1), c_int), int(ubound(actual%stebbsState%z_array, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(273_c_int, actual%stebbsState%dataout_line_u_rsl, int(lbound(actual%stebbsState%dataout_line_u_rsl, 1), c_int), int(ubound(actual%stebbsState%dataout_line_u_rsl, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(274_c_int, actual%stebbsState%dataout_line_t_rsl, int(lbound(actual%stebbsState%dataout_line_t_rsl, 1), c_int), int(ubound(actual%stebbsState%dataout_line_t_rsl, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_1d(275_c_int, actual%stebbsState%dataout_line_q_rsl, int(lbound(actual%stebbsState%dataout_line_q_rsl, 1), c_int), int(ubound(actual%stebbsState%dataout_line_q_rsl, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(276_c_int, actual%stebbsState%deep_soil_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(277_c_int, actual%stebbsState%MonthMeanAirTemperature_diffmax, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(278_c_int, actual%stebbsState%outdoor_air_start_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(279_c_int, actual%stebbsState%indoor_air_start_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(280_c_int, actual%stebbsState%indoor_mass_start_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(281_c_int, actual%stebbsState%wall_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(282_c_int, actual%stebbsState%wall_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(283_c_int, actual%stebbsState%roof_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(284_c_int, actual%stebbsState%roof_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(285_c_int, actual%stebbsState%window_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(286_c_int, actual%stebbsState%window_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(287_c_int, actual%stebbsState%ground_floor_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(288_c_int, actual%stebbsState%ground_floor_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(289_c_int, actual%stebbsState%water_tank_temperature_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(290_c_int, actual%stebbsState%internal_wall_water_tank_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(291_c_int, actual%stebbsState%external_wall_water_tank_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(292_c_int, actual%stebbsState%mains_water_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(293_c_int, actual%stebbsState%domestic_hot_water_temperature_in_use_in_building, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(294_c_int, actual%stebbsState%internal_wall_dhw_vessel_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(295_c_int, actual%stebbsState%external_wall_dhw_vessel_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(296_c_int, actual%stebbsState%QS_stebbs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      if (allocated(actual%stebbsState%buildings)) then
-         call obs_emit_alloc_bounds_1d(297_c_int, int(lbound(actual%stebbsState%buildings, 1), c_int), int(ubound(actual%stebbsState%buildings, 1), c_int), out_meta, n_meta, err)
+      if (allocated(actual%heatState%qh_wall)) then
+         call obs_emit_real_1d(219_c_int, actual%heatState%qh_wall, int(lbound(actual%heatState%qh_wall, 1), c_int), int(ubound(actual%heatState%qh_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
-         call obs_emit_unallocated(297_c_int, out_meta, n_meta, err)
+         call obs_emit_unallocated(219_c_int, out_meta, n_meta, err)
       end if
-      if (allocated(actual%stebbsState%buildings)) then
-         if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_int_scalar(298_c_int, actual%stebbsState%buildings(1)%id_lbm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-         else
-            call obs_emit_unallocated(298_c_int, out_meta, n_meta, err)
-         end if
+      if (allocated(actual%heatState%qh_resist_wall)) then
+         call obs_emit_real_1d(220_c_int, actual%heatState%qh_resist_wall, int(lbound(actual%heatState%qh_resist_wall, 1), c_int), int(ubound(actual%heatState%qh_resist_wall, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       else
-         call obs_emit_unallocated(298_c_int, out_meta, n_meta, err)
+         call obs_emit_unallocated(220_c_int, out_meta, n_meta, err)
       end if
+      call obs_emit_real_1d(221_c_int, actual%heatState%qs_surf, int(lbound(actual%heatState%qs_surf, 1), c_int), int(ubound(actual%heatState%qs_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(222_c_int, actual%heatState%QN_surf, int(lbound(actual%heatState%QN_surf, 1), c_int), int(ubound(actual%heatState%QN_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(223_c_int, actual%heatState%qe0_surf, int(lbound(actual%heatState%qe0_surf, 1), c_int), int(ubound(actual%heatState%qe0_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(224_c_int, actual%heatState%qe_surf, int(lbound(actual%heatState%qe_surf, 1), c_int), int(ubound(actual%heatState%qe_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(225_c_int, actual%heatState%qh_surf, int(lbound(actual%heatState%qh_surf, 1), c_int), int(ubound(actual%heatState%qh_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(226_c_int, actual%heatState%qh_resist_surf, int(lbound(actual%heatState%qh_resist_surf, 1), c_int), int(ubound(actual%heatState%qh_resist_surf, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(227_c_int, actual%heatState%tsurf_ind, int(lbound(actual%heatState%tsurf_ind, 1), c_int), int(ubound(actual%heatState%tsurf_ind, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(228_c_int, actual%heatState%QH_LUMPS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(229_c_int, actual%heatState%QE_LUMPS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(230_c_int, actual%heatState%k_clear, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(231_c_int, actual%heatState%k_up, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(232_c_int, actual%heatState%l_down, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(233_c_int, actual%heatState%l_up, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(234_c_int, actual%heatState%qe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(235_c_int, actual%heatState%qf, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(236_c_int, actual%heatState%QF_SAHP, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(237_c_int, actual%heatState%qh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(238_c_int, actual%heatState%qh_residual, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(239_c_int, actual%heatState%qh_resist, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(240_c_int, actual%heatState%qn, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(241_c_int, actual%heatState%qn_snowfree, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(242_c_int, actual%heatState%qs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(243_c_int, actual%heatState%TSfc_C, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(244_c_int, actual%heatState%tsurf, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(245_c_int, actual%heatState%QH_Init, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(246_c_int, actual%heatState%roof_in_sw_spc, int(lbound(actual%heatState%roof_in_sw_spc, 1), c_int), int(ubound(actual%heatState%roof_in_sw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(247_c_int, actual%heatState%roof_in_lw_spc, int(lbound(actual%heatState%roof_in_lw_spc, 1), c_int), int(ubound(actual%heatState%roof_in_lw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(248_c_int, actual%heatState%wall_in_sw_spc, int(lbound(actual%heatState%wall_in_sw_spc, 1), c_int), int(ubound(actual%heatState%wall_in_sw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(249_c_int, actual%heatState%wall_in_lw_spc, int(lbound(actual%heatState%wall_in_lw_spc, 1), c_int), int(ubound(actual%heatState%wall_in_lw_spc, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(250_c_int, actual%heatState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(251_c_int, actual%roughnessState%fai_bldg_use, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(252_c_int, actual%roughnessState%fai_evetree_use, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(253_c_int, actual%roughnessState%fai_dectree_use, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(254_c_int, actual%roughnessState%FAI, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(255_c_int, actual%roughnessState%PAI, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(256_c_int, actual%roughnessState%Zh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(257_c_int, actual%roughnessState%z0m, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(258_c_int, actual%roughnessState%z0v, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(259_c_int, actual%roughnessState%zdm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(260_c_int, actual%roughnessState%ZZD, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(261_c_int, actual%roughnessState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(262_c_int, actual%stebbsState%kdown_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(263_c_int, actual%stebbsState%kup_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(264_c_int, actual%stebbsState%k_west, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(265_c_int, actual%stebbsState%k_south, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(266_c_int, actual%stebbsState%k_north, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(267_c_int, actual%stebbsState%k_east, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(268_c_int, actual%stebbsState%ldown_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(269_c_int, actual%stebbsState%lup_2d, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(270_c_int, actual%stebbsState%l_west, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(271_c_int, actual%stebbsState%l_south, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(272_c_int, actual%stebbsState%l_north, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(273_c_int, actual%stebbsState%l_east, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(274_c_int, actual%stebbsState%z_array, int(lbound(actual%stebbsState%z_array, 1), c_int), int(ubound(actual%stebbsState%z_array, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(275_c_int, actual%stebbsState%dataout_line_u_rsl, int(lbound(actual%stebbsState%dataout_line_u_rsl, 1), c_int), int(ubound(actual%stebbsState%dataout_line_u_rsl, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(276_c_int, actual%stebbsState%dataout_line_t_rsl, int(lbound(actual%stebbsState%dataout_line_t_rsl, 1), c_int), int(ubound(actual%stebbsState%dataout_line_t_rsl, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_1d(277_c_int, actual%stebbsState%dataout_line_q_rsl, int(lbound(actual%stebbsState%dataout_line_q_rsl, 1), c_int), int(ubound(actual%stebbsState%dataout_line_q_rsl, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(278_c_int, actual%stebbsState%deep_soil_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(279_c_int, actual%stebbsState%MonthMeanAirTemperature_diffmax, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(280_c_int, actual%stebbsState%outdoor_air_start_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(281_c_int, actual%stebbsState%indoor_air_start_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(282_c_int, actual%stebbsState%indoor_mass_start_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(283_c_int, actual%stebbsState%wall_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(284_c_int, actual%stebbsState%wall_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(285_c_int, actual%stebbsState%roof_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(286_c_int, actual%stebbsState%roof_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(287_c_int, actual%stebbsState%window_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(288_c_int, actual%stebbsState%window_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(289_c_int, actual%stebbsState%ground_floor_indoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(290_c_int, actual%stebbsState%ground_floor_outdoor_surface_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(291_c_int, actual%stebbsState%water_tank_temperature_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(292_c_int, actual%stebbsState%internal_wall_water_tank_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(293_c_int, actual%stebbsState%external_wall_water_tank_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(294_c_int, actual%stebbsState%mains_water_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(295_c_int, actual%stebbsState%domestic_hot_water_temperature_in_use_in_building, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(296_c_int, actual%stebbsState%internal_wall_dhw_vessel_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(297_c_int, actual%stebbsState%external_wall_dhw_vessel_temperature, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(298_c_int, actual%stebbsState%QS_stebbs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       if (allocated(actual%stebbsState%buildings)) then
-         if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_int_scalar(299_c_int, actual%stebbsState%buildings(1)%appliance_totalnumber, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-         else
-            call obs_emit_unallocated(299_c_int, out_meta, n_meta, err)
-         end if
+         call obs_emit_alloc_bounds_1d(299_c_int, int(lbound(actual%stebbsState%buildings, 1), c_int), int(ubound(actual%stebbsState%buildings, 1), c_int), out_meta, n_meta, err)
       else
          call obs_emit_unallocated(299_c_int, out_meta, n_meta, err)
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(300_c_int, actual%stebbsState%buildings(1)%QHload_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(300_c_int, actual%stebbsState%buildings(1)%id_lbm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(300_c_int, out_meta, n_meta, err)
          end if
@@ -7467,7 +7451,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(301_c_int, actual%stebbsState%buildings(1)%QHload_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(301_c_int, actual%stebbsState%buildings(1)%appliance_totalnumber, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(301_c_int, out_meta, n_meta, err)
          end if
@@ -7476,7 +7460,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(302_c_int, actual%stebbsState%buildings(1)%QH_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(302_c_int, actual%stebbsState%buildings(1)%QHload_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(302_c_int, out_meta, n_meta, err)
          end if
@@ -7485,7 +7469,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(303_c_int, actual%stebbsState%buildings(1)%QE_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(303_c_int, actual%stebbsState%buildings(1)%QHload_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(303_c_int, out_meta, n_meta, err)
          end if
@@ -7494,7 +7478,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(304_c_int, actual%stebbsState%buildings(1)%QHload_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(304_c_int, actual%stebbsState%buildings(1)%QH_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(304_c_int, out_meta, n_meta, err)
          end if
@@ -7503,7 +7487,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(305_c_int, actual%stebbsState%buildings(1)%Qloss_drain_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(305_c_int, actual%stebbsState%buildings(1)%QE_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(305_c_int, out_meta, n_meta, err)
          end if
@@ -7512,7 +7496,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(306_c_int, actual%stebbsState%buildings(1)%ratio_window_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(306_c_int, actual%stebbsState%buildings(1)%QHload_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(306_c_int, out_meta, n_meta, err)
          end if
@@ -7521,7 +7505,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(307_c_int, actual%stebbsState%buildings(1)%a_footprint, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(307_c_int, actual%stebbsState%buildings(1)%Qloss_drain_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(307_c_int, out_meta, n_meta, err)
          end if
@@ -7530,7 +7514,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(308_c_int, actual%stebbsState%buildings(1)%height_building, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(308_c_int, actual%stebbsState%buildings(1)%ratio_window_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(308_c_int, out_meta, n_meta, err)
          end if
@@ -7539,7 +7523,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(309_c_int, actual%stebbsState%buildings(1)%wall_external_area, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(309_c_int, actual%stebbsState%buildings(1)%a_footprint, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(309_c_int, out_meta, n_meta, err)
          end if
@@ -7548,7 +7532,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(310_c_int, actual%stebbsState%buildings(1)%internal_volume_ratio, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(310_c_int, actual%stebbsState%buildings(1)%height_building, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(310_c_int, out_meta, n_meta, err)
          end if
@@ -7557,7 +7541,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(311_c_int, actual%stebbsState%buildings(1)%thickness_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(311_c_int, actual%stebbsState%buildings(1)%wall_external_area, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(311_c_int, out_meta, n_meta, err)
          end if
@@ -7566,7 +7550,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(312_c_int, actual%stebbsState%buildings(1)%thickness_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(312_c_int, actual%stebbsState%buildings(1)%internal_volume_ratio, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(312_c_int, out_meta, n_meta, err)
          end if
@@ -7575,7 +7559,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(313_c_int, actual%stebbsState%buildings(1)%thickness_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(313_c_int, actual%stebbsState%buildings(1)%thickness_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(313_c_int, out_meta, n_meta, err)
          end if
@@ -7584,7 +7568,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(314_c_int, actual%stebbsState%buildings(1)%thickness_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(314_c_int, actual%stebbsState%buildings(1)%thickness_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(314_c_int, out_meta, n_meta, err)
          end if
@@ -7593,7 +7577,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(315_c_int, actual%stebbsState%buildings(1)%thickness_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(315_c_int, actual%stebbsState%buildings(1)%thickness_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(315_c_int, out_meta, n_meta, err)
          end if
@@ -7602,7 +7586,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(316_c_int, actual%stebbsState%buildings(1)%depth_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(316_c_int, actual%stebbsState%buildings(1)%thickness_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(316_c_int, out_meta, n_meta, err)
          end if
@@ -7611,7 +7595,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(317_c_int, actual%stebbsState%buildings(1)%thickness_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(317_c_int, actual%stebbsState%buildings(1)%thickness_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(317_c_int, out_meta, n_meta, err)
          end if
@@ -7620,7 +7604,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(318_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(318_c_int, actual%stebbsState%buildings(1)%depth_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(318_c_int, out_meta, n_meta, err)
          end if
@@ -7629,7 +7613,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(319_c_int, actual%stebbsState%buildings(1)%conv_coeff_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(319_c_int, actual%stebbsState%buildings(1)%thickness_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(319_c_int, out_meta, n_meta, err)
          end if
@@ -7638,7 +7622,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(320_c_int, actual%stebbsState%buildings(1)%conv_coeff_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(320_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(320_c_int, out_meta, n_meta, err)
          end if
@@ -7647,7 +7631,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(321_c_int, actual%stebbsState%buildings(1)%conv_coeff_intgroundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(321_c_int, actual%stebbsState%buildings(1)%conv_coeff_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(321_c_int, out_meta, n_meta, err)
          end if
@@ -7656,7 +7640,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(322_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(322_c_int, actual%stebbsState%buildings(1)%conv_coeff_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(322_c_int, out_meta, n_meta, err)
          end if
@@ -7665,7 +7649,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(323_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(323_c_int, actual%stebbsState%buildings(1)%conv_coeff_intgroundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(323_c_int, out_meta, n_meta, err)
          end if
@@ -7674,7 +7658,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(324_c_int, actual%stebbsState%buildings(1)%conv_coeff_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(324_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(324_c_int, out_meta, n_meta, err)
          end if
@@ -7683,7 +7667,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(325_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(325_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(325_c_int, out_meta, n_meta, err)
          end if
@@ -7692,7 +7676,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(326_c_int, actual%stebbsState%buildings(1)%conductivity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(326_c_int, actual%stebbsState%buildings(1)%conv_coeff_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(326_c_int, out_meta, n_meta, err)
          end if
@@ -7701,7 +7685,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(327_c_int, actual%stebbsState%buildings(1)%conductivity_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(327_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(327_c_int, out_meta, n_meta, err)
          end if
@@ -7710,7 +7694,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(328_c_int, actual%stebbsState%buildings(1)%conductivity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(328_c_int, actual%stebbsState%buildings(1)%conductivity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(328_c_int, out_meta, n_meta, err)
          end if
@@ -7719,7 +7703,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(329_c_int, actual%stebbsState%buildings(1)%conductivity_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(329_c_int, actual%stebbsState%buildings(1)%conductivity_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(329_c_int, out_meta, n_meta, err)
          end if
@@ -7728,7 +7712,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(330_c_int, actual%stebbsState%buildings(1)%conductivity_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(330_c_int, actual%stebbsState%buildings(1)%conductivity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(330_c_int, out_meta, n_meta, err)
          end if
@@ -7737,7 +7721,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(331_c_int, actual%stebbsState%buildings(1)%conductivity_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(331_c_int, actual%stebbsState%buildings(1)%conductivity_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(331_c_int, out_meta, n_meta, err)
          end if
@@ -7746,7 +7730,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(332_c_int, actual%stebbsState%buildings(1)%conductivity_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(332_c_int, actual%stebbsState%buildings(1)%conductivity_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(332_c_int, out_meta, n_meta, err)
          end if
@@ -7755,7 +7739,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(333_c_int, actual%stebbsState%buildings(1)%density_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(333_c_int, actual%stebbsState%buildings(1)%conductivity_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(333_c_int, out_meta, n_meta, err)
          end if
@@ -7764,7 +7748,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(334_c_int, actual%stebbsState%buildings(1)%density_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(334_c_int, actual%stebbsState%buildings(1)%conductivity_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(334_c_int, out_meta, n_meta, err)
          end if
@@ -7773,7 +7757,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(335_c_int, actual%stebbsState%buildings(1)%density_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(335_c_int, actual%stebbsState%buildings(1)%density_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(335_c_int, out_meta, n_meta, err)
          end if
@@ -7782,7 +7766,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(336_c_int, actual%stebbsState%buildings(1)%density_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(336_c_int, actual%stebbsState%buildings(1)%density_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(336_c_int, out_meta, n_meta, err)
          end if
@@ -7791,7 +7775,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(337_c_int, actual%stebbsState%buildings(1)%weighting_factor_heatcapacity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(337_c_int, actual%stebbsState%buildings(1)%density_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(337_c_int, out_meta, n_meta, err)
          end if
@@ -7800,7 +7784,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(338_c_int, actual%stebbsState%buildings(1)%weighting_factor_heatcapacity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(338_c_int, actual%stebbsState%buildings(1)%density_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(338_c_int, out_meta, n_meta, err)
          end if
@@ -7809,7 +7793,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(339_c_int, actual%stebbsState%buildings(1)%density_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(339_c_int, actual%stebbsState%buildings(1)%weighting_factor_heatcapacity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(339_c_int, out_meta, n_meta, err)
          end if
@@ -7818,7 +7802,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(340_c_int, actual%stebbsState%buildings(1)%density_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(340_c_int, actual%stebbsState%buildings(1)%weighting_factor_heatcapacity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(340_c_int, out_meta, n_meta, err)
          end if
@@ -7827,7 +7811,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(341_c_int, actual%stebbsState%buildings(1)%density_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(341_c_int, actual%stebbsState%buildings(1)%density_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(341_c_int, out_meta, n_meta, err)
          end if
@@ -7836,7 +7820,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(342_c_int, actual%stebbsState%buildings(1)%density_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(342_c_int, actual%stebbsState%buildings(1)%density_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(342_c_int, out_meta, n_meta, err)
          end if
@@ -7845,7 +7829,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(343_c_int, actual%stebbsState%buildings(1)%cp_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(343_c_int, actual%stebbsState%buildings(1)%density_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(343_c_int, out_meta, n_meta, err)
          end if
@@ -7854,7 +7838,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(344_c_int, actual%stebbsState%buildings(1)%cp_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(344_c_int, actual%stebbsState%buildings(1)%density_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(344_c_int, out_meta, n_meta, err)
          end if
@@ -7863,7 +7847,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(345_c_int, actual%stebbsState%buildings(1)%cp_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(345_c_int, actual%stebbsState%buildings(1)%cp_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(345_c_int, out_meta, n_meta, err)
          end if
@@ -7872,7 +7856,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(346_c_int, actual%stebbsState%buildings(1)%cp_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(346_c_int, actual%stebbsState%buildings(1)%cp_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(346_c_int, out_meta, n_meta, err)
          end if
@@ -7881,7 +7865,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(347_c_int, actual%stebbsState%buildings(1)%cp_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(347_c_int, actual%stebbsState%buildings(1)%cp_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(347_c_int, out_meta, n_meta, err)
          end if
@@ -7890,7 +7874,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(348_c_int, actual%stebbsState%buildings(1)%cp_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(348_c_int, actual%stebbsState%buildings(1)%cp_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(348_c_int, out_meta, n_meta, err)
          end if
@@ -7899,7 +7883,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(349_c_int, actual%stebbsState%buildings(1)%cp_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(349_c_int, actual%stebbsState%buildings(1)%cp_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(349_c_int, out_meta, n_meta, err)
          end if
@@ -7908,7 +7892,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(350_c_int, actual%stebbsState%buildings(1)%cp_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(350_c_int, actual%stebbsState%buildings(1)%cp_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(350_c_int, out_meta, n_meta, err)
          end if
@@ -7917,7 +7901,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(351_c_int, actual%stebbsState%buildings(1)%emissivity_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(351_c_int, actual%stebbsState%buildings(1)%cp_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(351_c_int, out_meta, n_meta, err)
          end if
@@ -7926,7 +7910,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(352_c_int, actual%stebbsState%buildings(1)%emissivity_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(352_c_int, actual%stebbsState%buildings(1)%cp_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(352_c_int, out_meta, n_meta, err)
          end if
@@ -7935,7 +7919,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(353_c_int, actual%stebbsState%buildings(1)%emissivity_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(353_c_int, actual%stebbsState%buildings(1)%emissivity_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(353_c_int, out_meta, n_meta, err)
          end if
@@ -7944,7 +7928,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(354_c_int, actual%stebbsState%buildings(1)%emissivity_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(354_c_int, actual%stebbsState%buildings(1)%emissivity_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(354_c_int, out_meta, n_meta, err)
          end if
@@ -7953,7 +7937,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(355_c_int, actual%stebbsState%buildings(1)%emissivity_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(355_c_int, actual%stebbsState%buildings(1)%emissivity_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(355_c_int, out_meta, n_meta, err)
          end if
@@ -7962,7 +7946,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(356_c_int, actual%stebbsState%buildings(1)%emissivity_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(356_c_int, actual%stebbsState%buildings(1)%emissivity_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(356_c_int, out_meta, n_meta, err)
          end if
@@ -7971,7 +7955,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(357_c_int, actual%stebbsState%buildings(1)%emissivity_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(357_c_int, actual%stebbsState%buildings(1)%emissivity_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(357_c_int, out_meta, n_meta, err)
          end if
@@ -7980,7 +7964,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(358_c_int, actual%stebbsState%buildings(1)%window_transmissivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(358_c_int, actual%stebbsState%buildings(1)%emissivity_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(358_c_int, out_meta, n_meta, err)
          end if
@@ -7989,7 +7973,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(359_c_int, actual%stebbsState%buildings(1)%window_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(359_c_int, actual%stebbsState%buildings(1)%emissivity_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(359_c_int, out_meta, n_meta, err)
          end if
@@ -7998,7 +7982,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(360_c_int, actual%stebbsState%buildings(1)%window_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(360_c_int, actual%stebbsState%buildings(1)%window_transmissivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(360_c_int, out_meta, n_meta, err)
          end if
@@ -8007,7 +7991,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(361_c_int, actual%stebbsState%buildings(1)%wall_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(361_c_int, actual%stebbsState%buildings(1)%window_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(361_c_int, out_meta, n_meta, err)
          end if
@@ -8016,7 +8000,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(362_c_int, actual%stebbsState%buildings(1)%wall_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(362_c_int, actual%stebbsState%buildings(1)%window_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(362_c_int, out_meta, n_meta, err)
          end if
@@ -8025,7 +8009,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(363_c_int, actual%stebbsState%buildings(1)%wall_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(363_c_int, actual%stebbsState%buildings(1)%wall_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(363_c_int, out_meta, n_meta, err)
          end if
@@ -8034,7 +8018,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(364_c_int, actual%stebbsState%buildings(1)%roof_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(364_c_int, actual%stebbsState%buildings(1)%wall_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(364_c_int, out_meta, n_meta, err)
          end if
@@ -8043,7 +8027,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(365_c_int, actual%stebbsState%buildings(1)%roof_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(365_c_int, actual%stebbsState%buildings(1)%wall_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(365_c_int, out_meta, n_meta, err)
          end if
@@ -8052,7 +8036,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(366_c_int, actual%stebbsState%buildings(1)%roof_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(366_c_int, actual%stebbsState%buildings(1)%roof_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(366_c_int, out_meta, n_meta, err)
          end if
@@ -8061,7 +8045,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(367_c_int, actual%stebbsState%buildings(1)%occupants_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(367_c_int, actual%stebbsState%buildings(1)%roof_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(367_c_int, out_meta, n_meta, err)
          end if
@@ -8070,7 +8054,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(368_c_int, actual%stebbsState%buildings(1)%metabolic_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(368_c_int, actual%stebbsState%buildings(1)%roof_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(368_c_int, out_meta, n_meta, err)
          end if
@@ -8079,7 +8063,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(369_c_int, actual%stebbsState%buildings(1)%metabolism_threshold, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(369_c_int, actual%stebbsState%buildings(1)%occupants_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(369_c_int, out_meta, n_meta, err)
          end if
@@ -8088,7 +8072,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(370_c_int, actual%stebbsState%buildings(1)%ratio_metabolic_latent_sensible, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(370_c_int, actual%stebbsState%buildings(1)%metabolic_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(370_c_int, out_meta, n_meta, err)
          end if
@@ -8097,7 +8081,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_int_scalar(371_c_int, actual%stebbsState%buildings(1)%internal_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(371_c_int, actual%stebbsState%buildings(1)%metabolism_threshold, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(371_c_int, out_meta, n_meta, err)
          end if
@@ -8106,7 +8090,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(372_c_int, actual%stebbsState%buildings(1)%reduction_factor_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(372_c_int, actual%stebbsState%buildings(1)%ratio_metabolic_latent_sensible, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(372_c_int, out_meta, n_meta, err)
          end if
@@ -8115,7 +8099,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(373_c_int, actual%stebbsState%buildings(1)%temperature_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(373_c_int, actual%stebbsState%buildings(1)%internal_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(373_c_int, out_meta, n_meta, err)
          end if
@@ -8124,7 +8108,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(374_c_int, actual%stebbsState%buildings(1)%radiation_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(374_c_int, actual%stebbsState%buildings(1)%reduction_factor_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(374_c_int, out_meta, n_meta, err)
          end if
@@ -8133,7 +8117,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(375_c_int, actual%stebbsState%buildings(1)%appliance_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(375_c_int, actual%stebbsState%buildings(1)%temperature_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(375_c_int, out_meta, n_meta, err)
          end if
@@ -8142,7 +8126,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(376_c_int, actual%stebbsState%buildings(1)%lighting_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(376_c_int, actual%stebbsState%buildings(1)%radiation_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(376_c_int, out_meta, n_meta, err)
          end if
@@ -8151,7 +8135,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(377_c_int, actual%stebbsState%buildings(1)%frac_hotwater, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(377_c_int, actual%stebbsState%buildings(1)%appliance_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(377_c_int, out_meta, n_meta, err)
          end if
@@ -8160,7 +8144,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(378_c_int, actual%stebbsState%buildings(1)%maxheatingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(378_c_int, actual%stebbsState%buildings(1)%lighting_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(378_c_int, out_meta, n_meta, err)
          end if
@@ -8169,7 +8153,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(379_c_int, actual%stebbsState%buildings(1)%heating_efficiency_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(379_c_int, actual%stebbsState%buildings(1)%frac_hotwater, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(379_c_int, out_meta, n_meta, err)
          end if
@@ -8178,7 +8162,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_int_scalar(380_c_int, actual%stebbsState%buildings(1)%destination_waste_heat, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(380_c_int, actual%stebbsState%buildings(1)%maxheatingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(380_c_int, out_meta, n_meta, err)
          end if
@@ -8187,7 +8171,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(381_c_int, actual%stebbsState%buildings(1)%fraction_convective_heating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(381_c_int, actual%stebbsState%buildings(1)%heating_efficiency_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(381_c_int, out_meta, n_meta, err)
          end if
@@ -8196,7 +8180,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(382_c_int, actual%stebbsState%buildings(1)%maxcoolingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(382_c_int, actual%stebbsState%buildings(1)%destination_waste_heat, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(382_c_int, out_meta, n_meta, err)
          end if
@@ -8205,7 +8189,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(383_c_int, actual%stebbsState%buildings(1)%coeff_performance_cooling, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(383_c_int, actual%stebbsState%buildings(1)%fraction_convective_heating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(383_c_int, out_meta, n_meta, err)
          end if
@@ -8214,7 +8198,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(384_c_int, actual%stebbsState%buildings(1)%Vair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(384_c_int, actual%stebbsState%buildings(1)%maxcoolingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(384_c_int, out_meta, n_meta, err)
          end if
@@ -8223,7 +8207,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(385_c_int, actual%stebbsState%buildings(1)%ventilation_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(385_c_int, actual%stebbsState%buildings(1)%coeff_performance_cooling, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(385_c_int, out_meta, n_meta, err)
          end if
@@ -8232,7 +8216,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(386_c_int, actual%stebbsState%buildings(1)%a_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(386_c_int, actual%stebbsState%buildings(1)%Vair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(386_c_int, out_meta, n_meta, err)
          end if
@@ -8241,7 +8225,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(387_c_int, actual%stebbsState%buildings(1)%a_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(387_c_int, actual%stebbsState%buildings(1)%ventilation_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(387_c_int, out_meta, n_meta, err)
          end if
@@ -8250,7 +8234,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(388_c_int, actual%stebbsState%buildings(1)%v_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(388_c_int, actual%stebbsState%buildings(1)%a_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(388_c_int, out_meta, n_meta, err)
          end if
@@ -8259,7 +8243,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(389_c_int, actual%stebbsState%buildings(1)%v_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(389_c_int, actual%stebbsState%buildings(1)%a_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(389_c_int, out_meta, n_meta, err)
          end if
@@ -8268,7 +8252,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(390_c_int, actual%stebbsState%buildings(1)%v_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(390_c_int, actual%stebbsState%buildings(1)%v_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(390_c_int, out_meta, n_meta, err)
          end if
@@ -8277,7 +8261,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(391_c_int, actual%stebbsState%buildings(1)%a_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(391_c_int, actual%stebbsState%buildings(1)%v_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(391_c_int, out_meta, n_meta, err)
          end if
@@ -8286,7 +8270,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(392_c_int, actual%stebbsState%buildings(1)%v_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(392_c_int, actual%stebbsState%buildings(1)%v_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(392_c_int, out_meta, n_meta, err)
          end if
@@ -8295,7 +8279,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(393_c_int, actual%stebbsState%buildings(1)%v_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(393_c_int, actual%stebbsState%buildings(1)%a_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(393_c_int, out_meta, n_meta, err)
          end if
@@ -8304,7 +8288,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(394_c_int, actual%stebbsState%buildings(1)%a_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(394_c_int, actual%stebbsState%buildings(1)%v_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(394_c_int, out_meta, n_meta, err)
          end if
@@ -8313,7 +8297,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(395_c_int, actual%stebbsState%buildings(1)%Tair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(395_c_int, actual%stebbsState%buildings(1)%v_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(395_c_int, out_meta, n_meta, err)
          end if
@@ -8322,7 +8306,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(396_c_int, actual%stebbsState%buildings(1)%t_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(396_c_int, actual%stebbsState%buildings(1)%a_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(396_c_int, out_meta, n_meta, err)
          end if
@@ -8331,7 +8315,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(397_c_int, actual%stebbsState%buildings(1)%t_int_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(397_c_int, actual%stebbsState%buildings(1)%Tair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(397_c_int, out_meta, n_meta, err)
          end if
@@ -8340,7 +8324,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(398_c_int, actual%stebbsState%buildings(1)%t_int_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(398_c_int, actual%stebbsState%buildings(1)%t_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(398_c_int, out_meta, n_meta, err)
          end if
@@ -8349,7 +8333,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(399_c_int, actual%stebbsState%buildings(1)%t_ext_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(399_c_int, actual%stebbsState%buildings(1)%t_int_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(399_c_int, out_meta, n_meta, err)
          end if
@@ -8358,7 +8342,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(400_c_int, actual%stebbsState%buildings(1)%t_ext_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(400_c_int, actual%stebbsState%buildings(1)%t_int_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(400_c_int, out_meta, n_meta, err)
          end if
@@ -8367,7 +8351,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(401_c_int, actual%stebbsState%buildings(1)%t_int_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(401_c_int, actual%stebbsState%buildings(1)%t_ext_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(401_c_int, out_meta, n_meta, err)
          end if
@@ -8376,7 +8360,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(402_c_int, actual%stebbsState%buildings(1)%t_ext_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(402_c_int, actual%stebbsState%buildings(1)%t_ext_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(402_c_int, out_meta, n_meta, err)
          end if
@@ -8385,7 +8369,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(403_c_int, actual%stebbsState%buildings(1)%t_int_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(403_c_int, actual%stebbsState%buildings(1)%t_int_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(403_c_int, out_meta, n_meta, err)
          end if
@@ -8394,7 +8378,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(404_c_int, actual%stebbsState%buildings(1)%t_ext_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(404_c_int, actual%stebbsState%buildings(1)%t_ext_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(404_c_int, out_meta, n_meta, err)
          end if
@@ -8403,7 +8387,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(405_c_int, actual%stebbsState%buildings(1)%Twater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(405_c_int, actual%stebbsState%buildings(1)%t_int_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(405_c_int, out_meta, n_meta, err)
          end if
@@ -8412,7 +8396,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(406_c_int, actual%stebbsState%buildings(1)%Tintwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(406_c_int, actual%stebbsState%buildings(1)%t_ext_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(406_c_int, out_meta, n_meta, err)
          end if
@@ -8421,7 +8405,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(407_c_int, actual%stebbsState%buildings(1)%Textwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(407_c_int, actual%stebbsState%buildings(1)%Twater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(407_c_int, out_meta, n_meta, err)
          end if
@@ -8430,7 +8414,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(408_c_int, actual%stebbsState%buildings(1)%thickness_tankwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(408_c_int, actual%stebbsState%buildings(1)%Tintwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(408_c_int, out_meta, n_meta, err)
          end if
@@ -8439,7 +8423,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(409_c_int, actual%stebbsState%buildings(1)%Tincomingwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(409_c_int, actual%stebbsState%buildings(1)%Textwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(409_c_int, out_meta, n_meta, err)
          end if
@@ -8448,7 +8432,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(410_c_int, actual%stebbsState%buildings(1)%Vwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(410_c_int, actual%stebbsState%buildings(1)%thickness_tankwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(410_c_int, out_meta, n_meta, err)
          end if
@@ -8457,7 +8441,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(411_c_int, actual%stebbsState%buildings(1)%Asurf_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(411_c_int, actual%stebbsState%buildings(1)%Tincomingwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(411_c_int, out_meta, n_meta, err)
          end if
@@ -8466,7 +8450,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(412_c_int, actual%stebbsState%buildings(1)%Vwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(412_c_int, actual%stebbsState%buildings(1)%Vwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(412_c_int, out_meta, n_meta, err)
          end if
@@ -8475,7 +8459,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(413_c_int, actual%stebbsState%buildings(1)%setTwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(413_c_int, actual%stebbsState%buildings(1)%Asurf_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(413_c_int, out_meta, n_meta, err)
          end if
@@ -8484,7 +8468,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(414_c_int, actual%stebbsState%buildings(1)%init_wtTs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(414_c_int, actual%stebbsState%buildings(1)%Vwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(414_c_int, out_meta, n_meta, err)
          end if
@@ -8493,7 +8477,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(415_c_int, actual%stebbsState%buildings(1)%Twater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(415_c_int, actual%stebbsState%buildings(1)%setTwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(415_c_int, out_meta, n_meta, err)
          end if
@@ -8502,7 +8486,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(416_c_int, actual%stebbsState%buildings(1)%Tintwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(416_c_int, actual%stebbsState%buildings(1)%init_wtTs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(416_c_int, out_meta, n_meta, err)
          end if
@@ -8511,7 +8495,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(417_c_int, actual%stebbsState%buildings(1)%Textwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(417_c_int, actual%stebbsState%buildings(1)%Twater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(417_c_int, out_meta, n_meta, err)
          end if
@@ -8520,7 +8504,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(418_c_int, actual%stebbsState%buildings(1)%thickness_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(418_c_int, actual%stebbsState%buildings(1)%Tintwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(418_c_int, out_meta, n_meta, err)
          end if
@@ -8529,7 +8513,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(419_c_int, actual%stebbsState%buildings(1)%Vwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(419_c_int, actual%stebbsState%buildings(1)%Textwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(419_c_int, out_meta, n_meta, err)
          end if
@@ -8538,7 +8522,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(420_c_int, actual%stebbsState%buildings(1)%Awater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(420_c_int, actual%stebbsState%buildings(1)%thickness_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(420_c_int, out_meta, n_meta, err)
          end if
@@ -8547,7 +8531,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(421_c_int, actual%stebbsState%buildings(1)%Vwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(421_c_int, actual%stebbsState%buildings(1)%Vwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(421_c_int, out_meta, n_meta, err)
          end if
@@ -8556,7 +8540,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(422_c_int, actual%stebbsState%buildings(1)%flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(422_c_int, actual%stebbsState%buildings(1)%Awater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(422_c_int, out_meta, n_meta, err)
          end if
@@ -8565,7 +8549,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_2d(423_c_int, actual%stebbsState%buildings(1)%flowrate_water_supply_profile, int(lbound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 1), c_int), int(lbound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 2), c_int), int(ubound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(423_c_int, actual%stebbsState%buildings(1)%Vwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(423_c_int, out_meta, n_meta, err)
          end if
@@ -8574,7 +8558,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(424_c_int, actual%stebbsState%buildings(1)%single_flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(424_c_int, actual%stebbsState%buildings(1)%flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(424_c_int, out_meta, n_meta, err)
          end if
@@ -8583,7 +8567,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(425_c_int, actual%stebbsState%buildings(1)%single_flowrate_water_drain, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_2d(425_c_int, actual%stebbsState%buildings(1)%flowrate_water_supply_profile, int(lbound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 1), c_int), int(lbound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 2), c_int), int(ubound(actual%stebbsState%buildings(1)%flowrate_water_supply_profile, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(425_c_int, out_meta, n_meta, err)
          end if
@@ -8592,7 +8576,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(426_c_int, actual%stebbsState%buildings(1)%cp_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(426_c_int, actual%stebbsState%buildings(1)%single_flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(426_c_int, out_meta, n_meta, err)
          end if
@@ -8601,7 +8585,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(427_c_int, actual%stebbsState%buildings(1)%cp_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(427_c_int, actual%stebbsState%buildings(1)%single_flowrate_water_drain, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(427_c_int, out_meta, n_meta, err)
          end if
@@ -8610,7 +8594,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(428_c_int, actual%stebbsState%buildings(1)%cp_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(428_c_int, actual%stebbsState%buildings(1)%cp_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(428_c_int, out_meta, n_meta, err)
          end if
@@ -8619,7 +8603,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(429_c_int, actual%stebbsState%buildings(1)%density_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(429_c_int, actual%stebbsState%buildings(1)%cp_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(429_c_int, out_meta, n_meta, err)
          end if
@@ -8628,7 +8612,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(430_c_int, actual%stebbsState%buildings(1)%density_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(430_c_int, actual%stebbsState%buildings(1)%cp_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(430_c_int, out_meta, n_meta, err)
          end if
@@ -8637,7 +8621,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(431_c_int, actual%stebbsState%buildings(1)%density_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(431_c_int, actual%stebbsState%buildings(1)%density_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(431_c_int, out_meta, n_meta, err)
          end if
@@ -8646,7 +8630,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(432_c_int, actual%stebbsState%buildings(1)%BVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(432_c_int, actual%stebbsState%buildings(1)%density_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(432_c_int, out_meta, n_meta, err)
          end if
@@ -8655,7 +8639,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(433_c_int, actual%stebbsState%buildings(1)%MVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(433_c_int, actual%stebbsState%buildings(1)%density_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(433_c_int, out_meta, n_meta, err)
          end if
@@ -8664,7 +8648,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(434_c_int, actual%stebbsState%buildings(1)%conductivity_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(434_c_int, actual%stebbsState%buildings(1)%BVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(434_c_int, out_meta, n_meta, err)
          end if
@@ -8673,7 +8657,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(435_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(435_c_int, actual%stebbsState%buildings(1)%MVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(435_c_int, out_meta, n_meta, err)
          end if
@@ -8682,7 +8666,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(436_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(436_c_int, actual%stebbsState%buildings(1)%conductivity_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(436_c_int, out_meta, n_meta, err)
          end if
@@ -8691,7 +8675,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(437_c_int, actual%stebbsState%buildings(1)%emissivity_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(437_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(437_c_int, out_meta, n_meta, err)
          end if
@@ -8700,7 +8684,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(438_c_int, actual%stebbsState%buildings(1)%conductivity_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(438_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(438_c_int, out_meta, n_meta, err)
          end if
@@ -8709,7 +8693,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(439_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(439_c_int, actual%stebbsState%buildings(1)%emissivity_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(439_c_int, out_meta, n_meta, err)
          end if
@@ -8718,7 +8702,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(440_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(440_c_int, actual%stebbsState%buildings(1)%conductivity_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(440_c_int, out_meta, n_meta, err)
          end if
@@ -8727,7 +8711,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(441_c_int, actual%stebbsState%buildings(1)%emissivity_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(441_c_int, actual%stebbsState%buildings(1)%conv_coeff_intwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(441_c_int, out_meta, n_meta, err)
          end if
@@ -8736,7 +8720,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(442_c_int, actual%stebbsState%buildings(1)%maxheatingpower_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(442_c_int, actual%stebbsState%buildings(1)%conv_coeff_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(442_c_int, out_meta, n_meta, err)
          end if
@@ -8745,7 +8729,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(443_c_int, actual%stebbsState%buildings(1)%heating_efficiency_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(443_c_int, actual%stebbsState%buildings(1)%emissivity_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(443_c_int, out_meta, n_meta, err)
          end if
@@ -8754,7 +8738,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(444_c_int, actual%stebbsState%buildings(1)%minVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(444_c_int, actual%stebbsState%buildings(1)%maxheatingpower_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(444_c_int, out_meta, n_meta, err)
          end if
@@ -8763,7 +8747,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(445_c_int, actual%stebbsState%buildings(1)%maxVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(445_c_int, actual%stebbsState%buildings(1)%heating_efficiency_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(445_c_int, out_meta, n_meta, err)
          end if
@@ -8772,7 +8756,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(446_c_int, actual%stebbsState%buildings(1)%minHeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(446_c_int, actual%stebbsState%buildings(1)%minVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(446_c_int, out_meta, n_meta, err)
          end if
@@ -8781,7 +8765,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(447_c_int, actual%stebbsState%buildings(1)%HeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(447_c_int, actual%stebbsState%buildings(1)%maxVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(447_c_int, out_meta, n_meta, err)
          end if
@@ -8790,7 +8774,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(448_c_int, actual%stebbsState%buildings(1)%qfm_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(448_c_int, actual%stebbsState%buildings(1)%minHeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(448_c_int, out_meta, n_meta, err)
          end if
@@ -8799,7 +8783,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(449_c_int, actual%stebbsState%buildings(1)%qheat_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(449_c_int, actual%stebbsState%buildings(1)%HeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(449_c_int, out_meta, n_meta, err)
          end if
@@ -8808,7 +8792,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(450_c_int, actual%stebbsState%buildings(1)%qcool_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(450_c_int, actual%stebbsState%buildings(1)%qfm_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(450_c_int, out_meta, n_meta, err)
          end if
@@ -8817,7 +8801,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(451_c_int, actual%stebbsState%buildings(1)%qfb_hw_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(451_c_int, actual%stebbsState%buildings(1)%qheat_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(451_c_int, out_meta, n_meta, err)
          end if
@@ -8826,7 +8810,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(452_c_int, actual%stebbsState%buildings(1)%qfb_dom_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(452_c_int, actual%stebbsState%buildings(1)%qcool_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(452_c_int, out_meta, n_meta, err)
          end if
@@ -8835,7 +8819,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(453_c_int, actual%stebbsState%buildings(1)%dom_temp, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(453_c_int, actual%stebbsState%buildings(1)%qfb_hw_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(453_c_int, out_meta, n_meta, err)
          end if
@@ -8844,7 +8828,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(454_c_int, actual%stebbsState%buildings(1)%QN_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(454_c_int, actual%stebbsState%buildings(1)%qfb_dom_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(454_c_int, out_meta, n_meta, err)
          end if
@@ -8853,7 +8837,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(455_c_int, actual%stebbsState%buildings(1)%QEC_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(455_c_int, actual%stebbsState%buildings(1)%dom_temp, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(455_c_int, out_meta, n_meta, err)
          end if
@@ -8862,7 +8846,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(456_c_int, actual%stebbsState%buildings(1)%QS_total_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(456_c_int, actual%stebbsState%buildings(1)%QN_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(456_c_int, out_meta, n_meta, err)
          end if
@@ -8871,7 +8855,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(457_c_int, actual%stebbsState%buildings(1)%QH_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(457_c_int, actual%stebbsState%buildings(1)%QEC_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(457_c_int, out_meta, n_meta, err)
          end if
@@ -8880,7 +8864,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(458_c_int, actual%stebbsState%buildings(1)%QBAE_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(458_c_int, actual%stebbsState%buildings(1)%QS_total_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(458_c_int, out_meta, n_meta, err)
          end if
@@ -8889,7 +8873,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(459_c_int, actual%stebbsState%buildings(1)%QWaste_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(459_c_int, actual%stebbsState%buildings(1)%QH_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(459_c_int, out_meta, n_meta, err)
          end if
@@ -8898,7 +8882,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(460_c_int, actual%stebbsState%buildings(1)%QS_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(460_c_int, actual%stebbsState%buildings(1)%QBAE_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(460_c_int, out_meta, n_meta, err)
          end if
@@ -8907,7 +8891,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(461_c_int, actual%stebbsState%buildings(1)%QS_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(461_c_int, actual%stebbsState%buildings(1)%QWaste_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(461_c_int, out_meta, n_meta, err)
          end if
@@ -8916,7 +8900,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(462_c_int, actual%stebbsState%buildings(1)%QS_ground_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(462_c_int, actual%stebbsState%buildings(1)%QS_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(462_c_int, out_meta, n_meta, err)
          end if
@@ -8925,7 +8909,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(463_c_int, actual%stebbsState%buildings(1)%QEC_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(463_c_int, actual%stebbsState%buildings(1)%QS_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(463_c_int, out_meta, n_meta, err)
          end if
@@ -8934,7 +8918,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(464_c_int, actual%stebbsState%buildings(1)%QEC_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(464_c_int, actual%stebbsState%buildings(1)%QS_ground_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(464_c_int, out_meta, n_meta, err)
          end if
@@ -8943,7 +8927,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_scalar(465_c_int, actual%stebbsState%buildings(1)%QEC_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(465_c_int, actual%stebbsState%buildings(1)%QEC_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(465_c_int, out_meta, n_meta, err)
          end if
@@ -8952,7 +8936,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(466_c_int, actual%stebbsState%buildings(1)%ts, int(lbound(actual%stebbsState%buildings(1)%ts, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%ts, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(466_c_int, actual%stebbsState%buildings(1)%QEC_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(466_c_int, out_meta, n_meta, err)
          end if
@@ -8961,7 +8945,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(467_c_int, actual%stebbsState%buildings(1)%initTs, int(lbound(actual%stebbsState%buildings(1)%initTs, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%initTs, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(467_c_int, actual%stebbsState%buildings(1)%QEC_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(467_c_int, out_meta, n_meta, err)
          end if
@@ -8970,7 +8954,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(468_c_int, actual%stebbsState%buildings(1)%h_i, int(lbound(actual%stebbsState%buildings(1)%h_i, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%h_i, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(468_c_int, actual%stebbsState%buildings(1)%ts, int(lbound(actual%stebbsState%buildings(1)%ts, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%ts, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(468_c_int, out_meta, n_meta, err)
          end if
@@ -8979,7 +8963,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(469_c_int, actual%stebbsState%buildings(1)%k_eff, int(lbound(actual%stebbsState%buildings(1)%k_eff, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%k_eff, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(469_c_int, actual%stebbsState%buildings(1)%initTs, int(lbound(actual%stebbsState%buildings(1)%initTs, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%initTs, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(469_c_int, out_meta, n_meta, err)
          end if
@@ -8988,7 +8972,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(470_c_int, actual%stebbsState%buildings(1)%h_o, int(lbound(actual%stebbsState%buildings(1)%h_o, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%h_o, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(470_c_int, actual%stebbsState%buildings(1)%h_i, int(lbound(actual%stebbsState%buildings(1)%h_i, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%h_i, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(470_c_int, out_meta, n_meta, err)
          end if
@@ -8997,7 +8981,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(471_c_int, actual%stebbsState%buildings(1)%rho, int(lbound(actual%stebbsState%buildings(1)%rho, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%rho, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(471_c_int, actual%stebbsState%buildings(1)%k_eff, int(lbound(actual%stebbsState%buildings(1)%k_eff, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%k_eff, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(471_c_int, out_meta, n_meta, err)
          end if
@@ -9006,7 +8990,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(472_c_int, actual%stebbsState%buildings(1)%cp, int(lbound(actual%stebbsState%buildings(1)%cp, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%cp, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(472_c_int, actual%stebbsState%buildings(1)%h_o, int(lbound(actual%stebbsState%buildings(1)%h_o, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%h_o, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(472_c_int, out_meta, n_meta, err)
          end if
@@ -9015,7 +8999,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(473_c_int, actual%stebbsState%buildings(1)%emis, int(lbound(actual%stebbsState%buildings(1)%emis, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%emis, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(473_c_int, actual%stebbsState%buildings(1)%rho, int(lbound(actual%stebbsState%buildings(1)%rho, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%rho, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(473_c_int, out_meta, n_meta, err)
          end if
@@ -9024,7 +9008,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(474_c_int, actual%stebbsState%buildings(1)%witar, int(lbound(actual%stebbsState%buildings(1)%witar, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%witar, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(474_c_int, actual%stebbsState%buildings(1)%cp, int(lbound(actual%stebbsState%buildings(1)%cp, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%cp, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(474_c_int, out_meta, n_meta, err)
          end if
@@ -9033,7 +9017,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(475_c_int, actual%stebbsState%buildings(1)%waTAR, int(lbound(actual%stebbsState%buildings(1)%waTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%waTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(475_c_int, actual%stebbsState%buildings(1)%emis, int(lbound(actual%stebbsState%buildings(1)%emis, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%emis, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(475_c_int, out_meta, n_meta, err)
          end if
@@ -9042,7 +9026,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(476_c_int, actual%stebbsState%buildings(1)%roofTAR, int(lbound(actual%stebbsState%buildings(1)%roofTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%roofTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(476_c_int, actual%stebbsState%buildings(1)%witar, int(lbound(actual%stebbsState%buildings(1)%witar, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%witar, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(476_c_int, out_meta, n_meta, err)
          end if
@@ -9051,7 +9035,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(477_c_int, actual%stebbsState%buildings(1)%h_ts_average, int(lbound(actual%stebbsState%buildings(1)%h_ts_average, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%h_ts_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(477_c_int, actual%stebbsState%buildings(1)%waTAR, int(lbound(actual%stebbsState%buildings(1)%waTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%waTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(477_c_int, out_meta, n_meta, err)
          end if
@@ -9060,7 +9044,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(478_c_int, actual%stebbsState%buildings(1)%HWTsAverage, int(lbound(actual%stebbsState%buildings(1)%HWTsAverage, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%HWTsAverage, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(478_c_int, actual%stebbsState%buildings(1)%roofTAR, int(lbound(actual%stebbsState%buildings(1)%roofTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%roofTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(478_c_int, out_meta, n_meta, err)
          end if
@@ -9069,7 +9053,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(479_c_int, actual%stebbsState%buildings(1)%hw_power_average, int(lbound(actual%stebbsState%buildings(1)%hw_power_average, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%hw_power_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(479_c_int, actual%stebbsState%buildings(1)%h_ts_average, int(lbound(actual%stebbsState%buildings(1)%h_ts_average, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%h_ts_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(479_c_int, out_meta, n_meta, err)
          end if
@@ -9078,7 +9062,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_real_1d(480_c_int, actual%stebbsState%buildings(1)%energy_exchanges, int(lbound(actual%stebbsState%buildings(1)%energy_exchanges, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%energy_exchanges, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(480_c_int, actual%stebbsState%buildings(1)%HWTsAverage, int(lbound(actual%stebbsState%buildings(1)%HWTsAverage, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%HWTsAverage, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(480_c_int, out_meta, n_meta, err)
          end if
@@ -9087,11 +9071,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            if (allocated(actual%stebbsState%buildings(1)%Textwall_C)) then
-               call obs_emit_real_1d(481_c_int, actual%stebbsState%buildings(1)%Textwall_C, int(lbound(actual%stebbsState%buildings(1)%Textwall_C, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%Textwall_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-            else
-               call obs_emit_unallocated(481_c_int, out_meta, n_meta, err)
-            end if
+            call obs_emit_real_1d(481_c_int, actual%stebbsState%buildings(1)%hw_power_average, int(lbound(actual%stebbsState%buildings(1)%hw_power_average, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%hw_power_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(481_c_int, out_meta, n_meta, err)
          end if
@@ -9100,11 +9080,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            if (allocated(actual%stebbsState%buildings(1)%Textroof_C)) then
-               call obs_emit_real_1d(482_c_int, actual%stebbsState%buildings(1)%Textroof_C, int(lbound(actual%stebbsState%buildings(1)%Textroof_C, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%Textroof_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-            else
-               call obs_emit_unallocated(482_c_int, out_meta, n_meta, err)
-            end if
+            call obs_emit_real_1d(482_c_int, actual%stebbsState%buildings(1)%energy_exchanges, int(lbound(actual%stebbsState%buildings(1)%energy_exchanges, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%energy_exchanges, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(482_c_int, out_meta, n_meta, err)
          end if
@@ -9113,7 +9089,11 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_logical_scalar(483_c_int, actual%stebbsState%buildings(1)%wall_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            if (allocated(actual%stebbsState%buildings(1)%Textwall_C)) then
+               call obs_emit_real_1d(483_c_int, actual%stebbsState%buildings(1)%Textwall_C, int(lbound(actual%stebbsState%buildings(1)%Textwall_C, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%Textwall_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            else
+               call obs_emit_unallocated(483_c_int, out_meta, n_meta, err)
+            end if
          else
             call obs_emit_unallocated(483_c_int, out_meta, n_meta, err)
          end if
@@ -9122,7 +9102,11 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_logical_scalar(484_c_int, actual%stebbsState%buildings(1)%window_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            if (allocated(actual%stebbsState%buildings(1)%Textroof_C)) then
+               call obs_emit_real_1d(484_c_int, actual%stebbsState%buildings(1)%Textroof_C, int(lbound(actual%stebbsState%buildings(1)%Textroof_C, 1), c_int), int(ubound(actual%stebbsState%buildings(1)%Textroof_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            else
+               call obs_emit_unallocated(484_c_int, out_meta, n_meta, err)
+            end if
          else
             call obs_emit_unallocated(484_c_int, out_meta, n_meta, err)
          end if
@@ -9131,7 +9115,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 1) then
-            call obs_emit_logical_scalar(485_c_int, actual%stebbsState%buildings(1)%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_logical_scalar(485_c_int, actual%stebbsState%buildings(1)%wall_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(485_c_int, out_meta, n_meta, err)
          end if
@@ -9139,8 +9123,8 @@ contains
          call obs_emit_unallocated(485_c_int, out_meta, n_meta, err)
       end if
       if (allocated(actual%stebbsState%buildings)) then
-         if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_int_scalar(486_c_int, actual%stebbsState%buildings(2)%id_lbm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+         if (size(actual%stebbsState%buildings) >= 1) then
+            call obs_emit_logical_scalar(486_c_int, actual%stebbsState%buildings(1)%window_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(486_c_int, out_meta, n_meta, err)
          end if
@@ -9148,8 +9132,8 @@ contains
          call obs_emit_unallocated(486_c_int, out_meta, n_meta, err)
       end if
       if (allocated(actual%stebbsState%buildings)) then
-         if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_int_scalar(487_c_int, actual%stebbsState%buildings(2)%appliance_totalnumber, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+         if (size(actual%stebbsState%buildings) >= 1) then
+            call obs_emit_logical_scalar(487_c_int, actual%stebbsState%buildings(1)%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(487_c_int, out_meta, n_meta, err)
          end if
@@ -9158,7 +9142,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(488_c_int, actual%stebbsState%buildings(2)%QHload_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(488_c_int, actual%stebbsState%buildings(2)%id_lbm, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(488_c_int, out_meta, n_meta, err)
          end if
@@ -9167,7 +9151,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(489_c_int, actual%stebbsState%buildings(2)%QHload_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(489_c_int, actual%stebbsState%buildings(2)%appliance_totalnumber, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(489_c_int, out_meta, n_meta, err)
          end if
@@ -9176,7 +9160,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(490_c_int, actual%stebbsState%buildings(2)%QH_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(490_c_int, actual%stebbsState%buildings(2)%QHload_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(490_c_int, out_meta, n_meta, err)
          end if
@@ -9185,7 +9169,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(491_c_int, actual%stebbsState%buildings(2)%QE_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(491_c_int, actual%stebbsState%buildings(2)%QHload_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(491_c_int, out_meta, n_meta, err)
          end if
@@ -9194,7 +9178,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(492_c_int, actual%stebbsState%buildings(2)%QHload_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(492_c_int, actual%stebbsState%buildings(2)%QH_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(492_c_int, out_meta, n_meta, err)
          end if
@@ -9203,7 +9187,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(493_c_int, actual%stebbsState%buildings(2)%Qloss_drain_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(493_c_int, actual%stebbsState%buildings(2)%QE_metabolism, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(493_c_int, out_meta, n_meta, err)
          end if
@@ -9212,7 +9196,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(494_c_int, actual%stebbsState%buildings(2)%ratio_window_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(494_c_int, actual%stebbsState%buildings(2)%QHload_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(494_c_int, out_meta, n_meta, err)
          end if
@@ -9221,7 +9205,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(495_c_int, actual%stebbsState%buildings(2)%a_footprint, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(495_c_int, actual%stebbsState%buildings(2)%Qloss_drain_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(495_c_int, out_meta, n_meta, err)
          end if
@@ -9230,7 +9214,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(496_c_int, actual%stebbsState%buildings(2)%height_building, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(496_c_int, actual%stebbsState%buildings(2)%ratio_window_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(496_c_int, out_meta, n_meta, err)
          end if
@@ -9239,7 +9223,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(497_c_int, actual%stebbsState%buildings(2)%wall_external_area, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(497_c_int, actual%stebbsState%buildings(2)%a_footprint, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(497_c_int, out_meta, n_meta, err)
          end if
@@ -9248,7 +9232,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(498_c_int, actual%stebbsState%buildings(2)%internal_volume_ratio, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(498_c_int, actual%stebbsState%buildings(2)%height_building, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(498_c_int, out_meta, n_meta, err)
          end if
@@ -9257,7 +9241,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(499_c_int, actual%stebbsState%buildings(2)%thickness_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(499_c_int, actual%stebbsState%buildings(2)%wall_external_area, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(499_c_int, out_meta, n_meta, err)
          end if
@@ -9266,7 +9250,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(500_c_int, actual%stebbsState%buildings(2)%thickness_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(500_c_int, actual%stebbsState%buildings(2)%internal_volume_ratio, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(500_c_int, out_meta, n_meta, err)
          end if
@@ -9275,7 +9259,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(501_c_int, actual%stebbsState%buildings(2)%thickness_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(501_c_int, actual%stebbsState%buildings(2)%thickness_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(501_c_int, out_meta, n_meta, err)
          end if
@@ -9284,7 +9268,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(502_c_int, actual%stebbsState%buildings(2)%thickness_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(502_c_int, actual%stebbsState%buildings(2)%thickness_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(502_c_int, out_meta, n_meta, err)
          end if
@@ -9293,7 +9277,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(503_c_int, actual%stebbsState%buildings(2)%thickness_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(503_c_int, actual%stebbsState%buildings(2)%thickness_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(503_c_int, out_meta, n_meta, err)
          end if
@@ -9302,7 +9286,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(504_c_int, actual%stebbsState%buildings(2)%depth_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(504_c_int, actual%stebbsState%buildings(2)%thickness_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(504_c_int, out_meta, n_meta, err)
          end if
@@ -9311,7 +9295,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(505_c_int, actual%stebbsState%buildings(2)%thickness_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(505_c_int, actual%stebbsState%buildings(2)%thickness_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(505_c_int, out_meta, n_meta, err)
          end if
@@ -9320,7 +9304,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(506_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(506_c_int, actual%stebbsState%buildings(2)%depth_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(506_c_int, out_meta, n_meta, err)
          end if
@@ -9329,7 +9313,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(507_c_int, actual%stebbsState%buildings(2)%conv_coeff_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(507_c_int, actual%stebbsState%buildings(2)%thickness_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(507_c_int, out_meta, n_meta, err)
          end if
@@ -9338,7 +9322,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(508_c_int, actual%stebbsState%buildings(2)%conv_coeff_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(508_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(508_c_int, out_meta, n_meta, err)
          end if
@@ -9347,7 +9331,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(509_c_int, actual%stebbsState%buildings(2)%conv_coeff_intgroundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(509_c_int, actual%stebbsState%buildings(2)%conv_coeff_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(509_c_int, out_meta, n_meta, err)
          end if
@@ -9356,7 +9340,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(510_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(510_c_int, actual%stebbsState%buildings(2)%conv_coeff_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(510_c_int, out_meta, n_meta, err)
          end if
@@ -9365,7 +9349,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(511_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(511_c_int, actual%stebbsState%buildings(2)%conv_coeff_intgroundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(511_c_int, out_meta, n_meta, err)
          end if
@@ -9374,7 +9358,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(512_c_int, actual%stebbsState%buildings(2)%conv_coeff_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(512_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(512_c_int, out_meta, n_meta, err)
          end if
@@ -9383,7 +9367,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(513_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(513_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(513_c_int, out_meta, n_meta, err)
          end if
@@ -9392,7 +9376,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(514_c_int, actual%stebbsState%buildings(2)%conductivity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(514_c_int, actual%stebbsState%buildings(2)%conv_coeff_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(514_c_int, out_meta, n_meta, err)
          end if
@@ -9401,7 +9385,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(515_c_int, actual%stebbsState%buildings(2)%conductivity_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(515_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(515_c_int, out_meta, n_meta, err)
          end if
@@ -9410,7 +9394,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(516_c_int, actual%stebbsState%buildings(2)%conductivity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(516_c_int, actual%stebbsState%buildings(2)%conductivity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(516_c_int, out_meta, n_meta, err)
          end if
@@ -9419,7 +9403,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(517_c_int, actual%stebbsState%buildings(2)%conductivity_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(517_c_int, actual%stebbsState%buildings(2)%conductivity_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(517_c_int, out_meta, n_meta, err)
          end if
@@ -9428,7 +9412,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(518_c_int, actual%stebbsState%buildings(2)%conductivity_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(518_c_int, actual%stebbsState%buildings(2)%conductivity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(518_c_int, out_meta, n_meta, err)
          end if
@@ -9437,7 +9421,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(519_c_int, actual%stebbsState%buildings(2)%conductivity_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(519_c_int, actual%stebbsState%buildings(2)%conductivity_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(519_c_int, out_meta, n_meta, err)
          end if
@@ -9446,7 +9430,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(520_c_int, actual%stebbsState%buildings(2)%conductivity_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(520_c_int, actual%stebbsState%buildings(2)%conductivity_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(520_c_int, out_meta, n_meta, err)
          end if
@@ -9455,7 +9439,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(521_c_int, actual%stebbsState%buildings(2)%density_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(521_c_int, actual%stebbsState%buildings(2)%conductivity_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(521_c_int, out_meta, n_meta, err)
          end if
@@ -9464,7 +9448,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(522_c_int, actual%stebbsState%buildings(2)%density_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(522_c_int, actual%stebbsState%buildings(2)%conductivity_ground, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(522_c_int, out_meta, n_meta, err)
          end if
@@ -9473,7 +9457,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(523_c_int, actual%stebbsState%buildings(2)%density_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(523_c_int, actual%stebbsState%buildings(2)%density_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(523_c_int, out_meta, n_meta, err)
          end if
@@ -9482,7 +9466,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(524_c_int, actual%stebbsState%buildings(2)%density_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(524_c_int, actual%stebbsState%buildings(2)%density_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(524_c_int, out_meta, n_meta, err)
          end if
@@ -9491,7 +9475,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(525_c_int, actual%stebbsState%buildings(2)%weighting_factor_heatcapacity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(525_c_int, actual%stebbsState%buildings(2)%density_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(525_c_int, out_meta, n_meta, err)
          end if
@@ -9500,7 +9484,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(526_c_int, actual%stebbsState%buildings(2)%weighting_factor_heatcapacity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(526_c_int, actual%stebbsState%buildings(2)%density_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(526_c_int, out_meta, n_meta, err)
          end if
@@ -9509,7 +9493,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(527_c_int, actual%stebbsState%buildings(2)%density_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(527_c_int, actual%stebbsState%buildings(2)%weighting_factor_heatcapacity_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(527_c_int, out_meta, n_meta, err)
          end if
@@ -9518,7 +9502,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(528_c_int, actual%stebbsState%buildings(2)%density_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(528_c_int, actual%stebbsState%buildings(2)%weighting_factor_heatcapacity_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(528_c_int, out_meta, n_meta, err)
          end if
@@ -9527,7 +9511,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(529_c_int, actual%stebbsState%buildings(2)%density_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(529_c_int, actual%stebbsState%buildings(2)%density_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(529_c_int, out_meta, n_meta, err)
          end if
@@ -9536,7 +9520,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(530_c_int, actual%stebbsState%buildings(2)%density_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(530_c_int, actual%stebbsState%buildings(2)%density_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(530_c_int, out_meta, n_meta, err)
          end if
@@ -9545,7 +9529,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(531_c_int, actual%stebbsState%buildings(2)%cp_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(531_c_int, actual%stebbsState%buildings(2)%density_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(531_c_int, out_meta, n_meta, err)
          end if
@@ -9554,7 +9538,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(532_c_int, actual%stebbsState%buildings(2)%cp_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(532_c_int, actual%stebbsState%buildings(2)%density_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(532_c_int, out_meta, n_meta, err)
          end if
@@ -9563,7 +9547,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(533_c_int, actual%stebbsState%buildings(2)%cp_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(533_c_int, actual%stebbsState%buildings(2)%cp_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(533_c_int, out_meta, n_meta, err)
          end if
@@ -9572,7 +9556,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(534_c_int, actual%stebbsState%buildings(2)%cp_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(534_c_int, actual%stebbsState%buildings(2)%cp_wallext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(534_c_int, out_meta, n_meta, err)
          end if
@@ -9581,7 +9565,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(535_c_int, actual%stebbsState%buildings(2)%cp_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(535_c_int, actual%stebbsState%buildings(2)%cp_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(535_c_int, out_meta, n_meta, err)
          end if
@@ -9590,7 +9574,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(536_c_int, actual%stebbsState%buildings(2)%cp_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(536_c_int, actual%stebbsState%buildings(2)%cp_roofext, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(536_c_int, out_meta, n_meta, err)
          end if
@@ -9599,7 +9583,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(537_c_int, actual%stebbsState%buildings(2)%cp_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(537_c_int, actual%stebbsState%buildings(2)%cp_groundfloor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(537_c_int, out_meta, n_meta, err)
          end if
@@ -9608,7 +9592,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(538_c_int, actual%stebbsState%buildings(2)%cp_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(538_c_int, actual%stebbsState%buildings(2)%cp_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(538_c_int, out_meta, n_meta, err)
          end if
@@ -9617,7 +9601,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(539_c_int, actual%stebbsState%buildings(2)%emissivity_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(539_c_int, actual%stebbsState%buildings(2)%cp_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(539_c_int, out_meta, n_meta, err)
          end if
@@ -9626,7 +9610,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(540_c_int, actual%stebbsState%buildings(2)%emissivity_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(540_c_int, actual%stebbsState%buildings(2)%cp_air_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(540_c_int, out_meta, n_meta, err)
          end if
@@ -9635,7 +9619,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(541_c_int, actual%stebbsState%buildings(2)%emissivity_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(541_c_int, actual%stebbsState%buildings(2)%emissivity_extwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(541_c_int, out_meta, n_meta, err)
          end if
@@ -9644,7 +9628,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(542_c_int, actual%stebbsState%buildings(2)%emissivity_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(542_c_int, actual%stebbsState%buildings(2)%emissivity_extroof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(542_c_int, out_meta, n_meta, err)
          end if
@@ -9653,7 +9637,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(543_c_int, actual%stebbsState%buildings(2)%emissivity_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(543_c_int, actual%stebbsState%buildings(2)%emissivity_intwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(543_c_int, out_meta, n_meta, err)
          end if
@@ -9662,7 +9646,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(544_c_int, actual%stebbsState%buildings(2)%emissivity_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(544_c_int, actual%stebbsState%buildings(2)%emissivity_introof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(544_c_int, out_meta, n_meta, err)
          end if
@@ -9671,7 +9655,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(545_c_int, actual%stebbsState%buildings(2)%emissivity_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(545_c_int, actual%stebbsState%buildings(2)%emissivity_indoormass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(545_c_int, out_meta, n_meta, err)
          end if
@@ -9680,7 +9664,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(546_c_int, actual%stebbsState%buildings(2)%window_transmissivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(546_c_int, actual%stebbsState%buildings(2)%emissivity_extwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(546_c_int, out_meta, n_meta, err)
          end if
@@ -9689,7 +9673,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(547_c_int, actual%stebbsState%buildings(2)%window_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(547_c_int, actual%stebbsState%buildings(2)%emissivity_intwindow, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(547_c_int, out_meta, n_meta, err)
          end if
@@ -9698,7 +9682,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(548_c_int, actual%stebbsState%buildings(2)%window_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(548_c_int, actual%stebbsState%buildings(2)%window_transmissivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(548_c_int, out_meta, n_meta, err)
          end if
@@ -9707,7 +9691,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(549_c_int, actual%stebbsState%buildings(2)%wall_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(549_c_int, actual%stebbsState%buildings(2)%window_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(549_c_int, out_meta, n_meta, err)
          end if
@@ -9716,7 +9700,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(550_c_int, actual%stebbsState%buildings(2)%wall_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(550_c_int, actual%stebbsState%buildings(2)%window_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(550_c_int, out_meta, n_meta, err)
          end if
@@ -9725,7 +9709,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(551_c_int, actual%stebbsState%buildings(2)%wall_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(551_c_int, actual%stebbsState%buildings(2)%wall_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(551_c_int, out_meta, n_meta, err)
          end if
@@ -9734,7 +9718,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(552_c_int, actual%stebbsState%buildings(2)%roof_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(552_c_int, actual%stebbsState%buildings(2)%wall_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(552_c_int, out_meta, n_meta, err)
          end if
@@ -9743,7 +9727,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(553_c_int, actual%stebbsState%buildings(2)%roof_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(553_c_int, actual%stebbsState%buildings(2)%wall_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(553_c_int, out_meta, n_meta, err)
          end if
@@ -9752,7 +9736,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(554_c_int, actual%stebbsState%buildings(2)%roof_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(554_c_int, actual%stebbsState%buildings(2)%roof_transmissivity_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(554_c_int, out_meta, n_meta, err)
          end if
@@ -9761,7 +9745,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(555_c_int, actual%stebbsState%buildings(2)%occupants_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(555_c_int, actual%stebbsState%buildings(2)%roof_absorptivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(555_c_int, out_meta, n_meta, err)
          end if
@@ -9770,7 +9754,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(556_c_int, actual%stebbsState%buildings(2)%metabolic_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(556_c_int, actual%stebbsState%buildings(2)%roof_reflectivity, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(556_c_int, out_meta, n_meta, err)
          end if
@@ -9779,7 +9763,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(557_c_int, actual%stebbsState%buildings(2)%metabolism_threshold, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(557_c_int, actual%stebbsState%buildings(2)%occupants_state, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(557_c_int, out_meta, n_meta, err)
          end if
@@ -9788,7 +9772,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(558_c_int, actual%stebbsState%buildings(2)%ratio_metabolic_latent_sensible, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(558_c_int, actual%stebbsState%buildings(2)%metabolic_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(558_c_int, out_meta, n_meta, err)
          end if
@@ -9797,7 +9781,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_int_scalar(559_c_int, actual%stebbsState%buildings(2)%internal_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(559_c_int, actual%stebbsState%buildings(2)%metabolism_threshold, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(559_c_int, out_meta, n_meta, err)
          end if
@@ -9806,7 +9790,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(560_c_int, actual%stebbsState%buildings(2)%reduction_factor_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(560_c_int, actual%stebbsState%buildings(2)%ratio_metabolic_latent_sensible, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(560_c_int, out_meta, n_meta, err)
          end if
@@ -9815,7 +9799,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(561_c_int, actual%stebbsState%buildings(2)%temperature_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(561_c_int, actual%stebbsState%buildings(2)%internal_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(561_c_int, out_meta, n_meta, err)
          end if
@@ -9824,7 +9808,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(562_c_int, actual%stebbsState%buildings(2)%radiation_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(562_c_int, actual%stebbsState%buildings(2)%reduction_factor_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(562_c_int, out_meta, n_meta, err)
          end if
@@ -9833,7 +9817,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(563_c_int, actual%stebbsState%buildings(2)%appliance_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(563_c_int, actual%stebbsState%buildings(2)%temperature_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(563_c_int, out_meta, n_meta, err)
          end if
@@ -9842,7 +9826,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(564_c_int, actual%stebbsState%buildings(2)%lighting_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(564_c_int, actual%stebbsState%buildings(2)%radiation_threshold_shading, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(564_c_int, out_meta, n_meta, err)
          end if
@@ -9851,7 +9835,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(565_c_int, actual%stebbsState%buildings(2)%frac_hotwater, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(565_c_int, actual%stebbsState%buildings(2)%appliance_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(565_c_int, out_meta, n_meta, err)
          end if
@@ -9860,7 +9844,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(566_c_int, actual%stebbsState%buildings(2)%maxheatingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(566_c_int, actual%stebbsState%buildings(2)%lighting_power_rating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(566_c_int, out_meta, n_meta, err)
          end if
@@ -9869,7 +9853,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(567_c_int, actual%stebbsState%buildings(2)%heating_efficiency_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(567_c_int, actual%stebbsState%buildings(2)%frac_hotwater, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(567_c_int, out_meta, n_meta, err)
          end if
@@ -9878,7 +9862,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_int_scalar(568_c_int, actual%stebbsState%buildings(2)%destination_waste_heat, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(568_c_int, actual%stebbsState%buildings(2)%maxheatingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(568_c_int, out_meta, n_meta, err)
          end if
@@ -9887,7 +9871,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(569_c_int, actual%stebbsState%buildings(2)%fraction_convective_heating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(569_c_int, actual%stebbsState%buildings(2)%heating_efficiency_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(569_c_int, out_meta, n_meta, err)
          end if
@@ -9896,7 +9880,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(570_c_int, actual%stebbsState%buildings(2)%maxcoolingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_int_scalar(570_c_int, actual%stebbsState%buildings(2)%destination_waste_heat, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(570_c_int, out_meta, n_meta, err)
          end if
@@ -9905,7 +9889,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(571_c_int, actual%stebbsState%buildings(2)%coeff_performance_cooling, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(571_c_int, actual%stebbsState%buildings(2)%fraction_convective_heating, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(571_c_int, out_meta, n_meta, err)
          end if
@@ -9914,7 +9898,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(572_c_int, actual%stebbsState%buildings(2)%Vair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(572_c_int, actual%stebbsState%buildings(2)%maxcoolingpower_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(572_c_int, out_meta, n_meta, err)
          end if
@@ -9923,7 +9907,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(573_c_int, actual%stebbsState%buildings(2)%ventilation_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(573_c_int, actual%stebbsState%buildings(2)%coeff_performance_cooling, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(573_c_int, out_meta, n_meta, err)
          end if
@@ -9932,7 +9916,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(574_c_int, actual%stebbsState%buildings(2)%a_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(574_c_int, actual%stebbsState%buildings(2)%Vair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(574_c_int, out_meta, n_meta, err)
          end if
@@ -9941,7 +9925,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(575_c_int, actual%stebbsState%buildings(2)%a_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(575_c_int, actual%stebbsState%buildings(2)%ventilation_rate, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(575_c_int, out_meta, n_meta, err)
          end if
@@ -9950,7 +9934,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(576_c_int, actual%stebbsState%buildings(2)%v_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(576_c_int, actual%stebbsState%buildings(2)%a_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(576_c_int, out_meta, n_meta, err)
          end if
@@ -9959,7 +9943,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(577_c_int, actual%stebbsState%buildings(2)%v_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(577_c_int, actual%stebbsState%buildings(2)%a_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(577_c_int, out_meta, n_meta, err)
          end if
@@ -9968,7 +9952,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(578_c_int, actual%stebbsState%buildings(2)%v_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(578_c_int, actual%stebbsState%buildings(2)%v_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(578_c_int, out_meta, n_meta, err)
          end if
@@ -9977,7 +9961,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(579_c_int, actual%stebbsState%buildings(2)%a_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(579_c_int, actual%stebbsState%buildings(2)%v_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(579_c_int, out_meta, n_meta, err)
          end if
@@ -9986,7 +9970,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(580_c_int, actual%stebbsState%buildings(2)%v_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(580_c_int, actual%stebbsState%buildings(2)%v_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(580_c_int, out_meta, n_meta, err)
          end if
@@ -9995,7 +9979,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(581_c_int, actual%stebbsState%buildings(2)%v_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(581_c_int, actual%stebbsState%buildings(2)%a_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(581_c_int, out_meta, n_meta, err)
          end if
@@ -10004,7 +9988,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(582_c_int, actual%stebbsState%buildings(2)%a_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(582_c_int, actual%stebbsState%buildings(2)%v_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(582_c_int, out_meta, n_meta, err)
          end if
@@ -10013,7 +9997,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(583_c_int, actual%stebbsState%buildings(2)%Tair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(583_c_int, actual%stebbsState%buildings(2)%v_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(583_c_int, out_meta, n_meta, err)
          end if
@@ -10022,7 +10006,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(584_c_int, actual%stebbsState%buildings(2)%t_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(584_c_int, actual%stebbsState%buildings(2)%a_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(584_c_int, out_meta, n_meta, err)
          end if
@@ -10031,7 +10015,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(585_c_int, actual%stebbsState%buildings(2)%t_int_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(585_c_int, actual%stebbsState%buildings(2)%Tair_ind, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(585_c_int, out_meta, n_meta, err)
          end if
@@ -10040,7 +10024,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(586_c_int, actual%stebbsState%buildings(2)%t_int_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(586_c_int, actual%stebbsState%buildings(2)%t_indoor_mass, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(586_c_int, out_meta, n_meta, err)
          end if
@@ -10049,7 +10033,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(587_c_int, actual%stebbsState%buildings(2)%t_ext_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(587_c_int, actual%stebbsState%buildings(2)%t_int_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(587_c_int, out_meta, n_meta, err)
          end if
@@ -10058,7 +10042,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(588_c_int, actual%stebbsState%buildings(2)%t_ext_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(588_c_int, actual%stebbsState%buildings(2)%t_int_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(588_c_int, out_meta, n_meta, err)
          end if
@@ -10067,7 +10051,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(589_c_int, actual%stebbsState%buildings(2)%t_int_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(589_c_int, actual%stebbsState%buildings(2)%t_ext_wall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(589_c_int, out_meta, n_meta, err)
          end if
@@ -10076,7 +10060,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(590_c_int, actual%stebbsState%buildings(2)%t_ext_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(590_c_int, actual%stebbsState%buildings(2)%t_ext_roof, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(590_c_int, out_meta, n_meta, err)
          end if
@@ -10085,7 +10069,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(591_c_int, actual%stebbsState%buildings(2)%t_int_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(591_c_int, actual%stebbsState%buildings(2)%t_int_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(591_c_int, out_meta, n_meta, err)
          end if
@@ -10094,7 +10078,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(592_c_int, actual%stebbsState%buildings(2)%t_ext_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(592_c_int, actual%stebbsState%buildings(2)%t_ext_window, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(592_c_int, out_meta, n_meta, err)
          end if
@@ -10103,7 +10087,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(593_c_int, actual%stebbsState%buildings(2)%Twater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(593_c_int, actual%stebbsState%buildings(2)%t_int_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(593_c_int, out_meta, n_meta, err)
          end if
@@ -10112,7 +10096,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(594_c_int, actual%stebbsState%buildings(2)%Tintwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(594_c_int, actual%stebbsState%buildings(2)%t_ext_ground_floor, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(594_c_int, out_meta, n_meta, err)
          end if
@@ -10121,7 +10105,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(595_c_int, actual%stebbsState%buildings(2)%Textwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(595_c_int, actual%stebbsState%buildings(2)%Twater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(595_c_int, out_meta, n_meta, err)
          end if
@@ -10130,7 +10114,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(596_c_int, actual%stebbsState%buildings(2)%thickness_tankwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(596_c_int, actual%stebbsState%buildings(2)%Tintwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(596_c_int, out_meta, n_meta, err)
          end if
@@ -10139,7 +10123,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(597_c_int, actual%stebbsState%buildings(2)%Tincomingwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(597_c_int, actual%stebbsState%buildings(2)%Textwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(597_c_int, out_meta, n_meta, err)
          end if
@@ -10148,7 +10132,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(598_c_int, actual%stebbsState%buildings(2)%Vwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(598_c_int, actual%stebbsState%buildings(2)%thickness_tankwall, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(598_c_int, out_meta, n_meta, err)
          end if
@@ -10157,7 +10141,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(599_c_int, actual%stebbsState%buildings(2)%Asurf_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(599_c_int, actual%stebbsState%buildings(2)%Tincomingwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(599_c_int, out_meta, n_meta, err)
          end if
@@ -10166,7 +10150,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(600_c_int, actual%stebbsState%buildings(2)%Vwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(600_c_int, actual%stebbsState%buildings(2)%Vwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(600_c_int, out_meta, n_meta, err)
          end if
@@ -10175,7 +10159,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(601_c_int, actual%stebbsState%buildings(2)%setTwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(601_c_int, actual%stebbsState%buildings(2)%Asurf_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(601_c_int, out_meta, n_meta, err)
          end if
@@ -10184,7 +10168,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(602_c_int, actual%stebbsState%buildings(2)%init_wtTs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(602_c_int, actual%stebbsState%buildings(2)%Vwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(602_c_int, out_meta, n_meta, err)
          end if
@@ -10193,7 +10177,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(603_c_int, actual%stebbsState%buildings(2)%Twater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(603_c_int, actual%stebbsState%buildings(2)%setTwater_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(603_c_int, out_meta, n_meta, err)
          end if
@@ -10202,7 +10186,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(604_c_int, actual%stebbsState%buildings(2)%Tintwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(604_c_int, actual%stebbsState%buildings(2)%init_wtTs, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(604_c_int, out_meta, n_meta, err)
          end if
@@ -10211,7 +10195,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(605_c_int, actual%stebbsState%buildings(2)%Textwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(605_c_int, actual%stebbsState%buildings(2)%Twater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(605_c_int, out_meta, n_meta, err)
          end if
@@ -10220,7 +10204,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(606_c_int, actual%stebbsState%buildings(2)%thickness_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(606_c_int, actual%stebbsState%buildings(2)%Tintwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(606_c_int, out_meta, n_meta, err)
          end if
@@ -10229,7 +10213,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(607_c_int, actual%stebbsState%buildings(2)%Vwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(607_c_int, actual%stebbsState%buildings(2)%Textwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(607_c_int, out_meta, n_meta, err)
          end if
@@ -10238,7 +10222,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(608_c_int, actual%stebbsState%buildings(2)%Awater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(608_c_int, actual%stebbsState%buildings(2)%thickness_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(608_c_int, out_meta, n_meta, err)
          end if
@@ -10247,7 +10231,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(609_c_int, actual%stebbsState%buildings(2)%Vwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(609_c_int, actual%stebbsState%buildings(2)%Vwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(609_c_int, out_meta, n_meta, err)
          end if
@@ -10256,7 +10240,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(610_c_int, actual%stebbsState%buildings(2)%flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(610_c_int, actual%stebbsState%buildings(2)%Awater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(610_c_int, out_meta, n_meta, err)
          end if
@@ -10265,7 +10249,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_2d(611_c_int, actual%stebbsState%buildings(2)%flowrate_water_supply_profile, int(lbound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 1), c_int), int(lbound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 2), c_int), int(ubound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(611_c_int, actual%stebbsState%buildings(2)%Vwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(611_c_int, out_meta, n_meta, err)
          end if
@@ -10274,7 +10258,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(612_c_int, actual%stebbsState%buildings(2)%single_flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(612_c_int, actual%stebbsState%buildings(2)%flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(612_c_int, out_meta, n_meta, err)
          end if
@@ -10283,7 +10267,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(613_c_int, actual%stebbsState%buildings(2)%single_flowrate_water_drain, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_2d(613_c_int, actual%stebbsState%buildings(2)%flowrate_water_supply_profile, int(lbound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 1), c_int), int(lbound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 2), c_int), int(ubound(actual%stebbsState%buildings(2)%flowrate_water_supply_profile, 2), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(613_c_int, out_meta, n_meta, err)
          end if
@@ -10292,7 +10276,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(614_c_int, actual%stebbsState%buildings(2)%cp_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(614_c_int, actual%stebbsState%buildings(2)%single_flowrate_water_supply, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(614_c_int, out_meta, n_meta, err)
          end if
@@ -10301,7 +10285,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(615_c_int, actual%stebbsState%buildings(2)%cp_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(615_c_int, actual%stebbsState%buildings(2)%single_flowrate_water_drain, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(615_c_int, out_meta, n_meta, err)
          end if
@@ -10310,7 +10294,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(616_c_int, actual%stebbsState%buildings(2)%cp_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(616_c_int, actual%stebbsState%buildings(2)%cp_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(616_c_int, out_meta, n_meta, err)
          end if
@@ -10319,7 +10303,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(617_c_int, actual%stebbsState%buildings(2)%density_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(617_c_int, actual%stebbsState%buildings(2)%cp_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(617_c_int, out_meta, n_meta, err)
          end if
@@ -10328,7 +10312,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(618_c_int, actual%stebbsState%buildings(2)%density_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(618_c_int, actual%stebbsState%buildings(2)%cp_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(618_c_int, out_meta, n_meta, err)
          end if
@@ -10337,7 +10321,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(619_c_int, actual%stebbsState%buildings(2)%density_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(619_c_int, actual%stebbsState%buildings(2)%density_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(619_c_int, out_meta, n_meta, err)
          end if
@@ -10346,7 +10330,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(620_c_int, actual%stebbsState%buildings(2)%BVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(620_c_int, actual%stebbsState%buildings(2)%density_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(620_c_int, out_meta, n_meta, err)
          end if
@@ -10355,7 +10339,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(621_c_int, actual%stebbsState%buildings(2)%MVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(621_c_int, actual%stebbsState%buildings(2)%density_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(621_c_int, out_meta, n_meta, err)
          end if
@@ -10364,7 +10348,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(622_c_int, actual%stebbsState%buildings(2)%conductivity_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(622_c_int, actual%stebbsState%buildings(2)%BVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(622_c_int, out_meta, n_meta, err)
          end if
@@ -10373,7 +10357,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(623_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(623_c_int, actual%stebbsState%buildings(2)%MVF_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(623_c_int, out_meta, n_meta, err)
          end if
@@ -10382,7 +10366,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(624_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(624_c_int, actual%stebbsState%buildings(2)%conductivity_wall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(624_c_int, out_meta, n_meta, err)
          end if
@@ -10391,7 +10375,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(625_c_int, actual%stebbsState%buildings(2)%emissivity_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(625_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(625_c_int, out_meta, n_meta, err)
          end if
@@ -10400,7 +10384,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(626_c_int, actual%stebbsState%buildings(2)%conductivity_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(626_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(626_c_int, out_meta, n_meta, err)
          end if
@@ -10409,7 +10393,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(627_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(627_c_int, actual%stebbsState%buildings(2)%emissivity_extwall_tank, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(627_c_int, out_meta, n_meta, err)
          end if
@@ -10418,7 +10402,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(628_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(628_c_int, actual%stebbsState%buildings(2)%conductivity_wall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(628_c_int, out_meta, n_meta, err)
          end if
@@ -10427,7 +10411,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(629_c_int, actual%stebbsState%buildings(2)%emissivity_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(629_c_int, actual%stebbsState%buildings(2)%conv_coeff_intwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(629_c_int, out_meta, n_meta, err)
          end if
@@ -10436,7 +10420,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(630_c_int, actual%stebbsState%buildings(2)%maxheatingpower_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(630_c_int, actual%stebbsState%buildings(2)%conv_coeff_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(630_c_int, out_meta, n_meta, err)
          end if
@@ -10445,7 +10429,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(631_c_int, actual%stebbsState%buildings(2)%heating_efficiency_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(631_c_int, actual%stebbsState%buildings(2)%emissivity_extwall_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(631_c_int, out_meta, n_meta, err)
          end if
@@ -10454,7 +10438,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(632_c_int, actual%stebbsState%buildings(2)%minVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(632_c_int, actual%stebbsState%buildings(2)%maxheatingpower_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(632_c_int, out_meta, n_meta, err)
          end if
@@ -10463,7 +10447,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(633_c_int, actual%stebbsState%buildings(2)%maxVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(633_c_int, actual%stebbsState%buildings(2)%heating_efficiency_water, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(633_c_int, out_meta, n_meta, err)
          end if
@@ -10472,7 +10456,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(634_c_int, actual%stebbsState%buildings(2)%minHeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(634_c_int, actual%stebbsState%buildings(2)%minVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(634_c_int, out_meta, n_meta, err)
          end if
@@ -10481,7 +10465,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(635_c_int, actual%stebbsState%buildings(2)%HeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(635_c_int, actual%stebbsState%buildings(2)%maxVwater_vessel, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(635_c_int, out_meta, n_meta, err)
          end if
@@ -10490,7 +10474,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(636_c_int, actual%stebbsState%buildings(2)%qfm_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(636_c_int, actual%stebbsState%buildings(2)%minHeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(636_c_int, out_meta, n_meta, err)
          end if
@@ -10499,7 +10483,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(637_c_int, actual%stebbsState%buildings(2)%qheat_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(637_c_int, actual%stebbsState%buildings(2)%HeatingPower_DHW, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(637_c_int, out_meta, n_meta, err)
          end if
@@ -10508,7 +10492,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(638_c_int, actual%stebbsState%buildings(2)%qcool_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(638_c_int, actual%stebbsState%buildings(2)%qfm_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(638_c_int, out_meta, n_meta, err)
          end if
@@ -10517,7 +10501,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(639_c_int, actual%stebbsState%buildings(2)%qfb_hw_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(639_c_int, actual%stebbsState%buildings(2)%qheat_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(639_c_int, out_meta, n_meta, err)
          end if
@@ -10526,7 +10510,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(640_c_int, actual%stebbsState%buildings(2)%qfb_dom_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(640_c_int, actual%stebbsState%buildings(2)%qcool_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(640_c_int, out_meta, n_meta, err)
          end if
@@ -10535,7 +10519,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(641_c_int, actual%stebbsState%buildings(2)%dom_temp, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(641_c_int, actual%stebbsState%buildings(2)%qfb_hw_dom, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(641_c_int, out_meta, n_meta, err)
          end if
@@ -10544,7 +10528,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(642_c_int, actual%stebbsState%buildings(2)%QN_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(642_c_int, actual%stebbsState%buildings(2)%qfb_dom_air, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(642_c_int, out_meta, n_meta, err)
          end if
@@ -10553,7 +10537,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(643_c_int, actual%stebbsState%buildings(2)%QEC_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(643_c_int, actual%stebbsState%buildings(2)%dom_temp, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(643_c_int, out_meta, n_meta, err)
          end if
@@ -10562,7 +10546,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(644_c_int, actual%stebbsState%buildings(2)%QS_total_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(644_c_int, actual%stebbsState%buildings(2)%QN_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(644_c_int, out_meta, n_meta, err)
          end if
@@ -10571,7 +10555,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(645_c_int, actual%stebbsState%buildings(2)%QH_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(645_c_int, actual%stebbsState%buildings(2)%QEC_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(645_c_int, out_meta, n_meta, err)
          end if
@@ -10580,7 +10564,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(646_c_int, actual%stebbsState%buildings(2)%QBAE_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(646_c_int, actual%stebbsState%buildings(2)%QS_total_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(646_c_int, out_meta, n_meta, err)
          end if
@@ -10589,7 +10573,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(647_c_int, actual%stebbsState%buildings(2)%QWaste_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(647_c_int, actual%stebbsState%buildings(2)%QH_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(647_c_int, out_meta, n_meta, err)
          end if
@@ -10598,7 +10582,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(648_c_int, actual%stebbsState%buildings(2)%QS_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(648_c_int, actual%stebbsState%buildings(2)%QBAE_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(648_c_int, out_meta, n_meta, err)
          end if
@@ -10607,7 +10591,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(649_c_int, actual%stebbsState%buildings(2)%QS_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(649_c_int, actual%stebbsState%buildings(2)%QWaste_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(649_c_int, out_meta, n_meta, err)
          end if
@@ -10616,7 +10600,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(650_c_int, actual%stebbsState%buildings(2)%QS_ground_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(650_c_int, actual%stebbsState%buildings(2)%QS_bldg_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(650_c_int, out_meta, n_meta, err)
          end if
@@ -10625,7 +10609,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(651_c_int, actual%stebbsState%buildings(2)%QEC_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(651_c_int, actual%stebbsState%buildings(2)%QS_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(651_c_int, out_meta, n_meta, err)
          end if
@@ -10634,7 +10618,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(652_c_int, actual%stebbsState%buildings(2)%QEC_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(652_c_int, actual%stebbsState%buildings(2)%QS_ground_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(652_c_int, out_meta, n_meta, err)
          end if
@@ -10643,7 +10627,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_scalar(653_c_int, actual%stebbsState%buildings(2)%QEC_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(653_c_int, actual%stebbsState%buildings(2)%QEC_heating_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(653_c_int, out_meta, n_meta, err)
          end if
@@ -10652,7 +10636,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(654_c_int, actual%stebbsState%buildings(2)%ts, int(lbound(actual%stebbsState%buildings(2)%ts, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%ts, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(654_c_int, actual%stebbsState%buildings(2)%QEC_cooling_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(654_c_int, out_meta, n_meta, err)
          end if
@@ -10661,7 +10645,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(655_c_int, actual%stebbsState%buildings(2)%initTs, int(lbound(actual%stebbsState%buildings(2)%initTs, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%initTs, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_scalar(655_c_int, actual%stebbsState%buildings(2)%QEC_dhw_tstepFA, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(655_c_int, out_meta, n_meta, err)
          end if
@@ -10670,7 +10654,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(656_c_int, actual%stebbsState%buildings(2)%h_i, int(lbound(actual%stebbsState%buildings(2)%h_i, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%h_i, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(656_c_int, actual%stebbsState%buildings(2)%ts, int(lbound(actual%stebbsState%buildings(2)%ts, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%ts, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(656_c_int, out_meta, n_meta, err)
          end if
@@ -10679,7 +10663,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(657_c_int, actual%stebbsState%buildings(2)%k_eff, int(lbound(actual%stebbsState%buildings(2)%k_eff, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%k_eff, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(657_c_int, actual%stebbsState%buildings(2)%initTs, int(lbound(actual%stebbsState%buildings(2)%initTs, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%initTs, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(657_c_int, out_meta, n_meta, err)
          end if
@@ -10688,7 +10672,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(658_c_int, actual%stebbsState%buildings(2)%h_o, int(lbound(actual%stebbsState%buildings(2)%h_o, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%h_o, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(658_c_int, actual%stebbsState%buildings(2)%h_i, int(lbound(actual%stebbsState%buildings(2)%h_i, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%h_i, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(658_c_int, out_meta, n_meta, err)
          end if
@@ -10697,7 +10681,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(659_c_int, actual%stebbsState%buildings(2)%rho, int(lbound(actual%stebbsState%buildings(2)%rho, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%rho, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(659_c_int, actual%stebbsState%buildings(2)%k_eff, int(lbound(actual%stebbsState%buildings(2)%k_eff, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%k_eff, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(659_c_int, out_meta, n_meta, err)
          end if
@@ -10706,7 +10690,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(660_c_int, actual%stebbsState%buildings(2)%cp, int(lbound(actual%stebbsState%buildings(2)%cp, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%cp, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(660_c_int, actual%stebbsState%buildings(2)%h_o, int(lbound(actual%stebbsState%buildings(2)%h_o, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%h_o, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(660_c_int, out_meta, n_meta, err)
          end if
@@ -10715,7 +10699,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(661_c_int, actual%stebbsState%buildings(2)%emis, int(lbound(actual%stebbsState%buildings(2)%emis, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%emis, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(661_c_int, actual%stebbsState%buildings(2)%rho, int(lbound(actual%stebbsState%buildings(2)%rho, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%rho, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(661_c_int, out_meta, n_meta, err)
          end if
@@ -10724,7 +10708,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(662_c_int, actual%stebbsState%buildings(2)%witar, int(lbound(actual%stebbsState%buildings(2)%witar, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%witar, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(662_c_int, actual%stebbsState%buildings(2)%cp, int(lbound(actual%stebbsState%buildings(2)%cp, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%cp, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(662_c_int, out_meta, n_meta, err)
          end if
@@ -10733,7 +10717,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(663_c_int, actual%stebbsState%buildings(2)%waTAR, int(lbound(actual%stebbsState%buildings(2)%waTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%waTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(663_c_int, actual%stebbsState%buildings(2)%emis, int(lbound(actual%stebbsState%buildings(2)%emis, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%emis, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(663_c_int, out_meta, n_meta, err)
          end if
@@ -10742,7 +10726,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(664_c_int, actual%stebbsState%buildings(2)%roofTAR, int(lbound(actual%stebbsState%buildings(2)%roofTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%roofTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(664_c_int, actual%stebbsState%buildings(2)%witar, int(lbound(actual%stebbsState%buildings(2)%witar, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%witar, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(664_c_int, out_meta, n_meta, err)
          end if
@@ -10751,7 +10735,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(665_c_int, actual%stebbsState%buildings(2)%h_ts_average, int(lbound(actual%stebbsState%buildings(2)%h_ts_average, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%h_ts_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(665_c_int, actual%stebbsState%buildings(2)%waTAR, int(lbound(actual%stebbsState%buildings(2)%waTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%waTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(665_c_int, out_meta, n_meta, err)
          end if
@@ -10760,7 +10744,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(666_c_int, actual%stebbsState%buildings(2)%HWTsAverage, int(lbound(actual%stebbsState%buildings(2)%HWTsAverage, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%HWTsAverage, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(666_c_int, actual%stebbsState%buildings(2)%roofTAR, int(lbound(actual%stebbsState%buildings(2)%roofTAR, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%roofTAR, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(666_c_int, out_meta, n_meta, err)
          end if
@@ -10769,7 +10753,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(667_c_int, actual%stebbsState%buildings(2)%hw_power_average, int(lbound(actual%stebbsState%buildings(2)%hw_power_average, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%hw_power_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(667_c_int, actual%stebbsState%buildings(2)%h_ts_average, int(lbound(actual%stebbsState%buildings(2)%h_ts_average, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%h_ts_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(667_c_int, out_meta, n_meta, err)
          end if
@@ -10778,7 +10762,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_real_1d(668_c_int, actual%stebbsState%buildings(2)%energy_exchanges, int(lbound(actual%stebbsState%buildings(2)%energy_exchanges, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%energy_exchanges, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_real_1d(668_c_int, actual%stebbsState%buildings(2)%HWTsAverage, int(lbound(actual%stebbsState%buildings(2)%HWTsAverage, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%HWTsAverage, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(668_c_int, out_meta, n_meta, err)
          end if
@@ -10787,11 +10771,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            if (allocated(actual%stebbsState%buildings(2)%Textwall_C)) then
-               call obs_emit_real_1d(669_c_int, actual%stebbsState%buildings(2)%Textwall_C, int(lbound(actual%stebbsState%buildings(2)%Textwall_C, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%Textwall_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-            else
-               call obs_emit_unallocated(669_c_int, out_meta, n_meta, err)
-            end if
+            call obs_emit_real_1d(669_c_int, actual%stebbsState%buildings(2)%hw_power_average, int(lbound(actual%stebbsState%buildings(2)%hw_power_average, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%hw_power_average, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(669_c_int, out_meta, n_meta, err)
          end if
@@ -10800,11 +10780,7 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            if (allocated(actual%stebbsState%buildings(2)%Textroof_C)) then
-               call obs_emit_real_1d(670_c_int, actual%stebbsState%buildings(2)%Textroof_C, int(lbound(actual%stebbsState%buildings(2)%Textroof_C, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%Textroof_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-            else
-               call obs_emit_unallocated(670_c_int, out_meta, n_meta, err)
-            end if
+            call obs_emit_real_1d(670_c_int, actual%stebbsState%buildings(2)%energy_exchanges, int(lbound(actual%stebbsState%buildings(2)%energy_exchanges, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%energy_exchanges, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(670_c_int, out_meta, n_meta, err)
          end if
@@ -10813,7 +10789,11 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_logical_scalar(671_c_int, actual%stebbsState%buildings(2)%wall_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            if (allocated(actual%stebbsState%buildings(2)%Textwall_C)) then
+               call obs_emit_real_1d(671_c_int, actual%stebbsState%buildings(2)%Textwall_C, int(lbound(actual%stebbsState%buildings(2)%Textwall_C, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%Textwall_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            else
+               call obs_emit_unallocated(671_c_int, out_meta, n_meta, err)
+            end if
          else
             call obs_emit_unallocated(671_c_int, out_meta, n_meta, err)
          end if
@@ -10822,7 +10802,11 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_logical_scalar(672_c_int, actual%stebbsState%buildings(2)%window_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            if (allocated(actual%stebbsState%buildings(2)%Textroof_C)) then
+               call obs_emit_real_1d(672_c_int, actual%stebbsState%buildings(2)%Textroof_C, int(lbound(actual%stebbsState%buildings(2)%Textroof_C, 1), c_int), int(ubound(actual%stebbsState%buildings(2)%Textroof_C, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            else
+               call obs_emit_unallocated(672_c_int, out_meta, n_meta, err)
+            end if
          else
             call obs_emit_unallocated(672_c_int, out_meta, n_meta, err)
          end if
@@ -10831,19 +10815,37 @@ contains
       end if
       if (allocated(actual%stebbsState%buildings)) then
          if (size(actual%stebbsState%buildings) >= 2) then
-            call obs_emit_logical_scalar(673_c_int, actual%stebbsState%buildings(2)%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+            call obs_emit_logical_scalar(673_c_int, actual%stebbsState%buildings(2)%wall_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
          else
             call obs_emit_unallocated(673_c_int, out_meta, n_meta, err)
          end if
       else
          call obs_emit_unallocated(673_c_int, out_meta, n_meta, err)
       end if
-      call obs_emit_logical_scalar(674_c_int, actual%stebbsState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(675_c_int, actual%nhoodState%U_hbh_1dravg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(676_c_int, actual%nhoodState%QN_1dravg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(677_c_int, actual%nhoodState%Tair_mn_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(678_c_int, actual%nhoodState%iter_count, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_logical_scalar(679_c_int, actual%nhoodState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      if (allocated(actual%stebbsState%buildings)) then
+         if (size(actual%stebbsState%buildings) >= 2) then
+            call obs_emit_logical_scalar(674_c_int, actual%stebbsState%buildings(2)%window_surface_active, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+         else
+            call obs_emit_unallocated(674_c_int, out_meta, n_meta, err)
+         end if
+      else
+         call obs_emit_unallocated(674_c_int, out_meta, n_meta, err)
+      end if
+      if (allocated(actual%stebbsState%buildings)) then
+         if (size(actual%stebbsState%buildings) >= 2) then
+            call obs_emit_logical_scalar(675_c_int, actual%stebbsState%buildings(2)%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+         else
+            call obs_emit_unallocated(675_c_int, out_meta, n_meta, err)
+         end if
+      else
+         call obs_emit_unallocated(675_c_int, out_meta, n_meta, err)
+      end if
+      call obs_emit_logical_scalar(676_c_int, actual%stebbsState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(677_c_int, actual%nhoodState%U_hbh_1dravg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(678_c_int, actual%nhoodState%QN_1dravg, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(679_c_int, actual%nhoodState%Tair_mn_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_real_scalar(680_c_int, actual%nhoodState%iter_count, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
+      call obs_emit_logical_scalar(681_c_int, actual%nhoodState%iter_safe, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
 
       n_out = pos
    end subroutine suews_obs_unpack_suews_state
@@ -12625,6 +12627,18 @@ contains
          end if
          actual%anohm_a3_surf(i1) = real(val_f64, kind(1d0))
       case (56_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%new_day = int(val_i64)
+      case (57_c_int)
+         if (fkind /= OBS_KIND_INT) then
+            err = SUEWS_CAPI_BAD_BUFFER
+            return
+         end if
+         actual%dt_since_start_prev = int(val_i64)
+      case (58_c_int)
          if (fkind /= OBS_KIND_LOGICAL) then
             err = SUEWS_CAPI_BAD_BUFFER
             return
@@ -18962,32 +18976,26 @@ contains
             err = SUEWS_CAPI_BAD_BUFFER
             return
          end if
-         actual%dt_since_start_prev = int(val_i64)
-      case (10_c_int)
-         if (fkind /= OBS_KIND_INT) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
          actual%nsh = int(val_i64)
-      case (11_c_int)
+      case (10_c_int)
          if (fkind /= OBS_KIND_REAL) then
             err = SUEWS_CAPI_BAD_BUFFER
             return
          end if
          actual%nsh_real = real(val_f64, kind(1d0))
-      case (12_c_int)
+      case (11_c_int)
          if (fkind /= OBS_KIND_REAL) then
             err = SUEWS_CAPI_BAD_BUFFER
             return
          end if
          actual%tstep_real = real(val_f64, kind(1d0))
-      case (13_c_int)
+      case (12_c_int)
          if (fkind /= OBS_KIND_REAL) then
             err = SUEWS_CAPI_BAD_BUFFER
             return
          end if
          actual%dectime = real(val_f64, kind(1d0))
-      case (14_c_int)
+      case (13_c_int)
          if (fkind /= OBS_KIND_INT .or. &
              i1 < int(lbound(actual%dayofWeek_id, 1), c_int) .or. &
              i1 > int(ubound(actual%dayofWeek_id, 1), c_int)) then
@@ -18995,18 +19003,12 @@ contains
             return
          end if
          actual%dayofWeek_id(i1) = int(val_i64)
-      case (15_c_int)
+      case (14_c_int)
          if (fkind /= OBS_KIND_INT) then
             err = SUEWS_CAPI_BAD_BUFFER
             return
          end if
          actual%DLS = int(val_i64)
-      case (16_c_int)
-         if (fkind /= OBS_KIND_INT) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%new_day = int(val_i64)
       case default
          err = SUEWS_CAPI_BAD_BUFFER
       end select
@@ -19093,26 +19095,26 @@ contains
             call obs_seed_flag_state(actual%flagState, fid - 1_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
          else if (fid >= 7_c_int .and. fid <= 17_c_int) then
             call obs_seed_anthroemis_state(actual%anthroemisState, fid - 6_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 18_c_int .and. fid <= 73_c_int) then
+         else if (fid >= 18_c_int .and. fid <= 75_c_int) then
             call obs_seed_ohm_state(actual%ohmState, fid - 17_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 74_c_int .and. fid <= 76_c_int) then
-            call obs_seed_solar_state(actual%solarState, fid - 73_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 77_c_int .and. fid <= 109_c_int) then
-            call obs_seed_atm_state(actual%atmState, fid - 76_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 110_c_int .and. fid <= 132_c_int) then
-            call obs_seed_phenology_state(actual%phenState, fid - 109_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 133_c_int .and. fid <= 155_c_int) then
-            call obs_seed_snow_state(actual%snowState, fid - 132_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 156_c_int .and. fid <= 197_c_int) then
-            call obs_seed_hydro_state(actual%hydroState, fid - 155_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 198_c_int .and. fid <= 248_c_int) then
-            call obs_seed_heat_state(actual%heatState, fid - 197_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 249_c_int .and. fid <= 259_c_int) then
-            call obs_seed_roughness_state(actual%roughnessState, fid - 248_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 260_c_int .and. fid <= 674_c_int) then
-            call obs_seed_stebbs_state(actual%stebbsState, fid - 259_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
-         else if (fid >= 675_c_int .and. fid <= 679_c_int) then
-            call obs_seed_nhood_state(actual%nhoodState, fid - 674_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 76_c_int .and. fid <= 78_c_int) then
+            call obs_seed_solar_state(actual%solarState, fid - 75_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 79_c_int .and. fid <= 111_c_int) then
+            call obs_seed_atm_state(actual%atmState, fid - 78_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 112_c_int .and. fid <= 134_c_int) then
+            call obs_seed_phenology_state(actual%phenState, fid - 111_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 135_c_int .and. fid <= 157_c_int) then
+            call obs_seed_snow_state(actual%snowState, fid - 134_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 158_c_int .and. fid <= 199_c_int) then
+            call obs_seed_hydro_state(actual%hydroState, fid - 157_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 200_c_int .and. fid <= 250_c_int) then
+            call obs_seed_heat_state(actual%heatState, fid - 199_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 251_c_int .and. fid <= 261_c_int) then
+            call obs_seed_roughness_state(actual%roughnessState, fid - 250_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 262_c_int .and. fid <= 676_c_int) then
+            call obs_seed_stebbs_state(actual%stebbsState, fid - 261_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
+         else if (fid >= 677_c_int .and. fid <= 681_c_int) then
+            call obs_seed_nhood_state(actual%nhoodState, fid - 676_c_int, in_kind(k), in_i1(k), in_i2(k), in_f64(k), in_i64(k), err)
          else
             err = SUEWS_CAPI_BAD_BUFFER
          end if

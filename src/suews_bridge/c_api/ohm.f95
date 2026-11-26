@@ -51,11 +51,12 @@ integer(c_int), parameter, public :: SUEWS_CAPI_NSURF = nsurf
 ! + 3 (AnOHM coefficient day/count/ready)
 ! + 7*48 (AnOHM coefficient forcing arrays)
 ! + 3*7 (AnOHM surface coefficients)
+! + 2 (DyOHM new_day latch, dt_since_start_prev; gh#2333)
 integer(c_int), parameter :: SUEWS_CAPI_OHM_STATE_BASE_LEN = 52_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_LEN = &
    SUEWS_CAPI_OHM_STATE_BASE_LEN + 5_c_int + &
-   14_c_int * int(ANOHM_MAX_SAMPLES, c_int) + 3_c_int * int(nsurf, c_int)
-integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 3_c_int
+   14_c_int * int(ANOHM_MAX_SAMPLES, c_int) + 3_c_int * int(nsurf, c_int) + 2_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 4_c_int
 
 public :: suews_ohm_qs_calc
 public :: suews_ohm_dqndt_step
@@ -360,6 +361,8 @@ subroutine ohm_state_pack(state, flat, n_flat, err)
    do i = 1, nsurf
       flat(idx) = state%anohm_a3_surf(i); idx = idx + 1
    end do
+   flat(idx) = real(state%new_day, c_double); idx = idx + 1
+   flat(idx) = real(state%dt_since_start_prev, c_double); idx = idx + 1
 
    err = SUEWS_CAPI_OK
 
@@ -489,6 +492,8 @@ subroutine ohm_state_unpack(flat, n_flat, state, err)
    do i = 1, nsurf
       state%anohm_a3_surf(i) = flat(idx); idx = idx + 1
    end do
+   state%new_day = int(nint(flat(idx))); idx = idx + 1
+   state%dt_since_start_prev = int(nint(flat(idx))); idx = idx + 1
 
    err = SUEWS_CAPI_OK
 

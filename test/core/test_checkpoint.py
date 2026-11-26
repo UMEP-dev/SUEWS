@@ -33,14 +33,12 @@ def _run_loaded(sim, **kwargs):
 
 
 def _checkpoint_payload(state_schema_version=1):
-    """Build the smallest version-2 envelope needed by API validation tests."""
+    """Build the smallest version-3 envelope needed by API validation tests."""
     return {
-        "checkpoint_schema_version": 2,
+        "checkpoint_schema_version": 3,
         "timer": {
             "dt_since_start": 600,
-            "dt_since_start_prev": 300,
             "tstep": 300,
-            "new_day": 0,
         },
         "state": {
             "schema_version": state_schema_version,
@@ -63,7 +61,7 @@ def test_checkpoint_json_roundtrip(tmp_path):
 
     assert loaded.grid_states.keys() == {1}
     assert json.loads(loaded.grid_states[1]) == payload
-    assert loaded.checkpoint_schema_version == 2
+    assert loaded.checkpoint_schema_version == 3
     assert loaded.state_schema_version == 3
     assert loaded.last_timestamp == "2012-01-01T00:55:00"
 
@@ -79,14 +77,13 @@ def test_run_stores_non_empty_checkpoint(short_sample_sim):
     assert isinstance(sim.checkpoint, SUEWSCheckpoint)
     assert output.checkpoint == sim.checkpoint
     assert sim.checkpoint.grid_states
-    assert sim.checkpoint.checkpoint_schema_version == 2
+    assert sim.checkpoint.checkpoint_schema_version == 3
     assert sim.checkpoint.last_timestamp == forcing.index.max().isoformat()
     checkpoint_payload = json.loads(next(iter(sim.checkpoint.grid_states.values())))
+    # The DyOHM day latch is model state in OHM_STATE, not timer metadata (gh#2333).
     assert checkpoint_payload["timer"] == {
         "dt_since_start": 3900,
-        "dt_since_start_prev": 0,
         "tstep": 300,
-        "new_day": 0,
     }
 
 

@@ -2,8 +2,8 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const SUEWS_TIMER_FLAT_LEN: usize = 18;
-pub const SUEWS_TIMER_SCHEMA_VERSION: u32 = 1;
+pub const SUEWS_TIMER_FLAT_LEN: usize = 16;
+pub const SUEWS_TIMER_SCHEMA_VERSION: u32 = 2;
 
 pub type SuewsTimerSchema = crate::codec::SimpleSchema;
 
@@ -19,14 +19,12 @@ pub struct SuewsTimer {
     pub tstep: i32,
     pub tstep_prev: i32,
     pub dt_since_start: i32,
-    pub dt_since_start_prev: i32,
     pub nsh: i32,
     pub nsh_real: f64,
     pub tstep_real: f64,
     pub dectime: f64,
     pub dayofweek_id: [i32; 3],
     pub dls: i32,
-    pub new_day: i32,
 }
 
 impl Default for SuewsTimer {
@@ -40,14 +38,12 @@ impl Default for SuewsTimer {
             tstep: 0,
             tstep_prev: 0,
             dt_since_start: 0,
-            dt_since_start_prev: 0,
             nsh: 0,
             nsh_real: 0.0,
             tstep_real: 0.0,
             dectime: 0.0,
             dayofweek_id: [0; 3],
             dls: 0,
-            new_day: 0,
         }
     }
 }
@@ -82,18 +78,16 @@ impl SuewsTimer {
             tstep: decode_int(flat[5])?,
             tstep_prev: decode_int(flat[6])?,
             dt_since_start: decode_int(flat[7])?,
-            dt_since_start_prev: decode_int(flat[8])?,
-            nsh: decode_int(flat[9])?,
-            nsh_real: flat[10],
-            tstep_real: flat[11],
-            dectime: flat[12],
+            nsh: decode_int(flat[8])?,
+            nsh_real: flat[9],
+            tstep_real: flat[10],
+            dectime: flat[11],
             dayofweek_id: [
+                decode_int(flat[12])?,
                 decode_int(flat[13])?,
                 decode_int(flat[14])?,
-                decode_int(flat[15])?,
             ],
-            dls: decode_int(flat[16])?,
-            new_day: decode_int(flat[17])?,
+            dls: decode_int(flat[15])?,
         })
     }
 
@@ -107,7 +101,6 @@ impl SuewsTimer {
             self.tstep as f64,
             self.tstep_prev as f64,
             self.dt_since_start as f64,
-            self.dt_since_start_prev as f64,
             self.nsh as f64,
             self.nsh_real,
             self.tstep_real,
@@ -116,7 +109,6 @@ impl SuewsTimer {
             self.dayofweek_id[1] as f64,
             self.dayofweek_id[2] as f64,
             self.dls as f64,
-            self.new_day as f64,
         ]
     }
 }
@@ -150,7 +142,6 @@ pub fn suews_timer_field_names() -> Vec<String> {
         "tstep".to_string(),
         "tstep_prev".to_string(),
         "dt_since_start".to_string(),
-        "dt_since_start_prev".to_string(),
         "nsh".to_string(),
         "nsh_real".to_string(),
         "tstep_real".to_string(),
@@ -159,7 +150,6 @@ pub fn suews_timer_field_names() -> Vec<String> {
         "dayofweek_id_2".to_string(),
         "dayofweek_id_3".to_string(),
         "dls".to_string(),
-        "new_day".to_string(),
     ]
 }
 

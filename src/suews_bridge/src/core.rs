@@ -6,9 +6,9 @@
 //! - **Canonical surface order**: [`NSURF`] (`7`) and [`SURFACE_NAMES`]
 //!   (`paved`, `bldg`, `evetr`, `dectr`, `grass`, `bsoil`, `water`), shared
 //!   across parameter and state codecs.
-//! - **`OhmState` codec (schema v3)**: marshals Fortran `OHM_STATE`, including
-//!   per-surface dynamic OHM coefficients and ANOHM rolling-window buffers
-//!   (`ANOHM_MAX_SAMPLES = 48`).
+//! - **`OhmState` codec (schema v4)**: marshals Fortran `OHM_STATE`, including
+//!   per-surface dynamic OHM coefficients, ANOHM rolling-window buffers
+//!   (`ANOHM_MAX_SAMPLES = 48`) and the DyOHM day latch (gh#2333).
 //! - **Solar geometry (`sunposition_calc`, `physics`-gated)**: thin FFI wrapper
 //!   around `module_phys_narp::NARP_cal_SunPosition`.
 //! - **Legacy scalar OHM helpers (`qs_calc`, `dqndt_step`, `ohm_step`,
@@ -32,10 +32,12 @@ pub const NSURF: usize = 7;
 pub const ANOHM_MAX_SAMPLES: usize = 48;
 /// Flat buffer length of the pre-AnOHM `OHM_STATE` base section.
 pub const OHM_STATE_BASE_LEN: usize = 52;
-/// Current flat buffer length of schema-version-3 `OHM_STATE` payloads.
-pub const OHM_STATE_FLAT_LEN: usize = OHM_STATE_BASE_LEN + 5 + 14 * ANOHM_MAX_SAMPLES + 3 * NSURF;
+/// Current flat buffer length of schema-version-4 `OHM_STATE` payloads: the
+/// base section, the AnOHM buffers, then the two DyOHM day-latch fields.
+pub const OHM_STATE_FLAT_LEN: usize =
+    OHM_STATE_BASE_LEN + 5 + 14 * ANOHM_MAX_SAMPLES + 3 * NSURF + 2;
 /// Current schema version for [`OhmState`], matching `c_api/ohm.f95`.
-pub const OHM_STATE_SCHEMA_VERSION: u32 = 3;
+pub const OHM_STATE_SCHEMA_VERSION: u32 = 4;
 /// Canonical ordered names of the 7 SUEWS land-cover surfaces.
 pub const SURFACE_NAMES: [&str; NSURF] =
     ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
@@ -99,6 +101,11 @@ pub struct OhmState {
     pub anohm_a1_surf: [f64; NSURF],
     pub anohm_a2_surf: [f64; NSURF],
     pub anohm_a3_surf: [f64; NSURF],
+    /// DyOHM day latch: `1` after the last step of a day, cleared once the
+    /// midnight coefficient update has run (`0` or `1`).
+    pub new_day: i32,
+    /// `dt_since_start` at the last DyOHM running-mean update [s] (`>= 0`).
+    pub dt_since_start_prev: i32,
 }
 
 impl Default for OhmState {
@@ -142,6 +149,8 @@ impl Default for OhmState {
             anohm_a1_surf: [-999.0; NSURF],
             anohm_a2_surf: [-999.0; NSURF],
             anohm_a3_surf: [-999.0; NSURF],
+            new_day: 0,
+            dt_since_start_prev: 0,
         }
     }
 }
@@ -251,6 +260,17 @@ impl OhmState {
         state.anohm_a2_surf = take_array(flat, &mut idx);
         state.anohm_a3_surf = take_array(flat, &mut idx);
 
+        state.new_day = decode_int(flat[idx])?;
+        if !matches!(state.new_day, 0 | 1) {
+            return Err(BridgeError::BadState);
+        }
+        idx += 1;
+        state.dt_since_start_prev = decode_int(flat[idx])?;
+        if state.dt_since_start_prev < 0 {
+            return Err(BridgeError::BadState);
+        }
+        idx += 1;
+
         debug_assert_eq!(idx, OHM_STATE_FLAT_LEN);
         Ok(state)
     }
@@ -300,6 +320,9 @@ impl OhmState {
         flat.extend_from_slice(&self.anohm_a1_surf);
         flat.extend_from_slice(&self.anohm_a2_surf);
         flat.extend_from_slice(&self.anohm_a3_surf);
+
+        flat.push(self.new_day as f64);
+        flat.push(self.dt_since_start_prev as f64);
 
         flat
     }
@@ -586,6 +609,8 @@ pub fn ohm_state_field_names() -> Vec<String> {
     push_surface_fields(&mut names, "anohm_a1_surf");
     push_surface_fields(&mut names, "anohm_a2_surf");
     push_surface_fields(&mut names, "anohm_a3_surf");
+    names.push("new_day".to_string());
+    names.push("dt_since_start_prev".to_string());
 
     debug_assert_eq!(names.len(), OHM_STATE_FLAT_LEN);
     names
@@ -802,8 +827,10 @@ mod tests {
         );
         assert_eq!(
             names.last().expect("field list should not be empty"),
-            "anohm_a3_surf.water"
+            "dt_since_start_prev"
         );
+        assert_eq!(names[OHM_STATE_FLAT_LEN - 2], "new_day");
+        assert_eq!(names[OHM_STATE_FLAT_LEN - 3], "anohm_a3_surf.water");
     }
 
     #[test]
@@ -896,7 +923,11 @@ mod tests {
 
     #[test]
     fn values_payload_rejects_legacy_versions() {
-        for (schema_version, len) in [(1_u32, 53_usize), (2_u32, OHM_STATE_FLAT_LEN + 1)] {
+        for (schema_version, len) in [
+            (1_u32, 53_usize),
+            (2_u32, OHM_STATE_FLAT_LEN + 1),
+            (3_u32, OHM_STATE_FLAT_LEN - 2),
+        ] {
             let payload = OhmStateValuesPayload {
                 schema_version,
                 values: vec![0.0_f64; len],
@@ -919,6 +950,26 @@ mod tests {
         let long = vec![0.0_f64; OHM_STATE_FLAT_LEN + 1];
         let err = OhmState::from_flat(&long).expect_err("long payload should fail");
         assert_eq!(err, BridgeError::BadBuffer);
+    }
+
+    #[test]
+    fn dyohm_day_latch_roundtrips_and_rejects_invalid_values() {
+        let mut state =
+            ohm_state_default_from_fortran().expect("default state should be available");
+        state.new_day = 1;
+        state.dt_since_start_prev = 86_100;
+        let flat = state.to_flat();
+        assert_eq!(flat[OHM_STATE_FLAT_LEN - 2], 1.0);
+        assert_eq!(flat[OHM_STATE_FLAT_LEN - 1], 86_100.0);
+        assert_eq!(OhmState::from_flat(&flat).expect("roundtrip"), state);
+
+        let mut bad_latch = flat.clone();
+        bad_latch[OHM_STATE_FLAT_LEN - 2] = 2.0;
+        assert_eq!(OhmState::from_flat(&bad_latch), Err(BridgeError::BadState));
+
+        let mut bad_prev = flat;
+        bad_prev[OHM_STATE_FLAT_LEN - 1] = -300.0;
+        assert_eq!(OhmState::from_flat(&bad_prev), Err(BridgeError::BadState));
     }
 
     #[test]

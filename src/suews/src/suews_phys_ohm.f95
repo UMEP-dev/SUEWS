@@ -31,7 +31,7 @@ CONTAINS
                   BldgSurf, WaterSurf, &
                   SnowUse, SnowFrac, &
                   ws, T_half_bldg_C, T_prev, &
-                  ws_rav, qn_rav, &
+                  ws_rav, qn_rav, new_day, dt_since_start_prev, &
                   dz_surf, cp_surf, k_surf, &
                   lambda_c, &
                   StorageHeatMethod, DiagQS, timer, &
@@ -73,13 +73,12 @@ CONTAINS
       USE module_ctrl_type, ONLY: SUEWS_TIMER
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
+      TYPE(SUEWS_TIMER), INTENT(in) :: timer
       INTEGER, INTENT(in) :: StorageHeatMethod !
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
 
       !INTEGER :: iy, id, it, imin, isec
-      !new_day
       TYPE(datetime) :: time_now, time_prev, time_next
       LOGICAL :: first_tstep_Q, last_tstep_Q
       !INTEGER :: tstep_prev
@@ -128,6 +127,9 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(inout) :: T_prev ! previous midnight air temperature [°C]
       REAL(KIND(1D0)), INTENT(inout) :: ws_rav ! running average of wind speed [m/s]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: qn_rav ! running average of net all-wave radiation [W m-2]
+      ! DyOHM day latch and last running-mean update time, held in OHM_STATE (gh#2333)
+      INTEGER, INTENT(inout) :: new_day ! 1 after the last step of a day [-]
+      INTEGER, INTENT(inout) :: dt_since_start_prev ! dt_since_start at the last update [s]
 
       ! Material properties of the aggregate SUEWS surface types
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: k_surf
@@ -192,9 +194,7 @@ CONTAINS
             it => timer%it, &
             imin => timer%imin, &
             isec => timer%isec, &
-            tstep_prev => timer%tstep_prev, &
-            new_day => timer%new_day, &
-            dt_since_start_prev => timer%dt_since_start_prev &
+            tstep_prev => timer%tstep_prev &
             )
             time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
             ! WRF-SUEWS COUPLING: tstep_prev allows for adaptive timesteps in WRF

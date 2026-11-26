@@ -455,21 +455,21 @@ physics worked example in "Where a new expensive check goes" below (slow
 physics tests gating a pull request only through a classification label); the
 general guidance in that section is unchanged. The superseded parts of the
 sections above are pruned in their own pull request after `W1-6` lands, so
-each lane is stated in one place. [decision: pending software maintainer approval on #2350]
+each lane is stated in one place. [decision: software maintainer, 2026-11-26]
 
 - **One required check.** Every axis reports through the existing required
-  check `PR build validation`; no required check is added or renamed. [decision: pending software maintainer approval on #2350]
+  check `PR build validation`; no required check is added or renamed. [decision: software maintainer, 2026-11-26]
   The job that carries that check exists today. [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
 - **From source at t=0.** `tooling` and `unit` start with the workflow, from a
-  source checkout, without waiting for a wheel. [decision: pending software maintainer approval on #2350]
+  source checkout, without waiting for a wheel. [decision: software maintainer, 2026-11-26]
 - **`native` on one Python per OS.** `native` runs once per built OS on cp312
   (the abi3 build floor), not across Python versions, because the same abi3
   binary is under test. An installed-wheel `abi3_smoke` lane covers the other
   interpreters: cp315 on pull requests, cp313 to cp315 on the nightly and on
-  release. [decision: pending software maintainer approval on #2350]
+  release. [decision: software maintainer, 2026-11-26]
 - **`os_compat` on Windows and macOS.** The `os_compat` slice runs on the
   Windows and macOS builds as well as Linux; the rest of `tooling` and `unit`
-  runs on Linux only. [decision: pending software maintainer approval on #2350]
+  runs on Linux only. [decision: software maintainer, 2026-11-26]
 - **Full `physics` selected automatically on exactly four triggers:** (1) pull
   requests that touch Fortran, Rust or the build (the `fortran`, `rust` and
   `build` filter categories); (2) pull requests labelled `0-physics:change` or
@@ -478,7 +478,7 @@ each lane is stated in one place. [decision: pending software maintainer approva
   `test/core/test_sample_output_exact.py` (about 50 s). Outside that automatic
   selection, tag releases keep the full matrix at tier `all`, a manual
   dispatch keeps its `test_tier` input, and the publish jobs require every axis
-  to have succeeded. [decision: pending software maintainer approval on #2350]
+  to have succeeded. [decision: software maintainer, 2026-11-26]
 
 ---
 

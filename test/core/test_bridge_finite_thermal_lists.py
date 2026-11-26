@@ -1,5 +1,7 @@
 """Reject missing numerical material entries after data-model serialisation."""
 
+from copy import deepcopy
+from dataclasses import dataclass
 from importlib import import_module
 
 import numpy as np
@@ -7,7 +9,6 @@ from pydantic import ValidationError
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
 from supy.data_model.core.surface import ThermalLayers
 
 _run_rust = import_module("supy._run_rust")
@@ -18,12 +19,77 @@ pytestmark = [
     pytest.mark.contract("C-STRICT"),
 ]
 
+# The longest window any test below runs. Shorter runs take its leading rows,
+# which equal a separately prepared block because the block is built row by row.
+_N_STEPS = 24
+
+
+@dataclass(frozen=True)
+class _SampleInputs:
+    """The sample's JSON config dump and kernel forcing block, shared read-only."""
+
+    _config: dict
+    _forcing: np.ndarray
+
+    def config(self) -> dict:
+        """A private deep copy of the config dump, free to edit."""
+        return deepcopy(self._config)
+
+    def forcing(self, start: int, stop: int) -> list[float]:
+        """Forcing rows ``start:stop`` as the flat list the bridge takes."""
+        return self._forcing[start:stop].ravel(order="C").tolist()
+
+
+@pytest.fixture(scope="module")
+def sample_inputs(sample_config_loaded, sample_forcing_parsed):
+    """Build the shipped sample's config dump and first forcing rows once.
+
+    Every test here needs only these two artefacts. Each test used to build
+    ``SUEWSSimulation.from_sample_data()`` for them, re-parsing a full year of
+    forcing per parametrised case; both now come from the session's single
+    sample parse. READ-ONLY: the forcing block is write-protected and
+    ``config()`` hands out deep copies.
+    """
+    _state, df_forcing = sample_forcing_parsed(_N_STEPS)
+    forcing = _run_rust._prepare_forcing_block(df_forcing)
+    forcing.setflags(write=False)
+    return _SampleInputs(
+        sample_config_loaded.model_dump(exclude_none=True, mode="json"), forcing
+    )
+
+
+def _run_timesteps(config, forcing, n_steps):
+    """Run the bridge on ``config`` and return its timestep output block."""
+    output, _state, length, _warnings = _run_rust._check_rust_available().run_suews(
+        yaml.safe_dump(config), forcing, n_steps
+    )
+    block = np.frombuffer(output, dtype=np.float64)
+    return block.reshape((length, -1), order="C"), length
+
+
+@pytest.fixture(scope="module")
+def clean_sample_run(sample_inputs):
+    """The unedited sample's 24-step timestep output, run once per module.
+
+    The reference every unread-entry case below compares against; it used to
+    be recomputed in each parametrised case. It has no consumer outside this
+    module, so module scope already computes it once per session (per xdist
+    worker that runs the module) without adding a ``test/conftest.py``
+    fixture. READ-ONLY (write-protected).
+    """
+    expected, length = _run_timesteps(
+        sample_inputs.config(), sample_inputs.forcing(0, _N_STEPS), _N_STEPS
+    )
+    expected.setflags(write=False)
+    return expected, length
+
 
 @pytest.mark.parametrize("wrapped", [False, True])
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf")])
-def test_non_finite_material_crosses_model_boundary_then_is_rejected(wrapped, bad):
-    sim = SUEWSSimulation.from_sample_data()
-    dict_config = sim.config.model_dump(exclude_none=True, mode="json")
+def test_non_finite_material_crosses_model_boundary_then_is_rejected(
+    sample_inputs, wrapped, bad
+):
+    dict_config = sample_inputs.config()
     # EHC (storage heat method 5) reads every material layer, so dz[1] is
     # read; under the sample's own method it is not, and the bridge then
     # carries it as absent instead of rejecting it.
@@ -36,10 +102,9 @@ def test_non_finite_material_crosses_model_boundary_then_is_rejected(wrapped, ba
     dict_config["sites"][0]["properties"]["land_cover"]["paved"]["thermal_layers"][
         "dz"
     ] = {"value": values} if wrapped else values
-    forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:1])
     with pytest.raises(RuntimeError) as exc:
         _run_rust._check_rust_available().run_suews(
-            yaml.safe_dump(dict_config), forcing.ravel(order="C").tolist(), 1
+            yaml.safe_dump(dict_config), sample_inputs.forcing(0, 1), 1
         )
     message = str(exc.value)
     assert "properties.land_cover.paved.thermal_layers.dz" in message
@@ -83,7 +148,9 @@ def _null_unread_entry(site, case):
         "no_building_frac",
     ],
 )
-def test_null_in_an_unread_entry_runs_and_leaves_output_unchanged(case):
+def test_null_in_an_unread_entry_runs_and_leaves_output_unchanged(
+    sample_inputs, clean_sample_run, case
+):
     """Under the sample's own options (no SPARTACUS, storage heat not EHC) the
     kernel does not read these entries: the run completes and its timestep
     output equals the clean run's, compared numerically with NaN-aware
@@ -95,22 +162,13 @@ def test_null_in_an_unread_entry_runs_and_leaves_output_unchanged(case):
     run returns its state. A run that loads such an entry under an option
     reading it rejects it at load; continuing the returned checkpoint under
     such an option is rejected at resume (see the test below)."""
-    sim = SUEWSSimulation.from_sample_data()
-    rust = _run_rust._check_rust_available()
-    forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:24])
-    clean = sim.config.model_dump(exclude_none=True, mode="json")
-    edited = sim.config.model_dump(exclude_none=True, mode="json")
+    edited = sample_inputs.config()
     _null_unread_entry(edited["sites"][0], case)
 
-    def run(config):
-        output, _state, length, _warnings = rust.run_suews(
-            yaml.safe_dump(config), forcing.ravel(order="C").tolist(), 24
-        )
-        block = np.frombuffer(output, dtype=np.float64)
-        return block.reshape((length, -1), order="C"), length
-
-    expected, expected_len = run(clean)
-    actual, actual_len = run(edited)
+    expected, expected_len = clean_sample_run
+    actual, actual_len = _run_timesteps(
+        edited, sample_inputs.forcing(0, _N_STEPS), _N_STEPS
+    )
     assert actual_len == expected_len
     new_nan_columns = np.flatnonzero(
         np.isnan(actual).any(axis=0) & ~np.isnan(expected).any(axis=0)
@@ -119,26 +177,24 @@ def test_null_in_an_unread_entry_runs_and_leaves_output_unchanged(case):
     np.testing.assert_array_equal(actual, expected)
 
 
-def test_resume_under_ehc_rejects_an_unread_initial_temperature():
+def test_resume_under_ehc_rejects_an_unread_initial_temperature(sample_inputs):
     """A null initial temperature that the first run did not read is carried
     as NaN in its checkpoint. Continuing that checkpoint under storage heat
     method 5, whose EHC reads it, fails at resume naming the entry, instead
     of handing NaN to the kernel."""
-    sim = SUEWSSimulation.from_sample_data()
     rust = _run_rust._check_rust_available()
-    forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:2])
-    first = sim.config.model_dump(exclude_none=True, mode="json")
+    first = sample_inputs.config()
     _null_unread_entry(first["sites"][0], "paved_temperature")
     _output, state_json, _length, _warnings = rust.run_suews(
-        yaml.safe_dump(first), forcing[:1].ravel(order="C").tolist(), 1
+        yaml.safe_dump(first), sample_inputs.forcing(0, 1), 1
     )
 
-    resumed = sim.config.model_dump(exclude_none=True, mode="json")
+    resumed = sample_inputs.config()
     resumed["model"]["physics"]["storage_heat"] = {"value": 5}
     with pytest.raises(RuntimeError) as exc:
         rust.run_suews_with_state(
             yaml.safe_dump(resumed),
-            forcing[1:2].ravel(order="C").tolist(),
+            sample_inputs.forcing(1, 2),
             1,
             state_json,
         )
@@ -147,20 +203,18 @@ def test_resume_under_ehc_rejects_an_unread_initial_temperature():
     assert "paved" in message
 
 
-def test_resume_under_ehc_accepts_a_checkpoint_written_under_ehc():
+def test_resume_under_ehc_accepts_a_checkpoint_written_under_ehc(sample_inputs):
     """Positive control for the resume check above: a checkpoint written by a
     run under storage heat method 5, where EHC writes the temperatures it
     reads, continues under the same configuration."""
-    sim = SUEWSSimulation.from_sample_data()
     rust = _run_rust._check_rust_available()
-    forcing = _run_rust._prepare_forcing_block(sim.forcing.df.iloc[:4])
-    config = sim.config.model_dump(exclude_none=True, mode="json")
+    config = sample_inputs.config()
     config["model"]["physics"]["storage_heat"] = {"value": 5}
     config_yaml = yaml.safe_dump(config)
     _output, state_json, _length, _warnings = rust.run_suews(
-        config_yaml, forcing[:2].ravel(order="C").tolist(), 2
+        config_yaml, sample_inputs.forcing(0, 2), 2
     )
     _output, _state, length, _warnings = rust.run_suews_with_state(
-        config_yaml, forcing[2:4].ravel(order="C").tolist(), 2, state_json
+        config_yaml, sample_inputs.forcing(2, 4), 2, state_json
     )
     assert length == 2

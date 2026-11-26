@@ -33,15 +33,32 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-FORCING", "C-BIND")]
 
 
 @pytest.fixture(scope="module")
-def lai_runtime_inputs(sample_yaml_path):
+def lai_sample_inputs(sample_config_loaded, sample_forcing_parsed):
+    """Return the sample config and the leading forcing window, built once.
+
+    Every runtime test below runs the shipped sample for at most
+    ``TestLAIMethodRuntime.N_DAYS`` days. The config is the session's
+    validated sample and the forcing comes from the session's single sample
+    parse, so no test re-reads the full sample year per case. READ-ONLY:
+    build simulations from ``config.model_copy(deep=True)`` and ``.copy()``
+    the forcing before editing it.
+    """
+    _state, df_forcing = sample_forcing_parsed(
+        TIMESTEPS_PER_DAY * TestLAIMethodRuntime.N_DAYS
+    )
+    return sample_config_loaded, df_forcing
+
+
+@pytest.fixture(scope="module")
+def lai_runtime_inputs(lai_sample_inputs):
     """Return immutable sample inputs for independent LAI branch simulations."""
-    sim = SUEWSSimulation(str(sample_yaml_path))
-    config = sim.config.model_copy(deep=True)
+    sample_config, df_forcing = lai_sample_inputs
+    config = sample_config.model_copy(deep=True)
     for surf_type in ("evetr", "dectr", "grass"):
         surf = getattr(config.sites[0].properties.land_cover, surf_type)
         surf.lai.lai_min = 0.0
         surf.lai.lai_max = 10.0
-    return config, sim.forcing.df
+    return config, df_forcing
 
 
 def _base_forcing_df(n_timesteps: int = 24) -> pd.DataFrame:
@@ -251,6 +268,7 @@ class TestLAIMethodRuntime:
     """
 
     SHORT_N_DAYS = 1
+    ZERO_N_DAYS = 3
     N_DAYS = 30
     LAI_OBS_LOW = 1.0
     LAI_OBS_HIGH = 6.0
@@ -362,7 +380,6 @@ class TestLAIMethodRuntime:
             minimum_aligned_days=self.SHORT_N_DAYS,
         )
 
-    @pytest.mark.medium
     def test_laimethod_seasonal_integration(self, lai_runtime_inputs):
         """Observed LAI continues to track a 30-day seasonal forcing curve."""
         _, df_forcing_base = lai_runtime_inputs
@@ -377,14 +394,15 @@ class TestLAIMethodRuntime:
             minimum_aligned_days=self.N_DAYS - 2,
         )
 
-    def test_laimethod_runtime_tracks_per_vegetation_lai(self):
+    def test_laimethod_runtime_tracks_per_vegetation_lai(self, lai_sample_inputs):
         """DailyState LAI outputs follow lai_evetr/lai_dectr/lai_grass separately."""
-        sim = SUEWSSimulation.from_sample_data()
+        config, df_forcing_base = lai_sample_inputs
+        sim = SUEWSSimulation(config.model_copy(deep=True))
         self._set_lai_bounds(sim, laimin=0.0, laimax=10.0)
 
         n_days = 5
         end_index = TIMESTEPS_PER_DAY * n_days - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        df_forcing = df_forcing_base.iloc[: end_index + 1].copy()
         df_forcing["lai"] = -999.0
         df_forcing["lai_evetr"] = 1.25
         df_forcing["lai_dectr"] = 2.5
@@ -418,13 +436,17 @@ class TestLAIMethodRuntime:
                 err_msg=f"{column} should follow its per-vegetation forcing column",
             )
 
-    def test_run_rejects_all_missing_lai(self):
+    def test_run_rejects_all_missing_lai(self, lai_sample_inputs):
         """SUEWSSimulation.run() must surface the `lai`-required validator
-        error when `laimethod=0` and the forcing column is all -999."""
-        sim = SUEWSSimulation.from_sample_data()
+        error when `laimethod=0` and the forcing column is all -999.
 
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        The validator rejects before any timestep runs, so one day of forcing
+        carries the contract."""
+        config, df_forcing_base = lai_sample_inputs
+        sim = SUEWSSimulation(config.model_copy(deep=True))
+
+        end_index = TIMESTEPS_PER_DAY * self.SHORT_N_DAYS - 1
+        df_forcing = df_forcing_base.iloc[: end_index + 1].copy()
         df_forcing["lai"] = -999.0  # all-missing sentinel
 
         sim._config.model.physics.laimethod = LAIMethod.OBSERVED
@@ -442,17 +464,21 @@ class TestLAIMethodRuntime:
             surf.lai.lai_min = laimin
             surf.lai.lai_max = laimax
 
-    def test_zero_lai_observation_honoured(self):
+    def test_zero_lai_observation_honoured(self, lai_sample_inputs):
         """A genuine zero observation drives LAI to zero.
 
         Issue #1296 keeps zero as a valid observation: users who expect
         complete canopy dieback (winter, browning) can force zero LAI
         without lowering ``laimin`` in the site configuration.
-        """
-        sim = SUEWSSimulation.from_sample_data()
 
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        The first day carries the configured initial LAI, so the window keeps
+        two further days for the assertion.
+        """
+        config, df_forcing_base = lai_sample_inputs
+        sim = SUEWSSimulation(config.model_copy(deep=True))
+
+        end_index = TIMESTEPS_PER_DAY * self.ZERO_N_DAYS - 1
+        df_forcing = df_forcing_base.iloc[: end_index + 1].copy()
         df_forcing["lai"] = 0.0
 
         sim._config.model.physics.laimethod = LAIMethod.OBSERVED
@@ -477,7 +503,7 @@ class TestLAIMethodRuntime:
             err_msg="lai=0.0 observation should drive LAI outputs to zero",
         )
 
-    def test_negative_sentinel_rejected(self):
+    def test_negative_sentinel_rejected(self, lai_sample_inputs):
         """Non-canonical sentinels (e.g. ``-950``) are still rejected.
 
         Issue #1296 contract: under ``laimethod=0`` every ``lai`` row
@@ -485,12 +511,14 @@ class TestLAIMethodRuntime:
         the canonical ``-999`` sentinel and defensive variants such as
         ``-950`` alike — is refused, because the observed path does not
         permit falling back to the calculated branch on a per-timestep
-        basis.
+        basis. The validator rejects before any timestep runs, so one day of
+        forcing carries the contract.
         """
-        sim = SUEWSSimulation.from_sample_data()
+        config, df_forcing_base = lai_sample_inputs
+        sim = SUEWSSimulation(config.model_copy(deep=True))
 
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        end_index = TIMESTEPS_PER_DAY * self.SHORT_N_DAYS - 1
+        df_forcing = df_forcing_base.iloc[: end_index + 1].copy()
         df_forcing["lai"] = -950.0
 
         sim._config.model.physics.laimethod = LAIMethod.OBSERVED
@@ -500,12 +528,13 @@ class TestLAIMethodRuntime:
         with pytest.raises(ValueError, match="laimethod=0"):
             sim.run(end_date=df_forcing.index[-1])
 
-    def test_nan_lai_gap_rejected(self):
+    def test_nan_lai_gap_rejected(self, lai_sample_inputs):
         """Missing ``lai`` values are rejected before the run starts."""
-        sim = SUEWSSimulation.from_sample_data()
+        config, df_forcing_base = lai_sample_inputs
+        sim = SUEWSSimulation(config.model_copy(deep=True))
 
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        end_index = TIMESTEPS_PER_DAY * self.SHORT_N_DAYS - 1
+        df_forcing = df_forcing_base.iloc[: end_index + 1].copy()
         df_forcing["lai"] = 3.5
         df_forcing.iloc[0, df_forcing.columns.get_loc("lai")] = np.nan
 

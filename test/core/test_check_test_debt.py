@@ -22,45 +22,290 @@ SPEC.loader.exec_module(checker)
 
 @pytest.mark.core
 @pytest.mark.smoke
-def test_tree_has_complete_valid_debt_links():
+def test_tree_has_complete_valid_debt_links(tmp_path):
     """Every live record has exactly one contract and well-formed issue owner."""
+    output = tmp_path / "real_report.json"
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--strict"],
+        [sys.executable, str(SCRIPT), "--strict", "--json", str(output)],
         capture_output=True,
         text=True,
         encoding="utf-8",
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["summary"]["records"] == report["summary"]["mapped"]
+    records = report["records"]
+    counters = json.loads(
+        (ROOT / "scripts/lint/rust_optional_reads_baseline.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert sum(r["occurrences"] for r in records if r["ledger"] == "R") == sum(
+        counters["totals"].values()
+    )
+    observer_ids = [r["id"] for r in records if r["ledger"] == "O"]
+    assert observer_ids.count("suews_timer.iy_st") == 1
+    assert not any("heatstate%" in key.lower() for key in observer_ids)
+
+
+_SYNTHETIC_TREE_FILES: dict[str, str] = {
+    "test/contracts.yml": (
+        "contracts:\n"
+        "  - id: C-CAPI\n"
+        "  - id: C-MIGRATE\n"
+        "  - id: C-RESPONSE\n"
+        "  - id: C-ROUNDTRIP\n"
+        "  - id: C-TOOLING\n"
+        "  - id: C-VALID\n"
+    ),
+    checker.LINKS: (
+        "version: 1\n"
+        "mappings:\n"
+        "  - selector:\n"
+        "      ledger: U\n"
+        "      file: src/suews/src/example.f95\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2172\n"
+        "    classification: coverage_gap\n"
+        "  - selector:\n"
+        "      ledger: R\n"
+        "      function: example\n"
+        "    contract: C-CAPI\n"
+        "    issue: 2096\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: L\n"
+        "    contract: C-TOOLING\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: S\n"
+        "      group: derived_run_bounds\n"
+        "    contract: C-VALID\n"
+        "    issue: 2076\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: S\n"
+        "      group: doc_required_when_pending_from_yaml\n"
+        "    contract: C-VALID\n"
+        "    issue: 2083\n"
+        "    classification: coverage_gap\n"
+        "  - selector:\n"
+        "      ledger: M\n"
+        "    contract: C-VALID\n"
+        "    issue: 2098\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: N\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2095\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: J1\n"
+        "    contract: C-CAPI\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: O\n"
+        "    contract: C-CAPI\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: T1\n"
+        "    contract: C-ROUNDTRIP\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: T2\n"
+        "    contract: C-MIGRATE\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: X1\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2096\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: X\n"
+        "      id: test/physics/test_example_xfail.py::test_known_xfail::1\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2096\n"
+        "    classification: defect\n"
+    ),
+    "scripts/lint/rust_optional_reads_baseline.json": json.dumps(
+        {
+            "description": "Synthetic Rust optional-read baseline.",
+            "totals": {"read_numeric": 2},
+            "functions": {"example": {"read_numeric": 2}},
+        },
+        indent=2,
+    )
+    + "\n",
+    "scripts/lint/fortran_literals_baseline.json": json.dumps(
+        {
+            "description": "Synthetic Fortran literals baseline.",
+            "totals": {"pi": 1},
+            "files": {"src/suews/src/example.f95": {"pi": 1}},
+        },
+        indent=2,
+    )
+    + "\n",
+    "scripts/lint/fortran_uninit_baseline.json": json.dumps(
+        {
+            "description": "Synthetic Fortran uninit baseline.",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "file": "src/suews/src/example.f95",
+                    "proc": "example_proc",
+                    "var": "x",
+                    "kind": "maybe-uninitialized",
+                }
+            ],
+        },
+        indent=2,
+    )
+    + "\n",
+    "scripts/lint/fortran_snan_expected_failures.json": json.dumps(
+        {
+            "description": "Synthetic sNaN expected failures baseline.",
+            "entries": [
+                {"node": "test/physics/test_example.py::test_snan", "issue": "#2095"}
+            ],
+        },
+        indent=2,
+    )
+    + "\n",
+    checker.SCHEMA: json.dumps(
+        {
+            "description": "Synthetic schema contract baseline.",
+            "baseline_commit": "0000000000",
+            "validator_warning_swallows": {},
+            "doc_required_when_pending_from_yaml": {
+                "ExampleParams.example_field": {"owner_issue": "#2083"}
+            },
+            "groups": {
+                "derived_run_bounds": {
+                    "owner_issue": "#2076",
+                    "reason": "Synthetic derived run bounds.",
+                }
+            },
+            "example_section": {
+                "example_category": {"example_field": "derived_run_bounds"}
+            },
+        },
+        indent=2,
+    )
+    + "\n",
+    checker.MUTATIONS: json.dumps(
+        {
+            "schema_version": 1,
+            "entries": [
+                {
+                    "id": "example-gap",
+                    "category": "active_gap",
+                    "owner_issue": "#2098",
+                    "anchors": ["baseline"],
+                    "mutations": {"omit": "silent"},
+                }
+            ],
+        },
+        indent=2,
+    )
+    + "\n",
+    checker.JACOBIAN: (
+        "const KNOWN_DEAD_KEYS: &[&str] = &[\n"
+        '    "sites[0].properties.example_dead_key",\n'
+        "];\n"
+        "const KNOWN_CLOBBERED_SPARTACUS_LAYERS: &[(&str, usize)] = &[];\n"
+        "const KNOWN_NON_UNIT_DELTAS: &[(&str, &str)] = &[];\n"
+        "const REVIEWED_MULTI_OWNER_SLOTS: &[&str] = &[];\n"
+        "const KNOWN_BASELINE_NAN_SLOTS: &[&str] = &[];\n"
+    ),
+    checker.OBSERVER: (
+        "REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {\n"
+        '    ("heat_state", "example_unbridged"): "Synthetic unbridged component.",\n'
+        "}\n"
+        "REVIEWED_DRIVER_EXCLUDED_COMPONENTS: dict[tuple[str, str], str] = {\n"
+        '    ("suews_timer", "iy_st"): (\n'
+        '        "Derived local-standard-time field excluded from C timer ABI."\n'
+        "    ),\n"
+        "}\n"
+    ),
+    checker.MANIFEST: (
+        "pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[\n"
+        "    ObsFieldDescriptor {\n"
+        "        id: 1,\n"
+        '        path: "example_unbridged",\n'
+        "        bridged: false,\n"
+        '        unbridged_reason: Some("Synthetic unbridged component."),\n'
+        "    },\n"
+        "];\n"
+        "\n"
+        "pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[\n"
+        "    ObsFieldDescriptor {\n"
+        "        id: 1,\n"
+        '        path: "heatState%example_unbridged",\n'
+        "        bridged: false,\n"
+        '        unbridged_reason: Some("Synthetic unbridged component."),\n'
+        "    },\n"
+        "];\n"
+        "\n"
+        "pub const OBS_FIELDS_SUEWS_TIMER: &[ObsFieldDescriptor] = &[\n"
+        "    ObsFieldDescriptor {\n"
+        "        id: 1,\n"
+        '        path: "iy_st",\n'
+        "        bridged: false,\n"
+        "        unbridged_reason: Some(\n"
+        '            "Derived local-standard-time field excluded from C timer ABI.",\n'
+        "        ),\n"
+        "    },\n"
+        "];\n"
+    ),
+    "test/data_model/test_legacy_table_roundtrip.py": (
+        '_SENTINEL_CANONICALISED_COLS = {"FAI_Bldgs"}\n'
+        '_MLM_DERIVED = {"hdd_id"}\n'
+        '_MLM_COMMON = _MLM_DERIVED | {"alb"}\n'
+        '_MLM_ALLOWED = {"2018b": _MLM_COMMON}\n'
+    ),
+    checker.OPTION_SWEEP: (
+        "import pytest\n"
+        "\n"
+        "OPTION_VALUES_XFAIL = {\n"
+        '    ("example_opt", 1): "Synthetic option xfail.",\n'
+        "}\n"
+        "\n"
+        "\n"
+        "def _sweep_params():\n"
+        '    key = ("example_opt", 1)\n'
+        "    marks = [\n"
+        "        pytest.mark.xfail(strict=True, reason=OPTION_VALUES_XFAIL[key])\n"
+        "    ]\n"
+        "    return [pytest.param(key, marks=marks)]\n"
+    ),
+    "test/physics/test_example_xfail.py": (
+        "import pytest\n"
+        "\n"
+        "\n"
+        '@pytest.mark.xfail(strict=True, reason="Synthetic mapped xfail.")\n'
+        "def test_known_xfail():\n"
+        "    pass\n"
+    ),
+}
 
 
 @pytest.fixture
 def tree(tmp_path):
-    """Copy only static ledger inputs; no model installation or execution."""
-    paths = [
-        "test/contracts.yml",
-        "test/known_defects.yml",
-        checker.SCHEMA,
-        checker.MUTATIONS,
-        checker.JACOBIAN,
-        checker.OBSERVER,
-        checker.MANIFEST,
-        "scripts/lint/rust_optional_reads_baseline.json",
-        "scripts/lint/fortran_literals_baseline.json",
-        "scripts/lint/fortran_uninit_baseline.json",
-        "scripts/lint/fortran_snan_expected_failures.json",
-        "scripts/lint/check_saved_fortran_locals.py",
-        "test/data_model/test_legacy_table_roundtrip.py",
-        checker.OPTION_SWEEP,
-        "test/physics/test_calendar_profiles.py",
-        "test/physics/test_parameter_sensitivity.py",
-        "test/physics/test_spartacus_ground_budget.py",
-        "test/physics/test_continuation_matrix.py",
-    ]
-    for name in paths:
+    """Write a minimal valid ledger tree to tmp_path; real repo is checked by smoke."""
+    for name, content in _SYNTHETIC_TREE_FILES.items():
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ROOT / name, target)
+        target.write_text(content, encoding="utf-8")
+    linter = "scripts/lint/check_saved_fortran_locals.py"
+    target = tmp_path / linter
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ROOT / linter, target)
     return tmp_path
 
 
@@ -87,8 +332,7 @@ def test_valid_inventory_counts_weights_and_generated_copies(tree, capsys):
         counters["totals"].values()
     )
     observer_ids = [r["id"] for r in records if r["ledger"] == "O"]
-    assert observer_ids.count("suews_timer.iy_st") == 1
-    assert not any("heatState%" in key for key in observer_ids)
+    assert sorted(observer_ids) == ["heat_state.example_unbridged", "suews_timer.iy_st"]
     assert (
         "| Contract | Defects | Coverage gaps | Accepted exceptions |"
         in capsys.readouterr().out
@@ -114,6 +358,8 @@ def test_link_failures_reach_strict_exit(tree, fault, diagnostic):
     elif fault == "overlap":
         links["mappings"].append(dict(mapping))
     elif fault == "stale":
+        mapping = next(m for m in links["mappings"] if m["selector"]["ledger"] == "U")
+        assert "function" not in mapping["selector"]
         mapping["selector"]["function"] = "nonexistent_function"
     elif fault == "contract":
         mapping["contract"] = "C-UNKNOWN"
@@ -223,6 +469,7 @@ def test_saved_local_ledger_mutations_fail(tree, mutation):
 )
 def test_real_ledger_dependency_mutations_reach_strict_exit(tree, mutation):
     path = tree / "test/data_model/test_legacy_table_roundtrip.py"
+    shutil.copyfile(ROOT / "test/data_model/test_legacy_table_roundtrip.py", path)
     path.write_text(
         path.read_text(encoding="utf-8") + f"\n{mutation}\n", encoding="utf-8"
     )

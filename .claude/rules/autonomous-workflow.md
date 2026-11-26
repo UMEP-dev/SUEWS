@@ -91,6 +91,10 @@ It applies in both modes; the sections below give the pipeline's detail.
   Here code means everything except tests, `AGENTS.md`, `.claude/`, `dev-ref/`, the documentation and CI configuration.
   Such an edit goes in its own pull request that says why the check or rule should change.
   Exempt: tests added for the new behaviour, an assertion changed to the intended new behaviour with the reason stated in the PR body, an assertion removed together with the behaviour it tested, and a fixture or snapshot refresh carrying the evidence its owning rule requires (for physics fixtures, `physics-change-evidence.md`).
+- Standalone lint and guard script pull requests (`scripts/lint/**`) sit on the code side of that separation boundary (not under the CI-configuration exclusion, regardless of their path-filter category in `.claude/rules/ci/conventions.md`).
+  Adding or modifying a lint or guard script under `scripts/lint/**` (together with its own unit tests and any baseline file it owns) belongs in its own pull request stating why the check is added or changed, and does not bundle `AGENTS.md` or `.claude/**` rule edits, or `.github/workflows/**` required-check changes, in the same pull request.
+  Rule updates land in their own rule pull request, and `.github/workflows/**` required-check changes land in their own CI pull request.
+  Downward-only baseline files under `scripts/lint/**` that an existing lint requires a clean-up pull request to lower alongside its source change are not restricted by this rule and remain governed by that check. [decision: pending software maintainer approval on #TBD]
 - A reviewer judges the rest of a change against the rules on the base branch, not those on the change's own head; a change to the rules themselves is reviewed as a proposal, including its consistency with the other files on the head.
 
 ### Agents (Principles 1 and 3)

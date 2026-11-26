@@ -237,7 +237,7 @@ subroutine lc_dectr_prm_unpack(flat, n_flat, state, err)
    integer(c_int) :: idx
    integer(c_int) :: i
 
-   if (n_flat<SUEWS_CAPI_LC_DECTR_PRM_LEN) then
+   if (n_flat/=SUEWS_CAPI_LC_DECTR_PRM_LEN) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

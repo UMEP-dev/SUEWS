@@ -205,4 +205,30 @@ mod tests {
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
     }
+
+    #[test]
+    fn nonzero_lai_thresholds_and_waterdist_sentinel_roundtrip() {
+        let mut state = LcGrassPrm::default();
+        state.lai.lai_type = 1;
+        state.lai.gdd_base = 144.75;
+        state.lai.sdd_base = -288.125;
+        state.waterdist.to_paved = 0.375;
+        state.waterdist.to_soilstore = 0.625;
+
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), LC_GRASS_PRM_FLAT_LEN);
+        assert!((flat[47] - 144.75).abs() < 1.0e-12);
+        assert!((flat[48] - (-288.125)).abs() < 1.0e-12);
+        assert!((flat[49] - 0.375).abs() < 1.0e-12);
+        assert!((flat[56] - 0.625).abs() < 1.0e-12);
+
+        let recovered = LcGrassPrm::from_flat(&flat).expect("flat decode should succeed");
+        assert_eq!(recovered, state);
+
+        let mapped = lc_grass_prm_to_map(&state);
+        assert!((mapped["lai.gdd_base"] - 144.75).abs() < 1.0e-12);
+        assert!((mapped["lai.sdd_base"] - (-288.125)).abs() < 1.0e-12);
+        let from_map = lc_grass_prm_from_map(&mapped).expect("map decode should succeed");
+        assert_eq!(from_map, state);
+    }
 }

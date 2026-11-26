@@ -25,15 +25,15 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: lai_max = 0.0D0 ! Maximum LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4) :: lai_power = 0.0D0 ! Coefficients for LAI equation: 1,2 - leaf growth; 3,4 - leaf off [-]
       INTEGER :: lai_type = 0 ! LAI equation to use: original (0) or new (1) [-]
-      REAL(KIND(1D0)) :: gdd_base = 0.0D0 ! Growing degree days that must accumulate before leaf growth starts; valid range >= 0 [degC d]
-      REAL(KIND(1D0)) :: sdd_base = 0.0D0 ! Senescence degree days that must accumulate before leaf off starts; valid range <= 0 [degC d]
+      REAL(KIND(1D0)) :: gdd_base = 0.0D0 ! Growing degree days that must accumulate before leaf growth starts; valid range >= 0 [K d]
+      REAL(KIND(1D0)) :: sdd_base = 0.0D0 ! Senescence degree days that must accumulate before leaf off starts; valid range <= 0 [K d]
    END TYPE LAI_PRM
 
    TYPE, PUBLIC :: PHENOLOGY_STATE
       REAL(KIND(1D0)), DIMENSION(NSURF) :: alb = 0.0D0 ! Effective surface albedo (calculated in the current time step) [-]
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: lai_id = 0.0D0 ! LAI [m2 m-2]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: GDD_id = 0.0D0 ! Growing degree days [degC]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: SDD_id = 0.0D0 ! Senescence degree days [degC]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: GDD_id = 0.0D0 ! Growing degree days [K d]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: SDD_id = 0.0D0 ! Senescence degree days [K d]
       REAL(KIND(1D0)) :: veg_phen_lumps = 0.0D0 ! Phenology indicator used by LUMPS [-] (NOT USED - TO BE REMOVED)
       REAL(KIND(1D0)) :: porosity_id = 0.0D0 ! Porosity of each surface type [-]
       REAL(KIND(1D0)) :: decidcap_id = 0.0D0 ! Storage capacity of deciduous surface (DecTr) [mm]

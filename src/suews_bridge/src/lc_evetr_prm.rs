@@ -247,4 +247,30 @@ mod tests {
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
     }
+
+    #[test]
+    fn nonzero_lai_thresholds_and_waterdist_sentinel_roundtrip() {
+        let mut state = LcEvetrPrm::default();
+        state.lai.lai_type = 1;
+        state.lai.gdd_base = 111.25;
+        state.lai.sdd_base = -222.5;
+        state.waterdist.to_paved = 0.125;
+        state.waterdist.to_soilstore = 0.875;
+
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), LC_EVETR_PRM_FLAT_LEN);
+        assert!((flat[49] - 111.25).abs() < 1.0e-12);
+        assert!((flat[50] - (-222.5)).abs() < 1.0e-12);
+        assert!((flat[51] - 0.125).abs() < 1.0e-12);
+        assert!((flat[58] - 0.875).abs() < 1.0e-12);
+
+        let recovered = LcEvetrPrm::from_flat(&flat).expect("flat decode should succeed");
+        assert_eq!(recovered, state);
+
+        let mapped = lc_evetr_prm_to_map(&state);
+        assert!((mapped["lai.gdd_base"] - 111.25).abs() < 1.0e-12);
+        assert!((mapped["lai.sdd_base"] - (-222.5)).abs() < 1.0e-12);
+        let from_map = lc_evetr_prm_from_map(&mapped).expect("map decode should succeed");
+        assert_eq!(from_map, state);
+    }
 }

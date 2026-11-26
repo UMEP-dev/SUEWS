@@ -198,4 +198,39 @@ mod tests {
         let err = LaiPrm::from_flat(&flat).expect_err("fractional integer should fail");
         assert_eq!(err, BridgeError::BadState);
     }
+
+    #[test]
+    fn nonzero_gdd_sdd_base_sentinel_roundtrip() {
+        let state = LaiPrm {
+            base_temperature: 6.5,
+            gdd_full: 300.0,
+            base_temperature_senescence: 22.0,
+            sdd_full: -450.0,
+            lai_min: 1.25,
+            lai_max: 5.75,
+            lai_power: [-0.02, 0.04, -1.0, 0.02],
+            lai_type: 1,
+            gdd_base: 123.5,
+            sdd_base: -247.25,
+        };
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), LAI_PRM_FLAT_LEN);
+        assert!((flat[10] - 1.0).abs() < 1.0e-12);
+        assert!((flat[11] - 123.5).abs() < 1.0e-12);
+        assert!((flat[12] - (-247.25)).abs() < 1.0e-12);
+
+        let from_flat = LaiPrm::from_flat(&flat).expect("flat decode should succeed");
+        assert_eq!(from_flat, state);
+
+        let mapped = lai_prm_to_map(&state);
+        assert!((mapped["gdd_base"] - 123.5).abs() < 1.0e-12);
+        assert!((mapped["sdd_base"] - (-247.25)).abs() < 1.0e-12);
+        let from_map = lai_prm_from_map(&mapped).expect("map decode should succeed");
+        assert_eq!(from_map, state);
+
+        let payload = lai_prm_to_values_payload(&state);
+        let from_payload =
+            lai_prm_from_values_payload(&payload).expect("payload decode should succeed");
+        assert_eq!(from_payload, state);
+    }
 }

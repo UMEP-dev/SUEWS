@@ -4144,6 +4144,58 @@ fn inner_variable_length_unpackers_enforce_exact_lengths() {
 }
 
 #[test]
+fn vegetation_landcover_unpackers_enforce_exact_lengths() {
+    let cases: [(&str, Vec<f64>, ObserverFn0D, &[ObsFieldDescriptor]); 3] = [
+        (
+            "lc_evetr_prm_unpack",
+            {
+                let mut exp = ExpectedStruct::new();
+                build_lc_evetr_prm(&mut exp, "").to_flat()
+            },
+            observer_manifest::suews_obs_unpack_lc_evetr_prm,
+            OBS_FIELDS_LC_EVETR_PRM,
+        ),
+        (
+            "lc_dectr_prm_unpack",
+            {
+                let mut exp = ExpectedStruct::new();
+                build_lc_dectr_prm(&mut exp, "").to_flat()
+            },
+            observer_manifest::suews_obs_unpack_lc_dectr_prm,
+            OBS_FIELDS_LC_DECTR_PRM,
+        ),
+        (
+            "lc_grass_prm_unpack",
+            {
+                let mut exp = ExpectedStruct::new();
+                build_lc_grass_prm(&mut exp, "").to_flat()
+            },
+            observer_manifest::suews_obs_unpack_lc_grass_prm,
+            OBS_FIELDS_LC_GRASS_PRM,
+        ),
+    ];
+
+    for (name, flat, unpack_fn, descs) in cases {
+        let mut oversized = flat.clone();
+        oversized.push(0.0);
+        for (label, buf) in [
+            ("short (N-1)", &flat[..flat.len() - 1]),
+            ("oversized (N+1)", oversized.as_slice()),
+        ] {
+            let obs = call_observer_0d(unpack_fn, buf, descs);
+            assert_eq!(
+                obs.err,
+                SUEWS_CAPI_BAD_BUFFER,
+                "{name} must reject {label} buffer (len={}, expected={})",
+                buf.len(),
+                flat.len()
+            );
+            assert!(obs.values.is_empty());
+        }
+    }
+}
+
+#[test]
 fn driver_site_and_state_unpackers_enforce_exact_when_present_lengths() {
     let nlayer = 3_usize;
     let ndepth = 5_usize;

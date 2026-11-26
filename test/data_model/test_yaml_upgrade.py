@@ -1350,3 +1350,521 @@ def test_chained_pre_dev18_to_dev19_preserves_dev18_boundary_and_logs_advisory(
         "sites[0].properties.irrigation.daywat has an asymmetric weekday schedule"
         in err_19
     )
+
+
+def test_dev19_to_dev20_normalises_ten_minute_profile_keys_and_is_idempotent(capsys):
+    """2026.6.dev19 -> 2026.6.dev20 normalises valid integer/zero-padded 10-min keys."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {
+                            "working_day": {1: 0.1, "02": 0.2, "0144": 0.3},
+                            "holiday": {"1": 0.4, "144": 0.5},
+                        },
+                        "profile_setpoint_temperature_heating_air": {
+                            "working_day": {"001": 20.0, 72: 21.0},
+                            "holiday": None,
+                        },
+                    },
+                    "stebbs": {
+                        "profile_appliance": {
+                            "working_day": {"1": 0.5},
+                            "holiday": {144: 0.9},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+    original = deepcopy(cfg)
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev20")
+    err = capsys.readouterr().err
+    assert cfg == original
+    assert migrated["schema_version"] == "2026.6.dev20"
+    arch = migrated["sites"][0]["properties"]["building_archetype"]
+    assert arch["profile_metabolism"]["working_day"] == {
+        "1": 0.1,
+        "2": 0.2,
+        "144": 0.3,
+    }
+    assert arch["profile_metabolism"]["holiday"] == {"1": 0.4, "144": 0.5}
+    assert arch["profile_setpoint_temperature_heating_air"]["working_day"] == {
+        "1": 20.0,
+        "72": 21.0,
+    }
+    assert arch["profile_setpoint_temperature_heating_air"]["holiday"] is None
+    assert migrated["sites"][0]["properties"]["stebbs"]["profile_appliance"][
+        "holiday"
+    ] == {"144": 0.9}
+    assert (
+        "sites[0].properties.building_archetype.profile_metabolism.working_day" in err
+    )
+    assert (
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day"
+        in err
+    )
+    assert "sites[0].properties.stebbs.profile_appliance.holiday" in err
+    assert "profile_metabolism.holiday" not in err
+
+    # Re-migrating an already-canonical dev20 config is idempotent and silent.
+    remigrated = migrator.migrate(migrated, to_version="2026.6.dev20")
+    err_repeat = capsys.readouterr().err
+    assert remigrated == migrated
+    assert err_repeat == ""
+
+
+@pytest.mark.parametrize(
+    ("bad_day_map", "expected_fragment"),
+    [
+        ({"+1": 0.5}, "Invalid 10-minute profile key '+1'"),
+        ({"0": 0.5}, "Invalid 10-minute profile key '0'"),
+        ({"145": 0.5}, "Invalid 10-minute profile key '145'"),
+        ({True: 0.5}, "Invalid 10-minute profile key True"),
+        ({"1": 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+        ({1: 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+    ],
+)
+def test_dev19_to_dev20_rejects_malformed_and_colliding_ten_minute_keys_transactionally(
+    bad_day_map, expected_fragment, capsys
+):
+    """Malformed or colliding 10-minute profile keys fail dev20 migration without mutating input."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {"working_day": {1: 0.5}},
+                    },
+                    "stebbs": {
+                        "profile_flow_hot_water": {"working_day": deepcopy(bad_day_map)},
+                    },
+                }
+            }
+        ],
+    }
+    before = deepcopy(cfg)
+
+    with pytest.raises(
+        YamlUpgradeError, match=r"profile_flow_hot_water\.working_day"
+    ) as exc_info:
+        migrator.migrate(cfg, to_version="2026.6.dev20")
+
+    assert expected_fragment in str(exc_info.value)
+    assert cfg == before
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("source_version", ["2026.5", "2026.6.dev18"])
+def test_chained_pre_dev19_to_dev20_preserves_dev19_boundary(source_version, capsys):
+    """Chained pre-dev19 -> dev20 runs dev20 normalisation, while targeting dev19 does not."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": source_version,
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": {"monday": 1.0, "sunday": 0.0},
+                    },
+                    "building_archetype": {
+                        "profile_setpoint_temperature_cooling_air": {
+                            "working_day": {"01": 25.0, 144: 26.0},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+
+    to_dev19 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev19")
+    err_19 = capsys.readouterr().err
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert (
+        to_dev19["sites"][0]["properties"]["building_archetype"][
+            "profile_setpoint_temperature_cooling_air"
+        ]["working_day"]
+        == {"01": 25.0, 144: 26.0}
+    )
+    assert "asymmetric weekday schedule" in err_19
+    assert "profile_setpoint_temperature_cooling_air" not in err_19
+
+    to_dev20 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev20")
+    err_20 = capsys.readouterr().err
+    assert to_dev20["schema_version"] == "2026.6.dev20"
+    assert (
+        to_dev20["sites"][0]["properties"]["building_archetype"][
+            "profile_setpoint_temperature_cooling_air"
+        ]["working_day"]
+        == {"1": 25.0, "144": 26.0}
+    )
+    assert "asymmetric weekday schedule" in err_20
+    assert "profile_setpoint_temperature_cooling_air.working_day" in err_20
+
+
+def test_dev20_self_target_normalises_and_rejects_and_dev19_stays_unchanged(capsys):
+    """Same-version dev20 -> dev20 enforces 10-min key rules, while dev19 -> dev19 does not."""
+    migrator = SchemaMigrator()
+    non_canonical_dev20 = {
+        "schema_version": "2026.6.dev20",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {
+                            "working_day": {1: 0.25, "0144": 0.75},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+    migrated = migrator.migrate(non_canonical_dev20, to_version="2026.6.dev20")
+    err = capsys.readouterr().err
+    assert migrated["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"] == {"1": 0.25, "144": 0.75}
+    assert (
+        "sites[0].properties.building_archetype.profile_metabolism.working_day" in err
+    )
+
+    for bad_map, expected in (
+        ({"+1": 0.5}, "Invalid 10-minute profile key '+1'"),
+        ({"1": 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+    ):
+        invalid_dev20 = {
+            "schema_version": "2026.6.dev20",
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "profile_appliance": {"holiday": deepcopy(bad_map)},
+                        },
+                    }
+                }
+            ],
+        }
+        before = deepcopy(invalid_dev20)
+        with pytest.raises(
+            YamlUpgradeError, match=r"profile_appliance\.holiday"
+        ) as exc_info:
+            migrator.migrate(invalid_dev20, to_version="2026.6.dev20")
+        assert expected in str(exc_info.value)
+        assert invalid_dev20 == before
+
+    # Same-version dev19 -> dev19 preserves pre-dev20 behaviour without rewriting keys.
+    dev19_cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {"working_day": {"01": 0.5}},
+                    },
+                }
+            }
+        ],
+    }
+    same_dev19 = migrator.migrate(dev19_cfg, to_version="2026.6.dev19")
+    assert same_dev19["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"] == {"01": 0.5}
+    assert capsys.readouterr().err == ""
+
+
+def test_dev8_observed_soil_migration_does_not_leak_dev20_profile_validation():
+    """Observed-soil dev8 -> dev9 validation preserves pre-dev20 keys for <=dev19 and raises YamlUpgradeError for dev20."""
+    from importlib.resources import as_file, files  # noqa: PLC0415
+
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext  # noqa: PLC0415
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    dev8 = deepcopy(base_cfg)
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    bad_wd = dev8["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"]
+    val_1 = bad_wd.pop("1")
+    bad_wd["+1"] = val_1
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    migrator = SchemaMigrator()
+
+    # Historical target dev19 preserves pre-dev20 key behaviour without leaking dev20 validation.
+    to_dev19 = migrator.migrate(
+        deepcopy(dev8), to_version="2026.6.dev19", migration_context=ctx
+    )
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert (
+        "+1"
+        in to_dev19["sites"][0]["properties"]["building_archetype"][
+            "profile_metabolism"
+        ]["working_day"]
+    )
+
+    # Targeting dev20 reaches the dev20 migration delta and raises YamlUpgradeError (not Pydantic ValidationError).
+    with pytest.raises(
+        YamlUpgradeError, match=r"profile_metabolism\.working_day.*Invalid 10-minute profile key '\+1'"
+    ):
+        migrator.migrate(
+            deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
+        )
+
+
+def test_schema_migrate_cli_writes_normalised_output_on_same_version_dev20(
+    tmp_path: Path,
+):
+    """``suews schema migrate`` writes normalised output when same-version dev20 keys change."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    from click.testing import CliRunner  # ruff: ignore[import-outside-top-level]
+
+    from supy.cmd.suews_cli import cli  # ruff: ignore[import-outside-top-level]
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    # 1. Same-version dev20 with valid zero-padded and integer 10-minute keys -> writes output.
+    non_canonical = deepcopy(base_cfg)
+    non_canonical["schema_version"] = "2026.6.dev20"
+    wd = non_canonical["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"]
+    expected_vals = {"1": wd.pop("1"), "2": wd.pop("2"), "144": wd.pop("144")}
+    wd[1] = expected_vals["1"]
+    wd["02"] = expected_vals["2"]
+    wd["0144"] = expected_vals["144"]
+
+    src_path = tmp_path / "dev20_noncanonical.yml"
+    src_text = yaml.safe_dump(non_canonical, sort_keys=False)
+    src_path.write_text(src_text, encoding="utf-8")
+
+    # Dry-run reports migration/normalisation without writing output.
+    runner = CliRunner()
+    dry_res = runner.invoke(
+        cli,
+        [
+            "schema",
+            "migrate",
+            "--target-version",
+            "2026.6.dev20",
+            "--dry-run",
+            str(src_path),
+        ],
+    )
+    assert dry_res.exit_code == 0, dry_res.output
+    assert "Would migrate" in dry_res.output
+    assert not src_path.with_suffix(".migrated.yml").exists()
+
+    # Live run writes <name>.migrated.yml with canonical keys and leaves input untouched.
+    run_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(src_path)],
+    )
+    assert run_res.exit_code == 0, run_res.output
+    assert src_path.read_text(encoding="utf-8") == src_text
+    out_path = src_path.with_suffix(".migrated.yml")
+    assert out_path.exists()
+    out_wd = yaml.safe_load(out_path.read_text(encoding="utf-8"))["sites"][0][
+        "properties"
+    ]["building_archetype"]["profile_metabolism"]["working_day"]
+    assert all(isinstance(k, str) for k in out_wd)
+    assert "02" not in out_wd
+    assert "0144" not in out_wd
+    for key, val in expected_vals.items():
+        assert out_wd[key] == pytest.approx(val)
+
+    # 2. Re-migrating the normalised dev20 config is an idempotent no-op skip (no file written).
+    canonical_path = tmp_path / "dev20_canonical.yml"
+    canonical_path.write_text(out_path.read_text(encoding="utf-8"), encoding="utf-8")
+    skip_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(canonical_path)],
+    )
+    assert skip_res.exit_code == 0, skip_res.output
+    assert "Skipped" in skip_res.output
+    assert not canonical_path.with_suffix(".migrated.yml").exists()
+
+    # 3. Same-version dev20 with colliding 10-minute keys exits nonzero and writes nothing.
+    colliding_cfg = deepcopy(base_cfg)
+    colliding_cfg["schema_version"] = "2026.6.dev20"
+    colliding_cfg["sites"][0]["properties"]["stebbs"]["profile_appliance"][
+        "working_day"
+    ]["01"] = 0.99
+    bad_path = tmp_path / "dev20_colliding.yml"
+    bad_path.write_text(yaml.safe_dump(colliding_cfg, sort_keys=False), encoding="utf-8")
+    bad_res = runner.invoke(
+        cli,
+        [
+            "schema",
+            "--quiet",
+            "migrate",
+            "--target-version",
+            "2026.6.dev20",
+            str(bad_path),
+        ],
+    )
+    assert bad_res.exit_code == 1
+    assert not bad_path.with_suffix(".migrated.yml").exists()
+
+
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
+def test_dev20_migration_and_cli_cover_legacy_ten_minute_profile_aliases(
+    tmp_path: Path,
+):
+    """dev20 migration, CLI migrate, and dev8->dev9 observed-soil shim cover legacy 10-minute profile aliases."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    from click.testing import CliRunner  # ruff: ignore[import-outside-top-level]
+
+    from supy.cmd.suews_cli import cli  # ruff: ignore[import-outside-top-level]
+    from supy.util.converter.yaml_upgrade import (  # ruff: ignore[import-outside-top-level]
+        SoilMigrationContext,
+    )
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    migrator = SchemaMigrator()
+    runner = CliRunner()
+
+    # 1. dev19 -> dev20 and same-version dev20 CLI reject collisions under legacy MetabolismProfile.
+    legacy_dup = deepcopy(base_cfg)
+    legacy_dup["schema_version"] = "2026.6.dev19"
+    arch = legacy_dup["sites"][0]["properties"]["building_archetype"]
+    met = arch.pop("profile_metabolism")
+    met["working_day"]["01"] = 0.99
+    arch["MetabolismProfile"] = met
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"MetabolismProfile\.working_day.*Duplicate 10-minute profile key '1'",
+    ):
+        migrator.migrate(deepcopy(legacy_dup), to_version="2026.6.dev20")
+
+    legacy_dup["schema_version"] = "2026.6.dev20"
+    dup_cli_path = tmp_path / "legacy_dup_dev20.yml"
+    dup_cli_path.write_text(yaml.safe_dump(legacy_dup, sort_keys=False), encoding="utf-8")
+    dup_cli_res = runner.invoke(
+        cli,
+        ["schema", "--quiet", "migrate", "--target-version", "2026.6.dev20", str(dup_cli_path)],
+    )
+    assert dup_cli_res.exit_code == 1
+    assert not dup_cli_path.with_suffix(".migrated.yml").exists()
+
+    # 2. Same-version dev20 CLI normalises valid zero-padded keys under legacy hot_water_flow_profile.
+    legacy_valid = deepcopy(base_cfg)
+    legacy_valid["schema_version"] = "2026.6.dev20"
+    stebbs = legacy_valid["sites"][0]["properties"]["stebbs"]
+    hw = stebbs.pop("profile_flow_hot_water")
+    val_1 = hw["working_day"].pop("1")
+    hw["working_day"]["01"] = val_1
+    stebbs["hot_water_flow_profile"] = hw
+    valid_cli_path = tmp_path / "legacy_valid_dev20.yml"
+    valid_cli_path.write_text(
+        yaml.safe_dump(legacy_valid, sort_keys=False), encoding="utf-8"
+    )
+    valid_cli_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(valid_cli_path)],
+    )
+    assert valid_cli_res.exit_code == 0, valid_cli_res.output
+    out_hw = yaml.safe_load(
+        valid_cli_path.with_suffix(".migrated.yml").read_text(encoding="utf-8")
+    )["sites"][0]["properties"]["stebbs"]["hot_water_flow_profile"]["working_day"]
+    assert "01" not in out_hw
+    assert out_hw["1"] == pytest.approx(val_1)
+
+    # 3. Conflicting aliases (canonical + legacy) fail dev20 migration explicitly.
+    conflict_cfg = deepcopy(base_cfg)
+    conflict_cfg["schema_version"] = "2026.6.dev19"
+    conflict_cfg["sites"][0]["properties"]["building_archetype"][
+        "MetabolismProfile"
+    ] = deepcopy(
+        conflict_cfg["sites"][0]["properties"]["building_archetype"][
+            "profile_metabolism"
+        ]
+    )
+    with pytest.raises(
+        YamlUpgradeError, match=r"conflicting aliases for 'profile_metabolism'"
+    ):
+        migrator.migrate(conflict_cfg, to_version="2026.6.dev20")
+
+    # 4. Observed-soil dev8 -> dev19 preserves legacy alias MetabolismProfile with "+1", while dev20 rejects it.
+    dev8 = deepcopy(base_cfg)
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    dev8_arch = dev8["sites"][0]["properties"]["building_archetype"]
+    dev8_met = dev8_arch.pop("profile_metabolism")
+    dev8_met["working_day"]["+1"] = dev8_met["working_day"].pop("1")
+    dev8_arch["MetabolismProfile"] = dev8_met
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    to_dev19 = migrator.migrate(
+        deepcopy(dev8), to_version="2026.6.dev19", migration_context=ctx
+    )
+    assert (
+        "+1"
+        in to_dev19["sites"][0]["properties"]["building_archetype"][
+            "MetabolismProfile"
+        ]["working_day"]
+    )
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"MetabolismProfile\.working_day.*Invalid 10-minute profile key '\+1'",
+    ):
+        migrator.migrate(
+            deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
+        )

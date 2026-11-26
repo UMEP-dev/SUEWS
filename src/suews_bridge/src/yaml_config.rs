@@ -782,35 +782,28 @@ fn apply_day_profile_overrides(
             ));
         };
 
-        let mut seen_steps = vec![false; n_steps];
+        let path_display = format!("{profile_name}.{day_key}");
+        let mut seen_steps: Vec<Option<String>> = vec![None; n_steps];
         for (step_key, step_value) in day_map {
-            let Value::String(step_label) = step_key else {
+            let step_1based =
+                parse_ten_minute_profile_key(step_key, &path_display, n_steps)?;
+            let idx = step_1based - 1;
+            let raw_label = format_yaml_key(step_key);
+            if let Some(prev_label) = &seen_steps[idx] {
                 return Err(format!(
-                    "{profile_name}.{day_key} has a non-string step key; only `1`-`{n_steps}` are valid."
-                ));
-            };
-
-            let Ok(step_1based) = step_label.parse::<usize>() else {
-                return Err(format!(
-                    "{profile_name}.{day_key} has invalid step `{step_label}`; only `1`-`{n_steps}` are valid."
-                ));
-            };
-
-            if step_1based == 0 || step_1based > n_steps {
-                return Err(format!(
-                    "{profile_name}.{day_key} has invalid step `{step_label}`; only `1`-`{n_steps}` are valid."
+                    "{path_display} has duplicate step `{step_1based}` (colliding keys {prev_label} and {raw_label})."
                 ));
             }
 
             let Some(v) = read_numeric_value(step_value) else {
                 return Err(format!(
-                    "{profile_name}.{day_key}.{step_label} must be numeric."
+                    "{path_display}.{step_1based} must be numeric."
                 ));
             };
 
-            seen_steps[step_1based - 1] = true;
+            seen_steps[idx] = Some(raw_label);
             mapped.insert(
-                format!("{field_prefix}.{:03}.{}", step_1based - 1, day_type),
+                format!("{field_prefix}.{:03}.{}", idx, day_type),
                 v,
             );
         }
@@ -818,12 +811,12 @@ fn apply_day_profile_overrides(
         let missing_steps: Vec<String> = seen_steps
             .iter()
             .enumerate()
-            .filter_map(|(idx, seen)| (!seen).then_some((idx + 1).to_string()))
+            .filter_map(|(idx, seen)| seen.is_none().then_some((idx + 1).to_string()))
             .collect();
 
         if !missing_steps.is_empty() {
             return Err(format!(
-                "{profile_name}.{day_key} is missing {} entries: {}. Must define all {n_steps} ten-minute slices.",
+                "{path_display} is missing {} entries: {}. Must define all {n_steps} ten-minute slices.",
                 missing_steps.len(),
                 missing_steps.join(", ")
             ));
@@ -839,6 +832,65 @@ fn format_yaml_key(key: &Value) -> String {
         Value::Number(n) => format!("`{n}`"),
         Value::Bool(b) => format!("`{b}`"),
         other => yaml_kind(other).to_string(),
+    }
+}
+
+/// Parse a single 10-minute (or general `1..=n_steps`) profile key.
+///
+/// Accepts canonical `"1"`..`"{n_steps}"`, unsigned integers `1..=n_steps`
+/// (excluding floats, negative integers, and booleans), and zero-padded ASCII
+/// digit strings (`"01"`, `"001"`, `"0144"`). Rejects signed strings (`"+1"`,
+/// `"-1"`), whitespace, decimals, underscores, non-ASCII digits, booleans,
+/// and out-of-range steps (`"0"`, `"00"`, `"{n_steps+1}"`).
+fn parse_ten_minute_profile_key(
+    key: &Value,
+    path_display: &str,
+    n_steps: usize,
+) -> Result<usize, String> {
+    match key {
+        Value::String(raw) => {
+            if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(format!(
+                    "{path_display} has invalid step `{raw}`; expected ASCII digits `1`-`{n_steps}` \
+                     (optional leading zeros allowed; no signs, whitespace, decimals, underscores, \
+                     or non-ASCII digits)."
+                ));
+            }
+            let stripped = raw.trim_start_matches('0');
+            if stripped.is_empty() {
+                return Err(format!(
+                    "{path_display} has invalid step `{raw}`; only `1`-`{n_steps}` are valid."
+                ));
+            }
+            match stripped
+                .parse::<usize>()
+                .ok()
+                .filter(|&step| (1..=n_steps).contains(&step))
+            {
+                Some(step) => Ok(step),
+                None => Err(format!(
+                    "{path_display} has invalid step `{raw}`; only `1`-`{n_steps}` are valid."
+                )),
+            }
+        }
+        Value::Number(num) => {
+            let Some(step_u64) = num.as_u64() else {
+                return Err(format!(
+                    "{path_display} has invalid step `{num}`; expected integer `1`-`{n_steps}` \
+                     (no floats or negative numbers)."
+                ));
+            };
+            if !(1..=n_steps as u64).contains(&step_u64) {
+                return Err(format!(
+                    "{path_display} has invalid step `{step_u64}`; only `1`-`{n_steps}` are valid."
+                ));
+            }
+            Ok(step_u64 as usize)
+        }
+        other => Err(format!(
+            "{path_display} has invalid step ({}); expected ASCII digits `1`-`{n_steps}` or integer `1`-`{n_steps}`.",
+            yaml_kind(other)
+        )),
     }
 }
 
@@ -6227,6 +6279,131 @@ mod tests {
 
         let err = load_run_config_from_value(&mut root).expect_err("out-of-range step should fail");
         assert!(err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step `0`"));
+    }
+
+    #[test]
+    fn ten_minute_profile_accepts_integers_and_zero_padded_keys() {
+        let mut root: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        for (day_name, base) in [("working_day", 20.0_f64), ("holiday", 30.0_f64)] {
+            let day_node = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "building_archetype",
+                    "profile_setpoint_temperature_cooling_air",
+                    day_name,
+                ],
+            )
+            .expect("fixture should contain cooling day profile");
+            let Value::Mapping(day_map) = day_node else {
+                panic!("cooling day profile should be a mapping");
+            };
+            let mut rewritten = serde_yaml::Mapping::new();
+            for step in 1..=144_u64 {
+                let distinct_val = base + (step as f64) * 0.05;
+                let new_key = match step {
+                    1 => Value::String("001".to_string()),
+                    2..=9 => Value::String(format!("{step:02}")),
+                    10..=20 => Value::Number(step.into()),
+                    144 => Value::String("0144".to_string()),
+                    _ => Value::String(step.to_string()),
+                };
+                rewritten.insert(new_key, Value::Number(serde_yaml::Number::from(distinct_val)));
+            }
+            *day_map = rewritten;
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("zero-padded and integer 1..144 step keys should be accepted");
+        let cooling = &run_cfg.site
+            .building_archtype
+            .coolingsetpointtemperatureprofile;
+        for (day_idx, base) in [(0_usize, 20.0_f64), (1_usize, 30.0_f64)] {
+            for step in 1..=144_usize {
+                let expected = base + (step as f64) * 0.05;
+                let actual = cooling[day_idx][step - 1];
+                assert!(
+                    (actual - expected).abs() < 1e-12,
+                    "day_idx={day_idx} step={step}: expected {expected}, got {actual}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ten_minute_profile_rejects_malformed_and_colliding_keys() {
+        for bad_key in [
+            Value::String("+1".to_string()),
+            Value::String("-1".to_string()),
+            Value::String(" 1".to_string()),
+            Value::String("1.0".to_string()),
+            Value::String("0_1".to_string()),
+            Value::String("00".to_string()),
+            Value::String("145".to_string()),
+            Value::String("\u{0661}".to_string()),
+            Value::Bool(true),
+            Value::Number(serde_yaml::Number::from(1.0_f64)),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
+            let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+            let Value::Mapping(day_map) = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "building_archetype",
+                    "profile_setpoint_temperature_cooling_air",
+                    "working_day",
+                ],
+            )
+            .expect("fixture should contain cooling working-day profile")
+            else {
+                panic!("cooling working-day profile should be a mapping");
+            };
+            let val = day_map
+                .remove(Value::String("1".to_string()))
+                .expect("fixture should contain slice 1");
+            day_map.insert(bad_key.clone(), val);
+
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("malformed key {bad_key:?} must be rejected"));
+            assert!(
+                err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step"),
+                "unexpected error for {bad_key:?}: {err}"
+            );
+        }
+
+        // Colliding keys ("1" and "01") must fail instead of silently overwriting.
+        let mut root: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let Value::Mapping(day_map) = get_path_mut(
+            site,
+            &[
+                "properties",
+                "building_archetype",
+                "profile_setpoint_temperature_cooling_air",
+                "working_day",
+            ],
+        )
+        .expect("fixture should contain cooling working-day profile")
+        else {
+            panic!("cooling working-day profile should be a mapping");
+        };
+        let val = day_map
+            .get(Value::String("1".to_string()))
+            .cloned()
+            .expect("fixture should contain slice 1");
+        day_map.insert(Value::String("01".to_string()), val);
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("colliding 10-minute step keys must fail");
+        assert!(
+            err.contains("CoolingSetpointTemperatureProfile.working_day has duplicate step `1`"),
+            "unexpected collision error: {err}"
+        );
     }
 
     // --- Integration tests for YAML key preprocessor (gh#1322) --------------

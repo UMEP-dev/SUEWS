@@ -231,6 +231,35 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev20_ten_minute_profile_keys:
+
+Upgrading to Schema 2026.6.dev20
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev20`` aligns Python ``TenMinuteProfile`` (including
+``HeatingSetpointProfile`` and ``CoolingSetpointProfile``) and Rust
+``apply_day_profile_overrides`` step-key validation across the five 10-minute
+STEBBS profiles (``building_archetype.profile_metabolism``,
+``building_archetype.profile_setpoint_temperature_heating_air``,
+``building_archetype.profile_setpoint_temperature_cooling_air``,
+``stebbs.profile_flow_hot_water``, and ``stebbs.profile_appliance``).
+Previously, Python coerced arbitrary keys via ``str(k)`` (accepting malformed
+keys such as ``"+1"``, ``"0"``, ``"145"``, ``True``, or ``1.0`` and silently
+overwriting canonical collisions such as ``"1"`` and ``"01"``), whereas Rust
+rejected YAML integer keys ``1..144`` while also accepting ``"+1"`` and
+silently overwriting duplicate slots.
+
+Both layers now accept canonical strings ``"1"``..``"144"``, zero-padded
+ASCII-digit strings (such as ``"01"`` or ``"0144"``), and plain integers
+``1``..``144``, normalising them to canonical ``"1"``..``"144"`` strings while
+strictly rejecting malformed keys and canonical collisions. Upgrading to
+``2026.6.dev20`` rewrites valid non-canonical 10-minute profile keys to
+canonical strings and reports any malformed or colliding keys explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev20
+
 .. _schema_dev19_irrigation_weekdays:
 
 Upgrading to Schema 2026.6.dev19

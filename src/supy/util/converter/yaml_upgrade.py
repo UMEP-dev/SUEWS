@@ -48,6 +48,11 @@ from ...data_model.core.field_renames import (
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
+from ...data_model.core.profile import (
+    TEN_MINUTE_PROFILE_ALIAS_GROUPS as _TEN_MINUTE_PROFILE_ALIAS_GROUPS,
+    normalise_ten_minute_profile_key,
+    normalise_ten_minute_profile_mapping,
+)
 from ...data_model.core.state import validate_sdd_id
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
 from ...data_model.configuration.migration import SchemaMigrator
@@ -1635,14 +1640,15 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
     if active:
         # Validate all sites against the current schema using a throwaway copy
         # stripped of legacy radiation, continuation-state placeholders,
-        # pre-dev16 non-finite sdd_id values, and pre-dev17 non-integer DOYs;
-        # the returned dev9 mapping stays intact for later deltas and
-        # single-pass logging.
+        # pre-dev16 non-finite sdd_id values, pre-dev17 non-integer DOYs, and
+        # pre-dev20 non-canonical 10-minute profile keys; the returned dev9
+        # mapping stays intact for later deltas and single-pass logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
         candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
         _clear_nonfinite_sdd_for_dev9_candidate(candidate)
         _clear_noninteger_doy_for_dev9_candidate(candidate)
+        _clear_noncanonical_ten_minute_keys_for_dev9_candidate(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2817,6 +2823,156 @@ _HANDLERS[("2026.6.dev18", CURRENT_SCHEMA_VERSION)] = (
 )
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
     _with_senescence_check(_identity)
+)
+
+
+def _clear_noncanonical_ten_minute_keys_for_dev9_candidate(candidate: dict) -> None:
+    """Sanitise pre-dev20 malformed/colliding 10-minute keys on the dev9 throwaway copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev20 10-minute profile key
+    validation. Pre-dev20 ``TenMinuteProfile`` coerced arbitrary dict keys with
+    ``str(k)`` while still validating float/None values. Rewrite only mappings
+    whose keys fail dev20 validation (and whose values are all None or numeric)
+    on that throwaway copy so historical targets ``dev9``..``dev19`` retain
+    pre-dev20 behaviour and targeting ``dev20`` fails cleanly with
+    ``YamlUpgradeError`` rather than Pydantic ``ValidationError``.
+    """
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    for site in sites:
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, _canonical_field, candidate_names in (
+            _TEN_MINUTE_PROFILE_ALIAS_GROUPS
+        ):
+            section = props.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            for field_name in candidate_names:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
+                    continue
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, dict):
+                        continue
+                    try:
+                        normalise_ten_minute_profile_mapping(day_map)
+                        continue
+                    except ValueError:
+                        pass
+                    sanitised: dict[str, float | None] = {}
+                    all_values_valid = True
+                    for idx, val in enumerate(day_map.values()):
+                        if val is None:
+                            coerced_val: float | None = None
+                        else:
+                            try:
+                                coerced_val = float(val)
+                            except (TypeError, ValueError):
+                                all_values_valid = False
+                                break
+                        sanitised[str((idx % 144) + 1)] = coerced_val
+                    if all_values_valid:
+                        profile[day_type] = sanitised
+
+
+def _check_and_normalise_ten_minute_profile_keys(cfg: dict) -> dict:
+    """Normalise valid 10-minute STEBBS profile keys and reject malformed/colliding keys."""
+    cfg = deepcopy(cfg)
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    problems: list[str] = []
+    pending_logs: list[str] = []
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, canonical_field, candidate_names in (
+            _TEN_MINUTE_PROFILE_ALIAS_GROUPS
+        ):
+            section = props.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            present = [name for name in candidate_names if name in section]
+            if len(present) > 1:
+                problems.append(
+                    f"sites[{index}].properties.{section_name}: conflicting aliases "
+                    f"for '{canonical_field}': {', '.join(repr(n) for n in present)}"
+                )
+                continue
+            for field_name in present:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
+                    continue
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, Mapping):
+                        continue
+                    path = (
+                        f"sites[{index}].properties.{section_name}."
+                        f"{field_name}.{day_type}"
+                    )
+                    try:
+                        canonical_map = normalise_ten_minute_profile_mapping(
+                            dict(day_map)
+                        )
+                    except ValueError as exc:
+                        problems.append(f"{path}: {exc}")
+                        continue
+                    has_non_canonical = any(
+                        not isinstance(raw_k, str)
+                        or normalise_ten_minute_profile_key(raw_k) != raw_k
+                        for raw_k in day_map
+                    )
+                    if has_non_canonical:
+                        profile[day_type] = canonical_map
+                        pending_logs.append(
+                            f"[yaml-upgrade] normalised {path}: non-canonical 10-minute "
+                            "profile keys -> canonical '1'..'144' strings"
+                        )
+
+    if problems:
+        raise YamlUpgradeError("\n".join(problems))
+
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_ten_minute_profile_key_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _check_and_normalise_ten_minute_profile_keys(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev19")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ten_minute_profile_key_delta(_handler)
+_HANDLERS[("2026.6.dev19", "2026.6.dev19")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev19", CURRENT_SCHEMA_VERSION)] = (
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = (
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
 )
 
 # ---------------------------------------------------------------------------

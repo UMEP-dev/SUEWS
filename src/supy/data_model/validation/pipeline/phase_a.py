@@ -24,6 +24,7 @@ from ...core.physics_families import (
 from ...core.profile import (
     HOURLY_PROFILE_FIELD_NAMES,
     normalise_hourly_profile_keys_in_raw_config,
+    normalise_ten_minute_profile_keys_in_raw_config,
 )
 
 RENAMED_PARAMS = {
@@ -396,6 +397,7 @@ def _normalise_phase_a_compatibility(
     normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
     replacements.extend(stebbs_replacements)
     normalised, _ = normalise_hourly_profile_keys_in_raw_config(normalised)
+    normalised, _ = normalise_ten_minute_profile_keys_in_raw_config(normalised)
     return normalised, replacements
 
 

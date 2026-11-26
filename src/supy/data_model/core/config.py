@@ -37,7 +37,11 @@ import warnings
 
 from ._yaml_io import safe_load_yaml
 from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
-from .profile import _CANONICAL_HOUR_KEY_SET, normalise_hourly_profile_mapping
+from .profile import (
+    _CANONICAL_HOUR_KEY_SET,
+    normalise_hourly_profile_mapping,
+    normalise_ten_minute_profile_mapping,
+)
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType, df_from_cols, merge_df_state_cols
 from .state import validate_sdd_id
@@ -4095,6 +4099,7 @@ class SUEWSConfig(DataModelBase):
         self.validate_active_veg_lai_max()
         self.validate_water_distributions()
         self.validate_hourly_profile_hours()
+        self.validate_ten_minute_profile_keys()
         self._validate_senescence_states()
         self.validate_doy_parameters()
         self._validate_engine_contracts(
@@ -5545,6 +5550,97 @@ class SUEWSConfig(DataModelBase):
         return self
 
     @model_validator(mode="after")
+    def validate_ten_minute_profile_keys(self) -> "SUEWSConfig":
+        """Validate and normalise 10-minute STEBBS profile keys across all sites.
+
+        Enforces canonical ``"1"``..``"144"`` key normalisation and rejects
+        malformed, out-of-range, or colliding keys on live ``TenMinuteProfile``
+        instances (including post-construction in-place mutations) before
+        serialisation, YAML export, or engine handoff.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any 10-minute profile contains a non-mapping day profile, a
+            malformed or out-of-range key, or colliding canonical keys.
+        """
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            errors: list[str] = []
+
+            ten_minute_profiles = []
+            if site.properties and site.properties.building_archetype:
+                archetype = site.properties.building_archetype
+                ten_minute_profiles.extend([
+                    (
+                        "building_archetype.profile_metabolism",
+                        archetype.profile_metabolism,
+                    ),
+                    (
+                        "building_archetype.profile_setpoint_temperature_heating_air",
+                        archetype.profile_setpoint_temperature_heating_air,
+                    ),
+                    (
+                        "building_archetype.profile_setpoint_temperature_cooling_air",
+                        archetype.profile_setpoint_temperature_cooling_air,
+                    ),
+                ])
+
+            if site.properties and site.properties.stebbs:
+                stebbs = site.properties.stebbs
+                ten_minute_profiles.extend([
+                    ("stebbs.profile_flow_hot_water", stebbs.profile_flow_hot_water),
+                    ("stebbs.profile_appliance", stebbs.profile_appliance),
+                ])
+
+            for profile_name, profile in ten_minute_profiles:
+                if profile is None:
+                    continue
+
+                for day_type in ("working_day", "holiday"):
+                    day_profile = (
+                        profile.get(day_type)
+                        if isinstance(profile, dict)
+                        else getattr(profile, day_type, None)
+                    )
+                    if day_profile is None:
+                        continue
+
+                    if not isinstance(day_profile, dict):
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type} must be a mapping "
+                            f"keyed by steps '1'..'144', got {type(day_profile).__name__}."
+                        )
+                        continue
+
+                    try:
+                        normalised = normalise_ten_minute_profile_mapping(day_profile)
+                    except ValueError as exc:
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type}: {exc}"
+                        )
+                        continue
+
+                    if (
+                        normalised != day_profile
+                        or list(normalised.keys()) != list(day_profile.keys())
+                    ):
+                        if isinstance(profile, dict):
+                            profile[day_type] = normalised
+                        else:
+                            setattr(profile, day_type, normalised)
+
+            if errors:
+                raise ValueError("\n".join(errors))
+
+        return self
+
+    @model_validator(mode="after")
     def validate_dls_parameters(self) -> "SUEWSConfig":
         """
         Validate daylight saving time (DLS) parameters across all sites.
@@ -6359,13 +6455,14 @@ class SUEWSConfig(DataModelBase):
             If True, preserve internal-only fields for lossless round-tripping.
             Set to False to produce a clean user-facing YAML export.
         """
-        # Enforce 24-hour profile key normalisation and rejection before
-        # dumping so post-construction mutations cannot bypass validation on
-        # ordinary YAML export (mirroring config_to_engine_yaml()).
+        # Enforce 24-hour and 10-minute profile key normalisation and rejection
+        # before dumping so post-construction mutations cannot bypass validation
+        # on ordinary YAML export (mirroring config_to_engine_yaml()).
         if isinstance(self.sites, list) and all(
             isinstance(site, Site) for site in self.sites
         ):
             self.validate_hourly_profile_hours()
+            self.validate_ten_minute_profile_keys()
 
         self._validate_senescence_states()
         # Use mode='json' to serialize enums as their values. round_trip

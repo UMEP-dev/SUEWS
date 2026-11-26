@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from importlib.resources import as_file, files
+from pathlib import Path
+
 from pydantic import ValidationError
 import pytest
+import yaml
 
+from supy.data_model import SUEWSConfig
 from supy.data_model.core.profile import (
     CANONICAL_TEN_MINUTE_KEYS,
     CoolingSetpointProfile,
@@ -176,3 +181,104 @@ def test_ten_minute_profile_models_reject_colliding_keys(
     colliding[key_b] = 0.2
     with pytest.raises(ValidationError, match="Duplicate 10-minute profile key"):
         profile_cls(working_day=colliding, holiday=valid)
+
+
+FIVE_TEN_MINUTE_PROFILE_PATHS: tuple[tuple[str, str], ...] = (
+    ("building_archetype", "profile_metabolism"),
+    ("building_archetype", "profile_setpoint_temperature_heating_air"),
+    ("building_archetype", "profile_setpoint_temperature_cooling_air"),
+    ("stebbs", "profile_flow_hot_water"),
+    ("stebbs", "profile_appliance"),
+)
+
+
+def _load_sample_config_dict() -> dict:
+    """Load the packaged sample YAML configuration as a fresh mutable dict."""
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        return yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(("section", "field_name"), FIVE_TEN_MINUTE_PROFILE_PATHS)
+def test_suews_config_from_yaml_normalises_ten_minute_profile_keys(
+    tmp_path: Path, section: str, field_name: str
+) -> None:
+    """SUEWSConfig.from_yaml normalises valid integer/zero-padded 10-minute profile keys."""
+    cfg_dict = _load_sample_config_dict()
+    wd = _make_mixed_valid_144(base=10.0)
+    hol = _make_mixed_valid_144(base=20.0)
+    cfg_dict["sites"][0]["properties"][section][field_name] = {
+        "working_day": wd,
+        "holiday": hol,
+    }
+    yaml_path = tmp_path / f"{field_name}.yml"
+    yaml_path.write_text(yaml.safe_dump(cfg_dict, sort_keys=False), encoding="utf-8")
+
+    loaded = SUEWSConfig.from_yaml(str(yaml_path))
+    profile = getattr(getattr(loaded.sites[0].properties, section), field_name)
+    assert tuple(profile.working_day.keys()) == CANONICAL_TEN_MINUTE_KEYS
+    assert tuple(profile.holiday.keys()) == CANONICAL_TEN_MINUTE_KEYS
+    assert profile.working_day["1"] == pytest.approx(10.01)
+    assert profile.working_day["144"] == pytest.approx(11.44)
+    assert profile.holiday["1"] == pytest.approx(20.01)
+    assert profile.holiday["144"] == pytest.approx(21.44)
+
+
+@pytest.mark.parametrize(
+    ("section", "field_name", "day_type", "bad_entries", "expected_msg"),
+    [
+        (
+            "building_archetype",
+            "profile_metabolism",
+            "working_day",
+            {"+1": 0.5},
+            "Invalid 10-minute profile key",
+        ),
+        (
+            "building_archetype",
+            "profile_setpoint_temperature_heating_air",
+            "holiday",
+            {"145": 20.0},
+            "Invalid 10-minute profile key",
+        ),
+        (
+            "stebbs",
+            "profile_flow_hot_water",
+            "working_day",
+            {"1": 0.1, "01": 0.2},
+            "Duplicate 10-minute profile key",
+        ),
+        (
+            "stebbs",
+            "profile_appliance",
+            "holiday",
+            {1: 0.1, "01": 0.2},
+            "Duplicate 10-minute profile key",
+        ),
+    ],
+)
+def test_suews_config_from_yaml_rejects_malformed_and_colliding_ten_minute_keys(
+    tmp_path: Path,
+    section: str,
+    field_name: str,
+    day_type: str,
+    bad_entries: dict[object, float],
+    expected_msg: str,
+) -> None:
+    """SUEWSConfig.from_yaml rejects malformed/colliding 10-minute keys with field path."""
+    cfg_dict = _load_sample_config_dict()
+    valid = {str(s): 0.5 for s in range(1, 145)}
+    bad = dict(valid)
+    bad.pop("1")
+    bad.update(bad_entries)
+    other_day = "holiday" if day_type == "working_day" else "working_day"
+    cfg_dict["sites"][0]["properties"][section][field_name] = {
+        day_type: bad,
+        other_day: valid,
+    }
+    yaml_path = tmp_path / f"{field_name}_{day_type}_bad.yml"
+    yaml_path.write_text(yaml.safe_dump(cfg_dict, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=expected_msg) as exc_info:
+        SUEWSConfig.from_yaml(str(yaml_path))
+    err_text = str(exc_info.value)
+    assert f"sites[gridiv=1].properties.{section}.{field_name}.{day_type}" in err_text

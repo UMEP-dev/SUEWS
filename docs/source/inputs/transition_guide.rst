@@ -242,7 +242,7 @@ Upgrading to Schema 2026.6.dev20
 STEBBS profiles (``building_archetype.profile_metabolism``,
 ``building_archetype.profile_setpoint_temperature_heating_air``,
 ``building_archetype.profile_setpoint_temperature_cooling_air``,
-``stebbs.profile_flow_hot_water``, and ``stebbs.profile_appliance``; #2342).
+``stebbs.profile_flow_hot_water``, and ``stebbs.profile_appliance``).
 Previously, Python coerced arbitrary keys via ``str(k)`` (accepting malformed
 keys such as ``"+1"``, ``"0"``, ``"145"``, ``True``, or ``1.0`` and silently
 overwriting canonical collisions such as ``"1"`` and ``"01"``), whereas Rust

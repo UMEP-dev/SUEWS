@@ -108,6 +108,7 @@ class SchemaMigrator:
                 from packaging.version import Version  # noqa: PLC0415
                 from ...util.converter.yaml_upgrade import (  # noqa: PLC0415
                     _check_and_normalise_integer_doys,
+                    _check_and_normalise_ten_minute_profile_keys,
                     validate_active_soil_depth_raw,
                     validate_vegetation_sdd_raw,
                 )
@@ -119,6 +120,8 @@ class SchemaMigrator:
                     validate_vegetation_sdd_raw(config)
                 if target_ver >= Version("2026.6.dev17"):
                     config = _check_and_normalise_integer_doys(config)
+                if target_ver >= Version("2026.6.dev20"):
+                    config = _check_and_normalise_ten_minute_profile_keys(config)
             logger.info(f"Configuration already at schema version {to_version}")
             return config
 

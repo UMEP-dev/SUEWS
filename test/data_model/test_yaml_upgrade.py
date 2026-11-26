@@ -1506,3 +1506,73 @@ def test_chained_pre_dev19_to_dev20_preserves_dev19_boundary(source_version, cap
     )
     assert "asymmetric weekday schedule" in err_20
     assert "profile_setpoint_temperature_cooling_air.working_day" in err_20
+
+
+def test_dev20_self_target_normalises_and_rejects_and_dev19_stays_unchanged(capsys):
+    """Same-version dev20 -> dev20 enforces 10-min key rules, while dev19 -> dev19 does not."""
+    migrator = SchemaMigrator()
+    non_canonical_dev20 = {
+        "schema_version": "2026.6.dev20",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {
+                            "working_day": {1: 0.25, "0144": 0.75},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+    migrated = migrator.migrate(non_canonical_dev20, to_version="2026.6.dev20")
+    err = capsys.readouterr().err
+    assert migrated["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"] == {"1": 0.25, "144": 0.75}
+    assert (
+        "sites[0].properties.building_archetype.profile_metabolism.working_day" in err
+    )
+
+    for bad_map, expected in (
+        ({"+1": 0.5}, "Invalid 10-minute profile key '+1'"),
+        ({"1": 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+    ):
+        invalid_dev20 = {
+            "schema_version": "2026.6.dev20",
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "profile_appliance": {"holiday": deepcopy(bad_map)},
+                        },
+                    }
+                }
+            ],
+        }
+        before = deepcopy(invalid_dev20)
+        with pytest.raises(
+            YamlUpgradeError, match=r"profile_appliance\.holiday"
+        ) as exc_info:
+            migrator.migrate(invalid_dev20, to_version="2026.6.dev20")
+        assert expected in str(exc_info.value)
+        assert invalid_dev20 == before
+
+    # Same-version dev19 -> dev19 preserves pre-dev20 behaviour without rewriting keys.
+    dev19_cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {"working_day": {"01": 0.5}},
+                    },
+                }
+            }
+        ],
+    }
+    same_dev19 = migrator.migrate(dev19_cfg, to_version="2026.6.dev19")
+    assert same_dev19["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"] == {"01": 0.5}
+    assert capsys.readouterr().err == ""

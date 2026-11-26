@@ -199,7 +199,7 @@ the schema that shipped with it via
 
    Aligns Python ``TenMinuteProfile`` (``HeatingSetpointProfile``,
    ``CoolingSetpointProfile``) and Rust ``apply_day_profile_overrides`` key
-   validation for 10-minute STEBBS profiles (#2342). Step keys in
+   validation for 10-minute STEBBS profiles. Step keys in
    ``working_day`` and ``holiday`` accept canonical strings ``"1"``..``"144"``,
    zero-padded ASCII-digit strings, and plain integers ``1``..``144``,
    normalising to canonical ``"1"``..``"144"`` strings while strictly rejecting

@@ -142,6 +142,9 @@ CONTAINS
             evetrPrm => siteInfo%lc_evetr, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
+            !FA get the reset days to pass into LAI subroutine
+            GDD_summer_reset_day => siteInfo%GDD_summer_reset_day, &
+            SDD_winter_reset_day => siteInfo%SDD_winter_reset_day, &
             i_iter => flagState%i_iter &
             )
 
@@ -211,27 +214,26 @@ CONTAINS
                dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &
-               LAIType => [evetrPrm%lai%lai_type, &
-                           dectrPrm%lai%lai_type, &
-                           grassPrm%lai%lai_type], &
                BaseT => [evetrPrm%lai%base_temperature, &
                          dectrPrm%lai%base_temperature, &
                          grassPrm%lai%base_temperature], &
                BaseTe => [evetrPrm%lai%base_temperature_senescence, &
                           dectrPrm%lai%base_temperature_senescence, &
                           grassPrm%lai%base_temperature_senescence], &
-               GDDFull => [evetrPrm%lai%gdd_full, &
-                           dectrPrm%lai%gdd_full, &
-                           grassPrm%lai%gdd_full], &
-               SDDFull => [evetrPrm%lai%sdd_full, &
-                           dectrPrm%lai%sdd_full, &
-                           grassPrm%lai%sdd_full], &
                LAIMin => [evetrPrm%lai%lai_min, &
                           dectrPrm%lai%lai_min, &
                           grassPrm%lai%lai_min], &
                LAIMax => [evetrPrm%lai%lai_max, &
                           dectrPrm%lai%lai_max, &
                           grassPrm%lai%lai_max], &
+
+               GDDBase => [evetrPrm%lai%gdd_base, &
+                           dectrPrm%lai%gdd_base, &
+                           grassPrm%lai%gdd_base], &
+               SDDBase => [evetrPrm%lai%sdd_base, &
+                           dectrPrm%lai%sdd_base, &
+                           grassPrm%lai%sdd_base], &   
+   
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
                                 bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, &
@@ -335,16 +337,19 @@ CONTAINS
                   ! This was revised and checked on 16 Feb 2014 by LJ
                   !------------------------------------------------------------------------------
                   IF (execute_subroutines) THEN
-                     CALL update_GDDLAI( &
-                        id, LAICalcYes, & !input
-                        lat, [lai_evetr, lai_dectr, lai_grass], &
-                        Tmin_id, Tmax_id, lenDay_id, &
-                        BaseT, BaseTe, &
-                        GDDFull, SDDFull, &
-                        LAIMin, LAIMax, LAIPower, LAIType, &
-                        LAI_id_prev, &
-                        GDD_id, SDD_id, & !inout
-                        LAI_id) !output
+                     CALL update_gddlai( &
+                        id=id, lai_calc_yes=LAICalcYes, & !input
+                        lat=lat, lai_obs=[lai_evetr, lai_dectr, lai_grass], &
+                        t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
+                        summer_reset_day=GDD_summer_reset_day, &
+                        winter_reset_day=SDD_winter_reset_day, &
+                        base_t_gdd=BaseT, base_t_sdd=BaseTe, &
+                        gdd_base=GDDBase, sdd_base=SDDBase, &
+                        lai_min=LAIMin, lai_max=LAIMax, &
+                        lai_power=LAIPower, &
+                        lai_id_prev=LAI_id_prev, &
+                        gdd_id=GDD_id, sdd_id=SDD_id, & !inout
+                        lai_id_next=LAI_id) !output
                      IF (supy_error_flag()) RETURN
 
                      CALL update_Veg( &

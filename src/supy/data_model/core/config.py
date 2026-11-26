@@ -914,9 +914,16 @@ class SUEWSConfig(DataModelBase):
             "info_messages": [],
         }
 
+        # list for site-specific critical issues
+        critical_lai_issues = []
+
         ### 2) Run the standard site-by-site checks
         for i, site in enumerate(self.sites):
             self._validate_site_parameters(site, site_index=i)
+
+            # append critical lai parameters (FA: should be combined with 4d check later)
+            if hasattr(site.properties, "land_cover") and site.properties.land_cover:
+                critical_lai_issues.extend(self._check_critical_lai_params(site.properties.land_cover, site_id=i))
 
         ### 3) Run any conditional validations (e.g. STEBBS when stebbs_method==1)
         cond_issues = self._validate_conditional_parameters()
@@ -945,6 +952,9 @@ class SUEWSConfig(DataModelBase):
             all_critical_issues.extend(zero_soil_depth_issues)
         if active_veg_lai_max_issues:
             all_critical_issues.extend(active_veg_lai_max_issues)
+        if critical_lai_issues:
+            all_critical_issues.extend(critical_lai_issues)
+
         # Collect declared drainage defects here, after the existing checks,
         # so one new contract cannot hide other actionable errors or prevent
         # auto-generated annotated YAML on the failure path.
@@ -1712,10 +1722,10 @@ class SUEWSConfig(DataModelBase):
             if self._check_land_cover(site.properties.land_cover, site_name):
                 site_has_issues = True
 
-        # Validate LAI range parameters
-        if hasattr(site.properties, "land_cover") and site.properties.land_cover:
-            if self._check_lai_ranges(site.properties.land_cover, site_name):
-                site_has_issues = True
+        # # Validate LAI range parameters
+        # if hasattr(site.properties, "land_cover") and site.properties.land_cover:
+        #     if self._check_lai_ranges(site.properties.land_cover, site_name):
+        #         site_has_issues = True
 
         # Track sites with issues
         if (
@@ -2035,108 +2045,286 @@ class SUEWSConfig(DataModelBase):
             return True
         return False
 
-    def _check_lai_ranges(self, land_cover, site_name: str) -> bool:
-        """
-        Check LAI (Leaf Area Index) range parameters for vegetation surfaces.
+    # def _check_lai_ranges(self, land_cover, site_name: str) -> bool:
+    #     """
+    #     Check LAI (Leaf Area Index) range parameters for vegetation surfaces.
 
-        This method validates the LAI parameters for all vegetated surface types
-        (grass, dectr, evetr) within the provided land cover. It checks that:
-        - lai_min <= lai_max
-        - base_temperature <= gddfull
+    #     This method validates the LAI parameters for all vegetated surface types
+    #     (grass, dectr, evetr) within the provided land cover. It checks that:
+    #     - 0 < lai_min <= lai_max
+    #     - gdd_base >= 0
+    #     - sdd_base <= 0
 
-        Returns
-        -------
-        bool
-            True if any issues are found, False otherwise.
+    #     Returns
+    #     -------
+    #     bool
+    #         True if any issues are found, False otherwise.
 
-        Notes
-        -----
-        - Issues found are recorded in the validation summary for reporting.
-        - Uses consistent unwrapping of RefValue wrappers.
-        """
-        has_issues = False
+    #     Notes
+    #     -----
+    #     - Issues found are recorded in the validation summary for reporting.
+    #     - Uses consistent unwrapping of RefValue wrappers.
+    #     """
 
-        # Initialize validation summary if it doesn't exist (for testing)
-        if not hasattr(self, "_validation_summary"):
-            self._validation_summary = {
-                "total_warnings": 0,
-                "sites_with_issues": [],
-                "issue_types": set(),
-                "yaml_path": getattr(self, "_yaml_path", None),
-                "detailed_messages": [],
-                "info_messages": [],
-            }
+    #     has_issues = False
 
-        # Return early if no land cover
-        if land_cover is None:
-            return False
+    #     # Initialize validation summary if it doesn't exist (for testing)
+    #     if not hasattr(self, "_validation_summary"):
+    #         self._validation_summary = {
+    #             "total_warnings": 0,
+    #             "sites_with_issues": [],
+    #             "issue_types": set(),
+    #             "yaml_path": getattr(self, "_yaml_path", None),
+    #             "detailed_messages": [],
+    #             "info_messages": [],
+    #         }
 
-        # Check vegetation surface types that have LAI parameters
-        vegetation_surfaces = ["grass", "dectr", "evetr"]
+    #     # Return early if no land cover
+    #     if land_cover is None:
+    #         return False
 
-        for surface_type in vegetation_surfaces:
-            if hasattr(land_cover, surface_type):
-                surface = getattr(land_cover, surface_type)
-                if surface and hasattr(surface, "lai"):
-                    lai = surface.lai
-                    if lai:
-                        # Check lai_min vs lai_max
-                        if (
-                            hasattr(lai, "lai_min")
-                            and lai.lai_min is not None
-                            and hasattr(lai, "lai_max")
-                            and lai.lai_max is not None
-                        ):
-                            lai_min_val = (
-                                lai.lai_min.value
-                                if hasattr(lai.lai_min, "value")
-                                else lai.lai_min
-                            )
-                            lai_max_val = (
-                                lai.lai_max.value
-                                if hasattr(lai.lai_max, "value")
-                                else lai.lai_max
-                            )
+    #     # Check vegetation surface types that have LAI parameters
+    #     vegetation_surfaces = ["grass", "dectr", "evetr"]
 
-                            if lai_min_val > lai_max_val:
-                                self._validation_summary["total_warnings"] += 1
-                                self._validation_summary["issue_types"].add(
-                                    "LAI range validation"
+    #     for surface_type in vegetation_surfaces:
+    #         if hasattr(land_cover, surface_type):
+    #             surface = getattr(land_cover, surface_type)
+    #             if surface and hasattr(surface, "lai"):
+    #                 lai = surface.lai
+    #                 if lai:
+    #                     # Check lai_min vs lai_max
+    #                     if (
+    #                         hasattr(lai, "lai_min")
+    #                         and lai.lai_min is not None
+    #                         and hasattr(lai, "lai_max")
+    #                         and lai.lai_max is not None
+    #                     ):
+    #                         lai_min_val = (
+    #                             lai.lai_min.value
+    #                             if hasattr(lai.lai_min, "value")
+    #                             else lai.lai_min
+    #                         )
+    #                         lai_max_val = (
+    #                             lai.lai_max.value
+    #                             if hasattr(lai.lai_max, "value")
+    #                             else lai.lai_max
+    #                         )
+
+    #                         self._validation_summary["total_warnings"] += 1
+    #                         self._validation_summary["issue_types"].add(
+    #                             "LAI range validation"
+    #                         )
+    #                         self._validation_summary["detailed_messages"].append(
+    #                             f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be <= lai_max ({lai_max_val})"
+    #                         )
+    #                         has_issues = True
+
+    #                         # lai cannot be negative
+    #                         if lai_min_val < 0:
+    #                             self._validation_summary["total_warnings"] += 1
+    #                             self._validation_summary["issue_types"].add(
+    #                                 "LAI range validation"
+    #                             )
+    #                             self._validation_summary["detailed_messages"].append(
+    #                                 f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be >= 0"
+    #                             )
+    #                             has_issues = True
+                        
+
+    #                     # Check gdd base is positive
+    #                     if hasattr(lai, "gdd_base") and lai.gdd_base is not None:
+
+    #                         gdd_base = lai.gdd_base.value if hasattr(lai.gdd_base, "value") else lai.gdd_base
+
+    #                         if gdd_base < 0:
+    #                             self._validation_summary["total_warnings"] += 1
+    #                             self._validation_summary["issue_types"].add(
+    #                                 "LAI range validation"
+    #                             )
+    #                             self._validation_summary["detailed_messages"].append(
+    #                                 f"{site_name} {surface_type}: gdd_base must be >= 0"
+    #                             )
+    #                             has_issues = True
+
+    #                     # Check sdd base is negative
+    #                     if hasattr(lai, "sdd_base") and lai.sdd_base is not None:
+
+    #                         sdd_base = lai.sdd_base.value if hasattr(lai.sdd_base, "value") else lai.sdd_base
+
+    #                         if sdd_base > 0:
+    #                             self._validation_summary["total_warnings"] += 1
+    #                             self._validation_summary["issue_types"].add(
+    #                                 "LAI range validation"
+    #                             )
+    #                             self._validation_summary["detailed_messages"].append(
+    #                                 f"{site_name} {surface_type}: sdd_base must be <= 0"
+    #                             )
+    #                             has_issues = True
+
+    #     return has_issues
+
+
+
+    def _iter_active_veg_lai_param_issues(self, land_cover, site_index: int) -> list[Dict]:
+            """
+            Check LAI (Leaf Area Index) parameters for vegetation surfaces.
+    
+            This method validates the LAI parameters for all vegetated surface types
+            (grass, dectr, evetr) within the provided land cover. It checks that:
+            - 0 < lai_min <= lai_max
+            - gdd_base >= 0
+            - sdd_base <= 0
+    
+            Returns
+            -------
+            List of issues
+    
+            """
+    
+            issues: List[Dict[str, str]] = []
+    
+            # Return early if no land cover
+            if land_cover is None:
+                return issues
+    
+            # Check vegetation surface types that have LAI parameters
+            vegetation_surfaces = ["grass", "dectr", "evetr"]
+    
+            for surface_type in vegetation_surfaces:
+                if hasattr(land_cover, surface_type):
+                    surface = getattr(land_cover, surface_type)
+                    if surface and hasattr(surface, "lai") and surface.sfr > 0:
+                        lai = surface.lai
+
+                        # extract surface fraction
+                        if isinstance(surface, Mapping):
+                            sfr_raw = surface.get("sfr", 1.0 / 7.0)
+                        else:
+                            sfr_raw = getattr(surface, "sfr", None)
+                        sfr_value = self._extract_numeric_scalar(sfr_raw)
+
+                        # check lai params sfr value is greater than zero
+                        if lai and sfr_value > 0:
+
+                            # Check lai_min vs lai_max
+                            if (
+                                hasattr(lai, "lai_min")
+                                and lai.lai_min is not None
+                                and hasattr(lai, "lai_max")
+                                and lai.lai_max is not None
+                            ):
+                                lai_min_val = (
+                                    lai.lai_min.value
+                                    if hasattr(lai.lai_min, "value")
+                                    else lai.lai_min
                                 )
-                                self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be <= lai_max ({lai_max_val})"
+                                lai_max_val = (
+                                    lai.lai_max.value
+                                    if hasattr(lai.lai_max, "value")
+                                    else lai.lai_max
                                 )
-                                has_issues = True
+    
+                                if lai_min_val > lai_max_val:
+                                    issues.append(
+                                                {
+                                                    "error_text": (
+                                                        f"site {site_index}, "
+                                                        f"properties.land_cover.{surface}.lai.lai_min "
+                                                        f"(currently {lai_min_val}) must be less than properties.land_cover.{surface}.lai.lai_max (currently {lai_max_val}) "
+                                                        f"where surface fraction (currently {sfr_value}) is greater than "
+                                                        f"zero"
+                                                    ),
+                                                    # "path": f"sites[{site_name}]/properties/land_cover/{surface}/lai",
+                                                    "param": "lai_min",
+                                                    "message": (
+                                                        f"Maximum LAI must exceed minimum LAI on active {surface_type} "
+                                                        f"surface (sfr={sfr_value:g}), got lai_min={lai_min_val} and "
+                                                        f" lai_max={lai_max_val}"
+                                                    ),
+                                                    "fix": (
+                                                        "Supply an lai_max (in m2 m-2) larger than lai_min (both > 0) or set "
+                                                        f"{surface}.sfr to 0 if this vegetation type is absent"
+                                                    ),
+                                                }
+                                            )
+    
+                                # lai cannot be negative
+                                if lai_min_val < 0:
+                                    issues.append(
+                                                {
+                                                    "error_text": (
+                                                        f"site {site_index}, "
+                                                        f"properties.land_cover.{surface_type}.lai.lai_min (currently {lai_min_val})"
+                                                        f"must be >= 0 where surface fraction (currently {sfr_value}) is greater than zero"
+                                                    ),
+                                                    # "path": f"sites[{i}]/properties/land_cover/{surface}/lai",
+                                                    "param": "lai_min",
+                                                    "message": (
+                                                        f"Minimum LAI must be set >= 0 on active {surface_type}"
+                                                        f"(sfr={sfr_value:g}), got lai_min={lai_min_val}"
+                                                    ),
+                                                    "fix": (
+                                                        "Supply an lai_max (in m2 m-2) larger than lai_min (both > 0) or set "
+                                                        f"{surface_type}.sfr to 0 if this vegetation type is absent"
+                                                    ),
+                                                }
+                                            )
+                            
+    
+                            # Check gdd base is positive
+                            if hasattr(lai, "gdd_base") and lai.gdd_base is not None:
+    
+                                gdd_base = lai.gdd_base.value if hasattr(lai.gdd_base, "value") else lai.gdd_base
+    
+                                if gdd_base < 0:
+                                    issues.append(
+                                                {
+                                                    "error_text": (
+                                                        f"site {site_index}, "
+                                                        f"properties.land_cover.{surface_type}.lai.gdd_base (currently {gdd_base})"
+                                                        f"must be >= 0 where surface fraction (currently {sfr_value}) is greater than zero"
+                                                    ),
+                                                    # "path": f"sites[{i}]/properties/land_cover/{surface}/lai",
+                                                    "param": "gdd_base",
+                                                    "message": (
+                                                        f"gdd_base must be set >= 0 on active {surface_type}"
+                                                        f"(sfr={sfr_value:g}), got gdd_base={gdd_base} "
+                                                    ),
+                                                    "fix": (
+                                                        "Supply a gdd_base (in deg C) >= 0 or set "
+                                                        f"{surface_type}.sfr to 0 if this vegetation type is absent"
+                                                    ),
+                                                }
+                                            )
+    
+                            # Check sdd base is negative
+                            if hasattr(lai, "sdd_base") and lai.sdd_base is not None:
+    
+                                sdd_base = lai.sdd_base.value if hasattr(lai.sdd_base, "value") else lai.sdd_base
+    
+                                if sdd_base > 0:
+                                    issues.append(
+                                                    {
+                                                        "error_text": (
+                                                            f"site {site_index}, "
+                                                            f"properties.land_cover.{surface_type}.lai.sdd_base (currently {sdd_base})"
+                                                            f"must be >= 0 where surface fraction (currently {sfr_value}) is greater than zero"
+                                                        ),
+                                                        # "path": f"sites[{i}]/properties/land_cover/{surface}/lai",
+                                                        "param": "gdd_base",
+                                                        "message": (
+                                                            f"sdd_base must be set >= 0 on active {surface_type}"
+                                                            f"(sfr={sfr_value:g}), got sdd_base={sdd_base} "
+                                                        ),
+                                                        "fix": (
+                                                            "Supply a sdd_base (in deg C) >= 0 or set "
+                                                            f"{surface_type}.sfr to 0 if this vegetation type is absent"
+                                                        ),
+                                                    }
+                                                )
+            return issues
 
-                        # Check base_temperature vs gddfull
-                        if (
-                            hasattr(lai, "base_temperature")
-                            and lai.base_temperature is not None
-                            and hasattr(lai, "gdd_full")
-                            and lai.gdd_full is not None
-                        ):
-                            baset_val = (
-                                lai.base_temperature.value
-                                if hasattr(lai.base_temperature, "value")
-                                else lai.base_temperature
-                            )
-                            gddfull_val = (
-                                lai.gdd_full.value
-                                if hasattr(lai.gdd_full, "value")
-                                else lai.gdd_full
-                            )
-
-                            if baset_val > gddfull_val:
-                                self._validation_summary["total_warnings"] += 1
-                                self._validation_summary["issue_types"].add(
-                                    "LAI range validation"
-                                )
-                                self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: base_temperature ({baset_val}) must be <= gddfull ({gddfull_val})"
-                                )
-                                has_issues = True
-
-        return has_issues
+    
 
     def _check_raw_yaml_for_cp_field(self, yaml_path: str, surface_path: str) -> bool:
         """Check if the raw YAML file has 'cp' instead of 'rho_cp' in thermal_layers."""
@@ -3569,7 +3757,7 @@ class SUEWSConfig(DataModelBase):
         - For each vegetated surface (``dectr`` / ``evetr`` / ``grass``)
           with ``sfr > 0``, the surface's ``lai`` block must carry
           non-None values for ``lai_max``, ``base_temperature``,
-          ``base_temperature_senescence``, ``gdd_full``, ``sdd_full``.
+          ``base_temperature_senescence``, ``gdd_base``, ``sdd_base``.
         - For ``bldgs`` with ``sfr > 0``: ``bldgh`` and ``faibldg`` must
           be non-None.
         - For ``evetr`` with ``sfr > 0``: ``height_evergreen_tree`` and
@@ -4635,6 +4823,16 @@ class SUEWSConfig(DataModelBase):
             if issue["error_text"]
         ]
 
+    def _check_critical_lai_params(self, land_cover, site_id) -> list[str]:
+        """ Returns error text for positive/negative sdd_base/gdd_base, where lai_min is negative and where lai_max
+        is smaller than lai_min """
+
+        return [
+                issue["error_text"]
+                for issue in self._iter_active_veg_lai_param_issues(land_cover, site_id)
+                if issue["error_text"]
+                ]
+
     def validate_active_veg_lai_max(self) -> None:
         """Validate ``lai_max > 0`` across all active vegetated surfaces.
 
@@ -4954,57 +5152,57 @@ class SUEWSConfig(DataModelBase):
                                     ].append(site_name)
                                 has_issues = True
 
-                        # LAI range check for vegetation surfaces
-                        if (
-                            surface_type in ["grass", "dectr", "evetr"]
-                            and hasattr(surface, "lai")
-                            and surface.lai
-                        ):
-                            lai = surface.lai
+                        # # LAI range check for vegetation surfaces
+                        # if (
+                        #     surface_type in ["grass", "dectr", "evetr"]
+                        #     and hasattr(surface, "lai")
+                        #     and surface.lai
+                        # ):
+                        #     lai = surface.lai
 
-                            # Check lai_min vs lai_max
-                            if lai.lai_min is not None and lai.lai_max is not None:
-                                lai_min_val = (
-                                    lai.lai_min.value
-                                    if hasattr(lai.lai_min, "value")
-                                    else lai.lai_min
-                                )
-                                lai_max_val = (
-                                    lai.lai_max.value
-                                    if hasattr(lai.lai_max, "value")
-                                    else lai.lai_max
-                                )
+                        #     # Check lai_min vs lai_max
+                        #     if lai.lai_min is not None and lai.lai_max is not None:
+                        #         lai_min_val = (
+                        #             lai.lai_min.value
+                        #             if hasattr(lai.lai_min, "value")
+                        #             else lai.lai_min
+                        #         )
+                        #         lai_max_val = (
+                        #             lai.lai_max.value
+                        #             if hasattr(lai.lai_max, "value")
+                        #             else lai.lai_max
+                        #         )
 
-                                if lai_min_val > lai_max_val:
-                                    annotator.add_issue(
-                                        path=f"{path}/lai",
-                                        param="lai_min_lai_max",
-                                        message=f"LAI range invalid: lai_min ({lai_min_val}) > lai_max ({lai_max_val})",
-                                        fix="Set lai_min <= lai_max (typical values: lai_min=0.1-1.0, lai_max=3.0-8.0)",
-                                        level="WARNING",
-                                    )
+                        #         if lai_min_val > lai_max_val:
+                        #             annotator.add_issue(
+                        #                 path=f"{path}/lai",
+                        #                 param="lai_min_lai_max",
+                        #                 message=f"LAI range invalid: lai_min ({lai_min_val}) > lai_max ({lai_max_val})",
+                        #                 fix="Set lai_min <= lai_max (typical values: lai_min=0.1-1.0, lai_max=3.0-8.0)",
+                        #                 level="WARNING",
+                        #             )
 
-                            # Check base_temperature vs gddfull
-                            if lai.base_temperature is not None and lai.gdd_full is not None:
-                                baset_val = (
-                                    lai.base_temperature.value
-                                    if hasattr(lai.base_temperature, "value")
-                                    else lai.base_temperature
-                                )
-                                gddfull_val = (
-                                    lai.gdd_full.value
-                                    if hasattr(lai.gdd_full, "value")
-                                    else lai.gdd_full
-                                )
+                            # # Check base_temperature vs gddfull
+                            # if lai.base_temperature is not None and lai.gdd_full is not None:
+                            #     baset_val = (
+                            #         lai.base_temperature.value
+                            #         if hasattr(lai.base_temperature, "value")
+                            #         else lai.base_temperature
+                            #     )
+                            #     gddfull_val = (
+                            #         lai.gdd_full.value
+                            #         if hasattr(lai.gdd_full, "value")
+                            #         else lai.gdd_full
+                            #     )
 
-                                if baset_val > gddfull_val:
-                                    annotator.add_issue(
-                                        path=f"{path}/lai",
-                                        param="base_temperature_gddfull",
-                                        message=f"GDD range invalid: base_temperature ({baset_val}) > gddfull ({gddfull_val})",
-                                        fix="Set base_temperature <= gddfull (typical values: base_temperature=5-10 C, gddfull=200-1000 C.day)",
-                                        level="WARNING",
-                                    )
+                            #     if baset_val > gddfull_val:
+                            #         annotator.add_issue(
+                            #             path=f"{path}/lai",
+                            #             param="base_temperature_gddfull",
+                            #             message=f"GDD range invalid: base_temperature ({baset_val}) > gddfull ({gddfull_val})",
+                            #             fix="Set base_temperature <= gddfull (typical values: base_temperature=5-10 C, gddfull=200-1000 C.day)",
+                            #             level="WARNING",
+                            #         )
 
                         # Check vegetation parameters for biogenic CO2 calculations
                         if (

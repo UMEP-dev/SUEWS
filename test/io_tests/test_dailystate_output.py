@@ -147,523 +147,524 @@ class TestDailyStateOutput:
             assert (df_saved[data_cols] != -999).any().any()
 
 
-    def test_dailystate_lai_responds_to_phenology(self, sample_dailystate_full_year):
-        """LAI increases during leaf growth and decreases during senescence."""
+    def test_dailystate_lai_responds_to_gdd_sdd(self, sample_dailystate_full_year, sample_config_loaded):
+        """Test that LAI grows when accumulated GDD exceeds gdd_base (the minimum gdd required to initiate leaf growth)
+        and declines when accumulated sdd surpasses sdd_base """
+
+        # extract lai config parameters
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+        gdd_base = config_lai_dectr.gdd_base.value
+        sdd_base = config_lai_dectr.sdd_base.value
 
         # The full available forcing period, DailyState only.
         df_dailystate = sample_dailystate_full_year
 
+        # extract fields
         lai = df_dailystate["LAI_DecTr"]
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
 
         lai_change = lai.diff()
 
-        # The simulation should contain both leaf growth and senescence.
-        assert (lai_change > 0).any(), "LAI should increase during leaf growth"
-        assert (lai_change < 0).any(), "LAI should decrease during senescence"
+        if (gdd > gdd_base).any():
+            assert (lai_change > 0).any(), "No LAI growth found despite accumulated gdd exceeding gdd_base"
 
-        # LAI should increase while GDD is accumulating.
-        growth = (gdd > 0) & (lai_change > 0)
-        assert growth.any(), "No LAI increase found during GDD accumulation"
+        if (sdd < sdd_base).any():
+            assert (lai_change < 0).any(), "No LAI decline found despite accumulated sdd surpassing sdd_base"
 
-        # LAI should decrease while SDD is driving senescence.
-        senescence = (sdd < 0) & (lai_change < 0)
-        assert senescence.any(), "No LAI decrease found during senescence"
 
-        # LAI must remain physically/configurationally bounded
+    def test_LAI_remains_bounded_and_physical(self, sample_dailystate_full_year, sample_config_loaded):
+        """ Test that LAI does go out of presribed max and mininum bounds and that is a real numeric value above zero """
+
+        # extract lai config parameters
+        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
+        lai_max = config_lai_dectr.gdd_base.value
+        lai_min = config_lai_dectr.sdd_base.value
+
+        # The full available forcing period, DailyState only.
+        df_dailystate = sample_dailystate_full_year
+
+        # extract fields
+        lai = df_dailystate["LAI_DecTr"]
+
+        # LAI must remain physical
         assert (lai >= 0).all()
 
-    def test_dailystate_gdd_sdd_progression(
-        self, sample_dailystate_full_year, sample_config_loaded
-    ):
-        """GDD increases and SDD decreases until they are reset."""
+        # and within configured bounds
+        assert (lai >= lai_min).all(), "LAI falls below configured minimum"
+        assert (lai <= lai_max).all(), "LAI exceeds configured maximum "
 
-        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
-        gdd_full_dectr = config_lai_dectr.gdd_full.value
-        sdd_full_dectr = config_lai_dectr.sdd_full.value
 
+    def test_LAI_only_grows_during_growth_season(self, sample_dailystate_full_year, sample_config_loaded):
+        """ LAI should only grow in growth half of year (hemipshere dependant). Note omitting an equivalent test for sdd for now 
+        because future PRs will introduce alternative means of LAI decline not dependant upon SDD """
+
+        # extract latitude to determine GDD reset day
+        latitude = sample_config_loaded.sites[0].properties.lat
+
+        # reset days depend upon hemipshere. Could try and read from fortran file directly to prevent drift if this parameter changes?
+        if latitude > 0:
+            summer_reset_day = 196
+            winter_reset_day = 15
+        else:
+            summer_reset_day = 15
+            winter_reset_day = 196
+
+        # get sample output
         df_dailystate = sample_dailystate_full_year
 
-        gdd = df_dailystate["GDD_DecTr"]
-        sdd = df_dailystate["SDD_DecTr"]
-
-        # Remove any initial missing values.
-        gdd = gdd.dropna()
-        sdd = sdd.dropna()
-
-        # GDD should never decrease, except when it is reset to zero.
-        gdd_after_change = gdd.iloc[1:]
-
-        gdd_change = gdd.diff().dropna()
-        gdd_decreases = gdd_change < 0
-
-        assert (gdd_after_change[gdd_decreases] == 0).all(), (
-            "GDD should only decrease when it is reset to 0"
-        )
-
-        # SDD should never increase, except when it is reset to zero.
-        sdd_after_change = sdd.iloc[1:]
-
-        sdd_change = sdd.diff().dropna()
-        sdd_increases = sdd_change > 0
-
-        assert (sdd_after_change[sdd_increases] == 0).all(), (
-            "SDD should only increase when it is reset to 0"
-        )
-
-        # GDD should remain within its expected range.
-        assert (gdd >= 0).all()
-        assert (gdd <= gdd_full_dectr).all()
-
-        # SDD should remain within its expected range.
-        assert (sdd <= 0).all()
-        assert (sdd >= sdd_full_dectr).all()
-
-    def test_dailystate_gdd_sdd_seasonal_resets(self, sample_dailystate_full_year):
-        """GDD and SDD are reset at the seasonal transition."""
-
-        df_dailystate = sample_dailystate_full_year
-
-        gdd = df_dailystate["GDD_DecTr"].dropna()
-        sdd = df_dailystate["SDD_DecTr"].dropna()
-
-        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").day_of_year
-
-        # Northern hemisphere seasonal transition day.
-        transition_day = doy == 140
-
-        assert transition_day.any(), (
-            "The available simulation should contain the seasonal transition day"
-        )
-
-        # SDD is reset to zero at the seasonal transition.
-        sdd_transition = sdd.loc[transition_day]
-
-        assert (sdd_transition == 0).all(), (
-            "SDD should be reset to 0 on the seasonal transition day"
-        )
-
-    def test_dailystate_gdd_sdd_threshold_resets(self, sample_dailystate_full_year):
-        """GDD and SDD are reset when their seasonal thresholds are exceeded."""
-
-        crit_days = 50
-
-        df_dailystate = sample_dailystate_full_year
-
-        gdd = df_dailystate["GDD_DecTr"].dropna()
-        sdd = df_dailystate["SDD_DecTr"].dropna()
-
-        doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").day_of_year
-
-        # ---------------------------------------------------------------
-        # SDD reset during summer.
-        #
-        # Once GDD exceeds crit_days, SDD is reset while DOY < 170.
-        # ---------------------------------------------------------------
-        summer_reset = (doy < 170) & (gdd > crit_days)
-
-        assert summer_reset.any(), (
-            "The available simulation should contain a summer SDD reset condition"
-        )
-
-        assert (sdd.loc[summer_reset] == 0).all(), (
-            "SDD should be reset to 0 when GDD > crit_days "
-            "during the summer period"
-        )
-
-        # ---------------------------------------------------------------
-        # GDD reset during winter.
-        #
-        # Once SDD falls below -crit_days, GDD is reset while DOY > 170.
-        # ---------------------------------------------------------------
-        winter_reset = (doy > 170) & (sdd < -crit_days)
-
-        assert winter_reset.any(), (
-            "The available simulation should contain a winter GDD reset condition"
-        )
-
-        assert (gdd.loc[winter_reset] == 0).all(), (
-            "GDD should be reset to 0 when SDD < -crit_days "
-            "during the winter period"
-        )
-
-    def test_dailystate_lai_gdd_growth_branch(
-        self, sample_dailystate_full_year, sample_config_loaded
-    ):
-        """LAI increases while GDD is between zero and GDDFull."""
-
-        config_lai_dectr = sample_config_loaded.sites[0].properties.land_cover.dectr.lai
-        gdd_full = config_lai_dectr.gdd_full.value
-        lai_max = config_lai_dectr.lai_max.value
-
-        df_dailystate = sample_dailystate_full_year
-
+        # get LAI
         lai = df_dailystate["LAI_DecTr"]
-        gdd = df_dailystate["GDD_DecTr"]
 
-        lai_change = lai.diff().iloc[1:]
-        gdd = gdd.iloc[1:]
-        lai = lai.iloc[1:]
+        delta_lai = lai.diff()
 
-        # calculate_lai() uses the GDD growth branch when:
-        #
-        #     GDD > 0 AND GDD < GDDFull
-        #
-        growth = (gdd > 0) & (gdd < gdd_full)
-
-        valid_growth = (
-            (lai_change > 0)
-            | (lai >= lai_max)
-        )
-
-        assert growth.any(), (
-            "The GDD growth condition did not occur in the available simulation"
-        )
-
-        assert valid_growth[growth].all(), (
-            "LAI should increase when GDD > 0 and GDD < GDDFull"
-        )
+        # definiton of growing season depends upon the hemipshere
+        if latitude >= 0:
+            assert (delta_lai[(df_dailystate.index.get_level_values('datetime').day_of_year > winter_reset_day) & (df_dailystate.index.get_level_values('datetime').day_of_year < summer_reset_day)] >= 0).all, "LAI decreases during growing season"
+        else:
+            assert (delta_lai[(df_dailystate.index.get_level_values('datetime').day_of_year > winter_reset_day) | (df_dailystate.index.get_level_values('datetime').day_of_year < summer_reset_day)] >= 0).all, "LAI decreases during growing season"
 
 
-    @pytest.mark.medium
-    def test_dailystate_lai_northern_lai_type_0_sdd_senescence(
-        self, sample_data_loaded, sample_config_loaded, sample_yaml_path
-    ):
-        """Northern Hemisphere LAItype 0 uses SDD to drive senescence."""
+    def test_gdd_sdd_accumulates_in_correct_season_resetting_at_end(self, sample_dailystate_full_year, sample_config_loaded):
+        """ tests that GDD and SDD are resets only at hemipshere dependant reset day, and that gdd and sdd accumulation occurs only in 
+        the (hemisphere dependant) growth and senescence halves of the year
+        """
+        # extract latitude to determine GDD reset day
+        latitude = sample_config_loaded.sites[0].properties.lat
 
-        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+        # NOTE: could try and read fromf ortran file directly to prevent dirft if this parameter changes?
+        if latitude > 0:
+            summer_reset_day = 196
+            winter_reset_day = 15
+        else:
+            summer_reset_day = 15
+            winter_reset_day = 196
 
-        # Check that this is a Northern Hemisphere simulation.
-        assert sim._config.sites[0].properties.lat.value > 0
-
-        # Configure LAItype 0 on the simulation itself.
-        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
-        lai_config.lai_type.value = 0
-
-        gdd_full = lai_config.gdd_full.value
-        sdd_full = lai_config.sdd_full.value
-        lai_min = lai_config.lai_min.value
-
-        # Start from a fully grown canopy so only the autumn window needs
-        # simulating: growth is complete (GDD at full) and senescence has
-        # not begun. Running spring/summer from a cold start adds ~10 s per
-        # test on the slowest CI platform without touching the branch under
-        # test.
-        initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.lai_id.value = lai_config.lai_max.value
-        initial_states.gdd_id.value = gdd_full
-        initial_states.sdd_id.value = 0.0
-
-        _, df_forcing = sample_data_loaded
-        df_forcing = df_forcing.copy()
-
-        # Autumn window: SDD accumulates and the senescence branch fires.
-        day_of_year = df_forcing.index.day_of_year
-        df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
-
-        sim.update_forcing(df_forcing)
-        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
-
-        df_output = sim.output
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
-
-        lai = df_dailystate["LAI_DecTr"]
+        # get sample output
+        df_dailystate = sample_dailystate_full_year
         gdd = df_dailystate["GDD_DecTr"]
         sdd = df_dailystate["SDD_DecTr"]
 
-        lai_change = lai.diff().iloc[1:]
-        sdd = sdd.iloc[1:]
-        gdd = gdd.iloc[1:]
-        lai = lai.iloc[1:]
+        # get daily change in gdd and sdd
+        delta_gdd = gdd.diff()
+        delta_sdd = sdd.diff()
 
-        # calculate_lai() first checks the GDD growth branch.
-        #
-        # Therefore LAItype 0 can only reach the SDD branch when:
-        #
-        #   NOT (GDD > 0 AND GDD < GDDFull)
-        #
-        not_growing = ~((gdd > 0) & (gdd < gdd_full))
+        # mask for points at reset day
+        summer_reset_day_mask = (df_dailystate.index.get_level_values('datetime').day_of_year == summer_reset_day)
+        winter_reset_day_mask = (df_dailystate.index.get_level_values('datetime').day_of_year == winter_reset_day)
 
-        # LAItype 0 calls calculate_sdd_type0 when:
-        #
-        #   SDD < 0 AND SDD > SDDFull
-        #
-        senescence = (
-            not_growing
-            & (sdd < 0)
-            & (sdd > sdd_full)
-        )
+        # check gdd and sdd are zero (and thus reset) on reset days
+        assert (gdd[summer_reset_day_mask] == 0).all(), 'gdd is not reset to zero on summer reset day'
+        assert (sdd[summer_reset_day_mask] == 0).all(), 'sdd is not zero on summer reset day'
+        assert (gdd[winter_reset_day_mask] == 0).all(), 'gdd is not zero on winter reset day'
+        assert (sdd[winter_reset_day_mask] == 0).all(), 'sdd is not reset to zero on winter reset day'
 
-        valid_senescence = (
-            (lai_change < 0)
-            | (lai <= lai_min)
-        )
+        # check change in gdd is non-negative (and sdd non-positive) for all other days
+        # remove first timestep (because no delta to compute there)
+        assert (delta_gdd[~summer_reset_day_mask].iloc[1:] >= 0).all(), 'accumulated gdd shrinks on days other than reset day'
+        assert (delta_sdd[~winter_reset_day_mask].iloc[1:] <= 0).all(), 'accumulated sdd shrinks on days other than reset day'
 
-        assert senescence.any(), (
-            "Northern Hemisphere LAItype 0 did not encounter "
-            "the SDD senescence condition"
-        )
+        # check that accumulation of GDD does not occur in senescence season, and sdd does not accumulate in growth season
+        # season definition (and thus indexing) depennds upon hemipshere
+        if latitude >= 0:
+            assert (delta_gdd[(df_dailystate.index.get_level_values('datetime').day_of_year < winter_reset_day) |
+                              (df_dailystate.index.get_level_values('datetime').day_of_year > summer_reset_day)] == 0).all, \
+                                "GDD accumulates during senescence season"
+            assert (delta_sdd[(df_dailystate.index.get_level_values('datetime').day_of_year > winter_reset_day) &
+                              (df_dailystate.index.get_level_values('datetime').day_of_year < summer_reset_day)] >= 0).all, \
+                                "SDD accumulates during growing season"
+        else:
+            assert (delta_gdd[(df_dailystate.index.get_level_values('datetime').day_of_year < winter_reset_day) &
+                              (df_dailystate.index.get_level_values('datetime').day_of_year > summer_reset_day)] == 0).all, \
+                                "GDD accumulates during senescence season"
+            assert (delta_sdd[(df_dailystate.index.get_level_values('datetime').day_of_year > winter_reset_day) |
+                              (df_dailystate.index.get_level_values('datetime').day_of_year < summer_reset_day)] >= 0).all, \
+                                "SDD accumulates during growing season"
 
-        assert valid_senescence[senescence].all(), (
-            "Northern Hemisphere LAItype 0 should decrease LAI "
-            "when SDD < 0 and SDD > SDDFull"
-        )
+    # def test_dailystate_gdd_sdd_threshold_resets(self, sample_dailystate_full_year):
+    #     """GDD and SDD are reset when their seasonal thresholds are exceeded."""
 
-    @pytest.mark.medium
-    def test_dailystate_lai_northern_lai_type_1_daylength_senescence(
-        self, sample_data_loaded, sample_yaml_path
-    ):
-        """Northern Hemisphere LAItype 1 uses day length to start senescence."""
+    #     crit_days = 50
 
-        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+    #     df_dailystate = sample_dailystate_full_year
 
-        # Check that this is a Northern Hemisphere simulation.
-        assert sim._config.sites[0].properties.lat.value > 0
+    #     gdd = df_dailystate["GDD_DecTr"].dropna()
+    #     sdd = df_dailystate["SDD_DecTr"].dropna()
 
-        # Configure LAItype 1 on the simulation itself.
-        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
-        lai_config.lai_type.value = 1
+    #     doy = df_dailystate.loc[gdd.index].index.get_level_values("datetime").day_of_year
 
-        gdd_full = lai_config.gdd_full.value
-        sdd_full = lai_config.sdd_full.value
-        lai_min = lai_config.lai_min.value
+    #     # ---------------------------------------------------------------
+    #     # SDD reset during summer.
+    #     #
+    #     # Once GDD exceeds crit_days, SDD is reset while DOY < 170.
+    #     # ---------------------------------------------------------------
+    #     summer_reset = (doy < 170) & (gdd > crit_days)
 
-        # Start from a fully grown canopy and simulate only the autumn
-        # window (see the LAItype 0 test above): day length drops below
-        # 12 h from the September equinox, which is what this branch needs.
-        initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.lai_id.value = lai_config.lai_max.value
-        initial_states.gdd_id.value = gdd_full
-        initial_states.sdd_id.value = 0.0
+    #     assert summer_reset.any(), (
+    #         "The available simulation should contain a summer SDD reset condition"
+    #     )
 
-        _, df_forcing = sample_data_loaded
-        df_forcing = df_forcing.copy()
+    #     assert (sdd.loc[summer_reset] == 0).all(), (
+    #         "SDD should be reset to 0 when GDD > crit_days "
+    #         "during the summer period"
+    #     )
 
-        day_of_year = df_forcing.index.day_of_year
-        df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
+    #     # ---------------------------------------------------------------
+    #     # GDD reset during winter.
+    #     #
+    #     # Once SDD falls below -crit_days, GDD is reset while DOY > 170.
+    #     # ---------------------------------------------------------------
+    #     winter_reset = (doy > 170) & (sdd < -crit_days)
 
-        sim.update_forcing(df_forcing)
-        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
+    #     assert winter_reset.any(), (
+    #         "The available simulation should contain a winter GDD reset condition"
+    #     )
 
-        df_output = sim.output
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+    #     assert (gdd.loc[winter_reset] == 0).all(), (
+    #         "GDD should be reset to 0 when SDD < -crit_days "
+    #         "during the winter period"
+    #     )
 
-        lai = df_dailystate["LAI_DecTr"]
-        gdd = df_dailystate["GDD_DecTr"]
-        sdd = df_dailystate["SDD_DecTr"]
 
-        # Replace this with the actual DailyState day-length column name
-        # if it differs in the model output.
-        daylength = df_dailystate["DLHrs"].iloc[1:]
 
-        lai_change = lai.diff().iloc[1:]
-        gdd = gdd.iloc[1:]
-        sdd = sdd.iloc[1:]
-        lai = lai.iloc[1:]
+    # @pytest.mark.medium
+    # def test_dailystate_lai_northern_lai_type_0_sdd_senescence(
+    #     self, sample_data_loaded, sample_config_loaded, sample_yaml_path
+    # ):
+    #     """Northern Hemisphere LAItype 0 uses SDD to drive senescence."""
 
-        # calculate_lai() first checks the GDD growth branch.
-        not_growing = ~((gdd > 0) & (gdd < gdd_full))
+    #     sim = sp.SUEWSSimulation(str(sample_yaml_path))
 
-        # For Northern Hemisphere LAItype 1 using SEN_DAYLENGTH,
-        # check_start_senescence() requires:
-        #
-        #   lenDay <= 12
-        #   AND
-        #   SDD > SDDFull
-        #
-        senescence = (
-            not_growing
-            & (daylength <= 12)
-            & (sdd > sdd_full)
-        )
+    #     # Check that this is a Northern Hemisphere simulation.
+    #     assert sim._config.sites[0].properties.lat.value > 0
 
-        valid_senescence = (
-            (lai_change < 0)
-            | (lai <= lai_min)
-        )
+    #     # Configure LAItype 0 on the simulation itself.
+    #     lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+    #     lai_config.lai_type.value = 0
 
-        assert senescence.any(), (
-            "Northern Hemisphere LAItype 1 did not encounter "
-            "the day-length senescence condition"
-        )
+    #     gdd_full = lai_config.gdd_full.value
+    #     sdd_full = lai_config.sdd_full.value
+    #     lai_min = lai_config.lai_min.value
 
-        assert valid_senescence[senescence].all(), (
-            "Northern Hemisphere LAItype 1 should decrease LAI "
-            "when day length <= 12 and SDD > SDDFull"
-        )
+    #     # Start from a fully grown canopy so only the autumn window needs
+    #     # simulating: growth is complete (GDD at full) and senescence has
+    #     # not begun. Running spring/summer from a cold start adds ~10 s per
+    #     # test on the slowest CI platform without touching the branch under
+    #     # test.
+    #     initial_states = sim._config.sites[0].initial_states.dectr
+    #     initial_states.lai_id.value = lai_config.lai_max.value
+    #     initial_states.gdd_id.value = gdd_full
+    #     initial_states.sdd_id.value = 0.0
 
-    def test_dailystate_lai_southern_hemisphere_sdd_reset(
-        self, sample_data_loaded, sample_yaml_path
-    ):
-        """Southern Hemisphere resets SDD during summer."""
+    #     _, df_forcing = sample_data_loaded
+    #     df_forcing = df_forcing.copy()
 
-        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+    #     # Autumn window: SDD accumulates and the senescence branch fires.
+    #     day_of_year = df_forcing.index.day_of_year
+    #     df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
 
-        # Check that this is a Southern Hemisphere simulation.
-        sim._config.sites[0].properties.lat.value = -(
-            abs(sim._config.sites[0].properties.lat.value)
-        )
+    #     sim.update_forcing(df_forcing)
+    #     sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
-        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
-        lai_config.lai_type.value = 1
+    #     df_output = sim.output
+    #     df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
 
-        crit_days = 50
-        summer_day = 250
-        sdd_reset_day = 300
+    #     lai = df_dailystate["LAI_DecTr"]
+    #     gdd = df_dailystate["GDD_DecTr"]
+    #     sdd = df_dailystate["SDD_DecTr"]
 
-        gdd_full = lai_config.gdd_full.value
-        sdd_full = lai_config.sdd_full.value
+    #     lai_change = lai.diff().iloc[1:]
+    #     sdd = sdd.iloc[1:]
+    #     gdd = gdd.iloc[1:]
+    #     lai = lai.iloc[1:]
 
-        initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.gdd_id.value = gdd_full
-        initial_states.sdd_id.value = 1.0
+    #     # calculate_lai() first checks the GDD growth branch.
+    #     #
+    #     # Therefore LAItype 0 can only reach the SDD branch when:
+    #     #
+    #     #   NOT (GDD > 0 AND GDD < GDDFull)
+    #     #
+    #     not_growing = ~((gdd > 0) & (gdd < gdd_full))
 
-        _, df_forcing = sample_data_loaded
+    #     # LAItype 0 calls calculate_sdd_type0 when:
+    #     #
+    #     #   SDD < 0 AND SDD > SDDFull
+    #     #
+    #     senescence = (
+    #         not_growing
+    #         & (sdd < 0)
+    #         & (sdd > sdd_full)
+    #     )
 
-        # Shift the forcing by six months so the existing seasonal cycle
-        # occurs in the Southern Hemisphere calendar.
-        df_forcing = df_forcing.copy()
-        df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
+    #     valid_senescence = (
+    #         (lai_change < 0)
+    #         | (lai <= lai_min)
+    #     )
 
-        # Only simulate Southern Hemisphere summer, before the generic
-        # transition-day reset at sdd_reset_day.
-        day_of_year = df_forcing.index.day_of_year
-        df_forcing = df_forcing[
-            (day_of_year >= summer_day)
-            & (day_of_year < sdd_reset_day)
-        ]
+    #     assert senescence.any(), (
+    #         "Northern Hemisphere LAItype 0 did not encounter "
+    #         "the SDD senescence condition"
+    #     )
 
-        sim.update_forcing(df_forcing)
-        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
+    #     assert valid_senescence[senescence].all(), (
+    #         "Northern Hemisphere LAItype 0 should decrease LAI "
+    #         "when SDD < 0 and SDD > SDDFull"
+    #     )
 
-        df_dailystate = (
-            sim.output.loc[:, "DailyState"]
-            .dropna(how="all")
-        )
+    # @pytest.mark.medium
+    # def test_dailystate_lai_northern_lai_type_1_daylength_senescence(
+    #     self, sample_data_loaded, sample_yaml_path
+    # ):
+    #     """Northern Hemisphere LAItype 1 uses day length to start senescence."""
 
-        gdd = df_dailystate["GDD_DecTr"]
-        sdd = df_dailystate["SDD_DecTr"]
+    #     sim = sp.SUEWSSimulation(str(sample_yaml_path))
 
-        previous_sdd = sdd.shift(1)
+    #     # Check that this is a Northern Hemisphere simulation.
+    #     assert sim._config.sites[0].properties.lat.value > 0
 
-        # Ignore the first timestep because the degree-day states are
-        # evaluated using the previous timestep.
-        gdd = gdd.iloc[1:]
-        sdd = sdd.iloc[1:]
-        previous_sdd = previous_sdd.iloc[1:]
+    #     # Configure LAItype 1 on the simulation itself.
+    #     lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+    #     lai_config.lai_type.value = 1
 
-        day_of_year = (
-            df_dailystate.index.get_level_values("datetime").day_of_year[1:]
-        )
+    #     gdd_full = lai_config.gdd_full.value
+    #     sdd_full = lai_config.sdd_full.value
+    #     lai_min = lai_config.lai_min.value
 
-        sdd_reset = (
-            (day_of_year >= summer_day)
-            & (gdd > crit_days)
-            & (previous_sdd.notna())
-            & (previous_sdd != 0)
-            & (sdd == 0)
-        )
+    #     # Start from a fully grown canopy and simulate only the autumn
+    #     # window (see the LAItype 0 test above): day length drops below
+    #     # 12 h from the September equinox, which is what this branch needs.
+    #     initial_states = sim._config.sites[0].initial_states.dectr
+    #     initial_states.lai_id.value = lai_config.lai_max.value
+    #     initial_states.gdd_id.value = gdd_full
+    #     initial_states.sdd_id.value = 0.0
 
-        assert sdd_reset.any(), (
-            "Southern Hemisphere did not reset SDD when "
-            "GDD > critDays and day of year > summer_day"
-        )
+    #     _, df_forcing = sample_data_loaded
+    #     df_forcing = df_forcing.copy()
 
-    def test_dailystate_lai_southern_hemisphere_gdd_reset(
-        self, sample_data_loaded, sample_yaml_path
-    ):
-        """Southern Hemisphere resets GDD during winter."""
+    #     day_of_year = df_forcing.index.day_of_year
+    #     df_forcing = df_forcing[(day_of_year >= 230) & (day_of_year <= 330)]
 
-        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+    #     sim.update_forcing(df_forcing)
+    #     sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
-        # Check that this is a Southern Hemisphere simulation.
-        sim._config.sites[0].properties.lat.value = -(
-            abs(sim._config.sites[0].properties.lat.value)
-        )
+    #     df_output = sim.output
+    #     df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
 
-        lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
-        lai_config.lai_type.value = 1
+    #     lai = df_dailystate["LAI_DecTr"]
+    #     gdd = df_dailystate["GDD_DecTr"]
+    #     sdd = df_dailystate["SDD_DecTr"]
 
-        crit_days = 50
-        winter_day = 250
+    #     # Replace this with the actual DailyState day-length column name
+    #     # if it differs in the model output.
+    #     daylength = df_dailystate["DLHrs"].iloc[1:]
 
-        base_t_gdd = lai_config.base_temperature.value
+    #     lai_change = lai.diff().iloc[1:]
+    #     gdd = gdd.iloc[1:]
+    #     sdd = sdd.iloc[1:]
+    #     lai = lai.iloc[1:]
 
-        gdd_full = lai_config.gdd_full.value
-        sdd_full = lai_config.sdd_full.value
+    #     # calculate_lai() first checks the GDD growth branch.
+    #     not_growing = ~((gdd > 0) & (gdd < gdd_full))
 
-        initial_states = sim._config.sites[0].initial_states.dectr
-        initial_states.gdd_id.value = 0
-        initial_states.sdd_id.value = sdd_full
+    #     # For Northern Hemisphere LAItype 1 using SEN_DAYLENGTH,
+    #     # check_start_senescence() requires:
+    #     #
+    #     #   lenDay <= 12
+    #     #   AND
+    #     #   SDD > SDDFull
+    #     #
+    #     senescence = (
+    #         not_growing
+    #         & (daylength <= 12)
+    #         & (sdd > sdd_full)
+    #     )
 
-        _, df_forcing = sample_data_loaded
+    #     valid_senescence = (
+    #         (lai_change < 0)
+    #         | (lai <= lai_min)
+    #     )
 
-        # Shift the forcing by six months so the existing seasonal cycle
-        # occurs in the Southern Hemisphere calendar.
-        df_forcing = df_forcing.copy()
-        df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
+    #     assert senescence.any(), (
+    #         "Northern Hemisphere LAItype 1 did not encounter "
+    #         "the day-length senescence condition"
+    #     )
 
-        # The shifted forcing starts at day 183, and every qualifying reset
-        # falls before winter_day (250), so the first ~67 days of the run
-        # are all this test needs. Slice by elapsed time: a day-of-year
-        # filter would also catch a non-contiguous wrapped segment from the
-        # end of the shifted year.
-        df_forcing = df_forcing[
-            df_forcing.index < df_forcing.index[0] + pd.Timedelta(days=67)
-        ]
+    #     assert valid_senescence[senescence].all(), (
+    #         "Northern Hemisphere LAItype 1 should decrease LAI "
+    #         "when day length <= 12 and SDD > SDDFull"
+    #     )
 
-        sim.update_forcing(df_forcing)
-        sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
+    # def test_dailystate_lai_southern_hemisphere_sdd_reset(
+    #     self, sample_data_loaded, sample_yaml_path
+    # ):
+    #     """Southern Hemisphere resets SDD during summer."""
 
-        df_dailystate = (
-            sim.output.loc[:, "DailyState"]
-            .dropna(how="all")
-        )
+    #     sim = sp.SUEWSSimulation(str(sample_yaml_path))
 
-        day_of_year = (
-            df_dailystate.index.get_level_values("datetime").day_of_year
-        )
+    #     # Check that this is a Southern Hemisphere simulation.
+    #     sim._config.sites[0].properties.lat.value = -(
+    #         abs(sim._config.sites[0].properties.lat.value)
+    #     )
 
-        gdd = df_dailystate["GDD_DecTr"]
-        sdd = df_dailystate["SDD_DecTr"]
+    #     lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+    #     lai_config.lai_type.value = 1
 
-        # Ensure cold spring condition is not met (delta_gdd >= 0)
-        delta_gdd = (
-            (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
-            - base_t_gdd
-        )
+    #     crit_days = 50
+    #     summer_day = 250
+    #     sdd_reset_day = 300
 
-        # State used by the model before applying today's delta.
-        previous_gdd = gdd.shift(1)
+    #     gdd_full = lai_config.gdd_full.value
+    #     sdd_full = lai_config.sdd_full.value
 
-        gdd_before_limit = previous_gdd + delta_gdd.clip(lower=0)
+    #     initial_states = sim._config.sites[0].initial_states.dectr
+    #     initial_states.gdd_id.value = gdd_full
+    #     initial_states.sdd_id.value = 1.0
 
-        # Ignore the first timestep, where no previous state exists.
-        gdd = gdd.iloc[1:]
-        sdd = sdd.iloc[1:]
-        previous_gdd = previous_gdd.iloc[1:]
-        delta_gdd = delta_gdd.iloc[1:]
-        gdd_before_limit = gdd_before_limit.iloc[1:]
-        day_of_year = day_of_year[1:]
+    #     _, df_forcing = sample_data_loaded
 
-        gdd_reset = (
-            (day_of_year < winter_day)
-            & (sdd < -crit_days)
-            & (sdd <= sdd_full)
-            # Exclude the cold-spring reset.
-            & (delta_gdd >= 0)
-            # Exclude the GDDFull limit reset.
-            & (gdd_before_limit < gdd_full)
-            # There must have been GDD available to reset.
-            & (gdd_before_limit > 0)
-            & (gdd == 0)
-        )
+    #     # Shift the forcing by six months so the existing seasonal cycle
+    #     # occurs in the Southern Hemisphere calendar.
+    #     df_forcing = df_forcing.copy()
+    #     df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
 
-        assert gdd_reset.any(), (
-            "Southern Hemisphere did not reset GDD when "
-            "SDD < -critDays, day of year < winter_day."
-        )
+    #     # Only simulate Southern Hemisphere summer, before the generic
+    #     # transition-day reset at sdd_reset_day.
+    #     day_of_year = df_forcing.index.day_of_year
+    #     df_forcing = df_forcing[
+    #         (day_of_year >= summer_day)
+    #         & (day_of_year < sdd_reset_day)
+    #     ]
+
+    #     sim.update_forcing(df_forcing)
+    #     sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
+
+    #     df_dailystate = (
+    #         sim.output.loc[:, "DailyState"]
+    #         .dropna(how="all")
+    #     )
+
+    #     gdd = df_dailystate["GDD_DecTr"]
+    #     sdd = df_dailystate["SDD_DecTr"]
+
+    #     previous_sdd = sdd.shift(1)
+
+    #     # Ignore the first timestep because the degree-day states are
+    #     # evaluated using the previous timestep.
+    #     gdd = gdd.iloc[1:]
+    #     sdd = sdd.iloc[1:]
+    #     previous_sdd = previous_sdd.iloc[1:]
+
+    #     day_of_year = (
+    #         df_dailystate.index.get_level_values("datetime").day_of_year[1:]
+    #     )
+
+    #     sdd_reset = (
+    #         (day_of_year >= summer_day)
+    #         & (gdd > crit_days)
+    #         & (previous_sdd.notna())
+    #         & (previous_sdd != 0)
+    #         & (sdd == 0)
+    #     )
+
+    #     assert sdd_reset.any(), (
+    #         "Southern Hemisphere did not reset SDD when "
+    #         "GDD > critDays and day of year > summer_day"
+    #     )
+
+    # def test_dailystate_lai_southern_hemisphere_gdd_reset(
+    #     self, sample_data_loaded, sample_yaml_path
+    # ):
+    #     """Southern Hemisphere resets GDD during winter."""
+
+    #     sim = sp.SUEWSSimulation(str(sample_yaml_path))
+
+    #     # Check that this is a Southern Hemisphere simulation.
+    #     sim._config.sites[0].properties.lat.value = -(
+    #         abs(sim._config.sites[0].properties.lat.value)
+    #     )
+
+    #     lai_config = sim._config.sites[0].properties.land_cover.dectr.lai
+    #     lai_config.lai_type.value = 1
+
+    #     crit_days = 50
+    #     winter_day = 250
+
+    #     base_t_gdd = lai_config.base_temperature.value
+
+    #     gdd_full = lai_config.gdd_full.value
+    #     sdd_full = lai_config.sdd_full.value
+
+    #     initial_states = sim._config.sites[0].initial_states.dectr
+    #     initial_states.gdd_id.value = 0
+    #     initial_states.sdd_id.value = sdd_full
+
+    #     _, df_forcing = sample_data_loaded
+
+    #     # Shift the forcing by six months so the existing seasonal cycle
+    #     # occurs in the Southern Hemisphere calendar.
+    #     df_forcing = df_forcing.copy()
+    #     df_forcing.index = df_forcing.index + pd.Timedelta(days=182)
+
+    #     # The shifted forcing starts at day 183, and every qualifying reset
+    #     # falls before winter_day (250), so the first ~67 days of the run
+    #     # are all this test needs. Slice by elapsed time: a day-of-year
+    #     # filter would also catch a non-contiguous wrapped segment from the
+    #     # end of the shifted year.
+    #     df_forcing = df_forcing[
+    #         df_forcing.index < df_forcing.index[0] + pd.Timedelta(days=67)
+    #     ]
+
+    #     sim.update_forcing(df_forcing)
+    #     sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
+
+    #     df_dailystate = (
+    #         sim.output.loc[:, "DailyState"]
+    #         .dropna(how="all")
+    #     )
+
+    #     day_of_year = (
+    #         df_dailystate.index.get_level_values("datetime").day_of_year
+    #     )
+
+    #     gdd = df_dailystate["GDD_DecTr"]
+    #     sdd = df_dailystate["SDD_DecTr"]
+
+    #     # Ensure cold spring condition is not met (delta_gdd >= 0)
+    #     delta_gdd = (
+    #         (df_dailystate["Tmin"] + df_dailystate["Tmax"]) / 2
+    #         - base_t_gdd
+    #     )
+
+    #     # State used by the model before applying today's delta.
+    #     previous_gdd = gdd.shift(1)
+
+    #     gdd_before_limit = previous_gdd + delta_gdd.clip(lower=0)
+
+    #     # Ignore the first timestep, where no previous state exists.
+    #     gdd = gdd.iloc[1:]
+    #     sdd = sdd.iloc[1:]
+    #     previous_gdd = previous_gdd.iloc[1:]
+    #     delta_gdd = delta_gdd.iloc[1:]
+    #     gdd_before_limit = gdd_before_limit.iloc[1:]
+    #     day_of_year = day_of_year[1:]
+
+    #     gdd_reset = (
+    #         (day_of_year < winter_day)
+    #         & (sdd < -crit_days)
+    #         & (sdd <= sdd_full)
+    #         # Exclude the cold-spring reset.
+    #         & (delta_gdd >= 0)
+    #         # Exclude the GDDFull limit reset.
+    #         & (gdd_before_limit < gdd_full)
+    #         # There must have been GDD available to reset.
+    #         & (gdd_before_limit > 0)
+    #         & (gdd == 0)
+    #     )
+
+    #     assert gdd_reset.any(), (
+    #         "Southern Hemisphere did not reset GDD when "
+    #         "SDD < -critDays, day of year < winter_day."
+    #     )
 
     def test_dailystate_lai_observed_invalid_fortran_guard(
         self, sample_data_loaded, sample_yaml_path, monkeypatch

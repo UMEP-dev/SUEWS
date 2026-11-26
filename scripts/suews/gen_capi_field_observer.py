@@ -665,6 +665,15 @@ REVIEWED_DRIVER_EXCLUDED_COMPONENTS: dict[tuple[str, str], str] = {
         "suews_site",
         "nlayer",
     ): "Passed as an explicit scalar argument to driver and assigned directly (driver.f95).",
+# FA - these lines should stop tests capi test failing for new derived parameters for a suews site
+    (
+        "suews_site",
+        "GDD_summer_reset_day",
+    ): "Derived by site%cal_surf(config) after unpack (driver.f95).",
+(
+        "suews_site",
+        "SDD_winter_reset_day",
+    ): "Derived by site%cal_surf(config) after unpack (driver.f95).",
     (
         "suews_state",
         "errorstate",

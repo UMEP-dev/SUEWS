@@ -7,7 +7,8 @@ use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
-pub const LC_GRASS_PRM_FLAT_LEN: usize = 55;
+//fa update lengths to accomodate new values (and bump the schema version)
+pub const LC_GRASS_PRM_FLAT_LEN: usize = 54;
 pub const LC_GRASS_PRM_SCHEMA_VERSION: u32 = 1;
 
 pub type LcGrassPrmSchema = crate::codec::SimpleSchema;
@@ -67,8 +68,8 @@ impl LcGrassPrm {
             wet_threshold: flat[26],
             bioco2: BioCo2Prm::from_flat(&flat[27..35])?,
             max_conductance: flat[35],
-            lai: LaiPrm::from_flat(&flat[36..47])?,
-            waterdist: WaterDistPrm::from_flat(&flat[47..55])?,
+            lai: LaiPrm::from_flat(&flat[36..46])?,
+            waterdist: WaterDistPrm::from_flat(&flat[46..54])?,
         })
     }
 
@@ -179,13 +180,11 @@ mod tests {
         let mut mapped = lc_grass_prm_to_map(&state);
         mapped.insert("irrfracgrass".to_string(), 0.25);
         mapped.insert("bioco2.theta_bioco2".to_string(), 0.85);
-        mapped.insert("lai.laitype".to_string(), 1.0);
         mapped.insert("waterdist.to_grass".to_string(), 0.45);
 
         let updated = lc_grass_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.irrfracgrass - 0.25).abs() < 1.0e-12);
         assert!((updated.bioco2.theta_bio_co2 - 0.85).abs() < 1.0e-12);
-        assert_eq!(updated.lai.lai_type, 1);
         assert!((updated.waterdist.to_grass - 0.45).abs() < 1.0e-12);
     }
 

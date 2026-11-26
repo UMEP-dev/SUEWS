@@ -83,13 +83,13 @@ class ValidationIssue:
                     "value": 5.0,
                     "_comment": "base temperature for senescence (°C)",
                 },
-                "gdd_full": {
-                    "value": 250.0,
-                    "_comment": "growing degree days for full leaf-on (degC d)",
+                "gdd_base": {
+                    "value": 100.0,
+                    "_comment": "accumulated growing degree days required for leaf growth (degC)",
                 },
-                "sdd_full": {
-                    "value": 150.0,
-                    "_comment": "senescence degree days for leaf-off (degC d)",
+                "sdd_base": {
+                    "value": 300.0,
+                    "_comment": "accumulated senescence degree days required for leaf-off (degC)",
                 },
             },
             "g_max": {"value": 3.5, "_comment": "surface conductance scaling coefficient (dimensionless)"},
@@ -112,13 +112,13 @@ class ValidationIssue:
                 "value": 5.0,
                 "_comment": "base temperature for senescence (°C)",
             },
-            "gdd_full": {
-                "value": 250.0,
-                "_comment": "growing degree days for full leaf-on (degC d)",
+            "gdd_base": {
+                "value": 100.0,
+                "_comment": "accumulated growing degree days required for leaf growth (degC)",
             },
-            "sdd_full": {
-                "value": 150.0,
-                "_comment": "senescence degree days for leaf-off (degC d)",
+            "sdd_base": {
+                "value": 300.0,
+                "_comment": "accumulated senescence degree days required for leaf-off (degC)",
             },
             "fai_evergreen_tree": {
                 "value": 0.5,

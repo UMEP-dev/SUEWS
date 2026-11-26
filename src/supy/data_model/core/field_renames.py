@@ -154,13 +154,12 @@ SURFACEPROPERTIES_ANOHM_RENAMES: Dict[str, str] = {
 
 LAIPARAMS_RENAMES: Dict[str, str] = {
     "baset": "base_temperature",
-    "gddfull": "gdd_full",
     "basete": "base_temperature_senescence",
-    "sddfull": "sdd_full",
     "laimin": "lai_min",
     "laimax": "lai_max",
     "laipower": "lai_power",
-    "laitype": "lai_type",
+    "gddbase": "gdd_base",
+    "sddbase": "sdd_base"
 }
 
 # -- VegetatedSurfaceProperties (site.py) ------------------------------------

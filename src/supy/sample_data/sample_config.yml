@@ -2720,29 +2720,27 @@ sites:
         min_res_bioco2:
           value: 0.6
         lai:
-          base_temperature:
-            value: 6.0
-          gdd_full:
-            value: 300.0
+          base_temperature: 
+            value: 6.5
+          gdd_base:
+            value: 120
           base_temperature_senescence:
-            value: 11.0
-          sdd_full:
-            value: -450.0
-          lai_min:
-            value: 1.0
-          lai_max:
-            value: 5.5
+            value: 22.0
+          sdd_base:
+              value: -240
+          lai_min: 
+            value: 0.001
+          lai_max: 
+            value: 5.34
           lai_power:
-            growth_lai:
-              value: 0.04
+            growth_lai: 
+              value: -0.02
             growth_gdd:
-              value: 0.001
-            senescence_lai:
-              value: -1.5
-            senescence_sdd:
-              value: 0.0015
-          lai_type:
-            value: 1
+              value: 0.04
+            senescence_lai: 
+              value: -1.0
+            senescence_sdd: 
+              value: 0.02
         ie_a:
           value: 0.0
         ie_m:
@@ -2890,29 +2888,27 @@ sites:
         min_res_bioco2:
           value: 0.6
         lai:
-          base_temperature:
-            value: 6.0
-          gdd_full:
-            value: 300.0
+          base_temperature: 
+            value: 6.5
+          gdd_base:
+            value: 120
           base_temperature_senescence:
-            value: 11.0
-          sdd_full:
-            value: -450.0
-          lai_min:
-            value: 4.0
-          lai_max:
-            value: 5.1
+            value: 22.0
+          sdd_base:
+              value: -240
+          lai_min: 
+            value: 0.001
+          lai_max: 
+            value: 5.34
           lai_power:
-            growth_lai:
-              value: 0.04
+            growth_lai: 
+              value: -0.02
             growth_gdd:
-              value: 0.001
-            senescence_lai:
-              value: -1.5
-            senescence_sdd:
-              value: 0.0015
-          lai_type:
-            value: 1
+              value: 0.04
+            senescence_lai: 
+              value: -1.0
+            senescence_sdd: 
+              value: 0.02
         ie_a:
           value: 0.0
         ie_m:
@@ -3052,29 +3048,28 @@ sites:
         min_res_bioco2:
           value: 0.6
         lai:
-          base_temperature:
-            value: 6.0
-          gdd_full:
-            value: 300.0
+          base_temperature: 
+            value: 6.5
+          gdd_base:
+            value: 120
           base_temperature_senescence:
-            value: 11.0
-          sdd_full:
-            value: -450.0
-          lai_min:
-            value: 1.6
-          lai_max:
-            value: 5.9
+            value: 22.0
+          sdd_base:
+              value: -240
+          lai_min: 
+            value: 0.001
+          lai_max: 
+            value: 5.34
           lai_power:
-            growth_lai:
-              value: 0.04
+            growth_lai: 
+              value: -0.02
             growth_gdd:
-              value: 0.001
-            senescence_lai:
-              value: -1.5
-            senescence_sdd:
-              value: 0.0015
-          lai_type:
-            value: 1
+              value: 0.04
+            senescence_lai: 
+              value: -1.0
+            senescence_sdd: 
+              value: 0.02
+
         ie_a:
           value: 0.0
         ie_m:

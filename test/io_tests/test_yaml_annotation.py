@@ -78,8 +78,6 @@ sites:
             assert "lai_max:" in annotated_content
             assert "base_temperature:" in annotated_content
             assert "base_temperature_senescence:" in annotated_content
-            assert "gdd_full:" in annotated_content
-            assert "sdd_full:" in annotated_content
 
             # Parse the annotated YAML to verify structure
             # (removing comments for parsing)
@@ -155,8 +153,6 @@ def test_annotation_includes_tree_and_lai_requirements_from_sparse_fixture(tmp_p
     assert "lai_max:" in annotated_content
     assert "base_temperature:" in annotated_content
     assert "base_temperature_senescence:" in annotated_content
-    assert "gdd_full:" in annotated_content
-    assert "sdd_full:" in annotated_content
 
 
 def test_annotation_with_sample_config():

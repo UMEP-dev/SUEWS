@@ -103,12 +103,12 @@ def _drop_hour_24(profile_day: dict) -> None:
 
 
 _WITNESS_CASES = [
-    # Conductance subsystem: missing (defaulted in SUEWSConfig per BR-01/C-EMIT), null, malformed
+    # Conductance subsystem: missing, null, malformed.
     pytest.param(
         False,
         lambda s: s["properties"]["conductance"].pop("g_max"),
         ("sites[gridiv=1].properties.conductance.g_max",),
-        None,
+        ("conductance.g_max", "is None"),
         id="conductance-missing-g_max",
     ),
     pytest.param(
@@ -125,13 +125,13 @@ _WITNESS_CASES = [
         ("conductance.g_max",),
         id="conductance-malformed-g_max",
     ),
-    # Irrigation subsystem: missing (defaulted in SUEWSConfig per BR-01/C-EMIT), null,
-    # malformed, incorrectly sized (24-hour profile missing hour 24).
+    # Irrigation subsystem: missing, null, malformed, incorrectly sized
+    # (24-hour profile missing hour 24).
     pytest.param(
         True,
         lambda s: s["properties"]["irrigation"].pop("h_maintain"),
         ("sites[gridiv=1].properties.irrigation.h_maintain",),
-        None,
+        ("sites[gridiv=1].properties.irrigation.h_maintain",),
         id="irrigation-missing-h_maintain",
     ),
     pytest.param(
@@ -179,7 +179,7 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
     activate_irrigation: bool,
     mutate_site,
     expected_needles: tuple[str, ...],
-    public_needles: tuple[str, ...] | None,
+    public_needles: tuple[str, ...],
 ) -> None:
     """BR-02 witnesses for conductance and irrigation across Python and suews-engine."""
     doc, out_dir = _stage_doc(_conductance_irrigation_base, tmp_path)
@@ -217,28 +217,27 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
     assert not (out_dir / "suews_output.arrow").exists()
 
     # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation.run)
-    if public_needles is not None:
-        try:
-            cfg = SUEWSConfig.from_dict(doc)
-        except (ValueError, TypeError) as cfg_exc:
-            msg = str(cfg_exc)
-            for needle in public_needles:
-                assert needle in msg, f"expected {needle!r} in {msg!r}"
-            return
-        df_forcing = _conductance_irrigation_base["df_forcing_12h"]
-        sim = SUEWSSimulation()
-        sim.update_config(cfg, auto_load_forcing=False)
-        sim.update_forcing(df_forcing)
-        with pytest.raises(RuntimeError) as sim_exc:
-            sim.run(
-                start_date=df_forcing.index[0],
-                end_date=df_forcing.index[-1],
-                n_jobs=1,
-                _validate_forcing=False,
-            )
-        msg = str(sim_exc.value)
+    try:
+        cfg = SUEWSConfig.from_dict(doc)
+    except (ValueError, TypeError) as cfg_exc:
+        msg = str(cfg_exc)
         for needle in public_needles:
             assert needle in msg, f"expected {needle!r} in {msg!r}"
+        return
+    df_forcing = _conductance_irrigation_base["df_forcing_12h"]
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_forcing)
+    with pytest.raises(RuntimeError) as sim_exc:
+        sim.run(
+            start_date=df_forcing.index[0],
+            end_date=df_forcing.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+    msg = str(sim_exc.value)
+    for needle in public_needles:
+        assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 @pytest.mark.core

@@ -53,9 +53,13 @@
 #   OS_COMPAT_REQUIRED           -- Schema 2: optional 'true'|'false' (defaults to
 #                                   'true' when NEEDS_BUILD=true, 'false' otherwise)
 #   ABI3_SMOKE_RESULT            -- Schema 2: cross-CPython installed-wheel smoke result
-#   ABI3_SMOKE_REQUIRED          -- Schema 2: optional 'true'|'false' (defaults to
-#                                   'true' on pull_request when NEEDS_BUILD=true,
-#                                   'false' otherwise)
+#   ABI3_SMOKE_PYTHON            -- Schema 2: optional trusted JSON list from
+#                                   determine_matrix (needs.determine_matrix.outputs.abi3_smoke_python);
+#                                   when provided, requires abi3_smoke iff wheels are required and the
+#                                   list is non-empty (so requires-python >=3.15 with no extra CPython
+#                                   permits skipped without weakening >=3.12 PR enforcement)
+#   ABI3_SMOKE_REQUIRED          -- Schema 2: optional 'true'|'false' (cannot suppress
+#                                   mandatory abi3_smoke coverage)
 
 set -euo pipefail
 
@@ -108,6 +112,7 @@ if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
   OS_COMPAT_RESULT="${OS_COMPAT_RESULT-unset}"
   OS_COMPAT_REQUIRED="${OS_COMPAT_REQUIRED-unset}"
   ABI3_SMOKE_RESULT="${ABI3_SMOKE_RESULT-unset}"
+  ABI3_SMOKE_PYTHON="${ABI3_SMOKE_PYTHON-unset}"
   ABI3_SMOKE_REQUIRED="${ABI3_SMOKE_REQUIRED-unset}"
   TEST_BRIDGE_RESULT="${TEST_BRIDGE_RESULT-unset}"
 fi
@@ -126,7 +131,7 @@ if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
   echo "native: ${NATIVE_RESULT}"
   echo "physics: ${PHYSICS_RESULT}"
   echo "os_compat: ${OS_COMPAT_RESULT} (required=${OS_COMPAT_REQUIRED})"
-  echo "abi3_smoke: ${ABI3_SMOKE_RESULT} (required=${ABI3_SMOKE_REQUIRED})"
+  echo "abi3_smoke: ${ABI3_SMOKE_RESULT} (python=${ABI3_SMOKE_PYTHON}, required=${ABI3_SMOKE_REQUIRED})"
 else
   echo "api cross-CPython lanes: ${TEST_BRIDGE_RESULT}"
 fi
@@ -288,7 +293,30 @@ if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
   fi
 
   MANDATORY_ABI3_SMOKE=false
-  if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${WHEEL_REQUIRED}" == "true" ]]; then
+  if [[ "${ABI3_SMOKE_PYTHON}" != "unset" ]]; then
+    ABI3_SMOKE_COUNT="$(python3 -c '
+import json, re, sys
+try:
+    items = json.loads(sys.argv[1])
+except Exception:
+    sys.exit(1)
+if not isinstance(items, list):
+    sys.exit(1)
+for tag in items:
+    if not isinstance(tag, str) or not re.fullmatch(r"cp3\d+", tag):
+        sys.exit(1)
+print(len(items))
+' "${ABI3_SMOKE_PYTHON}" 2>/dev/null || echo "invalid")"
+    if [[ "${ABI3_SMOKE_COUNT}" == "invalid" ]]; then
+      echo "[X] Schema 2 received invalid ABI3_SMOKE_PYTHON='${ABI3_SMOKE_PYTHON}' (expected JSON array of cp3X tags)"
+      VALIDATION_PASSED=false
+      if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${WHEEL_REQUIRED}" == "true" ]]; then
+        MANDATORY_ABI3_SMOKE=true
+      fi
+    elif [[ "${WHEEL_REQUIRED}" == "true" ]] && [[ "${ABI3_SMOKE_COUNT}" -gt 0 ]]; then
+      MANDATORY_ABI3_SMOKE=true
+    fi
+  elif [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${WHEEL_REQUIRED}" == "true" ]]; then
     MANDATORY_ABI3_SMOKE=true
   fi
   if [[ "${ABI3_SMOKE_REQUIRED}" == "unset" ]]; then

@@ -1529,36 +1529,117 @@ def test_nested_leaf_job_names_say_what_the_job_does() -> None:
 def test_determine_matrix_schema1_parity_and_invalid_schema_fail_closed(
     tmp_path: Path,
 ) -> None:
-    """Unset, empty, and '1' emit exact Schema 1 keys; invalid values fail closed."""
-    expected_v1_keys = {
-        "buildplat",
-        "api_buildplat",
-        "python",
-        "test_tier",
-        "api_python",
-        "bookend_python",
-    }
-    scenarios = (
-        {"EVENT_NAME": "pull_request", "IS_DRAFT": "false", "PYTHON_CHANGED": "true"},
-        {"EVENT_NAME": "pull_request", "IS_DRAFT": "true", "FORTRAN_CHANGED": "true"},
-        {"EVENT_NAME": "merge_group", "FORTRAN_CHANGED": "true"},
-        {"EVENT_NAME": "schedule"},
-        {"EVENT_NAME": "push", "GITHUB_REF": "refs/tags/2026.11.26"},
-        {
-            "EVENT_NAME": "workflow_dispatch",
-            "INPUT_MATRIX_CONFIG": "minimal",
-            "INPUT_TEST_TIER": "standard",
-        },
+    """Unset, empty, and '1' match pinned Schema 1 raw output; invalid values fail closed."""
+    linux = '[["ubuntu-latest", "manylinux", "x86_64"]]'
+    mq_plat = (
+        '[["ubuntu-latest", "manylinux", "x86_64"], ["windows-2025", "win", "AMD64"]]'
     )
-    for scenario in scenarios:
-        unset = _run_determine_matrix(tmp_path, scenario)
-        empty = _run_determine_matrix(tmp_path, {**scenario, "GATE_AXIS_SCHEMA": ""})
-        explicit1 = _run_determine_matrix(
-            tmp_path, {**scenario, "GATE_AXIS_SCHEMA": "1"}
-        )
-        assert set(unset) == expected_v1_keys, scenario
-        assert empty == unset, scenario
-        assert explicit1 == unset, scenario
+    full_plat = (
+        '[["ubuntu-latest", "manylinux", "x86_64"], '
+        '["macos-15-intel", "macosx", "x86_64"], '
+        '["macos-15", "macosx", "arm64"], '
+        '["windows-2025", "win", "AMD64"]]'
+    )
+    nightly_api_plat = (
+        '[["ubuntu-latest", "manylinux", "x86_64"], '
+        '["macos-15", "macosx", "arm64"], '
+        '["windows-2025", "win", "AMD64"]]'
+    )
+    pinned_scenarios = (
+        (
+            {
+                "EVENT_NAME": "pull_request",
+                "IS_DRAFT": "false",
+                "PYTHON_CHANGED": "true",
+            },
+            [
+                f"buildplat={linux}",
+                f"api_buildplat={linux}",
+                'python=["cp312"]',
+                "test_tier=standard",
+                'api_python=["cp312", "cp315"]',
+                'bookend_python=["cp312", "cp315"]',
+            ],
+        ),
+        (
+            {
+                "EVENT_NAME": "pull_request",
+                "IS_DRAFT": "true",
+                "FORTRAN_CHANGED": "true",
+            },
+            [
+                "test_tier=core",
+                f"buildplat={linux}",
+                f"api_buildplat={linux}",
+                'python=["cp312"]',
+                'api_python=["cp312", "cp315"]',
+                'bookend_python=["cp312", "cp315"]',
+            ],
+        ),
+        (
+            {"EVENT_NAME": "merge_group", "FORTRAN_CHANGED": "true"},
+            [
+                f"buildplat={mq_plat}",
+                f"api_buildplat={linux}",
+                'python=["cp312"]',
+                "test_tier=standard",
+                'api_python=["cp312"]',
+                'bookend_python=["cp312", "cp315"]',
+            ],
+        ),
+        (
+            {"EVENT_NAME": "schedule"},
+            [
+                f"buildplat={full_plat}",
+                f"api_buildplat={nightly_api_plat}",
+                'python=["cp312"]',
+                "test_tier=all",
+                'api_python=["cp312", "cp313", "cp314", "cp315"]',
+                'bookend_python=["cp312", "cp315"]',
+            ],
+        ),
+        (
+            {"EVENT_NAME": "push", "GITHUB_REF": "refs/tags/2026.11.26"},
+            [
+                f"buildplat={full_plat}",
+                f"api_buildplat={nightly_api_plat}",
+                'python=["cp312"]',
+                "test_tier=all",
+                'api_python=["cp312", "cp313", "cp314", "cp315"]',
+                'bookend_python=["cp312", "cp315"]',
+            ],
+        ),
+        (
+            {
+                "EVENT_NAME": "workflow_dispatch",
+                "INPUT_MATRIX_CONFIG": "minimal",
+                "INPUT_TEST_TIER": "standard",
+            },
+            [
+                f"buildplat={linux}",
+                f"api_buildplat={linux}",
+                'python=["cp312"]',
+                "test_tier=standard",
+                'api_python=["cp312", "cp315"]',
+                'bookend_python=["cp312", "cp315"]',
+            ],
+        ),
+    )
+    for scenario, expected_lines in pinned_scenarios:
+        for schema_override in (
+            {},
+            {"GATE_AXIS_SCHEMA": ""},
+            {"GATE_AXIS_SCHEMA": "1"},
+        ):
+            proc, parsed = _run_determine_matrix_raw(
+                tmp_path, {**scenario, **schema_override}
+            )
+            assert proc.returncode == 0, proc.stdout + proc.stderr
+            raw_lines = (
+                (tmp_path / "github_output").read_text(encoding="utf-8").splitlines()
+            )
+            assert raw_lines == expected_lines, (scenario, schema_override)
+            assert len(parsed) == 6
 
     for bad in ("0", "3", "v2", "true", " 2", "2 "):
         proc, parsed = _run_determine_matrix_raw(
@@ -1864,3 +1945,96 @@ def test_determine_matrix_schema2_draft_tag_dispatch_and_ci_tiers_parity(
         for lane in ("tooling", "unit", "native", "physics", "os_compat", "abi3_smoke"):
             assert ci_tiers.tier_expression(lane, tier, schema=2)
         assert ci_test_layout.native_cells("cp312", tier)
+
+    # End-to-end matrix -> pr-gate regression: requires-python >=3.15 produces an empty
+    # abi3_smoke matrix on a Schema 2 PR, which pr-gate.sh accepts when ABI3_SMOKE_PYTHON
+    # is forwarded from determine-matrix.sh; >=3.12 produces ["cp315"] and still fails closed
+    # if abi3_smoke is skipped.
+    py315_pyproject = tmp_path / "pyproject_315.toml"
+    py315_pyproject.write_text(
+        '[project]\nname = "supy"\nrequires-python = ">=3.15"\n',
+        encoding="utf-8",
+    )
+    py315_matrix = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "pull_request",
+            "PYTHON_CHANGED": "true",
+            "PR_PYPROJECT": str(py315_pyproject),
+        },
+    )
+    assert json.loads(py315_matrix["python"]) == ["cp315"]
+    assert json.loads(py315_matrix["abi3_smoke_python"]) == []
+    assert json.loads(py315_matrix["abi3_smoke_buildplat"]) == []
+
+    py312_matrix = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "pull_request",
+            "PYTHON_CHANGED": "true",
+        },
+    )
+    assert json.loads(py312_matrix["abi3_smoke_python"]) == ["cp315"]
+
+    base_gate_env = {
+        **os.environ,
+        "GATE_AXIS_SCHEMA": "2",
+        "EVENT_NAME": "pull_request",
+        "DETECT_CHANGES_RESULT": "success",
+        "NEEDS_BUILD": "true",
+        "BUILD_WHEELS_RESULT": "success",
+        "BUILD_MCP_RESULT": "success",
+        "CHECK_MARKERS_RESULT": "success",
+        "PHYSICS_LABEL_RESULT": "success",
+        "PHYSICS_CHANGE": "false",
+        "CORE_GUARD_RESULT": "success",
+        "TOOLING_RESULT": "success",
+        "UNIT_RESULT": "success",
+        "NATIVE_RESULT": "success",
+        "PHYSICS_RESULT": "success",
+        "OS_COMPAT_RESULT": "success",
+        "ABI3_SMOKE_RESULT": "skipped",
+        "SCHEMA_AUDIT_RESULT": "success",
+        "DATA_INTERFACE_AUDIT_RESULT": "success",
+        "RUST_TEST_RESULT": "skipped",
+        "RUST_TEST_CHANGED": "false",
+        "RUST_CLIPPY_RESULT": "skipped",
+        "RUST_CLIPPY_CHANGED": "false",
+        "ENCODING_AUDIT_RESULT": "skipped",
+        "ENCODING_AUDIT_CHANGED": "false",
+        "WORKFLOW_SECURITY_RESULT": "skipped",
+        "WORKFLOW_SECURITY_CHANGED": "false",
+        "DEPENDENCY_AUDIT_RESULT": "skipped",
+        "DEPENDENCY_AUDIT_CHANGED": "false",
+        "FORTRAN_UNINIT_RESULT": "skipped",
+        "FORTRAN_UNINIT_CHANGED": "false",
+        "RUST_CAPI_OBSERVER_RESULT": "skipped",
+        "RUST_CAPI_OBSERVER_CHANGED": "false",
+    }
+    gate_315 = subprocess.run(
+        ["bash", str(REPO_ROOT / ".github/scripts/pr-gate.sh")],
+        env={
+            **base_gate_env,
+            "TEST_TIER": py315_matrix["test_tier"],
+            "ABI3_SMOKE_PYTHON": py315_matrix["abi3_smoke_python"],
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert gate_315.returncode == 0, gate_315.stdout + gate_315.stderr
+
+    gate_312_skip = subprocess.run(
+        ["bash", str(REPO_ROOT / ".github/scripts/pr-gate.sh")],
+        env={
+            **base_gate_env,
+            "TEST_TIER": py312_matrix["test_tier"],
+            "ABI3_SMOKE_PYTHON": py312_matrix["abi3_smoke_python"],
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert gate_312_skip.returncode == 1, gate_312_skip.stdout + gate_312_skip.stderr

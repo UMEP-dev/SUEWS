@@ -521,20 +521,37 @@ test('resolveAxisSchema defaults to 1, accepts 1/2, and fails closed on invalid 
   }
 });
 
-test('Schema 1 output is byte-identical across unset, empty, and explicit 1', () => {
+test('Schema 1 output matches pinned base rendering byte-for-byte across unset, empty, and explicit 1', () => {
+  const pinnedBaseSchema1 = [
+    '<!-- ci-build-plan -->',
+    '## CI Build Plan',
+    '',
+    '### Changed Files',
+    '',
+    '**Fortran source** (1 file)\n- `src/suews/src/suews_phys_dailystate.f95`\n\n',
+    '### Build Configuration',
+    '',
+    '| | Configuration |\n|---|---|\n| **Matrix** | reduced (3 platforms) |\n| **Platforms** | Linux x86_64, macOS ARM64, Windows x64 |\n| **Python** | 3.12 |\n| **Test tier** | standard (non-slow + core physics regressions) |\n| **PR status** | Ready for review |\n',
+    '### Rationale',
+    '',
+    '- Fortran source changed -> multiplatform build required',
+    '',
+    '---',
+    '<sub>Updated by CI on each push. See <a href="https://github.com/UMEP-dev/SUEWS/blob/deadbeef/.github/path-filters.yml">path-filters.yml</a> for category definitions.</sub>',
+  ].join('\n');
+
   const unset = buildBody(envFor({}), ctx);
   const empty = buildBody(envFor({ GATE_AXIS_SCHEMA: '' }), ctx);
   const explicit1 = buildBody(envFor({ GATE_AXIS_SCHEMA: '1' }), ctx);
-  assert.equal(empty, unset);
-  assert.equal(explicit1, unset);
-  assert.doesNotMatch(unset, /Axis schema/);
-  assert.doesNotMatch(unset, /Schema 2 Lane Statuses/);
+  assert.equal(unset, pinnedBaseSchema1);
+  assert.equal(empty, pinnedBaseSchema1);
+  assert.equal(explicit1, pinnedBaseSchema1);
   // Even if Schema 2 lane result env vars are present in Schema 1 mode, output stays untouched.
   const withUnusedV2Vars = buildBody(
     envFor({ GATE_AXIS_SCHEMA: '1', TOOLING_RESULT: 'success', UNIT_RESULT: 'success' }),
     ctx,
   );
-  assert.equal(withUnusedV2Vars, unset);
+  assert.equal(withUnusedV2Vars, pinnedBaseSchema1);
 });
 
 test('physics-core has an explicit tier description', () => {

@@ -46,6 +46,7 @@ _SCHEMA2_LANE_VARS = (
     "OS_COMPAT_RESULT",
     "OS_COMPAT_REQUIRED",
     "ABI3_SMOKE_RESULT",
+    "ABI3_SMOKE_PYTHON",
     "ABI3_SMOKE_REQUIRED",
 )
 
@@ -341,7 +342,7 @@ class GateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_schema1_parity_and_invalid_gate_axis_schema_fails_closed(self):
-        """Unset, empty, and '1' produce identical Schema 1 verdicts; invalid values fail closed."""
+        """Unset, empty, and '1' match pinned Schema 1 output; invalid values fail closed."""
         base_env = {
             **_stage2_green_env(),
             "TEST_TIER": "standard",
@@ -355,6 +356,30 @@ class GateTests(unittest.TestCase):
         self.assertEqual(explicit1.returncode, 0, explicit1.stdout + explicit1.stderr)
         self.assertEqual(empty.stdout, unset.stdout)
         self.assertEqual(explicit1.stdout, unset.stdout)
+        # Pin concrete base-branch Schema 1 stdout lines (not just self-consistency).
+        for expected_line in (
+            "=== Job Results ===",
+            "api cross-CPython lanes: success",
+            "[OK] Every test file declares physics or api",
+            "[OK] Standard build passed",
+            "[OK] API tests passed on all matrix cells",
+            "[OK] Every core test passed on Linux",
+            "[OK] All validations passed",
+        ):
+            self.assertIn(expected_line, unset.stdout)
+        self.assertNotIn("gate_axis_schema", unset.stdout)
+
+        # Schema 1 failure path matches pinned base behaviour across unset / '1'.
+        fail_unset = _run_pr_gate({**base_env, "TEST_BRIDGE_RESULT": "failure"})
+        fail_v1 = _run_pr_gate({
+            **base_env,
+            "GATE_AXIS_SCHEMA": "1",
+            "TEST_BRIDGE_RESULT": "failure",
+        })
+        self.assertEqual(fail_unset.returncode, 1)
+        self.assertEqual(fail_v1.returncode, 1)
+        self.assertEqual(fail_v1.stdout, fail_unset.stdout)
+        self.assertIn("[X] API cross-CPython tests failed", fail_unset.stdout)
 
         for bad in ("0", "3", "v2", "true", " 2", "2 "):
             with self.subTest(bad_schema=bad):
@@ -465,6 +490,51 @@ class GateTests(unittest.TestCase):
             1,
             res_mq_suppress.stdout + res_mq_suppress.stderr,
         )
+
+        # Trusted ABI3_SMOKE_PYTHON="[]" (e.g. requires-python >=3.15 PR with no extra CPython)
+        # permits ABI3_SMOKE_RESULT=skipped, while non-empty or malformed lists still fail closed.
+        res_empty_abi3_ok = _run_pr_gate(
+            {
+                **_schema2_green_env("pull_request", "physics-core"),
+                "ABI3_SMOKE_PYTHON": "[]",
+                "ABI3_SMOKE_RESULT": "skipped",
+            },
+            drop_vars=("TEST_BRIDGE_RESULT",),
+        )
+        self.assertEqual(
+            res_empty_abi3_ok.returncode,
+            0,
+            res_empty_abi3_ok.stdout + res_empty_abi3_ok.stderr,
+        )
+
+        res_nonempty_abi3_skip = _run_pr_gate(
+            {
+                **_schema2_green_env("pull_request", "physics-core"),
+                "ABI3_SMOKE_PYTHON": '["cp315"]',
+                "ABI3_SMOKE_RESULT": "skipped",
+            },
+            drop_vars=("TEST_BRIDGE_RESULT",),
+        )
+        self.assertEqual(
+            res_nonempty_abi3_skip.returncode,
+            1,
+            res_nonempty_abi3_skip.stdout + res_nonempty_abi3_skip.stderr,
+        )
+
+        for bad_abi3_json in ("", "not-json", "{}", '["bad-tag"]', "[315]"):
+            with self.subTest(bad_abi3_python=bad_abi3_json):
+                res_bad_json = _run_pr_gate(
+                    {
+                        **_schema2_green_env("pull_request", "physics-core"),
+                        "ABI3_SMOKE_PYTHON": bad_abi3_json,
+                    },
+                    drop_vars=("TEST_BRIDGE_RESULT",),
+                )
+                self.assertEqual(
+                    res_bad_json.returncode,
+                    1,
+                    res_bad_json.stdout + res_bad_json.stderr,
+                )
 
     def test_schema2_core_guard_enforces_event_tier_policy_and_rejects_reduced_tiers(
         self,

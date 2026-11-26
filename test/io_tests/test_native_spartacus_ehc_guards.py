@@ -61,6 +61,8 @@ def _stebbs_resolved_doc(
     fixture = repo_root / "test" / "fixtures" / "bridge" / "stebbs_resolved.yml"
     doc = yaml.safe_load(fixture.read_text(encoding="utf-8"))
     doc["model"]["physics"]["storage_heat"] = {"value": 5}
+    # EHC uses J11 QF rather than the coupled STEBBS source.
+    doc["model"]["physics"]["emissions"] = {"value": 2}
     doc["model"]["control"]["start_time"] = "2012-01-01 00:05:00"
     doc["model"]["control"]["end_time"] = "2012-01-01 12:00:00"
     doc["model"]["control"]["forcing"]["file"] = str(forcing_file)

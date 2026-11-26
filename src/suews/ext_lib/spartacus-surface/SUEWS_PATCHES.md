@@ -8,13 +8,16 @@ Existing ECMWF licence notices (`LICENSE`, `NOTICE`) and Robin Hogan's attributi
 - **Vendored fork commit:** `Urban-Meteorology-Reading/spartacus-surface` commit `5c3a997b7abc8840434a709216409c91498125a1` (2021-08-03, "Merging origin/master@c21fcea5 into master@ebbe7471"), previously pinned as a Git submodule at `SUEWS-SourceCode/ext_lib/spartacus-surface` in SUEWS commit `bdbbfaef52`.
 - **SUEWS vendoring commit:** `71f853044d07477fe875bce5ffeee0dbedc2614a` (`71f853044d`, 2023-02-19, "update source code folders"), which copied all 81 vendored files verbatim from `5c3a997b7abc8840434a709216409c91498125a1` (omitting only `lib/.gitignore`).
 - **ECMWF upstream ancestor and pre-vendoring fork delta:** `ecmwf/spartacus-surface` commit `c5a6e78daaab632d4b3b7721e1d2069ec5a3402e` (2021-07-09, `ChangeLog` version `0.7.2`, merge-base with `ecmwf/spartacus-surface` `master`). Prior to vendoring into SUEWS, the Reading fork commit `5c3a997b7abc8840434a709216409c91498125a1` already diverged from `c5a6e78daaab632d4b3b7721e1d2069ec5a3402e` across 13 files (including fork-side edits under `doc/`, `radsurf/`, and `test/`, and the removal of `test/simple/test_overhang_in.nc`). Those pre-vendoring Reading-fork differences are part of the imported `71f853044d` snapshot rather than post-vendoring SUEWS commits.
-- **Reproducing the post-vendoring SUEWS delta:** run `git diff --stat 71f853044d..HEAD -- src/suews/ext_lib/spartacus-surface/`. Excluding this file (`SUEWS_PATCHES.md`), 19 vendored files carry post-vendoring SUEWS modifications across five changes (`13e8c75ba4`, `31e4d8bb1b`, `a0bc551e61`, `f7c14cb19a`, and issue #2172).
+- **Reproducing the post-vendoring SUEWS delta:** run `git diff --stat 71f853044d..HEAD -- src/suews/ext_lib/spartacus-surface/`. Excluding this file (`SUEWS_PATCHES.md`), 24 vendored files carry post-vendoring SUEWS modifications across six changes (`13e8c75ba4`, `31e4d8bb1b`, `a0bc551e61`, `f7c14cb19a`, `45750a0e06`, and `76d4c4ac2e`).
 
 ## Modified files summary
 
 | File | SUEWS PR(s) | Summary |
 | --- | --- | --- |
-| `Makefile_include.gfortran` | #1209 | Update `DEBUGFLAGS` for gfortran debug builds |
+| `Makefile` | #1970 | Export `CONST_FFLAGS` to sub-Makefiles for `suews_ctrl_const.f95` |
+| `Makefile_include.gfortran` | #1209, #1970 | Update `DEBUGFLAGS` for gfortran debug builds; set `CONST_FFLAGS = -ffree-line-length-none` |
+| `Makefile_include.intel` | #1970 | Define empty `CONST_FFLAGS` for standalone Makefile consistency |
+| `Makefile_include.pgi` | #1970 | Define empty `CONST_FFLAGS` for standalone Makefile consistency |
 | `driver/spartacus_surface_config.F90` | #2075 | Return after `radiation_abort` on missing namelist |
 | `driver/spartacus_surface_driver.F90` | #2075 | Unwind on `radiation_error()`, capture first OpenMP TLS error, exit with status 1 |
 | `driver/spartacus_surface_read_input.F90` | #2075 | Propagate `radiation_error()` after NetCDF `file%get` calls |
@@ -26,8 +29,10 @@ Existing ECMWF licence notices (`LICENSE`, `NOTICE`) and Robin Hogan's attributi
 | `radsurf/radsurf_overlap.F90` | #2075 | Return after `radiation_abort` when building fraction increases with height |
 | `radsurf/radsurf_save.F90` | #2075 | Propagate `radiation_error()` across NetCDF output routines |
 | `radsurf/radsurf_simple_spectrum.F90` | #1570, #1854, #2075 | Guard canopy emission on urban/flat tiles; return after `radiation_abort` |
-| `radsurf/radsurf_urban_lw.F90` | #1570, #2075, #2172 | Store optional layer-top/base LW diagnostics; propagate `radiation_error()`; reset `norm_perim_air_veg` per layer |
-| `radsurf/radsurf_urban_sw.F90` | #1570, #2075, #2172 | Store optional layer-top/base SW diagnostics; propagate `radiation_error()`; reset `norm_perim_air_veg` per layer |
+| `radsurf/radsurf_urban_lw.F90` | #1570, #2075, #2208 | Store optional layer-top/base LW diagnostics; propagate `radiation_error()`; reset `norm_perim_air_veg` per layer |
+| `radsurf/radsurf_urban_sw.F90` | #1570, #2075, #2208 | Store optional layer-top/base SW diagnostics; propagate `radiation_error()`; reset `norm_perim_air_veg` per layer |
+| `radtool/Makefile` | #1970 | Compile `../../../src/suews_ctrl_const.f95` into `libradtool.a`; add `radiation_constants.o` dependency |
+| `radtool/radiation_constants.F90` | #1970 | Import `StefanBoltzmann => SBConst` (CODATA 2018) from `module_ctrl_const_physconst` |
 | `radtool/radtool_calc_matrices_lw_eig.F90` | #1854 | Handle fully transparent LW spectral bands analytically |
 | `radtool/radtool_calc_matrices_sw_eig.F90` | #1854 | Handle fully transparent SW spectral bands without singular inverses |
 | `utilities/Makefile` | #2075 | Compile `../../../src/suews_ctrl_error_tls.c` into `libutilities.a` |
@@ -86,7 +91,7 @@ All 15 modified files under `src/suews/ext_lib/spartacus-surface/` are listed be
 Regression coverage lives in `test/core/test_spartacus_errors.py`, `test/physics/test_fatal_error_propagation.py`, and `test/physics/test_standalone_spartacus_errors.py` (which exercises the `spartacus_surface` executable built inside the SUEWS source tree with `src/suews/src/suews_ctrl_error_tls.c`).
 Because `utilities/radiation_io.F90`, `utilities/Makefile`, and `driver/spartacus_surface_driver.F90` bind directly to SUEWS's C TLS implementation (`src/suews/src/suews_ctrl_error_tls.c`, `suews_tls_error_*`) and error code `111`, building `spartacus-surface` outside SUEWS would require replacing or removing those TLS bindings; the `radiation_error()` early-return unwinding pattern itself can inform an upstream error-status API.
 
-### Issue #2172 (PR pending, 2026-11-22): reset `norm_perim_air_veg` per layer in urban solvers
+### PR #2208 / issue #2172 (`45750a0e06`, 2026-11-23): reset `norm_perim_air_veg` per layer in urban solvers
 
 Inside the upward layer loop (`do jlay = 1, nlay`) of both urban solvers, `norm_perim` was reset to `0.0_jprb` at the start of every layer, whereas `norm_perim_air_veg` was assigned only inside `if (veg_fraction(jlay) > config%min_vegetation_fraction)`.
 When buildings extend above the vegetation canopy (`building_fraction(jlay) > config%min_building_fraction` and `veg_fraction(jlay) <= config%min_vegetation_fraction`) and `veg_contact_fraction(jlay) > 0.0_jprb` (including SUEWS's default `veg_contact_fraction_const = 0.5`), `norm_perim_air_veg` silently carried over the lower vegetated layer's air-vegetation perimeter (or read an uninitialised stack value when `jlay == 1` had no vegetation without `-finit-real=zero`).
@@ -105,3 +110,18 @@ Minimal upstream reproducer: construct a two-layer urban canopy with `nreg = 2` 
 Without the reset, `spartacus_urban_lw` fails longwave budget closure (`LTopNet` vs ground + roofs + walls + clear air + vegetation) on layer 2, and `spartacus_urban_sw` reduces layer-2 wall interception even in a zero-albedo canopy where no upward flux leaves layer 1.
 Regression coverage in SUEWS lives in `test/physics/test_spartacus_above_canopy_perimeter.py`.
 This two-line fix has no SUEWS-specific dependencies and is ready for upstream submission to `ecmwf/spartacus-surface`.
+
+### PR #1970 / issue #1953 (`76d4c4ac2e`, 2026-11-23): unify Stefan-Boltzmann constant with SUEWS
+
+To align longwave radiation calculations across SUEWS physics modules and vendored SPARTACUS on a single CODATA 2018 Stefan-Boltzmann constant (`SBConst = 5.670374419D-8` W m-2 K-4 in `src/suews/src/suews_ctrl_const.f95`), `radtool/radiation_constants.F90` now imports `SBConst` instead of defining a local `5.67037321e-8_jprb` literal, and the standalone SPARTACUS Makefiles compile `suews_ctrl_const.f95` into `libradtool.a`.
+All 6 modified files under `src/suews/ext_lib/spartacus-surface/` are listed below:
+
+- `radtool/radiation_constants.F90`: replace the local `StefanBoltzmann = 5.67037321e-8_jprb` parameter with `use module_ctrl_const_physconst, only : StefanBoltzmann => SBConst`.
+- `radtool/Makefile`: compile `../../../src/suews_ctrl_const.f95` with `$(CONST_FFLAGS)` into `suews_ctrl_const.o`, prepend `suews_ctrl_const.o` to `OBJECTS` in `libradtool.a`, and declare `radiation_constants.o: suews_ctrl_const.o`.
+- `Makefile`: export `CONST_FFLAGS` to sub-Makefiles.
+- `Makefile_include.gfortran`: set `CONST_FFLAGS = -ffree-line-length-none` so `suews_ctrl_const.f95` compiles without gfortran's 132-column free-form line-length limit.
+- `Makefile_include.intel`: define empty `CONST_FFLAGS` for compiler-include consistency.
+- `Makefile_include.pgi`: define empty `CONST_FFLAGS` for compiler-include consistency.
+
+Regression coverage in `test/physics/test_spartacus_non_urban.py` verifies flat-tile longwave emission against the CODATA 2018 `5.670374419e-8` W m-2 K-4 value within `1e-10` W m-2.
+Because `radtool/radiation_constants.F90` and `radtool/Makefile` depend directly on `src/suews/src/suews_ctrl_const.f95` (`module_ctrl_const_physconst`), building `spartacus-surface` outside the SUEWS source tree would require restoring a local `StefanBoltzmann` parameter and removing the `suews_ctrl_const.o` rule; upstream `ecmwf/spartacus-surface` could adopt the CODATA 2018 value directly as a standalone parameter.

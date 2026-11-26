@@ -1112,7 +1112,7 @@ alongside the existing flat ``{value: N}`` shape:
   ``estm``, ``ehc``, ``dyohm``, ``stebbs``, ``dyohm_building``. The
   ``estm`` tag is kept so old files still parse; its option 4 is rejected
   at validation.
-- ``emissions`` — families ``observed``, ``simple``,
+- ``emissions`` - families ``observed``, ``simple``, ``stebbs``,
   ``biogenic_rectangular``, ``biogenic_bellucco_local``,
   ``biogenic_bellucco_general``, ``biogenic_conductance``.
 

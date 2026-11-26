@@ -727,7 +727,10 @@ def assert_sweep_invariants(
     suews_absent: tuple[str, ...] = ()
     if isinstance(state_or_config, SUEWSConfig):
         physics = state_or_config.model.physics
-        if int(_unwrap_value(physics.net_radiation)) == 0:
+        if (
+            int(_unwrap_value(physics.net_radiation)) == 0
+            and int(_unwrap_value(physics.snow_use)) == 0
+        ):
             suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_QN
         if int(_unwrap_value(physics.soil_moisture)) == 1:
             suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_SMD
@@ -777,6 +780,27 @@ def assert_sweep_invariants(
     return residual
 
 
+_W16_MOST_REFERENCE = Path(__file__).resolve().parents[1] / "fixtures" / "w16_most.csv"
+
+
+def _expected_cloud_ldown_w_m2(df_forcing: pd.DataFrame) -> np.ndarray:
+    """Independent Prata cloud-corrected incoming longwave expectation [W m-2]."""
+    cloud = df_forcing["fcld"].to_numpy(dtype=float)
+    tair = df_forcing["Tair"].to_numpy(dtype=float)
+    rh = df_forcing["RH"].to_numpy(dtype=float)
+    pressure = df_forcing["pres"].to_numpy(dtype=float)
+    temp_k = tair + 273.15
+    sat_hpa = 6.1121 * np.exp((18.678 - tair / 234.5) * tair / (tair + 257.14))
+    sat_hpa *= 1.00072 + (pressure / 10.0) * (3.2e-6 + 5.9e-10 * tair**2)
+    water = 46.5 * (rh / 100.0) * sat_hpa / temp_k
+    clear_emissivity = 1.0 - (1.0 + water) * np.exp(-np.sqrt(1.2 + 3.0 * water))
+    return (
+        _STEFAN_BOLTZMANN_W_M2_K4
+        * (temp_k**4)
+        * (clear_emissivity + (1.0 - clear_emissivity) * cloud)
+    )
+
+
 def _assert_coupled_option_response(
     df_output: pd.DataFrame,
     df_forcing: pd.DataFrame,
@@ -801,6 +825,17 @@ def _assert_coupled_option_response(
             df_forcing["ldown"].to_numpy(dtype=float),
             rtol=0.0,
             atol=1e-9,
+        )
+    if "fcld" in case.forcing_columns:
+        np.testing.assert_allclose(
+            suews["Ldown"].to_numpy(dtype=float),
+            _expected_cloud_ldown_w_m2(df_forcing),
+            rtol=0.0,
+            atol=1e-3,
+            err_msg=(
+                f"{case.case_id}: Ldown does not match Prata cloud-corrected "
+                "expectation from forcing fcld"
+            ),
         )
     if "qf" in case.forcing_columns:
         np.testing.assert_allclose(
@@ -863,6 +898,29 @@ def _assert_coupled_option_response(
     if case.physics_overrides.get("roughness_sublayer") == RSLMethod.MOST:
         np.testing.assert_array_equal(
             grid_df["RSL"]["flag_RSL"].to_numpy(dtype=float), 0.0
+        )
+    if case.physics_overrides.get("stability") == StabilityMethod.HOEGSTROM:
+        df_expected = pd.read_csv(
+            _W16_MOST_REFERENCE,
+            index_col=[0, 1],
+            parse_dates=[1],
+            float_precision="round_trip",
+        )
+        df_actual = df_output["SUEWS"][["QH", "QE", "T2", "U10"]]
+        pd.testing.assert_index_equal(df_actual.index, df_expected.index)
+        pd.testing.assert_index_equal(
+            df_actual.columns, df_expected.columns, check_names=False
+        )
+        np.testing.assert_allclose(
+            df_actual.to_numpy(dtype=float),
+            df_expected.to_numpy(dtype=float),
+            rtol=1e-7,
+            atol=1e-8,
+            equal_nan=False,
+            err_msg=(
+                f"{case.case_id}: W16/MOST YAML->Rust output differs from "
+                "recorded w16_most.csv reference"
+            ),
         )
 
 
@@ -1039,6 +1097,115 @@ def test_coupled_refused_options_run_finite_and_conserve_water(
         check_all_active_groups=True,
     )
     _assert_coupled_option_response(df_output, df_forcing, case_config, case)
+
+
+def test_coupled_response_assertions_reject_alternative_physics_branches(
+    sample_sweep_base, tmp_path
+):
+    """Cloud-forced Ldown and W16/MOST checks reject outputs from alternative schemes."""
+    # ARRANGE: air-derived Ldown (3) + CN98 stability (3) + MOST (0) with fcld supplied
+    base_config, base_forcing = sample_sweep_base
+    alt_config = build_sweep_config(
+        base_config,
+        {
+            "net_radiation": NetRadiationMethod.LDOWN_AIR,
+            "stability": StabilityMethod.CAMPBELL_NORMAN,
+            "roughness_sublayer": RSLMethod.MOST,
+        },
+    )
+    df_forcing = _apply_coupled_forcing(base_forcing, ("fcld",))
+    cloud_case = next(
+        c for c in COUPLED_OPTION_RUNS if c.case_id == "net_radiation_ldown_cloud"
+    )
+    w16_case = next(c for c in COUPLED_OPTION_RUNS if c.case_id == "stability_w16_most")
+
+    # ACT
+    df_alt, _ = run_simulation(
+        df_forcing,
+        alt_config,
+        serial_mode=True,
+        round_trip_yaml=True,
+        work_dir=tmp_path,
+    )
+
+    # ASSERT: cloud and W16 response guards discriminate against air-Ldown / CN98
+    with pytest.raises(AssertionError, match="Prata cloud-corrected"):
+        _assert_coupled_option_response(df_alt, df_forcing, alt_config, cloud_case)
+    with pytest.raises(AssertionError, match=r"w16_most\.csv"):
+        _assert_coupled_option_response(df_alt, df_forcing, alt_config, w16_case)
+
+
+def test_observed_qn_finiteness_guard_respects_snow_use(sample_sweep_base, tmp_path):
+    """Observed QN absent-column rules apply only when snow_use=0, not snow_use=1."""
+    # ARRANGE
+    base_config, base_forcing = sample_sweep_base
+    df_forcing = _apply_coupled_forcing(base_forcing, ("qn",))
+    df_forcing["snow"] = 0.0
+
+    cfg_no_snow = build_sweep_config(
+        base_config, {"net_radiation": NetRadiationMethod.OBSERVED, "snow_use": 0}
+    )
+    cfg_snow = build_sweep_config(
+        base_config, {"net_radiation": NetRadiationMethod.OBSERVED, "snow_use": 1}
+    )
+
+    no_snow_dir = tmp_path / "no_snow"
+    snow_dir = tmp_path / "snow"
+    no_snow_dir.mkdir()
+    snow_dir.mkdir()
+
+    # ACT
+    df_no_snow, _ = run_simulation(
+        df_forcing,
+        cfg_no_snow,
+        serial_mode=True,
+        round_trip_yaml=True,
+        work_dir=no_snow_dir,
+    )
+    df_snow, _ = run_simulation(
+        df_forcing,
+        cfg_snow,
+        serial_mode=True,
+        round_trip_yaml=True,
+        work_dir=snow_dir,
+    )
+
+    # ASSERT: snow_use=0 keeps Kup/Ldown/Lup/Tsurf all-NaN; snow_use=1 populates them
+    assert_simulation_output_finiteness(
+        df_no_snow,
+        expected_grids=(1,),
+        expected_timestamps=df_forcing.index,
+        net_radiation=0,
+        snow_use=0,
+        forcing=df_forcing,
+    )
+    with pytest.raises(AssertionError, match="non-finite"):
+        assert_simulation_output_finiteness(
+            df_no_snow,
+            expected_grids=(1,),
+            expected_timestamps=df_forcing.index,
+            net_radiation=0,
+            snow_use=1,
+            forcing=df_forcing,
+        )
+
+    assert_simulation_output_finiteness(
+        df_snow,
+        expected_grids=(1,),
+        expected_timestamps=df_forcing.index,
+        net_radiation=0,
+        snow_use=1,
+        forcing=df_forcing,
+    )
+    with pytest.raises(AssertionError, match="declared absent actually hold values"):
+        assert_simulation_output_finiteness(
+            df_snow,
+            expected_grids=(1,),
+            expected_timestamps=df_forcing.index,
+            net_radiation=0,
+            snow_use=0,
+            forcing=df_forcing,
+        )
 
 
 def test_coupled_runs_cover_all_refused_options():

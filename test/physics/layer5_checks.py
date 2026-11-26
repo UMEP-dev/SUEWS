@@ -69,8 +69,10 @@ _SAVED_REQUIRED_HEADER_COLUMNS: tuple[str, ...] = (
 DAILYSTATE_ABSENT_UNDER_EHC: tuple[str, ...] = ("a1", "a2", "a3")
 
 # SUEWS radiation-component outputs legitimately set to NAN (-999 -> NaN)
-# when NetRadiationMethod == 0 (observed QN,
-# src/suews/src/suews_ctrl_driver.f95:2168-2181).
+# when NetRadiationMethod == 0 and SnowUse == 0 (observed QN without snow,
+# src/suews/src/suews_ctrl_driver.f95:2168-2181; when SnowUse == 1, RadMethod
+# in src/suews/src/suews_phys_narp.f95:65-69 routes to sentinel 3000 and NARP
+# populates these diagnostics).
 SUEWS_ABSENT_UNDER_OBSERVED_QN: tuple[str, ...] = ("Kup", "Ldown", "Lup", "Tsurf")
 
 # SUEWS per-surface soil moisture deficits legitimately set to NAN
@@ -1462,7 +1464,7 @@ def assert_active_output_finiteness(
     assert "Fcld" in suews, "SUEWS: missing required output column Fcld"
     assert_forcing_cloud(suews["Fcld"], forcing, tstep=tstep)
     suews_absent: tuple[str, ...] = ()
-    if int(net_radiation) == 0:
+    if int(net_radiation) == 0 and int(snow_use) == 0:
         suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_QN
     if int(soil_moisture) == 1:
         suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_SMD

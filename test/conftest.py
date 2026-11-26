@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import warnings
@@ -503,6 +504,124 @@ def sample_yaml_path() -> Iterator[Path]:
     """
     with as_file(trv_supy_module / "sample_data") as path_sample_dir:
         yield path_sample_dir / "sample_config.yml"
+
+
+@pytest.fixture(scope="session")
+def suews_engine_bin() -> Iterator[Path]:
+    """Path to the bundled or locally built ``suews-engine`` CLI binary.
+
+    Probes ``Traversable.is_file()`` before entering ``as_file`` so an absent
+    non-filesystem resource falls through cleanly to the local release build or
+    documented skip, keeps the materialisation context open for the session
+    lifetime, and ensures owner-execute permission on POSIX if extracted to a
+    temporary file.
+    """
+    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
+    bundled = trv_supy_module / "bin" / binary_name
+    if bundled.is_file():
+        with as_file(bundled) as bundled_path:
+            path = Path(bundled_path)
+            if os.name != "nt" and not os.access(path, os.X_OK):
+                path.chmod(path.stat().st_mode | stat.S_IXUSR)
+            yield path
+            return
+
+    dev_binary = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "suews_bridge"
+        / "target"
+        / "release"
+        / binary_name
+    )
+    if dev_binary.exists():
+        yield dev_binary
+        return
+    pytest.skip("Rust CLI binary not found; build with: make bridge")
+
+
+@pytest.fixture(scope="session")
+def sample_ohm_48h_qs(sample_config_loaded, sample_data_loaded, tmp_path_factory):
+    """Factory returning defensive copies of a 48-hour public-path OHM QS reference.
+
+    Runs the sample configuration with ``storage_heat=1`` (ordinary OHM) once
+    per session through the public YAML -> ``SUEWSSimulation`` path over the
+    first 48 hours (576 five-minute steps) and hands each caller a fresh deep
+    copy of ``SUEWS`` ``QS`` and ``QS_Bldgs`` so shared session state cannot be
+    mutated across tests.
+    """
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.physics.storage_heat = 1
+    forcing = sample_data_loaded[1].iloc[: 2 * TIMESTEPS_PER_DAY].copy()
+    path = tmp_path_factory.mktemp("ohm_48h_control") / "case.yml"
+    cfg.to_yaml(path)
+    sim = supy.SUEWSSimulation()
+    sim.update_config(path, auto_load_forcing=False)
+    sim.update_forcing(forcing)
+    output = sim.run(
+        start_date=forcing.index[0],
+        end_date=forcing.index[-1],
+        n_jobs=1,
+        chunk_day=3660,
+    ).df
+    reference = output["SUEWS"][["QS", "QS_Bldgs"]].copy(deep=True)
+
+    def _copy() -> pd.DataFrame:
+        return reference.copy(deep=True)
+
+    return _copy
+
+
+@pytest.fixture(scope="session")
+def continuation_reference_cache(tmp_path_factory):
+    """Session-scoped cache of uninterrupted continuation reference runs.
+
+    Runs each uninterrupted 48-hour reference simulation and its persisted
+    Parquet representation at most once per session (keyed by mode name),
+    releases the ``SUEWSSimulation`` instance immediately, and hands every
+    caller fresh deep copies so shared session references remain isolated
+    across ``chunk``, ``checkpoint``, and ``stream`` mechanisms.
+    """
+    cache_root = tmp_path_factory.mktemp("continuation_references")
+    cache: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
+
+    def _get(
+        key: str,
+        yaml_path: Path,
+        forcing: pd.DataFrame,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        if key not in cache:
+            sim = supy.SUEWSSimulation()
+            sim.update_config(yaml_path, auto_load_forcing=False)
+            sim.update_forcing(forcing.copy())
+            native = sim.run(
+                start_date=forcing.index[0],
+                end_date=forcing.index[-1],
+                n_jobs=1,
+                chunk_day=3660,
+            ).df
+            assert native.index.is_unique, "Duplicate grid/timestamp output rows"
+            pd.testing.assert_index_equal(
+                native.index.get_level_values("datetime"),
+                forcing.index,
+                check_names=False,
+            )
+            groups = [
+                group
+                for group in native.columns.get_level_values(0).unique()
+                if group != "BL"
+            ]
+            sim.config.model.control.output.freq = 300
+            sim.config.model.control.output.groups = groups
+            out_dir = cache_root / key
+            sim.save(out_dir, format="parquet", include_provisional=True)
+            (saved,) = out_dir.glob("*SUEWS_output*.parquet")
+            persisted = pd.read_parquet(saved).sort_index()
+            cache[key] = (native.copy(deep=True), persisted.copy(deep=True))
+        native_ref, persisted_ref = cache[key]
+        return native_ref.copy(deep=True), persisted_ref.copy(deep=True)
+
+    return _get
 
 
 @pytest.fixture(scope="session")

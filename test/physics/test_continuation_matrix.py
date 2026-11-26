@@ -70,10 +70,34 @@ def _simulation(config):
     return sim
 
 
-def _active(frame, mode):
+def _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode):
+    """Require a post-spin-up dynamic storage-heat divergence from ordinary OHM."""
+    assert ohm_control is not None, f"Missing OHM control for {mode}"
+    pd.testing.assert_index_equal(frame.index, ohm_control.index)
+    dates = frame.index.get_level_values("datetime")
+    warm_mask = dates >= (dates.min() + pd.Timedelta(days=1))
+    assert warm_mask.any(), f"No post-spin-up rows for {mode}"
+    for col in ("QS", "QS_Bldgs"):
+        delta = np.abs(frame["SUEWS", col].to_numpy() - ohm_control[col].to_numpy())
+        max_delta = float(np.max(delta[warm_mask]))
+        assert max_delta > 1.0e-4, (
+            f"{mode} {col} did not diverge from ordinary OHM after day-1 "
+            f"coefficient spin-up (max |delta| = {max_delta:.3e})"
+        )
+
+
+def _active(frame, mode, *, ohm_control=None):
     """Require a finite live signal; irrigation may deliver a constant rate."""
-    if mode == "default":
+    if mode in {"default", "leap_day"}:
         series = frame["SUEWS", "QN"]
+        if mode == "leap_day":
+            dates = frame.index.get_level_values("datetime")
+            assert ((dates.month == 2) & (dates.day == 29)).any(), (
+                "Leap-day continuation window does not span 29 February"
+            )
+            assert ((dates.month == 3) & (dates.day == 1)).any(), (
+                "Leap-day continuation window does not cross into 1 March"
+            )
     elif mode == "snow":
         series = frame["SUEWS", "SWE"]
         assert (series > 0).any(), "Snow mode has no snow pack"
@@ -83,6 +107,16 @@ def _active(frame, mode):
     elif mode == "co2":
         series = frame["SUEWS", "FcPhoto"]
         assert (series != 0).any(), "Biogenic CO2 is inactive"
+    elif mode == "dyohm":
+        series = frame["SUEWS", "QS"]
+        ts_dyohm = frame["SUEWS", "Ts_Paved_dyohm"]
+        assert np.isfinite(ts_dyohm).all() and ts_dyohm.nunique() > 1, (
+            "Inactive dyohm surface temperature history"
+        )
+        _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode)
+    elif mode == "dyohm_building":
+        series = frame["SUEWS", "QS"]
+        _assert_dyohm_diverges_from_ohm(frame, ohm_control, mode)
     elif mode in {"ehc", "ehc_explicit"}:
         series = frame["SUEWS", "QS"]
     elif mode == "stebbs":
@@ -95,9 +129,53 @@ def _active(frame, mode):
         assert series.nunique() > 1, f"Inactive {mode}"
 
 
+_STORAGE_HEAT_MODES: dict[str, int] = {
+    "ehc": 5,
+    "dyohm": 6,
+    "dyohm_building": 8,
+}
+
+
+def _configure_irrigation(cfg, forcing):
+    props = cfg.sites[0].properties
+    irr = props.irrigation
+    irr.h_maintain.value, irr.faut.value = -999.0, 0.5
+    irr.ie_start.value, irr.ie_end.value = 1.0, 366.0
+    irr.internalwateruse_h.value = 0.0
+    for day in (
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ):
+        setattr(irr.daywat, day, 1.0)
+        setattr(irr.daywatper, day, 1.0)
+    for profile in (irr.wuprofa_24hr, irr.wuprofm_24hr):
+        for day in (profile.working_day, profile.holiday):
+            for hour in day:
+                day[hour] = 1 / 24
+    for name, coefficient in (("evetr", 4.0), ("dectr", 0.0), ("grass", 0.0)):
+        surface = getattr(props.land_cover, name)
+        surface.ie_a.value = surface.ie_m.value = coefficient
+        surface.irrigation_fraction.value = float(name == "grass")
+    forcing["rain"] = 0.0
+
+
 def _configuration(sample_config_loaded, sample_data_loaded, mode):
     cfg = sample_config_loaded.model_copy(deep=True)
-    forcing = sample_data_loaded[1].iloc[:STEPS].copy()
+    if mode == "leap_day":
+        full_forcing = sample_data_loaded[1]
+        # Start on 29 February so checkpoint snapshots on leap day itself and
+        # daily chunk/stream hand-overs cross the 29 Feb -> 1 Mar boundary.
+        mask = (full_forcing.index >= "2012-02-29 00:05:00") & (
+            full_forcing.index <= "2012-03-02 00:00:00"
+        )
+        forcing = full_forcing.loc[mask].copy()
+    else:
+        forcing = sample_data_loaded[1].iloc[:STEPS].copy()
     assert len(forcing) == STEPS
     assert forcing.index[-1] - forcing.index[0] == pd.Timedelta(hours=48, minutes=-5)
     physics = cfg.model.physics
@@ -126,37 +204,13 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
         cfg.sites[0].properties.building_archetype = template.sites[
             0
         ].properties.building_archetype.model_copy(deep=True)
-    elif mode == "ehc":
-        physics.storage_heat = 5
+    elif mode in _STORAGE_HEAT_MODES:
+        physics.storage_heat = _STORAGE_HEAT_MODES[mode]
     elif mode == "ehc_explicit":
         physics.storage_heat = 5
         physics.ehc_surface_coupling = 0
     elif mode == "irrigation":
-        props = cfg.sites[0].properties
-        irr = props.irrigation
-        irr.h_maintain.value, irr.faut.value = -999.0, 0.5
-        irr.ie_start.value, irr.ie_end.value = 1.0, 366.0
-        irr.internalwateruse_h.value = 0.0
-        for day in (
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-        ):
-            setattr(irr.daywat, day, 1.0)
-            setattr(irr.daywatper, day, 1.0)
-        for profile in (irr.wuprofa_24hr, irr.wuprofm_24hr):
-            for day in (profile.working_day, profile.holiday):
-                for hour in day:
-                    day[hour] = 1 / 24
-        for name, coefficient in (("evetr", 4.0), ("dectr", 0.0), ("grass", 0.0)):
-            surface = getattr(props.land_cover, name)
-            surface.ie_a.value = surface.ie_m.value = coefficient
-            surface.irrigation_fraction.value = float(name == "grass")
-        forcing["rain"] = 0.0
+        _configure_irrigation(cfg, forcing)
     elif mode == "co2":
         physics.emissions = 32
     return cfg, forcing
@@ -166,30 +220,43 @@ def _configuration(sample_config_loaded, sample_data_loaded, mode):
     "mode",
     [
         "default",
+        "leap_day",
         "snow",
         "spartacus",
         "stebbs",
         "ehc",
         "ehc_explicit",
+        "dyohm",
+        "dyohm_building",
         "irrigation",
         "co2",
     ],
 )
 @pytest.mark.parametrize("mechanism", ["chunk", "checkpoint", "stream"])
 def test_continuation_matrix(
-    sample_config_loaded, sample_data_loaded, tmp_path, mode, mechanism
+    sample_config_loaded,
+    sample_data_loaded,
+    sample_ohm_48h_qs,
+    continuation_reference_cache,
+    tmp_path,
+    mode,
+    mechanism,
 ):
     """All active output groups survive the chosen state hand-over exactly."""
     cfg, forcing = _configuration(sample_config_loaded, sample_data_loaded, mode)
+    ohm_control = sample_ohm_48h_qs() if mode in {"dyohm", "dyohm_building"} else None
     # Round-trip through YAML so overrides take the public parser/engine path.
     path = tmp_path / "case.yml"
     cfg.to_yaml(path)
-    whole = _simulation(path)
-    expected = _run(whole, forcing, chunk_day=3660)
-    _active(expected, mode)
+    expected_native, expected_parquet = continuation_reference_cache(
+        mode, path, forcing
+    )
+    _active(expected_native, mode, ohm_control=ohm_control)
     if mechanism == "chunk":
+        expected = expected_native
         actual = _run(_simulation(path), forcing, chunk_day=1)
     elif mechanism == "checkpoint":
+        expected = expected_native
         first = _simulation(path)
         head = _run(first, forcing.iloc[:SPLIT])
         second = SUEWSSimulation.from_checkpoint(
@@ -198,9 +265,11 @@ def test_continuation_matrix(
         )
         actual = pd.concat([head, _run(second, forcing.iloc[SPLIT:])])
     else:
-        groups = list(expected.columns.get_level_values(0).unique())
-        # BL has no kernel writer; omit only that inactive, all-NaN group.
-        groups = [group for group in groups if group != "BL"]
+        groups = [
+            group
+            for group in expected_native.columns.get_level_values(0).unique()
+            if group != "BL"
+        ]
         output = {
             "format": "parquet",
             "freq": 300,
@@ -224,13 +293,9 @@ def test_continuation_matrix(
         # save() converts accumulated native quantities (e.g. Evap mm/step)
         # to declared output units (mm/s). Compare two persisted representations,
         # as test_stream_chunk does, never persisted values against native units.
-        whole.config.model.control.output.freq = 300
-        whole.config.model.control.output.groups = groups
-        whole.save(tmp_path / "whole", format="parquet", include_provisional=True)
-        (saved,) = (tmp_path / "whole").glob("*SUEWS_output*.parquet")
-        expected = pd.read_parquet(saved).sort_index()
+        expected = expected_parquet
     _compare(actual, expected)
-    _active(actual, mode)
+    _active(actual, mode, ohm_control=ohm_control)
 
 
 def test_checkpoint_perturbation_is_detected(sample_config_loaded, sample_data_loaded):

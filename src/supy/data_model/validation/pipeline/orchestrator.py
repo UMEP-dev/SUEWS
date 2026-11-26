@@ -789,6 +789,88 @@ class ABCOutputError(OSError):
         self.evidence_dir = evidence_dir
 
 
+VALID_PIPELINES = frozenset({"A", "B", "C", "AB", "AC", "BC", "ABC"})
+PipelineResult = ABCPipelineResult
+
+
+def run_pipeline(
+    user_yaml_file: str,
+    *,
+    pipeline: str = "ABC",
+    mode: str = "public",
+    forcing: str = "on",
+    science_fixes: str = "suggest",
+    progress: Callable[[str], None] | None = None,
+    _preloaded_user_data=_PHASE_A_MISSING,
+    final_yaml_name: str | None = None,
+    continue_on_error: bool = False,
+    publish_rejected_yaml: bool = True,
+) -> ABCPipelineResult:
+    """Run any phase combination in private staging, then publish atomically.
+
+    Supports all seven workflows (``A``, ``B``, ``C``, ``AB``, ``AC``, ``BC``,
+    ``ABC``). Phase A receives the original path so config-relative forcing
+    resolves against the source directory; subsequent phases consume only this
+    invocation's staged YAML. Rejections and I/O failures retain staging
+    evidence.
+    """
+    if pipeline not in VALID_PIPELINES:
+        raise ValueError(
+            f"Unknown validation pipeline {pipeline!r}; expected one of "
+            f"{sorted(VALID_PIPELINES)}"
+        )
+    workspace = Path(
+        tempfile.mkdtemp(
+            prefix=".suews-validate-",
+            dir=Path(user_yaml_file).parent,
+        )
+    )
+    try:
+        standard = workspace / "standard.yml"
+        if "A" in pipeline or "B" in pipeline:
+            standard.write_text(
+                (
+                    importlib.resources.files(supy)
+                    / "sample_data"
+                    / "sample_config.yml"
+                ).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+        cb = progress or (lambda _message: None)
+        if (
+            pipeline == "ABC"
+            and final_yaml_name is None
+            and not continue_on_error
+            and publish_rejected_yaml
+        ):
+            return _run_abc_staged(
+                user_yaml_file,
+                str(standard),
+                workspace,
+                mode,
+                forcing,
+                science_fixes,
+                cb,
+                _preloaded_user_data=_preloaded_user_data,
+            )
+        return _run_pipeline_staged(
+            user_yaml_file,
+            str(standard),
+            workspace,
+            pipeline=pipeline,
+            mode=mode,
+            forcing=forcing,
+            science_fixes=science_fixes,
+            progress=cb,
+            _preloaded_user_data=_preloaded_user_data,
+            final_yaml_name=final_yaml_name,
+            continue_on_error=continue_on_error,
+            publish_rejected_yaml=publish_rejected_yaml,
+        )
+    except OSError as exc:
+        raise ABCOutputError(exc, workspace) from exc
+
+
 def run_abc_pipeline(
     user_yaml_file: str,
     *,
@@ -804,165 +886,241 @@ def run_abc_pipeline(
     preserving config-relative forcing; subsequent phases consume only this
     invocation's generated YAML. Rejections and I/O failures retain evidence.
     """
-    workspace = Path(tempfile.mkdtemp(
-        prefix=".suews-validate-", dir=Path(user_yaml_file).parent,
-    ))
-    try:
-        # Keep the template lifetime inside this transaction, including for
-        # zipped package resources. No detached NamedTemporaryFile is leaked.
-        standard = workspace / "standard.yml"
-        standard.write_text(
-            (importlib.resources.files(supy) / "sample_data" / "sample_config.yml")
-            .read_text(encoding="utf-8"), encoding="utf-8",
-        )
-        return _run_abc_staged(
-            user_yaml_file, str(standard), workspace, mode, forcing,
-            science_fixes, progress or (lambda message: None),
-            _preloaded_user_data=_preloaded_user_data,
-        )
-    except OSError as exc:
-        raise ABCOutputError(exc, workspace) from exc
+    return run_pipeline(
+        user_yaml_file,
+        pipeline="ABC",
+        mode=mode,
+        forcing=forcing,
+        science_fixes=science_fixes,
+        progress=progress,
+        _preloaded_user_data=_preloaded_user_data,
+    )
 
 
 def _run_abc_staged(
-    user_yaml_file: str, standard_yaml_file: str, workspace: Path,
-    mode: str, forcing: str, science_fixes: str, progress: Callable[[str], None],
-    *, _preloaded_user_data=_PHASE_A_MISSING,
+    user_yaml_file: str,
+    standard_yaml_file: str,
+    workspace: Path,
+    mode: str,
+    forcing: str,
+    science_fixes: str,
+    progress: Callable[[str], None],
+    *,
+    _preloaded_user_data=_PHASE_A_MISSING,
 ) -> ABCPipelineResult:
-    """Execute the established phase/report flow within one invocation directory."""
-    (
-        uptodate_file, report_file, science_yaml_file, science_report_file,
-        pydantic_yaml_file, pydantic_report_file, _,
-    ) = setup_output_paths(user_yaml_file, "ABC")
+    """Execute the ABC workflow within one private staging directory."""
+    return _run_pipeline_staged(
+        user_yaml_file,
+        standard_yaml_file,
+        workspace,
+        pipeline="ABC",
+        mode=mode,
+        forcing=forcing,
+        science_fixes=science_fixes,
+        progress=progress,
+        _preloaded_user_data=_preloaded_user_data,
+    )
+
+
+def _run_pipeline_staged(
+    user_yaml_file: str,
+    standard_yaml_file: str,
+    workspace: Path,
+    *,
+    pipeline: str,
+    mode: str,
+    forcing: str,
+    science_fixes: str,
+    progress: Callable[[str], None],
+    _preloaded_user_data=_PHASE_A_MISSING,
+    final_yaml_name: str | None = None,
+    continue_on_error: bool = False,
+    publish_rejected_yaml: bool = True,
+) -> ABCPipelineResult:
+    """Execute any phase combination within one invocation staging directory."""
     from .report_schema import JSON_REPORT_WRITER, ValidationReport
     from .report_writer import format_report_stopping_phase
 
-    # Stage every phase and final write away from previous outputs.
-    # Retain the directory on rejection/write failure for diagnosis.
-    final_yaml = Path(pydantic_yaml_file)
-    final_report = Path(pydantic_report_file)
-    uptodate_file = str(workspace / Path(uptodate_file).name)
-    science_yaml_file = str(workspace / Path(science_yaml_file).name)
-    report_file = str(workspace / Path(report_file).name)
-    science_report_file = str(workspace / Path(science_report_file).name)
-    temp_report_c = str(workspace / f"temp_reportC_{Path(user_yaml_file).stem}.txt")
-    pydantic_yaml_file = str(workspace / final_yaml.name)
-    pydantic_report_file = str(workspace / final_report.name)
+    user_path = Path(user_yaml_file)
+    basename = user_path.name
+    stem = user_path.stem
+    final_yaml = user_path.parent / (final_yaml_name or f"updated_{basename}")
+    final_report = user_path.parent / f"report_{stem}.txt"
 
-    progress("Configuration structure check...")
-    phase_a_report = run_phase_a(
-        user_yaml_file,
-        standard_yaml_file,
-        uptodate_file,
-        report_file,
-        mode=mode,
-        phase="ABC",
-        silent=True,
-        forcing=forcing,
-        _preloaded_user_data=_preloaded_user_data,
-    )
-    reports = [phase_a_report]
-    source_report = report_file
-    source_yaml = uptodate_file
+    uptodate_file = str(workspace / f"updatedA_{basename}")
+    science_yaml_file = str(workspace / f"updatedB_{basename}")
+    report_a_file = str(workspace / f"temp_reportA_{stem}.txt")
+    report_b_file = str(workspace / f"temp_reportB_{stem}.txt")
+    report_c_file = str(workspace / f"temp_reportC_{stem}.txt")
+    staged_yaml = str(workspace / final_yaml.name)
+    staged_report = str(workspace / final_report.name)
 
-    if not phase_a_report.has_errors:
+    phases_requested = list(pipeline)
+    reports: list[PhaseReport] = []
+    source_report: str | None = None
+    source_yaml: str | None = None
+    current_input = user_yaml_file
+    phase_a_ran = False
+    phase_a_report: PhaseReport | None = None
+    upstream_report_paths: list[str] = []
+
+    if "A" in phases_requested:
+        progress("Configuration structure check...")
+        phase_a_report = run_phase_a(
+            user_yaml_file,
+            standard_yaml_file,
+            uptodate_file,
+            report_a_file,
+            mode=mode,
+            phase=pipeline,
+            silent=True,
+            forcing=forcing,
+            _preloaded_user_data=_preloaded_user_data,
+        )
+        reports.append(phase_a_report)
+        source_report = report_a_file
+        source_yaml = uptodate_file
+        upstream_report_paths.append(report_a_file)
+        phase_a_ran = True
+        if not phase_a_report.has_errors and Path(uptodate_file).is_file():
+            current_input = uptodate_file
+
+    can_continue = not any(r.has_errors for r in reports) or continue_on_error
+    if "B" in phases_requested and can_continue:
         progress("Physics validation check...")
+        upstream_failed = any(r.has_errors for r in reports)
+        b_input = current_input if Path(current_input).is_file() else user_yaml_file
+        effective_science_fixes = (
+            "off"
+            if upstream_failed and science_fixes == "apply"
+            else science_fixes
+        )
         phase_b_report = run_phase_b(
             user_yaml_file,
-            uptodate_file,
+            b_input,
             standard_yaml_file,
             science_yaml_file,
-            science_report_file,
-            report_file,
-            phase_a_performed=True,
+            report_b_file,
+            report_a_file if phase_a_ran else None,
+            phase_a_performed=phase_a_ran,
             mode=mode,
-            phase="ABC",
+            phase=pipeline,
             silent=True,
-            science_fixes=science_fixes,
+            science_fixes=effective_science_fixes,
         )
         reports.append(phase_b_report)
-        # A is the last successful YAML if B fails; keep B's diagnosis.
-        source_report = science_report_file
         if phase_b_report.has_errors:
-            # B's legacy summary omits A's ACTION NEEDED section. Preserve
-            # authored-key diagnostics even when a scientific error stops C.
-            action_lines = []
-            in_actions = False
-            for line in REPORT_WRITER.read(report_file).splitlines():
-                if line.startswith("## "):
-                    in_actions = line.strip() == "## ACTION NEEDED"
-                if in_actions and not line.startswith("# ==="):
-                    action_lines.append(line)
-            if action_lines:
-                REPORT_WRITER.write(
-                    science_report_file,
-                    REPORT_WRITER.read(science_report_file)
-                    + "\n\n" + "\n".join(action_lines) + "\n",
-                )
-        if not phase_b_report.has_errors:
+            source_report = report_b_file
+            if phase_a_ran and Path(report_a_file).is_file():
+                # B's legacy summary omits A's ACTION NEEDED section. Preserve
+                # authored-key diagnostics even when a scientific error stops C.
+                action_lines = []
+                in_actions = False
+                for line in REPORT_WRITER.read(report_a_file).splitlines():
+                    if line.startswith("## "):
+                        in_actions = line.strip() == "## ACTION NEEDED"
+                    if in_actions and not line.startswith("# ==="):
+                        action_lines.append(line)
+                if action_lines:
+                    REPORT_WRITER.write(
+                        report_b_file,
+                        REPORT_WRITER.read(report_b_file)
+                        + "\n\n"
+                        + "\n".join(action_lines)
+                        + "\n",
+                    )
+            if not phase_a_ran:
+                source_yaml = science_yaml_file
+        elif not upstream_failed:
+            source_report = report_b_file
             source_yaml = science_yaml_file
+            current_input = science_yaml_file
             progress("[OK] Phase B completed")
-            progress("Configuration consistency check...")
-            phase_c_report = run_phase_c(
-                science_yaml_file,
-                pydantic_yaml_file,
-                temp_report_c,
-                mode=mode,
-                phases_run=["C"],
-                silent=True,
-            )
-            reports.append(phase_c_report)
-            source_report = temp_report_c
-
-            # Use the human CLI's section-aware consolidation. Each
-            # source retains its section headers, so C's INFO cannot
-            # become a B suggestion (or a warning become an update).
-            upstream_messages = []
-            for path in (report_file, science_report_file):
-                upstream_messages.extend(
-                    extract_no_action_messages_from_report(path)
-                )
-            if phase_c_report.has_errors:
-                phase_c_report.yaml_out = None
-                # Preserve the complete C diagnosis, including sections
-                # outside the summary vocabulary, and the last B YAML.
-                content = REPORT_WRITER.read(temp_report_c)
-                REPORT_WRITER.write(
-                    pydantic_report_file,
-                    content + "\n\n" + "\n".join(upstream_messages) + "\n",
-                )
-            else:
+            if pipeline == "AB":
+                upstream_messages = []
+                for path in (report_a_file, report_b_file):
+                    if Path(path).is_file():
+                        upstream_messages.extend(
+                            extract_no_action_messages_from_report(path)
+                        )
                 create_consolidated_report(
-                    phases_run=["A", "B", "C"],
-                    no_action_messages=[
-                        *upstream_messages,
-                        *extract_no_action_messages_from_report(temp_report_c),
-                    ],
-                    final_report_file=pydantic_report_file,
+                    phases_run=["A", "B"],
+                    no_action_messages=upstream_messages,
+                    final_report_file=staged_report,
                     mode=mode,
                 )
-                source_yaml = pydantic_yaml_file
-            source_report = pydantic_report_file
+                source_report = staged_report
+        upstream_report_paths.append(report_b_file)
 
-    # Required artefact writes must propagate to the caller's error handler.
-    # Keep intermediate evidence until every final write has succeeded.
+    can_continue = not any(r.has_errors for r in reports) or continue_on_error
+    if "C" in phases_requested and can_continue:
+        progress("Configuration consistency check...")
+        upstream_failed = any(r.has_errors for r in reports)
+        c_input = current_input if Path(current_input).is_file() else user_yaml_file
+        c_staged_yaml = str(workspace / f"updatedC_{basename}")
+        phase_c_report = run_phase_c(
+            c_input,
+            c_staged_yaml,
+            report_c_file,
+            mode=mode,
+            phases_run=["C"],
+            silent=True,
+        )
+        reports.append(phase_c_report)
+
+        if upstream_report_paths:
+            upstream_messages = []
+            for path in upstream_report_paths:
+                if Path(path).is_file():
+                    upstream_messages.extend(
+                        extract_no_action_messages_from_report(path)
+                    )
+            if phase_c_report.has_errors:
+                phase_c_report.yaml_out = None
+                content = REPORT_WRITER.read(report_c_file)
+                if upstream_messages:
+                    REPORT_WRITER.write(
+                        staged_report,
+                        content + "\n\n" + "\n".join(upstream_messages) + "\n",
+                    )
+                else:
+                    shutil.copy2(report_c_file, staged_report)
+                source_report = staged_report
+            elif not upstream_failed:
+                create_consolidated_report(
+                    phases_run=[r.phase for r in reports],
+                    no_action_messages=[
+                        *upstream_messages,
+                        *extract_no_action_messages_from_report(report_c_file),
+                    ],
+                    final_report_file=staged_report,
+                    mode=mode,
+                )
+                source_yaml = c_staged_yaml
+                source_report = staged_report
+        else:
+            source_report = report_c_file
+            if phase_c_report.has_errors and not publish_rejected_yaml:
+                phase_c_report.yaml_out = None
+            else:
+                source_yaml = c_staged_yaml
+
     failed = any(report.has_errors for report in reports)
-    if source_report != pydantic_report_file:
-        shutil.copy2(source_report, pydantic_report_file)
-    # A rejected input may have no annotated YAML at all. That is not
-    # a reason to discard its diagnosis or invent a replacement YAML.
-    yaml_available = Path(source_yaml).is_file()
-    if not yaml_available and (not failed or not phase_a_report.has_errors):
-        raise FileNotFoundError(source_yaml)
-    if yaml_available and source_yaml != pydantic_yaml_file:
-        shutil.copy2(source_yaml, pydantic_yaml_file)
-    if yaml_available and not Path(pydantic_yaml_file).is_file():
-        raise FileNotFoundError(pydantic_yaml_file)
+    if source_report and source_report != staged_report:
+        shutil.copy2(source_report, staged_report)
+
+    yaml_available = bool(source_yaml) and Path(source_yaml).is_file()
+    publish_yaml = yaml_available and (not failed or publish_rejected_yaml)
+    if not yaml_available and not failed:
+        raise FileNotFoundError(source_yaml or staged_yaml)
+    if yaml_available and source_yaml != staged_yaml:
+        shutil.copy2(source_yaml, staged_yaml)
+    if yaml_available and not Path(staged_yaml).is_file():
+        raise FileNotFoundError(staged_yaml)
+
     REPORT_WRITER.write(
-        pydantic_report_file,
-        format_report_stopping_phase(
-            REPORT_WRITER.read(pydantic_report_file), reports
-        ),
+        staged_report,
+        format_report_stopping_phase(REPORT_WRITER.read(staged_report), reports),
     )
     for report in reports:
         report.text_report_path = str(final_report)
@@ -970,21 +1128,25 @@ def _run_abc_staged(
         if not failed and report.yaml_in != user_yaml_file:
             report.yaml_in = None
         if report.yaml_out:
-            if not Path(report.yaml_out).is_file():
+            if not Path(report.yaml_out).is_file() or (failed and not publish_yaml):
                 report.yaml_out = None
             elif not failed:
                 report.yaml_out = str(final_yaml)
     JSON_REPORT_WRITER.write(
-        report_json_sidecar(pydantic_report_file),
+        report_json_sidecar(staged_report),
         ValidationReport(phases=reports),
     )
 
+    publish_map: dict[Path, Path | None] = {}
+    if publish_yaml:
+        publish_map[final_yaml] = Path(staged_yaml)
+    elif not failed or publish_rejected_yaml:
+        publish_map[final_yaml] = None
+    publish_map[final_report] = Path(staged_report)
+    publish_map[report_json_sidecar(final_report)] = report_json_sidecar(staged_report)
+
     _publish_abc_outputs(
-        {
-            final_yaml: Path(pydantic_yaml_file) if yaml_available else None,
-            final_report: Path(pydantic_report_file),
-            report_json_sidecar(final_report): report_json_sidecar(pydantic_report_file),
-        },
+        publish_map,
         workspace,
         final_report,
     )
@@ -997,7 +1159,7 @@ def _run_abc_staged(
     return ABCPipelineResult(
         phases=reports,
         report_path=final_report,
-        yaml_path=final_yaml if yaml_available else None,
+        yaml_path=final_yaml if publish_yaml else None,
         evidence_dir=workspace if workspace.exists() else None,
         cleanup_warning=cleanup_warning,
     )
@@ -2049,528 +2211,45 @@ Modes:
             print("Make sure you're running from the SUEWS root directory")
             return 1
 
-        (
-            uptodate_file,
-            report_file,
-            science_yaml_file,
-            science_report_file,
-            pydantic_yaml_file,
-            pydantic_report_file,
-            dirname,
-        ) = setup_output_paths(user_yaml_file, phase)
-
-        # Phase-specific execution
-        print(f"DEBUG: Executing phase '{phase}'")
-        if phase == "A":
-            # Phase A only
-            phase_a_report = run_phase_a(
-                user_yaml_file,
-                standard_yaml_file,
-                uptodate_file,
-                report_file,
-                mode=internal_mode,
-                phase="A",
-                silent=True,  # Suppress phase function output, main function handles terminal output
-            )
-            phase_a_success = not phase_a_report.has_errors
-
-            # Always create final user files with simple names
-            final_yaml, final_report = create_final_user_files(
-                user_yaml_file, uptodate_file, report_file
-            )
-
-            if phase_a_success:
-                print("[OK] Validation completed")
-                print("Report:", final_report)
-                print("Updated YAML:", final_yaml)
-            else:
-                print("[X] Validation failed!")
-                print("Report:", final_report)
-                print("Updated YAML:", final_yaml)
-            return 0 if phase_a_success else 1
-
-        elif phase == "B":
-            # Phase B only - always run on original user YAML for pure Phase B validation
-            input_yaml_file = user_yaml_file
-            phase_a_report = None
-
-            print("Physics validation check...")
-            phase_b_report = run_phase_b(
-                user_yaml_file,
-                input_yaml_file,
-                standard_yaml_file,
-                science_yaml_file,
-                science_report_file,
-                phase_a_report,
-                phase_a_performed=False,  # Phase B only mode
-                mode=internal_mode,
-                phase="B",
-                silent=True,  # Suppress phase function output, main function handles terminal output
-                science_fixes=science_fixes,
-            )
-            phase_b_success = not phase_b_report.has_errors
-
-            # Always create final user files with simple names
-            final_yaml, final_report = create_final_user_files(
-                user_yaml_file, science_yaml_file, science_report_file
-            )
-
-            if phase_b_success:
-                print("[OK] Validation completed")
-                print("Report:", final_report)
-                print("Updated YAML:", final_yaml)
-            else:
-                # Phase B failed - remove YAML file if it was created during failure (COMMIT 3 requirement)
-                try:
-                    if os.path.exists(science_yaml_file):
-                        os.remove(science_yaml_file)
-                        # Also remove the final yaml since source was removed
-                        if os.path.exists(final_yaml):
-                            os.remove(final_yaml)
-                except Exception:
-                    pass  # Don't fail if removal doesn't work
-                # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
-                print("[X] Validation failed!")
-                print("Report:", final_report)
-            return 0 if phase_b_success else 1
-
-        elif phase == "C":
-            # Phase C only - run Pydantic validation on original user YAML
-            print("Configuration consistency check...")
-
-            phase_c_report = run_phase_c(
-                user_yaml_file,
-                pydantic_yaml_file,
-                pydantic_report_file,
-                mode=internal_mode,
-                phases_run=["C"],
-                silent=True,  # Suppress phase function output, main function handles terminal output
-            )
-            phase_c_success = not phase_c_report.has_errors
-
-            # Always create final user files with simple names
-            final_yaml, final_report = create_final_user_files(
-                user_yaml_file, pydantic_yaml_file, pydantic_report_file
-            )
-
-            if phase_c_success:
-                print("[OK] Validation completed")
-                print("Report:", final_report)
-                print("Updated YAML:", final_yaml)
-            else:
-                # Phase C failed - remove YAML file if it was created during failure (COMMIT 3 requirement)
-                try:
-                    if os.path.exists(pydantic_yaml_file):
-                        os.remove(pydantic_yaml_file)
-                        # Also remove the final yaml since source was removed
-                        if os.path.exists(final_yaml):
-                            os.remove(final_yaml)
-                except Exception:
-                    pass  # Don't fail if removal doesn't work
-                # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
-                print("[X] Validation failed!")
-                print("Report:", final_report)
-            return 0 if phase_c_success else 1
-
-        elif phase == "AB":
-            # Complete A→B workflow
-            print("Configuration structure check...")
-            phase_a_report = run_phase_a(
-                user_yaml_file,
-                standard_yaml_file,
-                uptodate_file,
-                report_file,
-                mode=internal_mode,
-                phase="AB",
-                silent=True,
-            )
-            phase_a_success = not phase_a_report.has_errors
-
-            if not phase_a_success:
-                # Phase A failed in AB workflow - create final user files from Phase A outputs
-                final_yaml, final_report = create_final_user_files(
-                    user_yaml_file, uptodate_file, report_file
-                )
-
-                print("[X] Validation failed!")
-                print(f"Report: {final_report}")
-                print(f"Updated YAML: {final_yaml}")
-                return 1
-
-            print("[OK] Validation completed")
-            print("Physics validation check...")
-            phase_b_report = run_phase_b(
-                user_yaml_file,
-                uptodate_file,
-                standard_yaml_file,
-                science_yaml_file,
-                science_report_file,
-                report_file,
-                phase_a_performed=True,  # A→B workflow mode
-                mode=internal_mode,
-                phase="AB",
-                silent=True,
-                science_fixes=science_fixes,
-            )
-            phase_b_success = not phase_b_report.has_errors
-
-            if not phase_b_success:
-                # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
-                dirname = os.path.dirname(user_yaml_file)
-                basename = os.path.basename(user_yaml_file)
-                name_without_ext = os.path.splitext(basename)[0]
-                final_yaml = os.path.join(dirname, f"updated_{basename}")
-                final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
-
-                try:
-                    # Use Phase A YAML as final (last successful phase)
-                    if os.path.exists(uptodate_file):
-                        shutil.move(uptodate_file, final_yaml)
-
-                    # Use Phase B report as final (contains the errors)
-                    if os.path.exists(science_report_file):
-                        shutil.move(science_report_file, final_report)
-
-                    # Clean up intermediate Phase A report
-                    if os.path.exists(report_file):
-                        os.remove(report_file)
-
-                    # Remove failed Phase B YAML if it exists (only if different from final_yaml)
-                    if (
-                        os.path.exists(science_yaml_file)
-                        and science_yaml_file != final_yaml
-                    ):
-                        os.remove(science_yaml_file)
-                except Exception:
-                    pass
-
-                print("[X] Validation failed!")
-                print(f"Report: {final_report}")
-                print(f"Updated YAML: {final_yaml}")
-                return 1
-
-            # Both A and B succeeded - consolidate reports and clean up intermediate files
-            try:
-                # Extract NO ACTION NEEDED messages from both phases
-                all_messages = []
-                if os.path.exists(report_file):
-                    all_messages.extend(
-                        extract_no_action_messages_from_report(report_file)
-                    )
-                if os.path.exists(science_report_file):
-                    all_messages.extend(
-                        extract_no_action_messages_from_report(science_report_file)
-                    )
-
-                # Create consolidated final report
-                create_consolidated_report(
-                    phases_run=["A", "B"],
-                    no_action_messages=all_messages,
-                    final_report_file=science_report_file,
-                    mode=internal_mode,
-                )
-
-                # Clean up intermediate files
-                if os.path.exists(report_file):
-                    os.remove(report_file)  # Remove Phase A report
-                if os.path.exists(uptodate_file):
-                    os.remove(uptodate_file)  # Remove Phase A YAML
-            except Exception:
-                pass  # Don't fail if cleanup doesn't work
-
-            print("[OK] Validation completed")
-            print("Report:", science_report_file)
-            print("Updated YAML:", science_yaml_file)
-            return 0
-
-        elif phase == "AC":
-            # Complete A→C workflow
-            print("Configuration structure check...")
-            phase_a_report = run_phase_a(
-                user_yaml_file,
-                standard_yaml_file,
-                uptodate_file,
-                report_file,
-                mode=internal_mode,
-                phase="AC",
-                silent=True,
-            )
-            phase_a_success = not phase_a_report.has_errors
-
-            if not phase_a_success:
-                # Phase A failed in AC workflow - preserve Phase A outputs as AC outputs (when Phase A passes, we have updated from A)
-                try:
-                    if os.path.exists(report_file):
-                        shutil.move(
-                            report_file, pydantic_report_file
-                        )  # reportA → reportAC
-                    if os.path.exists(uptodate_file):
-                        shutil.move(
-                            uptodate_file, pydantic_yaml_file
-                        )  # updatedA → updatedAC (preserve Phase A updated YAML)
-                except Exception:
-                    pass  # Don't fail if rename doesn't work
-
-                print("[X] Validation failed!")
-                print(f"Report: {pydantic_report_file}")
-                print(f"Updated YAML: {pydantic_yaml_file}")
-                return 1
-
-            print("[OK] Validation completed")
-            print("Configuration consistency check...")
-            phase_c_report = run_phase_c(
-                uptodate_file,  # Use Phase A output as input to Phase C
-                pydantic_yaml_file,
-                pydantic_report_file,
-                mode=internal_mode,
-                phase_a_report_file=report_file,  # Pass Phase A report for consolidation
-                phases_run=["A", "C"],
-                silent=True,
-            )
-            phase_c_success = not phase_c_report.has_errors
-
-            if not phase_c_success:
-                # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
-                dirname = os.path.dirname(user_yaml_file)
-                basename = os.path.basename(user_yaml_file)
-                name_without_ext = os.path.splitext(basename)[0]
-                final_yaml = os.path.join(dirname, f"updated_{basename}")
-                final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
-
-                try:
-                    # Use Phase A YAML as final (last successful phase)
-                    if os.path.exists(uptodate_file):
-                        shutil.move(uptodate_file, final_yaml)
-
-                    # Phase C report should already be at pydantic_report_file (final name)
-                    # Clean up intermediate Phase A report
-                    if os.path.exists(report_file):
-                        os.remove(report_file)
-
-                    # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                    if (
-                        os.path.exists(pydantic_yaml_file)
-                        and pydantic_yaml_file != final_yaml
-                    ):
-                        os.remove(pydantic_yaml_file)
-                except Exception:
-                    pass
-
-                print("[X] Validation failed!")
-                print(f"Report: {final_report}")
-                print(f"Updated YAML: {final_yaml}")
-                return 1
-
-            # Both A and C succeeded - consolidate reports and clean up intermediate files
-            try:
-                # Extract NO ACTION NEEDED messages from both phases
-                all_messages = []
-                if os.path.exists(report_file):
-                    all_messages.extend(
-                        extract_no_action_messages_from_report(report_file)
-                    )
-                if os.path.exists(pydantic_report_file):
-                    all_messages.extend(
-                        extract_no_action_messages_from_report(pydantic_report_file)
-                    )
-
-                # Create consolidated final report
-                create_consolidated_report(
-                    phases_run=["A", "C"],
-                    no_action_messages=all_messages,
-                    final_report_file=pydantic_report_file,
-                    mode=internal_mode,
-                )
-
-                # Clean up intermediate files
-                if os.path.exists(report_file):
-                    os.remove(report_file)  # Remove Phase A report
-                if os.path.exists(uptodate_file):
-                    os.remove(uptodate_file)  # Remove Phase A YAML
-            except Exception:
-                pass  # Don't fail if cleanup doesn't work
-
-            print("[OK] Validation completed")
-            print("Report:", pydantic_report_file)
-            print("Updated YAML:", pydantic_yaml_file)
-            return 0
-
-        elif phase == "BC":
-            # Complete B→C workflow
-            print("Physics validation check...")
-            phase_b_report = run_phase_b(
-                user_yaml_file,
-                user_yaml_file,  # Phase B runs directly on user YAML
-                standard_yaml_file,
-                science_yaml_file,
-                science_report_file,
-                None,  # No Phase A report available
-                phase_a_performed=False,  # B→C workflow mode
-                mode=internal_mode,
-                phase="BC",
-                silent=True,
-                science_fixes=science_fixes,
-            )
-            phase_b_success = not phase_b_report.has_errors
-
-            if not phase_b_success:
-                # Phase B failed in BC workflow - preserve Phase B outputs as BC outputs (when Phase B passes, we have updated from B)
-                try:
-                    if os.path.exists(science_report_file):
-                        shutil.move(
-                            science_report_file, pydantic_report_file
-                        )  # reportB → reportBC
-                    if os.path.exists(science_yaml_file):
-                        shutil.move(
-                            science_yaml_file, pydantic_yaml_file
-                        )  # updatedB → updatedBC (preserve Phase B updated YAML)
-                except Exception:
-                    pass  # Don't fail if rename doesn't work
-
-                print("[X] Validation failed!")
-                print(f"Report: {pydantic_report_file}")
-                print(f"Updated YAML: {pydantic_yaml_file}")
-                return 1
-
-            print("[OK] Phase B completed")
-            print("Configuration consistency check...")
-            phase_c_report = run_phase_c(
-                science_yaml_file,  # Use Phase B output as input to Phase C
-                pydantic_yaml_file,
-                pydantic_report_file,
-                mode=internal_mode,
-                phase_a_report_file=science_report_file,  # Pass Phase B report for consolidation
-                phases_run=["B", "C"],
-                silent=True,
-            )
-            phase_c_success = not phase_c_report.has_errors
-
-            if not phase_c_success:
-                # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
-                dirname = os.path.dirname(user_yaml_file)
-                basename = os.path.basename(user_yaml_file)
-                name_without_ext = os.path.splitext(basename)[0]
-                final_yaml = os.path.join(dirname, f"updated_{basename}")
-                final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
-
-                try:
-                    # Extract NO ACTION NEEDED messages from Phase B
-                    phase_b_messages = []
-                    if os.path.exists(science_report_file):
-                        phase_b_messages = extract_no_action_messages_from_report(
-                            science_report_file
-                        )
-
-                    # Read Phase C error report and append Phase B messages
-                    if os.path.exists(pydantic_report_file):
-                        phase_c_content = REPORT_WRITER.read(pydantic_report_file)
-
-                        # Append Phase B NO ACTION NEEDED messages to Phase C report
-                        if phase_b_messages:
-                            # Remove the closing separator and any trailing separators from Phase C report
-                            lines = phase_c_content.rstrip().split("\n")
-                            while lines and lines[-1].strip() == f"# {'=' * 50}":
-                                lines.pop()
-                            phase_c_content = "\n".join(lines)
-
-                            # Ensure proper spacing before INFO section
-                            if not phase_c_content.endswith("\n\n"):
-                                phase_c_content += "\n"
-
-                            # Add INFO section
-                            phase_c_content += "\n## INFO"
-
-                            # Add Phase B messages
-                            for msg in phase_b_messages:
-                                phase_c_content += f"\n{msg}"
-
-                            # Add closing separator
-                            phase_c_content += f"\n\n# {'=' * 50}\n"
-
-                            # Write consolidated report
-                            REPORT_WRITER.write(pydantic_report_file, phase_c_content)
-
-                    # Use Phase B YAML as final (last successful phase)
-                    if os.path.exists(science_yaml_file):
-                        shutil.move(science_yaml_file, final_yaml)
-
-                    # Clean up intermediate Phase B report (now that we've extracted messages)
-                    if os.path.exists(science_report_file):
-                        os.remove(science_report_file)
-
-                    # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                    if (
-                        os.path.exists(pydantic_yaml_file)
-                        and pydantic_yaml_file != final_yaml
-                    ):
-                        os.remove(pydantic_yaml_file)
-                except Exception:
-                    pass
-
-                print("[X] Validation failed!")
-                print(f"Report: {final_report}")
-                print(f"Updated YAML: {final_yaml}")
-                return 1
-
-            # Both B and C succeeded - consolidate reports and clean up intermediate files
-            try:
-                # Extract NO ACTION NEEDED messages from both phases
-                all_messages = []
-                if os.path.exists(science_report_file):
-                    all_messages.extend(
-                        extract_no_action_messages_from_report(science_report_file)
-                    )
-                if os.path.exists(pydantic_report_file):
-                    all_messages.extend(
-                        extract_no_action_messages_from_report(pydantic_report_file)
-                    )
-
-                # Create consolidated final report
-                create_consolidated_report(
-                    phases_run=["B", "C"],
-                    no_action_messages=all_messages,
-                    final_report_file=pydantic_report_file,
-                    mode=internal_mode,
-                )
-
-                # Clean up intermediate files
-                if os.path.exists(science_report_file):
-                    os.remove(science_report_file)  # Remove Phase B report
-                if os.path.exists(science_yaml_file):
-                    os.remove(science_yaml_file)  # Remove Phase B YAML
-            except Exception:
-                pass
-
-            print("[OK] Validation completed")
-            print("Report:", pydantic_report_file)
-            print("Updated YAML:", pydantic_yaml_file)
-            return 0
-
-        elif phase == "ABC":
-            result = run_abc_pipeline(
-                user_yaml_file, mode=internal_mode,
-                science_fixes=science_fixes, progress=print,
-            )
-            if result.cleanup_warning:
-                print(
-                    "[WARNING] Outputs published; temporary cleanup failed:",
-                    result.cleanup_warning,
-                )
-                if result.evidence_dir:
-                    print("Remaining temporary directory:", result.evidence_dir)
-            elif result.evidence_dir:
-                print("Phase evidence:", result.evidence_dir)
-            print("[X] Validation failed!" if result.has_errors else "[OK] Validation completed")
-            print("Report:", result.report_path)
-            if result.yaml_path:
-                print("Updated YAML:", result.yaml_path)
-            return 1 if result.has_errors else 0
-
-        else:
-            # Fallback for unknown phase combinations
-            print(f"[X] Unknown validation option '{phase}'")
-            print("For help: suews-validate --help")
+        if phase not in VALID_PIPELINES:
+            print(f"[X] Unknown validation option {phase!r}")
+            print("For help: suews validate --help")
             return 1
+
+        if phase == "ABC":
+            result = run_abc_pipeline(
+                user_yaml_file,
+                mode=internal_mode,
+                science_fixes=science_fixes,
+                progress=print,
+            )
+        else:
+            result = run_pipeline(
+                user_yaml_file,
+                pipeline=phase,
+                mode=internal_mode,
+                science_fixes=science_fixes,
+                progress=print,
+                publish_rejected_yaml=phase not in {"B", "C"},
+            )
+        if result.cleanup_warning:
+            print(
+                "[WARNING] Outputs published; temporary cleanup failed:",
+                result.cleanup_warning,
+            )
+            if result.evidence_dir:
+                print("Remaining temporary directory:", result.evidence_dir)
+        elif result.evidence_dir:
+            print("Phase evidence:", result.evidence_dir)
+        print(
+            "[X] Validation failed!"
+            if result.has_errors
+            else "[OK] Validation completed"
+        )
+        print("Report:", result.report_path)
+        if result.yaml_path:
+            print("Updated YAML:", result.yaml_path)
+        return 1 if result.has_errors else 0
 
     except ABCPublicationInterrupted as e:
         # Name the recovery locations before the interrupt propagates.

@@ -174,7 +174,12 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
         land_cover = props.get("land_cover")
-        site_gridid = site.get("gridiv")
+        raw_gridid = site.get("gridiv")
+        site_gridid = (
+            raw_gridid.get("value")
+            if isinstance(raw_gridid, Mapping) and "value" in raw_gridid
+            else raw_gridid
+        )
 
         if not land_cover:
             results.append(
@@ -447,7 +452,12 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
 
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
-        site_gridid = site.get("gridiv")
+        raw_gridid = site.get("gridiv")
+        site_gridid = (
+            raw_gridid.get("value")
+            if isinstance(raw_gridid, Mapping) and "value" in raw_gridid
+            else raw_gridid
+        )
 
         lat = get_value_safe(props, "lat")
 
@@ -939,7 +949,12 @@ def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
         land_cover = props.get("land_cover", {})
-        site_gridid = site.get("gridiv")
+        raw_gridid = site.get("gridiv")
+        site_gridid = (
+            raw_gridid.get("value")
+            if isinstance(raw_gridid, Mapping) and "value" in raw_gridid
+            else raw_gridid
+        )
 
         for surf_key, surf_label in surface_labels.items():
             surf_props = land_cover.get(surf_key, {})

@@ -258,12 +258,13 @@ def test_published_senescence_description_begins_at_dev16(include_internal):
         DEV16,
         "2026.6.dev17",
         "2026.6.dev18",
+        "2026.6.dev19",
     ):
         schema = generate_json_schema(version, include_internal=include_internal)
         for name in ("InitialStateEvetr", "InitialStateDectr", "InitialStateGrass"):
             field = schema["$defs"][name]["properties"]["sdd_id"]
             assert field["default"] == 0
-            if version in (DEV16, "2026.6.dev17", "2026.6.dev18"):
+            if version in (DEV16, "2026.6.dev17", "2026.6.dev18", "2026.6.dev19"):
                 assert "Must be finite" in field["description"]
             else:
                 assert (

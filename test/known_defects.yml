@@ -282,12 +282,6 @@ mappings:
     issue: 1958
     classification: "defect"
   - selector:
-      ledger: "X"
-      id: "test/physics/test_calendar_profiles.py::test_weekly_daywat_dailystate_matches_named_weekday_gh2049::1"
-    contract: "C-CLOCK"
-    issue: 2049
-    classification: "defect"
-  - selector:
       ledger: "T1"
     contract: "C-ROUNDTRIP"
     issue: 2083

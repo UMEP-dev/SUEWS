@@ -767,3 +767,96 @@ def test_yaml_upgrade_chain_old_schema_to_legacy(
         "old-schema YAML -> current -> 2016a -> modern chain lost unexpected "
         f"variables: {sorted(unexpected)}"
     )
+
+
+def _write_irrigation_daywat_row(
+    irr_path: Path, code: str, daywat: list[float], daywatper: list[float]
+) -> None:
+    """Overwrite ``DayWat(1..7)`` and ``DayWatPer(1..7)`` for one row in place."""
+    headers, rows = R._read_table(irr_path)
+    updated = False
+    for row in rows:
+        if row[0] == code:
+            for slot in range(1, 8):
+                row[headers.index(f"DayWat({slot})")] = str(int(daywat[slot - 1]))
+                row[headers.index(f"DayWatPer({slot})")] = f"{daywatper[slot - 1]:.1f}"
+            updated = True
+    assert updated, f"Code {code} row not found in {irr_path.name}"
+    ordinals = " ".join(str(i) for i in range(1, len(headers) + 1))
+    lines = [ordinals, " ".join(headers), *(" ".join(r) for r in rows), "-9", "-9"]
+    irr_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_irrigation_weekday_slots_sunday_first_through_table_and_yaml_gh2049(
+    tmp_path, forward_converted
+):
+    """Regression for gh#2049: ``DayWat(1..7)``/``DayWatPer(1..7)`` map Sunday-first.
+
+    ``SUEWS_Irrigation.txt`` and ``df_state`` index ``DayWat`` and ``DayWatPer``
+    Sunday-first (``1`` / ``(0,)`` = Sunday .. ``7`` / ``(6,)`` = Saturday).
+    Verify that forward loading into ``WeeklyProfile`` preserves every named
+    weekday and that converting back through ``to_df_state`` and
+    ``df_state_to_tables`` writes the exact same Sunday-first columns.
+    """
+    fwd_copy = tmp_path / "fwd_2018b"
+    shutil.copytree(forward_converted("2018b"), fwd_copy)
+
+    expected_daywat = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    expected_daywatper = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    sunday_first = (
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+    )
+
+    _write_irrigation_daywat_row(
+        next(fwd_copy.rglob("SUEWS_Irrigation.txt")),
+        "660",
+        expected_daywat,
+        expected_daywatper,
+    )
+
+    df = load_InitialCond_grid_df(next(fwd_copy.rglob("RunControl.nml")))
+    grid = df.index[0]
+    for idx in range(7):
+        assert float(df.loc[grid, ("daywat", f"({idx},)")]) == pytest.approx(
+            expected_daywat[idx]
+        )
+        assert float(df.loc[grid, ("daywatper", f"({idx},)")]) == pytest.approx(
+            expected_daywatper[idx]
+        )
+
+    cfg = SUEWSConfig.from_df_state(df)
+    cfg.strict_initial_state_bounds = False
+    irr = cfg.sites[0].properties.irrigation
+    for idx, day in enumerate(sunday_first):
+        assert float(getattr(irr.daywat, day)) == pytest.approx(
+            expected_daywat[idx]
+        ), f"daywat.{day} mismatch"
+        assert float(getattr(irr.daywatper, day)) == pytest.approx(
+            expected_daywatper[idx]
+        ), f"daywatper.{day} mismatch"
+
+    df_rt = cfg.to_df_state()
+    for idx in range(7):
+        assert float(df_rt.loc[grid, ("daywat", f"({idx},)")]) == pytest.approx(
+            expected_daywat[idx]
+        )
+        assert float(df_rt.loc[grid, ("daywatper", f"({idx},)")]) == pytest.approx(
+            expected_daywatper[idx]
+        )
+
+    written = df_state_to_tables(df_rt, fwd_copy, tmp_path / "tables_out")
+    rt_headers, rt_rows = R._read_table(next(written.rglob("SUEWS_Irrigation.txt")))
+    rt_row = next(r for r in rt_rows if r[0] == "660")
+    for slot in range(1, 8):
+        assert float(rt_row[rt_headers.index(f"DayWat({slot})")]) == pytest.approx(
+            expected_daywat[slot - 1]
+        )
+        assert float(rt_row[rt_headers.index(f"DayWatPer({slot})")]) == pytest.approx(
+            expected_daywatper[slot - 1]
+        )

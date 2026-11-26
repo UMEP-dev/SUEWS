@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev18"
+CURRENT_SCHEMA_VERSION = "2026.6.dev19"
 
 # Schema version history and descriptions.
 #
@@ -258,6 +258,16 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "resistance_ehc_indoor_wall (default 0.13 m2 K W-1). Existing EHC "
         "YAMLs that omit ehc_surface_coupling now use implicit coupling; set "
         "ehc_surface_coupling: explicit to retain legacy explicit coupling."
+    ),
+    "2026.6.dev19": (
+        "Align irrigation WeeklyProfile (daywat, daywatper) weekday slots with "
+        "the Sunday-first calendar convention used by legacy SUEWS_Irrigation.txt "
+        "tables, df_state arrays (0=sunday .. 6=saturday), and the Fortran kernel "
+        "(#2049, #2324). Existing YAML files remain structurally valid and "
+        "migration leaves weekday keys unchanged, logging an advisory when a "
+        "site defines an asymmetric irrigation weekday schedule so users who "
+        "converted from legacy tables under an earlier schema can verify their "
+        "weekday assignments."
     ),
 }
 

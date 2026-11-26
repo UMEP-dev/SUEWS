@@ -22,6 +22,8 @@
 ! Main module following naming standard: matches filename
 MODULE module_util_time
    USE module_ctrl_const_mathconst, ONLY: DEG2RAD, pi
+   USE module_ctrl_const_calendar, ONLY: &
+      NDAYS_WEEK, DOW_SUNDAY, DOW_SATURDAY, DAYTYPE_WEEKDAY, DAYTYPE_WEEKEND
    IMPLICIT NONE
    PRIVATE :: SUEWS_cal_local_standard_timer
 CONTAINS
@@ -196,7 +198,7 @@ CONTAINS
 10    N1 = (26*(MN + 1))/10
       N2 = (125*YR)/100
       DAY = (DATE + N1 + N2 - (YR/100) + (YR/400) - 1)
-      DOW = MOD(DAY, 7) + 1
+      DOW = MOD(DAY, NDAYS_WEEK) + DOW_SUNDAY
 
       RETURN
    END SUBROUTINE Day_Of_Week
@@ -400,13 +402,13 @@ CONTAINS
    END FUNCTION cal_profile_hour
 
    PURE FUNCTION cal_weekday_index(dow1) RESULT(iu)
-      ! Weekday/weekend index for profile selection: 1 = weekday, 2 = weekend.
+      ! Weekday/weekend index for profile selection: DAYTYPE_WEEKDAY (1) or DAYTYPE_WEEKEND (2).
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: dow1 ! day of week, dayofWeek_id(1): 1=Sun .. 7=Sat
+      INTEGER, INTENT(IN) :: dow1 ! day of week, dayofWeek_id(1): DOW_SUNDAY..DOW_SATURDAY
       INTEGER :: iu
 
-      iu = 1
-      IF (dow1 == 1 .OR. dow1 == 7) iu = 2
+      iu = DAYTYPE_WEEKDAY
+      IF (dow1 == DOW_SUNDAY .OR. dow1 == DOW_SATURDAY) iu = DAYTYPE_WEEKEND
    END FUNCTION cal_weekday_index
 
    SUBROUTINE SUEWS_cal_local_standard_timer(timer, siteInfo, forcing_timestamp_reference, timer_st)

@@ -2730,6 +2730,95 @@ _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_
     _with_senescence_check(_identity)
 )
 
+_WEEKLY_PROFILE_DAYS: tuple[str, ...] = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
+
+
+def _weekly_profile_is_asymmetric(profile: object) -> bool:
+    """Return True if a WeeklyProfile mapping assigns differing weekday values."""
+    if not isinstance(profile, Mapping):
+        return False
+    if "value" in profile and isinstance(profile["value"], Mapping):
+        profile = profile["value"]
+    values: list[object] = []
+    for day in _WEEKLY_PROFILE_DAYS:
+        raw = profile.get(day, 0.0)
+        if isinstance(raw, Mapping) and "value" in raw:
+            raw = raw["value"]
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            val = float(raw)
+            if math.isnan(val):
+                return True
+            values.append(val)
+        else:
+            values.append(raw)
+    first = values[0]
+    return any(val != first for val in values[1:])
+
+
+def _migrate_2026_6_dev18_to_2026_6_dev19(cfg: dict) -> dict:
+    """Log an advisory for asymmetric irrigation weekday schedules without rotating keys."""
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, Mapping) else None
+        irrigation = props.get("irrigation") if isinstance(props, Mapping) else None
+        if not isinstance(irrigation, Mapping):
+            continue
+        for field_name in ("daywat", "daywatper"):
+            if field_name not in irrigation:
+                continue
+            if _weekly_profile_is_asymmetric(irrigation[field_name]):
+                _log(
+                    f"[yaml-upgrade] sites[{index}].properties.irrigation.{field_name} "
+                    "has an asymmetric weekday schedule: 2026.6.dev19 aligns irrigation "
+                    "weekday slots with calendar days (1=Sunday .. 7=Saturday in legacy "
+                    "tables, 0=Sunday .. 6=Saturday in df_state). Keys were left "
+                    "unchanged; if this YAML was converted from legacy "
+                    "SUEWS_Irrigation.txt tables under an earlier schema, verify that "
+                    "weekday entries match the intended calendar days."
+                )
+    return cfg
+
+
+def _with_irrigation_weekday_advisory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev18_to_2026_6_dev19(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev18")] = _handler
+        _HANDLERS[(_source, _target)] = _with_irrigation_weekday_advisory_delta(
+            _handler
+        )
+_HANDLERS[("2026.6.dev18", "2026.6.dev18")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev18", CURRENT_SCHEMA_VERSION)] = (
+    _with_irrigation_weekday_advisory_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

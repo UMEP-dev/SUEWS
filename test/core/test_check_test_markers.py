@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -53,17 +54,35 @@ def _make_repo(
     return tmp_path
 
 
+_SYMLINK_UNSUPPORTED_ERRNOS = frozenset({
+    errno.EPERM,
+    errno.EACCES,
+    errno.EOPNOTSUPP,
+    getattr(errno, "ENOTSUP", errno.EOPNOTSUPP),
+})
+_WINERROR_PRIVILEGE_NOT_HELD = 1314
+
+
 def _create_symlink(
     link: Path,
     target: Path,
     *,
     target_is_directory: bool = False,
 ) -> None:
-    """Create a symlink, skipping only if the platform lacks symlink privileges."""
+    """Create a symlink, skipping only on platform privilege or support limits."""
     try:
         link.symlink_to(target, target_is_directory=target_is_directory)
-    except (OSError, NotImplementedError) as exc:
-        pytest.skip(f"Symlink creation unavailable on this runner: {exc}")
+    except NotImplementedError as exc:
+        pytest.skip(f"Symlink creation unsupported on this platform: {exc}")
+    except PermissionError as exc:
+        pytest.skip(f"Symlink creation requires elevated privileges: {exc}")
+    except OSError as exc:
+        if (
+            exc.errno in _SYMLINK_UNSUPPORTED_ERRNOS
+            or getattr(exc, "winerror", None) == _WINERROR_PRIVILEGE_NOT_HELD
+        ):
+            pytest.skip(f"Symlink creation unavailable on this runner: {exc}")
+        raise
 
 
 def _run(repo_root: Path) -> int:
@@ -274,7 +293,23 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "unsupported Make construct",
+            "top-level expansion or eval is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "define TRIM\n"
+            "TEST_DEFAULT_PATHS := test/core\n"
+            "endef\n"
+            "$(eval $(TRIM))\n",
+            "top-level expansion or eval is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\\extra\n",
+            "unsupported path characters",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/*\n",
+            "unsupported path characters",
         ),
         (
             "include extra.mk\nTEST_DEFAULT_PATHS := test/core\n",
@@ -413,9 +448,9 @@ def test_covered_file_symlink_preserves_collection_identity(
 def test_escaping_file_symlink_reports_structured_error_without_masking(
     tmp_path: Path, capsys
 ) -> None:
-    """A test symlink escaping the repo emits [X] without crashing or masking."""
+    """An escaping symlink (even to non-UTF-8 bytes) emits [X] without masking."""
     outside_file = tmp_path / "outside_test.py"
-    outside_file.write_text(API_TEST_SOURCE, encoding="utf-8")
+    outside_file.write_bytes(b"\xff\xfeinvalid utf8")
     repo = _make_repo(
         tmp_path / "repo",
         {
@@ -433,6 +468,30 @@ def test_escaping_file_symlink_reports_structured_error_without_masking(
     assert "escapes repository root" in captured.err
     assert "test/core/test_escape.py" in captured.err
     assert "test/core/test_unmarked.py" in captured.err
+    assert captured.err.isascii()
+
+
+def test_invalid_utf8_in_repo_test_file_reports_structured_error(
+    tmp_path: Path, capsys
+) -> None:
+    """An unreadable/non-UTF-8 test file emits [X] without masking orphan errors."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/orphan_dir/test_stray.py": API_TEST_SOURCE,
+        },
+    )
+    (repo / "test" / "core" / "test_bad_utf8.py").write_bytes(b"\xff\xfe\x00")
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "unable to read test files as UTF-8" in captured.err
+    assert "test/core/test_bad_utf8.py" in captured.err
+    assert "test/orphan_dir/test_stray.py" in captured.err
     assert captured.err.isascii()
 
 

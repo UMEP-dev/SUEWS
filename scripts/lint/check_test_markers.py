@@ -52,6 +52,9 @@ _DEFINE_OPEN_RE = re.compile(
 )
 _DEFINE_CLOSE_RE = re.compile(r"^ *endef\b")
 _INCLUDE_RE = re.compile(r"^ *(?:-include|sinclude|include)[ \t]+")
+_TOPLEVEL_EXPANSION_RE = re.compile(r"^ *\$[({]")
+_EVAL_CALL_RE = re.compile(r"\$[({][ \t]*eval\b")
+_PORTABLE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
 _MENTIONS_TARGET_RE = re.compile(r"\bTEST_DEFAULT_PATHS\b")
 _PLAIN_ASSIGN_RE = re.compile(
     r"^ *TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|=)(?P<value>.*)$"
@@ -178,7 +181,11 @@ def _join_makefile_continuations(text: str) -> list[str]:
 
 
 def _validate_relative_token(token: str, source_label: str) -> str:
-    """Validate and normalise a relative POSIX path token."""
+    """Validate and normalise a portable relative POSIX path token."""
+    if not _PORTABLE_TOKEN_RE.fullmatch(token):
+        raise ValueError(
+            f"{source_label} contains unsupported path characters: {token}"
+        )
     if token.startswith("/") or Path(token).is_absolute():
         raise ValueError(f"{source_label} contains absolute path: {token}")
     path_token = Path(token)
@@ -188,6 +195,20 @@ def _validate_relative_token(token: str, source_label: str) -> str:
     if normalised in {"", "."}:
         raise ValueError(f"{source_label} contains invalid path token: {token}")
     return normalised
+
+
+def _reject_unsupported_makefile_line(code: str) -> None:
+    """Reject top-level Make directives that can mutate variables indirectly."""
+    if _INCLUDE_RE.match(code):
+        raise ValueError(
+            "Makefile include directives are unsupported when parsing "
+            "TEST_DEFAULT_PATHS"
+        )
+    if _EVAL_CALL_RE.search(code) or _TOPLEVEL_EXPANSION_RE.match(code):
+        raise ValueError(
+            "Makefile top-level expansion or eval is unsupported when parsing "
+            f"TEST_DEFAULT_PATHS: {code.strip()}"
+        )
 
 
 def _apply_makefile_target_line(
@@ -276,11 +297,7 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
             continue
 
         code = line.split("#", 1)[0]
-        if _INCLUDE_RE.match(code):
-            raise ValueError(
-                "Makefile include directives are unsupported when parsing "
-                "TEST_DEFAULT_PATHS"
-            )
+        _reject_unsupported_makefile_line(code)
 
         define_match = _DEFINE_OPEN_RE.match(code)
         if define_match is not None:
@@ -488,6 +505,39 @@ def find_orphan_test_files(
     return (errors, orphans)
 
 
+def _check_nature_markers(
+    repo_root: Path,
+    test_files: list[Path],
+) -> tuple[int, int, list[str], list[str]]:
+    """Scan test files for nature markers without reading escaping symlinks."""
+    missing: list[str] = []
+    read_errors: list[str] = []
+    checked = 0
+    auto_applied = 0
+    for path in test_files:
+        rel = path.relative_to(repo_root)
+        if path.is_symlink():
+            try:
+                target = path.resolve(strict=True)
+            except (OSError, RuntimeError):
+                continue
+            if not target.is_relative_to(repo_root):
+                continue
+        if is_auto_applied(rel):
+            auto_applied += 1
+            continue
+        checked += 1
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            read_errors.append(f"{rel.as_posix()}: {exc}")
+            continue
+        if file_has_nature_marker(source):
+            continue
+        missing.append(rel.as_posix())
+    return (checked, auto_applied, missing, read_errors)
+
+
 def main(argv: list[str]) -> int:
     """Run marker-axis and orphan-test lane-coverage checks on a repository tree.
 
@@ -516,23 +566,22 @@ def main(argv: list[str]) -> int:
         print(_to_ascii(f"[X] test/ not found under {repo_root}"), file=sys.stderr)
         return 1
 
-    test_files = iter_test_files(test_root)
-    missing: list[str] = []
-    checked = 0
-    auto_applied = 0
-    for path in test_files:
-        rel = path.relative_to(repo_root)
-        if is_auto_applied(rel):
-            auto_applied += 1
-            continue
-        checked += 1
-        if file_has_nature_marker(path.read_text(encoding="utf-8")):
-            continue
-        missing.append(rel.as_posix())
-
     lane_errors, orphans = find_orphan_test_files(repo_root, test_root=test_root)
+    test_files = iter_test_files(test_root)
+    checked, auto_applied, missing, read_errors = _check_nature_markers(
+        repo_root, test_files
+    )
 
     failed = False
+    if read_errors:
+        failed = True
+        print(
+            "[X] gh#1300 marker lint: unable to read test files as UTF-8:",
+            file=sys.stderr,
+        )
+        for err in read_errors:
+            print(_to_ascii(f"  - {err}"), file=sys.stderr)
+
     if missing:
         failed = True
         print(

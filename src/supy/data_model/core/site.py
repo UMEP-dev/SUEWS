@@ -518,7 +518,10 @@ class LAIParams(DataModelBase):
     )
     gdd_full: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Growing degree days (GDD) needed for full capacity of LAI",
+        description=(
+            "Legacy compatibility field retained prior to removal; ignored by the "
+            "fixed-season daily-increment LAI phenology formulation (see gdd_base)."
+        ),
         json_schema_extra={
             "unit": "K d",
             "display_name": "Growing Degree Days for Full LAI",
@@ -534,7 +537,10 @@ class LAIParams(DataModelBase):
     )
     sdd_full: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Senescence degree days (SDD) needed to initiate leaf off",
+        description=(
+            "Legacy compatibility field retained prior to removal; ignored by the "
+            "fixed-season daily-increment LAI phenology formulation (see sdd_base)."
+        ),
         json_schema_extra={
             "unit": "K d",
             "display_name": "Senescence Degree Days for Leaf Off",
@@ -556,7 +562,10 @@ class LAIParams(DataModelBase):
     )
     lai_type: FlexibleRefValue(int) = Field(
         default=0,
-        description="LAI calculation choice (0: original, 1: new high latitude)",
+        description=(
+            "Legacy compatibility field retained prior to removal; ignored by the "
+            "fixed-season daily-increment LAI phenology formulation."
+        ),
         json_schema_extra={
             "unit": None,
             "display_name": "LAI Calculation Method",

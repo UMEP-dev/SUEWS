@@ -356,12 +356,28 @@ CONTAINS
          RETURN
       END IF
 
-      IF (.NOT. ieee_is_finite(delta_gdd) .OR. .NOT. ieee_is_finite(delta_sdd) .OR. &
-          .NOT. ieee_is_finite(gdd_id) .OR. .NOT. ieee_is_finite(sdd_id)) THEN
+      IF (.NOT. ieee_is_finite(lai_min) .OR. .NOT. ieee_is_finite(lai_max)) THEN
          lai_id_next = -999.0D0
          CALL set_supy_error( &
             117, &
-            'calculate_lai: degree-day state or increment is non-finite')
+            'calculate_lai: lai_min and lai_max must be finite')
+         RETURN
+      END IF
+
+      IF (.NOT. ieee_is_finite(delta_gdd) .OR. .NOT. ieee_is_finite(delta_sdd) .OR. &
+          .NOT. ieee_is_finite(gdd_id) .OR. .NOT. ieee_is_finite(sdd_id) .OR. &
+          .NOT. ieee_is_finite(gdd_base) .OR. .NOT. ieee_is_finite(sdd_base)) THEN
+         lai_id_next = -999.0D0
+         CALL set_supy_error( &
+            117, &
+            'calculate_lai: degree-day state, threshold, or increment is non-finite')
+         RETURN
+      END IF
+
+      ! Fixed-zero absent-canopy envelope (explicitly permitted for sfr == 0):
+      ! canopy is pinned at zero regardless of lai_power exponents.
+      IF (lai_min == 0.0D0 .AND. lai_max == 0.0D0 .AND. lai_id_prev == 0.0D0) THEN
+         lai_id_next = 0.0D0
          RETURN
       END IF
 

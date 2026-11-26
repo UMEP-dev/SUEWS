@@ -9,9 +9,8 @@ import pandas as pd
 import pytest
 
 import supy as sp
-
 from supy._supy_module import _save_supy
-from supy.data_model.core.model import OutputControl
+from supy.data_model.core.model import OutputControl, RSLLevel
 from supy.data_model.core.type import RefValue
 
 pytestmark = [
@@ -608,6 +607,152 @@ class TestDailyStateOutput:
         ):
             assert np.isfinite(ds[col]).all(), f"{col} became non-finite with lai_min==lai_max"
         assert np.allclose(ds["LAI_DecTr"], 2.0, atol=1e-12)
+
+    @pytest.mark.parametrize(
+        ("start_date", "temp_c"),
+        [("2012-03-01", 20.0), ("2012-10-01", 5.0)],
+    )
+    def test_absent_vegetation_zero_envelope_with_negative_exponent_succeeds(
+        self, sample_data_loaded, sample_yaml_path, start_date, temp_c
+    ):
+        """Absent vegetation (sfr=0, lai_min=lai_max=lai_id=0) with negative exponent does not abort."""
+        _, df_forcing_base = sample_data_loaded
+        sim = sp.SUEWSSimulation(str(sample_yaml_path))
+        site = sim._config.sites[0]
+        lc = site.properties.land_cover
+        dectr_sfr = _unwrap(lc.dectr.sfr)
+        _set_ref(lc.paved, "sfr", _unwrap(lc.paved.sfr) + dectr_sfr)
+        _set_ref(lc.dectr, "sfr", 0.0)
+        _set_ref(lc.dectr.lai, "base_temperature", 5.0)
+        _set_ref(lc.dectr.lai, "base_temperature_senescence", 20.0)
+        _set_ref(lc.dectr.lai, "gdd_base", 0.0)
+        _set_ref(lc.dectr.lai, "sdd_base", 0.0)
+        _set_ref(lc.dectr.lai, "lai_min", 0.0)
+        _set_ref(lc.dectr.lai, "lai_max", 0.0)
+        _set_ref(lc.dectr.lai.lai_power, "growth_lai", -0.02)
+        _set_ref(lc.dectr.lai.lai_power, "growth_gdd", 0.04)
+        _set_ref(lc.dectr.lai.lai_power, "senescence_lai", -1.5)
+        _set_ref(lc.dectr.lai.lai_power, "senescence_sdd", 0.02)
+        _set_ref(site.initial_states.dectr, "lai_id", 0.0)
+        _set_ref(site.initial_states.dectr, "gdd_id", 0.0)
+        _set_ref(site.initial_states.dectr, "sdd_id", 0.0)
+
+        # Keep active grass surface able to evolve alongside the absent deciduous surface
+        _set_ref(lc.grass.lai, "base_temperature", 5.0)
+        _set_ref(lc.grass.lai, "base_temperature_senescence", 20.0)
+        _set_ref(lc.grass.lai, "gdd_base", 0.0)
+        _set_ref(lc.grass.lai, "sdd_base", 0.0)
+        _set_ref(site.initial_states.grass, "lai_id", 3.0)
+        _set_ref(site.initial_states.grass, "gdd_id", 0.0)
+        _set_ref(site.initial_states.grass, "sdd_id", 0.0)
+
+        df_win = _make_constant_temp_window(
+            df_forcing_base, start_date, n_days=2, temp_c=temp_c
+        )
+        sim.update_forcing(df_win)
+        sim.run(start_date=df_win.index[0], end_date=df_win.index[-1])
+
+        ds = sim.output.loc[:, "DailyState"].dropna(how="all")
+        assert np.allclose(ds["LAI_DecTr"], 0.0, atol=1e-12)
+        assert np.isfinite(ds["LAI_Grass"]).all()
+        assert float(ds["LAI_Grass"].iloc[-1]) != pytest.approx(3.0)
+
+    def test_multiday_analytical_daily_increment_recurrence_and_delayed_onset(
+        self, sample_data_loaded, sample_yaml_path
+    ):
+        """Multi-day non-zero-exponent runs verify delayed onset, daily-increment recurrence, and zero-delta days."""
+        _, df_forcing_base = sample_data_loaded
+
+        # 1. Growth season: 5 days starting 2012-03-01 with T = [15, 15, 15, 2 (cold), 15] C.
+        # base_t_gdd = 5 C -> delta_gdd = [10, 10, 10, 0, 10]; gdd_base = 25 K d is crossed on day 3.
+        # Days 1-2 stay below gdd_base (unchanged LAI); day 3 crosses gdd_base;
+        # day 4 has delta_gdd == 0 (unchanged LAI); day 5 uses daily delta_gdd (not cumulative).
+        sim_g = sp.SUEWSSimulation(str(sample_yaml_path))
+        _set_ref(sim_g._config.model.physics, "roughness_sublayer_level", RSLLevel.NONE)
+        site_g = sim_g._config.sites[0]
+        site_g.properties.lat.value = 51.5
+        lai_g = site_g.properties.land_cover.dectr.lai
+        p1, c1 = -0.2, 0.05
+        _set_ref(lai_g, "base_temperature", 5.0)
+        _set_ref(lai_g, "gdd_base", 25.0)
+        _set_ref(lai_g, "lai_min", 0.5)
+        _set_ref(lai_g, "lai_max", 20.0)
+        _set_ref(lai_g.lai_power, "growth_lai", p1)
+        _set_ref(lai_g.lai_power, "growth_gdd", c1)
+        _set_ref(site_g.initial_states.dectr, "lai_id", 2.0)
+        _set_ref(site_g.initial_states.dectr, "gdd_id", 0.0)
+
+        df_g = _make_constant_temp_window(df_forcing_base, "2012-03-01", n_days=5, temp_c=15.0)
+        df_g.iloc[3 * TIMESTEPS_PER_DAY : 4 * TIMESTEPS_PER_DAY, df_g.columns.get_loc("Tair")] = 2.0
+        sim_g.update_forcing(df_g)
+        sim_g.run(start_date=df_g.index[0], end_date=df_g.index[-1])
+        ds_g = sim_g.output.loc[:, "DailyState"].dropna(how="all")
+
+        tmean_g = 0.5 * (ds_g["Tmin"] + ds_g["Tmax"]).to_numpy()
+        lai_actual_g = ds_g["LAI_DecTr"].to_numpy()
+        gdd_actual = ds_g["GDD_DecTr"].to_numpy()
+
+        lai_ref = 2.0
+        gdd_ref = 0.0
+        expected_g = []
+        for tm in tmean_g:
+            d_gdd = max(0.0, tm - 5.0)
+            gdd_ref += d_gdd
+            if gdd_ref >= 25.0 and d_gdd > 0.0:
+                lai_ref = lai_ref + (lai_ref**p1) * d_gdd * c1
+            expected_g.append(lai_ref)
+        assert gdd_actual[1] < 25.0 and gdd_actual[2] >= 25.0
+        assert lai_actual_g[0] == pytest.approx(2.0, abs=1e-12)
+        assert lai_actual_g[1] == pytest.approx(2.0, abs=1e-12)
+        assert lai_actual_g[3] == pytest.approx(lai_actual_g[2], abs=1e-12)
+        assert np.allclose(lai_actual_g, expected_g, atol=1e-9)
+        # Confirm day 5 used daily delta_gdd (10), NOT cumulative GDD (40)
+        cum_wrong_day5 = lai_actual_g[3] + (lai_actual_g[3] ** p1) * gdd_actual[4] * c1
+        assert abs(lai_actual_g[4] - cum_wrong_day5) > 0.5
+
+        # 2. Senescence season: 5 days starting 2012-10-01 with T = [10, 10, 10, 28 (warm), 10] C.
+        # base_t_sdd = 20 C -> delta_sdd = [-10, -10, -10, 0, -10]; sdd_base = -25 K d is crossed on day 3.
+        sim_s = sp.SUEWSSimulation(str(sample_yaml_path))
+        _set_ref(sim_s._config.model.physics, "roughness_sublayer_level", RSLLevel.NONE)
+        site_s = sim_s._config.sites[0]
+        site_s.properties.lat.value = 51.5
+        lai_s = site_s.properties.land_cover.dectr.lai
+        p3, c3 = -0.5, 0.03
+        _set_ref(lai_s, "base_temperature_senescence", 20.0)
+        _set_ref(lai_s, "sdd_base", -25.0)
+        _set_ref(lai_s, "lai_min", 0.5)
+        _set_ref(lai_s, "lai_max", 20.0)
+        _set_ref(lai_s.lai_power, "senescence_lai", p3)
+        _set_ref(lai_s.lai_power, "senescence_sdd", c3)
+        _set_ref(site_s.initial_states.dectr, "lai_id", 10.0)
+        _set_ref(site_s.initial_states.dectr, "sdd_id", 0.0)
+
+        df_s = _make_constant_temp_window(df_forcing_base, "2012-10-01", n_days=5, temp_c=10.0)
+        df_s.iloc[3 * TIMESTEPS_PER_DAY : 4 * TIMESTEPS_PER_DAY, df_s.columns.get_loc("Tair")] = 28.0
+        sim_s.update_forcing(df_s)
+        sim_s.run(start_date=df_s.index[0], end_date=df_s.index[-1])
+        ds_s = sim_s.output.loc[:, "DailyState"].dropna(how="all")
+
+        tmean_s = 0.5 * (ds_s["Tmin"] + ds_s["Tmax"]).to_numpy()
+        lai_actual_s = ds_s["LAI_DecTr"].to_numpy()
+        sdd_actual = ds_s["SDD_DecTr"].to_numpy()
+
+        lai_ref = 10.0
+        sdd_ref = 0.0
+        expected_s = []
+        for tm in tmean_s:
+            d_sdd = min(0.0, tm - 20.0)
+            sdd_ref += d_sdd
+            if sdd_ref <= -25.0 and d_sdd < 0.0:
+                lai_ref = lai_ref + (lai_ref**p3) * d_sdd * c3
+            expected_s.append(lai_ref)
+        assert sdd_actual[1] > -25.0 and sdd_actual[2] <= -25.0
+        assert lai_actual_s[0] == pytest.approx(10.0, abs=1e-12)
+        assert lai_actual_s[1] == pytest.approx(10.0, abs=1e-12)
+        assert lai_actual_s[3] == pytest.approx(lai_actual_s[2], abs=1e-12)
+        assert np.allclose(lai_actual_s, expected_s, atol=1e-9)
+        cum_wrong_day5_s = lai_actual_s[3] + (lai_actual_s[3] ** p3) * sdd_actual[4] * c3
+        assert abs(lai_actual_s[4] - cum_wrong_day5_s) > 0.15
 
     def test_reset_day_checkpoint_split_matches_uninterrupted_run(
         self, sample_data_loaded, sample_yaml_path

@@ -11,7 +11,7 @@ Verifies:
   restrictions) without writing any files.
 - ``suews validate -p C --dry-run`` also enforces unified ``--mode public``
   restrictions while preserving multi-file schema checks.
-- Legacy exports remain intact until the follow-up retirement PR.
+- Legacy validator exports have been retired and are verified absent.
 """
 
 from __future__ import annotations
@@ -205,6 +205,29 @@ def test_dry_run_enforces_public_mode_restrictions_consistently(
     )
     assert dev_result.exit_code == 0, dev_result.output
     assert set(tmp_path.rglob("*")) == before_entries
+
+
+def test_retired_legacy_validation_modules_and_symbols_are_removed() -> None:
+    """Retired legacy validator modules and precheck symbols are no longer present."""
+    src_root = Path(__file__).resolve().parents[2] / "src" / "supy"
+    for rel_path in (
+        "validation.py",
+        "data_model/validation/core/controller.py",
+        "data_model/validation/core/feedback.py",
+    ):
+        assert not (src_root / rel_path).exists(), f"{rel_path} should be deleted"
+
+    for symbol in (
+        "ValidationController",
+        "validate_suews_config_conditional",
+    ):
+        assert not hasattr(supy, symbol)
+        assert not hasattr(supy.data_model, symbol)
+
+    assert not hasattr(supy.data_model, "run_precheck")
+    assert not hasattr(supy.data_model.validation, "run_precheck")
+    assert not hasattr(supy.data_model.validation.core.yaml_helpers, "run_precheck")
+    assert not hasattr(supy.data_model.validation.core.yaml_helpers, "SeasonCheck")
 
 
 def test_public_api_and_cli_dry_run_handle_malformed_and_incomplete_inputs(

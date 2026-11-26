@@ -7,23 +7,35 @@ This package implements the three-phase validation system used by
 
 ```text
 validation/
-├── core/
-│   ├── controller.py          # Deprecated compatibility controller
-│   ├── result.py              # Shared result helpers
-│   └── utils.py               # Utility functions
-└── pipeline/
-    ├── orchestrator.py        # Phase orchestration and report consolidation
-    ├── phase_a.py             # Structural completeness and rename checks
-    ├── phase_b.py             # Scientific validation and optional fixes
-    ├── phase_b_rules/         # Ordered Phase B validation rules
-    └── report_writer.py       # Report file I/O
+|-- engine.py                  # Unified ValidationEngine and supy.validate_config()
+|-- required_fields.py         # Single source of truth for required fields
+|-- core/
+|   |-- utils.py               # Shared utility functions
+|   `-- yaml_helpers.py        # YAML scalar/RefValue helpers and CRU/DLS lookup
+|-- rules/
+|   |-- typed_view.py          # Read-only typed view over normalised YAML mappings
+|   |-- hard_invariants.py     # Tier-1 hard invariants shared with Pydantic models
+|   `-- advisory.py            # Tier-2 scientific advisories (Phase B warnings)
+`-- pipeline/
+    |-- document.py            # ConfigDocument, RefValue helpers, ConfigPatch
+    |-- orchestrator.py        # Transactional staged pipeline orchestration
+    |-- patches.py             # Pure Phase B scientific patch planners
+    |-- phase_a.py             # Schema-driven structural completeness and renames
+    |-- phase_b.py             # Scientific validation and patch application
+    |-- phase_b_rules/         # Ordered Phase B validation rules
+    |-- phase_c.py             # Single-pass Pydantic model validation
+    |-- renderers.py           # Pure structured text report renderer
+    |-- report_schema.py       # Canonical Issue / PhaseReport / ValidationReport
+    `-- report_writer.py       # Report file I/O
 ```
 
 ## Three-Phase Validation System
 
 ### Phase A: Completeness Check
 
-- Adds missing optional parameters with null placeholders.
+- Introspects `SUEWSConfig` directly to detect missing critical physics options
+  and undeclared extra parameters (without padding omitted optional fields with
+  nulls).
 - Updates deprecated parameter names to current snake_case names.
 - Validates forcing data unless `--forcing off` is selected.
 - Leaves blocking missing physics options for the report.
@@ -50,19 +62,20 @@ fraction normalisation within `1e-4`.
 
 ## Public Interfaces
 
-The preferred public interface is the package pipeline and CLI:
+The preferred Python entry point is `supy.validate_config()` (or
+`ValidationEngine` directly), which runs in memory with zero disk writes by
+default and supports `write_outputs=True` for staged file publication:
 
 ```python
-from supy.data_model.validation.pipeline.orchestrator import (
-    run_phase_a,
-    run_phase_b,
-    run_phase_c,
-)
+import supy
+
+report = supy.validate_config("config.yml", pipeline="ABC")
+if not report.is_valid:
+    print(report.to_text())
 ```
 
-`src/supy/validation.py` is retained as a backward-compatible shim for one
-release and emits `DeprecationWarning`. New code should use
-`supy.data_model.validation`.
+The lower-level phase runners (`run_pipeline`, `run_phase_a`, `run_phase_b`,
+`run_phase_c`) live in `supy.data_model.validation.pipeline.orchestrator`.
 
 ## CLI Integration
 

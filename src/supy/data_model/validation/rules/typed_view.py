@@ -14,13 +14,13 @@ import math
 from numbers import Integral, Real
 from typing import Any
 
+from ...core.field_renames import read_physics_key
 from ...core.physics_families import resolve_scalar_name
 from ..core.yaml_helpers import (
     get_ref_or_bare,
     get_stebbs_block,
     get_stebbsmethod_value,
     get_value_safe,
-    read_physics_key,
 )
 from ..pipeline.document import (
     is_ref_only,

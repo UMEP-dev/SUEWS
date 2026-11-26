@@ -61,21 +61,6 @@ from .validation import (
     validate_config,
 )
 
-# Legacy validation exports (retired in follow-up PR)
-try:
-    from .validation import (
-        ValidationController,
-        ValidationResult,
-        validate_suews_config_conditional,
-        run_precheck,
-    )
-except ImportError:
-    # Fallback if validation module not available
-    ValidationController = None
-    ValidationResult = None
-    validate_suews_config_conditional = None
-    run_precheck = None
-
 # Export everything
 __all__ = [
     # Configuration
@@ -121,8 +106,4 @@ __all__ = [
     "validate_config",
     "ValidationEngine",
     "ValidationReport",
-    "ValidationController",
-    "ValidationResult",
-    "validate_suews_config_conditional",
-    "run_precheck",
 ]

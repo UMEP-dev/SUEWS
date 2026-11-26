@@ -29,7 +29,6 @@ import pytest
 import yaml
 
 from supy._env import trv_supy_module
-from supy.validation import analyze_config_methods
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE", "C-ROUNDTRIP")]
 
@@ -92,7 +91,6 @@ from supy.data_model.core.site import (
     StebbsProperties,
 )
 from supy.data_model.core.surface import SurfaceProperties
-from supy.data_model.validation.core.controller import ValidationController
 
 
 # ===========================================================================
@@ -835,91 +833,6 @@ class TestConflictDetection:
 
 
 class TestRawDictCompatibility:
-    def test_analyze_config_methods_accepts_final_names(self):
-        """Schema 2026.5.dev2 (#1321) final names resolve via `read_physics_key`."""
-        config = {
-            "model": {
-                "physics": {
-                    "roughness_sublayer": {"value": 2},
-                    "roughness_length_momentum": {"value": 2},
-                    "net_radiation": {"value": 1001},
-                    "emissions": {"value": 4},
-                    "storage_heat": {"value": 4},
-                }
-            }
-        }
-
-        methods = analyze_config_methods(config)
-
-        assert methods["rslmethod_variable"] is True
-        assert methods["roughness_variable"] is True
-        assert methods["netradiation_spartacus"] is True
-        assert methods["emissions_advanced"] is True
-        assert methods["storage_estm"] is True
-
-    def test_analyze_config_methods_accepts_cat1_intermediate(self):
-        """Schema 2026.5 (Cat 1 intermediate) names still resolve via the rename registry."""
-        config = {
-            "model": {
-                "physics": {
-                    "rsl_method": {"value": 2},
-                    "roughness_length_momentum_method": {"value": 2},
-                    "net_radiation_method": {"value": 1001},
-                    "emissions_method": {"value": 4},
-                    "storage_heat_method": {"value": 4},
-                }
-            }
-        }
-
-        methods = analyze_config_methods(config)
-
-        assert methods["rslmethod_variable"] is True
-        assert methods["roughness_variable"] is True
-        assert methods["netradiation_spartacus"] is True
-        assert methods["emissions_advanced"] is True
-        assert methods["storage_estm"] is True
-
-    def test_analyze_config_methods_accepts_nested_family_form(self):
-        config = {
-            "model": {
-                "physics": {
-                    "roughness_sublayer": {"value": 2},
-                    "roughness_length_momentum": {"value": 2},
-                    "net_radiation": {"spartacus": {"value": 1001}},
-                    "emissions": {"simple": {"value": 4}},
-                    "storage_heat": {"estm": {"value": 4}},
-                }
-            }
-        }
-
-        methods = analyze_config_methods(config)
-
-        assert methods["rslmethod_variable"] is True
-        assert methods["roughness_variable"] is True
-        assert methods["netradiation_spartacus"] is True
-        assert methods["emissions_advanced"] is True
-        assert methods["storage_estm"] is True
-
-    def test_analyze_config_methods_accepts_orthogonal_net_radiation(self):
-        config = {
-            "model": {
-                "physics": {
-                    "roughness_sublayer": {"value": 2},
-                    "roughness_length_momentum": {"value": 2},
-                    "net_radiation": {"scheme": "spartacus", "ldown": "air"},
-                    "emissions": {"simple": {"value": 4}},
-                    "storage_heat": {"estm": {"value": 4}},
-                }
-            }
-        }
-
-        methods = analyze_config_methods(config)
-
-        assert methods["roughness_variable"] is True
-        assert methods["netradiation_spartacus"] is True
-        assert methods["emissions_advanced"] is True
-        assert methods["storage_estm"] is True
-
     def test_read_physics_key_accepts_orthogonal_legacy_name(self):
         physics = {"netradiationmethod": {"scheme": "narp", "ldown": "air"}}
 
@@ -940,75 +853,6 @@ class TestRawDictCompatibility:
 
         with pytest.raises(ValueError, match="storage_heat\\.ohm.*inner keys"):
             read_physics_key(physics, "storage_heat")
-
-    def test_legacy_analyze_config_methods_accepts_sample_config(self):
-        path = Path(__file__).resolve().parents[2] / "src/supy/sample_data/sample_config.yml"
-        config = yaml.safe_load(path.read_text(encoding="utf-8"))
-
-        methods = analyze_config_methods(config)
-
-        assert methods
-        assert methods["storage_estm"] is False
-        assert methods["emissions_advanced"] is False
-
-    def test_analyze_config_methods_accepts_orthogonal_emissions(self):
-        config = {
-            "model": {
-                "physics": {
-                    "emissions": {
-                        "heat": "j11",
-                        "co2": {
-                            "anthropogenic": "detailed",
-                            "biogenic": "conductance",
-                        },
-                    },
-                }
-            }
-        }
-
-        methods = analyze_config_methods(config)
-
-        assert methods["emissions_advanced"] is True
-
-    def test_validation_controller_accepts_legacy_physics_names(self):
-        config = {
-            "model": {
-                "physics": {
-                    "roughlenmommethod": {"value": 2},
-                    "netradiationmethod": {"value": 1001},
-                    "emissionsmethod": {"value": 4},
-                    "storageheatmethod": {"value": 4},
-                }
-            }
-        }
-
-        controller = ValidationController(config_data=config)
-        active_methods = controller.get_active_methods()
-
-        assert active_methods["roughness_variable"] is True
-        assert active_methods["netradiation_spartacus"] is True
-        assert active_methods["emissions_advanced"] is True
-        assert active_methods["storage_estm"] is True
-
-    def test_validation_controller_accepts_nested_legacy_physics_names(self):
-        config = {
-            "model": {
-                "physics": {
-                    "roughlenmommethod": {"value": 2},
-                    "netradiationmethod": {"spartacus": {"value": 1001}},
-                    "emissions_method": {"simple": {"value": 4}},
-                    "storage_heat_method": {"estm": {"value": 4}},
-                }
-            }
-        }
-
-        controller = ValidationController(config_data=config)
-        active_methods = controller.get_active_methods()
-
-        assert active_methods["roughness_variable"] is True
-        assert active_methods["netradiation_spartacus"] is True
-        assert active_methods["emissions_advanced"] is True
-        assert active_methods["storage_estm"] is True
 
     def test_raw_yaml_archetype_renames_reach_current_names(self):
         payload = {

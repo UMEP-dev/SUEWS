@@ -46,6 +46,8 @@ def _state_config_base(sample_config_loaded, sample_forcing_parsed):
     cfg.model.control.end_time = "2012-01-01 12:00:00"
     cfg.model.control.output.freq = 3600
     resolved_doc = _load_yaml(_run_rust.config_to_engine_yaml(cfg))
+    # Establish positive baseline that the unmutated resolved dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(resolved_doc))
 
     _, df_forcing = sample_forcing_parsed(144)
     forcing_flat = (
@@ -75,67 +77,70 @@ _WITNESS_CASES = [
     # Model config switches and structural dimensions: missing, null, malformed
     pytest.param(
         lambda d: d["model"]["physics"].pop("net_radiation"),
-        "model.physics.net_radiation",
-        False,
+        ("model.physics.net_radiation",),
+        None,
         id="config-missing-net_radiation",
     ),
     pytest.param(
         lambda d: d["model"]["control"].__setitem__("tstep", {"value": None}),
-        "model.control.tstep",
-        True,
+        ("model.control.tstep",),
+        ("model.control.tstep", "null"),
         id="config-null-tstep",
     ),
     pytest.param(
         lambda d: d["sites"][0]["properties"]["vertical_layers"].__setitem__(
             "nlayer", {"value": 1.5}
         ),
-        "sites[gridiv=1].properties.vertical_layers.nlayer",
-        True,
+        ("sites[gridiv=1].properties.vertical_layers.nlayer",),
+        ("vertical_layers.nlayer", "integer"),
         id="dims-malformed-nlayer",
     ),
     # Initial states subsystem: missing, null, malformed, incorrectly sized
     pytest.param(
         lambda d: d["sites"][0]["initial_states"]["paved"].pop("soilstore"),
-        "sites[gridiv=1].initial_states.paved.soilstore",
-        False,
+        ("sites[gridiv=1].initial_states.paved.soilstore",),
+        None,
         id="state-missing-paved-soilstore",
     ),
     pytest.param(
         lambda d: d["sites"][0]["initial_states"]["paved"].__setitem__(
             "soilstore", {"value": None}
         ),
-        "sites[gridiv=1].initial_states.paved.soilstore",
-        True,
+        ("sites[gridiv=1].initial_states.paved.soilstore",),
+        ("initial_states.paved.soilstore", "null"),
         id="state-null-paved-soilstore",
     ),
     pytest.param(
         lambda d: d["sites"][0]["initial_states"].__setitem__("snowalb", float("nan")),
-        "sites[gridiv=1].initial_states.snowalb",
-        True,
+        ("sites[gridiv=1].initial_states.snowalb",),
+        ("initial_states.snowalb",),
         id="state-malformed-nan-snowalb",
     ),
     pytest.param(
-        lambda d: d["sites"][0]["initial_states"].__setitem__(
-            "hdd_id", {"value": [0.0, 0.0]}
+        lambda d: (
+            d["model"]["physics"].__setitem__("storage_heat", {"value": 5}),
+            d["sites"][0]["initial_states"]["paved"].__setitem__(
+                "temperature", [15.0, 15.0]
+            ),
         ),
-        "sites[gridiv=1].initial_states.hdd_id",
-        True,
-        id="state-wrong-size-hdd_id",
+        ("sites[gridiv=1].initial_states.paved.temperature", "5"),
+        ("sites[gridiv=1].initial_states.paved.temperature", "5"),
+        id="state-wrong-size-paved-temperature",
     ),
 ]
 
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("mutate", "expected_path", "check_public_config"), _WITNESS_CASES
+    ("mutate", "expected_needles", "public_needles"), _WITNESS_CASES
 )
 def test_resolved_config_dims_and_states_br02_failure_witnesses(
     tmp_path: Path,
     suews_engine_bin: Path,
     _state_config_base: dict,
     mutate,
-    expected_path: str,
-    check_public_config: bool,
+    expected_needles: tuple[str, ...],
+    public_needles: tuple[str, ...] | None,
 ) -> None:
     """BR-02 witnesses for config switches, dims, and initial states across Python and suews-engine."""
     doc, out_dir = _stage_doc(_state_config_base, tmp_path)
@@ -150,7 +155,9 @@ def test_resolved_config_dims_and_states_br02_failure_witnesses(
             _state_config_base["forcing_flat"],
             _state_config_base["n_steps"],
         )
-    assert expected_path in str(exc_info.value), str(exc_info.value)
+    pyo3_msg = str(exc_info.value)
+    for needle in expected_needles:
+        assert needle in pyo3_msg, f"expected {needle!r} in {pyo3_msg!r}"
 
     # 2. Standalone suews-engine witness
     cfg_path = tmp_path / "bad_state_config.yml"
@@ -163,13 +170,18 @@ def test_resolved_config_dims_and_states_br02_failure_witnesses(
         check=False,
     )
     assert res.returncode != 0
-    assert expected_path in f"{res.stdout}\n{res.stderr}", res.stderr
+    combined = f"{res.stdout}\n{res.stderr}"
+    for needle in expected_needles:
+        assert needle in combined, f"expected {needle!r} in {combined!r}"
     assert not (out_dir / "suews_output.arrow").exists()
 
     # 3. Public Python SUEWSConfig entry point witness
-    if check_public_config:
-        with pytest.raises((ValueError, TypeError)):
+    if public_needles is not None:
+        with pytest.raises((ValueError, TypeError)) as cfg_exc:
             SUEWSConfig.from_dict(doc)
+        msg = str(cfg_exc.value)
+        for needle in public_needles:
+            assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 @pytest.mark.core

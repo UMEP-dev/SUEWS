@@ -40,6 +40,8 @@ def _load_yaml(text: str) -> dict:
 def _engine_guards_base(sample_config_loaded):
     """Cache resolved YAML template and sample forcing lines for this module."""
     resolved_base = _load_yaml(_run_rust.config_to_engine_yaml(sample_config_loaded))
+    # Establish positive baseline that the unmutated resolved dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(resolved_base))
     forcing_entry = resolved_base["model"]["control"]["forcing"]["file"]
     forcing_name = (
         forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
@@ -111,15 +113,24 @@ def _read_arrow_columns(arrow_path: Path, columns: list[str]) -> dict[str, np.nd
         }
 
 
+def _assert_public_config_error(doc: dict, needles: tuple[str, ...]) -> None:
+    """Assert public ``SUEWSConfig.from_dict`` rejects ``doc`` with expected diagnostics."""
+    with pytest.raises((ValueError, TypeError)) as cfg_exc:
+        SUEWSConfig.from_dict(doc)
+    msg = str(cfg_exc.value)
+    for needle in needles:
+        assert needle in msg, f"expected {needle!r} in {msg!r}"
+
+
 @pytest.mark.parametrize(
-    ("mode", "field", "mutation", "expected_reason", "check_public_config"),
+    ("mode", "field", "mutation", "expected_reason", "public_needles"),
     [
         pytest.param(
             "missing",
             "raincover",
             None,
             "is missing",
-            False,
+            None,
             id="missing-raincover",
         ),
         pytest.param(
@@ -127,7 +138,7 @@ def _read_arrow_columns(arrow_path: Path, columns: list[str]) -> dict[str, np.nd
             "raincover",
             {"value": None},
             "is null",
-            True,
+            ("lumps.raincover", "null"),
             id="null-raincover",
         ),
         pytest.param(
@@ -135,7 +146,7 @@ def _read_arrow_columns(arrow_path: Path, columns: list[str]) -> dict[str, np.nd
             "veg_type",
             {"value": 1.5},
             "must be an integer",
-            True,
+            ("lumps.veg_type", "integer"),
             id="malformed-veg_type",
         ),
     ],
@@ -150,7 +161,7 @@ def test_resolved_lumps_br02_failure_witnesses(
     field: str,
     mutation,
     expected_reason: str,
-    check_public_config: bool,
+    public_needles: tuple[str, ...] | None,
     route: str,
 ):
     """LUMPS witnesses cover missing/null/malformed across file, buffer, resume, and Python."""
@@ -178,9 +189,8 @@ def test_resolved_lumps_br02_failure_witnesses(
         assert expected_path in result.stderr, result.stderr
         assert expected_reason in result.stderr, result.stderr
         assert not (tmp_path / "suews_output.arrow").exists()
-        if check_public_config:
-            with pytest.raises((ValueError, TypeError)):
-                SUEWSConfig.from_dict(data)
+        if public_needles is not None:
+            _assert_public_config_error(data, public_needles)
     else:
         _, forcing = sample_forcing_parsed(4)
         block = _run_rust._prepare_forcing_block(forcing)
@@ -235,24 +245,24 @@ def test_lumps_default_and_supplied_vegetation_reach_the_energy_fluxes(
 
 
 @pytest.mark.parametrize(
-    ("mutator", "expected_substrings", "check_public_config"),
+    ("mutator", "expected_substrings", "public_needles"),
     [
         pytest.param(
             lambda d: d["model"]["physics"].pop("emissions", None),
             ("model.physics.emissions",),
-            False,
+            None,
             id="missing-emissions",
         ),
         pytest.param(
             lambda d: d["model"]["physics"].__setitem__("emissions", {"value": None}),
             ("model.physics.emissions",),
-            True,
+            ("model.physics.emissions", "null"),
             id="null-emissions",
         ),
         pytest.param(
             lambda d: d["model"]["physics"].__setitem__("emissions", {"value": 17}),
             ("model.physics.emissions", "17"),
-            True,
+            ("model.physics.emissions",),
             id="malformed-emissions-hole-17",
         ),
     ],
@@ -264,7 +274,7 @@ def test_engine_and_python_reject_invalid_emissions_selector(
     sample_forcing_parsed,
     mutator,
     expected_substrings: tuple[str, ...],
-    check_public_config: bool,
+    public_needles: tuple[str, ...] | None,
 ):
     """BR-02 witnesses for model.physics.emissions across Python and suews-engine."""
     config_path, mutated_doc = _prepare_engine_inputs(
@@ -294,9 +304,8 @@ def test_engine_and_python_reject_invalid_emissions_selector(
     for needle in expected_substrings:
         assert needle in str(exc.value), str(exc.value)
 
-    if check_public_config:
-        with pytest.raises((ValueError, TypeError)):
-            SUEWSConfig.from_dict(mutated_doc)
+    if public_needles is not None:
+        _assert_public_config_error(mutated_doc, public_needles)
 
 
 @pytest.mark.parametrize("emissions", [2, 12])
@@ -335,15 +344,24 @@ def test_engine_accepts_valid_emissions_including_co2_methods(
 
 
 @pytest.mark.parametrize(
-    "missing_mode", ["omitted", "all_sentinel", "interior_sentinel"]
+    ("missing_mode", "expected_substrings"),
+    [
+        ("omitted", ("forcing column 'qf'", "emissions=0")),
+        ("all_sentinel", ("forcing column 'qf'", "emissions=0")),
+        ("interior_sentinel", ("forcing column 'qf'", "emissions=0")),
+        ("nan", ("forcing column 'qf'", "emissions=0")),
+        ("inf", ("forcing column 'qf'", "emissions=0")),
+        ("malformed_token", ("qf", "invalid float literal")),
+    ],
 )
-def test_engine_rejects_missing_observed_qf_for_emissions_zero(
+def test_engine_rejects_invalid_observed_qf_for_emissions_zero(
     tmp_path: Path,
     suews_engine_bin: Path,
     _engine_guards_base: dict,
     missing_mode: str,
+    expected_substrings: tuple[str, ...],
 ):
-    """Standalone ``suews-engine`` fails loudly when emissions=0 lacks valid qf."""
+    """Standalone ``suews-engine`` fails loudly when emissions=0 lacks valid finite qf."""
 
     def mutate_forcing(header: list[str], rows: list[list[str]]):
         qf_idx = next(i for i, col in enumerate(header) if col.lower() == "qf")
@@ -357,9 +375,21 @@ def test_engine_rejects_missing_observed_qf_for_emissions_zero(
             for row in rows:
                 row[qf_idx] = "-999"
             return header, rows
-        # interior_sentinel: valid neighbours surrounding an hourly -999 gap.
+        if missing_mode == "interior_sentinel":
+            # interior_sentinel: valid neighbours surrounding an hourly -999 gap.
+            for idx, row in enumerate(rows):
+                row[qf_idx] = "-999" if idx == 1 else "25.0"
+            return header, rows
+        if missing_mode == "nan":
+            for row in rows:
+                row[qf_idx] = "nan"
+            return header, rows
+        if missing_mode == "inf":
+            for row in rows:
+                row[qf_idx] = "inf"
+            return header, rows
         for idx, row in enumerate(rows):
-            row[qf_idx] = "-999" if idx == 1 else "25.0"
+            row[qf_idx] = "not_a_number" if idx == 1 else "25.0"
         return header, rows
 
     config_path, _ = _prepare_engine_inputs(
@@ -379,32 +409,57 @@ def test_engine_rejects_missing_observed_qf_for_emissions_zero(
     )
 
     assert result.returncode != 0, f"emissions=0 ({missing_mode}) must fail loudly"
-    assert "forcing column 'qf'" in result.stderr
-    assert "emissions=0" in result.stderr
+    for needle in expected_substrings:
+        assert needle in result.stderr, f"{missing_mode}: {result.stderr}"
     assert not (tmp_path / "suews_output.arrow").exists()
 
 
-def test_python_simulation_rejects_missing_observed_qf_for_emissions_zero(
-    sample_config_loaded, sample_forcing_parsed
+@pytest.mark.parametrize(
+    ("case", "mutate_forcing"),
+    [
+        ("omitted", lambda df: df.drop(columns=["qf"])),
+        ("sentinel", lambda df: df.assign(qf=-999.0)),
+        ("nan", lambda df: df.assign(qf=np.nan)),
+        ("inf", lambda df: df.assign(qf=np.inf)),
+        ("malformed_string", lambda df: df.assign(qf="not_a_number")),
+    ],
+)
+def test_python_simulation_rejects_invalid_observed_qf_for_emissions_zero(
+    sample_config_loaded, sample_forcing_parsed, case: str, mutate_forcing
 ):
-    """Public ``SUEWSSimulation.run`` rejects missing/sentinel qf forcing under emissions=0."""
+    """Public ``SUEWSSimulation.run`` rejects omitted, sentinel, non-finite, and malformed qf."""
     cfg = sample_config_loaded.model_copy(deep=True)
     cfg.model.physics.emissions = 0
-    _, df_forcing = sample_forcing_parsed(12)
-    df_forcing["qf"] = -999.0
+    _, df_base = sample_forcing_parsed(12)
 
+    # Positive baseline control for the first case: valid observed qf runs cleanly.
+    if case == "omitted":
+        sim_ok = SUEWSSimulation()
+        sim_ok.update_config(cfg.model_copy(deep=True), auto_load_forcing=False)
+        df_ok = df_base.assign(qf=25.0)
+        sim_ok.update_forcing(df_ok)
+        out = sim_ok.run(
+            start_date=df_ok.index[0],
+            end_date=df_ok.index[-1],
+            n_jobs=1,
+        ).df
+        np.testing.assert_allclose(
+            out.loc[1, ("SUEWS", "QF")].to_numpy(), 25.0, rtol=0.0, atol=1e-12
+        )
+
+    df_bad = mutate_forcing(df_base.copy())
     sim = SUEWSSimulation()
     sim.update_config(cfg, auto_load_forcing=False)
-    sim.update_forcing(df_forcing)
-    with pytest.raises(RuntimeError) as exc:
+    sim.update_forcing(df_bad)
+    with pytest.raises((ValueError, RuntimeError)) as exc:
         sim.run(
-            start_date=df_forcing.index[0],
-            end_date=df_forcing.index[-1],
+            start_date=df_bad.index[0],
+            end_date=df_bad.index[-1],
             n_jobs=1,
-            _validate_forcing=False,
         )
-    assert "forcing column 'qf'" in str(exc.value), str(exc.value)
-    assert "emissions=0" in str(exc.value), str(exc.value)
+    msg = str(exc.value)
+    assert "forcing column 'qf'" in msg, f"{case}: {msg}"
+    assert "emissions=0" in msg, f"{case}: {msg}"
 
 
 def test_engine_accepts_valid_observed_qf_for_emissions_zero(

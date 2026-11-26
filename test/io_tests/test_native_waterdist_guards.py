@@ -43,6 +43,8 @@ def _load_yaml(text: str) -> dict:
 def _waterdist_base(sample_config_loaded, sample_forcing_parsed):
     """Cache resolved sample config, forcing lines, and 1-step / 24-step forcing blocks."""
     resolved_doc = _load_yaml(_run_rust.config_to_engine_yaml(sample_config_loaded))
+    # Establish positive baseline that the unmutated resolved dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(resolved_doc))
     forcing_entry = resolved_doc["model"]["control"]["forcing"]["file"]
     forcing_name = (
         forcing_entry["value"] if isinstance(forcing_entry, dict) else forcing_entry
@@ -92,12 +94,13 @@ def _write_wet_day_cli_inputs(
 
 
 @pytest.mark.parametrize(
-    ("case", "mutator", "expected_substrings"),
+    ("case", "mutator", "expected_substrings", "public_needles"),
     [
         (
             "paved_delete_to_runoff",
             lambda lc: lc["paved"]["waterdist"].pop("to_runoff"),
             ("sites[gridiv=7]", "paved.waterdist.to_runoff"),
+            ("paved", "to_runoff"),
         ),
         (
             "paved_null_to_grass",
@@ -105,11 +108,13 @@ def _write_wet_day_cli_inputs(
                 "to_grass", {"value": None}
             ),
             ("sites[gridiv=7]", "paved.waterdist.to_grass"),
+            ("paved", "to_grass"),
         ),
         (
             "paved_bad_sum",
             lambda lc: lc["paved"]["waterdist"].__setitem__("to_grass", {"value": 0.5}),
             ("sites[gridiv=7]", "paved.waterdist", "sum must be 1.0"),
+            ("paved", "sum must be 1.0"),
         ),
     ],
 )
@@ -120,6 +125,7 @@ def test_waterdist_br02_failure_witnesses(
     case: str,
     mutator,
     expected_substrings: tuple[str, ...],
+    public_needles: tuple[str, ...],
 ) -> None:
     """BR-02 witnesses for waterdist (missing, null, malformed) across CLI and Python."""
     run_dir = tmp_path / case
@@ -148,8 +154,11 @@ def test_waterdist_br02_failure_witnesses(
     assert not (run_dir / "suews_output.arrow").exists()
 
     # 2. Public Python SUEWSConfig entry point witness
-    with pytest.raises((ValueError, TypeError)):
+    with pytest.raises((ValueError, TypeError)) as cfg_exc:
         SUEWSConfig.from_dict(doc)
+    msg = str(cfg_exc.value)
+    for needle in public_needles:
+        assert needle in msg, f"{case}: expected {needle!r} in {msg!r}"
 
 
 def test_cli_accepts_valid_wet_day_and_inactive_omission(

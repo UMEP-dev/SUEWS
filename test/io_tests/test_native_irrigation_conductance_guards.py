@@ -60,6 +60,8 @@ def _conductance_irrigation_base(sample_config_loaded, sample_forcing_parsed):
     cfg.model.control.end_time = "2012-01-01 12:00:00"
     cfg.model.control.output.freq = 3600
     resolved_doc = _load_yaml(_run_rust.config_to_engine_yaml(cfg))
+    # Establish positive baseline that the unmutated resolved dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(resolved_doc))
 
     _, df_forcing_12h = sample_forcing_parsed(144)
     forcing_flat_12h = (
@@ -106,21 +108,21 @@ _WITNESS_CASES = [
         False,
         lambda s: s["properties"]["conductance"].pop("g_max"),
         "sites[gridiv=1].properties.conductance.g_max",
-        False,
+        None,
         id="conductance-missing-g_max",
     ),
     pytest.param(
         False,
         lambda s: s["properties"]["conductance"].__setitem__("g_max", {"value": None}),
         "sites[gridiv=1].properties.conductance.g_max",
-        True,
+        ("conductance.g_max",),
         id="conductance-null-g_max",
     ),
     pytest.param(
         False,
         lambda s: s["properties"]["conductance"].__setitem__("g_max", "not-a-number"),
         "sites[gridiv=1].properties.conductance.g_max",
-        True,
+        ("conductance.g_max",),
         id="conductance-malformed-g_max",
     ),
     # Irrigation subsystem: missing, null, malformed, incorrectly sized (24-hour profile)
@@ -128,7 +130,7 @@ _WITNESS_CASES = [
         True,
         lambda s: s["properties"]["irrigation"].pop("h_maintain"),
         "sites[gridiv=1].properties.irrigation.h_maintain",
-        False,
+        None,
         id="irrigation-missing-h_maintain",
     ),
     pytest.param(
@@ -137,7 +139,7 @@ _WITNESS_CASES = [
             "h_maintain", {"value": None}
         ),
         "sites[gridiv=1].properties.irrigation.h_maintain",
-        True,
+        ("sites[gridiv=1].properties.irrigation.h_maintain",),
         id="irrigation-null-h_maintain",
     ),
     pytest.param(
@@ -146,7 +148,7 @@ _WITNESS_CASES = [
             "h_maintain", {"value": float("nan")}
         ),
         "sites[gridiv=1].properties.irrigation.h_maintain",
-        True,
+        ("sites[gridiv=1].properties.irrigation.h_maintain",),
         id="irrigation-malformed-nan-h_maintain",
     ),
     pytest.param(
@@ -155,7 +157,7 @@ _WITNESS_CASES = [
             s["properties"]["irrigation"]["wuprofa_24hr"]["working_day"]
         ),
         "sites[gridiv=1].properties.irrigation.wuprofa_24hr.working_day",
-        True,
+        ("wuprofa_24hr.working_day", "24"),
         id="irrigation-wrong-size-wuprofa_24hr",
     ),
 ]
@@ -163,7 +165,7 @@ _WITNESS_CASES = [
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("activate_irrigation", "mutate_site", "expected_path", "check_public_config"),
+    ("activate_irrigation", "mutate_site", "expected_path", "public_needles"),
     _WITNESS_CASES,
 )
 def test_conductance_and_irrigation_br02_failure_witnesses(
@@ -173,7 +175,7 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
     activate_irrigation: bool,
     mutate_site,
     expected_path: str,
-    check_public_config: bool,
+    public_needles: tuple[str, ...] | None,
 ) -> None:
     """BR-02 witnesses for conductance and irrigation across Python and suews-engine."""
     doc, out_dir = _stage_doc(_conductance_irrigation_base, tmp_path)
@@ -209,10 +211,13 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
     assert not (out_dir / "suews_output.arrow").exists()
 
     # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation.run)
-    if check_public_config:
+    if public_needles is not None:
         try:
             cfg = SUEWSConfig.from_dict(doc)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as cfg_exc:
+            msg = str(cfg_exc)
+            for needle in public_needles:
+                assert needle in msg, f"expected {needle!r} in {msg!r}"
             return
         df_forcing = _conductance_irrigation_base["df_forcing_12h"]
         sim = SUEWSSimulation()
@@ -225,7 +230,9 @@ def test_conductance_and_irrigation_br02_failure_witnesses(
                 n_jobs=1,
                 _validate_forcing=False,
             )
-        assert expected_path in str(sim_exc.value), str(sim_exc.value)
+        msg = str(sim_exc.value)
+        for needle in public_needles:
+            assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 @pytest.mark.core

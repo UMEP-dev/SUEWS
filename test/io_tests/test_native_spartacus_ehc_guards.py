@@ -50,6 +50,8 @@ def _spartacus_ehc_base(sample_config_loaded, sample_forcing_parsed):
     stebbs_doc["model"]["control"]["end_time"] = "2012-01-01 12:00:00"
     stebbs_doc["model"]["control"]["output"]["freq"] = 3600
     stebbs_doc["model"]["control"]["output"]["include_provisional"] = True
+    # Establish positive baseline that the unmutated SPARTACUS+EHC doc passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(stebbs_doc))
 
     inactive_cfg = sample_config_loaded.model_copy(deep=True)
     inactive_cfg.model.physics.net_radiation = 3
@@ -91,30 +93,30 @@ _WITNESS_CASES = [
     # SPARTACUS subsystem: missing, null, malformed, incorrectly sized
     pytest.param(
         lambda s: s["properties"]["spartacus"].pop("air_ext_sw"),
-        "sites[gridiv=1].properties.spartacus.air_ext_sw",
-        False,
+        ("sites[gridiv=1].properties.spartacus.air_ext_sw",),
+        None,
         id="spartacus-missing-air_ext_sw",
     ),
     pytest.param(
         lambda s: s["properties"]["spartacus"].__setitem__(
             "air_ext_sw", {"value": None}
         ),
-        "sites[gridiv=1].properties.spartacus.air_ext_sw",
-        True,
+        ("sites[gridiv=1].properties.spartacus.air_ext_sw",),
+        ("air_ext_sw",),
         id="spartacus-null-air_ext_sw",
     ),
     pytest.param(
         lambda s: s["properties"]["spartacus"].__setitem__("n_stream_sw_urban", 1.5),
-        "sites[gridiv=1].properties.spartacus.n_stream_sw_urban",
-        True,
+        ("sites[gridiv=1].properties.spartacus.n_stream_sw_urban",),
+        ("n_stream_sw_urban",),
         id="spartacus-malformed-n_stream_sw_urban",
     ),
     pytest.param(
         lambda s: s["properties"]["vertical_layers"].__setitem__(
             "height", {"value": [0.0, 10.0]}
         ),
-        "sites[gridiv=1].properties.vertical_layers.height",
-        True,
+        ("sites[gridiv=1].properties.vertical_layers.height",),
+        ("vertical_layers",),
         id="spartacus-wrong-size-height",
     ),
     # EHC subsystem: missing, null, malformed, incorrectly sized
@@ -122,48 +124,57 @@ _WITNESS_CASES = [
         lambda s: s["properties"]["vertical_layers"]["walls"][0]["thermal_layers"].pop(
             "k"
         ),
-        "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
-        False,
+        ("sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",),
+        None,
         id="ehc-missing-wall-thermal-k",
     ),
     pytest.param(
         lambda s: s["properties"]["vertical_layers"]["walls"][0][
             "thermal_layers"
         ].__setitem__("k", {"value": [None, 1.0, 1.0, 1.0, 1.0]}),
-        "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
-        True,
+        (
+            "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
+            "element [0]",
+        ),
+        (
+            "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
+            "element [0]",
+        ),
         id="ehc-null-wall-thermal-k-elem",
     ),
     pytest.param(
         lambda s: s["properties"]["vertical_layers"]["walls"][0][
             "thermal_layers"
         ].__setitem__("k", {"value": ["bad", 1.0, 1.0, 1.0, 1.0]}),
-        "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
-        True,
+        (
+            "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
+            "element [0]",
+        ),
+        ("walls.0.thermal_layers.k",),
         id="ehc-malformed-wall-thermal-k-elem",
     ),
     pytest.param(
-        lambda s: s["properties"]["vertical_layers"]["walls"][0][
-            "thermal_layers"
-        ].__setitem__("k", {"value": [1.0, 1.0]}),
-        "sites[gridiv=1].properties.vertical_layers.walls[0].thermal_layers.k",
-        True,
-        id="ehc-wrong-size-wall-thermal-k",
+        lambda s: s["properties"]["vertical_layers"].__setitem__(
+            "walls", s["properties"]["vertical_layers"]["walls"][:1]
+        ),
+        ("sites[gridiv=1].properties.vertical_layers.walls",),
+        ("Wall layers count (1)", "nlayer (3)"),
+        id="ehc-wrong-size-walls",
     ),
 ]
 
 
 @pytest.mark.core
 @pytest.mark.parametrize(
-    ("mutate", "expected_path", "check_public_config"), _WITNESS_CASES
+    ("mutate", "expected_needles", "public_needles"), _WITNESS_CASES
 )
 def test_active_spartacus_and_ehc_br02_failure_witnesses(
     tmp_path: Path,
     suews_engine_bin: Path,
     _spartacus_ehc_base: dict,
     mutate,
-    expected_path: str,
-    check_public_config: bool,
+    expected_needles: tuple[str, ...],
+    public_needles: tuple[str, ...] | None,
 ) -> None:
     """BR-02 witnesses for SPARTACUS and EHC across Python and suews-engine."""
     doc, out_dir = _stage_doc(
@@ -182,7 +193,9 @@ def test_active_spartacus_and_ehc_br02_failure_witnesses(
             _spartacus_ehc_base["forcing_flat"],
             _spartacus_ehc_base["n_steps"],
         )
-    assert expected_path in str(exc_info.value), str(exc_info.value)
+    pyo3_msg = str(exc_info.value)
+    for needle in expected_needles:
+        assert needle in pyo3_msg, f"expected {needle!r} in {pyo3_msg!r}"
 
     # 2. Standalone suews-engine witness
     cfg_path = tmp_path / "bad_spartacus_ehc.yml"
@@ -195,33 +208,34 @@ def test_active_spartacus_and_ehc_br02_failure_witnesses(
         check=False,
     )
     assert res.returncode != 0
-    assert expected_path in f"{res.stdout}\n{res.stderr}", res.stderr
+    combined = f"{res.stdout}\n{res.stderr}"
+    for needle in expected_needles:
+        assert needle in combined, f"expected {needle!r} in {combined!r}"
     assert not (out_dir / "suews_output.arrow").exists()
 
-    # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation)
-    if check_public_config:
+    # 3. Public Python entry point witness (SUEWSConfig parse or SUEWSSimulation.run)
+    if public_needles is not None:
         try:
             cfg = SUEWSConfig.from_dict(doc)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as cfg_exc:
+            msg = str(cfg_exc)
+            for needle in public_needles:
+                assert needle in msg, f"expected {needle!r} in {msg!r}"
             return
         df_forcing = _spartacus_ehc_base["df_forcing"]
         sim = SUEWSSimulation()
-        with pytest.raises((
-            ValueError,
-            TypeError,
-            IndexError,
-            RuntimeError,
-        )) as sim_exc:
-            sim.update_config(cfg, auto_load_forcing=False)
-            sim.update_forcing(df_forcing)
+        sim.update_config(cfg, auto_load_forcing=False)
+        sim.update_forcing(df_forcing)
+        with pytest.raises(RuntimeError) as sim_exc:
             sim.run(
                 start_date=df_forcing.index[0],
                 end_date=df_forcing.index[-1],
                 n_jobs=1,
                 _validate_forcing=False,
             )
-        if isinstance(sim_exc.value, RuntimeError):
-            assert expected_path in str(sim_exc.value), str(sim_exc.value)
+        msg = str(sim_exc.value)
+        for needle in public_needles:
+            assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 @pytest.mark.core

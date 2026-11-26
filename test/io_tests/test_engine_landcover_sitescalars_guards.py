@@ -99,6 +99,8 @@ def sample_bridge_inputs(sample_config_loaded, sample_forcing_parsed):
     df_forcing_obs_qn = df_forcing.copy()
     df_forcing_obs_qn["qn"] = 50.0
     raw_dict = sample_config_loaded.model_dump(exclude_none=True, mode="json")
+    # Establish positive baseline that the unmutated dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(raw_dict))
     forcing_flat = (
         _run_rust._prepare_forcing_block(df_forcing).ravel(order="C").tolist()
     )
@@ -200,21 +202,21 @@ _WITNESS_CASES = [
         ("properties", "pipecapacity"),
         None,
         "sites[gridiv=1].properties.pipecapacity",
-        False,
+        None,
         id="site-scalar-missing-pipecapacity",
     ),
     pytest.param(
         ("properties", "pipecapacity"),
         {"value": None},
         "sites[gridiv=1].properties.pipecapacity",
-        True,
+        ("pipecapacity", "null"),
         id="site-scalar-null-pipecapacity",
     ),
     pytest.param(
         ("properties", "narp_trans_site"),
         {"value": "invalid"},
         "sites[gridiv=1].properties.narp_trans_site",
-        True,
+        ("narp_trans_site",),
         id="site-scalar-malformed-narp_trans_site",
     ),
     # Land-cover scalars subsystem: missing, null, malformed
@@ -222,28 +224,28 @@ _WITNESS_CASES = [
         ("properties", "land_cover", "paved", "sfr"),
         None,
         "sites[gridiv=1].properties.land_cover.paved.sfr",
-        False,
+        None,
         id="landcover-missing-sfr",
     ),
     pytest.param(
         ("properties", "land_cover", "paved", "sfr"),
         {"value": None},
         "sites[gridiv=1].properties.land_cover.paved.sfr",
-        True,
+        ("land_cover.paved.sfr", "null"),
         id="landcover-null-sfr",
     ),
     pytest.param(
         ("properties", "land_cover", "paved", "sfr"),
         {"value": -0.05},
         "sites[gridiv=1].properties.land_cover.paved.sfr",
-        True,
+        ("land_cover.paved.sfr",),
         id="landcover-malformed-negative-sfr",
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    ("target_path", "replacement", "expected_path", "check_public_config"),
+    ("target_path", "replacement", "expected_path", "public_needles"),
     _WITNESS_CASES,
 )
 def test_site_scalar_and_landcover_br02_failure_witnesses(
@@ -254,7 +256,7 @@ def test_site_scalar_and_landcover_br02_failure_witnesses(
     target_path: tuple[str, ...],
     replacement,
     expected_path: str,
-    check_public_config: bool,
+    public_needles: tuple[str, ...] | None,
 ):
     """BR-02 witnesses for site scalars and land cover across Python and suews-engine."""
     base_cfg, forcing_flat, _, count = sample_bridge_inputs
@@ -286,9 +288,12 @@ def test_site_scalar_and_landcover_br02_failure_witnesses(
     assert not (out_dir / "suews_output.arrow").exists()
 
     # 3. Public Python SUEWSConfig entry point witness
-    if check_public_config:
-        with pytest.raises((ValueError, TypeError)):
+    if public_needles is not None:
+        with pytest.raises((ValueError, TypeError)) as cfg_exc:
             SUEWSConfig.from_dict(cfg)
+        msg = str(cfg_exc.value)
+        for needle in public_needles:
+            assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 def test_inactive_paved_only_omission_is_bit_identical(sample_bridge_inputs):

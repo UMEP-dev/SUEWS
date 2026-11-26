@@ -5,16 +5,17 @@ validation method is mocked. The native reader is a separate work item.
 
 Cost shape (gh#2349). Large YAML documents are parsed and written with libyaml
 when available. Finite source round trips rotate distinct values and distinct
-per-surface references across two mixed bare/wrapped patterns and an
-all-wrapped pattern per route (18 cases instead of 36, covering every
-route x form x surface x value combination as well as mixed-form and
-per-surface reference preservation). Finite replacements likewise rotate
-distinct values and per-surface references across all 4 mutations x 3 offsets.
-YAML boolean rejection omits ``np.bool_`` inputs that the YAML serializer turns
-into identical plain booleans (60 cases instead of 72). Daily-output runs keep
-all 24 single-surface checks against the sample background while sharing one
-day of forcing via a module fixture over ``sample_forcing_parsed`` and avoiding
-unused config copies on non-mutation routes.
+per-surface references across the three single-bare layouts and an all-wrapped
+layout per route (24 cases instead of 36, covering every route x form x
+surface x value combination as well as every single-surface mixed layout and
+per-surface reference preservation). Finite replacements retain all 12
+uniform-value cases (with distinct per-surface references checked for ``typed``
+and ``mapping``). YAML boolean rejection omits the 12 ``np.bool_`` cases that
+the previous test explicitly converted with ``bool(value)`` before dumping YAML
+(60 cases instead of 72). Daily-output runs keep all 24 single-surface checks
+against the sample background while sharing one day of forcing via a module
+fixture over ``sample_forcing_parsed`` and avoiding unused config copies on
+non-mutation routes.
 """
 
 import copy
@@ -62,11 +63,13 @@ MUTATIONS = (
 )
 REPLACEMENT_MUTATIONS = ("typed", "scalar", "nested", "mapping")
 DAILY_SDD = {"evetr": "SDD_EveTr", "dectr": "SDD_DecTr", "grass": "SDD_Grass"}
-# Two mixed bare/wrapped layouts plus all-wrapped cover every surface in both
-# bare and wrapped forms while exercising mixed-form and distinct-ref configs.
+# Each single-bare layout plus all-wrapped covers every surface in both bare
+# and wrapped forms, distinguishes every pair of surfaces' wrapping flags, and
+# exercises mixed-form and distinct-ref configs.
 FINITE_FORM_PATTERNS = (
-    pytest.param((False, True, False), id="mixed_dectr_wrapped"),
-    pytest.param((True, False, True), id="mixed_dectr_bare"),
+    pytest.param((False, True, True), id="bare_evetr"),
+    pytest.param((True, False, True), id="bare_dectr"),
+    pytest.param((True, True, False), id="bare_grass"),
     pytest.param((True, True, True), id="all_wrapped"),
 )
 # Two forcing steps reach every simulation handoff; a full day is needed only
@@ -92,8 +95,9 @@ def _rotation(values, offset):
     }
 
 
-# A YAML file has no numpy scalar: ``np.bool_`` reaches the YAML route as the
-# same plain boolean, so only the plain booleans are distinct YAML inputs.
+# YAML has no numpy scalar: the previous test explicitly converted ``np.bool_``
+# via ``bool(value)`` before dumping, producing identical YAML inputs, so only
+# plain booleans are distinct on the YAML route.
 BOOLEAN_LOAD_CASES = [
     pytest.param(
         route,
@@ -331,19 +335,18 @@ def test_nested_refvalue_assignment_rejects_booleans_and_accepts_finite(
 
 
 @pytest.mark.parametrize("mutation", REPLACEMENT_MUTATIONS)
-@pytest.mark.parametrize("offset", range(len(FINITE)), ids=lambda o: f"rotation{o}")
+@pytest.mark.parametrize("value", FINITE)
 def test_finite_replacements_and_dataframe_roundtrip(
-    sample_config_loaded, mutation, offset
+    sample_config_loaded, mutation, value
 ):
-    values = _rotation(FINITE, offset)
     cfg = sample_config_loaded.model_copy(deep=True)
-    for surface, value in values.items():
+    for surface in SURFACES:
         _mutate(cfg, surface, value, mutation, ref=_ref(surface))
     frame = cfg.to_df_state()
     rebuilt = SUEWSConfig.from_df_state(frame)
     for candidate in (cfg, rebuilt):
         data = _yaml_load(config_to_engine_yaml(candidate))
-        for surface, value in values.items():
+        for surface in SURFACES:
             field = _field(data, surface)
             assert (field["value"] if isinstance(field, dict) else field) == value
             if mutation in {"typed", "mapping"} and candidate is cfg:

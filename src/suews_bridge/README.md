@@ -41,7 +41,7 @@ Data crosses four layers during a simulation:
 |    data_model/ (Pydantic validation, defaults, migrations)                  |
 |      -> _run_rust.py (config_to_engine_yaml / _grid_config_jsons,           |
 |                       forcing array, output buffers)                        |
-|      -> suews_checkpoint.py (SUEWSCheckpoint v2 envelope per grid)          |
+|      -> suews_checkpoint.py (SUEWSCheckpoint v3 envelope per grid)          |
 +-------------------------------------+---------------------------------------+
                                       | PyO3 (lib.rs) or resolved YAML (main.rs)
                                       v
@@ -194,7 +194,7 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 | `src/supy/build_rust_bridge.py` | Meson build helper invoked by the root `meson-python` build (`pyproject.toml` -> `src/supy/meson.build`): runs `cargo build` for the PyO3 extension and `suews-engine` binary, copies them into package staging paths, and writes a Ninja depfile tracking Rust, C-API and driver sources. |
 | `src/supy/cmd/rust_bridge.py` | Thin Python wrapper locating and invoking the bundled `supy/bin/suews-engine` binary. |
 | `src/supy/_run_rust.py` | Primary Python-to-Rust integration layer: validates output column layout parity against Fortran, serialises `SUEWSConfig` (single-grid YAML via `config_to_engine_yaml`, one-site-per-grid JSON via `_grid_config_jsons`), prepares `(len_sim, 32)` forcing blocks, allocates Fortran-ordered output stores, dispatches single/multi-grid/chunked/streamed runs, and wraps results into pandas DataFrames. |
-| `src/supy/suews_checkpoint.py` | Python `SUEWSCheckpoint` dataclass wrapping per-grid version-2 checkpoint JSON envelopes with schema validation and atomic file writes. |
+| `src/supy/suews_checkpoint.py` | Python `SUEWSCheckpoint` dataclass wrapping per-grid version-3 checkpoint JSON envelopes with schema validation and atomic file writes. |
 | `src/suews_bridge/examples/ohm_state_python_demo.py` | Minimal Python demonstration of constructing and inspecting `OhmState` via PyO3. |
 
 ### Rust entry points, orchestration and ABI (`src/suews_bridge/src/`)

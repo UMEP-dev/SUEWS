@@ -22,6 +22,7 @@ Exits 0 when every check passes, 1 otherwise.
 from __future__ import annotations
 
 import ast
+import os
 from pathlib import Path
 import re
 import sys
@@ -43,10 +44,29 @@ PERIPHERAL_TEST_DIRS: tuple[str, ...] = (
     "test/umep",
 )
 
-# Top-level Make variable assignment (spaces allowed; leading tab is a recipe).
-_TEST_DEFAULT_PATHS_RE = re.compile(
-    r"^ *TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|=)(?P<value>.*)$"
+# Make parser regexes (leading spaces only; a leading tab denotes a recipe).
+_COND_OPEN_RE = re.compile(r"^ *(?:ifeq|ifneq|ifdef|ifndef)\b")
+_COND_CLOSE_RE = re.compile(r"^ *endif\b")
+_DEFINE_OPEN_RE = re.compile(
+    r"^ *(?:(?:override|export|private)[ \t]+)*define[ \t]+(?P<name>\S+)"
 )
+_DEFINE_CLOSE_RE = re.compile(r"^ *endef\b")
+_UNDEFINE_TARGET_RE = re.compile(
+    r"^ *(?:override[ \t]+)?undefine[ \t]+TEST_DEFAULT_PATHS\b"
+)
+_TEST_DEFAULT_PATHS_RE = re.compile(
+    r"^ *(?P<prefix>(?:(?:override|export|private)[ \t]+)*)"
+    r"TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|!=|=)(?P<value>.*)$"
+)
+_TARGET_SPECIFIC_RE = re.compile(
+    r"^ *[^#\t][^:=]*:[ \t]*(?:(?:override|export|private)[ \t]+)*"
+    r"TEST_DEFAULT_PATHS[ \t]*(?:::=|:=|\?=|\+=|!=|=)"
+)
+
+
+def _to_ascii(text: str) -> str:
+    """Escape non-ASCII characters so diagnostics stay strictly 0x00..0x7F."""
+    return text.encode("ascii", errors="backslashreplace").decode("ascii")
 
 
 def iter_test_files(test_root: Path) -> list[Path]:
@@ -171,6 +191,41 @@ def _validate_relative_token(token: str, source_label: str) -> str:
     return normalised
 
 
+def _apply_makefile_assignment(
+    match: re.Match[str],
+    cond_depth: int,
+    raw_tokens: list[str],
+    found: bool,
+) -> tuple[list[str], bool]:
+    """Validate and apply one top-level ``TEST_DEFAULT_PATHS`` assignment."""
+    if cond_depth > 0:
+        raise ValueError(
+            "TEST_DEFAULT_PATHS assignment inside Make conditional is unsupported"
+        )
+    prefix = match.group("prefix").strip()
+    if prefix:
+        raise ValueError(
+            f"TEST_DEFAULT_PATHS uses unsupported Make directive prefix: {prefix}"
+        )
+    op = match.group("op")
+    if op == "!=":
+        raise ValueError(
+            "TEST_DEFAULT_PATHS uses unsupported Make shell assignment operator !="
+        )
+    value = match.group("value").split("#", 1)[0]
+    if "$" in value:
+        raise ValueError(
+            "TEST_DEFAULT_PATHS contains unsupported Make variable reference: "
+            f"{value.strip()}"
+        )
+    tokens = value.split()
+    if op in {":=", "::=", "="}:
+        return (tokens, True)
+    if op == "?=":
+        return (raw_tokens, True) if found else (tokens, True)
+    return ([*raw_tokens, *tokens], True)
+
+
 def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     """Parse ``TEST_DEFAULT_PATHS`` directly from a ``Makefile``.
 
@@ -189,33 +244,52 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
     ------
     ValueError
         If ``TEST_DEFAULT_PATHS`` is missing, empty, uses unsupported Make
-        variable expansion, or contains an invalid path token.
+        syntax (conditionals, variable references, directive prefixes,
+        ``define``/``undefine``, shell ``!=``, or target-specific
+        assignments), or contains an invalid path token.
     """
     text = makefile_path.read_text(encoding="utf-8")
     found = False
     raw_tokens: list[str] = []
+    cond_depth = 0
+    in_define = False
+
     for line in _join_makefile_continuations(text):
-        match = _TEST_DEFAULT_PATHS_RE.match(line)
-        if match is None:
+        if line.startswith("\t") or line.lstrip().startswith("#"):
             continue
-        op = match.group("op")
-        value = match.group("value").split("#", 1)[0]
-        if "$" in value:
+        if in_define:
+            in_define = not bool(_DEFINE_CLOSE_RE.match(line))
+            continue
+
+        define_match = _DEFINE_OPEN_RE.match(line)
+        if define_match is not None:
+            if define_match.group("name").rstrip(":=") == "TEST_DEFAULT_PATHS":
+                raise ValueError(
+                    "TEST_DEFAULT_PATHS uses unsupported Make define block"
+                )
+            in_define = True
+            continue
+
+        if _COND_OPEN_RE.match(line):
+            cond_depth += 1
+            continue
+        if _COND_CLOSE_RE.match(line):
+            cond_depth = max(0, cond_depth - 1)
+            continue
+        if _UNDEFINE_TARGET_RE.match(line):
             raise ValueError(
-                "TEST_DEFAULT_PATHS contains unsupported Make variable reference: "
-                f"{value.strip()}"
+                "TEST_DEFAULT_PATHS uses unsupported Make undefine directive"
             )
-        tokens = value.split()
-        if op in {":=", "::=", "="}:
-            raw_tokens = tokens
-            found = True
-        elif op == "?=":
-            if not found:
-                raw_tokens = tokens
-                found = True
-        elif op == "+=":
-            raw_tokens.extend(tokens)
-            found = True
+        if _TARGET_SPECIFIC_RE.match(line):
+            raise ValueError(
+                "TEST_DEFAULT_PATHS uses unsupported target-specific Make assignment"
+            )
+
+        match = _TEST_DEFAULT_PATHS_RE.match(line)
+        if match is not None:
+            raw_tokens, found = _apply_makefile_assignment(
+                match, cond_depth, raw_tokens, found
+            )
 
     if not found:
         raise ValueError(
@@ -238,6 +312,36 @@ def _is_covered_by_lane(
     if rel_path in covered_files:
         return True
     return any(rel_path.is_relative_to(directory) for directory in covered_dirs)
+
+
+def _find_symlink_errors(resolved_root: Path, test_root: Path) -> list[str]:
+    """Return errors for unsupported directory symlinks or escaping symlinks."""
+    errors: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(test_root, followlinks=False):
+        current_dir = Path(dirpath)
+        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
+
+        kept_dirs: list[str] = []
+        for dirname in dirnames:
+            entry = current_dir / dirname
+            if entry.is_symlink():
+                rel = entry.relative_to(resolved_root).as_posix()
+                errors.append(f"unsupported directory symlink under test/: {rel}")
+            else:
+                kept_dirs.append(dirname)
+        dirnames[:] = kept_dirs
+
+        for filename in sorted(filenames):
+            entry = current_dir / filename
+            if not entry.is_symlink():
+                continue
+            rel = entry.relative_to(resolved_root).as_posix()
+            target = entry.resolve(strict=False)
+            if not entry.exists():
+                errors.append(f"broken symlink under test/: {rel}")
+            elif not target.is_relative_to(resolved_root):
+                errors.append(f"symlink under test/ escapes repository root: {rel}")
+    return errors
 
 
 def find_orphan_test_files(
@@ -264,15 +368,17 @@ def find_orphan_test_files(
     Returns
     -------
     tuple[list[str], list[str]]
-        ``(errors, orphans)`` where ``errors`` describes ``Makefile`` parse
-        or invalid-path failures and ``orphans`` lists uncovered test files
-        as POSIX paths relative to ``repo_root``.
+        ``(errors, orphans)`` where ``errors`` describes ``Makefile`` parse,
+        symlink, or invalid-path failures and ``orphans`` lists uncovered
+        test files as POSIX paths relative to ``repo_root``.
     """
     resolved_root = repo_root.resolve()
     resolved_test_root = (
-        test_root if test_root is not None else repo_root / "test"
+        test_root if test_root is not None else resolved_root / "test"
     ).resolve()
-    makefile = makefile_path if makefile_path is not None else repo_root / "Makefile"
+    makefile = (
+        makefile_path if makefile_path is not None else resolved_root / "Makefile"
+    )
 
     if not makefile.is_file():
         return ([f"Makefile not found at {makefile.as_posix()}"], [])
@@ -298,10 +404,10 @@ def find_orphan_test_files(
         if not candidate.is_relative_to(resolved_test_root):
             errors.append(f"TEST_DEFAULT_PATHS entry is outside test/: {entry}")
             continue
-        rel_entry = candidate.relative_to(resolved_root)
-        if candidate.is_file():
+        rel_entry = Path(entry)
+        if raw_candidate.is_file():
             covered_files.add(rel_entry)
-        elif candidate.is_dir():
+        elif raw_candidate.is_dir():
             covered_dirs.add(rel_entry)
         else:
             errors.append(
@@ -318,9 +424,11 @@ def find_orphan_test_files(
             continue
         covered_dirs.add(Path(norm_peripheral))
 
+    errors.extend(_find_symlink_errors(resolved_root, resolved_test_root))
+
     orphans: list[str] = []
     for path in iter_test_files(resolved_test_root):
-        rel = path.resolve().relative_to(resolved_root)
+        rel = path.relative_to(resolved_root)
         if not _is_covered_by_lane(rel, covered_files, covered_dirs):
             orphans.append(rel.as_posix())
 
@@ -344,7 +452,7 @@ def main(argv: list[str]) -> int:
     repo_root = Path(argv[1]).resolve() if len(argv) > 1 else Path.cwd().resolve()
     test_root = repo_root / "test"
     if not test_root.is_dir():
-        print(f"[X] test/ not found under {repo_root}", file=sys.stderr)
+        print(_to_ascii(f"[X] test/ not found under {repo_root}"), file=sys.stderr)
         return 1
 
     test_files = iter_test_files(test_root)
@@ -371,7 +479,7 @@ def main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         for rel_str in missing:
-            print(f"  - {rel_str}", file=sys.stderr)
+            print(_to_ascii(f"  - {rel_str}"), file=sys.stderr)
         print(
             "Add `pytestmark = pytest.mark.api` (or physics) at module level, "
             "or auto-apply via a conftest.py hook.",
@@ -381,11 +489,12 @@ def main(argv: list[str]) -> int:
     if lane_errors:
         failed = True
         print(
-            "[X] gh#2349 lane-coverage lint: invalid Makefile TEST_DEFAULT_PATHS:",
+            "[X] gh#2349 lane-coverage lint: invalid Makefile TEST_DEFAULT_PATHS "
+            "or test-tree layout:",
             file=sys.stderr,
         )
         for err in lane_errors:
-            print(f"  - {err}", file=sys.stderr)
+            print(_to_ascii(f"  - {err}"), file=sys.stderr)
 
     if orphans:
         failed = True
@@ -395,7 +504,7 @@ def main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         for rel_str in orphans:
-            print(f"  - {rel_str}", file=sys.stderr)
+            print(_to_ascii(f"  - {rel_str}"), file=sys.stderr)
         print(
             "Move each file into a directory listed in Makefile "
             "TEST_DEFAULT_PATHS or a documented peripheral surface "

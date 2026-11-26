@@ -43,6 +43,7 @@ def _make_repo(
     makefile: str | None = DEFAULT_MAKEFILE,
 ) -> Path:
     """Create a synthetic repository layout under ``tmp_path``."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
     if makefile is not None:
         (tmp_path / "Makefile").write_text(makefile, encoding="utf-8")
     for rel, source in files.items():
@@ -173,6 +174,9 @@ def test_makefile_continuations_comments_append_and_recipes(
         "# Comment with TEST_DEFAULT_PATHS := test/ignored\n"
         "dummy:\n"
         "\tTEST_DEFAULT_PATHS := test/recipe_ignored\n"
+        "define UNRELATED_MACRO\n"
+        "TEST_DEFAULT_PATHS := test/macro_ignored\n"
+        "endef\n"
         "TEST_DEFAULT_PATHS := \\\n"
         "    test/test_surface.py \\\n"
         "    test/core # inline comment\n"
@@ -216,6 +220,33 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "TEST_DEFAULT_PATHS := test/core ../outside\n",
             "parent traversal",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\n"
+            "ifeq (0,1)\n"
+            "TEST_DEFAULT_PATHS += test/stray\n"
+            "endif\n",
+            "inside Make conditional",
+        ),
+        (
+            "override TEST_DEFAULT_PATHS := test/core\n",
+            "unsupported Make directive prefix",
+        ),
+        (
+            "define TEST_DEFAULT_PATHS\ntest/core\nendef\n",
+            "unsupported Make define block",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\nundefine TEST_DEFAULT_PATHS\n",
+            "unsupported Make undefine directive",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core\ntest: TEST_DEFAULT_PATHS := test/core\n",
+            "target-specific Make assignment",
+        ),
+        (
+            "TEST_DEFAULT_PATHS != echo test/core\n",
+            "shell assignment operator !=",
         ),
     ],
 )
@@ -322,6 +353,102 @@ def test_marker_and_orphan_failures_both_reported(tmp_path: Path, capsys) -> Non
     assert "test/core/test_unmarked.py" in captured.err
     assert "test/orphan_dir/test_stray.py" in captured.err
     assert captured.err.count("[X]") >= 2
+
+
+def test_covered_file_symlink_preserves_collection_identity(
+    tmp_path: Path, capsys
+) -> None:
+    """A covered test symlink pointing inside the repo keeps its lane identity."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            "test/fixtures/shared_case.py": API_TEST_SOURCE,
+        },
+    )
+    alias = repo / "test" / "core" / "test_alias.py"
+    alias.symlink_to(repo / "test" / "fixtures" / "shared_case.py")
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 0, captured.err
+    assert "[OK]" in captured.out
+
+
+def test_escaping_file_symlink_reports_structured_error_without_masking(
+    tmp_path: Path, capsys
+) -> None:
+    """A test symlink escaping the repo emits [X] without crashing or masking."""
+    outside_file = tmp_path / "outside_test.py"
+    outside_file.write_text(API_TEST_SOURCE, encoding="utf-8")
+    repo = _make_repo(
+        tmp_path / "repo",
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_unmarked.py": UNMARKED_TEST_SOURCE,
+        },
+    )
+    escape_link = repo / "test" / "core" / "test_escape.py"
+    escape_link.symlink_to(outside_file)
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "escapes repository root" in captured.err
+    assert "test/core/test_escape.py" in captured.err
+    assert "test/core/test_unmarked.py" in captured.err
+    assert captured.err.isascii()
+
+
+def test_directory_symlink_under_test_is_rejected(tmp_path: Path, capsys) -> None:
+    """Directory symlinks under test/ fail closed rather than escaping discovery."""
+    external_dir = tmp_path / "external_suite"
+    external_dir.mkdir()
+    (external_dir / "test_hidden.py").write_text(API_TEST_SOURCE, encoding="utf-8")
+    repo = _make_repo(
+        tmp_path / "repo",
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+        },
+    )
+    linked_dir = repo / "test" / "linked_suite"
+    linked_dir.symlink_to(external_dir, target_is_directory=True)
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unsupported directory symlink" in captured.err
+    assert "test/linked_suite" in captured.err
+    assert captured.err.isascii()
+
+
+def test_non_ascii_orphan_path_is_escaped_in_diagnostics(
+    tmp_path: Path, capsys
+) -> None:
+    """Diagnostics stay strictly ASCII even when a filename is non-ASCII."""
+    orphan_name = "test/orphan_dir/test_caf\u00e9.py"
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+            orphan_name: API_TEST_SOURCE,
+        },
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert captured.err.isascii()
+    assert "test_caf\\xe9.py" in captured.err
 
 
 def test_missing_test_dir_fails(tmp_path: Path, capsys) -> None:

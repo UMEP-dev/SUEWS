@@ -53,6 +53,19 @@ def _make_repo(
     return tmp_path
 
 
+def _create_symlink(
+    link: Path,
+    target: Path,
+    *,
+    target_is_directory: bool = False,
+) -> None:
+    """Create a symlink, skipping only if the platform lacks symlink privileges."""
+    try:
+        link.symlink_to(target, target_is_directory=target_is_directory)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"Symlink creation unavailable on this runner: {exc}")
+
+
 def _run(repo_root: Path) -> int:
     return check_test_markers.main(["check_test_markers.py", str(repo_root)])
 
@@ -230,7 +243,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "override TEST_DEFAULT_PATHS := test/core\n",
-            "unsupported Make directive prefix",
+            "unsupported Make construct",
         ),
         (
             "define TEST_DEFAULT_PATHS\ntest/core\nendef\n",
@@ -238,20 +251,34 @@ def test_makefile_continuations_comments_append_and_recipes(
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\nundefine TEST_DEFAULT_PATHS\n",
-            "unsupported Make undefine directive",
+            "unsupported Make construct",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core\ntest: TEST_DEFAULT_PATHS := test/core\n",
-            "target-specific Make assignment",
+            "unsupported Make construct",
         ),
         (
             "TEST_DEFAULT_PATHS != echo test/core\n",
-            "unsupported Make assignment operator !=",
+            "unsupported Make construct",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "TEST_DEFAULT_PATHS :::= test/core\n",
-            "unsupported Make assignment operator :::=",
+            "unsupported Make construct",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "\tTEST_DEFAULT_PATHS := test/core\n",
+            "tab-indented construct outside a recipe",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "$(eval TEST_DEFAULT_PATHS := test/core)\n",
+            "unsupported Make construct",
+        ),
+        (
+            "include extra.mk\nTEST_DEFAULT_PATHS := test/core\n",
+            "Makefile include directives are unsupported",
         ),
     ],
 )
@@ -374,7 +401,7 @@ def test_covered_file_symlink_preserves_collection_identity(
         },
     )
     alias = repo / "test" / "core" / "test_alias.py"
-    alias.symlink_to(repo / "test" / "fixtures" / "shared_case.py")
+    _create_symlink(alias, repo / "test" / "fixtures" / "shared_case.py")
 
     rc = _run(repo)
     captured = capsys.readouterr()
@@ -397,7 +424,7 @@ def test_escaping_file_symlink_reports_structured_error_without_masking(
         },
     )
     escape_link = repo / "test" / "core" / "test_escape.py"
-    escape_link.symlink_to(outside_file)
+    _create_symlink(escape_link, outside_file)
 
     rc = _run(repo)
     captured = capsys.readouterr()
@@ -422,7 +449,7 @@ def test_directory_symlink_under_test_is_rejected(tmp_path: Path, capsys) -> Non
         },
     )
     linked_dir = repo / "test" / "linked_suite"
-    linked_dir.symlink_to(external_dir, target_is_directory=True)
+    _create_symlink(linked_dir, external_dir, target_is_directory=True)
 
     rc = _run(repo)
     captured = capsys.readouterr()
@@ -431,6 +458,29 @@ def test_directory_symlink_under_test_is_rejected(tmp_path: Path, capsys) -> Non
     assert "[X]" in captured.err
     assert "unsupported directory symlink" in captured.err
     assert "test/linked_suite" in captured.err
+    assert captured.err.isascii()
+
+
+def test_symlinked_test_root_is_rejected(tmp_path: Path, capsys) -> None:
+    """A symlinked test/ root is rejected before traversal."""
+    external_test = tmp_path / "external_test"
+    (external_test / "core").mkdir(parents=True)
+    (external_test / "core" / "test_ok.py").write_text(
+        API_TEST_SOURCE, encoding="utf-8"
+    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "Makefile").write_text(
+        "TEST_DEFAULT_PATHS := test/core\n", encoding="utf-8"
+    )
+    _create_symlink(repo / "test", external_test, target_is_directory=True)
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "[X]" in captured.err
+    assert "unsupported directory symlink" in captured.err
     assert captured.err.isascii()
 
 
@@ -476,7 +526,7 @@ def test_cyclic_symlink_reports_structured_error_without_masking(
         },
     )
     loop_link = repo / "test" / "core" / "loop"
-    loop_link.symlink_to(loop_link)
+    _create_symlink(loop_link, loop_link)
 
     rc = _run(repo)
     captured = capsys.readouterr()
@@ -485,6 +535,27 @@ def test_cyclic_symlink_reports_structured_error_without_masking(
     assert "cyclic or unresolvable symlink" in captured.err
     assert "test/core/loop" in captured.err
     assert "test/core/test_unmarked.py" in captured.err
+    assert captured.err.isascii()
+
+
+def test_broken_symlink_reports_structured_error(tmp_path: Path, capsys) -> None:
+    """A broken symlink under test/ produces a structured [X] diagnostic."""
+    repo = _make_repo(
+        tmp_path / "repo",
+        {
+            "test/test_surface.py": API_TEST_SOURCE,
+            "test/core/test_ok.py": API_TEST_SOURCE,
+        },
+    )
+    broken_link = repo / "test" / "core" / "test_broken.py"
+    _create_symlink(broken_link, repo / "test" / "core" / "does_not_exist.py")
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "broken symlink under test/" in captured.err
+    assert "test/core/test_broken.py" in captured.err
     assert captured.err.isascii()
 
 

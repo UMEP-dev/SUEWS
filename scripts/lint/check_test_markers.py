@@ -58,16 +58,17 @@ _DEFINE_DIRECTIVE_RE = re.compile(
     r"^(?:(?:override|export|private)[ \t]+)*define[ \t]+\S+"
 )
 _INCLUDE_RE = re.compile(r"^(?:-include|sinclude|include)[ \t]+")
-_TOPLEVEL_EXPANSION_RE = re.compile(r"^\$[({]")
 _DYNAMIC_MAKE_CALL_RE = re.compile(r"\$[({][ \t]*(?:eval|call)\b")
 _RECIPEPREFIX_RE = re.compile(r"\.RECIPEPREFIX\b")
-_COMPUTED_ASSIGN_RE = re.compile(
-    r"^(?:[^#\t:=]+:[ \t]*)?"
-    r"(?:(?:override|export|private)[ \t]+)*"
-    r"[^#\t=:]*\$[^#\t=:]*[ \t]*(?::::=|::=|:=|\?=|\+=|!=|=)"
-)
-_COMPUTED_UNDEFINE_RE = re.compile(r"^(?:override[ \t]+)?undefine[ \t]+.*\$")
 _PORTABLE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
+_WINDOWS_RESERVED_NAMES: frozenset[str] = frozenset({
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+})
 _MENTIONS_TARGET_RE = re.compile(r"\bTEST_DEFAULT_PATHS\b")
 _PLAIN_ASSIGN_RE = re.compile(
     r"^TEST_DEFAULT_PATHS[ \t]*(?P<op>::=|:=|\?=|\+=|=)(?P<value>.*)$"
@@ -340,25 +341,38 @@ def _validate_relative_token(token: str, source_label: str) -> str:
     path_token = Path(token)
     if ".." in path_token.parts:
         raise ValueError(f"{source_label} contains parent traversal: {token}")
+    for part in path_token.parts:
+        if (
+            part.endswith(".")
+            or part.split(".", 1)[0].upper() in _WINDOWS_RESERVED_NAMES
+        ):
+            raise ValueError(
+                f"{source_label} contains Windows-reserved path component: {token}"
+            )
     normalised = path_token.as_posix()
     if normalised in {"", "."}:
         raise ValueError(f"{source_label} contains invalid path token: {token}")
     return normalised
 
 
-def _strip_makefile_comment(line: str) -> str:
-    """Strip an unescaped ``#`` comment from a Makefile logical line."""
-    for idx, ch in enumerate(line):
-        if ch != "#":
-            continue
-        backslashes = idx - len(line[:idx].rstrip("\\"))
-        if backslashes % 2 == 0:
-            return line[:idx]
-    return line
+def _split_makefile_code_and_inline_recipe(
+    stripped: str,
+    *,
+    is_assignment: bool,
+) -> tuple[str, str | None]:
+    """Split a non-recipe line at its first unescaped ``#`` or inline rule ``;``."""
+    for idx, ch in enumerate(stripped):
+        if ch == "#":
+            backslashes = idx - len(stripped[:idx].rstrip("\\"))
+            if backslashes % 2 == 0:
+                return (stripped[:idx], None)
+        elif ch == ";" and not is_assignment and _RULE_HEADER_RE.match(stripped[:idx]):
+            return (stripped[:idx], stripped[idx + 1 :])
+    return (stripped, None)
 
 
 def _reject_unsupported_makefile_line(code: str) -> None:
-    """Reject top-level Make directives that can mutate variables dynamically."""
+    """Reject top-level Make directives or expansions that can mutate variables."""
     if _INCLUDE_RE.match(code):
         raise ValueError(
             "Makefile include directives are unsupported when parsing "
@@ -376,14 +390,9 @@ def _reject_unsupported_makefile_line(code: str) -> None:
         raise ValueError(
             "Makefile .RECIPEPREFIX is unsupported when parsing TEST_DEFAULT_PATHS"
         )
-    if _TOPLEVEL_EXPANSION_RE.match(code):
+    if "$" in code:
         raise ValueError(
-            "Makefile top-level expansion is unsupported when parsing "
-            f"TEST_DEFAULT_PATHS: {code.strip()}"
-        )
-    if _COMPUTED_ASSIGN_RE.match(code) or _COMPUTED_UNDEFINE_RE.match(code):
-        raise ValueError(
-            "Makefile computed variable name is unsupported when parsing "
+            "Makefile variable reference or expansion is unsupported when parsing "
             f"TEST_DEFAULT_PATHS: {code.strip()}"
         )
 
@@ -461,24 +470,14 @@ def parse_makefile_test_default_paths(makefile_path: Path) -> list[str]:
         if not stripped or stripped.startswith("#"):
             continue
 
-        is_assignment = bool(
-            _ANY_VAR_ASSIGN_RE.match(stripped) or _COMPUTED_ASSIGN_RE.match(stripped)
+        is_assignment = bool(_ANY_VAR_ASSIGN_RE.match(stripped))
+        code, inline_recipe = _split_makefile_code_and_inline_recipe(
+            stripped, is_assignment=is_assignment
         )
-        if not is_assignment and _RULE_HEADER_RE.match(stripped) and ";" in stripped:
-            header_part, inline_recipe = stripped.split(";", 1)
-            if _DYNAMIC_MAKE_CALL_RE.search(inline_recipe):
-                raise ValueError(
-                    "Makefile eval/call inside inline recipe is unsupported when "
-                    f"parsing TEST_DEFAULT_PATHS: {stripped}"
-                )
-            code = _strip_makefile_comment(header_part)
-        else:
-            code = _strip_makefile_comment(stripped)
-
-        if _DYNAMIC_MAKE_CALL_RE.search(code):
+        if inline_recipe is not None and _DYNAMIC_MAKE_CALL_RE.search(inline_recipe):
             raise ValueError(
-                "Makefile eval/call is unsupported when parsing "
-                f"TEST_DEFAULT_PATHS: {code.strip()}"
+                "Makefile eval/call inside inline recipe is unsupported when "
+                f"parsing TEST_DEFAULT_PATHS: {stripped}"
             )
         _reject_unsupported_makefile_line(code)
 

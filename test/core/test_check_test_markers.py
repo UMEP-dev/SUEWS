@@ -205,7 +205,7 @@ def test_makefile_continuations_comments_append_and_recipes(
     """Parser supports line continuations, comments, += and ignores recipes."""
     makefile = (
         "# Comment with TEST_DEFAULT_PATHS := test/ignored\n"
-        "dummy:\n"
+        "dummy: # explanation; avoid $(eval ...) here\n"
         "\tTEST_DEFAULT_PATHS := test/recipe_ignored\n"
         "TEST_DEFAULT_PATHS := \\\n"
         "    test/test_surface.py \\\n"
@@ -237,7 +237,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         ("TEST_DEFAULT_PATHS :=   # nothing listed\n", "TEST_DEFAULT_PATHS is empty"),
         (
             "TEST_DEFAULT_PATHS := $(EXTRA_TESTS)\n",
-            "unsupported Make variable reference",
+            "variable reference or expansion is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/missing_dir\n",
@@ -307,7 +307,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "Makefile eval/call is unsupported",
+            "variable reference or expansion is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -348,7 +348,7 @@ def test_makefile_continuations_comments_append_and_recipes(
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "UNUSED := \\#$(eval TEST_DEFAULT_PATHS := test/core)\n",
-            "Makefile eval/call is unsupported",
+            "variable reference or expansion is unsupported",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
@@ -367,7 +367,21 @@ def test_makefile_continuations_comments_append_and_recipes(
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"
             "suffix := PATHS\n"
             "TEST_DEFAULT_$(suffix) := test/core\n",
-            "computed variable name is unsupported",
+            "variable reference or expansion is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core test/orphan\n"
+            "suffix := PATHS\n"
+            "TEST_DEFAULT_$(suffix:X=Y) := test/core\n",
+            "variable reference or expansion is unsupported",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/aux\n",
+            "Windows-reserved path component",
+        ),
+        (
+            "TEST_DEFAULT_PATHS := test/core.\n",
+            "Windows-reserved path component",
         ),
         (
             "TEST_DEFAULT_PATHS := test/core test/orphan\n"

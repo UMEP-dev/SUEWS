@@ -148,8 +148,6 @@ CONTAINS
    !For water different equations in cold and warm temperatures
 
    FUNCTION sat_vap_press_x(Temp_c, PRESS_hPa, from, dectime, modState) RESULT(es_hPa)
-      ! USE module_ctrl_const_time
-      ! USE defaultnotUsed
       IMPLICIT NONE
 
       REAL(KIND(1D0)) :: temp_C, press_hpa, dectime !,pw
@@ -197,8 +195,6 @@ CONTAINS
    END FUNCTION sat_vap_press_x
 
    FUNCTION sat_vap_pressIce(Temp_c, PRESS_hPa, from, dectime, modState) RESULT(es_hPa)
-      ! USE module_ctrl_const_time
-      ! USE defaultnotUsed
       IMPLICIT NONE
 
       REAL(KIND(1D0)) :: e_mb, f, temp_C, press_hpa, press_kpa, es_hPA, dectime !,pw
@@ -239,7 +235,6 @@ CONTAINS
    !Output: specific humidity deficit in g/kg
    !Input: Dry air density and air pressure in hPa
    FUNCTION spec_hum_def(vpd_hPa, press_hPa) RESULT(dq)
-      ! USE module_ctrl_const_gas
       IMPLICIT NONE
       REAL(KIND(1D0)) :: press_hPa, vpd_hPa, dq
       REAL(KIND(1D0)), PARAMETER :: epsil_gkg = 621.97 !ratio molecular weight of water vapor/dry air in g/kg
@@ -254,7 +249,6 @@ CONTAINS
       ! Can be found from SG:s office from Atmmos Moist map
       !-------------------------------------------------------------------------------
 
-      ! USE defaultnotUsed
       IMPLICIT NONE
 
       REAL(KIND(1D0)) :: cp, cpd, cpm, rho_v, rho_d, rh, temp_C
@@ -284,10 +278,6 @@ CONTAINS
    FUNCTION Lat_vap(Temp_C, Ea_hPa, Press_hPa, cp, dectime, modState) RESULT(lv_J_kg)
       !Input: Air temperature, Water vapour pressure, Air pressure, heat capacity
       !Output: latent heat of vaporization
-
-      ! USE module_ctrl_const_time
-      ! USE SnowMod
-      ! USE defaultnotUsed
 
       IMPLICIT NONE
       REAL(KIND(1D0)) :: cp, lv_J_kg, ea_fix, tw, &
@@ -363,8 +353,6 @@ CONTAINS
    FUNCTION Lat_vapSublim(Temp_C, Ea_hPa, Press_hPa, cp) RESULT(lvS_J_kg)
       !Input: Air temperature, Water vapour pressure, Air pressure, heat capacity
       !Output: latent heat of sublimation in units J/kg
-
-      ! USE module_ctrl_const_time
 
       IMPLICIT NONE
 

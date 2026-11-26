@@ -386,7 +386,6 @@ CONTAINS
       nsh_real, &
       Tmin_id, Tmax_id, lenDay_id, & !inout
       HDD_id) !inout
-      ! use time, only: id, id_prev_t
       USE module_util_time, ONLY: cal_weekday_index
       IMPLICIT NONE
 

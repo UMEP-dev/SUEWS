@@ -36,7 +36,6 @@ MODULE module_phys_narp
    ! sg feb 2012 - Allocatable array module added
    USE module_ctrl_const_mathconst, ONLY: pi, RAD2DEG
    !==============================================================================================
-   ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
@@ -187,11 +186,6 @@ CONTAINS
       !Modified by LJ to calcuate snow free and SnowPack components (May 2013)
       !Modified to define variables in data_in module
       !-------------------------------------------------------------------------------
-      ! USE module_ctrl_const_allocate
-      ! use gis_data
-      ! use data_in ! Included 20140701, FL
-      ! USE module_ctrl_const_moist   ! Included 20140701, FL
-      ! use time    ! Included 20140701, FL
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: tsfc_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowFrac

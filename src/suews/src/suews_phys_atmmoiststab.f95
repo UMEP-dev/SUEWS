@@ -1158,7 +1158,6 @@ CONTAINS
       ! Note: Unstable part corresponds to Dyer (1974) mod. Hogstrom (1988)
       ! Note: Stable part corresponds to Van Ulden & Holtslag (1985) p 1206 in original code
 
-      ! use mod_z ! Original dependency - removed as not needed in isolated function
       ! use mod_k ! Original dependency - removed as not needed in isolated function
 
       IMPLICIT NONE

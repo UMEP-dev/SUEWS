@@ -147,7 +147,6 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    USE module_ctrl_const_datain
    USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   ! USE module_ctrl_const_wherewhen
 
    IMPLICIT NONE
 

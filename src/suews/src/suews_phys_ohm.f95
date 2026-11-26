@@ -2,12 +2,6 @@
 MODULE module_phys_ohm
    USE module_ctrl_const_options, ONLY: &
       DIAG_ON, SHM_DYOHM, SHM_DYOHM_BUILDING, SHM_STEBBS
-   ! USE module_ctrl_const_allocate
-   ! USE module_ctrl_const_datain
-   ! USE module_ctrl_const_default
-   ! USE module_ctrl_const_gis
-   ! USE module_ctrl_const_sues
-   ! USE module_ctrl_const_time
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER

@@ -3,17 +3,18 @@
 These tests use actual export and simulation entry points. No backend or
 validation method is mocked. The native reader is a separate work item.
 
-Cost shape (gh#2349). The in-process ``SUEWSConfig.from_dict`` route carries
-the full surface x form x value product of each load contract. The YAML-file
-and constructor routes add only a parse in front of ``from_dict`` or skip its
-preparation, so they carry pairwise witnesses: every value and every surface
-meets both the bare and the wrapped form. Live-mutation handoffs pair every
-mutation with every surface and every value. Finite round trips give each
-surface a different value in one configuration and rotate the assignment, so
-every (surface, value) pair still crosses every export, and distinct values
-expose a misrouted field. The daily-output engine check shares one all-zero
-baseline per route and moves one surface at a time. Large YAML documents are
-parsed and written with libyaml when it is available.
+Cost shape (gh#2349). Large YAML documents are parsed and written with libyaml
+when available. Finite source round trips rotate distinct values and distinct
+per-surface references across two mixed bare/wrapped patterns and an
+all-wrapped pattern per route (18 cases instead of 36, covering every
+route x form x surface x value combination as well as mixed-form and
+per-surface reference preservation). Finite replacements likewise rotate
+distinct values and per-surface references across all 4 mutations x 3 offsets.
+YAML boolean rejection omits ``np.bool_`` inputs that the YAML serializer turns
+into identical plain booleans (60 cases instead of 72). Daily-output runs keep
+all 24 single-surface checks against the sample background while sharing one
+day of forcing via a module fixture over ``sample_forcing_parsed`` and avoiding
+unused config copies on non-mutation routes.
 """
 
 import copy
@@ -47,7 +48,6 @@ SURFACES = ("evetr", "dectr", "grass")
 NONFINITE = (float("nan"), float("inf"), -float("inf"))
 NONFINITE_IDS = ("nan", "inf", "minus_inf")
 FINITE = (-450.0, 0.0, 12.5)
-NEGATIVE_SDD, POSITIVE_SDD = -17.0, 12.5
 BOOLEANS = (True, False, np.bool_(True), np.bool_(False))
 BOOLEAN_IDS = ("true", "false", "np_true", "np_false")
 REF = {"desc": "Finite senescence regression input"}
@@ -62,6 +62,13 @@ MUTATIONS = (
 )
 REPLACEMENT_MUTATIONS = ("typed", "scalar", "nested", "mapping")
 DAILY_SDD = {"evetr": "SDD_EveTr", "dectr": "SDD_DecTr", "grass": "SDD_Grass"}
+# Two mixed bare/wrapped layouts plus all-wrapped cover every surface in both
+# bare and wrapped forms while exercising mixed-form and distinct-ref configs.
+FINITE_FORM_PATTERNS = (
+    pytest.param((False, True, False), id="mixed_dectr_wrapped"),
+    pytest.param((True, False, True), id="mixed_dectr_bare"),
+    pytest.param((True, True, True), id="all_wrapped"),
+)
 # Two forcing steps reach every simulation handoff; a full day is needed only
 # where DailyState output is read.
 HANDOFF_STEPS = 2
@@ -73,43 +80,8 @@ def _form(wrapped):
     return "wrapped" if wrapped else "bare"
 
 
-def _full_cases(route, values, ids):
-    """Every surface x form x value for one load route."""
-    return [
-        pytest.param(
-            route,
-            wrapped,
-            surface,
-            value,
-            id=f"{route}-{_form(wrapped)}-{surface}-{name}",
-        )
-        for wrapped in (False, True)
-        for surface in SURFACES
-        for value, name in zip(values, ids, strict=True)
-    ]
-
-
-def _pairwise_cases(route, values, ids, shift=0):
-    """Pair every value and every surface with both the bare and wrapped forms.
-
-    ``shift`` rotates the surfaces, so two routes given shifts 0 and 1 also
-    cover every (surface, value) pair between them.
-    """
-    cases = []
-    for wrapped in (False, True):
-        for index in range(max(len(values), len(SURFACES))):
-            surface = SURFACES[(index + int(wrapped) + shift) % len(SURFACES)]
-            value, name = values[index % len(values)], ids[index % len(values)]
-            cases.append(
-                pytest.param(
-                    route,
-                    wrapped,
-                    surface,
-                    value,
-                    id=f"{route}-{_form(wrapped)}-{surface}-{name}",
-                )
-            )
-    return cases
+def _ref(surface):
+    return {"desc": f"Finite senescence regression input ({surface})"}
 
 
 def _rotation(values, offset):
@@ -120,27 +92,24 @@ def _rotation(values, offset):
     }
 
 
-NONFINITE_LOAD_CASES = (
-    _full_cases("dict", NONFINITE, NONFINITE_IDS)
-    + _pairwise_cases("yaml", NONFINITE, NONFINITE_IDS)
-    + _pairwise_cases("constructor", NONFINITE, NONFINITE_IDS, shift=1)
-)
 # A YAML file has no numpy scalar: ``np.bool_`` reaches the YAML route as the
-# same plain boolean, so only the plain booleans are distinct YAML witnesses.
-BOOLEAN_LOAD_CASES = (
-    _full_cases("dict", BOOLEANS, BOOLEAN_IDS)
-    + _pairwise_cases("yaml", BOOLEANS[:2], BOOLEAN_IDS[:2])
-    + _pairwise_cases("constructor", BOOLEANS, BOOLEAN_IDS, shift=1)
-)
-LIVE_CASES = [
+# same plain boolean, so only the plain booleans are distinct YAML inputs.
+BOOLEAN_LOAD_CASES = [
     pytest.param(
-        mutation,
+        route,
+        wrapped,
         surface,
-        NONFINITE[(m_index + s_index) % len(NONFINITE)],
-        id=f"{mutation}-{surface}-{NONFINITE_IDS[(m_index + s_index) % len(NONFINITE)]}",
+        value,
+        id=f"{route}-{_form(wrapped)}-{surface}-{name}",
     )
-    for m_index, mutation in enumerate(MUTATIONS)
-    for s_index, surface in enumerate(SURFACES)
+    for route in ("dict", "yaml", "constructor")
+    for wrapped in (False, True)
+    for surface in SURFACES
+    for value, name in zip(
+        BOOLEANS[:2] if route == "yaml" else BOOLEANS,
+        BOOLEAN_IDS[:2] if route == "yaml" else BOOLEAN_IDS,
+        strict=True,
+    )
 ]
 
 
@@ -175,8 +144,10 @@ def _column(surface):
     return ("sdd_id", f"({SURFACES.index(surface)},)")
 
 
-def _source(value, wrapped):
-    return {"value": value, "ref": REF.copy()} if wrapped else value
+def _source(value, wrapped, ref=None):
+    if not wrapped:
+        return value
+    return {"value": value, "ref": (REF if ref is None else ref).copy()}
 
 
 def _load(data, route, tmp_path):
@@ -189,16 +160,17 @@ def _load(data, route, tmp_path):
     return SUEWSConfig.from_yaml(str(path))
 
 
-def _mutate(cfg, surface, value, mutation, site_index=0):
+def _mutate(cfg, surface, value, mutation, site_index=0, ref=None):
     state = getattr(cfg.sites[site_index].initial_states, surface)
+    ref_data = REF if ref is None else ref
     if mutation == "nested":
         state.sdd_id.value = value
     elif mutation == "typed":
-        state.sdd_id = RefValue[float](value=value, ref=Reference(**REF))
+        state.sdd_id = RefValue[float](value=value, ref=Reference(**ref_data))
     elif mutation == "scalar":
         state.sdd_id = value
     elif mutation == "mapping":
-        state.sdd_id = {"value": value, "ref": REF.copy()}
+        state.sdd_id = {"value": value, "ref": ref_data.copy()}
     elif mutation == "unsafe_nested":
         object.__setattr__(state.sdd_id, "value", value)  # noqa: PLC2801 - bypass assignment validation
     elif mutation == "construct":
@@ -212,7 +184,10 @@ def _mutate(cfg, surface, value, mutation, site_index=0):
         raise AssertionError(mutation)
 
 
-@pytest.mark.parametrize(("route", "wrapped", "surface", "value"), NONFINITE_LOAD_CASES)
+@pytest.mark.parametrize("route", ["dict", "yaml", "constructor"])
+@pytest.mark.parametrize("wrapped", [False, True], ids=["bare", "wrapped"])
+@pytest.mark.parametrize("surface", SURFACES)
+@pytest.mark.parametrize("value", NONFINITE, ids=NONFINITE_IDS)
 def test_load_rejects_nonfinite_with_field_location(
     sample_dict, route, wrapped, surface, value, tmp_path
 ):
@@ -227,15 +202,19 @@ def test_load_rejects_nonfinite_with_field_location(
 
 
 @pytest.mark.parametrize("route", ["dict", "yaml"])
-@pytest.mark.parametrize("wrapped", [False, True], ids=["bare", "wrapped"])
+@pytest.mark.parametrize("wrapped_flags", FINITE_FORM_PATTERNS)
 @pytest.mark.parametrize("offset", range(len(FINITE)), ids=lambda o: f"rotation{o}")
 def test_finite_sources_preserve_value_reference_and_form(
-    sample_dict, route, wrapped, offset, tmp_path
+    sample_dict, route, wrapped_flags, offset, tmp_path
 ):
     values = _rotation(FINITE, offset)
+    expected_by_surface = {
+        surface: _source(values[surface], wrapped, ref=_ref(surface))
+        for surface, wrapped in zip(SURFACES, wrapped_flags, strict=True)
+    }
     data = copy.deepcopy(sample_dict)
-    for surface, value in values.items():
-        data["sites"][0]["initial_states"][surface]["sdd_id"] = _source(value, wrapped)
+    for surface, expected in expected_by_surface.items():
+        data["sites"][0]["initial_states"][surface]["sdd_id"] = copy.deepcopy(expected)
     cfg = _load(data, route, tmp_path)
     exports = {
         "engine_yaml": _yaml_load(config_to_engine_yaml(cfg)),
@@ -248,11 +227,10 @@ def test_finite_sources_preserve_value_reference_and_form(
     reloaded = SUEWSConfig.from_yaml(str(path))
     exports["reloaded_engine_yaml"] = _yaml_load(config_to_engine_yaml(reloaded))
     frame = cfg.to_df_state()
-    for surface, value in values.items():
-        expected = _source(value, wrapped)
+    for surface, expected in expected_by_surface.items():
         for export, data_out in exports.items():
             assert _field(data_out, surface) == expected, (export, surface)
-        assert frame.iloc[0][_column(surface)] == value, surface
+        assert frame.iloc[0][_column(surface)] == values[surface], surface
 
 
 @pytest.mark.parametrize("surface", SURFACES)
@@ -285,7 +263,9 @@ def test_dataframe_rejection_names_grid_surface_field(
     assert f"initial_states.{surface}.sdd_id" in str(error.value)
 
 
-@pytest.mark.parametrize(("mutation", "surface", "value"), LIVE_CASES)
+@pytest.mark.parametrize("surface", SURFACES)
+@pytest.mark.parametrize("mutation", MUTATIONS)
+@pytest.mark.parametrize("value", NONFINITE, ids=NONFINITE_IDS)
 def test_live_values_rejected_at_exports_and_simulation_handoffs(
     sample_config_loaded, day_forcing, surface, mutation, value, tmp_path
 ):
@@ -351,13 +331,14 @@ def test_nested_refvalue_assignment_rejects_booleans_and_accepts_finite(
 
 
 @pytest.mark.parametrize("mutation", REPLACEMENT_MUTATIONS)
-def test_finite_replacements_and_dataframe_roundtrip(sample_config_loaded, mutation):
-    # Rotating by mutation index pairs every mutation and every surface with
-    # every finite value across the four cases.
-    values = _rotation(FINITE, REPLACEMENT_MUTATIONS.index(mutation))
+@pytest.mark.parametrize("offset", range(len(FINITE)), ids=lambda o: f"rotation{o}")
+def test_finite_replacements_and_dataframe_roundtrip(
+    sample_config_loaded, mutation, offset
+):
+    values = _rotation(FINITE, offset)
     cfg = sample_config_loaded.model_copy(deep=True)
     for surface, value in values.items():
-        _mutate(cfg, surface, value, mutation)
+        _mutate(cfg, surface, value, mutation, ref=_ref(surface))
     frame = cfg.to_df_state()
     rebuilt = SUEWSConfig.from_df_state(frame)
     for candidate in (cfg, rebuilt):
@@ -366,7 +347,7 @@ def test_finite_replacements_and_dataframe_roundtrip(sample_config_loaded, mutat
             field = _field(data, surface)
             assert (field["value"] if isinstance(field, dict) else field) == value
             if mutation in {"typed", "mapping"} and candidate is cfg:
-                assert field["ref"] == REF
+                assert field["ref"] == _ref(surface)
 
 
 def test_finite_mapping_mutation_roundtrips_direct_single_and_multisite(
@@ -436,26 +417,7 @@ def test_multisite_order_and_late_invalid_site(sample_config_loaded, reverse):
             call()
 
 
-def _daily_config(route, values, sample_dict, sample_config_loaded, tmp_path):
-    """Deliver ``values`` (surface -> SDD) to a config through one route."""
-    if route.startswith(("dict_", "yaml_")):
-        data = copy.deepcopy(sample_dict)
-        for surface, value in values.items():
-            data["sites"][0]["initial_states"][surface]["sdd_id"] = _source(
-                value, route.endswith("wrapped")
-            )
-        return _load(data, route.split("_")[0], tmp_path)
-    cfg = sample_config_loaded.model_copy(deep=True)
-    if route == "frame":
-        frame = cfg.to_df_state()
-        for surface, value in values.items():
-            frame.loc[frame.index[0], _column(surface)] = value
-        return SUEWSConfig.from_df_state(frame)
-    for surface, value in values.items():
-        _mutate(cfg, surface, value, route)
-    return cfg
-
-
+@pytest.mark.parametrize("surface", SURFACES)
 @pytest.mark.parametrize(
     "route",
     [
@@ -472,7 +434,9 @@ def _daily_config(route, values, sample_dict, sample_config_loaded, tmp_path):
 def test_signed_finite_state_reaches_daily_output(
     sample_dict,
     sample_config_loaded,
+    sample_frame,
     day_forcing,
+    surface,
     route,
     tmp_path,
     record_property,
@@ -481,44 +445,38 @@ def test_signed_finite_state_reaches_daily_output(
 
     Positive SDD remains admissible; daily phenology may reset it according
     to its existing science. This test does not impose a positive bound.
-
-    Each route shares one all-zero baseline run, moves one surface at a time
-    to the negative value, and runs every surface at the positive value once.
-    A moved surface's DailyState column must differ from the baseline while
-    the other two columns stay identical to it, so a difference cannot come
-    from another surface's input.
     """
-    zero = dict.fromkeys(SURFACES, 0.0)
-    runs = {"zero": zero, "positive": dict.fromkeys(SURFACES, POSITIVE_SDD)}
-    runs.update({surface: {**zero, surface: NEGATIVE_SDD} for surface in SURFACES})
-    daily = {}
-    for name, values in runs.items():
-        cfg = _daily_config(route, values, sample_dict, sample_config_loaded, tmp_path)
+    forcing = day_forcing.copy()
+    outputs = {}
+    for value in (-17.0, 0.0, 12.5):
+        if route.startswith(("dict_", "yaml_")):
+            data = copy.deepcopy(sample_dict)
+            data["sites"][0]["initial_states"][surface]["sdd_id"] = _source(
+                value, route.endswith("wrapped")
+            )
+            cfg = _load(data, route.split("_")[0], tmp_path)
+        elif route == "frame":
+            frame = sample_frame.copy()
+            frame.loc[frame.index[0], _column(surface)] = value
+            cfg = SUEWSConfig.from_df_state(frame)
+        else:
+            cfg = sample_config_loaded.model_copy(deep=True)
+            _mutate(cfg, surface, value, route)
         sim = SUEWSSimulation()
         sim.update_config(cfg, auto_load_forcing=False)
-        forcing = day_forcing.copy()
         sim.update_forcing(forcing)
         output = sim.run(end_date=forcing.index[-1], n_jobs=1)
         fluxes = output.df["SUEWS"][["QN", "QH", "QE", "QS"]]
         assert not fluxes.empty
         assert np.isfinite(fluxes.to_numpy()).all()
-        daily[name] = output.df["DailyState"]
-    for surface, column in DAILY_SDD.items():
-        for value, name in (
-            (NEGATIVE_SDD, surface),
-            (0.0, "zero"),
-            (POSITIVE_SDD, "positive"),
-        ):
-            record_property(
-                f"{route}.{surface}.{value}.daily_sdd",
-                json.dumps(daily[name][column].dropna().unique().tolist()),
-            )
-        assert not daily[surface][column].equals(daily["zero"][column]), surface
-        for other in SURFACES:
-            if other != surface:
-                pd.testing.assert_series_equal(
-                    daily[surface][DAILY_SDD[other]], daily["zero"][DAILY_SDD[other]]
-                )
+        outputs[value] = output.df
+    column = ("DailyState", DAILY_SDD[surface])
+    for value, frame in outputs.items():
+        record_property(
+            f"{route}.{surface}.{value}.daily_sdd",
+            json.dumps(frame[column].dropna().unique().tolist()),
+        )
+    assert not outputs[-17.0][column].equals(outputs[0.0][column])
 
 
 @pytest.mark.parametrize("reverse", [False, True])

@@ -166,11 +166,20 @@ def _adjustment_to_issue(adj: "ScientificAdjustment"):
 
     parameter = adj.parameter
     parameter_slug = parameter.replace(".", "_").replace(" ", "_").upper()
+    change_summary = f"{adj.old_value} -> {adj.new_value}"
+    if adj.reason:
+        message = (
+            adj.reason
+            if change_summary in adj.reason
+            else f"{change_summary} ({adj.reason})"
+        )
+    else:
+        message = f"Adjusted {parameter}: {change_summary}"
     return Issue(
         phase="B",
         severity=SEVERITY_APPLIED_FIX,
         code=f"B.APPLIED_FIX.{parameter_slug}",
-        message=adj.reason or f"Adjusted {parameter}: {adj.old_value} -> {adj.new_value}",
+        message=message,
         yaml_path=parameter,
         site_gridid=adj.site_gridid,
         site_index=adj.site_index,

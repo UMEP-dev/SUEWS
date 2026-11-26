@@ -938,6 +938,7 @@ def _run_pipeline_staged(
     publish_rejected_yaml: bool = True,
 ) -> ABCPipelineResult:
     """Execute any phase combination within one invocation staging directory."""
+    from .renderers import render_text_report
     from .report_schema import JSON_REPORT_WRITER, ValidationReport
     from .report_writer import format_report_stopping_phase
 
@@ -957,12 +958,9 @@ def _run_pipeline_staged(
 
     phases_requested = list(pipeline)
     reports: list[PhaseReport] = []
-    source_report: str | None = None
     source_yaml: str | None = None
     current_input = user_yaml_file
     phase_a_ran = False
-    phase_a_report: PhaseReport | None = None
-    upstream_report_paths: list[str] = []
 
     if "A" in phases_requested:
         progress("Configuration structure check...")
@@ -978,9 +976,7 @@ def _run_pipeline_staged(
             _preloaded_user_data=_preloaded_user_data,
         )
         reports.append(phase_a_report)
-        source_report = report_a_file
         source_yaml = uptodate_file
-        upstream_report_paths.append(report_a_file)
         phase_a_ran = True
         if not phase_a_report.has_errors and Path(uptodate_file).is_file():
             current_input = uptodate_file
@@ -1010,47 +1006,12 @@ def _run_pipeline_staged(
         )
         reports.append(phase_b_report)
         if phase_b_report.has_errors:
-            source_report = report_b_file
-            if phase_a_ran and Path(report_a_file).is_file():
-                # B's legacy summary omits A's ACTION NEEDED section. Preserve
-                # authored-key diagnostics even when a scientific error stops C.
-                action_lines = []
-                in_actions = False
-                for line in REPORT_WRITER.read(report_a_file).splitlines():
-                    if line.startswith("## "):
-                        in_actions = line.strip() == "## ACTION NEEDED"
-                    if in_actions and not line.startswith("# ==="):
-                        action_lines.append(line)
-                if action_lines:
-                    REPORT_WRITER.write(
-                        report_b_file,
-                        REPORT_WRITER.read(report_b_file)
-                        + "\n\n"
-                        + "\n".join(action_lines)
-                        + "\n",
-                    )
             if not phase_a_ran:
                 source_yaml = science_yaml_file
         elif not upstream_failed:
-            source_report = report_b_file
             source_yaml = science_yaml_file
             current_input = science_yaml_file
             progress("[OK] Phase B completed")
-            if pipeline == "AB":
-                upstream_messages = []
-                for path in (report_a_file, report_b_file):
-                    if Path(path).is_file():
-                        upstream_messages.extend(
-                            extract_no_action_messages_from_report(path)
-                        )
-                create_consolidated_report(
-                    phases_run=["A", "B"],
-                    no_action_messages=upstream_messages,
-                    final_report_file=staged_report,
-                    mode=mode,
-                )
-                source_report = staged_report
-        upstream_report_paths.append(report_b_file)
 
     can_continue = not any(r.has_errors for r in reports) or continue_on_error
     if "C" in phases_requested and can_continue:
@@ -1068,46 +1029,15 @@ def _run_pipeline_staged(
         )
         reports.append(phase_c_report)
 
-        if upstream_report_paths:
-            upstream_messages = []
-            for path in upstream_report_paths:
-                if Path(path).is_file():
-                    upstream_messages.extend(
-                        extract_no_action_messages_from_report(path)
-                    )
-            if phase_c_report.has_errors:
-                phase_c_report.yaml_out = None
-                content = REPORT_WRITER.read(report_c_file)
-                if upstream_messages:
-                    REPORT_WRITER.write(
-                        staged_report,
-                        content + "\n\n" + "\n".join(upstream_messages) + "\n",
-                    )
-                else:
-                    shutil.copy2(report_c_file, staged_report)
-                source_report = staged_report
-            elif not upstream_failed:
-                create_consolidated_report(
-                    phases_run=[r.phase for r in reports],
-                    no_action_messages=[
-                        *upstream_messages,
-                        *extract_no_action_messages_from_report(report_c_file),
-                    ],
-                    final_report_file=staged_report,
-                    mode=mode,
-                )
-                source_yaml = c_staged_yaml
-                source_report = staged_report
-        else:
-            source_report = report_c_file
-            if phase_c_report.has_errors and not publish_rejected_yaml:
+        if phase_c_report.has_errors:
+            if len(reports) > 1 or not publish_rejected_yaml:
                 phase_c_report.yaml_out = None
             else:
                 source_yaml = c_staged_yaml
+        elif not upstream_failed:
+            source_yaml = c_staged_yaml
 
     failed = any(report.has_errors for report in reports)
-    if source_report and source_report != staged_report:
-        shutil.copy2(source_report, staged_report)
 
     yaml_available = bool(source_yaml) and Path(source_yaml).is_file()
     publish_yaml = yaml_available and (not failed or publish_rejected_yaml)
@@ -1118,10 +1048,21 @@ def _run_pipeline_staged(
     if yaml_available and not Path(staged_yaml).is_file():
         raise FileNotFoundError(staged_yaml)
 
-    REPORT_WRITER.write(
-        staged_report,
-        format_report_stopping_phase(REPORT_WRITER.read(staged_report), reports),
-    )
+    # Render consolidated text report directly from structured ValidationReport
+    # (zero .txt regex scraping). Standalone Phase A preserves Phase A's own text
+    # layout directly from report_a_file.
+    if pipeline == "A" and len(reports) == 1 and Path(report_a_file).is_file():
+        rendered_text = format_report_stopping_phase(
+            REPORT_WRITER.read(report_a_file), reports
+        )
+    else:
+        rendered_text = render_text_report(
+            ValidationReport(phases=reports),
+            mode=mode,
+            science_fixes=science_fixes,
+        )
+    REPORT_WRITER.write(staged_report, rendered_text)
+
     for report in reports:
         report.text_report_path = str(final_report)
         report.json_report_path = str(report_json_sidecar(final_report))
@@ -1433,563 +1374,113 @@ def run_phase_c(
     pydantic_yaml_file: str,
     pydantic_report_file: str,
     mode: str = "public",
-    phase_a_report_file: str = None,
-    science_report_file: str = None,
-    phases_run: list = None,
-    no_action_messages: list = None,
+    phase_a_report_file: str | None = None,
+    science_report_file: str | None = None,
+    phases_run: list[str] | None = None,
+    no_action_messages: list[str] | None = None,
     silent: bool = False,
-) -> "PhaseReport":
-    """Execute Phase C and return the structured ``PhaseReport``.
+) -> PhaseReport:
+    """Execute single-pass Phase C validation and return the structured ``PhaseReport``.
 
-    The legacy bool-returning body (``_run_phase_c_legacy``) is preserved
-    intact so the human-readable text report it writes is byte-for-byte
-    unchanged. This wrapper additionally collects structured Pydantic
-    issues via ``collect_phase_c_issues`` and writes a JSON sidecar.
+    Calls :func:`validate_phase_c` once (preserving ``_yaml_raw`` completeness
+    checks, structured ``ValidationError`` entries, explicit critical-null
+    errors, and ``model_fields_set`` defaults without loading
+    ``sample_config.yml`` or running Pydantic twice), writes the updated YAML
+    with normalised 24-hour and 10-minute profile keys when needed, renders the text report
+    directly from structured issues, and writes the JSON sidecar.
     """
-    from .phase_c import collect_phase_c_issues
-    from .report_schema import (
-        Issue,
-        JSON_REPORT_WRITER,
-        PhaseReport,
-        SEVERITY_ERROR,
-    )
+    from .phase_c import validate_phase_c
+    from .renderers import render_text_report
+    from .report_schema import JSON_REPORT_WRITER, PhaseReport
 
-    issues = collect_phase_c_issues(input_yaml_file)
-
-    legacy_ok = _run_phase_c_legacy(
-        input_yaml_file=input_yaml_file,
-        pydantic_yaml_file=pydantic_yaml_file,
-        pydantic_report_file=pydantic_report_file,
-        mode=mode,
-        phase_a_report_file=phase_a_report_file,
-        science_report_file=science_report_file,
-        phases_run=phases_run,
-        no_action_messages=no_action_messages,
-        silent=silent,
-    )
-
-    if not legacy_ok and not any(i.severity == SEVERITY_ERROR for i in issues):
-        # Legacy reported failure but no structured issue was captured —
-        # surface a generic pipeline failure so the JSON sidecar is
-        # still actionable.
-        issues.append(Issue(
-            phase="C",
-            severity=SEVERITY_ERROR,
-            code="C.PIPELINE.UNKNOWN",
-            message="Phase C reported failure with no structured details",
-            category="PIPELINE",
-        ))
-
+    result = validate_phase_c(input_yaml_file)
     phase_report = PhaseReport(
         phase="C",
-        issues=issues,
+        issues=result.issues,
         yaml_in=input_yaml_file,
         yaml_out=pydantic_yaml_file,
         text_report_path=pydantic_report_file,
     )
 
+    if pydantic_yaml_file and Path(input_yaml_file).is_file():
+        if not result.has_errors and result.raw_data is not None:
+            normalised_yaml_data, hourly_keys_normalised = (
+                normalise_hourly_profile_keys_in_raw_config(result.raw_data)
+            )
+            normalised_yaml_data, ten_minute_keys_normalised = (
+                normalise_ten_minute_profile_keys_in_raw_config(normalised_yaml_data)
+            )
+            if hourly_keys_normalised or ten_minute_keys_normalised:
+                write_yaml_with_standard_header(
+                    normalised_yaml_data, pydantic_yaml_file
+                )
+            else:
+                copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
+        else:
+            copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
+
     if pydantic_report_file:
-        sync_text_report_stopping_phase(pydantic_report_file, [phase_report])
+        legacy_consolidation = (
+            not result.has_errors
+            and phases_run
+            and len(phases_run) > 1
+            and (
+                no_action_messages is not None
+                or (phase_a_report_file and os.path.exists(phase_a_report_file))
+                or (science_report_file and os.path.exists(science_report_file))
+            )
+        )
+        if legacy_consolidation:
+            all_messages = (
+                list(no_action_messages)
+                if no_action_messages is not None
+                else []
+            )
+            if no_action_messages is None:
+                if phase_a_report_file and os.path.exists(phase_a_report_file):
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(phase_a_report_file)
+                    )
+                if science_report_file and os.path.exists(science_report_file):
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(science_report_file)
+                    )
+            info_lines = [
+                f"- {issue.message}"
+                for issue in phase_report.issues
+                if issue.severity == "INFO"
+            ]
+            if info_lines:
+                all_messages = ["## INFO", *info_lines, *all_messages]
+            create_consolidated_report(
+                phases_run=phases_run,
+                no_action_messages=all_messages,
+                final_report_file=pydantic_report_file,
+                mode=mode,
+            )
+            if phase_a_report_file and Path(phase_a_report_file).exists():
+                Path(phase_a_report_file).unlink()
+            if science_report_file and Path(science_report_file).exists():
+                Path(science_report_file).unlink()
+        else:
+            REPORT_WRITER.write(
+                pydantic_report_file,
+                render_text_report(phase_report, mode=mode),
+            )
+
         json_path = Path(pydantic_report_file).with_suffix(".json")
         phase_report.json_report_path = str(json_path)
         JSON_REPORT_WRITER.write(json_path, phase_report)
 
+    if not silent:
+        if phase_report.has_errors:
+            print("[X] Validation failed!")
+            print(f"Report: {pydantic_report_file}")
+            print(f"Updated YAML: {pydantic_yaml_file}")
+        else:
+            print("[OK] Validation completed")
+
     return phase_report
-
-
-def _run_phase_c_legacy(
-    input_yaml_file: str,
-    pydantic_yaml_file: str,
-    pydantic_report_file: str,
-    mode: str = "public",
-    phase_a_report_file: str = None,
-    science_report_file: str = None,
-    phases_run: list = None,
-    no_action_messages: list = None,
-    silent: bool = False,
-) -> bool:
-    """Legacy bool-returning Phase C body. Preserved for the text-report
-    generation. Callers should use ``run_phase_c`` (PhaseReport-returning).
-    """
-    debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
-    if debug:
-        print(f"[DEBUG] run_phase_c called", file=sys.stderr)
-        print(f"[DEBUG]   pydantic_report_file: {pydantic_report_file}", file=sys.stderr)
-        print(f"[DEBUG]   phases_run: {phases_run}", file=sys.stderr)
-        print(f"[DEBUG]   no_action_messages count: {len(no_action_messages) if no_action_messages else 'None'}", file=sys.stderr)
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        supy_root = os.path.abspath(os.path.join(current_dir, "../../"))
-        if supy_root not in sys.path:
-            sys.path.insert(0, supy_root)
-
-        try:
-            from supy.data_model import SUEWSConfig
-            import logging
-
-            supy_logger = logging.getLogger("SuPy")
-            original_level = supy_logger.level
-            supy_logger.setLevel(logging.CRITICAL)
-
-            # Load and validate the YAML using SUEWSConfig (like SUEWSSimulation does)
-            try:
-                # Load original YAML data for comparison
-                import yaml
-                from ..core.yaml_helpers import load_user_yaml_normalised
-
-                # Normalise legacy field spellings so the critical-null
-                # comparison below (detect_pydantic_defaults) matches the
-                # current-name keys in processed_data. Without this, a legacy
-                # spelling of a renamed critical parameter (e.g.
-                # outer_cap_fraction -> capacitance) set to null slips the
-                # critical-null check and can crash later in df_state conversion
-                # via int(None). gh#1457.
-                original_data = load_user_yaml_normalised(input_yaml_file)
-                flatten_physics_in_config(original_data)
-
-                config = SUEWSConfig.from_yaml(input_yaml_file)
-
-                # Get the Pydantic-processed data (with defaults applied)
-                processed_data = config.model_dump()
-
-                # SUEWSConfig has `extra="allow"`, so private items injected by
-                # `from_yaml` (`_yaml_path`, `_auto_generate_annotated`,
-                # `_yaml_raw`) round-trip through model_dump(). Drop them before
-                # comparison — `_yaml_raw` in particular is a deep-copy of the
-                # user's YAML and would otherwise mirror every user-set field
-                # back as "found missing" against an empty parallel branch
-                # (gh#1353). Mirrors the strip done by SUEWSConfig.to_yaml.
-                for _internal_key in (
-                    "_yaml_path",
-                    "_auto_generate_annotated",
-                    "_yaml_raw",
-                ):
-                    processed_data.pop(_internal_key, None)
-
-                # Load standard config for comparison
-                try:
-                    # Use importlib.resources for robust package resource access
-                    sample_data_files = importlib.resources.files(supy) / "sample_data"
-                    with importlib.resources.as_file(
-                        sample_data_files / "sample_config.yml"
-                    ) as standard_yaml_path:
-                        with open(standard_yaml_path, "r", encoding="utf-8") as f:
-                            standard_data = yaml.safe_load(f)
-                        flatten_physics_in_config(standard_data)
-                except FileNotFoundError:
-                    print(
-                        "Warning: Standard config file not found, reporting all defaults"
-                    )
-                    standard_data = None
-
-                # Detect critical null physics parameters and normal defaults
-                critical_nulls, normal_defaults = detect_pydantic_defaults(
-                    original_data, processed_data, "", standard_data
-                )
-
-                # Pydantic validation passed - create updatedC YAML with standardized header.
-                # Normalise unambiguous non-canonical 24-hour and 10-minute profile keys
-                # on export while keeping canonical files on the comment-preserving copy path.
-                with open(input_yaml_file, encoding="utf-8") as raw_f:
-                    raw_yaml_data = yaml.safe_load(raw_f)
-                normalised_yaml_data, hourly_keys_normalised = (
-                    normalise_hourly_profile_keys_in_raw_config(raw_yaml_data)
-                )
-                normalised_yaml_data, ten_minute_keys_normalised = (
-                    normalise_ten_minute_profile_keys_in_raw_config(
-                        normalised_yaml_data
-                    )
-                )
-                if hourly_keys_normalised or ten_minute_keys_normalised:
-                    write_yaml_with_standard_header(
-                        normalised_yaml_data, pydantic_yaml_file
-                    )
-                else:
-                    copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
-
-                # Build passed phases header based on which phases ran successfully
-                if phases_run:
-                    passed_phases = [f"PHASE {phase} - PASSED" for phase in phases_run]
-                else:
-                    passed_phases = ["PHASE C - PASSED"]  # Default for Phase C only
-
-                phases_header = ", ".join(passed_phases)
-
-                # Build consolidation info for previous phases
-                phase_a_info = ""
-                if phase_a_report_file and os.path.exists(phase_a_report_file):
-                    try:
-                        phase_a_content = REPORT_WRITER.read(phase_a_report_file)
-
-                        # Add consolidation info
-                        phase_a_info = "\n\n## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n"
-                        phase_a_info += f"\n{phase_a_content}"
-                    except Exception:
-                        phase_a_info = ""
-
-                # Check if we have critical nulls that need ACTION
-                if critical_nulls:
-                    # Generate failure report with ACTION NEEDED for critical nulls
-                    action_needed = "\n## ACTION NEEDED\n"
-                    action_needed += f"- Found ({len(critical_nulls)}) critical physics parameter(s) set to null that will crash df_state conversion:\n"
-
-                    for critical in critical_nulls:
-                        field_name = critical.get("field_name", "unknown")
-                        field_path = critical.get("field_path", "unknown")
-                        action_needed += f"-- {field_name} at level {field_path}: Physics parameter is null and will cause runtime crash\n"
-                        action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://docs.suews.io/stable\n"
-
-                    failure_report = f"""# SUEWS Validation Report
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-{action_needed}
-# =================================================="""
-
-                    if debug:
-                        print(f"[DEBUG]   Writing failure_report ({len(failure_report)} chars) for critical_nulls", file=sys.stderr)
-                    REPORT_WRITER.write(pydantic_report_file, failure_report)
-                    if debug:
-                        actual_size = os.path.getsize(pydantic_report_file) if os.path.exists(pydantic_report_file) else -1
-                        print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
-
-                    if not silent:
-                        print("[X] Validation failed!")
-                        print(f"Report: {pydantic_report_file}")
-                        print(f"Updated YAML: {pydantic_yaml_file}")
-                    return False
-
-                # Build INFO section if any defaults were detected
-                no_action_info = ""
-                if normal_defaults:
-                    no_action_info = "\n\n## INFO\n"
-                    for default_app in normal_defaults:
-                        field_name = default_app.get("field_name", "unknown")
-                        default_value = default_app.get("default_value", "unknown")
-                        field_path = default_app.get("field_path", "unknown")
-                        status = default_app.get(
-                            "status", "found null"
-                        )  # Default to old behaviour
-                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  The validation system will interpret that as default value: {default_value} - check doc for info on this parameter: https://docs.suews.io/stable\n"
-
-                # Generate phase-specific title for success report
-                if phases_run:
-                    phase_str = "".join(phases_run)
-                else:
-                    phase_str = "C"  # Default to Phase C only
-
-                # Use unified report title for all validation phases
-                title = "SUEWS Validation Report"
-
-                # Extract INFO content from previous phases to consolidate properly
-                consolidated_no_action = []
-
-                # Add any validation summary messages from Phase C (e.g., hemisphere warnings)
-                if hasattr(config, "_validation_summary"):
-                    info_messages = config._validation_summary.get("info_messages", [])
-                    for msg in info_messages:
-                        consolidated_no_action.append(f"- {msg}")
-
-                # Add any default values detected
-                if no_action_info:
-                    # Remove the leading newlines and header, parse the content
-                    no_action_content = no_action_info.strip()
-                    if no_action_content.startswith("## INFO"):
-                        no_action_content = no_action_content.replace(
-                            "## INFO", "", 1
-                        )
-
-                    consolidated_no_action.extend([
-                        line.strip()
-                        for line in no_action_content.split("\n")
-                        if line.strip()
-                    ])
-
-                # Extract content from previous phase reports without duplicating headers
-                if phase_a_info:
-                    # Extract only the content, not the headers
-                    phase_content = phase_a_info.replace(
-                        "## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n",
-                        "",
-                    )
-                    # Remove redundant headers and extract only non-blocking content
-                    lines = phase_content.split("\n")
-                    in_no_action = False
-                    for line in lines:
-                        if line.strip().startswith("## INFO"):
-                            in_no_action = True
-                            continue
-                        elif line.strip().startswith("##"):
-                            in_no_action = False
-                            continue
-                        elif (
-                            in_no_action
-                            and line.strip()
-                            and not line.strip().startswith("#")
-                        ):
-                            consolidated_no_action.append(line.strip())
-
-                # A single-phase Phase C run that detected defaults reports
-                # them as the whole story (INFO-only). For multi-phase runs
-                # the upstream sections (Phase A renames, Phase B REVIEW
-                # ADVISED / SUGGESTED UPDATES carried in no_action_messages)
-                # are consolidated below and must NOT be replaced by an
-                # INFO-only report — see gh#1458, gh#1466. Defer to
-                # create_consolidated_report in that case.
-                if consolidated_no_action and not (
-                    phases_run and len(phases_run) > 1
-                ):
-                    success_report = f"""# {title}
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-
-## INFO
-{chr(10).join(consolidated_no_action)}
-
-# =================================================="""
-
-                    # Write the report to file
-                    if debug:
-                        print(f"[DEBUG]   Writing success_report ({len(success_report)} chars) to {pydantic_report_file}", file=sys.stderr)
-                    REPORT_WRITER.write(pydantic_report_file, success_report)
-                    if debug:
-                        actual_size = os.path.getsize(pydantic_report_file) if os.path.exists(pydantic_report_file) else -1
-                        print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
-                else:
-                    if debug:
-                        print(f"[DEBUG]   consolidated_no_action is empty, entering else branch", file=sys.stderr)
-                    # Map phase strings to descriptive messages
-                    def get_phase_message(phase_str):
-                        if phase_str == "A":
-                            return "Configuration structure check passed"
-                        elif phase_str == "B":
-                            return "Physics validation check passed"
-                        elif phase_str == "C":
-                            return "Configuration consistency check passed"
-                        elif phase_str == "AB":
-                            return "Configuration structure check and Physics validation check passed"
-                        elif phase_str == "BC":
-                            return "Physics validation check and Configuration consistency check passed"
-                        elif phase_str == "AC":
-                            return "Configuration structure check and Configuration consistency check passed"
-                        elif phase_str == "ABC":
-                            return "All validation checks passed"
-                        else:
-                            return f"Phase {phase_str} passed"  # fallback
-
-                    # Check if this is a multi-phase call that needs consolidation
-                    if debug:
-                        print(f"[DEBUG]   phases_run={phases_run}, len={len(phases_run) if phases_run else 0}", file=sys.stderr)
-                    if phases_run and len(phases_run) > 1:
-                        if debug:
-                            print(f"[DEBUG]   Taking multi-phase consolidation path", file=sys.stderr)
-                        # Multi-phase consolidation: use passed messages or extract from files
-                        if no_action_messages is not None:
-                            # Use passed messages (variable-based approach).
-                            # Copy so the INFO prepend below cannot mutate the
-                            # caller's list.
-                            all_messages = list(no_action_messages)
-                        else:
-                            # Fallback: extract from files (file-based approach)
-                            all_messages = []
-                            if phase_a_report_file and os.path.exists(
-                                phase_a_report_file
-                            ):
-                                all_messages.extend(
-                                    extract_no_action_messages_from_report(
-                                        phase_a_report_file
-                                    )
-                                )
-                            if science_report_file and os.path.exists(
-                                science_report_file
-                            ):
-                                all_messages.extend(
-                                    extract_no_action_messages_from_report(
-                                        science_report_file
-                                    )
-                                )
-
-                        # Fold any defaults Phase C detected itself (e.g. a
-                        # missing schema_version) into the INFO section so they
-                        # appear alongside the upstream phase sections rather
-                        # than replacing them (gh#1458, gh#1466).
-                        if consolidated_no_action:
-                            all_messages = [
-                                "## INFO",
-                                *consolidated_no_action,
-                                *all_messages,
-                            ]
-
-                        # Create consolidated final report
-                        create_consolidated_report(
-                            phases_run=phases_run,
-                            no_action_messages=all_messages,
-                            final_report_file=pydantic_report_file,
-                            mode=mode,
-                        )
-
-                        # Clean up any remaining intermediate files
-                        if phase_a_report_file and Path(phase_a_report_file).exists():
-                            Path(phase_a_report_file).unlink()
-                        if science_report_file and Path(science_report_file).exists():
-                            Path(science_report_file).unlink()
-                    else:
-                        # Single phase: use regular report
-                        # Check if there are validation_summary messages to include
-                        if consolidated_no_action:
-                            success_report = f"""# {title}
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-
-## INFO
-{chr(10).join(consolidated_no_action)}
-
-# =================================================="""
-                        else:
-                            success_report = f"""# {title}
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-
-{get_phase_message(phase_str)}
-
-# =================================================="""
-
-                        REPORT_WRITER.write(pydantic_report_file, success_report)
-
-                # Ensure report is always generated for successful validation
-                if not os.path.exists(pydantic_report_file):
-                    # Fallback: create a simple success report
-                    simple_success_report = f"""# {title}
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-
-Validation passed
-
-# =================================================="""
-                    REPORT_WRITER.write(pydantic_report_file, simple_success_report)
-
-                # Restore logging level before return
-                supy_logger.setLevel(original_level)
-                if not silent:
-                    print("[OK] Validation completed")
-                return True
-
-            except Exception as validation_error:
-                # Restore logging level on validation error
-                supy_logger.setLevel(original_level)
-                # Pydantic validation failed - still create updatedC YAML with standardized header
-                copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
-
-                # Generate structured ACTION NEEDED report
-                try:
-                    from .phase_c import generate_phase_c_report
-
-                    generate_phase_c_report(
-                        validation_error,
-                        input_yaml_file,
-                        pydantic_report_file,
-                        mode,
-                        phase_a_report_file,
-                        phases_run,
-                        no_action_messages,
-                    )
-
-                except Exception as report_error:
-                    # Fallback to simple error report if structured report generation fails
-                    from .phase_c import generate_fallback_report
-
-                    generate_fallback_report(
-                        validation_error,
-                        input_yaml_file,
-                        pydantic_report_file,
-                        mode,
-                        phase_a_report_file,
-                        phases_run,
-                        no_action_messages,
-                    )
-
-                if not silent:
-                    print("[X] Validation failed!")
-                    print(f"Report: {pydantic_report_file}")
-                    print(f"Updated YAML: {pydantic_yaml_file}")
-                return False
-
-        except ImportError as import_error:
-            if not silent:
-                print(
-                    f"[X] Validation failed - Cannot import SUEWSConfig: {import_error}"
-                )
-
-            # Import error report
-            error_report = f"""# SUEWS Validation Report
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-
-## PHASE C - FAILED
-
-Input file: {input_yaml_file}
-Error: Cannot import SUEWSConfig
-
-Import error details:
-{str(import_error)}
-
-## Status:
-Phase C validation could not be executed due to import issues.
-
-## Recommended Actions:
-1. Check if supy package is properly installed
-2. Ensure you're running from the correct directory
-3. Use Phase A + B validation as alternative:
-   python suews_yaml_processor.py user.yml --phase AB
-
-## Error Details:
-{str(import_error)}
-"""
-
-            REPORT_WRITER.write(pydantic_report_file, error_report)
-
-            print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
-            return False
-
-    except Exception as e:
-        if not silent:
-            print(f"[X] Validation failed: {e}")
-
-        # General error report
-        error_report = f"""# SUEWS Validation Report
-# ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# ============================================
-
-## PHASE C - FAILED
-
-Error running Phase C validation: {e}
-
-Input file: {input_yaml_file}
-
-## Status:
-Phase C validation could not be executed due to system errors.
-
-## Recommended Actions:
-1. Use Phase A + B validation instead:
-   python suews_yaml_processor.py user.yml --phase AB
-
-2. Check system configuration and try again
-
-## Error Details:
-{str(e)}
-"""
-
-        REPORT_WRITER.write(pydantic_report_file, error_report)
-
-        print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
-        return False
-
 
 _STANDARD_UPDATED_YAML_HEADER = """# ==============================================================================
 # Updated YAML

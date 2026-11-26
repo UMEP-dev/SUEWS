@@ -3,7 +3,8 @@
 Enforces three defensive contracts across all Layer 5 physics modules:
 1. Active-variable, required-column, and expected-timestep completeness and
    finiteness: every active output group (``SUEWS``, ``DailyState``, ``BEERS``,
-   ``RSL``, ``debug``, plus ``EHC``, ``SPARTACUS``, and ``snow`` when enabled)
+   ``RSL``, ``debug``, plus ``EHC``, ``SPARTACUS``, ``STEBBS``, and ``snow``
+   when enabled)
    must match the forcing-derived timestamps and grid IDs exactly, contain all
    registered columns for that group, reject both non-finite values
    (``NaN``/``+/-Inf``) and exact ``-999.0`` missing-data sentinels on every
@@ -62,8 +63,29 @@ _SAVED_REQUIRED_HEADER_COLUMNS: tuple[str, ...] = (
 )
 
 # DailyState OHM regression coefficients legitimately set to NAN (-999 -> NaN)
-# when StorageHeatMethod == EHC (src/suews/src/suews_ctrl_driver.f95:2459-2461).
+# when OHM is bypassed: StorageHeatMethod == EHC (5,
+# src/suews/src/suews_ctrl_driver.f95:2459-2461) or OBSERVED (0,
+# src/suews/src/suews_ctrl_driver.f95:2553-2585).
 DAILYSTATE_ABSENT_UNDER_EHC: tuple[str, ...] = ("a1", "a2", "a3")
+
+# SUEWS radiation-component outputs legitimately set to NAN (-999 -> NaN)
+# when NetRadiationMethod == 0 and SnowUse == 0 (observed QN without snow,
+# src/suews/src/suews_ctrl_driver.f95:2168-2181; when SnowUse == 1, RadMethod
+# in src/suews/src/suews_phys_narp.f95:65-69 routes to sentinel 3000 and NARP
+# populates these diagnostics).
+SUEWS_ABSENT_UNDER_OBSERVED_QN: tuple[str, ...] = ("Kup", "Ldown", "Lup", "Tsurf")
+
+# SUEWS per-surface soil moisture deficits legitimately set to NAN
+# (-999 -> NaN) when SMDMethod == 1 (observed bulk soil moisture,
+# src/suews/src/suews_phys_waterdist.f95:970-974).
+SUEWS_ABSENT_UNDER_OBSERVED_SMD: tuple[str, ...] = (
+    "SMDPaved",
+    "SMDBldgs",
+    "SMDEveTr",
+    "SMDDecTr",
+    "SMDGrass",
+    "SMDBSoil",
+)
 
 # RSL canopy-parameter diagnostics legitimately set to -999 -> NaN when
 # RSLProfile selects the MOST branch (flag_RSL == 0.0,
@@ -1405,6 +1427,8 @@ def assert_active_output_finiteness(
     storage_heat: int = 1,
     net_radiation: int = 3,
     snow_use: int = 0,
+    soil_moisture: int = 0,
+    stebbs_enabled: bool = False,
     nlayer: int = 3,
     has_buildings: bool = True,
     forcing: pd.DataFrame,
@@ -1439,6 +1463,11 @@ def assert_active_output_finiteness(
     suews = _extract_required_group(grid_df, "SUEWS")
     assert "Fcld" in suews, "SUEWS: missing required output column Fcld"
     assert_forcing_cloud(suews["Fcld"], forcing, tstep=tstep)
+    suews_absent: tuple[str, ...] = ()
+    if int(net_radiation) == 0 and int(snow_use) == 0:
+        suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_QN
+    if int(soil_moisture) == 1:
+        suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_SMD
     # Cloud has already been checked cell by cell, including missing positions.
     _assert_group_finiteness(
         suews.drop(columns="Fcld"),
@@ -1446,6 +1475,7 @@ def assert_active_output_finiteness(
         expected_columns=tuple(
             c for c in expected_group_columns("SUEWS") if c != "Fcld"
         ),
+        expected_all_nan=suews_absent,
     )
     _assert_beers_finiteness(grid_df, has_buildings=has_buildings)
     _assert_rsl_finiteness(grid_df)
@@ -1468,7 +1498,7 @@ def assert_active_output_finiteness(
         assert not non_eod_populated, (
             f"DailyState: unexpected values on non-EOD rows: {non_eod_populated}"
         )
-    ds_absent = DAILYSTATE_ABSENT_UNDER_EHC if int(storage_heat) == 5 else ()
+    ds_absent = DAILYSTATE_ABSENT_UNDER_EHC if int(storage_heat) in {0, 5} else ()
     _assert_group_finiteness(
         ds.loc[eod_mask],
         group="DailyState[EOD]",
@@ -1494,6 +1524,12 @@ def assert_active_output_finiteness(
             expected_columns=sp_cols,
             expected_all_nan=_unused_vertical_layer_columns(sp_cols, nlayer),
         )
+    if stebbs_enabled:
+        _assert_group_finiteness(
+            _extract_required_group(grid_df, "STEBBS"),
+            group="STEBBS",
+            expected_columns=expected_group_columns("STEBBS"),
+        )
     if int(snow_use) == 1:
         _assert_group_finiteness(
             _extract_required_group(grid_df, "snow"),
@@ -1511,6 +1547,8 @@ def assert_simulation_output_finiteness(
     storage_heat: int = 1,
     net_radiation: int = 3,
     snow_use: int = 0,
+    soil_moisture: int = 0,
+    stebbs_enabled: bool = False,
     nlayer: int = 3,
     has_buildings: bool = True,
     forcing: pd.DataFrame | dict[int, pd.DataFrame],
@@ -1551,6 +1589,8 @@ def assert_simulation_output_finiteness(
             storage_heat=storage_heat,
             net_radiation=net_radiation,
             snow_use=snow_use,
+            soil_moisture=soil_moisture,
+            stebbs_enabled=stebbs_enabled,
             nlayer=nlayer,
             has_buildings=has_buildings,
             forcing=forcing[grid_id] if isinstance(forcing, dict) else forcing,

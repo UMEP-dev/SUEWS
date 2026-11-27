@@ -395,17 +395,27 @@ class TestFillGapAll:
 
         # Multi-pass case: 2 adjacent 3-hour gaps in the first 3-day half trigger
         # the outer retry loop in fill_gap_all (while ser_test_filled.isna().any()).
+        # Each recursive fill_gap_all_x pass applies two limit=1 linear interpolations
+        # (top level + child chunk), so the 3 missing steps per gap equal exact linear
+        # interpolation between their bracketing observations (indices 1..5 and 25..29).
         ser_multi = _make_diurnal_series(n_days=6)
         ser_multi.iloc[2:5] = np.nan
         ser_multi.iloc[26:29] = np.nan
-        non_gap_multi = ~ser_multi.isna()
+
+        expected_multi = ser_multi.copy()
+        for left, right in ((1, 5), (25, 29)):
+            y_left, y_right = ser_multi.iloc[left], ser_multi.iloc[right]
+            for step in range(1, right - left):
+                weight = step / (right - left)
+                expected_multi.iloc[left + step] = y_left + weight * (y_right - y_left)
+
         filled_multi = fill_gap_all(
             ser_multi, freq="1D", limit_fill=1, thresh_ratio=0.6
         )
         assert not filled_multi.isna().any()
         np.testing.assert_allclose(
-            filled_multi[non_gap_multi].values,
-            ser_multi[non_gap_multi].values,
+            filled_multi.values,
+            expected_multi.values,
             rtol=1e-12,
         )
 

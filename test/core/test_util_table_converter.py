@@ -118,62 +118,64 @@ class TestProfileManager:
         assert pm2.missing_profiles == {777}
 
     def test_create_default_and_ensure_required_profiles_round_trip(self, tmp_path):
-        """ensure_required_profiles writes all 24 hours for aligned tables and documents CSV str-column mismatch."""
-        # Part 1: integer-column profile_data aligns with create_default_profile(range(24)),
-        # so every generated profile (1, 321, 999) writes and reloads finite uniform 1.0 values.
-        pm_aligned = ProfileManager()
-        pm_aligned.profile_data = pd.DataFrame(
+        """ensure_required_profiles preserves file-loaded profiles and writes finite 24-hour defaults."""
+        # Part 1: real file-loading route when required default codes exist preserves
+        # all 24 finite hourly values across write and reload.
+        src_path = tmp_path / "SUEWS_Profiles.txt"
+        _write_legacy_profiles(src_path, {1: 1.0, 50: 0.75, 999: 1.0})
+        pm_loaded = ProfileManager(src_path)
+        loaded_out = tmp_path / "out_loaded"
+        loaded_out.mkdir()
+        pm_loaded.ensure_required_profiles(loaded_out)
+
+        pm_reloaded_loaded = ProfileManager(loaded_out / "SUEWS_Profiles.txt")
+        assert pm_reloaded_loaded.available_profiles == {1, 50, 999}
+        assert pm_reloaded_loaded.profile_data is not None
+        np.testing.assert_allclose(
+            pm_reloaded_loaded.profile_data.loc[50].to_numpy(dtype=float),
+            np.full(24, 0.75),
+        )
+        for code in (1, 999):
+            vals = pm_reloaded_loaded.profile_data.loc[code].to_numpy(dtype=float)
+            assert np.all(np.isfinite(vals))
+            np.testing.assert_allclose(vals, np.ones(24))
+
+        # Part 2: default and placeholder profile generation (aligned integer hour
+        # columns matching create_default_profile's range(24) index) writes finite
+        # uniform 1.0 values across all 24 hours for codes 1, 321, and 999 while
+        # skipping code 0 (NO_ACTIVITY).
+        pm_gen = ProfileManager()
+        pm_gen.profile_data = pd.DataFrame(
             [[0.75] * 24], index=pd.Index([50], name="Code"), columns=range(24)
         )
-        pm_aligned.available_profiles = {50}
-        default_ser = pm_aligned.create_default_profile(42)
+        pm_gen.available_profiles = {50}
+        default_ser = pm_gen.create_default_profile(42)
         assert default_ser.name == 42
         assert list(default_ser.index) == list(range(24))
         assert (default_ser == 1.0).all()
 
-        pm_aligned.validate_profile_code(321, "ActivityProfWD")
-        aligned_dir = tmp_path / "out_aligned"
-        aligned_dir.mkdir()
-        pm_aligned.ensure_required_profiles(aligned_dir)
+        pm_gen.validate_profile_code(321, "ActivityProfWD")
+        gen_dir = tmp_path / "out_generated"
+        gen_dir.mkdir()
+        pm_gen.ensure_required_profiles(gen_dir)
 
-        written_aligned = aligned_dir / "SUEWS_Profiles.txt"
-        assert written_aligned.is_file()
-        # Code 0 (NO_ACTIVITY) is skipped (code > 0 guard); 1, 50, 321, 999 are present.
-        assert pm_aligned.available_profiles == {1, 50, 321, 999}
+        written_gen = gen_dir / "SUEWS_Profiles.txt"
+        assert written_gen.is_file()
+        assert pm_gen.available_profiles == {1, 50, 321, 999}
 
-        pm_reloaded_aligned = ProfileManager(written_aligned)
-        assert pm_reloaded_aligned.available_profiles == {1, 50, 321, 999}
-        assert pm_reloaded_aligned.profile_data is not None
+        pm_reloaded_gen = ProfileManager(written_gen)
+        assert pm_reloaded_gen.available_profiles == {1, 50, 321, 999}
+        assert pm_reloaded_gen.profile_data is not None
         np.testing.assert_allclose(
-            pm_reloaded_aligned.profile_data.loc[50].to_numpy(dtype=float),
+            pm_reloaded_gen.profile_data.loc[50].to_numpy(dtype=float),
             np.full(24, 0.75),
         )
         for gen_code in (1, 321, 999):
-            vals = pm_reloaded_aligned.profile_data.loc[gen_code].to_numpy(dtype=float)
+            vals = pm_reloaded_gen.profile_data.loc[gen_code].to_numpy(dtype=float)
             assert np.all(np.isfinite(vals))
             np.testing.assert_allclose(vals, np.ones(24))
 
-        # Part 2: loading from disk produces string columns ("0".."23"); existing profile 50
-        # preserves all 24 values, while newly added rows currently reload as NaN due to the
-        # pre-existing int-vs-str label mismatch in profile_manager.py:144,164 (reported in PR).
-        src_path = tmp_path / "SUEWS_Profiles.txt"
-        _write_legacy_profiles(src_path, {50: 0.75})
-        pm = ProfileManager(src_path)
-        pm.validate_profile_code(321, "ActivityProfWD")
-        out_dir = tmp_path / "out_csv"
-        out_dir.mkdir()
-        pm.ensure_required_profiles(out_dir)
-
-        pm_reloaded = ProfileManager(out_dir / "SUEWS_Profiles.txt")
-        assert pm_reloaded.available_profiles == {1, 50, 321, 999}
-        assert pm_reloaded.profile_data is not None
-        np.testing.assert_allclose(
-            pm_reloaded.profile_data.loc[50].to_numpy(dtype=float), np.full(24, 0.75)
-        )
-        for gen_code in (1, 321, 999):
-            assert pm_reloaded.profile_data.loc[gen_code].isna().all()
-
-        summary = pm.get_profile_summary()
+        summary = pm_gen.get_profile_summary()
         assert summary["available_profiles"] == 4
         assert summary["missing_profiles"] == 2
         assert summary["missing_codes"] == [321, 999]

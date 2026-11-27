@@ -141,22 +141,26 @@ class TestPlotUtilities:
         np.testing.assert_allclose(
             line_map["Sim"], expected_obs_median + 5.0, rtol=1e-12
         )
-        # Verify IQR shading polygons (Q25 = median - 5, Q75 = median + 5 for offsets -10/0/+10).
+        # Verify hourly IQR shading polygons at every hour (Q25 = median - 5,
+        # Q75 = median + 5 for offsets -10/0/+10).
         assert len(ax.collections) == 2
-        obs_verts_y = ax.collections[0].get_paths()[0].vertices[:, 1]
-        sim_verts_y = ax.collections[1].get_paths()[0].vertices[:, 1]
-        assert np.min(obs_verts_y) == pytest.approx(
-            np.min(expected_obs_median - 5.0), abs=1e-9
-        )
-        assert np.max(obs_verts_y) == pytest.approx(
-            np.max(expected_obs_median + 5.0), abs=1e-9
-        )
-        assert np.min(sim_verts_y) == pytest.approx(
-            np.min(expected_obs_median), abs=1e-9
-        )
-        assert np.max(sim_verts_y) == pytest.approx(
-            np.max(expected_obs_median + 10.0), abs=1e-9
-        )
+        expected_x = ax.get_lines()[0].get_xdata()
+        for coll, shift in zip(ax.collections, (0.0, 5.0)):
+            verts = coll.get_paths()[0].vertices
+            # Group polygon y-values by each of the 24 hourly x-positions.
+            lows = []
+            highs = []
+            for x_val in expected_x:
+                ys = verts[np.isclose(verts[:, 0], x_val, rtol=0.0, atol=1e-9), 1]
+                assert len(ys) >= 2
+                lows.append(np.min(ys))
+                highs.append(np.max(ys))
+            np.testing.assert_allclose(
+                lows, expected_obs_median + shift - 5.0, atol=1e-9
+            )
+            np.testing.assert_allclose(
+                highs, expected_obs_median + shift + 5.0, atol=1e-9
+            )
 
         # Pre-existing ax (fig=None) and pre-existing fig (ax=None) branches.
         fig_a, ax_a = plt.subplots()
@@ -515,14 +519,18 @@ class TestEra5OfflineUtilities:
             "2023-01-01 01:00",
         ])
         frames = []
-        for lat, lon in [(51.5, 0.25), (-33.5, -70.5)]:
+        grid_temps = {
+            (51.5, 0.25): [5.0, 4.5, 4.0],
+            (-33.5, -70.5): [25.0, 24.5, 24.0],
+        }
+        for (lat, lon), temps in grid_temps.items():
             df_g = pd.DataFrame(
                 {
                     "iy": times.year,
                     "id": times.dayofyear,
                     "it": times.hour,
                     "imin": times.minute,
-                    "Tair": [5.0, 4.5, 4.0],
+                    "Tair": temps,
                     "alt_z": [100.0, 100.0, 100.0],
                     "latitude": lat,
                     "longitude": lon,
@@ -537,17 +545,25 @@ class TestEra5OfflineUtilities:
 
         files = save_forcing_era5(df_all, tmp_path)
 
-        basenames = sorted(Path(f).name for f in files)
-        assert basenames == [
-            "ERA5_UTC-33.5S-70.5W-100.0A_2022_data_60.txt",
-            "ERA5_UTC-33.5S-70.5W-100.0A_2023_data_60.txt",
-            "ERA5_UTC-51.5N-0.25E-100.0A_2022_data_60.txt",
-            "ERA5_UTC-51.5N-0.25E-100.0A_2023_data_60.txt",
-        ]
-        # Verify alt_z was dropped and space-separated output is readable.
-        df_read = pd.read_csv(files[0], sep=" ")
-        assert "alt_z" not in df_read.columns
-        assert "Tair" in df_read.columns
+        by_name = {Path(f).name: Path(f) for f in files}
+        expected_partitions = {
+            "ERA5_UTC-33.5S-70.5W-100.0A_2022_data_60.txt": ([2022], [25.0]),
+            "ERA5_UTC-33.5S-70.5W-100.0A_2023_data_60.txt": (
+                [2023, 2023],
+                [24.5, 24.0],
+            ),
+            "ERA5_UTC-51.5N-0.25E-100.0A_2022_data_60.txt": ([2022], [5.0]),
+            "ERA5_UTC-51.5N-0.25E-100.0A_2023_data_60.txt": (
+                [2023, 2023],
+                [4.5, 4.0],
+            ),
+        }
+        assert set(by_name.keys()) == set(expected_partitions.keys())
+        for fname, (exp_years, exp_tair) in expected_partitions.items():
+            df_read = pd.read_csv(by_name[fname], sep=" ")
+            assert "alt_z" not in df_read.columns
+            assert list(df_read["iy"]) == exp_years
+            np.testing.assert_allclose(df_read["Tair"].values, exp_tair)
 
     def test_gen_forcing_era5_end_to_end_offline_with_mocked_cds(self, tmp_path):
         """gen_forcing_era5 chains download -> diagnostics -> format -> save offline."""

@@ -9,7 +9,6 @@ py.install_sources(
         '_misc.py',
         '_post.py',
         '_provenance.py',
-        '_run.py',
         '_run_period.py',
         '_run_rust.py',
         '_run_output.py',
@@ -19,12 +18,12 @@ py.install_sources(
         '_var_metadata.py',
         '_version.py',
         '_version_scm.py',
+        'constants.py',
         'suews_checkpoint.py',
         'suews_forcing.py',
         'suews_output.py',
         'suews_sim.py',
         'units.py',
-        'validation.py',
         'code2file.json',
         'checker_rules_indiv.json',
         'checker_rules_joint.json',
@@ -33,6 +32,7 @@ py.install_sources(
             'cmd/__init__.py',
             'cmd/SUEWS.py',
             'cmd/compare_runs.py',
+            'cmd/contracts_cli.py',
             'cmd/diagnose_run.py',
             'cmd/init_case.py',
             'cmd/json_envelope.py',
@@ -42,7 +42,6 @@ py.install_sources(
             'cmd/suews_cli.py',
             'cmd/summarise_output.py',
             'cmd/table_converter.py',
-            'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
             'cmd/inspect_config.py',
@@ -75,8 +74,6 @@ py.install_sources(
             'util/_debug.py',
             'util/_era5.py',
             'util/_forcing.py',
-            'util/code_manager.py',
-            'util/conversion_engine.py',
             'util/_gap_filler.py',
             'util/_gs.py',
             'util/_io.py',
@@ -85,7 +82,6 @@ py.install_sources(
             'util/_plot.py',
             'util/_roughness.py',
             'util/_spinup.py',
-            'util/_state_io.py',
             'util/_tmy.py',
             'util/_waterdist.py',
             'util/converter/__init__.py',
@@ -116,6 +112,7 @@ py.install_sources(
         [
             'data_model/__init__.py',
             'data_model/README.md',
+            'data_model/contracts.py',
             'data_model/doc_utils.py',
             'data_model/parameter_examples.py',
             'data_model/parameter_examples.json',
@@ -177,18 +174,24 @@ py.install_sources(
         ],
         [
             'data_model/validation/__init__.py',
+            'data_model/validation/engine.py',
             'data_model/validation/core/__init__.py',
-            'data_model/validation/core/controller.py',
-            'data_model/validation/core/feedback.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
             'data_model/validation/derived_fields.py',
             'data_model/validation/required_fields.py',
+            'data_model/validation/rules/__init__.py',
+            'data_model/validation/rules/advisory.py',
+            'data_model/validation/rules/hard_invariants.py',
+            'data_model/validation/rules/typed_view.py',
             'data_model/validation/pipeline/__init__.py',
+            'data_model/validation/pipeline/document.py',
             'data_model/validation/pipeline/orchestrator.py',
+            'data_model/validation/pipeline/patches.py',
             'data_model/validation/pipeline/phase_a.py',
             'data_model/validation/pipeline/phase_b.py',
             'data_model/validation/pipeline/phase_c.py',
+            'data_model/validation/pipeline/renderers.py',
             'data_model/validation/pipeline/report_schema.py',
             'data_model/validation/pipeline/report_writer.py',
             'data_model/validation/pipeline/yaml_annotator.py',
@@ -216,6 +219,11 @@ install_subdir(
   install_dir: py.get_install_dir() / 'supy/data_model/forcing',
 )
 
+install_subdir(
+  'data_model/contract_artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model',
+)
+
 knowledge_pack = custom_target(
   'suews_knowledge_pack',
   command: [
@@ -225,22 +233,24 @@ knowledge_pack = custom_target(
     '@OUTDIR@',
     '--command',
     'meson knowledge-pack build',
+    '--depfile',
+    '@DEPFILE@',
+    '--depfile-target',
+    '@OUTPUT0@',
   ],
   output: [
     'manifest.json',
     'chunks.jsonl.gz',
   ],
-  depend_files: files('knowledge/pack.py'),
-  # Always rebuild on every build invocation (gh#1406). The pack
-  # content depends on every file under `src/suews/src`,
-  # `src/suews_bridge/src`, and `src/supy/` — declaring those
-  # individually as `depend_files` is brittle (meson `files()` does
-  # not glob), so we let ninja skip the deduplication and run the
-  # builder unconditionally. The pack-build script reads the source
-  # roots and writes deterministic JSON; runtime is on the order of
-  # seconds, well below the cost of carrying a stale pack into a
-  # release wheel.
-  build_always_stale: true,
+  depend_files: files('knowledge/pack.py', '_build_depfile.py'),
+  # The pack content depends on every packed file under `src/suews/src`,
+  # `src/suews_bridge/src` and `src/supy/`, plus the Git index and HEAD
+  # (gh#1406). Meson `files()` does not glob, so pack.py writes those
+  # inputs to a Ninja depfile instead. This replaces
+  # `build_always_stale: true`, which rebuilt the pack (several seconds)
+  # on every editable-install import, i.e. on every `python -c "import
+  # supy"` and every `suews` CLI call in tests.
+  depfile: 'suews_knowledge_pack.d',
   build_by_default: true,
   install: true,
   install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',

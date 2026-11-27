@@ -332,7 +332,7 @@ def test_datetime_instant_equivalence_and_null_guards():
 
     expected_eod = expected_dailystate_mask(base.as_unit("ns"), tstep=300)
     assert int(expected_eod.sum()) == 1
-    assert base[expected_eod][0] == pd.Timestamp("2012-01-01 23:55:00")
+    assert base[expected_eod][0] == pd.Timestamp("2012-01-02 00:00:00")
 
     for left_u in units:
         assert np.array_equal(

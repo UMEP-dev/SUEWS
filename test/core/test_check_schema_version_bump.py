@@ -204,7 +204,7 @@ def test_extract_current_schema_version_returns_none_when_missing() -> None:
         ("src/supy/data_model/output/variables.py", False),
         ("src/supy/data_model/forcing/variables.py", False),
         ("src/supy/data_model/interfaces/version.py", False),
-        ("src/supy/data_model/validation/core/controller.py", False),
+        ("src/supy/data_model/validation/engine.py", False),
     ],
 )
 def test_only_yaml_owned_paths_are_watched(path: str, watched: bool) -> None:

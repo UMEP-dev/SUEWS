@@ -941,12 +941,6 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         detail: "ohm.f95::ohm_state_unpack",
     },
     ManifestTypeEntry {
-        name: "output_block",
-        source: "src/suews/src/suews_ctrl_type.f95",
-        coverage: ManifestCoverage::NonUnpacked,
-        detail: "Multi-timestep output matrix block written directly by kernel; no unpack entry point (gh#1849, gh#2096).",
-    },
-    ManifestTypeEntry {
         name: "output_line",
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::NonUnpacked,
@@ -1028,7 +1022,7 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         name: "SUEWS_FORCING",
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::NonUnpacked,
-        detail: "No C-API flat unpacker. The typed forcing-row observer exercises the production SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096).",
+        detail: "No C-API flat unpacker. The typed forcing-row observer exercises the production module_ctrl_driver::SUEWS_load_forcing_row matrix reader (gh#2096).",
     },
     ManifestTypeEntry {
         name: "SUEWS_SITE",
@@ -1041,12 +1035,6 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::DriverPrivateUnpack,
         detail: "Live-observed via suews_obs_unpack_suews_state calling driver.f95::unpack_state_members across all 12 active state members (gh#2096).",
-    },
-    ManifestTypeEntry {
-        name: "SUEWS_STATE_BLOCK",
-        source: "src/suews/src/suews_ctrl_type.f95",
-        coverage: ManifestCoverage::NonUnpacked,
-        detail: "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no c_api unpack routine (gh#2096).",
     },
     ManifestTypeEntry {
         name: "SUEWS_TIMER",
@@ -3042,26 +3030,6 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 5,
-        path: "temp_surf_ehc_fast",
-        kind: ObsKind::Real,
-        rank: 2,
-        allocatable: true,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Internal EHC fast thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 6,
-        path: "temp_surf_ehc_slow",
-        kind: ObsKind::Real,
-        rank: 2,
-        allocatable: true,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Internal EHC slow thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 7,
         path: "tsfc_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -3071,7 +3039,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 8,
+        id: 6,
         path: "tsfc_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -3081,7 +3049,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 9,
+        id: 7,
         path: "tsfc_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3091,7 +3059,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 10,
+        id: 8,
         path: "tsfc_surf_dyohm",
         kind: ObsKind::Real,
         rank: 1,
@@ -3101,7 +3069,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 11,
+        id: 9,
         path: "tsfc_roof_stepstart",
         kind: ObsKind::Real,
         rank: 1,
@@ -3111,7 +3079,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 12,
+        id: 10,
         path: "tsfc_wall_stepstart",
         kind: ObsKind::Real,
         rank: 1,
@@ -3121,7 +3089,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 13,
+        id: 11,
         path: "tsfc_surf_stepstart",
         kind: ObsKind::Real,
         rank: 1,
@@ -3131,7 +3099,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 14,
+        id: 12,
         path: "QS_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -3141,7 +3109,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 15,
+        id: 13,
         path: "QN_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -3151,7 +3119,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 16,
+        id: 14,
         path: "qe_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -3161,7 +3129,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 17,
+        id: 15,
         path: "qh_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -3171,7 +3139,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 18,
+        id: 16,
         path: "qh_resist_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -3181,7 +3149,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 19,
+        id: 17,
         path: "QS_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -3191,7 +3159,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 20,
+        id: 18,
         path: "QN_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -3201,7 +3169,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 21,
+        id: 19,
         path: "qe_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -3211,7 +3179,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 22,
+        id: 20,
         path: "qh_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -3221,7 +3189,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 23,
+        id: 21,
         path: "qh_resist_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -3231,7 +3199,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 24,
+        id: 22,
         path: "qs_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3241,7 +3209,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 25,
+        id: 23,
         path: "QN_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3251,7 +3219,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 26,
+        id: 24,
         path: "qe0_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3261,7 +3229,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 27,
+        id: 25,
         path: "qe_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3271,7 +3239,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 28,
+        id: 26,
         path: "qh_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3281,7 +3249,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 29,
+        id: 27,
         path: "qh_resist_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -3291,7 +3259,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 30,
+        id: 28,
         path: "tsurf_ind",
         kind: ObsKind::Real,
         rank: 1,
@@ -3301,7 +3269,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 31,
+        id: 29,
         path: "QH_LUMPS",
         kind: ObsKind::Real,
         rank: 0,
@@ -3311,7 +3279,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 32,
+        id: 30,
         path: "QE_LUMPS",
         kind: ObsKind::Real,
         rank: 0,
@@ -3321,7 +3289,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 33,
+        id: 31,
         path: "k_clear",
         kind: ObsKind::Real,
         rank: 0,
@@ -3331,7 +3299,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 34,
+        id: 32,
         path: "k_up",
         kind: ObsKind::Real,
         rank: 0,
@@ -3341,7 +3309,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 35,
+        id: 33,
         path: "l_down",
         kind: ObsKind::Real,
         rank: 0,
@@ -3351,7 +3319,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 36,
+        id: 34,
         path: "l_up",
         kind: ObsKind::Real,
         rank: 0,
@@ -3361,7 +3329,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 37,
+        id: 35,
         path: "qe",
         kind: ObsKind::Real,
         rank: 0,
@@ -3371,7 +3339,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 38,
+        id: 36,
         path: "qf",
         kind: ObsKind::Real,
         rank: 0,
@@ -3381,7 +3349,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 39,
+        id: 37,
         path: "QF_SAHP",
         kind: ObsKind::Real,
         rank: 0,
@@ -3391,7 +3359,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 40,
+        id: 38,
         path: "qh",
         kind: ObsKind::Real,
         rank: 0,
@@ -3401,7 +3369,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 41,
+        id: 39,
         path: "qh_residual",
         kind: ObsKind::Real,
         rank: 0,
@@ -3411,7 +3379,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 42,
+        id: 40,
         path: "qh_resist",
         kind: ObsKind::Real,
         rank: 0,
@@ -3421,39 +3389,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 43,
-        path: "ehc_iter_dif_tsfc",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Intra-timestep EHC convergence diagnostic written per iteration in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 44,
-        path: "ehc_iter_dif_qh",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Intra-timestep EHC residual-vs-resistance QH diagnostic written in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 45,
-        path: "ehc_iter_score",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Intra-timestep EHC iteration quality score written in kernel (gh#1574, gh#1989).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 46,
+        id: 41,
         path: "qn",
         kind: ObsKind::Real,
         rank: 0,
@@ -3463,7 +3399,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 47,
+        id: 42,
         path: "qn_snowfree",
         kind: ObsKind::Real,
         rank: 0,
@@ -3473,7 +3409,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 48,
+        id: 43,
         path: "qs",
         kind: ObsKind::Real,
         rank: 0,
@@ -3483,7 +3419,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 49,
+        id: 44,
         path: "TSfc_C",
         kind: ObsKind::Real,
         rank: 0,
@@ -3493,7 +3429,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 50,
+        id: 45,
         path: "tsurf",
         kind: ObsKind::Real,
         rank: 0,
@@ -3503,7 +3439,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 51,
+        id: 46,
         path: "QH_Init",
         kind: ObsKind::Real,
         rank: 0,
@@ -3513,7 +3449,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 52,
+        id: 47,
         path: "roof_in_sw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -3523,7 +3459,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 53,
+        id: 48,
         path: "roof_in_lw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -3533,7 +3469,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 54,
+        id: 49,
         path: "wall_in_sw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -3543,7 +3479,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 55,
+        id: 50,
         path: "wall_in_lw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -3553,7 +3489,7 @@ pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 56,
+        id: 51,
         path: "iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -5439,7 +5375,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 51,
-        path: "waterdist%to_paved",
+        path: "lai%gdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5449,7 +5385,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 52,
-        path: "waterdist%to_bldg",
+        path: "lai%sdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5459,7 +5395,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 53,
-        path: "waterdist%to_evetr",
+        path: "waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5469,7 +5405,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 54,
-        path: "waterdist%to_dectr",
+        path: "waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5479,7 +5415,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 55,
-        path: "waterdist%to_grass",
+        path: "waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5489,7 +5425,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 56,
-        path: "waterdist%to_bsoil",
+        path: "waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5499,7 +5435,7 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 57,
-        path: "waterdist%to_water",
+        path: "waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5509,6 +5445,26 @@ pub const OBS_FIELDS_LC_DECTR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 58,
+        path: "waterdist%to_bsoil",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 59,
+        path: "waterdist%to_water",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 60,
         path: "waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
@@ -5982,7 +5938,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 47,
-        path: "waterdist%to_paved",
+        path: "lai%gdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -5992,7 +5948,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 48,
-        path: "waterdist%to_bldg",
+        path: "lai%sdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6002,7 +5958,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 49,
-        path: "waterdist%to_evetr",
+        path: "waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6012,7 +5968,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 50,
-        path: "waterdist%to_dectr",
+        path: "waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6022,7 +5978,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 51,
-        path: "waterdist%to_grass",
+        path: "waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6032,7 +5988,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 52,
-        path: "waterdist%to_bsoil",
+        path: "waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6042,7 +5998,7 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 53,
-        path: "waterdist%to_water",
+        path: "waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6052,6 +6008,26 @@ pub const OBS_FIELDS_LC_EVETR_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 54,
+        path: "waterdist%to_bsoil",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 55,
+        path: "waterdist%to_water",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 56,
         path: "waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
@@ -6505,7 +6481,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 45,
-        path: "waterdist%to_paved",
+        path: "lai%gdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6515,7 +6491,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 46,
-        path: "waterdist%to_bldg",
+        path: "lai%sdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6525,7 +6501,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 47,
-        path: "waterdist%to_evetr",
+        path: "waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6535,7 +6511,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 48,
-        path: "waterdist%to_dectr",
+        path: "waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6545,7 +6521,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 49,
-        path: "waterdist%to_grass",
+        path: "waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6555,7 +6531,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 50,
-        path: "waterdist%to_bsoil",
+        path: "waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6565,7 +6541,7 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 51,
-        path: "waterdist%to_water",
+        path: "waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -6575,6 +6551,26 @@ pub const OBS_FIELDS_LC_GRASS_PRM: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 52,
+        path: "waterdist%to_bsoil",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 53,
+        path: "waterdist%to_water",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 54,
         path: "waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
@@ -14081,6 +14077,56 @@ pub const OBS_FIELDS_SUEWS_CONFIG: &[ObsFieldDescriptor] = &[
         bridged: true,
         unbridged_reason: None,
     },
+    ObsFieldDescriptor {
+        id: 25,
+        path: "EHCSurfaceCoupling",
+        kind: ObsKind::Int,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 26,
+        path: "control_ehc_stability",
+        kind: ObsKind::Int,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 27,
+        path: "control_ehc_initial_profile",
+        kind: ObsKind::Logical,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 28,
+        path: "resistance_ehc_indoor_roof",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 29,
+        path: "resistance_ehc_indoor_wall",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
 ];
 
 pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
@@ -17268,7 +17314,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 319,
-        path: "lc_dectr%waterdist%to_paved",
+        path: "lc_dectr%lai%gdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17278,7 +17324,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 320,
-        path: "lc_dectr%waterdist%to_bldg",
+        path: "lc_dectr%lai%sdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17288,7 +17334,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 321,
-        path: "lc_dectr%waterdist%to_evetr",
+        path: "lc_dectr%waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17298,7 +17344,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 322,
-        path: "lc_dectr%waterdist%to_dectr",
+        path: "lc_dectr%waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17308,7 +17354,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 323,
-        path: "lc_dectr%waterdist%to_grass",
+        path: "lc_dectr%waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17318,7 +17364,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 324,
-        path: "lc_dectr%waterdist%to_bsoil",
+        path: "lc_dectr%waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17328,7 +17374,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 325,
-        path: "lc_dectr%waterdist%to_water",
+        path: "lc_dectr%waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17338,7 +17384,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 326,
-        path: "lc_dectr%waterdist%to_soilstore",
+        path: "lc_dectr%waterdist%to_bsoil",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17348,7 +17394,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 327,
-        path: "lc_evetr%sfr",
+        path: "lc_dectr%waterdist%to_water",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17358,7 +17404,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 328,
-        path: "lc_evetr%emis",
+        path: "lc_dectr%waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17368,7 +17414,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 329,
-        path: "lc_evetr%fai_evergreen_tree",
+        path: "lc_evetr%sfr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17378,7 +17424,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 330,
-        path: "lc_evetr%height_evergreen_tree",
+        path: "lc_evetr%emis",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17388,7 +17434,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 331,
-        path: "lc_evetr%alb_min",
+        path: "lc_evetr%fai_evergreen_tree",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17398,7 +17444,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 332,
-        path: "lc_evetr%alb_max",
+        path: "lc_evetr%height_evergreen_tree",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17408,7 +17454,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 333,
-        path: "lc_evetr%ohm%ch_anohm",
+        path: "lc_evetr%alb_min",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17418,7 +17464,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 334,
-        path: "lc_evetr%ohm%cp_anohm",
+        path: "lc_evetr%alb_max",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17428,7 +17474,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 335,
-        path: "lc_evetr%ohm%kk_anohm",
+        path: "lc_evetr%ohm%ch_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17438,7 +17484,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 336,
-        path: "lc_evetr%ohm%ohm_threshsw",
+        path: "lc_evetr%ohm%cp_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17448,7 +17494,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 337,
-        path: "lc_evetr%ohm%ohm_threshwd",
+        path: "lc_evetr%ohm%kk_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17458,7 +17504,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 338,
-        path: "lc_evetr%ohm%ohm_coef_lc(1)%summer_dry",
+        path: "lc_evetr%ohm%ohm_threshsw",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17468,7 +17514,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 339,
-        path: "lc_evetr%ohm%ohm_coef_lc(1)%summer_wet",
+        path: "lc_evetr%ohm%ohm_threshwd",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17478,7 +17524,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 340,
-        path: "lc_evetr%ohm%ohm_coef_lc(1)%winter_dry",
+        path: "lc_evetr%ohm%ohm_coef_lc(1)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17488,7 +17534,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 341,
-        path: "lc_evetr%ohm%ohm_coef_lc(1)%winter_wet",
+        path: "lc_evetr%ohm%ohm_coef_lc(1)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17498,7 +17544,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 342,
-        path: "lc_evetr%ohm%ohm_coef_lc(2)%summer_dry",
+        path: "lc_evetr%ohm%ohm_coef_lc(1)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17508,7 +17554,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 343,
-        path: "lc_evetr%ohm%ohm_coef_lc(2)%summer_wet",
+        path: "lc_evetr%ohm%ohm_coef_lc(1)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17518,7 +17564,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 344,
-        path: "lc_evetr%ohm%ohm_coef_lc(2)%winter_dry",
+        path: "lc_evetr%ohm%ohm_coef_lc(2)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17528,7 +17574,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 345,
-        path: "lc_evetr%ohm%ohm_coef_lc(2)%winter_wet",
+        path: "lc_evetr%ohm%ohm_coef_lc(2)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17538,7 +17584,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 346,
-        path: "lc_evetr%ohm%ohm_coef_lc(3)%summer_dry",
+        path: "lc_evetr%ohm%ohm_coef_lc(2)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17548,7 +17594,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 347,
-        path: "lc_evetr%ohm%ohm_coef_lc(3)%summer_wet",
+        path: "lc_evetr%ohm%ohm_coef_lc(2)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17558,7 +17604,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 348,
-        path: "lc_evetr%ohm%ohm_coef_lc(3)%winter_dry",
+        path: "lc_evetr%ohm%ohm_coef_lc(3)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17568,7 +17614,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 349,
-        path: "lc_evetr%ohm%ohm_coef_lc(3)%winter_wet",
+        path: "lc_evetr%ohm%ohm_coef_lc(3)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17578,7 +17624,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 350,
-        path: "lc_evetr%soil%soil_depth",
+        path: "lc_evetr%ohm%ohm_coef_lc(3)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17588,7 +17634,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 351,
-        path: "lc_evetr%soil%soil_store_capacity",
+        path: "lc_evetr%ohm%ohm_coef_lc(3)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17598,7 +17644,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 352,
-        path: "lc_evetr%soil%saturated_hydraulic_conductivity",
+        path: "lc_evetr%soil%soil_depth",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17608,7 +17654,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 353,
-        path: "lc_evetr%state_limit",
+        path: "lc_evetr%soil%soil_store_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17618,7 +17664,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 354,
-        path: "lc_evetr%irrigation_fraction_evetr",
+        path: "lc_evetr%soil%saturated_hydraulic_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17628,7 +17674,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 355,
-        path: "lc_evetr%wet_threshold",
+        path: "lc_evetr%state_limit",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17638,7 +17684,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 356,
-        path: "lc_evetr%bioco2%beta_bioco2",
+        path: "lc_evetr%irrigation_fraction_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17648,7 +17694,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 357,
-        path: "lc_evetr%bioco2%beta_enh_bioco2",
+        path: "lc_evetr%wet_threshold",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17658,7 +17704,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 358,
-        path: "lc_evetr%bioco2%alpha_bioco2",
+        path: "lc_evetr%bioco2%beta_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17668,7 +17714,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 359,
-        path: "lc_evetr%bioco2%alpha_enh_bioco2",
+        path: "lc_evetr%bioco2%beta_enh_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17678,7 +17724,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 360,
-        path: "lc_evetr%bioco2%resp_a",
+        path: "lc_evetr%bioco2%alpha_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17688,7 +17734,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 361,
-        path: "lc_evetr%bioco2%resp_b",
+        path: "lc_evetr%bioco2%alpha_enh_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17698,7 +17744,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 362,
-        path: "lc_evetr%bioco2%theta_bioco2",
+        path: "lc_evetr%bioco2%resp_a",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17708,7 +17754,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 363,
-        path: "lc_evetr%bioco2%min_res_bioCO2",
+        path: "lc_evetr%bioco2%resp_b",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17718,7 +17764,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 364,
-        path: "lc_evetr%max_conductance",
+        path: "lc_evetr%bioco2%theta_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17728,7 +17774,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 365,
-        path: "lc_evetr%lai%base_temperature",
+        path: "lc_evetr%bioco2%min_res_bioCO2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17738,7 +17784,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 366,
-        path: "lc_evetr%lai%gdd_full",
+        path: "lc_evetr%max_conductance",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17748,7 +17794,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 367,
-        path: "lc_evetr%lai%base_temperature_senescence",
+        path: "lc_evetr%lai%base_temperature",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17758,7 +17804,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 368,
-        path: "lc_evetr%lai%sdd_full",
+        path: "lc_evetr%lai%gdd_full",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17768,7 +17814,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 369,
-        path: "lc_evetr%lai%lai_min",
+        path: "lc_evetr%lai%base_temperature_senescence",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17778,7 +17824,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 370,
-        path: "lc_evetr%lai%lai_max",
+        path: "lc_evetr%lai%sdd_full",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17788,6 +17834,26 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 371,
+        path: "lc_evetr%lai%lai_min",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 372,
+        path: "lc_evetr%lai%lai_max",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 373,
         path: "lc_evetr%lai%lai_power",
         kind: ObsKind::Real,
         rank: 1,
@@ -17797,7 +17863,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 372,
+        id: 374,
         path: "lc_evetr%lai%lai_type",
         kind: ObsKind::Int,
         rank: 0,
@@ -17807,28 +17873,8 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 373,
-        path: "lc_evetr%waterdist%to_paved",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 374,
-        path: "lc_evetr%waterdist%to_bldg",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
         id: 375,
-        path: "lc_evetr%waterdist%to_evetr",
+        path: "lc_evetr%lai%gdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17838,7 +17884,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 376,
-        path: "lc_evetr%waterdist%to_dectr",
+        path: "lc_evetr%lai%sdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17848,7 +17894,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 377,
-        path: "lc_evetr%waterdist%to_grass",
+        path: "lc_evetr%waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17858,7 +17904,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 378,
-        path: "lc_evetr%waterdist%to_bsoil",
+        path: "lc_evetr%waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17868,7 +17914,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 379,
-        path: "lc_evetr%waterdist%to_water",
+        path: "lc_evetr%waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17878,7 +17924,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 380,
-        path: "lc_evetr%waterdist%to_soilstore",
+        path: "lc_evetr%waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17888,7 +17934,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 381,
-        path: "lc_grass%sfr",
+        path: "lc_evetr%waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17898,7 +17944,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 382,
-        path: "lc_grass%emis",
+        path: "lc_evetr%waterdist%to_bsoil",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17908,7 +17954,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 383,
-        path: "lc_grass%alb_min",
+        path: "lc_evetr%waterdist%to_water",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17918,7 +17964,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 384,
-        path: "lc_grass%alb_max",
+        path: "lc_evetr%waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17928,7 +17974,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 385,
-        path: "lc_grass%ohm%ch_anohm",
+        path: "lc_grass%sfr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17938,7 +17984,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 386,
-        path: "lc_grass%ohm%cp_anohm",
+        path: "lc_grass%emis",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17948,7 +17994,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 387,
-        path: "lc_grass%ohm%kk_anohm",
+        path: "lc_grass%alb_min",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17958,7 +18004,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 388,
-        path: "lc_grass%ohm%ohm_threshsw",
+        path: "lc_grass%alb_max",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17968,7 +18014,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 389,
-        path: "lc_grass%ohm%ohm_threshwd",
+        path: "lc_grass%ohm%ch_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17978,7 +18024,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 390,
-        path: "lc_grass%ohm%ohm_coef_lc(1)%summer_dry",
+        path: "lc_grass%ohm%cp_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17988,7 +18034,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 391,
-        path: "lc_grass%ohm%ohm_coef_lc(1)%summer_wet",
+        path: "lc_grass%ohm%kk_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -17998,7 +18044,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 392,
-        path: "lc_grass%ohm%ohm_coef_lc(1)%winter_dry",
+        path: "lc_grass%ohm%ohm_threshsw",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18008,7 +18054,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 393,
-        path: "lc_grass%ohm%ohm_coef_lc(1)%winter_wet",
+        path: "lc_grass%ohm%ohm_threshwd",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18018,7 +18064,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 394,
-        path: "lc_grass%ohm%ohm_coef_lc(2)%summer_dry",
+        path: "lc_grass%ohm%ohm_coef_lc(1)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18028,7 +18074,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 395,
-        path: "lc_grass%ohm%ohm_coef_lc(2)%summer_wet",
+        path: "lc_grass%ohm%ohm_coef_lc(1)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18038,7 +18084,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 396,
-        path: "lc_grass%ohm%ohm_coef_lc(2)%winter_dry",
+        path: "lc_grass%ohm%ohm_coef_lc(1)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18048,7 +18094,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 397,
-        path: "lc_grass%ohm%ohm_coef_lc(2)%winter_wet",
+        path: "lc_grass%ohm%ohm_coef_lc(1)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18058,7 +18104,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 398,
-        path: "lc_grass%ohm%ohm_coef_lc(3)%summer_dry",
+        path: "lc_grass%ohm%ohm_coef_lc(2)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18068,7 +18114,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 399,
-        path: "lc_grass%ohm%ohm_coef_lc(3)%summer_wet",
+        path: "lc_grass%ohm%ohm_coef_lc(2)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18078,7 +18124,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 400,
-        path: "lc_grass%ohm%ohm_coef_lc(3)%winter_dry",
+        path: "lc_grass%ohm%ohm_coef_lc(2)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18088,7 +18134,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 401,
-        path: "lc_grass%ohm%ohm_coef_lc(3)%winter_wet",
+        path: "lc_grass%ohm%ohm_coef_lc(2)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18098,7 +18144,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 402,
-        path: "lc_grass%soil%soil_depth",
+        path: "lc_grass%ohm%ohm_coef_lc(3)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18108,7 +18154,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 403,
-        path: "lc_grass%soil%soil_store_capacity",
+        path: "lc_grass%ohm%ohm_coef_lc(3)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18118,7 +18164,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 404,
-        path: "lc_grass%soil%saturated_hydraulic_conductivity",
+        path: "lc_grass%ohm%ohm_coef_lc(3)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18128,7 +18174,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 405,
-        path: "lc_grass%state_limit",
+        path: "lc_grass%ohm%ohm_coef_lc(3)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18138,7 +18184,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 406,
-        path: "lc_grass%irrigation_fraction_grass",
+        path: "lc_grass%soil%soil_depth",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18148,7 +18194,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 407,
-        path: "lc_grass%wet_threshold",
+        path: "lc_grass%soil%soil_store_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18158,7 +18204,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 408,
-        path: "lc_grass%bioco2%beta_bioco2",
+        path: "lc_grass%soil%saturated_hydraulic_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18168,7 +18214,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 409,
-        path: "lc_grass%bioco2%beta_enh_bioco2",
+        path: "lc_grass%state_limit",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18178,7 +18224,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 410,
-        path: "lc_grass%bioco2%alpha_bioco2",
+        path: "lc_grass%irrigation_fraction_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18188,7 +18234,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 411,
-        path: "lc_grass%bioco2%alpha_enh_bioco2",
+        path: "lc_grass%wet_threshold",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18198,7 +18244,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 412,
-        path: "lc_grass%bioco2%resp_a",
+        path: "lc_grass%bioco2%beta_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18208,7 +18254,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 413,
-        path: "lc_grass%bioco2%resp_b",
+        path: "lc_grass%bioco2%beta_enh_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18218,7 +18264,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 414,
-        path: "lc_grass%bioco2%theta_bioco2",
+        path: "lc_grass%bioco2%alpha_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18228,7 +18274,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 415,
-        path: "lc_grass%bioco2%min_res_bioCO2",
+        path: "lc_grass%bioco2%alpha_enh_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18238,7 +18284,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 416,
-        path: "lc_grass%max_conductance",
+        path: "lc_grass%bioco2%resp_a",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18248,7 +18294,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 417,
-        path: "lc_grass%lai%base_temperature",
+        path: "lc_grass%bioco2%resp_b",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18258,7 +18304,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 418,
-        path: "lc_grass%lai%gdd_full",
+        path: "lc_grass%bioco2%theta_bioco2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18268,7 +18314,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 419,
-        path: "lc_grass%lai%base_temperature_senescence",
+        path: "lc_grass%bioco2%min_res_bioCO2",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18278,7 +18324,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 420,
-        path: "lc_grass%lai%sdd_full",
+        path: "lc_grass%max_conductance",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18288,7 +18334,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 421,
-        path: "lc_grass%lai%lai_min",
+        path: "lc_grass%lai%base_temperature",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18298,7 +18344,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 422,
-        path: "lc_grass%lai%lai_max",
+        path: "lc_grass%lai%gdd_full",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18308,18 +18354,18 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 423,
-        path: "lc_grass%lai%lai_power",
+        path: "lc_grass%lai%base_temperature_senescence",
         kind: ObsKind::Real,
-        rank: 1,
+        rank: 0,
         allocatable: false,
-        fixed_bounds: &[(1, 4)],
+        fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 424,
-        path: "lc_grass%lai%lai_type",
-        kind: ObsKind::Int,
+        path: "lc_grass%lai%sdd_full",
+        kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -18328,7 +18374,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 425,
-        path: "lc_grass%waterdist%to_paved",
+        path: "lc_grass%lai%lai_min",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18338,7 +18384,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 426,
-        path: "lc_grass%waterdist%to_bldg",
+        path: "lc_grass%lai%lai_max",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18348,18 +18394,18 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 427,
-        path: "lc_grass%waterdist%to_evetr",
+        path: "lc_grass%lai%lai_power",
         kind: ObsKind::Real,
-        rank: 0,
+        rank: 1,
         allocatable: false,
-        fixed_bounds: &[],
+        fixed_bounds: &[(1, 4)],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 428,
-        path: "lc_grass%waterdist%to_dectr",
-        kind: ObsKind::Real,
+        path: "lc_grass%lai%lai_type",
+        kind: ObsKind::Int,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -18368,7 +18414,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 429,
-        path: "lc_grass%waterdist%to_grass",
+        path: "lc_grass%lai%gdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18378,7 +18424,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 430,
-        path: "lc_grass%waterdist%to_bsoil",
+        path: "lc_grass%lai%sdd_base",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18388,7 +18434,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 431,
-        path: "lc_grass%waterdist%to_water",
+        path: "lc_grass%waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18398,7 +18444,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 432,
-        path: "lc_grass%waterdist%to_soilstore",
+        path: "lc_grass%waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18408,7 +18454,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 433,
-        path: "lc_bsoil%sfr",
+        path: "lc_grass%waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18418,7 +18464,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 434,
-        path: "lc_bsoil%emis",
+        path: "lc_grass%waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18428,7 +18474,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 435,
-        path: "lc_bsoil%ohm%ch_anohm",
+        path: "lc_grass%waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18438,7 +18484,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 436,
-        path: "lc_bsoil%ohm%cp_anohm",
+        path: "lc_grass%waterdist%to_bsoil",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18448,7 +18494,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 437,
-        path: "lc_bsoil%ohm%kk_anohm",
+        path: "lc_grass%waterdist%to_water",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18458,7 +18504,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 438,
-        path: "lc_bsoil%ohm%ohm_threshsw",
+        path: "lc_grass%waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18468,7 +18514,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 439,
-        path: "lc_bsoil%ohm%ohm_threshwd",
+        path: "lc_bsoil%sfr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18478,7 +18524,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 440,
-        path: "lc_bsoil%ohm%ohm_coef_lc(1)%summer_dry",
+        path: "lc_bsoil%emis",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18488,7 +18534,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 441,
-        path: "lc_bsoil%ohm%ohm_coef_lc(1)%summer_wet",
+        path: "lc_bsoil%ohm%ch_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18498,7 +18544,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 442,
-        path: "lc_bsoil%ohm%ohm_coef_lc(1)%winter_dry",
+        path: "lc_bsoil%ohm%cp_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18508,7 +18554,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 443,
-        path: "lc_bsoil%ohm%ohm_coef_lc(1)%winter_wet",
+        path: "lc_bsoil%ohm%kk_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18518,7 +18564,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 444,
-        path: "lc_bsoil%ohm%ohm_coef_lc(2)%summer_dry",
+        path: "lc_bsoil%ohm%ohm_threshsw",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18528,7 +18574,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 445,
-        path: "lc_bsoil%ohm%ohm_coef_lc(2)%summer_wet",
+        path: "lc_bsoil%ohm%ohm_threshwd",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18538,7 +18584,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 446,
-        path: "lc_bsoil%ohm%ohm_coef_lc(2)%winter_dry",
+        path: "lc_bsoil%ohm%ohm_coef_lc(1)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18548,7 +18594,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 447,
-        path: "lc_bsoil%ohm%ohm_coef_lc(2)%winter_wet",
+        path: "lc_bsoil%ohm%ohm_coef_lc(1)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18558,7 +18604,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 448,
-        path: "lc_bsoil%ohm%ohm_coef_lc(3)%summer_dry",
+        path: "lc_bsoil%ohm%ohm_coef_lc(1)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18568,7 +18614,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 449,
-        path: "lc_bsoil%ohm%ohm_coef_lc(3)%summer_wet",
+        path: "lc_bsoil%ohm%ohm_coef_lc(1)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18578,7 +18624,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 450,
-        path: "lc_bsoil%ohm%ohm_coef_lc(3)%winter_dry",
+        path: "lc_bsoil%ohm%ohm_coef_lc(2)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18588,7 +18634,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 451,
-        path: "lc_bsoil%ohm%ohm_coef_lc(3)%winter_wet",
+        path: "lc_bsoil%ohm%ohm_coef_lc(2)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18598,7 +18644,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 452,
-        path: "lc_bsoil%soil%soil_depth",
+        path: "lc_bsoil%ohm%ohm_coef_lc(2)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18608,7 +18654,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 453,
-        path: "lc_bsoil%soil%soil_store_capacity",
+        path: "lc_bsoil%ohm%ohm_coef_lc(2)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18618,7 +18664,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 454,
-        path: "lc_bsoil%soil%saturated_hydraulic_conductivity",
+        path: "lc_bsoil%ohm%ohm_coef_lc(3)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18628,7 +18674,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 455,
-        path: "lc_bsoil%state_limit",
+        path: "lc_bsoil%ohm%ohm_coef_lc(3)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18638,7 +18684,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 456,
-        path: "lc_bsoil%irrigation_fraction_bsoil",
+        path: "lc_bsoil%ohm%ohm_coef_lc(3)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18648,7 +18694,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 457,
-        path: "lc_bsoil%wet_threshold",
+        path: "lc_bsoil%ohm%ohm_coef_lc(3)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18658,7 +18704,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 458,
-        path: "lc_bsoil%waterdist%to_paved",
+        path: "lc_bsoil%soil%soil_depth",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18668,7 +18714,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 459,
-        path: "lc_bsoil%waterdist%to_bldg",
+        path: "lc_bsoil%soil%soil_store_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18678,7 +18724,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 460,
-        path: "lc_bsoil%waterdist%to_evetr",
+        path: "lc_bsoil%soil%saturated_hydraulic_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18688,7 +18734,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 461,
-        path: "lc_bsoil%waterdist%to_dectr",
+        path: "lc_bsoil%state_limit",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18698,7 +18744,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 462,
-        path: "lc_bsoil%waterdist%to_grass",
+        path: "lc_bsoil%irrigation_fraction_bsoil",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18708,7 +18754,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 463,
-        path: "lc_bsoil%waterdist%to_bsoil",
+        path: "lc_bsoil%wet_threshold",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18718,7 +18764,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 464,
-        path: "lc_bsoil%waterdist%to_water",
+        path: "lc_bsoil%waterdist%to_paved",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18728,7 +18774,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 465,
-        path: "lc_bsoil%waterdist%to_soilstore",
+        path: "lc_bsoil%waterdist%to_bldg",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18738,7 +18784,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 466,
-        path: "lc_water%sfr",
+        path: "lc_bsoil%waterdist%to_evetr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18748,7 +18794,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 467,
-        path: "lc_water%emis",
+        path: "lc_bsoil%waterdist%to_dectr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18758,7 +18804,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 468,
-        path: "lc_water%ohm%ch_anohm",
+        path: "lc_bsoil%waterdist%to_grass",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18768,7 +18814,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 469,
-        path: "lc_water%ohm%cp_anohm",
+        path: "lc_bsoil%waterdist%to_bsoil",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18778,7 +18824,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 470,
-        path: "lc_water%ohm%kk_anohm",
+        path: "lc_bsoil%waterdist%to_water",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18788,7 +18834,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 471,
-        path: "lc_water%ohm%ohm_threshsw",
+        path: "lc_bsoil%waterdist%to_soilstore",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18798,7 +18844,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 472,
-        path: "lc_water%ohm%ohm_threshwd",
+        path: "lc_water%sfr",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18808,7 +18854,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 473,
-        path: "lc_water%ohm%ohm_coef_lc(1)%summer_dry",
+        path: "lc_water%emis",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18818,7 +18864,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 474,
-        path: "lc_water%ohm%ohm_coef_lc(1)%summer_wet",
+        path: "lc_water%ohm%ch_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18828,7 +18874,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 475,
-        path: "lc_water%ohm%ohm_coef_lc(1)%winter_dry",
+        path: "lc_water%ohm%cp_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18838,7 +18884,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 476,
-        path: "lc_water%ohm%ohm_coef_lc(1)%winter_wet",
+        path: "lc_water%ohm%kk_anohm",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18848,7 +18894,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 477,
-        path: "lc_water%ohm%ohm_coef_lc(2)%summer_dry",
+        path: "lc_water%ohm%ohm_threshsw",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18858,7 +18904,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 478,
-        path: "lc_water%ohm%ohm_coef_lc(2)%summer_wet",
+        path: "lc_water%ohm%ohm_threshwd",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18868,7 +18914,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 479,
-        path: "lc_water%ohm%ohm_coef_lc(2)%winter_dry",
+        path: "lc_water%ohm%ohm_coef_lc(1)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18878,7 +18924,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 480,
-        path: "lc_water%ohm%ohm_coef_lc(2)%winter_wet",
+        path: "lc_water%ohm%ohm_coef_lc(1)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18888,7 +18934,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 481,
-        path: "lc_water%ohm%ohm_coef_lc(3)%summer_dry",
+        path: "lc_water%ohm%ohm_coef_lc(1)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18898,7 +18944,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 482,
-        path: "lc_water%ohm%ohm_coef_lc(3)%summer_wet",
+        path: "lc_water%ohm%ohm_coef_lc(1)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18908,7 +18954,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 483,
-        path: "lc_water%ohm%ohm_coef_lc(3)%winter_dry",
+        path: "lc_water%ohm%ohm_coef_lc(2)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18918,7 +18964,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 484,
-        path: "lc_water%ohm%ohm_coef_lc(3)%winter_wet",
+        path: "lc_water%ohm%ohm_coef_lc(2)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18928,7 +18974,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 485,
-        path: "lc_water%soil%soil_depth",
+        path: "lc_water%ohm%ohm_coef_lc(2)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18938,7 +18984,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 486,
-        path: "lc_water%soil%soil_store_capacity",
+        path: "lc_water%ohm%ohm_coef_lc(2)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18948,7 +18994,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 487,
-        path: "lc_water%soil%saturated_hydraulic_conductivity",
+        path: "lc_water%ohm%ohm_coef_lc(3)%summer_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18958,7 +19004,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 488,
-        path: "lc_water%state_limit",
+        path: "lc_water%ohm%ohm_coef_lc(3)%summer_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18968,7 +19014,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 489,
-        path: "lc_water%irrigation_fraction_water",
+        path: "lc_water%ohm%ohm_coef_lc(3)%winter_dry",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18978,7 +19024,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 490,
-        path: "lc_water%wet_threshold",
+        path: "lc_water%ohm%ohm_coef_lc(3)%winter_wet",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18988,7 +19034,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 491,
-        path: "lc_water%flow_change",
+        path: "lc_water%soil%soil_depth",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -18998,7 +19044,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 492,
-        path: "building_archtype%building_count",
+        path: "lc_water%soil%soil_store_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19008,7 +19054,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 493,
-        path: "building_archtype%occupants_state",
+        path: "lc_water%soil%saturated_hydraulic_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19018,7 +19064,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 494,
-        path: "building_archtype%hhs0",
+        path: "lc_water%state_limit",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19028,7 +19074,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 495,
-        path: "building_archtype%age_0_4",
+        path: "lc_water%irrigation_fraction_water",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19038,7 +19084,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 496,
-        path: "building_archtype%age_5_11",
+        path: "lc_water%wet_threshold",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19048,7 +19094,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 497,
-        path: "building_archtype%age_12_18",
+        path: "lc_water%flow_change",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19058,7 +19104,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 498,
-        path: "building_archtype%age_19_64",
+        path: "building_archtype%building_count",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19068,7 +19114,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 499,
-        path: "building_archtype%age_65plus",
+        path: "building_archtype%occupants_state",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19078,7 +19124,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 500,
-        path: "building_archtype%stebbs_Height",
+        path: "building_archtype%hhs0",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19088,7 +19134,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 501,
-        path: "building_archtype%footprint_area",
+        path: "building_archtype%age_0_4",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19098,7 +19144,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 502,
-        path: "building_archtype%wall_external_area",
+        path: "building_archtype%age_5_11",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19108,7 +19154,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 503,
-        path: "building_archtype%internal_volume_ratio",
+        path: "building_archtype%age_12_18",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19118,7 +19164,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 504,
-        path: "building_archtype%internal_mass_area",
+        path: "building_archtype%age_19_64",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19128,7 +19174,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 505,
-        path: "building_archtype%WWR",
+        path: "building_archtype%age_65plus",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19138,7 +19184,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 506,
-        path: "building_archtype%wall_thickness",
+        path: "building_archtype%stebbs_Height",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19148,7 +19194,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 507,
-        path: "building_archtype%wall_effective_conductivity",
+        path: "building_archtype%footprint_area",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19158,7 +19204,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 508,
-        path: "building_archtype%wall_density",
+        path: "building_archtype%wall_external_area",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19168,7 +19214,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 509,
-        path: "building_archtype%wall_specific_heat_capacity",
+        path: "building_archtype%internal_volume_ratio",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19178,7 +19224,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 510,
-        path: "building_archtype%wall_external_thickness",
+        path: "building_archtype%internal_mass_area",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19188,7 +19234,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 511,
-        path: "building_archtype%wall_external_effective_conductivity",
+        path: "building_archtype%WWR",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19198,7 +19244,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 512,
-        path: "building_archtype%wall_external_density",
+        path: "building_archtype%wall_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19208,7 +19254,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 513,
-        path: "building_archtype%wall_external_specific_heat_capacity",
+        path: "building_archtype%wall_effective_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19218,7 +19264,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 514,
-        path: "building_archtype%wall_outer_heat_capacity_fraction",
+        path: "building_archtype%wall_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19228,7 +19274,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 515,
-        path: "building_archtype%wall_external_emissivity",
+        path: "building_archtype%wall_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19238,7 +19284,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 516,
-        path: "building_archtype%wall_internal_emissivity",
+        path: "building_archtype%wall_external_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19248,7 +19294,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 517,
-        path: "building_archtype%wall_transmissivity",
+        path: "building_archtype%wall_external_effective_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19258,7 +19304,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 518,
-        path: "building_archtype%wall_absorptivity",
+        path: "building_archtype%wall_external_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19268,7 +19314,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 519,
-        path: "building_archtype%wall_reflectivity",
+        path: "building_archtype%wall_external_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19278,7 +19324,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 520,
-        path: "building_archtype%roof_thickness",
+        path: "building_archtype%wall_outer_heat_capacity_fraction",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19288,7 +19334,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 521,
-        path: "building_archtype%roof_effective_conductivity",
+        path: "building_archtype%wall_external_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19298,7 +19344,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 522,
-        path: "building_archtype%roof_density",
+        path: "building_archtype%wall_internal_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19308,7 +19354,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 523,
-        path: "building_archtype%roof_specific_heat_capacity",
+        path: "building_archtype%wall_transmissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19318,7 +19364,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 524,
-        path: "building_archtype%roof_external_thickness",
+        path: "building_archtype%wall_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19328,7 +19374,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 525,
-        path: "building_archtype%roof_external_effective_conductivity",
+        path: "building_archtype%wall_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19338,7 +19384,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 526,
-        path: "building_archtype%roof_external_density",
+        path: "building_archtype%roof_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19348,7 +19394,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 527,
-        path: "building_archtype%roof_external_specific_heat_capacity",
+        path: "building_archtype%roof_effective_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19358,7 +19404,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 528,
-        path: "building_archtype%roof_outer_heat_capacity_fraction",
+        path: "building_archtype%roof_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19368,7 +19414,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 529,
-        path: "building_archtype%roof_external_emissivity",
+        path: "building_archtype%roof_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19378,7 +19424,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 530,
-        path: "building_archtype%roof_internal_emissivity",
+        path: "building_archtype%roof_external_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19388,7 +19434,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 531,
-        path: "building_archtype%roof_transmissivity",
+        path: "building_archtype%roof_external_effective_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19398,7 +19444,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 532,
-        path: "building_archtype%roof_absorptivity",
+        path: "building_archtype%roof_external_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19408,7 +19454,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 533,
-        path: "building_archtype%roof_reflectivity",
+        path: "building_archtype%roof_external_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19418,7 +19464,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 534,
-        path: "building_archtype%ground_floor_thickness",
+        path: "building_archtype%roof_outer_heat_capacity_fraction",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19428,7 +19474,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 535,
-        path: "building_archtype%ground_floor_effective_conductivity",
+        path: "building_archtype%roof_external_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19438,7 +19484,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 536,
-        path: "building_archtype%ground_floor_density",
+        path: "building_archtype%roof_internal_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19448,7 +19494,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 537,
-        path: "building_archtype%ground_floor_specific_heat_capacity",
+        path: "building_archtype%roof_transmissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19458,7 +19504,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 538,
-        path: "building_archtype%window_thickness",
+        path: "building_archtype%roof_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19468,7 +19514,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 539,
-        path: "building_archtype%window_effective_conductivity",
+        path: "building_archtype%roof_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19478,7 +19524,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 540,
-        path: "building_archtype%window_density",
+        path: "building_archtype%ground_floor_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19488,7 +19534,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 541,
-        path: "building_archtype%window_specific_heat_capacity",
+        path: "building_archtype%ground_floor_effective_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19498,7 +19544,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 542,
-        path: "building_archtype%window_external_emissivity",
+        path: "building_archtype%ground_floor_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19508,7 +19554,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 543,
-        path: "building_archtype%window_internal_emissivity",
+        path: "building_archtype%ground_floor_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19518,7 +19564,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 544,
-        path: "building_archtype%window_transmissivity",
+        path: "building_archtype%window_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19528,7 +19574,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 545,
-        path: "building_archtype%window_absorptivity",
+        path: "building_archtype%window_effective_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19538,7 +19584,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 546,
-        path: "building_archtype%window_reflectivity",
+        path: "building_archtype%window_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19548,7 +19594,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 547,
-        path: "building_archtype%internal_mass_density",
+        path: "building_archtype%window_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19558,7 +19604,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 548,
-        path: "building_archtype%internal_mass_specific_heat_capacity",
+        path: "building_archtype%window_external_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19568,7 +19614,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 549,
-        path: "building_archtype%internal_mass_emissivity",
+        path: "building_archtype%window_internal_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19578,7 +19624,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 550,
-        path: "building_archtype%max_heating_power",
+        path: "building_archtype%window_transmissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19588,7 +19634,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 551,
-        path: "building_archtype%hot_water_tank_volume",
+        path: "building_archtype%window_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19598,7 +19644,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 552,
-        path: "building_archtype%maximum_hot_water_heating_power",
+        path: "building_archtype%window_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19608,7 +19654,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 553,
-        path: "building_archtype%heating_setpoint_temperature",
+        path: "building_archtype%internal_mass_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19618,7 +19664,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 554,
-        path: "building_archtype%cooling_setpoint_temperature",
+        path: "building_archtype%internal_mass_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19628,27 +19674,27 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 555,
-        path: "building_archtype%heating_setpoint_temperature_profile",
+        path: "building_archtype%internal_mass_emissivity",
         kind: ObsKind::Real,
-        rank: 2,
+        rank: 0,
         allocatable: false,
-        fixed_bounds: &[(0, 143), (1, 2)],
+        fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 556,
-        path: "building_archtype%cooling_setpoint_temperature_profile",
+        path: "building_archtype%max_heating_power",
         kind: ObsKind::Real,
-        rank: 2,
+        rank: 0,
         allocatable: false,
-        fixed_bounds: &[(0, 143), (1, 2)],
+        fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 557,
-        path: "building_archtype%lighting_power_density",
+        path: "building_archtype%hot_water_tank_volume",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19658,28 +19704,28 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 558,
-        path: "building_archtype%metabolism_profile",
+        path: "building_archtype%maximum_hot_water_heating_power",
         kind: ObsKind::Real,
-        rank: 2,
+        rank: 0,
         allocatable: false,
-        fixed_bounds: &[(0, 143), (1, 2)],
+        fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 559,
-        path: "building_archtype%appliance_profile",
+        path: "building_archtype%heating_setpoint_temperature",
         kind: ObsKind::Real,
-        rank: 2,
+        rank: 0,
         allocatable: false,
-        fixed_bounds: &[(0, 143), (1, 2)],
+        fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 560,
-        path: "building_archtype%iter_safe",
-        kind: ObsKind::Logical,
+        path: "building_archtype%cooling_setpoint_temperature",
+        kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -19688,27 +19734,27 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 561,
-        path: "stebbs%wall_internal_convection_coefficient",
+        path: "building_archtype%heating_setpoint_temperature_profile",
         kind: ObsKind::Real,
-        rank: 0,
+        rank: 2,
         allocatable: false,
-        fixed_bounds: &[],
+        fixed_bounds: &[(0, 143), (1, 2)],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 562,
-        path: "stebbs%roof_internal_convection_coefficient",
+        path: "building_archtype%cooling_setpoint_temperature_profile",
         kind: ObsKind::Real,
-        rank: 0,
+        rank: 2,
         allocatable: false,
-        fixed_bounds: &[],
+        fixed_bounds: &[(0, 143), (1, 2)],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 563,
-        path: "stebbs%internal_mass_convection_coefficient",
+        path: "building_archtype%lighting_power_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19718,28 +19764,28 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 564,
-        path: "stebbs%floor_internal_convection_coefficient",
+        path: "building_archtype%metabolism_profile",
         kind: ObsKind::Real,
-        rank: 0,
+        rank: 2,
         allocatable: false,
-        fixed_bounds: &[],
+        fixed_bounds: &[(0, 143), (1, 2)],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 565,
-        path: "stebbs%window_internal_convection_coefficient",
+        path: "building_archtype%appliance_profile",
         kind: ObsKind::Real,
-        rank: 0,
+        rank: 2,
         allocatable: false,
-        fixed_bounds: &[],
+        fixed_bounds: &[(0, 143), (1, 2)],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 566,
-        path: "stebbs%wall_external_convection_coefficient",
-        kind: ObsKind::Real,
+        path: "building_archtype%iter_safe",
+        kind: ObsKind::Logical,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -19748,7 +19794,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 567,
-        path: "stebbs%roof_external_convection_coefficient",
+        path: "stebbs%wall_internal_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19758,7 +19804,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 568,
-        path: "stebbs%window_external_convection_coefficient",
+        path: "stebbs%roof_internal_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19768,7 +19814,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 569,
-        path: "stebbs%ground_depth",
+        path: "stebbs%internal_mass_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19778,7 +19824,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 570,
-        path: "stebbs%external_ground_conductivity",
+        path: "stebbs%floor_internal_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19788,7 +19834,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 571,
-        path: "stebbs%indoor_air_density",
+        path: "stebbs%window_internal_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19798,7 +19844,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 572,
-        path: "stebbs%indoor_air_cp",
+        path: "stebbs%wall_external_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19808,7 +19854,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 573,
-        path: "stebbs%metabolism_threshold",
+        path: "stebbs%roof_external_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19818,7 +19864,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 574,
-        path: "stebbs%latent_sensible_ratio",
+        path: "stebbs%window_external_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19828,8 +19874,8 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 575,
-        path: "stebbs%daylight_control",
-        kind: ObsKind::Int,
+        path: "stebbs%ground_depth",
+        kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -19838,7 +19884,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 576,
-        path: "stebbs%lighting_illuminance_threshold",
+        path: "stebbs%external_ground_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19848,8 +19894,8 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 577,
-        path: "stebbs%internal_shading",
-        kind: ObsKind::Int,
+        path: "stebbs%indoor_air_density",
+        kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -19858,7 +19904,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 578,
-        path: "stebbs%reduction_factor_shading",
+        path: "stebbs%indoor_air_cp",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19868,7 +19914,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 579,
-        path: "stebbs%temperature_threshold_shading",
+        path: "stebbs%metabolism_threshold",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19878,7 +19924,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 580,
-        path: "stebbs%radiation_threshold_shading",
+        path: "stebbs%latent_sensible_ratio",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19888,17 +19934,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 581,
-        path: "stebbs%heating_system_efficiency",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 582,
-        path: "stebbs%destination_waste_heat",
+        path: "stebbs%daylight_control",
         kind: ObsKind::Int,
         rank: 0,
         allocatable: false,
@@ -19907,8 +19943,8 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 583,
-        path: "stebbs%fraction_convective_heating",
+        id: 582,
+        path: "stebbs%lighting_illuminance_threshold",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19917,8 +19953,18 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
+        id: 583,
+        path: "stebbs%internal_shading",
+        kind: ObsKind::Int,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
         id: 584,
-        path: "stebbs%max_cooling_power",
+        path: "stebbs%reduction_factor_shading",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19928,7 +19974,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 585,
-        path: "stebbs%cooling_system_cop",
+        path: "stebbs%temperature_threshold_shading",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19938,7 +19984,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 586,
-        path: "stebbs%ventilation_rate",
+        path: "stebbs%radiation_threshold_shading",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19948,7 +19994,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 587,
-        path: "stebbs%hot_water_tank_wall_thickness",
+        path: "stebbs%heating_system_efficiency",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19958,8 +20004,8 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 588,
-        path: "stebbs%hot_water_tank_surface_area",
-        kind: ObsKind::Real,
+        path: "stebbs%destination_waste_heat",
+        kind: ObsKind::Int,
         rank: 0,
         allocatable: false,
         fixed_bounds: &[],
@@ -19968,7 +20014,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 589,
-        path: "stebbs%hot_water_heating_setpoint_temperature",
+        path: "stebbs%fraction_convective_heating",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19978,7 +20024,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 590,
-        path: "stebbs%hot_water_tank_wall_emissivity",
+        path: "stebbs%max_cooling_power",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19988,7 +20034,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 591,
-        path: "stebbs%hot_water_vessel_wall_thickness",
+        path: "stebbs%cooling_system_cop",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -19998,7 +20044,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 592,
-        path: "stebbs%hot_water_volume",
+        path: "stebbs%ventilation_rate",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20008,7 +20054,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 593,
-        path: "stebbs%hot_water_surface_area",
+        path: "stebbs%hot_water_tank_wall_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20018,7 +20064,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 594,
-        path: "stebbs%hot_water_flow_rate",
+        path: "stebbs%hot_water_tank_surface_area",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20028,17 +20074,17 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 595,
-        path: "stebbs%hot_water_flow_profile",
+        path: "stebbs%hot_water_heating_setpoint_temperature",
         kind: ObsKind::Real,
-        rank: 2,
+        rank: 0,
         allocatable: false,
-        fixed_bounds: &[(0, 143), (1, 2)],
+        fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 596,
-        path: "stebbs%hot_water_specific_heat_capacity",
+        path: "stebbs%hot_water_tank_wall_emissivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20048,7 +20094,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 597,
-        path: "stebbs%hot_water_tank_specific_heat_capacity",
+        path: "stebbs%hot_water_vessel_wall_thickness",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20058,7 +20104,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 598,
-        path: "stebbs%hot_water_vessel_specific_heat_capacity",
+        path: "stebbs%hot_water_volume",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20068,7 +20114,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 599,
-        path: "stebbs%hot_water_density",
+        path: "stebbs%hot_water_surface_area",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20078,7 +20124,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 600,
-        path: "stebbs%hot_water_tank_wall_density",
+        path: "stebbs%hot_water_flow_rate",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20088,17 +20134,17 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 601,
-        path: "stebbs%hot_water_vessel_density",
+        path: "stebbs%hot_water_flow_profile",
         kind: ObsKind::Real,
-        rank: 0,
+        rank: 2,
         allocatable: false,
-        fixed_bounds: &[],
+        fixed_bounds: &[(0, 143), (1, 2)],
         bridged: true,
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
         id: 602,
-        path: "stebbs%hot_water_tank_wall_conductivity",
+        path: "stebbs%hot_water_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20108,7 +20154,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 603,
-        path: "stebbs%hot_water_tank_internal_wall_convection_coefficient",
+        path: "stebbs%hot_water_tank_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20118,7 +20164,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 604,
-        path: "stebbs%hot_water_tank_external_wall_convection_coefficient",
+        path: "stebbs%hot_water_vessel_specific_heat_capacity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20128,7 +20174,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 605,
-        path: "stebbs%hot_water_vessel_wall_conductivity",
+        path: "stebbs%hot_water_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20138,7 +20184,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 606,
-        path: "stebbs%hot_water_vessel_internal_wall_convection_coefficient",
+        path: "stebbs%hot_water_tank_wall_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20148,7 +20194,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 607,
-        path: "stebbs%hot_water_vessel_external_wall_convection_coefficient",
+        path: "stebbs%hot_water_vessel_density",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20158,7 +20204,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 608,
-        path: "stebbs%hot_water_vessel_wall_emissivity",
+        path: "stebbs%hot_water_tank_wall_conductivity",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20168,7 +20214,7 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 609,
-        path: "stebbs%hot_water_heating_efficiency",
+        path: "stebbs%hot_water_tank_internal_wall_convection_coefficient",
         kind: ObsKind::Real,
         rank: 0,
         allocatable: false,
@@ -20178,6 +20224,66 @@ pub const OBS_FIELDS_SUEWS_SITE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 610,
+        path: "stebbs%hot_water_tank_external_wall_convection_coefficient",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 611,
+        path: "stebbs%hot_water_vessel_wall_conductivity",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 612,
+        path: "stebbs%hot_water_vessel_internal_wall_convection_coefficient",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 613,
+        path: "stebbs%hot_water_vessel_external_wall_convection_coefficient",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 614,
+        path: "stebbs%hot_water_vessel_wall_emissivity",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 615,
+        path: "stebbs%hot_water_heating_efficiency",
+        kind: ObsKind::Real,
+        rank: 0,
+        allocatable: false,
+        fixed_bounds: &[],
+        bridged: true,
+        unbridged_reason: None,
+    },
+    ObsFieldDescriptor {
+        id: 616,
         path: "stebbs%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -22201,26 +22307,6 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
     },
     ObsFieldDescriptor {
         id: 202,
-        path: "heatState%temp_surf_ehc_fast",
-        kind: ObsKind::Real,
-        rank: 2,
-        allocatable: true,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Internal EHC fast thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 203,
-        path: "heatState%temp_surf_ehc_slow",
-        kind: ObsKind::Real,
-        rank: 2,
-        allocatable: true,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Internal EHC slow thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 204,
         path: "heatState%tsfc_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -22230,7 +22316,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 205,
+        id: 203,
         path: "heatState%tsfc_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -22240,7 +22326,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 206,
+        id: 204,
         path: "heatState%tsfc_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22250,7 +22336,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 207,
+        id: 205,
         path: "heatState%tsfc_surf_dyohm",
         kind: ObsKind::Real,
         rank: 1,
@@ -22260,7 +22346,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 208,
+        id: 206,
         path: "heatState%tsfc_roof_stepstart",
         kind: ObsKind::Real,
         rank: 1,
@@ -22270,7 +22356,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 209,
+        id: 207,
         path: "heatState%tsfc_wall_stepstart",
         kind: ObsKind::Real,
         rank: 1,
@@ -22280,7 +22366,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 210,
+        id: 208,
         path: "heatState%tsfc_surf_stepstart",
         kind: ObsKind::Real,
         rank: 1,
@@ -22290,7 +22376,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 211,
+        id: 209,
         path: "heatState%QS_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -22300,7 +22386,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 212,
+        id: 210,
         path: "heatState%QN_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -22310,7 +22396,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 213,
+        id: 211,
         path: "heatState%qe_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -22320,7 +22406,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 214,
+        id: 212,
         path: "heatState%qh_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -22330,7 +22416,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 215,
+        id: 213,
         path: "heatState%qh_resist_roof",
         kind: ObsKind::Real,
         rank: 1,
@@ -22340,7 +22426,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 216,
+        id: 214,
         path: "heatState%QS_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -22350,7 +22436,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 217,
+        id: 215,
         path: "heatState%QN_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -22360,7 +22446,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 218,
+        id: 216,
         path: "heatState%qe_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -22370,7 +22456,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 219,
+        id: 217,
         path: "heatState%qh_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -22380,7 +22466,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 220,
+        id: 218,
         path: "heatState%qh_resist_wall",
         kind: ObsKind::Real,
         rank: 1,
@@ -22390,7 +22476,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 221,
+        id: 219,
         path: "heatState%qs_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22400,7 +22486,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 222,
+        id: 220,
         path: "heatState%QN_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22410,7 +22496,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 223,
+        id: 221,
         path: "heatState%qe0_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22420,7 +22506,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 224,
+        id: 222,
         path: "heatState%qe_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22430,7 +22516,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 225,
+        id: 223,
         path: "heatState%qh_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22440,7 +22526,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 226,
+        id: 224,
         path: "heatState%qh_resist_surf",
         kind: ObsKind::Real,
         rank: 1,
@@ -22450,7 +22536,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 227,
+        id: 225,
         path: "heatState%tsurf_ind",
         kind: ObsKind::Real,
         rank: 1,
@@ -22460,7 +22546,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 228,
+        id: 226,
         path: "heatState%QH_LUMPS",
         kind: ObsKind::Real,
         rank: 0,
@@ -22470,7 +22556,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 229,
+        id: 227,
         path: "heatState%QE_LUMPS",
         kind: ObsKind::Real,
         rank: 0,
@@ -22480,7 +22566,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 230,
+        id: 228,
         path: "heatState%k_clear",
         kind: ObsKind::Real,
         rank: 0,
@@ -22490,7 +22576,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 231,
+        id: 229,
         path: "heatState%k_up",
         kind: ObsKind::Real,
         rank: 0,
@@ -22500,7 +22586,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 232,
+        id: 230,
         path: "heatState%l_down",
         kind: ObsKind::Real,
         rank: 0,
@@ -22510,7 +22596,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 233,
+        id: 231,
         path: "heatState%l_up",
         kind: ObsKind::Real,
         rank: 0,
@@ -22520,7 +22606,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 234,
+        id: 232,
         path: "heatState%qe",
         kind: ObsKind::Real,
         rank: 0,
@@ -22530,7 +22616,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 235,
+        id: 233,
         path: "heatState%qf",
         kind: ObsKind::Real,
         rank: 0,
@@ -22540,7 +22626,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 236,
+        id: 234,
         path: "heatState%QF_SAHP",
         kind: ObsKind::Real,
         rank: 0,
@@ -22550,7 +22636,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 237,
+        id: 235,
         path: "heatState%qh",
         kind: ObsKind::Real,
         rank: 0,
@@ -22560,7 +22646,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 238,
+        id: 236,
         path: "heatState%qh_residual",
         kind: ObsKind::Real,
         rank: 0,
@@ -22570,7 +22656,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 239,
+        id: 237,
         path: "heatState%qh_resist",
         kind: ObsKind::Real,
         rank: 0,
@@ -22580,39 +22666,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 240,
-        path: "heatState%ehc_iter_dif_tsfc",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Intra-timestep EHC convergence diagnostic written per iteration in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 241,
-        path: "heatState%ehc_iter_dif_qh",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some("Intra-timestep EHC residual-vs-resistance QH diagnostic written in kernel (gh#1574, gh#1989)."),
-    },
-    ObsFieldDescriptor {
-        id: 242,
-        path: "heatState%ehc_iter_score",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Intra-timestep EHC iteration quality score written in kernel (gh#1574, gh#1989).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 243,
+        id: 238,
         path: "heatState%qn",
         kind: ObsKind::Real,
         rank: 0,
@@ -22622,7 +22676,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 244,
+        id: 239,
         path: "heatState%qn_snowfree",
         kind: ObsKind::Real,
         rank: 0,
@@ -22632,7 +22686,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 245,
+        id: 240,
         path: "heatState%qs",
         kind: ObsKind::Real,
         rank: 0,
@@ -22642,7 +22696,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 246,
+        id: 241,
         path: "heatState%TSfc_C",
         kind: ObsKind::Real,
         rank: 0,
@@ -22652,7 +22706,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 247,
+        id: 242,
         path: "heatState%tsurf",
         kind: ObsKind::Real,
         rank: 0,
@@ -22662,7 +22716,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 248,
+        id: 243,
         path: "heatState%QH_Init",
         kind: ObsKind::Real,
         rank: 0,
@@ -22672,7 +22726,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 249,
+        id: 244,
         path: "heatState%roof_in_sw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -22682,7 +22736,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 250,
+        id: 245,
         path: "heatState%roof_in_lw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -22692,7 +22746,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 251,
+        id: 246,
         path: "heatState%wall_in_sw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -22702,7 +22756,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 252,
+        id: 247,
         path: "heatState%wall_in_lw_spc",
         kind: ObsKind::Real,
         rank: 1,
@@ -22712,7 +22766,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 253,
+        id: 248,
         path: "heatState%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -22722,7 +22776,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 254,
+        id: 249,
         path: "roughnessState%fai_bldg_use",
         kind: ObsKind::Real,
         rank: 0,
@@ -22732,7 +22786,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 255,
+        id: 250,
         path: "roughnessState%fai_evetree_use",
         kind: ObsKind::Real,
         rank: 0,
@@ -22742,7 +22796,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 256,
+        id: 251,
         path: "roughnessState%fai_dectree_use",
         kind: ObsKind::Real,
         rank: 0,
@@ -22752,7 +22806,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 257,
+        id: 252,
         path: "roughnessState%FAI",
         kind: ObsKind::Real,
         rank: 0,
@@ -22762,7 +22816,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 258,
+        id: 253,
         path: "roughnessState%PAI",
         kind: ObsKind::Real,
         rank: 0,
@@ -22772,7 +22826,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 259,
+        id: 254,
         path: "roughnessState%Zh",
         kind: ObsKind::Real,
         rank: 0,
@@ -22782,7 +22836,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 260,
+        id: 255,
         path: "roughnessState%z0m",
         kind: ObsKind::Real,
         rank: 0,
@@ -22792,7 +22846,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 261,
+        id: 256,
         path: "roughnessState%z0v",
         kind: ObsKind::Real,
         rank: 0,
@@ -22802,7 +22856,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 262,
+        id: 257,
         path: "roughnessState%zdm",
         kind: ObsKind::Real,
         rank: 0,
@@ -22812,7 +22866,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 263,
+        id: 258,
         path: "roughnessState%ZZD",
         kind: ObsKind::Real,
         rank: 0,
@@ -22822,7 +22876,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 264,
+        id: 259,
         path: "roughnessState%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -22832,7 +22886,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 265,
+        id: 260,
         path: "stebbsState%kdown_2d",
         kind: ObsKind::Real,
         rank: 0,
@@ -22842,7 +22896,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 266,
+        id: 261,
         path: "stebbsState%kup_2d",
         kind: ObsKind::Real,
         rank: 0,
@@ -22852,7 +22906,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 267,
+        id: 262,
         path: "stebbsState%k_west",
         kind: ObsKind::Real,
         rank: 0,
@@ -22862,7 +22916,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 268,
+        id: 263,
         path: "stebbsState%k_south",
         kind: ObsKind::Real,
         rank: 0,
@@ -22872,7 +22926,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 269,
+        id: 264,
         path: "stebbsState%k_north",
         kind: ObsKind::Real,
         rank: 0,
@@ -22882,7 +22936,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 270,
+        id: 265,
         path: "stebbsState%k_east",
         kind: ObsKind::Real,
         rank: 0,
@@ -22892,7 +22946,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 271,
+        id: 266,
         path: "stebbsState%ldown_2d",
         kind: ObsKind::Real,
         rank: 0,
@@ -22902,7 +22956,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 272,
+        id: 267,
         path: "stebbsState%lup_2d",
         kind: ObsKind::Real,
         rank: 0,
@@ -22912,7 +22966,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 273,
+        id: 268,
         path: "stebbsState%l_west",
         kind: ObsKind::Real,
         rank: 0,
@@ -22922,7 +22976,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 274,
+        id: 269,
         path: "stebbsState%l_south",
         kind: ObsKind::Real,
         rank: 0,
@@ -22932,7 +22986,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 275,
+        id: 270,
         path: "stebbsState%l_north",
         kind: ObsKind::Real,
         rank: 0,
@@ -22942,7 +22996,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 276,
+        id: 271,
         path: "stebbsState%l_east",
         kind: ObsKind::Real,
         rank: 0,
@@ -22952,7 +23006,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 277,
+        id: 272,
         path: "stebbsState%z_array",
         kind: ObsKind::Real,
         rank: 1,
@@ -22962,7 +23016,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 278,
+        id: 273,
         path: "stebbsState%dataout_line_u_rsl",
         kind: ObsKind::Real,
         rank: 1,
@@ -22972,7 +23026,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 279,
+        id: 274,
         path: "stebbsState%dataout_line_t_rsl",
         kind: ObsKind::Real,
         rank: 1,
@@ -22982,7 +23036,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 280,
+        id: 275,
         path: "stebbsState%dataout_line_q_rsl",
         kind: ObsKind::Real,
         rank: 1,
@@ -22992,7 +23046,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 281,
+        id: 276,
         path: "stebbsState%deep_soil_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23002,7 +23056,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 282,
+        id: 277,
         path: "stebbsState%MonthMeanAirTemperature_diffmax",
         kind: ObsKind::Real,
         rank: 0,
@@ -23012,7 +23066,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 283,
+        id: 278,
         path: "stebbsState%outdoor_air_start_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23022,7 +23076,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 284,
+        id: 279,
         path: "stebbsState%indoor_air_start_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23032,7 +23086,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 285,
+        id: 280,
         path: "stebbsState%indoor_mass_start_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23042,7 +23096,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 286,
+        id: 281,
         path: "stebbsState%wall_indoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23052,7 +23106,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 287,
+        id: 282,
         path: "stebbsState%wall_outdoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23062,7 +23116,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 288,
+        id: 283,
         path: "stebbsState%roof_indoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23072,7 +23126,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 289,
+        id: 284,
         path: "stebbsState%roof_outdoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23082,7 +23136,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 290,
+        id: 285,
         path: "stebbsState%window_indoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23092,7 +23146,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 291,
+        id: 286,
         path: "stebbsState%window_outdoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23102,7 +23156,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 292,
+        id: 287,
         path: "stebbsState%ground_floor_indoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23112,7 +23166,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 293,
+        id: 288,
         path: "stebbsState%ground_floor_outdoor_surface_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23122,7 +23176,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 294,
+        id: 289,
         path: "stebbsState%water_tank_temperature_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -23132,7 +23186,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 295,
+        id: 290,
         path: "stebbsState%internal_wall_water_tank_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23142,7 +23196,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 296,
+        id: 291,
         path: "stebbsState%external_wall_water_tank_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23152,7 +23206,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 297,
+        id: 292,
         path: "stebbsState%mains_water_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23162,7 +23216,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 298,
+        id: 293,
         path: "stebbsState%domestic_hot_water_temperature_in_use_in_building",
         kind: ObsKind::Real,
         rank: 0,
@@ -23172,7 +23226,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 299,
+        id: 294,
         path: "stebbsState%internal_wall_dhw_vessel_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23182,7 +23236,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 300,
+        id: 295,
         path: "stebbsState%external_wall_dhw_vessel_temperature",
         kind: ObsKind::Real,
         rank: 0,
@@ -23192,7 +23246,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 301,
+        id: 296,
         path: "stebbsState%QS_stebbs",
         kind: ObsKind::Real,
         rank: 0,
@@ -23202,7 +23256,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 302,
+        id: 297,
         path: "stebbsState%buildings",
         kind: ObsKind::Derived,
         rank: 1,
@@ -23212,7 +23266,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 303,
+        id: 298,
         path: "stebbsState%buildings(1)%id_lbm",
         kind: ObsKind::Int,
         rank: 0,
@@ -23222,7 +23276,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 304,
+        id: 299,
         path: "stebbsState%buildings(1)%appliance_totalnumber",
         kind: ObsKind::Int,
         rank: 0,
@@ -23232,7 +23286,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 305,
+        id: 300,
         path: "stebbsState%buildings(1)%QHload_heating_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -23242,7 +23296,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 306,
+        id: 301,
         path: "stebbsState%buildings(1)%QHload_cooling_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -23252,7 +23306,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 307,
+        id: 302,
         path: "stebbsState%buildings(1)%QH_metabolism",
         kind: ObsKind::Real,
         rank: 0,
@@ -23262,7 +23316,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 308,
+        id: 303,
         path: "stebbsState%buildings(1)%QE_metabolism",
         kind: ObsKind::Real,
         rank: 0,
@@ -23272,7 +23326,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 309,
+        id: 304,
         path: "stebbsState%buildings(1)%QHload_dhw_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -23282,7 +23336,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 310,
+        id: 305,
         path: "stebbsState%buildings(1)%Qloss_drain_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -23292,7 +23346,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 311,
+        id: 306,
         path: "stebbsState%buildings(1)%ratio_window_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23302,7 +23356,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 312,
+        id: 307,
         path: "stebbsState%buildings(1)%a_footprint",
         kind: ObsKind::Real,
         rank: 0,
@@ -23312,7 +23366,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 313,
+        id: 308,
         path: "stebbsState%buildings(1)%height_building",
         kind: ObsKind::Real,
         rank: 0,
@@ -23322,7 +23376,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 314,
+        id: 309,
         path: "stebbsState%buildings(1)%wall_external_area",
         kind: ObsKind::Real,
         rank: 0,
@@ -23332,7 +23386,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 315,
+        id: 310,
         path: "stebbsState%buildings(1)%internal_volume_ratio",
         kind: ObsKind::Real,
         rank: 0,
@@ -23342,7 +23396,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 316,
+        id: 311,
         path: "stebbsState%buildings(1)%thickness_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23352,7 +23406,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 317,
+        id: 312,
         path: "stebbsState%buildings(1)%thickness_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23362,7 +23416,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 318,
+        id: 313,
         path: "stebbsState%buildings(1)%thickness_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23372,7 +23426,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 319,
+        id: 314,
         path: "stebbsState%buildings(1)%thickness_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23382,7 +23436,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 320,
+        id: 315,
         path: "stebbsState%buildings(1)%thickness_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -23392,7 +23446,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 321,
+        id: 316,
         path: "stebbsState%buildings(1)%depth_ground",
         kind: ObsKind::Real,
         rank: 0,
@@ -23402,7 +23456,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 322,
+        id: 317,
         path: "stebbsState%buildings(1)%thickness_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -23412,7 +23466,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 323,
+        id: 318,
         path: "stebbsState%buildings(1)%conv_coeff_intwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23422,7 +23476,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 324,
+        id: 319,
         path: "stebbsState%buildings(1)%conv_coeff_introof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23432,7 +23486,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 325,
+        id: 320,
         path: "stebbsState%buildings(1)%conv_coeff_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -23442,7 +23496,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 326,
+        id: 321,
         path: "stebbsState%buildings(1)%conv_coeff_intgroundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -23452,7 +23506,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 327,
+        id: 322,
         path: "stebbsState%buildings(1)%conv_coeff_intwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -23462,7 +23516,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 328,
+        id: 323,
         path: "stebbsState%buildings(1)%conv_coeff_extwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23472,7 +23526,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 329,
+        id: 324,
         path: "stebbsState%buildings(1)%conv_coeff_extroof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23482,7 +23536,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 330,
+        id: 325,
         path: "stebbsState%buildings(1)%conv_coeff_extwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -23492,7 +23546,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 331,
+        id: 326,
         path: "stebbsState%buildings(1)%conductivity_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23502,7 +23556,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 332,
+        id: 327,
         path: "stebbsState%buildings(1)%conductivity_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23512,7 +23566,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 333,
+        id: 328,
         path: "stebbsState%buildings(1)%conductivity_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23522,7 +23576,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 334,
+        id: 329,
         path: "stebbsState%buildings(1)%conductivity_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23532,7 +23586,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 335,
+        id: 330,
         path: "stebbsState%buildings(1)%conductivity_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -23542,7 +23596,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 336,
+        id: 331,
         path: "stebbsState%buildings(1)%conductivity_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -23552,7 +23606,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 337,
+        id: 332,
         path: "stebbsState%buildings(1)%conductivity_ground",
         kind: ObsKind::Real,
         rank: 0,
@@ -23562,7 +23616,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 338,
+        id: 333,
         path: "stebbsState%buildings(1)%density_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23572,7 +23626,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 339,
+        id: 334,
         path: "stebbsState%buildings(1)%density_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23582,7 +23636,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 340,
+        id: 335,
         path: "stebbsState%buildings(1)%density_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23592,7 +23646,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 341,
+        id: 336,
         path: "stebbsState%buildings(1)%density_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23602,7 +23656,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 342,
+        id: 337,
         path: "stebbsState%buildings(1)%weighting_factor_heatcapacity_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23612,7 +23666,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 343,
+        id: 338,
         path: "stebbsState%buildings(1)%weighting_factor_heatcapacity_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23622,7 +23676,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 344,
+        id: 339,
         path: "stebbsState%buildings(1)%density_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -23632,7 +23686,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 345,
+        id: 340,
         path: "stebbsState%buildings(1)%density_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -23642,7 +23696,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 346,
+        id: 341,
         path: "stebbsState%buildings(1)%density_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -23652,7 +23706,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 347,
+        id: 342,
         path: "stebbsState%buildings(1)%density_air_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -23662,7 +23716,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 348,
+        id: 343,
         path: "stebbsState%buildings(1)%cp_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23672,7 +23726,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 349,
+        id: 344,
         path: "stebbsState%buildings(1)%cp_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23682,7 +23736,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 350,
+        id: 345,
         path: "stebbsState%buildings(1)%cp_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23692,7 +23746,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 351,
+        id: 346,
         path: "stebbsState%buildings(1)%cp_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -23702,7 +23756,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 352,
+        id: 347,
         path: "stebbsState%buildings(1)%cp_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -23712,7 +23766,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 353,
+        id: 348,
         path: "stebbsState%buildings(1)%cp_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -23722,7 +23776,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 354,
+        id: 349,
         path: "stebbsState%buildings(1)%cp_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -23732,7 +23786,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 355,
+        id: 350,
         path: "stebbsState%buildings(1)%cp_air_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -23742,7 +23796,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 356,
+        id: 351,
         path: "stebbsState%buildings(1)%emissivity_extwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23752,7 +23806,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 357,
+        id: 352,
         path: "stebbsState%buildings(1)%emissivity_extroof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23762,7 +23816,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 358,
+        id: 353,
         path: "stebbsState%buildings(1)%emissivity_intwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -23772,7 +23826,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 359,
+        id: 354,
         path: "stebbsState%buildings(1)%emissivity_introof",
         kind: ObsKind::Real,
         rank: 0,
@@ -23782,7 +23836,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 360,
+        id: 355,
         path: "stebbsState%buildings(1)%emissivity_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -23792,7 +23846,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 361,
+        id: 356,
         path: "stebbsState%buildings(1)%emissivity_extwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -23802,7 +23856,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 362,
+        id: 357,
         path: "stebbsState%buildings(1)%emissivity_intwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -23812,7 +23866,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 363,
+        id: 358,
         path: "stebbsState%buildings(1)%window_transmissivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23822,7 +23876,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 364,
+        id: 359,
         path: "stebbsState%buildings(1)%window_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23832,7 +23886,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 365,
+        id: 360,
         path: "stebbsState%buildings(1)%window_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23842,7 +23896,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 366,
+        id: 361,
         path: "stebbsState%buildings(1)%wall_transmissivity_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -23852,7 +23906,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 367,
+        id: 362,
         path: "stebbsState%buildings(1)%wall_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23862,7 +23916,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 368,
+        id: 363,
         path: "stebbsState%buildings(1)%wall_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23872,7 +23926,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 369,
+        id: 364,
         path: "stebbsState%buildings(1)%roof_transmissivity_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -23882,7 +23936,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 370,
+        id: 365,
         path: "stebbsState%buildings(1)%roof_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23892,7 +23946,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 371,
+        id: 366,
         path: "stebbsState%buildings(1)%roof_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -23902,7 +23956,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 372,
+        id: 367,
         path: "stebbsState%buildings(1)%occupants_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -23912,7 +23966,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 373,
+        id: 368,
         path: "stebbsState%buildings(1)%metabolic_rate",
         kind: ObsKind::Real,
         rank: 0,
@@ -23922,7 +23976,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 374,
+        id: 369,
         path: "stebbsState%buildings(1)%metabolism_threshold",
         kind: ObsKind::Real,
         rank: 0,
@@ -23932,7 +23986,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 375,
+        id: 370,
         path: "stebbsState%buildings(1)%ratio_metabolic_latent_sensible",
         kind: ObsKind::Real,
         rank: 0,
@@ -23942,7 +23996,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 376,
+        id: 371,
         path: "stebbsState%buildings(1)%internal_shading",
         kind: ObsKind::Int,
         rank: 0,
@@ -23952,7 +24006,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 377,
+        id: 372,
         path: "stebbsState%buildings(1)%reduction_factor_shading",
         kind: ObsKind::Real,
         rank: 0,
@@ -23962,7 +24016,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 378,
+        id: 373,
         path: "stebbsState%buildings(1)%temperature_threshold_shading",
         kind: ObsKind::Real,
         rank: 0,
@@ -23972,7 +24026,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 379,
+        id: 374,
         path: "stebbsState%buildings(1)%radiation_threshold_shading",
         kind: ObsKind::Real,
         rank: 0,
@@ -23982,7 +24036,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 380,
+        id: 375,
         path: "stebbsState%buildings(1)%appliance_power_rating",
         kind: ObsKind::Real,
         rank: 0,
@@ -23992,7 +24046,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 381,
+        id: 376,
         path: "stebbsState%buildings(1)%lighting_power_rating",
         kind: ObsKind::Real,
         rank: 0,
@@ -24002,7 +24056,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 382,
+        id: 377,
         path: "stebbsState%buildings(1)%frac_hotwater",
         kind: ObsKind::Real,
         rank: 0,
@@ -24012,7 +24066,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 383,
+        id: 378,
         path: "stebbsState%buildings(1)%maxheatingpower_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -24022,7 +24076,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 384,
+        id: 379,
         path: "stebbsState%buildings(1)%heating_efficiency_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -24032,7 +24086,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 385,
+        id: 380,
         path: "stebbsState%buildings(1)%destination_waste_heat",
         kind: ObsKind::Int,
         rank: 0,
@@ -24042,7 +24096,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 386,
+        id: 381,
         path: "stebbsState%buildings(1)%fraction_convective_heating",
         kind: ObsKind::Real,
         rank: 0,
@@ -24052,7 +24106,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 387,
+        id: 382,
         path: "stebbsState%buildings(1)%maxcoolingpower_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -24062,7 +24116,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 388,
+        id: 383,
         path: "stebbsState%buildings(1)%coeff_performance_cooling",
         kind: ObsKind::Real,
         rank: 0,
@@ -24072,7 +24126,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 389,
+        id: 384,
         path: "stebbsState%buildings(1)%Vair_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -24082,7 +24136,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 390,
+        id: 385,
         path: "stebbsState%buildings(1)%ventilation_rate",
         kind: ObsKind::Real,
         rank: 0,
@@ -24092,7 +24146,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 391,
+        id: 386,
         path: "stebbsState%buildings(1)%a_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -24102,7 +24156,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 392,
+        id: 387,
         path: "stebbsState%buildings(1)%a_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -24112,7 +24166,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 393,
+        id: 388,
         path: "stebbsState%buildings(1)%v_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -24122,7 +24176,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 394,
+        id: 389,
         path: "stebbsState%buildings(1)%v_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -24132,7 +24186,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 395,
+        id: 390,
         path: "stebbsState%buildings(1)%v_ground_floor",
         kind: ObsKind::Real,
         rank: 0,
@@ -24142,7 +24196,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 396,
+        id: 391,
         path: "stebbsState%buildings(1)%a_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -24152,7 +24206,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 397,
+        id: 392,
         path: "stebbsState%buildings(1)%v_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -24162,7 +24216,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 398,
+        id: 393,
         path: "stebbsState%buildings(1)%v_indoor_mass",
         kind: ObsKind::Real,
         rank: 0,
@@ -24172,7 +24226,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 399,
+        id: 394,
         path: "stebbsState%buildings(1)%a_indoor_mass",
         kind: ObsKind::Real,
         rank: 0,
@@ -24182,7 +24236,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 400,
+        id: 395,
         path: "stebbsState%buildings(1)%Tair_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -24192,7 +24246,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 401,
+        id: 396,
         path: "stebbsState%buildings(1)%t_indoor_mass",
         kind: ObsKind::Real,
         rank: 0,
@@ -24202,7 +24256,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 402,
+        id: 397,
         path: "stebbsState%buildings(1)%t_int_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -24212,7 +24266,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 403,
+        id: 398,
         path: "stebbsState%buildings(1)%t_int_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -24222,7 +24276,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 404,
+        id: 399,
         path: "stebbsState%buildings(1)%t_ext_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -24232,7 +24286,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 405,
+        id: 400,
         path: "stebbsState%buildings(1)%t_ext_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -24242,7 +24296,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 406,
+        id: 401,
         path: "stebbsState%buildings(1)%t_int_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -24252,7 +24306,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 407,
+        id: 402,
         path: "stebbsState%buildings(1)%t_ext_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -24262,7 +24316,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 408,
+        id: 403,
         path: "stebbsState%buildings(1)%t_int_ground_floor",
         kind: ObsKind::Real,
         rank: 0,
@@ -24272,7 +24326,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 409,
+        id: 404,
         path: "stebbsState%buildings(1)%t_ext_ground_floor",
         kind: ObsKind::Real,
         rank: 0,
@@ -24282,7 +24336,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 410,
+        id: 405,
         path: "stebbsState%buildings(1)%Twater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24292,7 +24346,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 411,
+        id: 406,
         path: "stebbsState%buildings(1)%Tintwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24302,7 +24356,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 412,
+        id: 407,
         path: "stebbsState%buildings(1)%Textwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24312,7 +24366,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 413,
+        id: 408,
         path: "stebbsState%buildings(1)%thickness_tankwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -24322,7 +24376,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 414,
+        id: 409,
         path: "stebbsState%buildings(1)%Tincomingwater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24332,7 +24386,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 415,
+        id: 410,
         path: "stebbsState%buildings(1)%Vwater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24342,7 +24396,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 416,
+        id: 411,
         path: "stebbsState%buildings(1)%Asurf_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24352,7 +24406,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 417,
+        id: 412,
         path: "stebbsState%buildings(1)%Vwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24362,7 +24416,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 418,
+        id: 413,
         path: "stebbsState%buildings(1)%setTwater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24372,7 +24426,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 419,
+        id: 414,
         path: "stebbsState%buildings(1)%init_wtTs",
         kind: ObsKind::Real,
         rank: 0,
@@ -24382,7 +24436,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 420,
+        id: 415,
         path: "stebbsState%buildings(1)%Twater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24392,7 +24446,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 421,
+        id: 416,
         path: "stebbsState%buildings(1)%Tintwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24402,7 +24456,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 422,
+        id: 417,
         path: "stebbsState%buildings(1)%Textwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24412,7 +24466,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 423,
+        id: 418,
         path: "stebbsState%buildings(1)%thickness_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24422,7 +24476,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 424,
+        id: 419,
         path: "stebbsState%buildings(1)%Vwater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24432,7 +24486,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 425,
+        id: 420,
         path: "stebbsState%buildings(1)%Awater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24442,7 +24496,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 426,
+        id: 421,
         path: "stebbsState%buildings(1)%Vwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24452,7 +24506,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 427,
+        id: 422,
         path: "stebbsState%buildings(1)%flowrate_water_supply",
         kind: ObsKind::Real,
         rank: 0,
@@ -24462,7 +24516,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 428,
+        id: 423,
         path: "stebbsState%buildings(1)%flowrate_water_supply_profile",
         kind: ObsKind::Real,
         rank: 2,
@@ -24472,7 +24526,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 429,
+        id: 424,
         path: "stebbsState%buildings(1)%single_flowrate_water_supply",
         kind: ObsKind::Real,
         rank: 0,
@@ -24482,7 +24536,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 430,
+        id: 425,
         path: "stebbsState%buildings(1)%single_flowrate_water_drain",
         kind: ObsKind::Real,
         rank: 0,
@@ -24492,7 +24546,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 431,
+        id: 426,
         path: "stebbsState%buildings(1)%cp_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -24502,7 +24556,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 432,
+        id: 427,
         path: "stebbsState%buildings(1)%cp_wall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24512,7 +24566,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 433,
+        id: 428,
         path: "stebbsState%buildings(1)%cp_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24522,7 +24576,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 434,
+        id: 429,
         path: "stebbsState%buildings(1)%density_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -24532,7 +24586,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 435,
+        id: 430,
         path: "stebbsState%buildings(1)%density_wall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24542,7 +24596,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 436,
+        id: 431,
         path: "stebbsState%buildings(1)%density_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24552,7 +24606,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 437,
+        id: 432,
         path: "stebbsState%buildings(1)%BVF_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24562,7 +24616,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 438,
+        id: 433,
         path: "stebbsState%buildings(1)%MVF_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24572,7 +24626,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 439,
+        id: 434,
         path: "stebbsState%buildings(1)%conductivity_wall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24582,7 +24636,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 440,
+        id: 435,
         path: "stebbsState%buildings(1)%conv_coeff_intwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24592,7 +24646,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 441,
+        id: 436,
         path: "stebbsState%buildings(1)%conv_coeff_extwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24602,7 +24656,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 442,
+        id: 437,
         path: "stebbsState%buildings(1)%emissivity_extwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -24612,7 +24666,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 443,
+        id: 438,
         path: "stebbsState%buildings(1)%conductivity_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24622,7 +24676,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 444,
+        id: 439,
         path: "stebbsState%buildings(1)%conv_coeff_intwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24632,7 +24686,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 445,
+        id: 440,
         path: "stebbsState%buildings(1)%conv_coeff_extwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24642,7 +24696,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 446,
+        id: 441,
         path: "stebbsState%buildings(1)%emissivity_extwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24652,7 +24706,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 447,
+        id: 442,
         path: "stebbsState%buildings(1)%maxheatingpower_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -24662,7 +24716,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 448,
+        id: 443,
         path: "stebbsState%buildings(1)%heating_efficiency_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -24672,7 +24726,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 449,
+        id: 444,
         path: "stebbsState%buildings(1)%minVwater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24682,7 +24736,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 450,
+        id: 445,
         path: "stebbsState%buildings(1)%maxVwater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -24692,7 +24746,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 451,
+        id: 446,
         path: "stebbsState%buildings(1)%minHeatingPower_DHW",
         kind: ObsKind::Real,
         rank: 0,
@@ -24702,7 +24756,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 452,
+        id: 447,
         path: "stebbsState%buildings(1)%HeatingPower_DHW",
         kind: ObsKind::Real,
         rank: 0,
@@ -24712,7 +24766,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 453,
+        id: 448,
         path: "stebbsState%buildings(1)%qfm_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -24722,7 +24776,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 454,
+        id: 449,
         path: "stebbsState%buildings(1)%qheat_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -24732,7 +24786,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 455,
+        id: 450,
         path: "stebbsState%buildings(1)%qcool_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -24742,7 +24796,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 456,
+        id: 451,
         path: "stebbsState%buildings(1)%qfb_hw_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -24752,7 +24806,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 457,
+        id: 452,
         path: "stebbsState%buildings(1)%qfb_dom_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -24762,7 +24816,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 458,
+        id: 453,
         path: "stebbsState%buildings(1)%dom_temp",
         kind: ObsKind::Real,
         rank: 0,
@@ -24772,7 +24826,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 459,
+        id: 454,
         path: "stebbsState%buildings(1)%QN_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24782,7 +24836,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 460,
+        id: 455,
         path: "stebbsState%buildings(1)%QEC_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24792,7 +24846,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 461,
+        id: 456,
         path: "stebbsState%buildings(1)%QS_total_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24802,7 +24856,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 462,
+        id: 457,
         path: "stebbsState%buildings(1)%QH_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24812,7 +24866,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 463,
+        id: 458,
         path: "stebbsState%buildings(1)%QBAE_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24822,7 +24876,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 464,
+        id: 459,
         path: "stebbsState%buildings(1)%QWaste_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24832,7 +24886,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 465,
+        id: 460,
         path: "stebbsState%buildings(1)%QS_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24842,7 +24896,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 466,
+        id: 461,
         path: "stebbsState%buildings(1)%QS_dhw_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24852,7 +24906,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 467,
+        id: 462,
         path: "stebbsState%buildings(1)%QS_ground_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24862,7 +24916,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 468,
+        id: 463,
         path: "stebbsState%buildings(1)%QEC_heating_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24872,7 +24926,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 469,
+        id: 464,
         path: "stebbsState%buildings(1)%QEC_cooling_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24882,7 +24936,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 470,
+        id: 465,
         path: "stebbsState%buildings(1)%QEC_dhw_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -24892,7 +24946,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 471,
+        id: 466,
         path: "stebbsState%buildings(1)%ts",
         kind: ObsKind::Real,
         rank: 1,
@@ -24902,7 +24956,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 472,
+        id: 467,
         path: "stebbsState%buildings(1)%initTs",
         kind: ObsKind::Real,
         rank: 1,
@@ -24912,7 +24966,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 473,
+        id: 468,
         path: "stebbsState%buildings(1)%h_i",
         kind: ObsKind::Real,
         rank: 1,
@@ -24922,7 +24976,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 474,
+        id: 469,
         path: "stebbsState%buildings(1)%k_eff",
         kind: ObsKind::Real,
         rank: 1,
@@ -24932,7 +24986,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 475,
+        id: 470,
         path: "stebbsState%buildings(1)%h_o",
         kind: ObsKind::Real,
         rank: 1,
@@ -24942,7 +24996,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 476,
+        id: 471,
         path: "stebbsState%buildings(1)%rho",
         kind: ObsKind::Real,
         rank: 1,
@@ -24952,7 +25006,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 477,
+        id: 472,
         path: "stebbsState%buildings(1)%cp",
         kind: ObsKind::Real,
         rank: 1,
@@ -24962,7 +25016,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 478,
+        id: 473,
         path: "stebbsState%buildings(1)%emis",
         kind: ObsKind::Real,
         rank: 1,
@@ -24972,7 +25026,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 479,
+        id: 474,
         path: "stebbsState%buildings(1)%witar",
         kind: ObsKind::Real,
         rank: 1,
@@ -24982,7 +25036,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 480,
+        id: 475,
         path: "stebbsState%buildings(1)%waTAR",
         kind: ObsKind::Real,
         rank: 1,
@@ -24992,7 +25046,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 481,
+        id: 476,
         path: "stebbsState%buildings(1)%roofTAR",
         kind: ObsKind::Real,
         rank: 1,
@@ -25002,7 +25056,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 482,
+        id: 477,
         path: "stebbsState%buildings(1)%h_ts_average",
         kind: ObsKind::Real,
         rank: 1,
@@ -25012,7 +25066,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 483,
+        id: 478,
         path: "stebbsState%buildings(1)%HWTsAverage",
         kind: ObsKind::Real,
         rank: 1,
@@ -25022,7 +25076,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 484,
+        id: 479,
         path: "stebbsState%buildings(1)%hw_power_average",
         kind: ObsKind::Real,
         rank: 1,
@@ -25032,7 +25086,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 485,
+        id: 480,
         path: "stebbsState%buildings(1)%energy_exchanges",
         kind: ObsKind::Real,
         rank: 1,
@@ -25042,7 +25096,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 486,
+        id: 481,
         path: "stebbsState%buildings(1)%Textwall_C",
         kind: ObsKind::Real,
         rank: 1,
@@ -25052,7 +25106,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 487,
+        id: 482,
         path: "stebbsState%buildings(1)%Textroof_C",
         kind: ObsKind::Real,
         rank: 1,
@@ -25062,7 +25116,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 488,
+        id: 483,
         path: "stebbsState%buildings(1)%wall_surface_active",
         kind: ObsKind::Logical,
         rank: 0,
@@ -25072,7 +25126,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 489,
+        id: 484,
         path: "stebbsState%buildings(1)%window_surface_active",
         kind: ObsKind::Logical,
         rank: 0,
@@ -25082,7 +25136,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 490,
+        id: 485,
         path: "stebbsState%buildings(1)%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -25092,7 +25146,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 491,
+        id: 486,
         path: "stebbsState%buildings(2)%id_lbm",
         kind: ObsKind::Int,
         rank: 0,
@@ -25102,7 +25156,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 492,
+        id: 487,
         path: "stebbsState%buildings(2)%appliance_totalnumber",
         kind: ObsKind::Int,
         rank: 0,
@@ -25112,7 +25166,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 493,
+        id: 488,
         path: "stebbsState%buildings(2)%QHload_heating_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -25122,7 +25176,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 494,
+        id: 489,
         path: "stebbsState%buildings(2)%QHload_cooling_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -25132,7 +25186,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 495,
+        id: 490,
         path: "stebbsState%buildings(2)%QH_metabolism",
         kind: ObsKind::Real,
         rank: 0,
@@ -25142,7 +25196,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 496,
+        id: 491,
         path: "stebbsState%buildings(2)%QE_metabolism",
         kind: ObsKind::Real,
         rank: 0,
@@ -25152,7 +25206,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 497,
+        id: 492,
         path: "stebbsState%buildings(2)%QHload_dhw_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -25162,7 +25216,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 498,
+        id: 493,
         path: "stebbsState%buildings(2)%Qloss_drain_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -25172,7 +25226,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 499,
+        id: 494,
         path: "stebbsState%buildings(2)%ratio_window_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25182,7 +25236,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 500,
+        id: 495,
         path: "stebbsState%buildings(2)%a_footprint",
         kind: ObsKind::Real,
         rank: 0,
@@ -25192,7 +25246,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 501,
+        id: 496,
         path: "stebbsState%buildings(2)%height_building",
         kind: ObsKind::Real,
         rank: 0,
@@ -25202,7 +25256,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 502,
+        id: 497,
         path: "stebbsState%buildings(2)%wall_external_area",
         kind: ObsKind::Real,
         rank: 0,
@@ -25212,7 +25266,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 503,
+        id: 498,
         path: "stebbsState%buildings(2)%internal_volume_ratio",
         kind: ObsKind::Real,
         rank: 0,
@@ -25222,7 +25276,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 504,
+        id: 499,
         path: "stebbsState%buildings(2)%thickness_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25232,7 +25286,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 505,
+        id: 500,
         path: "stebbsState%buildings(2)%thickness_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25242,7 +25296,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 506,
+        id: 501,
         path: "stebbsState%buildings(2)%thickness_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25252,7 +25306,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 507,
+        id: 502,
         path: "stebbsState%buildings(2)%thickness_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25262,7 +25316,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 508,
+        id: 503,
         path: "stebbsState%buildings(2)%thickness_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -25272,7 +25326,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 509,
+        id: 504,
         path: "stebbsState%buildings(2)%depth_ground",
         kind: ObsKind::Real,
         rank: 0,
@@ -25282,7 +25336,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 510,
+        id: 505,
         path: "stebbsState%buildings(2)%thickness_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -25292,7 +25346,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 511,
+        id: 506,
         path: "stebbsState%buildings(2)%conv_coeff_intwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25302,7 +25356,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 512,
+        id: 507,
         path: "stebbsState%buildings(2)%conv_coeff_introof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25312,7 +25366,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 513,
+        id: 508,
         path: "stebbsState%buildings(2)%conv_coeff_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -25322,7 +25376,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 514,
+        id: 509,
         path: "stebbsState%buildings(2)%conv_coeff_intgroundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -25332,7 +25386,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 515,
+        id: 510,
         path: "stebbsState%buildings(2)%conv_coeff_intwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -25342,7 +25396,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 516,
+        id: 511,
         path: "stebbsState%buildings(2)%conv_coeff_extwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25352,7 +25406,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 517,
+        id: 512,
         path: "stebbsState%buildings(2)%conv_coeff_extroof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25362,7 +25416,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 518,
+        id: 513,
         path: "stebbsState%buildings(2)%conv_coeff_extwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -25372,7 +25426,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 519,
+        id: 514,
         path: "stebbsState%buildings(2)%conductivity_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25382,7 +25436,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 520,
+        id: 515,
         path: "stebbsState%buildings(2)%conductivity_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25392,7 +25446,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 521,
+        id: 516,
         path: "stebbsState%buildings(2)%conductivity_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25402,7 +25456,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 522,
+        id: 517,
         path: "stebbsState%buildings(2)%conductivity_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25412,7 +25466,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 523,
+        id: 518,
         path: "stebbsState%buildings(2)%conductivity_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -25422,7 +25476,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 524,
+        id: 519,
         path: "stebbsState%buildings(2)%conductivity_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -25432,7 +25486,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 525,
+        id: 520,
         path: "stebbsState%buildings(2)%conductivity_ground",
         kind: ObsKind::Real,
         rank: 0,
@@ -25442,7 +25496,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 526,
+        id: 521,
         path: "stebbsState%buildings(2)%density_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25452,7 +25506,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 527,
+        id: 522,
         path: "stebbsState%buildings(2)%density_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25462,7 +25516,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 528,
+        id: 523,
         path: "stebbsState%buildings(2)%density_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25472,7 +25526,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 529,
+        id: 524,
         path: "stebbsState%buildings(2)%density_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25482,7 +25536,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 530,
+        id: 525,
         path: "stebbsState%buildings(2)%weighting_factor_heatcapacity_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25492,7 +25546,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 531,
+        id: 526,
         path: "stebbsState%buildings(2)%weighting_factor_heatcapacity_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25502,7 +25556,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 532,
+        id: 527,
         path: "stebbsState%buildings(2)%density_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -25512,7 +25566,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 533,
+        id: 528,
         path: "stebbsState%buildings(2)%density_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -25522,7 +25576,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 534,
+        id: 529,
         path: "stebbsState%buildings(2)%density_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -25532,7 +25586,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 535,
+        id: 530,
         path: "stebbsState%buildings(2)%density_air_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -25542,7 +25596,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 536,
+        id: 531,
         path: "stebbsState%buildings(2)%cp_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25552,7 +25606,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 537,
+        id: 532,
         path: "stebbsState%buildings(2)%cp_wallext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25562,7 +25616,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 538,
+        id: 533,
         path: "stebbsState%buildings(2)%cp_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25572,7 +25626,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 539,
+        id: 534,
         path: "stebbsState%buildings(2)%cp_roofext",
         kind: ObsKind::Real,
         rank: 0,
@@ -25582,7 +25636,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 540,
+        id: 535,
         path: "stebbsState%buildings(2)%cp_groundfloor",
         kind: ObsKind::Real,
         rank: 0,
@@ -25592,7 +25646,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 541,
+        id: 536,
         path: "stebbsState%buildings(2)%cp_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -25602,7 +25656,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 542,
+        id: 537,
         path: "stebbsState%buildings(2)%cp_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -25612,7 +25666,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 543,
+        id: 538,
         path: "stebbsState%buildings(2)%cp_air_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -25622,7 +25676,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 544,
+        id: 539,
         path: "stebbsState%buildings(2)%emissivity_extwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25632,7 +25686,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 545,
+        id: 540,
         path: "stebbsState%buildings(2)%emissivity_extroof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25642,7 +25696,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 546,
+        id: 541,
         path: "stebbsState%buildings(2)%emissivity_intwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25652,7 +25706,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 547,
+        id: 542,
         path: "stebbsState%buildings(2)%emissivity_introof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25662,7 +25716,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 548,
+        id: 543,
         path: "stebbsState%buildings(2)%emissivity_indoormass",
         kind: ObsKind::Real,
         rank: 0,
@@ -25672,7 +25726,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 549,
+        id: 544,
         path: "stebbsState%buildings(2)%emissivity_extwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -25682,7 +25736,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 550,
+        id: 545,
         path: "stebbsState%buildings(2)%emissivity_intwindow",
         kind: ObsKind::Real,
         rank: 0,
@@ -25692,7 +25746,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 551,
+        id: 546,
         path: "stebbsState%buildings(2)%window_transmissivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25702,7 +25756,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 552,
+        id: 547,
         path: "stebbsState%buildings(2)%window_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25712,7 +25766,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 553,
+        id: 548,
         path: "stebbsState%buildings(2)%window_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25722,7 +25776,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 554,
+        id: 549,
         path: "stebbsState%buildings(2)%wall_transmissivity_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -25732,7 +25786,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 555,
+        id: 550,
         path: "stebbsState%buildings(2)%wall_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25742,7 +25796,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 556,
+        id: 551,
         path: "stebbsState%buildings(2)%wall_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25752,7 +25806,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 557,
+        id: 552,
         path: "stebbsState%buildings(2)%roof_transmissivity_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -25762,7 +25816,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 558,
+        id: 553,
         path: "stebbsState%buildings(2)%roof_absorptivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25772,7 +25826,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 559,
+        id: 554,
         path: "stebbsState%buildings(2)%roof_reflectivity",
         kind: ObsKind::Real,
         rank: 0,
@@ -25782,7 +25836,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 560,
+        id: 555,
         path: "stebbsState%buildings(2)%occupants_state",
         kind: ObsKind::Real,
         rank: 0,
@@ -25792,7 +25846,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 561,
+        id: 556,
         path: "stebbsState%buildings(2)%metabolic_rate",
         kind: ObsKind::Real,
         rank: 0,
@@ -25802,7 +25856,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 562,
+        id: 557,
         path: "stebbsState%buildings(2)%metabolism_threshold",
         kind: ObsKind::Real,
         rank: 0,
@@ -25812,7 +25866,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 563,
+        id: 558,
         path: "stebbsState%buildings(2)%ratio_metabolic_latent_sensible",
         kind: ObsKind::Real,
         rank: 0,
@@ -25822,7 +25876,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 564,
+        id: 559,
         path: "stebbsState%buildings(2)%internal_shading",
         kind: ObsKind::Int,
         rank: 0,
@@ -25832,7 +25886,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 565,
+        id: 560,
         path: "stebbsState%buildings(2)%reduction_factor_shading",
         kind: ObsKind::Real,
         rank: 0,
@@ -25842,7 +25896,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 566,
+        id: 561,
         path: "stebbsState%buildings(2)%temperature_threshold_shading",
         kind: ObsKind::Real,
         rank: 0,
@@ -25852,7 +25906,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 567,
+        id: 562,
         path: "stebbsState%buildings(2)%radiation_threshold_shading",
         kind: ObsKind::Real,
         rank: 0,
@@ -25862,7 +25916,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 568,
+        id: 563,
         path: "stebbsState%buildings(2)%appliance_power_rating",
         kind: ObsKind::Real,
         rank: 0,
@@ -25872,7 +25926,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 569,
+        id: 564,
         path: "stebbsState%buildings(2)%lighting_power_rating",
         kind: ObsKind::Real,
         rank: 0,
@@ -25882,7 +25936,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 570,
+        id: 565,
         path: "stebbsState%buildings(2)%frac_hotwater",
         kind: ObsKind::Real,
         rank: 0,
@@ -25892,7 +25946,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 571,
+        id: 566,
         path: "stebbsState%buildings(2)%maxheatingpower_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -25902,7 +25956,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 572,
+        id: 567,
         path: "stebbsState%buildings(2)%heating_efficiency_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -25912,7 +25966,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 573,
+        id: 568,
         path: "stebbsState%buildings(2)%destination_waste_heat",
         kind: ObsKind::Int,
         rank: 0,
@@ -25922,7 +25976,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 574,
+        id: 569,
         path: "stebbsState%buildings(2)%fraction_convective_heating",
         kind: ObsKind::Real,
         rank: 0,
@@ -25932,7 +25986,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 575,
+        id: 570,
         path: "stebbsState%buildings(2)%maxcoolingpower_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -25942,7 +25996,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 576,
+        id: 571,
         path: "stebbsState%buildings(2)%coeff_performance_cooling",
         kind: ObsKind::Real,
         rank: 0,
@@ -25952,7 +26006,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 577,
+        id: 572,
         path: "stebbsState%buildings(2)%Vair_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -25962,7 +26016,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 578,
+        id: 573,
         path: "stebbsState%buildings(2)%ventilation_rate",
         kind: ObsKind::Real,
         rank: 0,
@@ -25972,7 +26026,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 579,
+        id: 574,
         path: "stebbsState%buildings(2)%a_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -25982,7 +26036,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 580,
+        id: 575,
         path: "stebbsState%buildings(2)%a_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -25992,7 +26046,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 581,
+        id: 576,
         path: "stebbsState%buildings(2)%v_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -26002,7 +26056,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 582,
+        id: 577,
         path: "stebbsState%buildings(2)%v_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -26012,7 +26066,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 583,
+        id: 578,
         path: "stebbsState%buildings(2)%v_ground_floor",
         kind: ObsKind::Real,
         rank: 0,
@@ -26022,7 +26076,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 584,
+        id: 579,
         path: "stebbsState%buildings(2)%a_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -26032,7 +26086,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 585,
+        id: 580,
         path: "stebbsState%buildings(2)%v_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -26042,7 +26096,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 586,
+        id: 581,
         path: "stebbsState%buildings(2)%v_indoor_mass",
         kind: ObsKind::Real,
         rank: 0,
@@ -26052,7 +26106,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 587,
+        id: 582,
         path: "stebbsState%buildings(2)%a_indoor_mass",
         kind: ObsKind::Real,
         rank: 0,
@@ -26062,7 +26116,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 588,
+        id: 583,
         path: "stebbsState%buildings(2)%Tair_ind",
         kind: ObsKind::Real,
         rank: 0,
@@ -26072,7 +26126,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 589,
+        id: 584,
         path: "stebbsState%buildings(2)%t_indoor_mass",
         kind: ObsKind::Real,
         rank: 0,
@@ -26082,7 +26136,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 590,
+        id: 585,
         path: "stebbsState%buildings(2)%t_int_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -26092,7 +26146,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 591,
+        id: 586,
         path: "stebbsState%buildings(2)%t_int_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -26102,7 +26156,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 592,
+        id: 587,
         path: "stebbsState%buildings(2)%t_ext_wall",
         kind: ObsKind::Real,
         rank: 0,
@@ -26112,7 +26166,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 593,
+        id: 588,
         path: "stebbsState%buildings(2)%t_ext_roof",
         kind: ObsKind::Real,
         rank: 0,
@@ -26122,7 +26176,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 594,
+        id: 589,
         path: "stebbsState%buildings(2)%t_int_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -26132,7 +26186,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 595,
+        id: 590,
         path: "stebbsState%buildings(2)%t_ext_window",
         kind: ObsKind::Real,
         rank: 0,
@@ -26142,7 +26196,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 596,
+        id: 591,
         path: "stebbsState%buildings(2)%t_int_ground_floor",
         kind: ObsKind::Real,
         rank: 0,
@@ -26152,7 +26206,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 597,
+        id: 592,
         path: "stebbsState%buildings(2)%t_ext_ground_floor",
         kind: ObsKind::Real,
         rank: 0,
@@ -26162,7 +26216,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 598,
+        id: 593,
         path: "stebbsState%buildings(2)%Twater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26172,7 +26226,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 599,
+        id: 594,
         path: "stebbsState%buildings(2)%Tintwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26182,7 +26236,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 600,
+        id: 595,
         path: "stebbsState%buildings(2)%Textwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26192,7 +26246,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 601,
+        id: 596,
         path: "stebbsState%buildings(2)%thickness_tankwall",
         kind: ObsKind::Real,
         rank: 0,
@@ -26202,7 +26256,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 602,
+        id: 597,
         path: "stebbsState%buildings(2)%Tincomingwater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26212,7 +26266,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 603,
+        id: 598,
         path: "stebbsState%buildings(2)%Vwater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26222,7 +26276,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 604,
+        id: 599,
         path: "stebbsState%buildings(2)%Asurf_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26232,7 +26286,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 605,
+        id: 600,
         path: "stebbsState%buildings(2)%Vwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26242,7 +26296,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 606,
+        id: 601,
         path: "stebbsState%buildings(2)%setTwater_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26252,7 +26306,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 607,
+        id: 602,
         path: "stebbsState%buildings(2)%init_wtTs",
         kind: ObsKind::Real,
         rank: 0,
@@ -26262,7 +26316,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 608,
+        id: 603,
         path: "stebbsState%buildings(2)%Twater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26272,7 +26326,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 609,
+        id: 604,
         path: "stebbsState%buildings(2)%Tintwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26282,7 +26336,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 610,
+        id: 605,
         path: "stebbsState%buildings(2)%Textwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26292,7 +26346,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 611,
+        id: 606,
         path: "stebbsState%buildings(2)%thickness_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26302,7 +26356,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 612,
+        id: 607,
         path: "stebbsState%buildings(2)%Vwater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26312,7 +26366,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 613,
+        id: 608,
         path: "stebbsState%buildings(2)%Awater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26322,7 +26376,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 614,
+        id: 609,
         path: "stebbsState%buildings(2)%Vwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26332,7 +26386,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 615,
+        id: 610,
         path: "stebbsState%buildings(2)%flowrate_water_supply",
         kind: ObsKind::Real,
         rank: 0,
@@ -26342,7 +26396,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 616,
+        id: 611,
         path: "stebbsState%buildings(2)%flowrate_water_supply_profile",
         kind: ObsKind::Real,
         rank: 2,
@@ -26352,7 +26406,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 617,
+        id: 612,
         path: "stebbsState%buildings(2)%single_flowrate_water_supply",
         kind: ObsKind::Real,
         rank: 0,
@@ -26362,7 +26416,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 618,
+        id: 613,
         path: "stebbsState%buildings(2)%single_flowrate_water_drain",
         kind: ObsKind::Real,
         rank: 0,
@@ -26372,7 +26426,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 619,
+        id: 614,
         path: "stebbsState%buildings(2)%cp_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -26382,7 +26436,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 620,
+        id: 615,
         path: "stebbsState%buildings(2)%cp_wall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26392,7 +26446,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 621,
+        id: 616,
         path: "stebbsState%buildings(2)%cp_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26402,7 +26456,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 622,
+        id: 617,
         path: "stebbsState%buildings(2)%density_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -26412,7 +26466,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 623,
+        id: 618,
         path: "stebbsState%buildings(2)%density_wall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26422,7 +26476,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 624,
+        id: 619,
         path: "stebbsState%buildings(2)%density_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26432,7 +26486,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 625,
+        id: 620,
         path: "stebbsState%buildings(2)%BVF_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26442,7 +26496,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 626,
+        id: 621,
         path: "stebbsState%buildings(2)%MVF_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26452,7 +26506,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 627,
+        id: 622,
         path: "stebbsState%buildings(2)%conductivity_wall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26462,7 +26516,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 628,
+        id: 623,
         path: "stebbsState%buildings(2)%conv_coeff_intwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26472,7 +26526,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 629,
+        id: 624,
         path: "stebbsState%buildings(2)%conv_coeff_extwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26482,7 +26536,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 630,
+        id: 625,
         path: "stebbsState%buildings(2)%emissivity_extwall_tank",
         kind: ObsKind::Real,
         rank: 0,
@@ -26492,7 +26546,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 631,
+        id: 626,
         path: "stebbsState%buildings(2)%conductivity_wall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26502,7 +26556,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 632,
+        id: 627,
         path: "stebbsState%buildings(2)%conv_coeff_intwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26512,7 +26566,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 633,
+        id: 628,
         path: "stebbsState%buildings(2)%conv_coeff_extwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26522,7 +26576,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 634,
+        id: 629,
         path: "stebbsState%buildings(2)%emissivity_extwall_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26532,7 +26586,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 635,
+        id: 630,
         path: "stebbsState%buildings(2)%maxheatingpower_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -26542,7 +26596,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 636,
+        id: 631,
         path: "stebbsState%buildings(2)%heating_efficiency_water",
         kind: ObsKind::Real,
         rank: 0,
@@ -26552,7 +26606,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 637,
+        id: 632,
         path: "stebbsState%buildings(2)%minVwater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26562,7 +26616,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 638,
+        id: 633,
         path: "stebbsState%buildings(2)%maxVwater_vessel",
         kind: ObsKind::Real,
         rank: 0,
@@ -26572,7 +26626,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 639,
+        id: 634,
         path: "stebbsState%buildings(2)%minHeatingPower_DHW",
         kind: ObsKind::Real,
         rank: 0,
@@ -26582,7 +26636,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 640,
+        id: 635,
         path: "stebbsState%buildings(2)%HeatingPower_DHW",
         kind: ObsKind::Real,
         rank: 0,
@@ -26592,7 +26646,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 641,
+        id: 636,
         path: "stebbsState%buildings(2)%qfm_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -26602,7 +26656,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 642,
+        id: 637,
         path: "stebbsState%buildings(2)%qheat_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -26612,7 +26666,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 643,
+        id: 638,
         path: "stebbsState%buildings(2)%qcool_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -26622,7 +26676,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 644,
+        id: 639,
         path: "stebbsState%buildings(2)%qfb_hw_dom",
         kind: ObsKind::Real,
         rank: 0,
@@ -26632,7 +26686,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 645,
+        id: 640,
         path: "stebbsState%buildings(2)%qfb_dom_air",
         kind: ObsKind::Real,
         rank: 0,
@@ -26642,7 +26696,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 646,
+        id: 641,
         path: "stebbsState%buildings(2)%dom_temp",
         kind: ObsKind::Real,
         rank: 0,
@@ -26652,7 +26706,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 647,
+        id: 642,
         path: "stebbsState%buildings(2)%QN_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26662,7 +26716,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 648,
+        id: 643,
         path: "stebbsState%buildings(2)%QEC_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26672,7 +26726,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 649,
+        id: 644,
         path: "stebbsState%buildings(2)%QS_total_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26682,7 +26736,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 650,
+        id: 645,
         path: "stebbsState%buildings(2)%QH_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26692,7 +26746,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 651,
+        id: 646,
         path: "stebbsState%buildings(2)%QBAE_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26702,7 +26756,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 652,
+        id: 647,
         path: "stebbsState%buildings(2)%QWaste_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26712,7 +26766,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 653,
+        id: 648,
         path: "stebbsState%buildings(2)%QS_bldg_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26722,7 +26776,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 654,
+        id: 649,
         path: "stebbsState%buildings(2)%QS_dhw_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26732,7 +26786,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 655,
+        id: 650,
         path: "stebbsState%buildings(2)%QS_ground_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26742,7 +26796,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 656,
+        id: 651,
         path: "stebbsState%buildings(2)%QEC_heating_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26752,7 +26806,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 657,
+        id: 652,
         path: "stebbsState%buildings(2)%QEC_cooling_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26762,7 +26816,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 658,
+        id: 653,
         path: "stebbsState%buildings(2)%QEC_dhw_tstepFA",
         kind: ObsKind::Real,
         rank: 0,
@@ -26772,7 +26826,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 659,
+        id: 654,
         path: "stebbsState%buildings(2)%ts",
         kind: ObsKind::Real,
         rank: 1,
@@ -26782,7 +26836,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 660,
+        id: 655,
         path: "stebbsState%buildings(2)%initTs",
         kind: ObsKind::Real,
         rank: 1,
@@ -26792,7 +26846,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 661,
+        id: 656,
         path: "stebbsState%buildings(2)%h_i",
         kind: ObsKind::Real,
         rank: 1,
@@ -26802,7 +26856,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 662,
+        id: 657,
         path: "stebbsState%buildings(2)%k_eff",
         kind: ObsKind::Real,
         rank: 1,
@@ -26812,7 +26866,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 663,
+        id: 658,
         path: "stebbsState%buildings(2)%h_o",
         kind: ObsKind::Real,
         rank: 1,
@@ -26822,7 +26876,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 664,
+        id: 659,
         path: "stebbsState%buildings(2)%rho",
         kind: ObsKind::Real,
         rank: 1,
@@ -26832,7 +26886,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 665,
+        id: 660,
         path: "stebbsState%buildings(2)%cp",
         kind: ObsKind::Real,
         rank: 1,
@@ -26842,7 +26896,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 666,
+        id: 661,
         path: "stebbsState%buildings(2)%emis",
         kind: ObsKind::Real,
         rank: 1,
@@ -26852,7 +26906,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 667,
+        id: 662,
         path: "stebbsState%buildings(2)%witar",
         kind: ObsKind::Real,
         rank: 1,
@@ -26862,7 +26916,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 668,
+        id: 663,
         path: "stebbsState%buildings(2)%waTAR",
         kind: ObsKind::Real,
         rank: 1,
@@ -26872,7 +26926,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 669,
+        id: 664,
         path: "stebbsState%buildings(2)%roofTAR",
         kind: ObsKind::Real,
         rank: 1,
@@ -26882,7 +26936,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 670,
+        id: 665,
         path: "stebbsState%buildings(2)%h_ts_average",
         kind: ObsKind::Real,
         rank: 1,
@@ -26892,7 +26946,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 671,
+        id: 666,
         path: "stebbsState%buildings(2)%HWTsAverage",
         kind: ObsKind::Real,
         rank: 1,
@@ -26902,7 +26956,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 672,
+        id: 667,
         path: "stebbsState%buildings(2)%hw_power_average",
         kind: ObsKind::Real,
         rank: 1,
@@ -26912,7 +26966,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 673,
+        id: 668,
         path: "stebbsState%buildings(2)%energy_exchanges",
         kind: ObsKind::Real,
         rank: 1,
@@ -26922,7 +26976,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 674,
+        id: 669,
         path: "stebbsState%buildings(2)%Textwall_C",
         kind: ObsKind::Real,
         rank: 1,
@@ -26932,7 +26986,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 675,
+        id: 670,
         path: "stebbsState%buildings(2)%Textroof_C",
         kind: ObsKind::Real,
         rank: 1,
@@ -26942,7 +26996,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 676,
+        id: 671,
         path: "stebbsState%buildings(2)%wall_surface_active",
         kind: ObsKind::Logical,
         rank: 0,
@@ -26952,7 +27006,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 677,
+        id: 672,
         path: "stebbsState%buildings(2)%window_surface_active",
         kind: ObsKind::Logical,
         rank: 0,
@@ -26962,7 +27016,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 678,
+        id: 673,
         path: "stebbsState%buildings(2)%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -26972,7 +27026,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 679,
+        id: 674,
         path: "stebbsState%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -26982,7 +27036,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 680,
+        id: 675,
         path: "nhoodState%U_hbh_1dravg",
         kind: ObsKind::Real,
         rank: 0,
@@ -26992,7 +27046,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 681,
+        id: 676,
         path: "nhoodState%QN_1dravg",
         kind: ObsKind::Real,
         rank: 0,
@@ -27002,7 +27056,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 682,
+        id: 677,
         path: "nhoodState%Tair_mn_prev",
         kind: ObsKind::Real,
         rank: 0,
@@ -27012,7 +27066,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 683,
+        id: 678,
         path: "nhoodState%iter_count",
         kind: ObsKind::Real,
         rank: 0,
@@ -27022,7 +27076,7 @@ pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[
         unbridged_reason: None,
     },
     ObsFieldDescriptor {
-        id: 684,
+        id: 679,
         path: "nhoodState%iter_safe",
         kind: ObsKind::Logical,
         rank: 0,
@@ -27113,170 +27167,6 @@ pub const OBS_FIELDS_SUEWS_TIMER: &[ObsFieldDescriptor] = &[
         fixed_bounds: &[],
         bridged: true,
         unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 9,
-        path: "dt_since_start_prev",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 10,
-        path: "nsh",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 11,
-        path: "nsh_real",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 12,
-        path: "tstep_real",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 13,
-        path: "dectime",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 14,
-        path: "dayofWeek_id",
-        kind: ObsKind::Int,
-        rank: 1,
-        allocatable: false,
-        fixed_bounds: &[(1, 3)],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 15,
-        path: "DLS",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 16,
-        path: "new_day",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: true,
-        unbridged_reason: None,
-    },
-    ObsFieldDescriptor {
-        id: 17,
-        path: "iy_st",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 18,
-        path: "id_st",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 19,
-        path: "it_st",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 20,
-        path: "imin_st",
-        kind: ObsKind::Int,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 21,
-        path: "dectime_st",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 22,
-        path: "dayofWeek_id_st",
-        kind: ObsKind::Int,
-        rank: 1,
-        allocatable: false,
-        fixed_bounds: &[(1, 3)],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
-    },
-    ObsFieldDescriptor {
-        id: 23,
-        path: "tz_solar",
-        kind: ObsKind::Real,
-        rank: 0,
-        allocatable: false,
-        fixed_bounds: &[],
-        bridged: false,
-        unbridged_reason: Some(
-            "Derived solar timezone offset excluded from C timer ABI (suews_ctrl_type.f95).",
-        ),
     },
 ];
 

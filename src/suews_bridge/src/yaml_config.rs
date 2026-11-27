@@ -60,6 +60,7 @@ use crate::building_archetype_prm::{
 use crate::config::{suews_config_default_from_fortran, SuewsConfig};
 use crate::core::NSURF;
 use crate::field_renames::{normalize_field_names, FIELD_RENAMES};
+use crate::option_codes::{is_dyohm, StebbsMethod, StorageHeatMethod};
 use crate::run_period::{parse_run_period, RunPeriod};
 use crate::sim::SiteScalars;
 use crate::stebbs_prm::{stebbs_prm_from_map, stebbs_prm_to_map};
@@ -108,6 +109,10 @@ const SURFACE_YAML_ORDER: [(&str, usize); 7] = [
 ];
 
 const VEG_SURFACE_YAML_ORDER: [(&str, usize); 3] = [("evetr", 0), ("dectr", 1), ("grass", 2)];
+
+/// Hard-invariant tolerance for the sum of the seven land-cover area fractions,
+/// matching `LAND_COVER_SUM_AUTO_FIX_TOL` in `hard_invariants.py`.
+const LAND_COVER_SUM_AUTO_FIX_TOL: f64 = 1.0e-4;
 
 const OHM_SEASONS: [&str; 4] = ["summer_dry", "summer_wet", "winter_dry", "winter_wet"];
 
@@ -781,35 +786,28 @@ fn apply_day_profile_overrides(
             ));
         };
 
-        let mut seen_steps = vec![false; n_steps];
+        let path_display = format!("{profile_name}.{day_key}");
+        let mut seen_steps: Vec<Option<String>> = vec![None; n_steps];
         for (step_key, step_value) in day_map {
-            let Value::String(step_label) = step_key else {
+            let step_1based =
+                parse_ten_minute_profile_key(step_key, &path_display, n_steps)?;
+            let idx = step_1based - 1;
+            let raw_label = format_yaml_key(step_key);
+            if let Some(prev_label) = &seen_steps[idx] {
                 return Err(format!(
-                    "{profile_name}.{day_key} has a non-string step key; only `1`-`{n_steps}` are valid."
-                ));
-            };
-
-            let Ok(step_1based) = step_label.parse::<usize>() else {
-                return Err(format!(
-                    "{profile_name}.{day_key} has invalid step `{step_label}`; only `1`-`{n_steps}` are valid."
-                ));
-            };
-
-            if step_1based == 0 || step_1based > n_steps {
-                return Err(format!(
-                    "{profile_name}.{day_key} has invalid step `{step_label}`; only `1`-`{n_steps}` are valid."
+                    "{path_display} has duplicate step `{step_1based}` (colliding keys {prev_label} and {raw_label})."
                 ));
             }
 
             let Some(v) = read_numeric_value(step_value) else {
                 return Err(format!(
-                    "{profile_name}.{day_key}.{step_label} must be numeric."
+                    "{path_display}.{step_1based} must be numeric."
                 ));
             };
 
-            seen_steps[step_1based - 1] = true;
+            seen_steps[idx] = Some(raw_label);
             mapped.insert(
-                format!("{field_prefix}.{:03}.{}", step_1based - 1, day_type),
+                format!("{field_prefix}.{:03}.{}", idx, day_type),
                 v,
             );
         }
@@ -817,12 +815,12 @@ fn apply_day_profile_overrides(
         let missing_steps: Vec<String> = seen_steps
             .iter()
             .enumerate()
-            .filter_map(|(idx, seen)| (!seen).then_some((idx + 1).to_string()))
+            .filter_map(|(idx, seen)| seen.is_none().then_some((idx + 1).to_string()))
             .collect();
 
         if !missing_steps.is_empty() {
             return Err(format!(
-                "{profile_name}.{day_key} is missing {} entries: {}. Must define all {n_steps} ten-minute slices.",
+                "{path_display} is missing {} entries: {}. Must define all {n_steps} ten-minute slices.",
                 missing_steps.len(),
                 missing_steps.join(", ")
             ));
@@ -838,6 +836,65 @@ fn format_yaml_key(key: &Value) -> String {
         Value::Number(n) => format!("`{n}`"),
         Value::Bool(b) => format!("`{b}`"),
         other => yaml_kind(other).to_string(),
+    }
+}
+
+/// Parse a single 10-minute (or general `1..=n_steps`) profile key.
+///
+/// Accepts canonical `"1"`..`"{n_steps}"`, unsigned integers `1..=n_steps`
+/// (excluding floats, negative integers, and booleans), and zero-padded ASCII
+/// digit strings (`"01"`, `"001"`, `"0144"`). Rejects signed strings (`"+1"`,
+/// `"-1"`), whitespace, decimals, underscores, non-ASCII digits, booleans,
+/// and out-of-range steps (`"0"`, `"00"`, `"{n_steps+1}"`).
+fn parse_ten_minute_profile_key(
+    key: &Value,
+    path_display: &str,
+    n_steps: usize,
+) -> Result<usize, String> {
+    match key {
+        Value::String(raw) => {
+            if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(format!(
+                    "{path_display} has invalid step `{raw}`; expected ASCII digits `1`-`{n_steps}` \
+                     (optional leading zeros allowed; no signs, whitespace, decimals, underscores, \
+                     or non-ASCII digits)."
+                ));
+            }
+            let stripped = raw.trim_start_matches('0');
+            if stripped.is_empty() {
+                return Err(format!(
+                    "{path_display} has invalid step `{raw}`; only `1`-`{n_steps}` are valid."
+                ));
+            }
+            match stripped
+                .parse::<usize>()
+                .ok()
+                .filter(|&step| (1..=n_steps).contains(&step))
+            {
+                Some(step) => Ok(step),
+                None => Err(format!(
+                    "{path_display} has invalid step `{raw}`; only `1`-`{n_steps}` are valid."
+                )),
+            }
+        }
+        Value::Number(num) => {
+            let Some(step_u64) = num.as_u64() else {
+                return Err(format!(
+                    "{path_display} has invalid step `{num}`; expected integer `1`-`{n_steps}` \
+                     (no floats or negative numbers)."
+                ));
+            };
+            if !(1..=n_steps as u64).contains(&step_u64) {
+                return Err(format!(
+                    "{path_display} has invalid step `{step_u64}`; only `1`-`{n_steps}` are valid."
+                ));
+            }
+            Ok(step_u64 as usize)
+        }
+        other => Err(format!(
+            "{path_display} has invalid step ({}); expected ASCII digits `1`-`{n_steps}` or integer `1`-`{n_steps}`.",
+            yaml_kind(other)
+        )),
     }
 }
 
@@ -1243,12 +1300,22 @@ fn apply_ohm_overrides(
     storage_heat_method: i32,
     soil_store_capacity: f64,
 ) -> Result<(), String> {
-    let anohm_required = storage_heat_method == 3;
-    let ohm_thresh_required = matches!(storage_heat_method, 1 | 3 | 6 | 7 | 8);
+    let anohm_required = storage_heat_method == StorageHeatMethod::Anohm.as_i32();
+    let ohm_thresh_required = matches!(
+        StorageHeatMethod::try_from(storage_heat_method),
+        Ok(StorageHeatMethod::Ohm
+            | StorageHeatMethod::Anohm
+            | StorageHeatMethod::Dyohm
+            | StorageHeatMethod::Stebbs
+            | StorageHeatMethod::DyohmBuilding)
+    );
     let wet_dry_thresh_required = ohm_thresh_required
         && matches!(surface_name, "evetr" | "dectr" | "grass" | "bsoil")
         && soil_store_capacity > 0.0;
-    let static_coef_required = matches!(storage_heat_method, 1 | 3 | 8);
+    let static_coef_required = matches!(
+        StorageHeatMethod::try_from(storage_heat_method),
+        Ok(StorageHeatMethod::Ohm | StorageHeatMethod::Anohm | StorageHeatMethod::DyohmBuilding)
+    );
 
     if let Some(v) = require_anohm_field(lc_root, "ch_anohm", "chanohm", at, anohm_required)? {
         ohm.chanohm = v;
@@ -1671,6 +1738,11 @@ fn apply_waterdist_overrides(
 ///   `calculate_lai` when `laimethod != 0`, across all three vegetated surfaces
 ///   regardless of `sfr`; they may be omitted/null only when `laimethod == 0`,
 ///   while explicit non-null malformed values still fail cleanly (#2002).
+/// - `gdd_base` and `sdd_base` (the degree-day thresholds for the onset of
+///   leaf growth and leaf off) follow the same `laimethod != 0` gate as
+///   `lai_power` in resolved YAML (Python `config_to_engine_yaml` supplies the
+///   `0.0` default for older user YAMLs), and enforce `gdd_base >= 0.0` and
+///   `sdd_base <= 0.0` whenever provided (BR-02 / BR-03).
 fn apply_lai_overrides(
     lai: &mut crate::lai::LaiPrm,
     lc_root: &Value,
@@ -1733,6 +1805,28 @@ fn apply_lai_overrides(
     }
     if let Some(v) = require_if_active_i32(lc_root, &["lai", "laitype"], at, phenology_required)? {
         lai.lai_type = v;
+    }
+    if let Some(v) =
+        require_if_active_numeric(lc_root, &["lai", "gdd_base"], at, phenology_required)?
+    {
+        if v < 0.0 {
+            return Err(format!(
+                "`{}` must be non-negative (>= 0), got {v}",
+                yaml_path_display(at, &["lai", "gdd_base"]),
+            ));
+        }
+        lai.gdd_base = v;
+    }
+    if let Some(v) =
+        require_if_active_numeric(lc_root, &["lai", "sdd_base"], at, phenology_required)?
+    {
+        if v > 0.0 {
+            return Err(format!(
+                "`{}` must be non-positive (<= 0), got {v}",
+                yaml_path_display(at, &["lai", "sdd_base"]),
+            ));
+        }
+        lai.sdd_base = v;
     }
     Ok(())
 }
@@ -1966,7 +2060,7 @@ fn vegetation_layers_are_read(spartacus_on: bool) -> bool {
 /// surfaces and of the nlayer roofs and walls (copied to its output arrays in
 /// both of its branches), and the surface inner boundary temperatures.
 pub(crate) fn ehc_is_on(storage_heat_method: i32) -> bool {
-    storage_heat_method == 5
+    storage_heat_method == StorageHeatMethod::Ehc.as_i32()
 }
 
 /// Whether EHC resolves the roof and wall facets: storage heat method 5 with
@@ -1985,7 +2079,15 @@ fn facet_layers_are_read(storage_heat_method: i32, spartacus_on: bool) -> bool {
 /// (AnOHM) spin-up, and `OHM` (`suews_phys_ohm.f95`) evaluates snow storage
 /// heat `deltaQi` from `OHM_coef(nsurf + 1, 3, 1:3)` when `SnowUse == 1`.
 fn snow_ohm_is_read(snow_use: i32, storage_heat_method: i32) -> bool {
-    snow_use == 1 && matches!(storage_heat_method, 1 | 3 | 6 | 7 | 8)
+    snow_use == 1
+        && matches!(
+            StorageHeatMethod::try_from(storage_heat_method),
+            Ok(StorageHeatMethod::Ohm
+                | StorageHeatMethod::Anohm
+                | StorageHeatMethod::Dyohm
+                | StorageHeatMethod::Stebbs
+                | StorageHeatMethod::DyohmBuilding)
+        )
 }
 
 /// Read `properties.vertical_layers`. Where the kernel reads the building
@@ -2601,17 +2703,39 @@ fn apply_irrigation_overrides(
     )? {
         site.irrigation.faut = v;
     }
-    if let Some(v) = require_optional_doy_i32(
-        site_root,
-        &["properties", "irrigation", "ie_start"],
-        &site_at,
-    )? {
-        site.irrigation.ie_start = v;
-    }
-    if let Some(v) =
-        require_optional_doy_i32(site_root, &["properties", "irrigation", "ie_end"], &site_at)?
-    {
-        site.irrigation.ie_end = v;
+    if modelled_irrigation_active {
+        let ie_start = require_optional_doy_i32(
+            site_root,
+            &["properties", "irrigation", "ie_start"],
+            &site_at,
+        )?;
+        let ie_end =
+            require_optional_doy_i32(site_root, &["properties", "irrigation", "ie_end"], &site_at)?;
+        match (ie_start, ie_end) {
+            (Some(start), Some(end)) => {
+                site.irrigation.ie_start = start;
+                site.irrigation.ie_end = end;
+            }
+            (None, None) => {
+                site.irrigation.ie_start = 0;
+                site.irrigation.ie_end = 0;
+            }
+            (Some(_), None) => {
+                let shown = yaml_path_display(&site_at, &["properties", "irrigation", "ie_end"]);
+                return Err(format!(
+                    "`{shown}` must be set when `ie_start` is set and modelled irrigation is active (set both or omit both)"
+                ));
+            }
+            (None, Some(_)) => {
+                let shown = yaml_path_display(&site_at, &["properties", "irrigation", "ie_start"]);
+                return Err(format!(
+                    "`{shown}` must be set when `ie_end` is set and modelled irrigation is active (set both or omit both)"
+                ));
+            }
+        }
+    } else {
+        site.irrigation.ie_start = 0;
+        site.irrigation.ie_end = 0;
     }
     if let Some(v) = require_if_active_numeric(
         site_root,
@@ -2714,8 +2838,9 @@ fn apply_land_cover_overrides(
     sfr_surf: &[f64; NSURF],
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
-    let emis_all =
-        config.net_radiation_method > 0 || config.snow_use != 0 || config.storage_heat_method == 3;
+    let emis_all = config.net_radiation_method > 0
+        || config.snow_use != 0
+        || config.storage_heat_method == StorageHeatMethod::Anohm.as_i32();
     let bldg_sfr = sfr_surf[1];
     let evetr_sfr = sfr_surf[2];
     let dectr_sfr = sfr_surf[3];
@@ -3472,9 +3597,9 @@ fn apply_config_overrides(
     config.lai_method = require_i32(root, &["model", "physics", "laimethod"], "")?;
     config.rsl_level = require_i32(root, &["model", "physics", "rsllevel"], "")?;
     config.stebbs_method = require_i32(root, &["model", "physics", "stebbsmethod"], "")?;
-    if config.stebbs_method != 0 {
-        config.rc_method = require_i32(root, &["model", "physics", "rcmethod"], "")
-            .map_err(&map_stebbs_err)?;
+    if config.stebbs_method != StebbsMethod::None.as_i32() {
+        config.rc_method =
+            require_i32(root, &["model", "physics", "rcmethod"], "").map_err(&map_stebbs_err)?;
         config.setpoint_method = require_i32(root, &["model", "physics", "setpointmethod"], "")
             .map_err(&map_stebbs_err)?;
     } else {
@@ -3492,6 +3617,98 @@ fn apply_config_overrides(
     config.flag_test = require_i32(root, &["model", "control", "flag_test"], "")? != 0;
     config.diag_qs = require_i32(root, &["model", "control", "diag_qs"], "")?;
     config.kdown_split_method = require_i32(root, &["model", "physics", "kdown_split_method"], "")?;
+    let ehc_on = ehc_is_on(config.storage_heat_method);
+    let coupling_path = &["model", "physics", "ehc_surface_coupling"];
+    if ehc_on
+        || get_path(root, coupling_path)
+            .and_then(given_value)
+            .is_some()
+    {
+        let v = require_i32(root, coupling_path, "").map_err(|e| {
+            format!("{e} (model.physics.ehc_surface_coupling must be explicit (0) or implicit (1))")
+        })?;
+        if v != 0 && v != 1 {
+            return Err(
+                "`model.physics.ehc_surface_coupling` must be explicit (0) or implicit (1)"
+                    .to_string(),
+            );
+        }
+        config.ehc_surface_coupling = v;
+    }
+    let ehc_implicit = ehc_on && config.ehc_surface_coupling == 1;
+    let stability_path = &["model", "physics", "control_ehc_stability"];
+    if ehc_implicit
+        || get_path(root, stability_path)
+            .and_then(given_value)
+            .is_some()
+    {
+        let v = require_i32(root, stability_path, "").map_err(|e| {
+            format!("{e} (model.physics.control_ehc_stability must be off, relax or secant)")
+        })?;
+        if !(0..=2).contains(&v) {
+            return Err(
+                "`model.physics.control_ehc_stability` must be off, relax or secant".to_string(),
+            );
+        }
+        config.control_ehc_stability = v;
+    }
+    let init_profile_path = &["model", "physics", "control_ehc_initial_profile"];
+    if ehc_implicit
+        || get_path(root, init_profile_path)
+            .and_then(given_value)
+            .is_some()
+    {
+        let scalar = require_value(root, init_profile_path, "")?;
+        config.control_ehc_initial_profile = match scalar {
+            Value::Bool(b) => *b,
+            Value::Number(n) => match n.as_f64() {
+                Some(0.0) => false,
+                Some(1.0) => true,
+                _ => {
+                    return Err(
+                        "`model.physics.control_ehc_initial_profile` must be a boolean (or 0/1)"
+                            .to_string(),
+                    );
+                }
+            },
+            _ => {
+                return Err(
+                    "`model.physics.control_ehc_initial_profile` must be a boolean (or 0/1)"
+                        .to_string(),
+                );
+            }
+        };
+    }
+    let r_roof_path = &["model", "physics", "resistance_ehc_indoor_roof"];
+    if ehc_implicit || get_path(root, r_roof_path).and_then(given_value).is_some() {
+        let v = require_numeric(root, r_roof_path, "").map_err(|e| {
+            format!(
+                "{e} (model.physics.resistance_ehc_indoor_roof must be finite and non-negative)"
+            )
+        })?;
+        if v < 0.0 {
+            return Err(
+                "`model.physics.resistance_ehc_indoor_roof` must be finite and non-negative"
+                    .to_string(),
+            );
+        }
+        config.resistance_ehc_indoor_roof = v;
+    }
+    let r_wall_path = &["model", "physics", "resistance_ehc_indoor_wall"];
+    if ehc_implicit || get_path(root, r_wall_path).and_then(given_value).is_some() {
+        let v = require_numeric(root, r_wall_path, "").map_err(|e| {
+            format!(
+                "{e} (model.physics.resistance_ehc_indoor_wall must be finite and non-negative)"
+            )
+        })?;
+        if v < 0.0 {
+            return Err(
+                "`model.physics.resistance_ehc_indoor_wall` must be finite and non-negative"
+                    .to_string(),
+            );
+        }
+        config.resistance_ehc_indoor_wall = v;
+    }
     // The kernel reads this switch from the run configuration, but users set
     // it per site under `properties.spartacus` (gh#1858). Same threshold as
     // `SuewsConfig::from_flat`. Option-gated on SPARTACUS (BR-03).
@@ -3571,19 +3788,21 @@ fn apply_ehc_overrides(
         // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
         // Row-major layout: element [surf_idx * ndepth + depth_idx].
         for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
-            let surface_depth = match storage_heat_method {
-                5 => ndepth,
-                7 if surface_name == "bldgs" => 0,
-                8 if surface_name != "bldgs" => 0,
+            let surface_depth = match StorageHeatMethod::try_from(storage_heat_method) {
+                Ok(StorageHeatMethod::Ehc) => ndepth,
+                Ok(StorageHeatMethod::Stebbs) if surface_name == "bldgs" => 0,
+                Ok(StorageHeatMethod::DyohmBuilding) if surface_name != "bldgs" => 0,
                 _ => 1,
             };
             // The diagnostic DyOHM temperature update reads k and cp outside
             // methods 5-8 when thermal_layers are supplied, but OHM/AnOHM/LUMPS
             // configurations do not require thermal_layers to be present; dz is
             // only used by the thermal storage schemes (methods 5-8).
-            let require_surface_thermal =
-                (5..=8).contains(&storage_heat_method) && surface_depth > 0;
-            let thickness_depth = if (5..=8).contains(&storage_heat_method) {
+            let require_surface_thermal = (ehc_is_on(storage_heat_method)
+                || is_dyohm(storage_heat_method))
+                && surface_depth > 0;
+            let thickness_depth = if ehc_is_on(storage_heat_method) || is_dyohm(storage_heat_method)
+            {
                 surface_depth
             } else {
                 0
@@ -4232,7 +4451,8 @@ fn apply_drainage_overrides(
         let store_cap_required = (active
             && state.phenology_state.store_drain_prm[surface_idx][1] == 1.0)
             || (fractions[surface_idx] > 0.0
-                && (config.evap_method == 1 || config.storage_heat_method == 3))
+                && (config.evap_method == 1
+                    || config.storage_heat_method == StorageHeatMethod::Anohm.as_i32()))
             || ehc_bldg_scaling;
         if let Some(v) = require_if_active_numeric(
             site_root,
@@ -4819,6 +5039,12 @@ fn apply_site_scalar_overrides(
         require_mapping(site_root, &["properties", "land_cover", surface_name], &at)?;
         site_scalars.sfr_surf[idx] = require_surface_sfr(site_root, surface_name, &at)?;
     }
+    let sfr_total: f64 = site_scalars.sfr_surf.iter().sum();
+    if !sfr_total.is_finite() || (sfr_total - 1.0).abs() > LAND_COVER_SUM_AUTO_FIX_TOL {
+        return Err(format!(
+            "`{at}.properties.land_cover.*.sfr` sum to {sfr_total:.6}, which differs from 1.0 by more than {LAND_COVER_SUM_AUTO_FIX_TOL:.1e}; adjust surface fractions to sum to 1.0"
+        ));
+    }
 
     let non_water_active = site_scalars.sfr_surf[..6].iter().any(|&s| s > 0.0);
     let bldg_sfr = site_scalars.sfr_surf[1];
@@ -4953,7 +5179,10 @@ fn apply_site_scalar_overrides(
 
     // `lambda_c` is consumed only by building DyOHM (`StorageHeatMethod` 6 or 8);
     // non-building surfaces use the constant `lambda_c1 = 1.0`.
-    let lambda_c_active = matches!(config.storage_heat_method, 6 | 8);
+    let lambda_c_active = matches!(
+        StorageHeatMethod::try_from(config.storage_heat_method),
+        Ok(StorageHeatMethod::Dyohm | StorageHeatMethod::DyohmBuilding)
+    );
     if let Some(v) =
         require_if_active_numeric(site_root, &["properties", "lambda_c"], &at, lambda_c_active)?
     {
@@ -5294,6 +5523,155 @@ mod tests {
             let expected = format!("`sites[gridiv=43].properties.lumps.{field}`");
             assert!(error.contains(&expected), "{error}");
             assert!(error.contains(reason), "{error}");
+        }
+    }
+
+    #[test]
+    fn parses_ehc_stability_controls() {
+        for (name, code) in [("off", 0), ("relax", 1), ("secant", 2)] {
+            for selector in [name.to_string(), format!("{{value: {name}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["control_ehc_stability"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let run_cfg = load_run_config_from_value(&mut root).unwrap();
+                assert_eq!(run_cfg.config.control_ehc_stability, code);
+            }
+        }
+    }
+
+    #[test]
+    fn ehc_coupling_omission_defaults_to_implicit_and_explicit_remains_available() {
+        // Under storage_heat_method != 5 (sample fixture uses method 1), omitting
+        // all five EHC controls leaves Fortran defaults untouched (BR-03).
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        let physics = root["model"]["physics"].as_mapping_mut().unwrap();
+        for key in [
+            "ehc_surface_coupling",
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ] {
+            physics.remove(Value::String(key.into()));
+        }
+        let omitted = load_run_config_from_value(&mut root).unwrap();
+        assert_eq!(omitted.config.storage_heat_method, 1);
+        assert_eq!(omitted.config.ehc_surface_coupling, 1);
+        root["model"]["physics"]["ehc_surface_coupling"] = Value::String("explicit".into());
+        let explicit = load_run_config_from_value(&mut root).unwrap();
+        assert_eq!(explicit.config.ehc_surface_coupling, 0);
+    }
+
+    #[test]
+    fn ehc_active_requires_coupling_and_implicit_controls_per_br03() {
+        // StorageHeatMethod == 5: omitting ehc_surface_coupling fails naming its path.
+        let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        root["model"]["physics"]["storage_heat"] = Value::from(5);
+        root["model"]["physics"]
+            .as_mapping_mut()
+            .unwrap()
+            .remove(Value::String("ehc_surface_coupling".into()));
+        let err = load_run_config_from_value(&mut root).unwrap_err();
+        assert!(
+            err.contains("model.physics.ehc_surface_coupling"),
+            "missing coupling error should name path: {err}"
+        );
+
+        // StorageHeatMethod == 5 with explicit coupling: omitting all 4 implicit-only
+        // controls loads cleanly because Fortran does not read them under explicit EHC.
+        let mut explicit_root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+        explicit_root["model"]["physics"]["storage_heat"] = Value::from(5);
+        explicit_root["model"]["physics"]["ehc_surface_coupling"] =
+            Value::String("explicit".into());
+        let physics = explicit_root["model"]["physics"].as_mapping_mut().unwrap();
+        for key in [
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ] {
+            physics.remove(Value::String(key.into()));
+        }
+        let loaded = load_run_config_from_value(&mut explicit_root).unwrap();
+        assert_eq!(loaded.config.storage_heat_method, 5);
+        assert_eq!(loaded.config.ehc_surface_coupling, 0);
+
+        // StorageHeatMethod == 5 with implicit coupling: omitting each of the 4
+        // implicit-only controls individually fails naming its exact YAML path.
+        for key in [
+            "control_ehc_stability",
+            "control_ehc_initial_profile",
+            "resistance_ehc_indoor_roof",
+            "resistance_ehc_indoor_wall",
+        ] {
+            let mut imp_root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            imp_root["model"]["physics"]["storage_heat"] = Value::from(5);
+            imp_root["model"]["physics"]["ehc_surface_coupling"] =
+                Value::String("implicit".into());
+            imp_root["model"]["physics"]
+                .as_mapping_mut()
+                .unwrap()
+                .remove(Value::String(key.into()));
+            let err = load_run_config_from_value(&mut imp_root).unwrap_err();
+            let expected_path = format!("model.physics.{key}");
+            assert!(
+                err.contains(&expected_path),
+                "missing {expected_path} error should name path: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn parses_ehc_coupling_controls() {
+        for (value, code) in [
+            ("explicit", 0),
+            ("implicit", 1),
+            ("0", 0),
+            ("1", 1),
+            ("0.0", 0),
+            ("1.0", 1),
+        ] {
+            for selector in [value.to_string(), format!("{{value: {value}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["ehc_surface_coupling"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let run_cfg = load_run_config_from_value(&mut root).unwrap();
+                assert_eq!(run_cfg.config.ehc_surface_coupling, code);
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ehc_coupling_controls() {
+        for value in [
+            "unknown",
+            "-999",
+            "-1",
+            "2",
+            "0.5",
+            "1.5",
+            "1.0000000001",
+            ".nan",
+            ".inf",
+            "null",
+        ] {
+            for selector in [value.to_string(), format!("{{value: {value}}}")] {
+                let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+                root["model"]["physics"]["ehc_surface_coupling"] =
+                    serde_yaml::from_str(&selector).unwrap();
+                let err = load_run_config_from_value(&mut root).unwrap_err();
+                assert!(err.contains("ehc_surface_coupling"), "{selector}: {err}");
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_ehc_stability_controls() {
+        for selector in ["unknown", "-999", "-1", "3", "1.5", ".nan", ".inf", "null"] {
+            let mut root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            root["model"]["physics"]["control_ehc_stability"] =
+                serde_yaml::from_str(selector).unwrap();
+            assert!(load_run_config_from_value(&mut root).is_err(), "{selector}");
         }
     }
 
@@ -5962,6 +6340,131 @@ mod tests {
         assert!(err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step `0`"));
     }
 
+    #[test]
+    fn ten_minute_profile_accepts_integers_and_zero_padded_keys() {
+        let mut root: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        for (day_name, base) in [("working_day", 20.0_f64), ("holiday", 30.0_f64)] {
+            let day_node = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "building_archetype",
+                    "profile_setpoint_temperature_cooling_air",
+                    day_name,
+                ],
+            )
+            .expect("fixture should contain cooling day profile");
+            let Value::Mapping(day_map) = day_node else {
+                panic!("cooling day profile should be a mapping");
+            };
+            let mut rewritten = serde_yaml::Mapping::new();
+            for step in 1..=144_u64 {
+                let distinct_val = base + (step as f64) * 0.05;
+                let new_key = match step {
+                    1 => Value::String("001".to_string()),
+                    2..=9 => Value::String(format!("{step:02}")),
+                    10..=20 => Value::Number(step.into()),
+                    144 => Value::String("0144".to_string()),
+                    _ => Value::String(step.to_string()),
+                };
+                rewritten.insert(new_key, Value::Number(serde_yaml::Number::from(distinct_val)));
+            }
+            *day_map = rewritten;
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("zero-padded and integer 1..144 step keys should be accepted");
+        let cooling = &run_cfg.site
+            .building_archtype
+            .coolingsetpointtemperatureprofile;
+        for (day_idx, base) in [(0_usize, 20.0_f64), (1_usize, 30.0_f64)] {
+            for step in 1..=144_usize {
+                let expected = base + (step as f64) * 0.05;
+                let actual = cooling[day_idx][step - 1];
+                assert!(
+                    (actual - expected).abs() < 1e-12,
+                    "day_idx={day_idx} step={step}: expected {expected}, got {actual}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ten_minute_profile_rejects_malformed_and_colliding_keys() {
+        for bad_key in [
+            Value::String("+1".to_string()),
+            Value::String("-1".to_string()),
+            Value::String(" 1".to_string()),
+            Value::String("1.0".to_string()),
+            Value::String("0_1".to_string()),
+            Value::String("00".to_string()),
+            Value::String("145".to_string()),
+            Value::String("\u{0661}".to_string()),
+            Value::Bool(true),
+            Value::Number(serde_yaml::Number::from(1.0_f64)),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
+            let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+            let Value::Mapping(day_map) = get_path_mut(
+                site,
+                &[
+                    "properties",
+                    "building_archetype",
+                    "profile_setpoint_temperature_cooling_air",
+                    "working_day",
+                ],
+            )
+            .expect("fixture should contain cooling working-day profile")
+            else {
+                panic!("cooling working-day profile should be a mapping");
+            };
+            let val = day_map
+                .remove(Value::String("1".to_string()))
+                .expect("fixture should contain slice 1");
+            day_map.insert(bad_key.clone(), val);
+
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("malformed key {bad_key:?} must be rejected"));
+            assert!(
+                err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step"),
+                "unexpected error for {bad_key:?}: {err}"
+            );
+        }
+
+        // Colliding keys ("1" and "01") must fail instead of silently overwriting.
+        let mut root: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let Value::Mapping(day_map) = get_path_mut(
+            site,
+            &[
+                "properties",
+                "building_archetype",
+                "profile_setpoint_temperature_cooling_air",
+                "working_day",
+            ],
+        )
+        .expect("fixture should contain cooling working-day profile")
+        else {
+            panic!("cooling working-day profile should be a mapping");
+        };
+        let val = day_map
+            .get(Value::String("1".to_string()))
+            .cloned()
+            .expect("fixture should contain slice 1");
+        day_map.insert(Value::String("01".to_string()), val);
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("colliding 10-minute step keys must fail");
+        assert!(
+            err.contains("CoolingSetpointTemperatureProfile.working_day has duplicate step `1`"),
+            "unexpected collision error: {err}"
+        );
+    }
+
     // --- Integration tests for YAML key preprocessor (gh#1322) --------------
     //
     // The four tests below exercise the end-to-end CLI load path
@@ -6422,6 +6925,24 @@ mod tests {
         }
     }
 
+    /// Adjust `compensator`'s `sfr` so all seven surface fractions sum to `1.0`.
+    fn rebalance_sfr(site: &mut Value, compensator: &str) {
+        let other_sum: f64 = SURFACE_YAML_ORDER
+            .iter()
+            .filter(|(name, _)| *name != compensator)
+            .map(|(name, _)| {
+                read_numeric(site, &["properties", "land_cover", name, "sfr"]).expect("surface sfr")
+            })
+            .sum();
+        let comp_val = 1.0 - other_sum;
+        assert!(
+            (0.0..=1.0).contains(&comp_val),
+            "cannot rebalance {compensator} to {comp_val} (other_sum={other_sum})"
+        );
+        *get_path_mut(site, &["properties", "land_cover", compensator, "sfr"]).unwrap() =
+            Value::from(comp_val);
+    }
+
     #[test]
     fn zero_area_and_water_may_omit_the_whole_drainage_block() {
         let mut root = stebbs_fixture_root();
@@ -6439,6 +6960,7 @@ mod tests {
             }
             lc.remove(Value::String("storage_drain_params".into()));
         }
+        rebalance_sfr(site, "paved");
         load_run_config_from_value(&mut root).unwrap();
     }
 
@@ -6612,6 +7134,7 @@ mod tests {
                 sdp.remove(Value::String("drain_coef_1".into()));
                 sdp.insert(Value::String("drain_coef_2".into()), Value::Null);
             }
+            rebalance_sfr(site, "bldgs");
             let cfg = load_run_config_from_value(&mut root).unwrap();
             assert_eq!(cfg.state.phenology_state.store_drain_prm[0][2], 0.0);
             assert_eq!(cfg.state.phenology_state.store_drain_prm[0][3], 2.75);
@@ -6744,6 +7267,7 @@ mod tests {
                 serde_yaml::from_str("0.05").unwrap(),
             );
             water.remove(Value::String("storage_drain_params".into()));
+            rebalance_sfr(site, "paved");
             let err = load_run_config_from_value(&mut root).unwrap_err();
             assert!(
                 err.contains(
@@ -6885,6 +7409,7 @@ mod tests {
                 serde_yaml::from_str("0.0").unwrap(),
             );
             bldgs.remove(Value::String("storage_drain_params".into()));
+            rebalance_sfr(site, "paved");
             let cfg = load_run_config_from_value(&mut root).unwrap();
             assert_eq!(cfg.state.phenology_state.store_drain_prm[1][5], 0.0);
         }
@@ -6929,6 +7454,9 @@ mod tests {
                 Value::String("storage_drain_params".into()),
                 Value::String("bad".into()),
             );
+            if surface == "evetr" {
+                rebalance_sfr(site, "paved");
+            }
             let err = load_run_config_from_value(&mut root).unwrap_err();
             assert!(
                 err.contains(&format!(
@@ -6968,6 +7496,7 @@ mod tests {
                         Value::String(field.into()),
                         serde_yaml::from_str(bad).unwrap(),
                     );
+                rebalance_sfr(site, "paved");
                 let err = load_run_config_from_value(&mut root).unwrap_err();
                 assert!(
                     err.contains(&format!(
@@ -8379,6 +8908,7 @@ mod tests {
                     serde_yaml::from_str("{value: 150.0}").unwrap();
                 *get_path_mut(lc, &["soil_depth"]).unwrap() =
                     serde_yaml::from_str(literal).unwrap();
+                rebalance_sfr(site, if surface == "paved" { "bldgs" } else { "paved" });
                 let err = load_run_config_from_value(&mut root)
                     .expect_err("zero soil_depth on active positive-capacity surface must fail");
                 assert!(
@@ -8452,6 +8982,7 @@ mod tests {
             serde_yaml::from_str("{value: 150.0}").unwrap();
         *get_path_mut(water, &["soil_depth"]).unwrap() =
             serde_yaml::from_str("{value: 0.0}").unwrap();
+        rebalance_sfr(site, "bldgs");
 
         let run_cfg = load_run_config_from_value(&mut root)
             .expect("zero capacity, inactive, and water surfaces must allow zero soil_depth");
@@ -8539,6 +9070,7 @@ mod tests {
                     serde_yaml::from_str("{value: 0.1}").unwrap();
                 *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                     serde_yaml::from_str(literal).unwrap();
+                rebalance_sfr(site, "paved");
                 let err = load_run_config_from_value(&mut root).expect_err(
                     "non-positive lai_max on active vegetated surface must be rejected",
                 );
@@ -8566,6 +9098,7 @@ mod tests {
                     serde_yaml::from_str("{value: 0.1}").unwrap();
                 *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                     serde_yaml::from_str(malformed).unwrap();
+                rebalance_sfr(site, "paved");
                 let err = load_run_config_from_value(&mut root)
                     .expect_err("malformed lai_max on active vegetated surface must be rejected");
                 assert!(
@@ -8585,6 +9118,7 @@ mod tests {
             *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
             let lai = get_path_mut(lc, &["lai"]).expect("lai block exists");
             remove_key(lai, "lai_max");
+            rebalance_sfr(site, "paved");
             let err = load_run_config_from_value(&mut root)
                 .expect_err("omitted lai_max on active vegetated surface must be rejected");
             assert!(
@@ -8609,6 +9143,7 @@ mod tests {
                 serde_yaml::from_str("{value: 0.0}").unwrap(),
             );
         }
+        rebalance_sfr(site, "paved");
         let err = load_run_config_from_value(&mut root)
             .expect_err("legacy zero laimax on active grass must fail");
         assert!(
@@ -8634,6 +9169,7 @@ mod tests {
             *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                 serde_yaml::from_str("{value: 0.0}").unwrap();
         }
+        rebalance_sfr(site, "paved");
         let run_cfg = load_run_config_from_value(&mut root.clone())
             .expect("inactive vegetated surfaces with explicit zero lai_max must parse");
         assert_eq!(run_cfg.site.lc_evetr.lai.lai_max, 0.0);
@@ -8663,6 +9199,7 @@ mod tests {
             *get_path_mut(lc, &["lai", "lai_max"]).unwrap() =
                 serde_yaml::from_str(&format!("{{value: {val}}}")).unwrap();
         }
+        rebalance_sfr(site_pos, "paved");
         let run_cfg_pos = load_run_config_from_value(&mut root_pos)
             .expect("active vegetated surfaces with small positive lai_max must parse");
         assert!((run_cfg_pos.site.lc_evetr.lai.lai_max - 1.0e-6).abs() < 1.0e-12);
@@ -9097,11 +9634,10 @@ mod tests {
                     root["model"]["physics"]["storage_heat"] = Value::from(6);
                 }
                 if let Some(wsfr) = set_water_sfr {
-                    *get_path_mut(
-                        first_site_mut(&mut root).unwrap(),
-                        &["properties", "land_cover", "water", "sfr"],
-                    )
-                    .unwrap() = Value::from(wsfr);
+                    let site = first_site_mut(&mut root).unwrap();
+                    *get_path_mut(site, &["properties", "land_cover", "water", "sfr"]).unwrap() =
+                        Value::from(wsfr);
+                    rebalance_sfr(site, "paved");
                 }
                 let props = first_site_mut(&mut root).unwrap()["properties"]
                     .as_mapping_mut()
@@ -9221,11 +9757,10 @@ mod tests {
         ] {
             let mut root = base_root.clone();
             if matches!(surface, "evetr" | "water") {
-                *get_path_mut(
-                    first_site_mut(&mut root).unwrap(),
-                    &["properties", "land_cover", surface, "sfr"],
-                )
-                .unwrap() = Value::from(0.1);
+                let site = first_site_mut(&mut root).unwrap();
+                *get_path_mut(site, &["properties", "land_cover", surface, "sfr"]).unwrap() =
+                    Value::from(0.1);
+                rebalance_sfr(site, "paved");
             }
             let lc = get_path_mut(
                 first_site_mut(&mut root).unwrap(),
@@ -10004,6 +10539,7 @@ mod tests {
                 serde_yaml::from_str("{value: 0.0}").unwrap();
             *get_path_mut(site, &["properties", "land_cover", "evetr", "sfr"]).unwrap() =
                 serde_yaml::from_str("{value: 0.0}").unwrap();
+            rebalance_sfr(site, "grass");
             remove_key(
                 get_path_mut(site, &["properties", "snow"]).unwrap(),
                 "snow_depth_limit_paved",
@@ -10553,6 +11089,7 @@ mod tests {
             let lc = get_path_mut(site, &["properties", "land_cover", surface]).unwrap();
             *get_path_mut(lc, &["sfr"]).unwrap() = serde_yaml::from_str("{value: 0.1}").unwrap();
             remove_key(lc, key);
+            rebalance_sfr(site, if surface == "paved" { "bldgs" } else { "paved" });
             let err = load_run_config_from_value(&mut root)
                 .expect_err("omitted active static OHM threshold must be rejected");
             assert!(
@@ -10816,6 +11353,8 @@ mod tests {
                 "lai.lai_power.senescence_sdd",
             ),
             (vec!["lai_type"], "lai.lai_type"),
+            (vec!["gdd_base"], "lai.gdd_base"),
+            (vec!["sdd_base"], "lai.sdd_base"),
         ] {
             let mut root: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
@@ -10877,9 +11416,11 @@ mod tests {
                     get_path_mut(site, &["properties", "land_cover", surface, "lai"]).unwrap();
                 remove_key(lc_lai, "lai_power");
                 remove_key(lc_lai, "lai_type");
+                remove_key(lc_lai, "gdd_base");
+                remove_key(lc_lai, "sdd_base");
             }
             load_run_config_from_value(&mut root.clone())
-                .expect("laimethod=0 allows omitted lai_power and lai_type");
+                .expect("laimethod=0 allows omitted lai_power, lai_type, gdd_base and sdd_base");
 
             for required_key in [
                 "base_temperature",
@@ -10945,6 +11486,65 @@ mod tests {
                 err.contains("`sites[gridiv=1].properties.land_cover.evetr.lai.lai_type`"),
                 "{err}"
             );
+        }
+
+        // Sign validation on gdd_base (>= 0) and sdd_base (<= 0), plus non-zero propagation.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let grass_lai =
+                get_path_mut(site, &["properties", "land_cover", "grass", "lai"]).unwrap();
+            if let Value::Mapping(map) = grass_lai {
+                map.insert(
+                    Value::String("gdd_base".to_string()),
+                    serde_yaml::from_str("{value: 120.5}").unwrap(),
+                );
+                map.insert(
+                    Value::String("sdd_base".to_string()),
+                    serde_yaml::from_str("{value: -240.25}").unwrap(),
+                );
+            }
+            let cfg = load_run_config_from_value(&mut root)
+                .expect("valid non-zero gdd_base/sdd_base should parse");
+            assert!((cfg.site.lc_grass.lai.gdd_base - 120.5).abs() < 1.0e-12);
+            assert!((cfg.site.lc_grass.lai.sdd_base - (-240.25)).abs() < 1.0e-12);
+        }
+        for (field, bad_val, expected_fragment) in [
+            ("gdd_base", "-0.1", "non-negative"),
+            ("sdd_base", "0.1", "non-positive"),
+        ] {
+            for lai_method in [1, 0] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                if lai_method == 0 {
+                    let physics = get_path_mut(&mut root, &["model", "physics"]).unwrap();
+                    if let Value::Mapping(map) = physics {
+                        map.insert(
+                            Value::String("laimethod".to_string()),
+                            serde_yaml::from_str("{value: 0}").unwrap(),
+                        );
+                    }
+                }
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let grass_lai =
+                    get_path_mut(site, &["properties", "land_cover", "grass", "lai"]).unwrap();
+                if let Value::Mapping(map) = grass_lai {
+                    map.insert(
+                        Value::String(field.to_string()),
+                        serde_yaml::from_str(&format!("{{value: {bad_val}}}")).unwrap(),
+                    );
+                }
+                let err = load_run_config_from_value(&mut root).expect_err(&format!(
+                    "{field}={bad_val} must be rejected under laimethod={lai_method}"
+                ));
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.grass.lai.{field}`"
+                    )) && err.contains(expected_fragment),
+                    "{field} (laimethod={lai_method}): {err}"
+                );
+            }
         }
     }
 
@@ -11161,6 +11761,7 @@ mod tests {
                 serde_yaml::from_str("{value: 0.005}").unwrap();
             let grass = get_path_mut(site, &["properties", "land_cover", "grass"]).unwrap();
             remove_key(grass, resp_key);
+            rebalance_sfr(site, "paved");
             let err = load_run_config_from_value(&mut root)
                 .expect_err("exact boundary veg_frac_sum=0.01, sfr=0.005 must require respiration");
             assert!(
@@ -11182,6 +11783,7 @@ mod tests {
             for key in ["resp_a", "resp_b", "min_res_bioco2"] {
                 remove_key(grass, key);
             }
+            rebalance_sfr(site, "paved");
             load_run_config_from_value(&mut root).expect(
                 "surface strictly below f32 0.005 threshold does not read respiration keys",
             );
@@ -12344,6 +12946,10 @@ mod tests {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
                 let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                if rel_path[1] == "irrigation" {
+                    *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"])
+                        .unwrap() = serde_yaml::from_str("1.0").unwrap();
+                }
                 *get_path_mut(site, rel_path).unwrap() = serde_yaml::from_str(yaml_val).unwrap();
                 let rc = load_run_config_from_value(&mut root).unwrap_or_else(|e| {
                     panic!("{display_suffix}={yaml_val} must succeed, got: {e}")
@@ -12379,6 +12985,10 @@ mod tests {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
                 let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                if rel_path[1] == "irrigation" {
+                    *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"])
+                        .unwrap() = serde_yaml::from_str("1.0").unwrap();
+                }
                 for pair_path in pair_paths {
                     *get_path_mut(site, pair_path).unwrap() =
                         serde_yaml::from_str(null_form).unwrap();
@@ -12425,6 +13035,10 @@ mod tests {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
                 let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                if rel_path[1] == "irrigation" {
+                    *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"])
+                        .unwrap() = serde_yaml::from_str("1.0").unwrap();
+                }
                 *get_path_mut(site, rel_path).unwrap() = serde_yaml::from_str(bad_yaml).unwrap();
                 let err = load_run_config_from_value(&mut root).expect_err(&format!(
                     "{display_suffix}={bad_yaml} must be rejected instead of silently zeroed"
@@ -12434,6 +13048,84 @@ mod tests {
                     "{display_suffix}={bad_yaml}: expected path and `{expected_phrase}` in error, got: {err}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn inactive_irrigation_skips_ie_start_ie_end_and_exports_zero() {
+        for (label, water_use_yaml, daywat_monday_yaml) in [
+            ("observed_water_use_with_daywat_on", "{value: 1}", "1.0"),
+            ("modelled_water_use_with_all_daywat_zero", "{value: 0}", "0.0"),
+        ] {
+            for (ie_start_yaml, ie_end_yaml) in [
+                ("20.5", "null"),
+                ("0", "367"),
+                ("\"abc\"", "true"),
+                ("{value: 120}", "null"),
+            ] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+                *get_path_mut(&mut root, &["model", "physics", "water_use"]).unwrap() =
+                    serde_yaml::from_str(water_use_yaml).unwrap();
+                let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"]).unwrap() =
+                    serde_yaml::from_str(daywat_monday_yaml).unwrap();
+                *get_path_mut(site, &["properties", "irrigation", "ie_start"]).unwrap() =
+                    serde_yaml::from_str(ie_start_yaml).unwrap();
+                *get_path_mut(site, &["properties", "irrigation", "ie_end"]).unwrap() =
+                    serde_yaml::from_str(ie_end_yaml).unwrap();
+
+                let rc = load_run_config_from_value(&mut root).unwrap_or_else(|e| {
+                    panic!("{label} ({ie_start_yaml}, {ie_end_yaml}) must succeed when inactive, got: {e}")
+                });
+                assert_eq!(rc.site.irrigation.ie_start, 0, "{label} ie_start");
+                assert_eq!(rc.site.irrigation.ie_end, 0, "{label} ie_end");
+            }
+        }
+    }
+
+    #[test]
+    fn active_irrigation_rejects_unpaired_ie_start_ie_end() {
+        for (label, ie_start_yaml, ie_end_yaml, expected_missing) in [
+            ("ie_start_set_ie_end_null", "120", "null", "ie_end"),
+            ("ie_start_null_ie_end_set", "null", "240", "ie_start"),
+            ("ie_start_wrapped_ie_end_omitted", "{value: 120}", "__OMIT__", "ie_end"),
+            ("ie_start_omitted_ie_end_wrapped", "__OMIT__", "{value: 240}", "ie_start"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+            *get_path_mut(&mut root, &["model", "physics", "water_use"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+            *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"]).unwrap() =
+                serde_yaml::from_str("1.0").unwrap();
+            let irr_map = get_path_mut(site, &["properties", "irrigation"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            if ie_start_yaml == "__OMIT__" {
+                irr_map.remove(Value::String("ie_start".to_string()));
+            } else {
+                irr_map.insert(
+                    Value::String("ie_start".to_string()),
+                    serde_yaml::from_str(ie_start_yaml).unwrap(),
+                );
+            }
+            if ie_end_yaml == "__OMIT__" {
+                irr_map.remove(Value::String("ie_end".to_string()));
+            } else {
+                irr_map.insert(
+                    Value::String("ie_end".to_string()),
+                    serde_yaml::from_str(ie_end_yaml).unwrap(),
+                );
+            }
+
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("{label} must reject half-paired irrigation window"));
+            assert!(
+                err.contains(expected_missing),
+                "{label}: expected error mentioning {expected_missing}, got: {err}"
+            );
         }
     }
 
@@ -12687,5 +13379,74 @@ mod tests {
                 && missing_wall_spec.contains("wall_specular_frac"),
             "unexpected error: {missing_wall_spec}"
         );
+    }
+
+    #[test]
+    fn land_cover_sfr_sum_contract_enforced_at_native_boundary() {
+        let yaml_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test/fixtures/bridge/sample_resolved.yml");
+        let base_text = std::fs::read_to_string(&yaml_path).expect("sample_resolved.yml");
+        let base_root: Value = serde_yaml::from_str(&base_text).expect("parse sample YAML");
+
+        let paved_sfr = read_numeric(
+            &base_root["sites"][0],
+            &["properties", "land_cover", "paved", "sfr"],
+        )
+        .expect("paved.sfr");
+
+        // 1. Drift outside 1e-4 (+0.0002) is rejected across value, str, and file entry points.
+        let mut drift_bad = base_root.clone();
+        *get_path_mut(
+            first_site_mut(&mut drift_bad).unwrap(),
+            &["properties", "land_cover", "paved", "sfr"],
+        )
+        .unwrap() = Value::from(paved_sfr + 0.0002);
+        let bad_yaml = serde_yaml::to_string(&drift_bad).expect("serialise bad YAML");
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "suews_sfr_sum_contract_{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&tmp_dir).expect("create temp dir");
+        let bad_file = tmp_dir.join("bad_sfr.yml");
+        std::fs::write(&bad_file, &bad_yaml).expect("write bad YAML");
+
+        for (label, res) in [
+            ("value", load_run_config_from_value(&mut drift_bad.clone())),
+            ("str", load_run_config_from_str(&bad_yaml)),
+            ("file", load_run_config(&bad_file)),
+        ] {
+            let err = res.expect_err(&format!("{label}: drift > 1e-4 must be rejected"));
+            assert!(
+                err.contains("land_cover") && err.contains("sfr") && err.contains("1.0"),
+                "{label}: unexpected error: {err}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+
+        // 2. All-zero surface fractions are rejected.
+        let mut all_zero = base_root.clone();
+        for (surf, _) in SURFACE_YAML_ORDER {
+            *get_path_mut(
+                first_site_mut(&mut all_zero).unwrap(),
+                &["properties", "land_cover", surf, "sfr"],
+            )
+            .unwrap() = Value::from(0.0);
+        }
+        let err_zero = load_run_config_from_value(&mut all_zero)
+            .expect_err("all-zero surface fractions must be rejected");
+        assert!(
+            err_zero.contains("land_cover") && err_zero.contains("sfr"),
+            "unexpected all-zero error: {err_zero}"
+        );
+
+        // 3. Small drift within 1e-4 (+5e-5) remains accepted.
+        let mut drift_ok = base_root.clone();
+        *get_path_mut(
+            first_site_mut(&mut drift_ok).unwrap(),
+            &["properties", "land_cover", "paved", "sfr"],
+        )
+        .unwrap() = Value::from(paved_sfr + 5.0e-5);
+        load_run_config_from_value(&mut drift_ok)
+            .expect("drift within 1e-4 should remain accepted at native boundary");
     }
 }

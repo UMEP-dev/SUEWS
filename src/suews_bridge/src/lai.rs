@@ -2,8 +2,8 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const LAI_PRM_FLAT_LEN: usize = 11;
-pub const LAI_PRM_SCHEMA_VERSION: u32 = 1;
+pub const LAI_PRM_FLAT_LEN: usize = 13;
+pub const LAI_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LaiPrmSchema = crate::codec::SimpleSchema;
 
@@ -19,6 +19,8 @@ pub struct LaiPrm {
     pub lai_max: f64,
     pub lai_power: [f64; 4],
     pub lai_type: i32,
+    pub gdd_base: f64,
+    pub sdd_base: f64,
 }
 
 impl Default for LaiPrm {
@@ -32,6 +34,8 @@ impl Default for LaiPrm {
             lai_max: 0.0,
             lai_power: [0.0; 4],
             lai_type: 0,
+            gdd_base: 0.0,
+            sdd_base: 0.0,
         }
     }
 }
@@ -65,6 +69,8 @@ impl LaiPrm {
             lai_max: flat[5],
             lai_power: [flat[6], flat[7], flat[8], flat[9]],
             lai_type: decode_int(flat[10])?,
+            gdd_base: flat[11],
+            sdd_base: flat[12],
         })
     }
 
@@ -81,6 +87,8 @@ impl LaiPrm {
             self.lai_power[2],
             self.lai_power[3],
             self.lai_type as f64,
+            self.gdd_base,
+            self.sdd_base,
         ]
     }
 }
@@ -117,6 +125,8 @@ pub fn lai_prm_field_names() -> Vec<String> {
         "laipower_3".to_string(),
         "laipower_4".to_string(),
         "laitype".to_string(),
+        "gdd_base".to_string(),
+        "sdd_base".to_string(),
     ]
 }
 
@@ -187,5 +197,40 @@ mod tests {
         flat[10] = 1.5;
         let err = LaiPrm::from_flat(&flat).expect_err("fractional integer should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn nonzero_gdd_sdd_base_sentinel_roundtrip() {
+        let state = LaiPrm {
+            base_temperature: 6.5,
+            gdd_full: 300.0,
+            base_temperature_senescence: 22.0,
+            sdd_full: -450.0,
+            lai_min: 1.25,
+            lai_max: 5.75,
+            lai_power: [-0.02, 0.04, -1.0, 0.02],
+            lai_type: 1,
+            gdd_base: 123.5,
+            sdd_base: -247.25,
+        };
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), LAI_PRM_FLAT_LEN);
+        assert!((flat[10] - 1.0).abs() < 1.0e-12);
+        assert!((flat[11] - 123.5).abs() < 1.0e-12);
+        assert!((flat[12] - (-247.25)).abs() < 1.0e-12);
+
+        let from_flat = LaiPrm::from_flat(&flat).expect("flat decode should succeed");
+        assert_eq!(from_flat, state);
+
+        let mapped = lai_prm_to_map(&state);
+        assert!((mapped["gdd_base"] - 123.5).abs() < 1.0e-12);
+        assert!((mapped["sdd_base"] - (-247.25)).abs() < 1.0e-12);
+        let from_map = lai_prm_from_map(&mapped).expect("map decode should succeed");
+        assert_eq!(from_map, state);
+
+        let payload = lai_prm_to_values_payload(&state);
+        let from_payload =
+            lai_prm_from_values_payload(&payload).expect("payload decode should succeed");
+        assert_eq!(from_payload, state);
     }
 }

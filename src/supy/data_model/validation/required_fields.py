@@ -33,9 +33,11 @@ This module contains:
   documentation generator. Most entries are derived from the constants above;
   the ``AnthropogenicEmissions`` entry mirrors the DLS checks in
   ``SUEWSConfig.validate_model_output_timestamp_reference`` and
-  ``SUEWSConfig.validate_dls_parameters`` instead, and the ``IrrigationParams``
-  entry mirrors the irrigation-window check in the Phase B validation pipeline
-  (``phase_b_rules.other_rules``).
+  ``SUEWSConfig.validate_dls_parameters``, and the ``IrrigationParams``
+  entry mirrors the scheme-gated irrigation-window check enforced by both
+  ``SUEWSConfig.validate_irrigation_parameters`` / ``validate_doy_parameters``
+  and Phase B (``phase_b_rules.other_rules``) via
+  ``validation.rules.hard_invariants``.
 - ``STEBBS_SHADING_REQUIRED_MODES`` and ``stebbs_shading_requirements``,
   which share shading requirements across parameter models, full
   configurations and raw YAML diagnostics.
@@ -376,9 +378,10 @@ def _dls_condition(other_end: str) -> str:
 def _irrigation_condition(other_end: str) -> str:
     """Describe when one end of the irrigation window must be supplied."""
     return (
-        f"``{other_end}`` is set to a day of year (not ``0`` or null): the "
-        "irrigation window "
-        "needs both ends, or neither"
+        f"modelled irrigation is active (``model.physics.water_use`` is ``0`` / "
+        f"``modelled`` and at least one weekday in ``irrigation.daywat`` is "
+        f"``1.0``) and ``{other_end}`` is set to a day of year (not ``0`` or "
+        "null): the irrigation window needs both ends, or neither"
     )
 
 

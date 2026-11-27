@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev17"
+CURRENT_SCHEMA_VERSION = "2026.6.dev23"
 
 # Schema version history and descriptions.
 #
@@ -248,6 +248,81 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "whole-number floats (e.g. 86.0 -> 86), preserves null and disabled "
         "ref-only/empty mappings, and rejects fractional, boolean, non-finite "
         "or out-of-range values rather than truncating or zeroing them."
+    ),
+    "2026.6.dev18": (
+        "Default storage_heat=5 (EHC) to implicit surface coupling (#2108). "
+        "Adds optional model.physics controls ehc_surface_coupling (default "
+        "implicit), control_ehc_stability (default off), "
+        "control_ehc_initial_profile (default true), "
+        "resistance_ehc_indoor_roof (default 0.10 m2 K W-1), and "
+        "resistance_ehc_indoor_wall (default 0.13 m2 K W-1). Existing EHC "
+        "YAMLs that omit ehc_surface_coupling now use implicit coupling; set "
+        "ehc_surface_coupling: explicit to retain legacy explicit coupling."
+    ),
+    "2026.6.dev19": (
+        "Align irrigation WeeklyProfile (daywat, daywatper) weekday slots with "
+        "the Sunday-first calendar convention used by legacy SUEWS_Irrigation.txt "
+        "tables, df_state arrays (0=sunday .. 6=saturday), and the Fortran kernel "
+        "(#2049, #2324). Existing YAML files remain structurally valid and "
+        "migration leaves weekday keys unchanged, logging an advisory when a "
+        "site defines an asymmetric irrigation weekday schedule so users who "
+        "converted from legacy tables under an earlier schema can verify their "
+        "weekday assignments."
+    ),
+    "2026.6.dev20": (
+        "Align Python TenMinuteProfile (HeatingSetpointProfile, "
+        "CoolingSetpointProfile) and Rust apply_day_profile_overrides key "
+        "validation for 10-minute STEBBS profiles (#2342). Step keys in "
+        "working_day and holiday accept canonical strings '1'..'144', "
+        "zero-padded ASCII-digit strings, and plain integers 1..144, "
+        "normalising to canonical '1'..'144' strings while strictly rejecting "
+        "malformed keys and canonical collisions. The (2026.6.dev19 -> "
+        "2026.6.dev20) migration normalises valid non-canonical 10-minute "
+        "profile keys and rejects malformed or colliding keys explicitly."
+    ),
+    "2026.6.dev21": (
+        "Unify required physics options in core.model, enforce blocking "
+        "Phase B validation for half-specified daylight saving (startdls/"
+        "enddls), and apply the shared three-band land-cover surface fraction "
+        "sum kernel across Phase B, Phase C, SUEWSConfig.validate_for_engine(), "
+        "and SUEWSSimulation.run() (#2347). Sums within 1e-6 pass, drift "
+        "between 1e-6 and 1e-4 is auto-normalisable under --science-fixes "
+        "apply (or reported as a warning), and deviations exceeding 1e-4 (or "
+        "all-zero/invalid fractions) are rejected while raw SUEWSConfig "
+        "loading continues to accept off-sum configurations for inspection. "
+        "The (2026.6.dev20 -> 2026.6.dev21) migration preserves values "
+        "unchanged and logs advisories for off-sum land-cover fractions or "
+        "half-specified daylight saving windows."
+    ),
+    "2026.6.dev22": (
+        "Split SPARTACUS building-layer optical properties by facet: move "
+        "roof_albedo_dir_mult_fact exclusively to RoofLayer (default 1.0) and "
+        "wall_specular_frac exclusively to WallLayer (default 0.0) (#2085), "
+        "removing both fields from BuildingLayer, aligning defaults with the "
+        "Rust bridge, sample config, and legacy tables, and making each owning "
+        "field non-optional FlexibleRefValue(float). The (2026.6.dev21 -> "
+        "2026.6.dev22) migration drops legacy cross-facet keys "
+        "(roofs[*].wall_specular_frac and walls[*].roof_albedo_dir_mult_fact) "
+        "with explicit logs, rejects explicit null or {value: null} on the "
+        "owning fields with YamlUpgradeError, and runtime loading strips "
+        "cross-facet keys with a DeprecationWarning while rejecting explicit "
+        "owning nulls with Pydantic ValidationError."
+    ),
+    "2026.6.dev23": (
+        "Compute modelled LAI from daily GDD/SDD increments within fixed "
+        "growth and senescence seasons (reset before accumulation on DOY 15 "
+        "and DOY 196, swapped in the southern hemisphere), gating leaf-out "
+        "and leaf-off onset on gdd_base/sdd_base (#2346, #2066, #2078). "
+        "Legacy compatibility fields gdd_full, sdd_full, and lai_type remain "
+        "accepted prior to removal but are ignored by the kernel, and the "
+        "sample configuration adopts retuned daily-increment rates and "
+        "thresholds (base_temperature=6.5, base_temperature_senescence=22.0, "
+        "gdd_base=120.0, sdd_base=-240.0, lai_power=(-0.02, 0.04, -1.0, 0.02), "
+        "initial sdd_id=0.0) while preserving per-surface lai_min/lai_max "
+        "envelopes. The (2026.6.dev22 -> 2026.6.dev23) migration preserves "
+        "existing user parameters unchanged and logs an advisory for sites "
+        "using modelled LAI so users know to retune legacy lai_power "
+        "coefficients and review initial sdd_id."
     ),
 }
 

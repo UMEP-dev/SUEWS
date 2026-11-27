@@ -5,29 +5,15 @@
 # Classification is governance metadata, not a claim of unique underlying bugs.
 version: 1
 mappings:
+  # Verified GCC 14.2.0 -Wmaybe-uninitialized false positive in untouched
+  # vendored ecmwf/spartacus-surface (triaged under #2172; reason recorded in
+  # scripts/lint/fortran_uninit_baseline.json).
   - selector:
       ledger: "U"
       file: "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90"
     contract: "C-RESPONSE"
-    issue: 2172
-    classification: "coverage_gap"
-  - selector:
-      ledger: "U"
-      file: "src/suews/src/suews_ctrl_driver.f95"
-    contract: "C-RESPONSE"
-    issue: 2172
-    classification: "coverage_gap"
-  - selector:
-      ledger: "U"
-      file: "src/suews_bridge/c_api/heat_state.f95"
-    contract: "C-CAPI"
-    issue: 2096
-    classification: "defect"
-  - selector:
-      ledger: "L"
-    contract: "C-TOOLING"
-    issue: 1953
-    classification: "defect"
+    issue: 2083
+    classification: "accepted_exception"
   - selector:
       ledger: "S"
       group: "derived_run_bounds"
@@ -86,19 +72,19 @@ mappings:
       ledger: "S"
       group: "debt_biogenic_co2"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_anthro_co2"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_irrigation_no_default"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
@@ -110,7 +96,7 @@ mappings:
       ledger: "S"
       group: "debt_ohm_coefficients"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
@@ -158,50 +144,38 @@ mappings:
       ledger: "S"
       group: "debt_opt_stebbs_archetype"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_stebbs_props"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_surface_thresholds"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_bioco2_enh"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_surface_init_temp"
     contract: "C-WARMSTART"
-    issue: 2003
-    classification: "defect"
-  - selector:
-      ledger: "S"
-      group: "debt_opt_building_layer_optical"
-    contract: "C-VALID"
-    issue: 2085
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "S"
       group: "debt_opt_plain_scalars"
     contract: "C-VALID"
-    issue: 1991
+    issue: 2309
     classification: "defect"
-  - selector:
-      ledger: "S"
-      group: "doc_required_when_pending_from_yaml"
-    contract: "C-VALID"
-    issue: 2083
-    classification: "coverage_gap"
   - selector:
       ledger: "M"
       category: "active_gap"
@@ -212,16 +186,9 @@ mappings:
   - selector:
       ledger: "M"
       category: "active_gap"
-      owner_issue: "#1991"
+      owner_issue: "#2309"
     contract: "C-VALID"
-    issue: 1991
-    classification: "defect"
-  - selector:
-      ledger: "M"
-      category: "active_gap"
-      owner_issue: "#2003"
-    contract: "C-VALID"
-    issue: 2003
+    issue: 2309
     classification: "defect"
   - selector:
       ledger: "M"
@@ -229,13 +196,6 @@ mappings:
       owner_issue: "#2076"
     contract: "C-VALID"
     issue: 2076
-    classification: "defect"
-  - selector:
-      ledger: "M"
-      category: "active_gap"
-      owner_issue: "#2085"
-    contract: "C-VALID"
-    issue: 2085
     classification: "defect"
   - selector:
       ledger: "M"
@@ -272,24 +232,6 @@ mappings:
     classification: "accepted_exception"
   - selector:
       ledger: "O"
-      id_prefix: "heat_state.temp_surf_ehc_"
-    contract: "C-EHC-RESTART"
-    issue: 2108
-    classification: "defect"
-  - selector:
-      ledger: "O"
-      id_prefix: "heat_state.ehc_iter_"
-    contract: "C-CAPI"
-    issue: 2083
-    classification: "accepted_exception"
-  - selector:
-      ledger: "O"
-      id_prefix: "suews_timer."
-    contract: "C-CAPI"
-    issue: 2083
-    classification: "accepted_exception"
-  - selector:
-      ledger: "O"
       id_prefix: "suews_site."
     contract: "C-CAPI"
     issue: 2083
@@ -305,12 +247,6 @@ mappings:
       id: "snow_use::1"
     contract: "C-BALANCE"
     issue: 1958
-    classification: "defect"
-  - selector:
-      ledger: "X"
-      id: "test/physics/test_calendar_profiles.py::test_weekly_daywat_dailystate_matches_named_weekday_gh2049::1"
-    contract: "C-CLOCK"
-    issue: 2049
     classification: "defect"
   - selector:
       ledger: "T1"
@@ -371,9 +307,3 @@ mappings:
     contract: "C-ROUNDTRIP"
     issue: 2083
     classification: "accepted_exception"
-  - selector:
-      ledger: "X"
-      id: "test/physics/test_continuation_matrix.py::test_continuation_matrix::1"
-    contract: "C-EHC-RESTART"
-    issue: 2108
-    classification: "defect"

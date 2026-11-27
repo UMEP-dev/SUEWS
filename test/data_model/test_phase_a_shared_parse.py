@@ -250,8 +250,8 @@ def test_cli_phase_a_annotates_missing_optional_and_critical_params(
         Path(opt_env["data"]["updated_yaml"]).read_text(encoding="utf-8"),
         Loader=yaml.SafeLoader,
     )
-    assert "start_time" in opt_updated["model"]["control"]
-    assert opt_updated["model"]["control"]["start_time"] is None
+    # Omitted optional fields are reported as A.MISSING_PARAM but not padded with null.
+    assert "start_time" not in opt_updated["model"]["control"]
 
     # Critical missing physics parameter -> error, exit 1, annotated with null
     crit_dir = tmp_path / "crit"

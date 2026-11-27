@@ -27,6 +27,7 @@ from .profile import (
 )
 from .timezone_enum import TimezoneOffset
 from ..._env import logger_supy
+from ...constants import C2K
 from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
@@ -518,7 +519,10 @@ class LAIParams(DataModelBase):
     )
     gdd_full: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Growing degree days (GDD) needed for full capacity of LAI",
+        description=(
+            "Legacy compatibility field retained prior to removal; ignored by the "
+            "fixed-season daily-increment LAI phenology formulation (see gdd_base)."
+        ),
         json_schema_extra={
             "unit": "K d",
             "display_name": "Growing Degree Days for Full LAI",
@@ -534,7 +538,10 @@ class LAIParams(DataModelBase):
     )
     sdd_full: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Senescence degree days (SDD) needed to initiate leaf off",
+        description=(
+            "Legacy compatibility field retained prior to removal; ignored by the "
+            "fixed-season daily-increment LAI phenology formulation (see sdd_base)."
+        ),
         json_schema_extra={
             "unit": "K d",
             "display_name": "Senescence Degree Days for Leaf Off",
@@ -556,10 +563,40 @@ class LAIParams(DataModelBase):
     )
     lai_type: FlexibleRefValue(int) = Field(
         default=0,
-        description="LAI calculation choice (0: original, 1: new high latitude)",
+        description=(
+            "Legacy compatibility field retained prior to removal; ignored by the "
+            "fixed-season daily-increment LAI phenology formulation."
+        ),
         json_schema_extra={
             "unit": None,
             "display_name": "LAI Calculation Method",
+        },
+    )
+    gdd_base: FlexibleRefValue(float) = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Growing degree days (GDD) that must accumulate in the growth half "
+            "of the year before leaf growth starts. The default of 0 means no "
+            "threshold: growth may start on the first day with positive GDD."
+        ),
+        json_schema_extra={
+            "unit": "K d",
+            "display_name": "Growing Degree Days to Start Leaf Growth",
+        },
+    )
+    sdd_base: FlexibleRefValue(float) = Field(
+        default=0.0,
+        le=0.0,
+        description=(
+            "Senescence degree days (SDD, negative by convention) that must "
+            "accumulate in the senescence half of the year before leaf off "
+            "starts. The default of 0 means no threshold: leaf off may start on "
+            "the first day with negative SDD."
+        ),
+        json_schema_extra={
+            "unit": "K d",
+            "display_name": "Senescence Degree Days to Start Leaf Off",
         },
     )
 
@@ -582,6 +619,8 @@ class LAIParams(DataModelBase):
             "laimin": self.lai_min,
             "laimax": self.lai_max,
             "laitype": self.lai_type,
+            "gdd_base": self.gdd_base,
+            "sdd_base": self.sdd_base,
         }
         cols = {("gridiv", "0"): grid_id}
         for param, value in lai_params.items():
@@ -653,6 +692,11 @@ class LAIParams(DataModelBase):
             "lai_max": get_df_value("laimax", (veg_idx,)),
             "lai_type": int(get_df_value("laitype", (veg_idx,))),
         }
+        # Degree-day onset thresholds: older df_state tables predate these
+        # columns, so fall back to the field defaults when they are absent.
+        for key in ("gdd_base", "sdd_base"):
+            if (key, str((veg_idx,))) in df.columns:
+                lai_params[key] = get_df_value(key, (veg_idx,))
 
         # Convert scalar parameters to RefValue
         lai_params = {key: RefValue(value) for key, value in lai_params.items()}
@@ -2479,7 +2523,7 @@ class StebbsProperties(DataModelBase):
             "unit": "degC",
             "display_name": "Internal Shading Temperature Threshold",
         },
-        gt=-273.15,
+        gt=-C2K,
     )
     radiation_threshold_shading: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -2654,8 +2698,18 @@ class StebbsProperties(DataModelBase):
         json_schema_extra={
             "unit": "m3",
             "display_name": "Hot Water Volume",
-            "default_description": "Missing default explanation.",
-            "range_description": "Missing range explanation.",
+            "default_description": (
+                "Nominal positive baseline (0.05 m3, 50 L) representing domestic hot "
+                "water held in use in building vessels (not derived from a single "
+                "published reference); set according to the modelled building or "
+                "archetype."
+            ),
+            "range_description": (
+                "Value must be strictly greater than zero (> 0.0 m3); STEBBS divides "
+                "by this volume when updating the in-use hot-water temperature from "
+                "vessel heat exchange and tank-water mixing, and no upper bound is "
+                "enforced so it can scale with the modelled building or archetype."
+            ),
         },
         gt=0.0,
     )
@@ -2865,14 +2919,33 @@ class StebbsProperties(DataModelBase):
     @model_validator(mode="after")
     def _validate_internal_shading_parameters(self) -> "StebbsProperties":
         """Require explicit active parameters whenever shading is enabled."""
+        from ..validation.rules.hard_invariants import check_stebbs_internal_shading
+
         shading_mode = (
             self.internal_shading.value
             if isinstance(self.internal_shading, RefValue)
             else self.internal_shading
         )
-        for field_name, message in stebbs_shading_requirements(shading_mode).items():
-            if field_name not in self.model_fields_set:
-                raise ValueError(message)
+        values = {
+            field_name: (
+                getattr(self, field_name).value
+                if isinstance(getattr(self, field_name), RefValue)
+                else getattr(self, field_name)
+            )
+            for field_name in (
+                "reduction_factor_shading",
+                "temperature_threshold_shading",
+                "radiation_threshold_shading",
+            )
+        }
+        violations = check_stebbs_internal_shading(
+            shading_mode,
+            values,
+            present_fields=self.model_fields_set,
+            require_explicit_presence=True,
+        )
+        if violations:
+            raise ValueError(violations[0].message)
         return self
 
     def _to_df_state_cols(self, grid_id: int) -> dict:

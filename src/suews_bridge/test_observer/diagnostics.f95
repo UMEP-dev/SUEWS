@@ -5,7 +5,7 @@ module module_test_diagnostics
    use iso_c_binding, only: c_int, c_char, c_null_char
    use module_ctrl_type, only: SUEWS_STATE, SUEWS_TIMER
    use module_ctrl_error_state, only: reset_supy_error, set_supy_error
-   use SUEWS_Driver, only: sync_error_to_state
+   use module_ctrl_driver, only: sync_error_to_state
    use module_c_api_driver, only: pack_kernel_warnings
    use module_c_api_common, only: copy_to_c_buffer
    implicit none

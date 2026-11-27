@@ -119,7 +119,7 @@ impl Default for OhmState {
             dyn_a1: [0.0; NSURF],
             dyn_a2: [0.0; NSURF],
             dyn_a3: [0.0; NSURF],
-            iter_safe: true,
+            iter_safe: false,
             anohm_working_day: -999,
             anohm_working_count: 0,
             anohm_working_t_hr: [-999.0; ANOHM_MAX_SAMPLES],
@@ -810,7 +810,7 @@ mod tests {
     fn default_state_roundtrip_and_step() {
         let mut state =
             ohm_state_default_from_fortran().expect("default state should be available");
-        assert!(state.iter_safe);
+        assert!(!state.iter_safe);
         state.anohm_a1_surf = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17];
         state.anohm_a2_surf = [0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27];
         state.anohm_a3_surf = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];

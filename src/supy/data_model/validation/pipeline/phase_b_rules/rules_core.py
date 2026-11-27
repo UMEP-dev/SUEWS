@@ -21,9 +21,16 @@ def function_name(context):
     return errors
 """
 
-from dataclasses import asdict, dataclass, fields
+from collections.abc import Mapping
+from dataclasses import dataclass, fields
+import logging
 from types import MappingProxyType
-from typing import Any, Mapping, Tuple, Optional
+from typing import Any, Optional
+
+from ..document import thaw_copy
+
+
+logger = logging.getLogger("supy.data_model")
 
 
 VALID_SEVERITIES = {
@@ -54,31 +61,76 @@ class ValidationResult:
     source: str = "phase_b"
 
     def __setattr__(self, name, value):
-        if name == "status" and isinstance(value, str):
-            value = value.upper()
-            object.__setattr__(self, name, value)
-            if "severity" in self.__dict__:
-                object.__setattr__(self, "severity", value)
+        if name in {"status", "severity"} and isinstance(value, str):
+            norm = value.upper()
+            if self.__dict__.get("_initialized", False) and norm not in VALID_SEVERITIES:
+                raise ValueError(
+                    f"Invalid validation {name} '{norm}'. "
+                    f"Expected one of {sorted(VALID_SEVERITIES)}."
+                )
+            object.__setattr__(self, name, norm)
+            if name == "status" and self.__dict__.get("_initialized", False):
+                object.__setattr__(self, "severity", norm)
             return
         object.__setattr__(self, name, value)
 
     def __post_init__(self):
-        self.status = (self.status or "INFO").upper()
-        self.severity = (self.severity or self.status).upper()
-        if self.severity not in VALID_SEVERITIES:
+        status_norm = (self.status or "INFO").upper()
+        severity_norm = (self.severity or status_norm).upper()
+        if status_norm not in VALID_SEVERITIES:
             raise ValueError(
-                f"Invalid validation severity '{self.severity}'. "
+                f"Invalid validation status '{status_norm}'. "
                 f"Expected one of {sorted(VALID_SEVERITIES)}."
             )
+        if severity_norm not in VALID_SEVERITIES:
+            raise ValueError(
+                f"Invalid validation severity '{severity_norm}'. "
+                f"Expected one of {sorted(VALID_SEVERITIES)}."
+            )
+        object.__setattr__(self, "status", status_norm)
+        object.__setattr__(self, "severity", severity_norm)
         if self.code is None:
             normalised_parameter = self.parameter.replace(".", "_").replace(" ", "_")
-            self.code = f"{self.category}.{normalised_parameter}".upper()
+            object.__setattr__(
+                self, "code", f"{self.category}.{normalised_parameter}".upper()
+            )
         if self.path is None:
-            self.path = self.parameter
+            object.__setattr__(self, "path", self.parameter)
+        object.__setattr__(self, "_initialized", True)
 
     def to_dict(self) -> dict:
         """Return a stable serialisable representation for reports and JSON."""
-        return asdict(self)
+        return {
+            f.name: thaw_copy(getattr(self, f.name))
+            for f in fields(self)
+        }
+
+    @classmethod
+    def from_violation(cls, violation) -> "ValidationResult":
+        """Build a Phase B ERROR ``ValidationResult`` from a shared ``InvariantViolation``."""
+        return cls(
+            status="ERROR",
+            category=violation.category,
+            parameter=violation.parameter,
+            site_index=violation.site_index,
+            site_gridid=violation.site_gridid,
+            message=violation.message,
+            suggested_value=violation.suggested_value,
+            code=violation.code,
+        )
+
+    @classmethod
+    def from_advisory(cls, finding) -> "ValidationResult":
+        """Build a Phase B WARNING/INFO ``ValidationResult`` from an ``AdvisoryFinding``."""
+        return cls(
+            status=finding.status,
+            category=finding.category,
+            parameter=finding.parameter,
+            site_index=finding.site_index,
+            site_gridid=finding.site_gridid,
+            message=finding.message,
+            suggested_value=finding.suggested_value,
+        )
 
     def to_issue(self):
         """Adapt this Phase B result to the canonical ``Issue`` schema.
@@ -111,6 +163,7 @@ class ValidationContext:
     yaml_data: dict
     start_date: Optional[str] = None
     model_year: Optional[int] = None
+    effective_fixes: str = "suggest"
 
 
     def __post_init__(self):
@@ -119,13 +172,13 @@ class ValidationContext:
             object.__setattr__(self, f.name, self._deep_freeze(value))
 
     def _deep_freeze(self, value):
-        if isinstance(value, dict):
+        if isinstance(value, Mapping):
             return MappingProxyType({
                 k: self._deep_freeze(v) for k, v in value.items()
             })
-        elif isinstance(value, list):
+        elif isinstance(value, (list, tuple)):
             return tuple(self._deep_freeze(v) for v in value)
-        elif isinstance(value, set):
+        elif isinstance(value, (set, frozenset)):
             return frozenset(self._deep_freeze(v) for v in value)
         else:
             return value
@@ -148,15 +201,14 @@ class RulesRegistry:
     def ordered_rule_items(self):
         rule_order = self.rule_order
         if rule_order is None:
-            try:
-                from . import DEFAULT_RULE_ORDER
+            from . import DEFAULT_RULE_ORDER
 
-                rule_order = DEFAULT_RULE_ORDER
-            except ImportError:
-                rule_order = tuple(self.rules.keys())
+            rule_order = DEFAULT_RULE_ORDER
 
         seen = set()
         for rule_id in rule_order:
+            if rule_id in seen:
+                continue
             rule_fn = self.rules.get(rule_id)
             if rule_fn is None:
                 continue
@@ -183,8 +235,50 @@ class RulesRegistry:
                 raise ValueError("Must provide context of type ValidationContext to run validation registry.")
             context = self.context
 
-        for rule_id, rule_fn in self.ordered_rule_items():
-            validation_results.extend(
-                rule_fn(context)
+        from ...rules.typed_view import TypedConfigView
+
+        for site_idx, param, message in TypedConfigView.from_mapping(
+            context.yaml_data
+        ).site_structure_errors:
+            validation_results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="STRUCTURE",
+                    parameter=param,
+                    site_index=site_idx,
+                    message=message,
+                    suggested_value=(
+                        "Provide a mapping of site properties for each entry in 'sites'."
+                    ),
+                )
             )
+
+        for rule_id, rule_fn in self.ordered_rule_items():
+            try:
+                for result in rule_fn(context):
+                    validation_results.append(result)
+            except Exception as exc:
+                # One faulty rule must not hide the findings of the others (or
+                # items this rule already yielded): report the crash as a single
+                # ERROR naming the rule and carry on.
+                logger.debug("Phase B rule %r failed", rule_id, exc_info=True)
+                validation_results.append(
+                    rule_crash_result(f"rule '{rule_id}'", rule_id, exc)
+                )
         return validation_results
+
+
+def rule_crash_result(label: str, rule_id: str, exc: BaseException) -> ValidationResult:
+    """Build the ERROR result reported when a Phase B rule or adjustment crashes."""
+    return ValidationResult(
+        status="ERROR",
+        category="VALIDATOR",
+        parameter=str(rule_id),
+        code=f"VALIDATOR.RULE_FAILED.{rule_id}".upper(),
+        message=(
+            f"Phase B {label} failed with {type(exc).__name__}: {exc}. "
+            "The remaining checks still ran. This is a validator fault rather "
+            "than a configuration error; please report it with the YAML file."
+        ),
+        suggested_value=None,
+    )

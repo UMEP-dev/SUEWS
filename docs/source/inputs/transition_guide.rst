@@ -21,7 +21,7 @@ The same command also accepts a df_state snapshot (``*.csv``/``*.pkl``) or an ol
 Prerequisites
 -------------
 
-Ensure that ``supy`` is installed in your Python environment. The transition tool is part of the ``supy`` package.
+Ensure that ``supy`` is installed in your Python environment (see :ref:`installation`). The transition tool is part of the ``supy`` package.
 
 Using the Transition Tool
 -------------------------
@@ -103,20 +103,20 @@ The tool will:
 Example 4: Table-to-Table Conversion (Python only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Converting between legacy table versions without creating YAML is not a command-line feature. Use the Python function instead:
+Converting between legacy table versions without creating YAML is not a command-line feature. Use :func:`~supy.util.converter.convert_table` from Python instead, passing run directories rather than the ``Input/`` tables folder itself:
 
 .. code-block:: python
 
    from supy.util.converter import convert_table
 
    convert_table(
-       "/path/to/suews_run/Input_v2020a",
-       "/path/to/suews_run/Input_v2024a",
-       "2020a",
-       "2024a",
+       fromDir="/path/to/suews_run_v2020a",
+       toDir="/path/to/suews_run_v2024a",
+       fromVer="2020a",
+       toVer="2024a",
    )
 
-This converts the tables from ``2020a`` to ``2024a`` format in the output directory. See :doc:`/api/converter` for the full signature.
+``fromDir`` is the run directory containing ``RunControl.nml``; the source tables are read from the folder its ``FileInputPath`` points to. ``toDir`` receives the converted ``RunControl.nml`` at its root, with the converted tables and namelists in its ``FileInputPath`` folder and an empty ``FileOutputPath`` folder beside it. Forcing files are not copied, so copy them across yourself. Keep ``FileInputPath`` relative: with an absolute path the converter writes the converted tables and namelists into that same folder, replacing the originals. See :doc:`/api/converter` for the full signature.
 
 Example 5: Debugging Conversion Issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -148,11 +148,11 @@ If auto-detection fails, you'll be prompted to specify the source version explic
 Path Resolution and File Location
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The converter intelligently handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
+The converter handles various directory structures by reading the ``FileInputPath`` parameter from your ``RunControl.nml`` file:
 
-- **Configured paths**: The converter respects custom paths specified in ``RunControl.nml``
-- **Absolute paths**: Used directly as specified (e.g., ``/home/user/data/inputs/``)
-- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``)
+- **Configured paths**: The converter respects custom paths specified in ``RunControl.nml`` when reading source tables
+- **Absolute and parent-relative paths**: Used as specified when reading source tables (e.g., ``/home/user/data/inputs/`` or ``../shared/Input/``). When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that is absolute or resolves outside ``toDir`` (such as a ``../`` path or an escaping symlink) is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (e.g., ``./Input/``) so source files are not overwritten. Passing a ``toDir`` (different from ``fromDir``) that resolves to the source input directory raises a ``ValueError`` before any files are written. ``FileOutputPath`` is left unchanged, and an external ``FileOutputPath`` directory is not created (only a relative ``FileOutputPath`` resolving inside ``toDir`` is created). Forcing files are not copied by ``convert_table``; ``suews convert`` still locates forcing files using the original ``RunControl.nml`` ``FileInputPath``
+- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml`` (e.g., ``./Input/`` becomes ``<run_dir>/Input/``) and preserved when inside ``toDir`` (unless it would overwrite the source input directory or escape ``toDir`` via a symlink)
 - **Automatic fallback**: If files aren't found at the configured path, the converter automatically checks:
   
   1. The directory containing ``RunControl.nml``
@@ -204,6 +204,8 @@ give a different water input. Surface-specific ``wuh_<surface>`` columns are
 also non-negative depths in mm per forcing interval and override bulk ``Wuh``
 for that surface.
 
+.. _yaml_schema_migrations:
+
 YAML Schema Migrations
 ----------------------
 
@@ -215,9 +217,201 @@ schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.
 
+By default, ``suews schema migrate`` upgrades to the current schema.
+Among CalVer schemas, explicit ``--target-version`` values are supported
+only for ``2026.4`` (from ``2025.12`` or ``2026.1``), ``2026.6.dev8``
+and later (from any older schema), and the current schema. Earlier
+historical labels such as ``2026.1``, ``2026.5`` and ``2026.6.dev1`` to
+``2026.6.dev7`` have no migration route from older schemas, and
+configurations cannot be migrated to an older schema. If you need a
+configuration for an older release without a migration route, use that
+release's documentation and sample configuration.
+
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
+
+.. _schema_dev23_lai_daily_increment:
+
+Upgrading to Schema 2026.6.dev23
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev23`` updates modelled leaf area index (LAI) phenology to use daily
+growing/senescence degree-day increments within fixed growth and senescence
+seasons (reset before accumulation on DOY 15 and DOY 196 in the northern
+hemisphere, swapped in the southern hemisphere), gating leaf-out and leaf-off
+onset on ``gdd_base`` and ``sdd_base``:
+
+- **Retune ``lai_power`` and onset thresholds**: coefficients calibrated for
+  the legacy cumulative GDD/SDD formulation (for example
+  ``growth_gdd: 0.001``) will under-drive seasonal canopy growth under the
+  daily-increment equations. Set ``gdd_base`` (positive, K d), ``sdd_base``
+  (negative, K d), ``base_temperature``, ``base_temperature_senescence``, and
+  ``lai_power`` for the daily-increment formulation (the shipped sample uses
+  ``base_temperature: 6.5``, ``base_temperature_senescence: 22.0``,
+  ``gdd_base: 120.0``, ``sdd_base: -240.0``, and
+  ``lai_power: (-0.02, 0.04, -1.0, 0.02)`` while keeping per-surface
+  ``lai_min`` / ``lai_max`` envelopes).
+- **Review initial ``sdd_id``**: legacy configurations starting on 1 January
+  with ``sdd_id: -450.0`` begin below ``sdd_base`` and will trigger immediate
+  early-January senescence before the DOY 15 winter reset unless reset to
+  ``0.0`` (matching the updated sample configuration).
+- **Ignored legacy compatibility fields**: ``gdd_full``, ``sdd_full``, and
+  ``lai_type`` remain accepted for compatibility prior to removal, but are
+  ignored by the model kernel.
+
+``suews schema migrate`` preserves existing user values unchanged and logs an
+advisory for sites using modelled LAI:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev23
+
+.. _schema_dev22_building_layer_split:
+
+Upgrading to Schema 2026.6.dev22
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev22`` removes the two facet-specific SPARTACUS optical properties
+from the shared ``BuildingLayer`` schema so each lives only on its owning
+facet model, and aligns their Pydantic defaults with the Rust bridge, sample
+configuration, and legacy tables:
+
+- ``roof_albedo_dir_mult_fact`` is declared exclusively on ``RoofLayer``
+  (``sites[*].properties.vertical_layers.roofs[*]``, default ``1.0``).
+- ``wall_specular_frac`` is declared exclusively on ``WallLayer``
+  (``sites[*].properties.vertical_layers.walls[*]``, default ``0.0``).
+
+Both owning fields are non-optional numeric values: explicit ``null`` or
+``{value: null}`` raises Pydantic ``ValidationError`` on direct configuration
+loading and ``YamlUpgradeError`` during migration to ``2026.6.dev22``. Legacy
+YAML files carrying the ignored cross-facet keys
+(``roofs[*].wall_specular_frac`` or ``walls[*].roof_albedo_dir_mult_fact``)
+still load with a ``DeprecationWarning`` while stripping the dead cross-facet
+keys, and ``suews schema migrate`` drops them cleanly with an explicit log
+entry:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev22
+
+.. _schema_dev21_land_cover_sum_and_dst:
+
+Upgrading to Schema 2026.6.dev21
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev21`` unifies three validation contracts across the configuration
+pipeline and runtime engine handoff:
+
+- **Land-cover surface fraction sum policy**: Phase B, Phase C (including
+  ``suews validate -p C --dry-run``), ``SUEWSConfig.validate_for_engine()``,
+  and ``SUEWSSimulation.run()`` now share one three-band sum kernel.
+  Per-site ``sfr`` sums within ``1e-6`` of ``1.0`` pass, drift between
+  ``1e-6`` and ``1e-4`` is reported as a warning and can be auto-normalised on
+  the dominant surface via ``suews validate --science-fixes apply``, and
+  deviations exceeding ``1e-4`` (or all-zero/non-finite/out-of-range
+  fractions) are rejected. Raw ``SUEWSConfig`` loading continues to accept
+  off-sum configurations so callers can inspect or repair them before engine
+  handoff.
+- **Blocking half-specified daylight saving**: setting only one of
+  ``anthropogenic_emissions.startdls`` or ``enddls`` is now a blocking Phase B
+  error under ``--science-fixes suggest`` and ``--science-fixes off``. Under
+  ``--science-fixes apply``, SUEWS fills only the missing bound when daylight
+  saving applies to the site coordinates while preserving the supplied bound;
+  sites without daylight saving remain a blocking error until the lone bound
+  is removed.
+- **Centralised required physics list**: all validation phases derive the
+  required top-level and STEBBS physics switches from a single definition in
+  ``supy.data_model.core.model``.
+
+Existing YAML files remain structurally loadable. Upgrading to
+``2026.6.dev21`` preserves surface fractions and daylight-saving values
+unchanged and logs an advisory for any site with off-sum land-cover fractions
+or a half-specified daylight-saving window:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev21
+
+.. _schema_dev20_ten_minute_profile_keys:
+
+Upgrading to Schema 2026.6.dev20
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev20`` aligns Python ``TenMinuteProfile`` (including
+``HeatingSetpointProfile`` and ``CoolingSetpointProfile``) and Rust
+``apply_day_profile_overrides`` step-key validation across the five 10-minute
+STEBBS profiles (``building_archetype.profile_metabolism``,
+``building_archetype.profile_setpoint_temperature_heating_air``,
+``building_archetype.profile_setpoint_temperature_cooling_air``,
+``stebbs.profile_flow_hot_water``, and ``stebbs.profile_appliance``).
+Previously, Python coerced arbitrary keys via ``str(k)`` (accepting malformed
+keys such as ``"+1"``, ``"0"``, ``"145"``, ``True``, or ``1.0`` and silently
+overwriting canonical collisions such as ``"1"`` and ``"01"``), whereas Rust
+rejected YAML integer keys ``1..144`` while also accepting ``"+1"`` and
+silently overwriting duplicate slots.
+
+Both layers now accept canonical strings ``"1"``..``"144"``, zero-padded
+ASCII-digit strings (such as ``"01"`` or ``"0144"``), and plain integers
+``1``..``144``, normalising them to canonical ``"1"``..``"144"`` strings while
+strictly rejecting malformed keys and canonical collisions. Upgrading to
+``2026.6.dev20`` rewrites valid non-canonical 10-minute profile keys to
+canonical strings and reports any malformed or colliding keys explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev20
+
+.. _schema_dev19_irrigation_weekdays:
+
+Upgrading to Schema 2026.6.dev19
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev19`` aligns ``WeeklyProfile`` irrigation fields
+(``sites[].properties.irrigation.daywat`` and ``daywatper``) with the
+Sunday-first calendar convention used by legacy ``SUEWS_Irrigation.txt``
+tables, ``df_state`` arrays (``0=sunday`` .. ``6=saturday``), and the Fortran
+kernel (#2049). Earlier versions mapped ``monday`` to slot ``0`` and ``sunday``
+to slot ``6``, shifting asymmetric weekday irrigation schedules by one day on
+``df_state`` round-trips and legacy table conversions.
+
+Existing YAML files remain structurally valid. Upgrading to ``2026.6.dev19``
+does not rotate or alter weekday keys automatically, because a YAML edited by
+hand may already carry the intended weekday names. Instead, migration logs an
+advisory whenever a site defines an asymmetric ``daywat`` or ``daywatper``
+schedule so users who converted from legacy ``SUEWS_Irrigation.txt`` tables
+under an earlier schema can verify that each weekday holds the intended value:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev19
+
+.. _schema_dev18_ehc_implicit:
+
+Upgrading to Schema 2026.6.dev18
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``model.physics.storage_heat`` selects EHC (method 5), ``2026.6.dev18``
+defaults ``model.physics.ehc_surface_coupling`` to ``implicit`` rather than
+``explicit``, solving each facet's linearised surface energy balance together
+with backward Euler conduction. Four companion optional controls are added under
+``model.physics``: ``control_ehc_stability`` (default ``off``),
+``control_ehc_initial_profile`` (default ``true``),
+``resistance_ehc_indoor_roof`` (default ``0.10`` m2 K W-1), and
+``resistance_ehc_indoor_wall`` (default ``0.13`` m2 K W-1).
+
+Existing method-5 YAML files that omit ``ehc_surface_coupling`` remain valid
+and now run with implicit coupling. To retain the legacy explicit coupling and
+boundary treatment, set ``model.physics.ehc_surface_coupling: explicit`` (other
+storage heat methods ignore these fields). To migrate an older configuration
+explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev18
+
+See :doc:`../outputs/ehc` for boundary conditions, envelope initialisation, and
+the seven diagnostics appended in output contract ``2.1.0``.
 
 .. _schema_dev17_integer_doy:
 
@@ -334,17 +528,21 @@ a zero exponent in equation 3 gives a constant rate before the existing water
 availability cap. No new default or sign restriction is introduced. The storage
 capacity fallback from ``store_max`` when ``store_cap`` is omitted is unchanged.
 
-With schema dev15 installed, upgrade a versioned dev11, dev12, dev13 or dev14 file
-beside its original. For a file named ``site.yml``, confirm that the first
-command wrote ``site.migrated.yml``, then check the saved configuration:
+With schema dev15 or later installed, upgrade an older versioned file (dev11,
+dev12, dev13 or dev14, or dev15 on a newer installation) to the installed
+schema beside its original. For a file named ``site.yml``, confirm that the
+first command wrote ``site.migrated.yml``, then check the saved configuration:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev15
+   suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
-The second command checks current water-routing, radiation-memory,
-continuation-state and drainage requirements. Explicitly selecting an older
+On a dev15 installation, a file already at ``2026.6.dev15`` needs no
+migration (``suews schema migrate`` creates no copy); validate ``site.yml``
+directly. The validation command checks current water-routing,
+radiation-memory, continuation-state and drainage requirements (along with
+any later-schema checks on newer installations). Explicitly selecting an older
 ``--schema-version`` on the validation command checks the saved JSON Schema
 structure. A missing active runoff fraction, for example, can pass that
 historical structure check and fail model validation after migration.
@@ -402,22 +600,23 @@ and ``to_grass: 0.02``. A paved surface with a genuine zero runoff fraction
 also keeps that zero. See :ref:`waterdist_yaml_rules` for the applicable
 destinations and the rules for zero-area surfaces.
 
-The following commands apply to an installation using schema dev12. With
-dev15 installed, follow :ref:`schema_dev15_drainage_coefficients` to check
-water routing, radiation memory, continuation state and drainage coefficients.
+The following commands apply to an installation using schema dev12 or later;
+each migration brings the file up to the installed schema before validation.
 Choose the command from the version recorded at the top of your YAML file.
 Keep the converted copy beside the original so relative forcing paths still
 point to the same files. Use a fresh output filename when you repeat a
 conversion, so a file left by an earlier run cannot be mistaken for its result.
 
-**The file says** ``schema_version: 2026.6.dev11``. The first command writes
-``site.migrated.yml``. Confirm that this new file exists. The migration
-summary can say ``Needs review`` even after writing it. Read the diagnostics
-and run the second command to check the saved configuration:
+**The file says** ``schema_version: 2026.6.dev11``. The first command
+upgrades ``site.yml`` to the installed schema (including the dev12
+water-routing step) and writes ``site.migrated.yml``. Confirm that this new
+file exists. The migration summary can say ``Needs review`` even after
+writing it. Read the diagnostics and run the second command to check the
+saved configuration:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev12
+   suews schema migrate site.yml
    suews validate -p C --dry-run site.migrated.yml --format json
 
 **The file has no schema version.** Some older YAMLs are treated as current
@@ -437,12 +636,31 @@ source version if it differs from this example.
    suews convert -i site.yml -o site.migrated.yml --from 2026.6.dev11
    suews validate -p C --dry-run site.migrated.yml --format json
 
-**The file already says** ``schema_version: 2026.6.dev12``. A migration to
-the same version creates no copy. Validate the original directly:
+**The file already says** ``schema_version: 2026.6.dev12``. On a dev12
+installation, ``suews schema migrate`` creates no copy because the file is
+already at the installed schema; validate the original directly:
 
 .. code-block:: bash
 
    suews validate -p C --dry-run site.yml --format json
+
+On a newer installation, validating the original directly fails with a
+schema-version mismatch. Migrate ``site.yml`` to the installed schema first,
+confirm that ``site.migrated.yml`` was written, and validate the migrated
+copy:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml
+   suews validate -p C --dry-run site.migrated.yml --format json
+
+On installations newer than dev12, migration to the installed schema can
+also stop on later-schema checks for
+:ref:`radiation memory (dev13) <schema_dev13_radiation_memory>`,
+:ref:`continuation state (dev14) <schema_dev14_continuation_state>`,
+:ref:`drainage coefficients (dev15) <schema_dev15_drainage_coefficients>`,
+:ref:`vegetation senescence (dev16) <schema_dev16_vegetation_senescence>`
+and :ref:`integer day-of-year windows (dev17) <schema_dev17_integer_doy>`.
 
 Check each site and surface named in a validation error. An inapplicable
 non-zero fraction needs a decision about where that water should go. Within
@@ -843,10 +1061,12 @@ Upgrading to Schema 2026.5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Schema ``2026.5`` is the YAML schema shipped with release ``2026.6.5``.
-It is the single released label collapsing the ``2026.5.dev1`` ..
-``2026.5.dev14`` development cycle: one ``(2026.4 -> 2026.5)`` handler
-applies the union of every dev-cycle delta. Upgrading from ``2026.4``
-(shipped with 2026.4.3) brings the following user-visible changes:
+It collapsed the ``2026.5.dev1`` .. ``2026.5.dev14`` development cycle
+into a single released label: in release ``2026.6.5``, one
+``(2026.4 -> 2026.5)`` handler applied the union of every dev-cycle
+delta in order, and current migrations from ``2026.4`` apply that union
+on the way to later schemas. Upgrading from ``2026.4`` (shipped with
+2026.4.3) brings the following user-visible changes:
 
 - **Fused field names to snake_case** (#1256, Category 1): for example
   ``netradiationmethod`` -> ``net_radiation_method``, ``soildepth`` ->
@@ -885,11 +1105,13 @@ applies the union of every dev-cycle delta. Upgrading from ``2026.4``
   / ``modelled``; the ``provided``, ``use_provided`` and
   ``simple_scheme`` aliases are retired.
 
-Run the migrator to bring an existing YAML onto the new shape:
+Run the migrator without ``--target-version`` to apply these changes and
+continue through to the current schema (see :ref:`yaml_schema_migrations`
+for supported explicit targets):
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.5
+   suews schema migrate your_config.yml
 
 For a combined legacy-table-plus-schema upgrade, use ``suews convert``,
 which runs the table conversion first and then walks the schema chain
@@ -930,10 +1152,10 @@ Run:
 
    suews schema migrate your_config.yml --target-version 2026.4
 
-The migrator accepts any registered intermediate (for example
-``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
-further to the 2026.5 schema, use
-``--target-version 2026.5`` (or omit the flag to reach the latest).
+The migrator accepts ``2025.12`` or ``2026.1`` and walks the chain to
+the ``2026.4`` schema. To upgrade further to the current schema, omit
+``--target-version`` (see :ref:`yaml_schema_migrations` for supported
+explicit targets).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -954,13 +1176,17 @@ Landed with the STEBBS clean-up (#879). If you are moving from the
   hot water (#1038). Existing configs that omit them continue to
   work; the profiles default to previous scalar behaviour.
 
-If you are targeting 2026.1.28 exactly:
+To apply these changes together with the later schema updates in one
+pass, run the migrator without ``--target-version``:
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.1
+   suews schema migrate your_config.yml
 
-Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
+If you need a configuration for SUEWS 2026.1.28, use that release's
+documentation and sample configuration; ``suews schema migrate`` has no
+route to ``2026.1`` and cannot migrate configurations to an older schema
+(see :ref:`yaml_schema_migrations` for supported explicit targets).
 
 Preserving Your Values Through Renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1230,7 +1456,6 @@ paved, bldg, evetr, dectr, grass, bsoil, water; mean radiation memory uses
 :math:`\mathrm{W\,m^{-2}}` and its rate uses
 :math:`\mathrm{W\,m^{-2}\,h^{-1}}`.
 
-
 .. _schema_dev14_continuation_state:
 
 Continuation-only initial state in the 2026.6.dev14 development schema
@@ -1267,3 +1492,11 @@ expects resolved current input and rejects these fields regardless of any
 version label.
 
 Numerical initialisation and the checkpoint payload format are unchanged.
+
+
+.. _validator_optional_null_omission:
+
+Omitted Optional Fields in Validator-Updated YAML
+-------------------------------------------------
+
+When ``suews validate`` writes an updated YAML configuration (such as ``updated_<name>.yml`` or ``updatedA_<name>.yml``), omitted optional parameters are now left omitted instead of being padded with speculative ``null`` placeholders. Omitted optional parameters continue to be listed in the validation report under ``REVIEW ADVISED``, and missing critical ``model.physics`` selectors still receive explicit ``{value: null}`` placeholders so required fixes remain visible in the updated file. Existing configurations that already carry explicit ``null`` values keep them unchanged, and downstream tools or scripts that previously expected validator output to insert ``null`` keys for every unused optional field should rely on the validation report or schema defaults instead.

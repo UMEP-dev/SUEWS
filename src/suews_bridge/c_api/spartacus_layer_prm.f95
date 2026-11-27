@@ -2,10 +2,11 @@
 ! SUEWS Rust bridge C API facade for SPARTACUS_LAYER_PRM.
 ! -----------------------------------------------------------------------------
 module module_c_api_spartacus_layer_prm
-use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer, suews_capi_error_text
+use module_ctrl_const_allocate, only: SUEWS_COMPILE_NSPEC => nspec
 use module_type_spartacus, only: SPARTACUS_LAYER_PRM
 
 implicit none
@@ -34,8 +35,10 @@ end type spartacus_layer_prm_shadow
 
 public :: suews_spartacus_layer_prm_len
 public :: suews_spartacus_layer_prm_schema_version
+public :: suews_spartacus_layer_prm_compile_nspec
 public :: suews_spartacus_layer_prm_default
 public :: suews_spartacus_layer_prm_error_message
+public :: spartacus_layer_prm_expected_len
 public :: spartacus_layer_prm_unpack
 
 contains
@@ -64,6 +67,17 @@ subroutine suews_spartacus_layer_prm_schema_version(schema_version, err) bind(C,
    err = SUEWS_CAPI_OK
 
 end subroutine suews_spartacus_layer_prm_schema_version
+
+subroutine suews_spartacus_layer_prm_compile_nspec(compile_nspec, err) bind(C, name='suews_spartacus_layer_prm_compile_nspec')
+   implicit none
+
+   integer(c_int), intent(out) :: compile_nspec
+   integer(c_int), intent(out) :: err
+
+   compile_nspec = int(SUEWS_COMPILE_NSPEC, c_int)
+   err = SUEWS_CAPI_OK
+
+end subroutine suews_spartacus_layer_prm_compile_nspec
 
 subroutine suews_spartacus_layer_prm_default(flat, n_flat, nlayer, nspec, err) bind(C, name='suews_spartacus_layer_prm_default')
    implicit none
@@ -392,6 +406,38 @@ subroutine spartacus_layer_prm_pack(state, flat, n_flat, nlayer, nspec, err)
 
 end subroutine spartacus_layer_prm_pack
 
+subroutine spartacus_layer_prm_expected_len(nlayer, nspec, expected_len, ok)
+   implicit none
+
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(in) :: nspec
+   integer(c_int), intent(out) :: expected_len
+   logical, intent(out) :: ok
+
+   integer(c_int64_t), parameter :: MAX_C_INT = int(huge(0_c_int), c_int64_t)
+   integer(c_int64_t) :: nl
+   integer(c_int64_t) :: ns
+   integer(c_int64_t) :: n_64
+
+   expected_len = 0_c_int
+   ok = .false.
+   if (nlayer<0_c_int .or. nspec<0_c_int) return
+
+   nl = int(nlayer, c_int64_t)
+   ns = int(nspec, c_int64_t)
+   if (nl>MAX_C_INT / 9_c_int64_t) return
+   if (nl>0_c_int64_t .and. ns>0_c_int64_t) then
+      if (ns>MAX_C_INT / (2_c_int64_t * nl)) return
+   end if
+
+   n_64 = 9_c_int64_t * nl + 2_c_int64_t * ns * nl
+   if (n_64>MAX_C_INT) return
+
+   expected_len = int(n_64, c_int)
+   ok = .true.
+
+end subroutine spartacus_layer_prm_expected_len
+
 subroutine spartacus_layer_prm_unpack(flat, n_flat, nlayer, nspec, state, err)
    implicit none
 
@@ -403,15 +449,11 @@ subroutine spartacus_layer_prm_unpack(flat, n_flat, nlayer, nspec, state, err)
    integer(c_int), intent(out) :: err
 
    integer(c_int) :: n_expected
+   logical :: len_ok
    integer(c_int) :: idx
 
-   if (nlayer<0_c_int .or. nspec<0_c_int) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   n_expected = 9_c_int * nlayer + 2_c_int * nspec * nlayer
-   if (n_flat<n_expected) then
+   call spartacus_layer_prm_expected_len(nlayer, nspec, n_expected, len_ok)
+   if (.not. len_ok .or. n_flat/=n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

@@ -6,18 +6,12 @@ Author: Csilla V Gal
 
 """
 
-import pandas as pd
-import numpy as np
-from ._tmy import gen_epw
-from metpy.units import units
-from metpy.calc import (
-    mixing_ratio_from_relative_humidity,
-    specific_humidity_from_mixing_ratio,
-)
-
 from pathlib import Path
 
+import pandas as pd
+
 from ..data_model.forcing import FORCING_REGISTRY
+from ._tmy import gen_epw
 
 
 def convert_UMEPf2epw(
@@ -170,7 +164,7 @@ def convert_UMEPf2epw(
     ]
 
     if path_epw is None:
-        path_epw = path_txt[:-4] + ".epw"
+        path_epw = Path(path_txt).with_suffix(".epw")
 
     # (0) Load file
     df_data = pd.read_table(path_txt, engine="python", delimiter=" +")
@@ -212,6 +206,17 @@ def convert_UMEPf2epw(
             df_data[variable.name] = variable.to_runtime_unit(df_data[variable.name])
 
     # (5) Calculate specific humidity (Q2) for supy.util.gen_epw
+    try:
+        from metpy.calc import (
+            mixing_ratio_from_relative_humidity,
+            specific_humidity_from_mixing_ratio,
+        )
+        from metpy.units import units
+    except ImportError as exc:
+        raise ImportError(
+            "UMEP EPW conversion requires metpy. Install it with: pip install 'supy[tmy]'"
+        ) from exc
+
     temperature = df_data["T2"].values * units.degC
     relhum = df_data["RH2"].values * units.percent
     press = df_data["pres"].values * units.hPa
@@ -283,16 +288,7 @@ def patchup_epw(df_data, df_header, path_epw, lat, lon, tz, alt):
     # Create a copy to avoid fragmentation warnings
     df_data = df_data.copy()
 
-    # Fixing roundings
-    df_data.iloc[:, :5] = df_data.iloc[:, :5].astype(int)
-    df_data.iloc[:, 6:8] = df_data.iloc[:, 6:8].round(1)
-    df_data.iloc[:, 8:21] = df_data.iloc[:, 8:21].round(0).astype(int)
-    df_data.iloc[:, 21] = df_data.iloc[:, 21].round(1)  # Wind Speed
-    df_data.iloc[:, 22:29] = df_data.iloc[:, 22:29].round(0).astype(int)
-    df_data.iloc[:, 29] = df_data.iloc[:, 29].round(3)  # Aerosol Optical Depth >> 0.999
-    df_data.iloc[:, 30:] = df_data.iloc[:, 30:].round(0).astype(int)
-
-    # Fixing NaN values
+    # Fixing NaN values before integer casts
     # Global Horizontal Illuminance, Direct Normal Illuminance, Diffuse Horizontal Illuminance
     df_data.iloc[:, 16:19] = 999999
     # Present Weather Observation
@@ -303,6 +299,15 @@ def patchup_epw(df_data, df_header, path_epw, lat, lon, tz, alt):
     df_data.iloc[:, 29] = 0.999
     # Liquid Precipitation Quantity
     df_data.iloc[:, 34] = 99
+
+    # Fixing roundings
+    df_data.iloc[:, :5] = df_data.iloc[:, :5].astype(int)
+    df_data.iloc[:, 6:8] = df_data.iloc[:, 6:8].round(1)
+    df_data.iloc[:, 8:21] = df_data.iloc[:, 8:21].round(0).astype(int)
+    df_data.iloc[:, 21] = df_data.iloc[:, 21].round(1)  # Wind Speed
+    df_data.iloc[:, 22:29] = df_data.iloc[:, 22:29].round(0).astype(int)
+    df_data.iloc[:, 29] = df_data.iloc[:, 29].round(3)  # Aerosol Optical Depth >> 0.999
+    df_data.iloc[:, 30:] = df_data.iloc[:, 30:].round(0).astype(int)
 
     # HEADER
     # First Line :: LOCATION,NA,NA,NA,UMEP/SuPy,NA,47.50,19.12,1.0,163.0
@@ -316,16 +321,14 @@ def patchup_epw(df_data, df_header, path_epw, lat, lon, tz, alt):
         + ","
         + alt
     )
-    # Last Line :: DATA PERIODS,1,1,Year_2013,Tuesday,2013/ 1/ 1,2013/12/31
+    # Last Line :: DATA PERIODS,1,1,Year_2013,Tuesday,1/1,12/31
+    dt_start = df_data.index[0]
+    dt_end = df_data.index[-2] if len(df_data) >= 2 else df_data.index[-1]
     line_last = (
-        "DATA PERIODS,1,1,Year_"
-        + df_data.index[0].strftime("%Y")
-        + ","
-        + df_data.index[0].strftime("%A")
-        + ","
-        + df_data.index[0].strftime("%-m/%-d")
-        + ","
-        + df_data.index[-2].strftime("%-m/%-d")
+        f"DATA PERIODS,1,1,Year_{dt_start.strftime('%Y')},"
+        f"{dt_start.strftime('%A')},"
+        f"{dt_start.month}/{dt_start.day},"
+        f"{dt_end.month}/{dt_end.day}"
     )
 
     df_header[0] = line_first
@@ -337,15 +340,12 @@ def patchup_epw(df_data, df_header, path_epw, lat, lon, tz, alt):
     df_header[6] = "COMMENTS 2,Generated from user-provided data"
     df_header[7] = line_last
 
-    # OverWRITE epw
-    filenew = open(path_epw, "w", encoding="utf-8")
-    for i in range(len(df_header)):
-        filenew.write(df_header[i] + "\n")
-    filenew.close()
-    df_data.to_csv(path_epw, header=None, index=None, mode="a", line_terminator="\n")
-
-    # Convert results to SuPy standards
-    path_epw = Path(path_epw)  # Path FIX
+    # Overwrite epw
+    path_epw = Path(path_epw)
+    with open(path_epw, "w", encoding="utf-8", newline="\n") as filenew:
+        for line in df_header:
+            filenew.write(line + "\n")
+    df_data.to_csv(path_epw, header=None, index=None, mode="a", lineterminator="\n")
 
     return df_data, df_header, path_epw
 

@@ -1,8 +1,11 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
-      ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
-   USE module_ctrl_error_state, ONLY: supy_error_flag
+      nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+   USE module_ctrl_const_calendar, ONLY: &
+      NDAYS_WEEK, DOW_SUNDAY, DOW_MONDAY, DOW_TUESDAY, DOW_WEDNESDAY, &
+      DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
    use module_phys_lai, only: update_gddlai
    USE module_ctrl_const_physconst, ONLY: sec_per_day
@@ -16,7 +19,8 @@ CONTAINS
    ! --> for these variables, the rest of the code MUST use values from the previous day
    ! N.B. Some of this code is repeated in SUEWS_Initial
    ! --> so if changes are made here, SUEWS_Initial may also need to be updated accordingly
-   ! N.B. Currently, daily variables are calculated using 00:00-23:55 timestamps (for 5-min resolution); should use 00:05-00:00
+   ! Daily variables accumulate over right-closed days (D 00:00, D+1 00:00] and emit at D+1 00:00
+   ! (for 5-min resolution, 00:05 to 00:00 next day).
    !
    ! Last modified:
    !  TS 09 Jul 2018  - Modified HDD array to hold values for actual calculation
@@ -57,7 +61,7 @@ CONTAINS
    !==============================================================================
 
    SUBROUTINE SUEWS_cal_DailyState( &
-      timer, config, forcing, siteInfo, &
+      clock, config, forcing, siteInfo, &
       modState) ! input/output:
       ! atmState, & !inout
       ! phenState, & !inout
@@ -65,8 +69,7 @@ CONTAINS
       ! hydroState) !inout
 
       ! USE module_phys_snow, ONLY: SnowUpdate
-      USE module_util_datetime, ONLY: datetime, timedelta
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_FORCING, anthroEMIS_PRM, &
                                   PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                   IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
                                   LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -75,7 +78,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -87,13 +90,15 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
 
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK) :: DayWat ! Days of watering allowed (DOW_SUNDAY..DOW_SATURDAY) [-]
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK) :: DayWatPer ! Fraction of properties irrigating (DOW_SUNDAY..DOW_SATURDAY) [-]
 
       TYPE(PHENOLOGY_STATE) :: phenState_prev
 
-      LOGICAL :: first_tstep_Q ! if this is the first tstep of a day
+      LOGICAL :: first_tstep_day_Q ! if this is the first tstep of a right-closed day
+      LOGICAL :: first_tstep_Q ! if this is the first tstep of a day or of the run
       LOGICAL :: first_tstep_run_Q ! if this is the first tstep of the run
-      LOGICAL :: last_tstep_Q ! if this is the last tstep of a day
-      TYPE(datetime) :: time_now, time_prev, time_next
+      LOGICAL :: last_tstep_Q ! if this is the closing tstep of a right-closed day (D+1 00:00)
 
       REAL(KIND(1D0)) :: tair ! air temperature [degC]
 
@@ -117,16 +122,17 @@ CONTAINS
 
          ASSOCIATE ( &
             lat => siteInfo%lat, &
-            iy => timer%iy, &
-            id => timer%id, &
-            it => timer%it, &
-            imin => timer%imin, &
-            isec => timer%isec, &
-            tstep => timer%tstep, &
-            tstep_prev => timer%tstep_prev, &
-            dt_since_start => timer%dt_since_start, &
-            nsh_real => timer%nsh_real, &
-            DayofWeek_id => timer%DayofWeek_id, &
+            tstep => clock%timer%tstep, &
+            tstep_prev => clock%timer%tstep_prev, &
+            dt_since_start => clock%timer%dt_since_start, &
+            nsh_real => clock%nsh_real, &
+            id_day => clock%id_day, &
+            DayofWeek_day => clock%dayofWeek_day, &
+            elapsed_sec_of_day => clock%elapsed_sec_of_day, &
+            irr_month => clock%deliv_month_st, &
+            irr_doy => clock%deliv_doy_st, &
+            irr_dow => clock%deliv_dow_st, &
+            irrig_new_day_Q => clock%first_step_of_deliv_day_st, &
             avkdn => forcing%kdown, &
             Temp_C => forcing%Temp_C, &
             Precip => forcing%rain, &
@@ -185,20 +191,6 @@ CONTAINS
                Ie_a => irrPrm%Ie_a, &
                Ie_m => irrPrm%Ie_m, &
                H_maintain => irrPrm%H_maintain, &
-               DayWatPer => [irrPrm%irr_daywater%monday_percent, &
-                             irrPrm%irr_daywater%tuesday_percent, &
-                             irrPrm%irr_daywater%wednesday_percent, &
-                             irrPrm%irr_daywater%thursday_percent, &
-                             irrPrm%irr_daywater%friday_percent, &
-                             irrPrm%irr_daywater%saturday_percent, &
-                             irrPrm%irr_daywater%sunday_percent], &
-               DayWat => [irrPrm%irr_daywater%monday_flag, &
-                          irrPrm%irr_daywater%tuesday_flag, &
-                          irrPrm%irr_daywater%wednesday_flag, &
-                          irrPrm%irr_daywater%thursday_flag, &
-                          irrPrm%irr_daywater%friday_flag, &
-                          irrPrm%irr_daywater%saturday_flag, &
-                          irrPrm%irr_daywater%sunday_flag], &
                AlbMax_EveTr => evetrPrm%Alb_Max, &
                AlbMin_EveTr => evetrPrm%Alb_Min, &
                evetrLAIPower => evetrPrm%lai%lai_power, &
@@ -211,21 +203,18 @@ CONTAINS
                dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &
-               LAIType => [evetrPrm%lai%lai_type, &
-                           dectrPrm%lai%lai_type, &
-                           grassPrm%lai%lai_type], &
                BaseT => [evetrPrm%lai%base_temperature, &
                          dectrPrm%lai%base_temperature, &
                          grassPrm%lai%base_temperature], &
                BaseTe => [evetrPrm%lai%base_temperature_senescence, &
                           dectrPrm%lai%base_temperature_senescence, &
                           grassPrm%lai%base_temperature_senescence], &
-               GDDFull => [evetrPrm%lai%gdd_full, &
-                           dectrPrm%lai%gdd_full, &
-                           grassPrm%lai%gdd_full], &
-               SDDFull => [evetrPrm%lai%sdd_full, &
-                           dectrPrm%lai%sdd_full, &
-                           grassPrm%lai%sdd_full], &
+               GDDBase => [evetrPrm%lai%gdd_base, &
+                           dectrPrm%lai%gdd_base, &
+                           grassPrm%lai%gdd_base], &
+               SDDBase => [evetrPrm%lai%sdd_base, &
+                           dectrPrm%lai%sdd_base, &
+                           grassPrm%lai%sdd_base], &
                LAIMin => [evetrPrm%lai%lai_min, &
                           dectrPrm%lai%lai_min, &
                           grassPrm%lai%lai_min], &
@@ -242,6 +231,24 @@ CONTAINS
                grassLAIPower => grassPrm%lai%lai_power &
                )
 
+               ! Pack weekday irrigation schedules by named day-of-week index
+               ! (DOW_SUNDAY=1 .. DOW_SATURDAY=7) to match DayofWeek_id(1) (gh#2049).
+               DayWat(DOW_SUNDAY) = irrPrm%irr_daywater%sunday_flag
+               DayWat(DOW_MONDAY) = irrPrm%irr_daywater%monday_flag
+               DayWat(DOW_TUESDAY) = irrPrm%irr_daywater%tuesday_flag
+               DayWat(DOW_WEDNESDAY) = irrPrm%irr_daywater%wednesday_flag
+               DayWat(DOW_THURSDAY) = irrPrm%irr_daywater%thursday_flag
+               DayWat(DOW_FRIDAY) = irrPrm%irr_daywater%friday_flag
+               DayWat(DOW_SATURDAY) = irrPrm%irr_daywater%saturday_flag
+
+               DayWatPer(DOW_SUNDAY) = irrPrm%irr_daywater%sunday_percent
+               DayWatPer(DOW_MONDAY) = irrPrm%irr_daywater%monday_percent
+               DayWatPer(DOW_TUESDAY) = irrPrm%irr_daywater%tuesday_percent
+               DayWatPer(DOW_WEDNESDAY) = irrPrm%irr_daywater%wednesday_percent
+               DayWatPer(DOW_THURSDAY) = irrPrm%irr_daywater%thursday_percent
+               DayWatPer(DOW_FRIDAY) = irrPrm%irr_daywater%friday_percent
+               DayWatPer(DOW_SATURDAY) = irrPrm%irr_daywater%saturday_percent
+
                ! before
                ! Set the flag based on i_iter
                ! execute_subroutines = (i_iter == 1)
@@ -251,22 +258,33 @@ CONTAINS
                LAIPower(:, 2) = dectrLAIPower
                LAIPower(:, 3) = grassLAIPower
 
-               ! get timestamps
-               time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
-               ! WRF-SUEWS COUPLING: tstep_prev allows for adaptive timesteps in WRF
-               ! In standalone SUEWS, tstep_prev always equals tstep
-               time_prev = time_now - timedelta(seconds=tstep_prev)
-               time_next = time_now + timedelta(seconds=tstep)
-
-               ! test if time at now is the first/last tstep of today
-               ! The first step of a run also starts a day, so a run that starts after
-               ! 00:00 begins its first day from that step rather than from the initial
-               ! state (gh#1919). The bridge starts a fresh run with dt_since_start = tstep;
-               ! a run continued from a checkpoint carries it on, so a chunk boundary
+               ! Right-closed day boundaries and accumulated-day calendar identity
+               ! come from the per-step clock (gh#2333, gh#2382).
+               ! The first step of a run also starts a day, so a run starting
+               ! mid-day or at 00:00 begins its first (possibly partial) day from
+               ! that step rather than from the initial state (gh#1919). The
+               ! bridge starts a fresh run with dt_since_start = tstep; a run
+               ! continued from a checkpoint carries it on, so a chunk boundary
                ! inside a day does not restart that day.
-               first_tstep_run_Q = dt_since_start == tstep
-               first_tstep_Q = time_now%getDay() /= time_prev%getDay() .OR. first_tstep_run_Q
-               last_tstep_Q = time_now%getDay() /= time_next%getDay()
+               first_tstep_run_Q = clock%first_step_of_run
+               first_tstep_day_Q = clock%first_step_of_day
+               first_tstep_Q = first_tstep_day_Q .OR. first_tstep_run_Q
+               last_tstep_Q = clock%last_step_of_day
+
+               ! Reject intra-day or midnight-skipping timestep changes explicitly.
+               ! DailyState accumulates fixed-step means via update_HDD (using tstep)
+               ! and emits DailyStateLine only on each day's closing step, so changing
+               ! tstep within an open day or jumping past an unclosed day boundary
+               ! cannot preserve exact daily means or emit day_prev's record.
+               ! Clean between-day changes after a closed day boundary remain allowed.
+               IF ((.NOT. first_tstep_run_Q) .AND. tstep_prev > 0 .AND. (tstep /= tstep_prev)) THEN
+                  IF ((.NOT. first_tstep_day_Q) .OR. (.NOT. clock%prev_step_closed_day)) THEN
+                     CALL set_supy_error( &
+                        118, &
+                        'SUEWS_cal_DailyState: changing tstep within a day or across an unclosed day boundary is not supported')
+                     RETURN
+                  END IF
+               END IF
 
                ! --------------------------------------------------------------------------------
                !> assign Tair with either the forcing air temperature or the local diagnostic air temperature
@@ -279,11 +297,11 @@ CONTAINS
                END IF
 
                ! --------------------------------------------------------------------------------
-               ! On first timestep of each day, define whether the day each a workday or weekend
+               ! On first timestep of each day (or run), reset daily accumulators
                IF ((first_tstep_Q) .AND. execute_subroutines) THEN
                   CALL update_DailyState_Start( &
-                     it, imin, first_tstep_run_Q, & !input
-                     HDD_id) !inout
+                     first_tstep_Q, & !input
+                     HDD_id(1:6)) !inout
 
                   ! reset certain GDD columns from the same Tair used for the rest of the day (gh#1882)
                   Tmin_id = Tair !Daily min T in column 3
@@ -294,7 +312,7 @@ CONTAINS
                ! regular update at all timesteps of a day
                IF (execute_subroutines) THEN
                   CALL update_DailyState_Day( &
-                     DayofWeek_id, &
+                     DayofWeek_day, &
                      avkdn, & !input
                      Tair, &
                      Precip, &
@@ -312,39 +330,46 @@ CONTAINS
                !    SnowAlb, SnowDens)!inout
 
                ! --------------------------------------------------------------------------------
-               ! On last timestep, perform the daily calculations -------------------------------
+               ! Calculate modelled daily irrigation budget at the opening step of each
+               ! right-closed local-standard delivery day (or on a fresh cold start),
+               ! before SUEWS_cal_WaterUse runs, and hold WUDay_id frozen through D+1 00:00
+               ! (gh#2381).
+               IF (irrig_new_day_Q) THEN
+                  CALL update_WaterUse( &
+                     irr_doy, WaterUseMethod, [irr_dow, irr_month, 0], lat, Faut, HDD_id, & !input
+                     state_surf, soilstore_surf, SoilStoreCap, H_maintain, & !input
+                     Ie_a, Ie_m, Ie_start, Ie_end, DayWatPer, DayWat, &
+                     WUDay_id) !output
+               END IF
+
+               ! --------------------------------------------------------------------------------
+               ! On closing timestep of each right-closed day (D+1 00:00), perform daily updates
                ! Daily values not correct until end of each day,
                !  so main program should use values from the previous day
                IF (last_tstep_Q) THEN
                   ! Calculate heating degree days ------------------------------------------
                   IF (execute_subroutines) THEN
                      CALL update_HDD( &
-                        dt_since_start, it, imin, tstep, & !input
+                        dt_since_start, elapsed_sec_of_day, tstep, & !input
                         HDD_id) !inout
                   END IF
-
-                  ! Calculate modelled daily water use ------------------------------------------
-                  CALL update_WaterUse( &
-                     id, WaterUseMethod, DayofWeek_id, lat, Faut, HDD_id, & !input
-                     state_surf, soilstore_surf, SoilStoreCap, H_maintain, & !input
-                     Ie_a, Ie_m, Ie_start, Ie_end, DayWatPer, DayWat, &
-                     WUDay_id) !output
 
                   !------------------------------------------------------------------------------
                   ! Calculation of LAI from growing degree days
                   ! This was revised and checked on 16 Feb 2014 by LJ
                   !------------------------------------------------------------------------------
                   IF (execute_subroutines) THEN
-                     CALL update_GDDLAI( &
-                        id, LAICalcYes, & !input
-                        lat, [lai_evetr, lai_dectr, lai_grass], &
-                        Tmin_id, Tmax_id, lenDay_id, &
-                        BaseT, BaseTe, &
-                        GDDFull, SDDFull, &
-                        LAIMin, LAIMax, LAIPower, LAIType, &
-                        LAI_id_prev, &
-                        GDD_id, SDD_id, & !inout
-                        LAI_id) !output
+                     CALL update_gddlai( &
+                        id=id_day, lai_calc_yes=LAICalcYes, & !input
+                        lat=lat, lai_obs=[lai_evetr, lai_dectr, lai_grass], &
+                        t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
+                        base_t_gdd=BaseT, base_t_sdd=BaseTe, &
+                        gdd_base=GDDBase, sdd_base=SDDBase, &
+                        lai_min=LAIMin, lai_max=LAIMax, &
+                        lai_power=LAIPower, &
+                        lai_id_prev=LAI_id_prev, &
+                        gdd_id=GDD_id, sdd_id=SDD_id, & !inout
+                        lai_id_next=LAI_id) !output
                      IF (supy_error_flag()) RETURN
 
                      CALL update_Veg( &
@@ -377,7 +402,6 @@ CONTAINS
       nsh_real, &
       Tmin_id, Tmax_id, lenDay_id, & !inout
       HDD_id) !inout
-      ! use time, only: id, id_prev_t
       USE module_util_time, ONLY: cal_weekday_index
       IMPLICIT NONE
 
@@ -496,7 +520,7 @@ CONTAINS
       albChangeGrass = 0
 
       iv = ivDecid
-      IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0) THEN
+      IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
          deltaLAIDecTr = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
          albChangeDecTr = (AlbMax_DecTr - AlbMin_DecTr)*deltaLAIDecTr
          CapChange = (CapMin_dec - CapMax_dec)*deltaLAIDecTr
@@ -504,13 +528,13 @@ CONTAINS
       END IF
 
       iv = ivConif
-      IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0) THEN
+      IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
          deltaLAIEveTr = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
          albChangeEveTr = (AlbMax_EveTr - AlbMin_EveTr)*deltaLAIEveTr
       END IF
 
       iv = ivGrass
-      IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0) THEN
+      IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
          deltaLAIGrass = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
          albChangeGrass = (AlbMax_Grass - AlbMin_Grass)*deltaLAIGrass
       END IF
@@ -530,6 +554,28 @@ CONTAINS
       albGrass_id = MIN(MAX(albGrass_id + albChangeGrass, AlbMin_Grass), AlbMax_Grass)
 
    END SUBROUTINE update_Veg
+
+   PURE LOGICAL FUNCTION is_in_irrigation_season(doy, lat, ie_start, ie_end) RESULT(in_season)
+      ! Inclusive irrigation season gate matching documented Ie_start / Ie_end (gh#2381):
+      ! - Both bounds zero (ie_start == 0 .AND. ie_end == 0): window disabled (gh#2329).
+      ! - Northern Hemisphere (lat >= 0): [ie_start, ie_end] (closed all year if ie_start > ie_end).
+      ! - Southern Hemisphere (lat < 0): [ie_start, ie_end] when ie_start <= ie_end (e.g. 1..366),
+      !   or inclusive wrap-around across New Year (doy >= ie_start .OR. doy <= ie_end) when ie_start > ie_end.
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: doy, ie_start, ie_end
+      REAL(KIND(1D0)), INTENT(IN) :: lat
+
+      IF (ie_start == 0 .AND. ie_end == 0) THEN
+         in_season = .FALSE.
+      ELSE IF (lat >= 0.0D0) THEN
+         in_season = (doy >= ie_start .AND. doy <= ie_end)
+      ELSE IF (ie_start <= ie_end) THEN
+         in_season = (doy >= ie_start .AND. doy <= ie_end)
+      ELSE
+         in_season = (doy >= ie_start .OR. doy <= ie_end)
+      END IF
+   END FUNCTION is_in_irrigation_season
 
    SUBROUTINE update_WaterUse( &
       id, WaterUseMethod, DayofWeek_id, lat, FrIrriAuto, HDD_id, & !input
@@ -551,8 +597,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(12), INTENT(IN) :: HDD_id
       REAL(KIND(1D0)), DIMENSION(NVegSurf), INTENT(IN) :: Ie_a !Coefficients for automatic irrigation models
       REAL(KIND(1D0)), DIMENSION(NVegSurf), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: DayWatPer !% of houses following daily water
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: DayWat !Days of watering allowed
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK), INTENT(IN) :: DayWatPer ! Fraction of properties following daily water (DOW_SUNDAY..DOW_SATURDAY) [-]
+      REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK), INTENT(IN) :: DayWat ! Days of watering allowed (DOW_SUNDAY..DOW_SATURDAY) [-]
 
       ! ponding control related
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: state_surf ! surface wetness [mm]
@@ -569,8 +615,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(3) :: WUDay_M !manual irrigation [mm]
       REAL(KIND(1D0)), DIMENSION(3) :: WUDay_total !Coefficients for manual irrigation models
 
-      INTEGER :: wd !Water use calculation is done when calc = 1
-      INTEGER :: calc !Water use calculation is done when calc = 1
+      INTEGER :: wd ! Day of week index (DOW_SUNDAY..DOW_SATURDAY)
       INTEGER :: i
 
       REAL(KIND(1D0)) :: temp_avg
@@ -591,15 +636,7 @@ CONTAINS
          wd = DayofWeek_id(1)
 
          IF (DayWat(wd) == 1.0) THEN !1 indicates watering permitted on this day
-            calc = 0
-            IF (lat >= 0) THEN !Northern Hemisphere
-               IF (id >= Ie_start - 1 .AND. id <= Ie_end + 1) calc = 1 !Day between irrigation period
-            ELSE !Southern Hemisphere
-               calc = 1
-               IF (id >= Ie_end .AND. id <= Ie_start) calc = 0 !Day between irrigation period
-            END IF
-
-            IF (calc == 1) THEN
+            IF (is_in_irrigation_season(id, lat, Ie_start, Ie_end)) THEN
                ! Model daily water use based on days_since_rain (days since rain) and temp_avg (average temp)
                ! WUDay is the amount of water [mm] per day, applied to each of the irrigated areas
                ! N.B. These are the same for each vegetation type at the moment
@@ -640,31 +677,37 @@ CONTAINS
    END SUBROUTINE update_WaterUse
 
    SUBROUTINE update_HDD( &
-      dt_since_start, it, imin, tstep, & !input
+      dt_since_start, elapsed_sec_of_day, tstep, & !input
       HDD_id) !inout
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: dt_since_start, it, imin, tstep
+      INTEGER, INTENT(IN) :: dt_since_start, elapsed_sec_of_day, tstep
 
       REAL(KIND(1D0)), DIMENSION(12), INTENT(INOUT) :: HDD_id
       ! REAL(KIND(1d0)),DIMENSION(6),INTENT(OUT):: HDD_id_use
 
       INTEGER :: days_prev
+      INTEGER :: steps_in_day
       REAL(KIND(1D0)) :: tstepcount
 
-      ! count of timesteps performed during day: the sums are reset at 00:00 and
-      ! accumulate every step from 00:00 to the current (last) step inclusive,
-      ! hence the +1 (gh#1878); on the first day of a run that starts after 00:00
-      ! they start at the run's first step, so only dt_since_start/tstep steps
-      ! have been summed (gh#1919)
-      tstepcount = MIN((it*60 + imin)*60/tstep + 1, dt_since_start/tstep)*1.
+      ! Count of timesteps accumulated in this right-closed day (D 00:00, D+1 00:00]:
+      ! ceiling(elapsed_sec_of_day / tstep) gives the full-day step count across
+      ! both midnight-aligned (e.g. 86400/300 = 288, 86400/3600 = 24) and offset
+      ! grids (e.g. 00:02..23:57 -> ceiling(86220/300) = 288), capped by
+      ! dt_since_start/tstep on a partial first day (including a run starting at
+      ! 00:00 where dt_since_start/tstep == 1) (gh#1878, gh#1919).
+      steps_in_day = MAX(1, MIN((elapsed_sec_of_day + tstep - 1)/tstep, dt_since_start/tstep))
+      tstepcount = REAL(steps_in_day, KIND(1D0))
       ! Heating degree days (HDD) -------------
       HDD_id(1) = HDD_id(1)/tstepcount !Heating
       HDD_id(2) = HDD_id(2)/tstepcount !Cooling
       HDD_id(3) = HDD_id(3)/tstepcount !Average temp
 
-      ! Calculate a quasi-5-day-running-mean temp
-      days_prev = MIN(4, & ! dt_since_start >= 4 days
-                      FLOOR(dt_since_start/(sec_per_day)*1.)) ! dt_since_start < 4 days
+      ! Calculate a quasi-5-day-running-mean temp:
+      ! Count completed prior days using (dt_since_start - tstep) so Day 1
+      ! (dt_since_start == sec_per_day for a full 00:05..00:00 day) has
+      ! days_prev == 0 and does not blend with the initial HDD_id(4).
+      days_prev = MIN(4, & ! >= 4 prior days
+                      MAX(0, FLOOR(REAL(dt_since_start - tstep, KIND(1D0))/sec_per_day)))
       HDD_id(4) = (HDD_id(4)*days_prev + HDD_id(3))/(days_prev + 1)
 
       ! Calculate number of days since rain
@@ -680,12 +723,10 @@ CONTAINS
    END SUBROUTINE update_HDD
 
    SUBROUTINE update_DailyState_Start( &
-      it, imin, first_tstep_run_Q, & !input
+      first_tstep_Q, & !input
       HDD_id) !output
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: it
-      INTEGER, INTENT(IN) :: imin
-      LOGICAL, INTENT(IN) :: first_tstep_run_Q ! first step of the run (gh#1919)
+      LOGICAL, INTENT(IN) :: first_tstep_Q ! first step of a right-closed day or of the run (gh#1919)
 
       REAL(KIND(1D0)), DIMENSION(6), INTENT(INOUT) :: HDD_id
       REAL(KIND(1D0)) :: HDD_id_mav, HDD_id_daysSR
@@ -695,7 +736,7 @@ CONTAINS
       HDD_id_mav = HDD_id(4)
       ! Days Since Rain
       HDD_id_daysSR = HDD_id(6)
-      IF ((it == 0 .AND. imin == 0) .OR. first_tstep_run_Q) THEN
+      IF (first_tstep_Q) THEN
          HDD_id = 0
          HDD_id(4) = HDD_id_mav
          HDD_id(6) = HDD_id_daysSR
@@ -703,49 +744,22 @@ CONTAINS
 
    END SUBROUTINE update_DailyState_Start
 
-   SUBROUTINE SUEWS_update_DailyState( &
-      id, datetimeline, & !input
-      Gridiv, NumberOfGrids, &
-      DailyStateLine, &
-      dataOutDailyState) !inout
-
-      IMPLICIT NONE
-
-      ! INTEGER,INTENT(IN) ::iy
-      INTEGER, INTENT(IN) :: id
-      ! INTEGER,INTENT(IN) ::it
-      ! INTEGER,INTENT(IN) ::imin
-
-      REAL(KIND(1D0)), DIMENSION(5), INTENT(IN) :: datetimeline
-
-      INTEGER, INTENT(IN) :: Gridiv
-      INTEGER, INTENT(IN) :: NumberOfGrids
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5), INTENT(IN) :: DailyStateLine
-      REAL(KIND(1D0)), DIMENSION(ndays, ncolumnsDataOutDailyState, NumberOfGrids), INTENT(INOUT) :: dataOutDailyState
-
-      ! write out to dataOutDailyState
-      dataOutDailyState(id, 1:5, Gridiv) = datetimeline
-      ! DailyStateLine will be -999 unless realistic values are calculated at the last timestep of each day
-      dataOutDailyState(id, 6:ncolumnsDataOutDailyState, Gridiv) = DailyStateLine
-
-   END SUBROUTINE SUEWS_update_DailyState
-
    ! transfer results to a one-line output for SUEWS_cal_DailyState
    SUBROUTINE update_DailyStateLine( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       DailyStateLine) !out
 
       USE module_ctrl_type, ONLY: &
-         SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+         SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
          PHENOLOGY_STATE, anthroEmis_STATE, &
-         SNOW_STATE, SUEWS_TIMER, HYDRO_STATE, &
-         OHM_STATE, PHENOLOGY_STATE, &
+         SNOW_STATE, HYDRO_STATE, &
+         OHM_STATE, &
          SUEWS_STATE
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -783,16 +797,15 @@ CONTAINS
             a3 => OHMState%a3, &
             a1_bldg => ohmState%a1_bldg, &
             a2_bldg => ohmState%a2_bldg, &
-            a3_bldg => ohmState%a3_bldg, &
-            it => timer%it, &
-            imin => timer%imin, &
-            nsh_real => timer%nsh_real &
+            a3_bldg => ohmState%a3_bldg &
             )
 
             ! initialise DailyStateLine
             DailyStateLine = -999
-            ! Check if this is the last timestep of the day
-            IF (it == 23 .AND. imin == INT((nsh_real - 1)/nsh_real*60)) THEN
+            ! Emit day D's DailyState on its closing timestep (D+1 00:00 on
+            ! midnight-aligned grids): the same clock predicate DailyState uses,
+            ! so the two cannot disagree (gh#2333, gh#2382).
+            IF (clock%last_step_of_day) THEN
                ! Write actual data only at the last timestep of each day
                DailyStateLine = [ &
                                 HDD_id(1:6), &
@@ -825,9 +838,3 @@ CONTAINS
    END SUBROUTINE update_DailyStateLine
 
 END MODULE module_phys_dailystate
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE DailyState_module
-   USE module_phys_dailystate
-END MODULE DailyState_module

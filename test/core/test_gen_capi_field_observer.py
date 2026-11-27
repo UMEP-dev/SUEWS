@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import importlib.util
 import json
 from pathlib import Path
@@ -64,15 +65,15 @@ def test_generated_fortran_has_zero_implicitly_saved_locals() -> None:
     assert hits == [], f"unexpected implicit SAVE hits in generated observer: {hits}"
 
 
-def test_manifest_classification_covers_all_49_types() -> None:
-    """All 49 bridge-manifest types are parsed, classified, and audited."""
+def test_manifest_classification_covers_all_47_types() -> None:
+    """All 47 bridge-manifest types are parsed, classified, and audited."""
     _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
     manifest_entries, leaves_by_type = gen.audit_manifest_and_inventory(
         gen.MANIFEST_PATH,
         types_by_lower,
         gen.CAPI_DIR,
     )
-    assert len(manifest_entries) == 49
+    assert len(manifest_entries) == 47
     assert set(leaves_by_type) == (
         set(gen.DIRECT_UNPACK_SPECS)
         | set(gen.DRIVER_PRIVATE_UNPACK_SPECS)
@@ -81,7 +82,7 @@ def test_manifest_classification_covers_all_49_types() -> None:
     assert len(gen.DIRECT_UNPACK_SPECS) == 30
     assert len(gen.NESTED_IN_PARENT_SPECS) == 8
     assert len(gen.DRIVER_PRIVATE_UNPACK_SPECS) == 4
-    assert len(gen.NON_UNPACKED_SPECS) == 7
+    assert len(gen.NON_UNPACKED_SPECS) == 5
 
 
 def test_parser_handles_valid_kernel_syntax_features() -> None:
@@ -483,12 +484,12 @@ def test_reverse_pack_audit_rejects_dropped_component(tmp_path: Path) -> None:
         gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
 
     mutated_timer = orig_driver.replace(
-        "flat(17) = real(timer%DLS, c_double)",
-        "! dropped: flat(17) = real(timer%DLS, c_double)",
+        "flat(8) = real(timer%dt_since_start, c_double)",
+        "! dropped: flat(8) = real(timer%dt_since_start, c_double)",
     )
     assert mutated_timer != orig_driver
     (tmp_path / "driver.f95").write_text(mutated_timer, encoding="utf-8")
-    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_TIMER%DLS"):
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_TIMER%dt_since_start"):
         gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
 
     mutated_state = orig_driver.replace(
@@ -524,20 +525,18 @@ def test_reverse_pack_audit_rejects_dropped_ohm_field_and_stale_exclusion(
         gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
 
     shutil.copy2(gen.CAPI_DIR / "ohm.f95", tmp_path / "ohm.f95")
-    orig_driver = (gen.CAPI_DIR / "driver.f95").read_text(encoding="utf-8")
-    anchor = "   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)\n\n   err = SUEWS_CAPI_OK\nend subroutine pack_heat_state"
-    assert anchor in orig_driver
-    mutated_ehc = orig_driver.replace(
-        anchor,
-        "   flat(idx) = s%ehc_iter_score\n" + anchor,
-        1,
-    )
-    (tmp_path / "driver.f95").write_text(mutated_ehc, encoding="utf-8")
+    stale_leaves = {
+        **leaves_by_type,
+        "heat_state": [
+            replace(leaf, bridged=False) if leaf.path == "iter_safe" else leaf
+            for leaf in leaves_by_type["heat_state"]
+        ],
+    }
     with pytest.raises(
         gen.CoverageInventoryError,
-        match=r"HEAT_STATE%ehc_iter_score.*remove stale exclusion",
+        match=r"HEAT_STATE%iter_safe.*remove stale exclusion",
     ):
-        gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
+        gen.audit_reverse_packers(tmp_path, types_by_lower, stale_leaves)
 
 
 def test_forcing_row_loader_audit_rejects_dropped_input_and_runtime_overwrite(

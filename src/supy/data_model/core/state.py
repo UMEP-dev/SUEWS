@@ -23,6 +23,7 @@ from .type import (
     SurfaceType,
 )
 from ..._env import logger_supy
+from ...constants import C2K
 
 
 def validate_sdd_id(value: object, path: str = "sdd_id") -> None:
@@ -1316,7 +1317,7 @@ class InitialStates(DataModelBase):
 
         df_placeholder_rules = (
             ("dt_since_start", (0.0,)),
-            ("tair_av", (0.0, 273.15)),
+            ("tair_av", (0.0, C2K)),
             ("tstep_prev", tstep_allowed),
             ("l_mod", (0.0,)),
             ("ustar", (0.0,)),

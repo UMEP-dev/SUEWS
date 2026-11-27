@@ -1,11 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_solweig
-   ! USE module_ctrl_const_datain
-   ! USE module_ctrl_const_gis
    USE module_util_time, ONLY: DAYLEN
    USE module_ctrl_const_allocate, ONLY: ncolumnsdataOutSOLWEIG, deg2rad, rad2deg
-   ! USE module_ctrl_const_initialcond
-   ! USE module_ctrl_const_sues
    USE module_ctrl_const_default, ONLY: notUsed, notUsedI
    USE module_ctrl_const_physconst, ONLY: C2K, SBConst, HPA_TO_PA, p_ref_pa_d0
    USE module_ctrl_const_mathconst, ONLY: pi
@@ -1445,8 +1441,3 @@ CONTAINS
    END SUBROUTINE sunonsurface_veg
 
 END MODULE module_phys_solweig
-
-! Backward compatibility alias
-MODULE solweig_module
-   USE module_phys_solweig
-END MODULE solweig_module

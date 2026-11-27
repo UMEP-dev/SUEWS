@@ -168,7 +168,7 @@ def test_representation_metadata_is_uniform_and_published():
             "daylight",
         ),
     }
-    assert CURRENT_OUTPUT_VERSION == "2.0.0"
+    assert CURRENT_OUTPUT_VERSION == "2.1.0"
 
 
 def test_catalogue_json_schema_is_valid_and_deterministic():

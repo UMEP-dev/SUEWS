@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Hook: Check documentation source files for non-ASCII characters
 # Triggered by PostToolUse for Edit/Write on docs/ files
-# Complements the audit-docs skill (.claude/skills/audit-docs/)
+# Complements the audit-docs skill (.agents/skills/audit-docs/)
 
 set -euo pipefail
 

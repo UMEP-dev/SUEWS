@@ -11,6 +11,13 @@ energy balance, water balance, meteorological variables, and model diagnostics.
 The output format is configured in the YAML configuration file.
 See :doc:`../inputs/yaml/index` for configuration details.
 
+For automated tooling, machine-readable output contract artefacts can be
+inspected or exported locally with ``suews contracts info output`` and
+``suews contracts export output``, or retrieved from the published static
+artefacts at `https://suews.io/contracts/output/ <https://suews.io/contracts/output/>`_
+(build packaged releases locally with ``make contracts-site``; see
+:ref:`data_interface_versioning`).
+
 .. toctree::
    :maxdepth: 1
    :caption: Output Formats
@@ -23,6 +30,7 @@ See :doc:`../inputs/yaml/index` for configuration details.
    :caption: Variable Reference
 
    variables/index
+   ehc
 
 .. toctree::
    :maxdepth: 1
@@ -78,9 +86,10 @@ elapsed model-time metadata, and schema versions, keyed by grid ID.
 
 The checkpoint does not contain the YAML configuration or forcing data. To
 continue a run, load the same YAML configuration, attach the next forcing
-period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
-checkpoint schema version 1 must be regenerated with schema version 2 before it
-can provide timer continuity. Chunked and restarted outputs are expected to match
+period, and run from ``SUEWSSimulation.from_checkpoint(...)``. Checkpoints with
+schema version 1 (state only), 2 (legacy ``DailyState`` window), or 3 (older
+timer layout) must be regenerated with schema version 4 before they can be
+continued. Chunked and restarted outputs are expected to match
 uninterrupted outputs within relative and absolute tolerances of ``1e-12``.
 
 Legacy ``df_state_SSss.csv`` and state parquet files remain documented for
@@ -137,18 +146,14 @@ Compared with ``run()`` followed by ``save(format="parquet")``:
 
 - It holds only the groups listed in ``groups``. Parquet saved after a run that
   was not streamed ignores ``groups`` and holds every group the model writes.
-- The groups other than ``DailyState`` hold the same rows and values, a row
-  for every output interval even where the groups listed hold no value. Daily
-  output saved whole also has a row labelled 00:00 on the run's first day that
-  holds only that day's ``DailyState``; the folder has no such row.
-- ``DailyState`` keeps its own rows, one per grid and day at the day's last
-  model step (23:55 with a 5-minute timestep), as the text output does, with
-  the same values. Saved whole, ``DailyState`` is resampled to the output
-  frequency and labelled at the start of the output interval that holds that
-  step (23:00 for hourly output, 00:00 of the same day for daily output); at
-  the model timestep the two agree. With an output frequency longer than the
-  model timestep, the folder therefore has one more row per grid and day,
-  holding ``DailyState`` only.
+- Every group, ``DailyState`` included, is resampled using the same
+  ``closed="right", label="right"`` rule and holds the exact same rows and
+  values as a run saved whole (for the chosen groups), with day ``D``'s
+  ``DailyState`` labelled ``D+1 00:00`` at hourly and daily frequencies and
+  aligned on the same row as ``SUEWS``. At the native model timestep
+  (``freq == tstep``), neither streamed nor unstreamed Parquet resamples
+  ``DailyState``; on midnight-aligned grids the kernel emits day ``D``'s row
+  directly on ``D+1 00:00`` (matching the daily ``86400 s`` text file).
 - The values keep full double (float64) precision, where text files carry four
   decimal places. Prefer Parquet for streamed runs whose output will be read
   back for analysis.
@@ -252,13 +257,14 @@ Temporal Information
    local standard time by default, or UTC when ``timestamp_reference: utc``.
    It indicates the **ending timestamp** of each period.
 
-   For example, the hourly record labelled ``2021-09-12 13:00`` includes
-   model steps ending after 12:00 and up to and including 13:00.
-   See :ref:`timestamp_convention`.
+   For example, for hourly data, ``2021-09-12 13:00`` indicates a record for
+   the left-open, right-closed period ``(2021-09-12 12:00, 2021-09-12 13:00]``,
+   covering model steps ending after 12:00 and up to and including 13:00.
 
-   **Exception for DailyState**: Its daily boundary follows the same forcing/main
-   clock. When resampled to daily frequency, DailyState uses day-start labelling
-   for readability. See :ref:`output-dailystate` for details.
+   ``DailyState`` follows the same end-of-period rule (day ``D`` accumulates
+   over ``(D 00:00, D+1 00:00]`` and is labelled ``D+1 00:00`` at native
+   midnight-aligned, hourly, and daily frequencies, matching ``SUEWS``). See
+   :ref:`timestamp_convention` and :ref:`output-dailystate` for details.
 
 Saved Timestamp Reference
 -------------------------

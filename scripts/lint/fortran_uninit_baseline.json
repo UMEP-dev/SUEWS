@@ -8,25 +8,14 @@
     "-Wmaybe-uninitialized"
   ],
   "unit_count": 113,
-  "entry_count": 3,
+  "entry_count": 1,
   "entries": [
     {
       "file": "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90",
       "proc": "eigen_decomposition_real",
       "var": "lb",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews/src/suews_ctrl_driver.f95",
-      "proc": "suews_update_tsurf",
-      "var": "dif_tsfc_iter",
-      "kind": "maybe-uninitialized"
-    },
-    {
-      "file": "src/suews_bridge/c_api/heat_state.f95",
-      "proc": "suews_heat_state_default",
-      "var": "heat_state_shadow.<tmp>",
-      "kind": "uninitialized"
+      "kind": "maybe-uninitialized",
+      "reason": "Verified GCC 14.2.0 -Wmaybe-uninitialized false positive in untouched vendored ecmwf/spartacus-surface (gh#2172): outer loop guards jn >= ll and jn/ll are invariant until exit, so do ji = ll, jn always executes at least once and assigns lb = jn + ll - ji before any read."
     }
   ]
 }

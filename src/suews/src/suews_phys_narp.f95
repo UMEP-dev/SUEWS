@@ -36,7 +36,6 @@ MODULE module_phys_narp
    ! sg feb 2012 - Allocatable array module added
    USE module_ctrl_const_mathconst, ONLY: pi, RAD2DEG
    !==============================================================================================
-   ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
@@ -187,11 +186,6 @@ CONTAINS
       !Modified by LJ to calcuate snow free and SnowPack components (May 2013)
       !Modified to define variables in data_in module
       !-------------------------------------------------------------------------------
-      ! USE module_ctrl_const_allocate
-      ! use gis_data
-      ! use data_in ! Included 20140701, FL
-      ! USE module_ctrl_const_moist   ! Included 20140701, FL
-      ! use time    ! Included 20140701, FL
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: tsfc_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowFrac
@@ -629,25 +623,25 @@ CONTAINS
    END SUBROUTINE NARP_cal_SunPosition
 
    SUBROUTINE NARP_update_SunPosition( &
-      timer, siteInfo, & ! input
+      clock, siteInfo, & ! input
       modState) ! input/output
 
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_STATE
+      USE module_ctrl_type, ONLY: SUEWS_CLOCK, SUEWS_SITE, SUEWS_STATE
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
       REAL(KIND(1D0)) :: year
       REAL(KIND(1D0)) :: idectime
 
-      year = REAL(timer%iy, KIND(1D0))
-      idectime = timer%dectime - timer%tstep/2/INT(sec_per_day)
+      year = REAL(clock%timer%iy, KIND(1D0))
+      idectime = clock%dectime - clock%timer%tstep/2/INT(sec_per_day)
 
       CALL NARP_cal_SunPosition( &
-         year, idectime, timer%tz_solar, &
+         year, idectime, clock%tz_solar, &
          siteInfo%lat, siteInfo%lon, siteInfo%alt, &
          modState%solarState%azimuth_deg, modState%solarState%zenith_deg)
 
@@ -1422,32 +1416,6 @@ CONTAINS
    END FUNCTION solar_ESdist
 
    !===============================================================================
-   FUNCTION SmithLambda(lat, modState) RESULT(G)
-      USE FileName
-      USE defaultnotUsed
-      !read kriged data based on Smith 1966 (JAM)
-      ! Smith, William L.
-      ! "Note on the relationship between total precipitable water and surface dew point."
-      ! Journal of Applied Meteorology 5.5 (1966): 726-727.
-      INTEGER :: lat, ios, ilat
-      REAL(KIND(1D0)), DIMENSION(365) :: G
-      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
-
-      !open(99,file="Smith1966.grd",access="direct",action="read",recl=365*4,iostat=ios)
-      !read(99,rec=lat+1,iostat=ios) G
-      OPEN (99, file=smithFile, iostat=ios)
-      DO ilat = 1, lat
-         READ (99, *)
-      END DO
-      READ (99, *, iostat=ios) ilat, G
-      IF (ios /= 0) THEN
-         CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios, modState)
-         IF (supy_error_flag()) RETURN
-      END IF
-      CLOSE (99)
-   END FUNCTION SmithLambda
-
-   !===============================================================================
    FUNCTION transmissivity(Press_hPa, Temp_C_dew, G, zenith) RESULT(trans)
       ! bulk atmospheric transmissivity (Crawford and Duchon, 1999)
       ! P = pressure (hPa)
@@ -1478,9 +1446,3 @@ CONTAINS
    END FUNCTION transmissivity
    !===============================================================================
 END MODULE module_phys_narp
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE NARP_MODULE
-   USE module_phys_narp
-END MODULE NARP_MODULE

@@ -1,15 +1,12 @@
 """Kernel stability dispatch and non-finite z/L guards (GH#1783/1784/2171)."""
 
 import copy
-import gzip
 from importlib import import_module
 import json
-import os
 from pathlib import Path
-import shutil
 import subprocess
 
-from conftest import TIMESTEPS_PER_DAY
+from conftest import TIMESTEPS_PER_DAY, require_fortran_probe_toolchain
 import numpy as np
 import pandas as pd
 import pytest
@@ -22,17 +19,14 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-NATIVE-ERROR", "C-RES
 @pytest.fixture(scope="module")
 def stability_probe(tmp_path_factory):
     """Call the actual Fortran selectors, including their thread-local errors."""
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        pytest.skip("Native checks need gfortran and source-build libraries; run tests cover wheels")
-    try:
-        with gzip.open(suews / "mod" / "module_phys_atmmoiststab.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except gzip.BadGzipFile:
-        is_gnu = False
-    if not is_gnu:
-        pytest.skip("Native harness needs GNU Fortran modules")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native stability selector probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_phys_atmmoiststab.mod",
+        ),
+    )
     directory = tmp_path_factory.mktemp("stability")
     source = directory / "probe.f95"
     source.write_text(
@@ -248,28 +242,20 @@ ALL_22_DIRECT_PROCS = tuple(
 NONFINITE_KINDS = ("qnan", "+inf", "-inf")
 
 
-def _native_probe_unavailable(reason):
-    if os.environ.get("SUEWS_REQUIRE_FORTRAN_PROBES") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
 @pytest.fixture(scope="module")
 def stability_nonfinite_probe(tmp_path_factory):
     """Compile a native Fortran probe for direct schemes, selectors, and callers (GH#2171)."""
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        _native_probe_unavailable(
-            "Native checks need gfortran and source-build libraries; run tests cover wheels"
-        )
-    try:
-        with gzip.open(suews / "mod" / "module_phys_atmmoiststab.mod", "rb") as stream:
-            is_gnu = stream.readline().startswith(b"GFORTRAN")
-    except (gzip.BadGzipFile, FileNotFoundError):
-        is_gnu = False
-    if not is_gnu:
-        _native_probe_unavailable("Native harness needs GNU Fortran modules")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Native stability non-finite probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=(
+            "module_ctrl_error_state.mod",
+            "module_ctrl_type.mod",
+            "module_phys_atmmoiststab.mod",
+            "module_phys_resist.mod",
+            "module_phys_rslprof.mod",
+        ),
+    )
 
     directory = tmp_path_factory.mktemp("stability_nonfinite")
     source = directory / "probe_nonfinite.f95"
@@ -279,7 +265,7 @@ use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, &
    ieee_positive_inf, ieee_negative_inf, ieee_is_nan, ieee_is_finite
 use module_phys_atmmoiststab
 use module_phys_resist, only: AerodynamicResistance
-use module_phys_rslprof, only: cal_profile_MOST, cal_profile_RSL, &
+use module_phys_rslprof, only: &
    cal_beta_lc, cal_cm, cal_ch, cal_psim_hat, cal_psih_hat, cal_z0_RSL
 use module_ctrl_type, only: SUEWS_STATE
 use module_ctrl_error_state, only: reset_supy_error, get_supy_error, supy_error_flag
@@ -289,7 +275,6 @@ character(len=32) :: mode, target_name, input_kind
 integer :: method, selector, do_reset, code, status, flag_i
 real(kind(1d0)) :: finite_val, zl, val
 real(kind(1d0)) :: l_mod, tstar, ustar, zl_out, ra, z0v, c2, cm, ch
-real(kind(1d0)) :: zarr(30), uarr(30), tarr(30), qarr(30), psihatm(30), psihath(30)
 type(SUEWS_STATE) :: state
 character(len=512) :: message
 character(len=16) :: cls
@@ -349,8 +334,6 @@ do
       stop 3
     end select
   else if (trim(mode) == 'caller') then
-    psihatm = 0.0d0
-    psihath = 0.0d0
     select case (trim(target_name))
     case ('stability_scales')
       call stability_scales(method, 25.8d0, 1.9d0, 2.43d0, -0.01d0, zl, l_mod, ustar, tstar)
@@ -363,15 +346,6 @@ do
       call AerodynamicResistance(25.8d0, 1.9d0, 2.43d0, zl, 0.4d0, 0.0d0, 0.3d0, &
                                  2, method, 2, ra, z0v, state)
       val = ra
-    case ('cal_profile_MOST')
-      call cal_profile_MOST(method, 30, 40.0d0, 14.2d0, 1.9d0, 0.01d0, zl, 2.43d0, &
-                            20.0d0, -0.1d0, -0.0001d0, 8.0d0, zarr, uarr, tarr, qarr)
-      val = uarr(30)
-    case ('cal_profile_RSL')
-      call cal_profile_RSL(method, 30, 20, 40.0d0, 15.0d0, zl, 10.0d0, 1.5d0, 0.35d0, &
-                           1.7d0, 0.5d0, 0.1d0, 20.0d0, 0.4d0, -0.1d0, -0.0001d0, &
-                           8.0d0, psihatm, psihath, zarr, uarr, tarr, qarr)
-      val = uarr(30)
     case ('cal_beta_lc')
       val = cal_beta_lc(method, 0.35d0, zl)
     case ('cal_cm')
@@ -619,9 +593,6 @@ def test_public_selectors_keep_method_error_precedence_on_non_finite_zl(
         ("cal_Stab_avdens", 3, "qnan", 0.0),
         ("AerodynamicResistance", 3, "qnan", 0.0),
         ("AerodynamicResistance", 4, "finite", 0.0),
-        ("cal_profile_MOST", 3, "qnan", 0.0),
-        ("cal_profile_MOST", 3, "finite", 0.0),
-        ("cal_profile_RSL", 3, "qnan", 0.0),
         ("cal_beta_lc", 3, "qnan", 0.0),
         ("cal_beta_lc", 3, "-inf", 0.0),
         ("cal_cm", 3, "qnan", 0.0),

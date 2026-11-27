@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the distributable SUEWS plugin bundle from the single source of truth.
 
-Source of truth: ``.claude/skills/<name>/`` (plus ``mcp/`` for the server). The
+Source of truth: ``.agents/skills/<name>/`` (plus ``mcp/`` for the server). The
 bundle under ``plugins/suews/skills/`` is a **build artifact** — never edit it by
 hand. Run ``make plugin`` (or this script) after changing a skill; the parity
 test in ``test/mcp/test_packaging_manifests.py`` then guards against drift.
@@ -13,11 +13,11 @@ skills directory is pruned.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
+import shutil
 
 REPO = Path(__file__).resolve().parent.parent
-SRC_SKILLS = REPO / ".claude" / "skills"
+SRC_SKILLS = REPO / ".agents" / "skills"
 BUNDLE_SKILLS = REPO / "plugins" / "suews" / "skills"
 
 # Skills shipped in the distributable user-facing plugin bundle.
@@ -27,6 +27,7 @@ _IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 
 
 def build() -> None:
+    """Sync bundled skills from `.agents/skills/` into `plugins/suews/skills/`."""
     BUNDLE_SKILLS.mkdir(parents=True, exist_ok=True)
 
     # Sync each bundled skill from its source (clean replace).
@@ -38,7 +39,7 @@ def build() -> None:
         if dst.exists():
             shutil.rmtree(dst)
         shutil.copytree(src, dst, ignore=_IGNORE)
-        print(f"synced {name}: .claude/skills/{name} -> plugins/suews/skills/{name}")
+        print(f"synced {name}: .agents/skills/{name} -> plugins/suews/skills/{name}")
 
     # Prune any skill dir in the bundle that is no longer shipped (e.g. one that
     # has since been merged into another skill).

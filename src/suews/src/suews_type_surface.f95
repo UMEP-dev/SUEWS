@@ -40,7 +40,6 @@ module module_type_surface
       REAL(KIND(1D0)) :: a1 = 0.0D0 !AnOHM coefficients of grid [-]
       REAL(KIND(1D0)) :: a2 = 0.0D0 ! AnOHM coefficients of grid [h]
       REAL(KIND(1D0)) :: a3 = 0.0D0 !AnOHM coefficients of grid [W m-2]
-      ! all variables are intensive and thus can be used for iteration safety
       REAL(KIND(1D0)) :: t2_prev = 0.0D0 ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav = 0.0D0 ! running average of wind speed [m s-1]
       REAL(KIND(1D0)), DIMENSION(nsurf):: qn_rav = 0.0D0 ! running average of net radiation [W m-2]
@@ -91,8 +90,9 @@ module module_type_surface
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a1_surf = -999.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a2_surf = -999.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a3_surf = -999.0D0
-      ! flag for iteration safety - YES
-      LOGICAL :: iter_safe = .TRUE.
+      ! flag for iteration safety - NO: OHM_dqndt_cal advances running-mean radiation
+      ! history and DyOHM/AnOHM update running averages once per timestep, not per inner pass.
+      LOGICAL :: iter_safe = .FALSE.
    END TYPE OHM_STATE
 
    TYPE, PUBLIC :: CONDUCTANCE_PRM

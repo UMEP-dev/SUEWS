@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -19,6 +20,9 @@ from ._output_metadata import OutputUnits, prepare_output, with_daily_coverage
 from .suews_checkpoint import SUEWSCheckpoint
 
 
+_INT_GRID_RE = re.compile(r"[+-]?\d+")
+
+
 def _variable_groups(columns: pd.MultiIndex, var_name: str) -> list[str]:
     """Find groups containing a variable, preserving column group order.
 
@@ -28,6 +32,89 @@ def _variable_groups(columns: pd.MultiIndex, var_name: str) -> list[str]:
     groups = columns.get_level_values("group")
     matching = groups[columns.get_level_values("var") == var_name]
     return [group for group in groups.unique() if group in matching]
+
+
+def _configured_site_grids(config: Any) -> list[tuple[str, int]]:
+    """Return ``(site_name, grid_id)`` pairs from *config* when available."""
+    sites = getattr(config, "sites", None)
+    if not sites:
+        return []
+    pairs: list[tuple[str, int]] = []
+    for site_cfg in sites:
+        name = getattr(site_cfg, "name", None)
+        raw_gridiv = getattr(site_cfg, "gridiv", None)
+        raw_gridiv = getattr(raw_gridiv, "value", raw_gridiv)
+        if name is not None and raw_gridiv is not None and not isinstance(raw_gridiv, bool):
+            try:
+                pairs.append((str(name), int(raw_gridiv)))
+            except (TypeError, ValueError):
+                continue
+    return pairs
+
+
+def _select_variable_grid(
+    df_var: pd.DataFrame,
+    selector: int | str,
+    config: Any = None,
+    *,
+    site_grids: tuple[tuple[str, int], ...] | list[tuple[str, int]] | None = None,
+    param_name: str = "grid",
+) -> pd.DataFrame:
+    """Filter a single-variable output frame to one grid/site row slice.
+
+    An integer *selector* matches the ``grid`` index level (``gridiv``), not a
+    column position. A string *selector* resolves a unique configured site name
+    from *site_grids* (or *config* when *site_grids* is not provided), a
+    literal string label in the ``grid`` level, or an integer grid ID string.
+    """
+    if isinstance(selector, bool) or not isinstance(selector, (int, np.integer, str)):
+        raise TypeError(
+            f"{param_name} must be an integer grid ID or string, "
+            f"got {type(selector).__name__}"
+        )
+
+    if not (isinstance(df_var.index, pd.MultiIndex) and "grid" in df_var.index.names):
+        raise ValueError(
+            f"Cannot filter by {param_name} because output index has no 'grid' level."
+        )
+
+    available_grids = df_var.index.get_level_values("grid").unique().tolist()
+    site_pairs = (
+        list(site_grids) if site_grids is not None else _configured_site_grids(config)
+    )
+    site_names = [name for name, _ in site_pairs]
+    avail_hint = f"Available grid IDs: {available_grids}"
+    if site_names:
+        avail_hint += f"; configured sites: {site_names}"
+
+    if isinstance(selector, str):
+        matched_grids = [gid for name, gid in site_pairs if name == selector]
+        if len(matched_grids) > 1:
+            raise ValueError(
+                f"Site name {selector!r} is ambiguous (matches grid IDs "
+                f"{matched_grids}); pass an integer grid ID instead."
+            )
+        if len(matched_grids) == 1:
+            target_grid = matched_grids[0]
+            if target_grid in available_grids:
+                return df_var.xs(target_grid, level="grid")
+            raise ValueError(
+                f"Site {selector!r} resolves to grid ID {target_grid}, which is "
+                f"not present in output. {avail_hint}"
+            )
+        if selector in available_grids:
+            return df_var.xs(selector, level="grid")
+        stripped = selector.strip()
+        if _INT_GRID_RE.fullmatch(stripped):
+            parsed_grid = int(stripped)
+            if parsed_grid in available_grids:
+                return df_var.xs(parsed_grid, level="grid")
+        raise ValueError(f"{param_name} {selector!r} not found. {avail_hint}")
+
+    grid_id = int(selector)
+    if grid_id not in available_grids:
+        raise ValueError(f"{param_name} {grid_id!r} not found. {avail_hint}")
+    return df_var.xs(grid_id, level="grid")
 
 
 def streamed_output_error(streamed_paths: list[str | Path]) -> RuntimeError:
@@ -213,6 +300,7 @@ class SUEWSOutput:
         kernel_warnings: Optional[pd.DataFrame] = None,
         streamed_paths: list[str | Path] | None = None,
         units: Optional[Dict] = None,
+        site_grids: tuple[tuple[str, int], ...] | list[tuple[str, int]] | None = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -239,6 +327,11 @@ class SUEWSOutput:
             given, *df_output* carries the column layout only, and every
             accessor that reads output rows raises ``RuntimeError`` naming
             the output folder instead of returning an empty frame.
+        site_grids : sequence of (str, int), optional
+            Snapshot of ``(site_name, grid_id)`` pairs from the run that
+            produced *df_output*. When omitted, derived once from *config* at
+            construction time so later mutations to *config* cannot remap site
+            names on existing output.
         """
         self._streamed_paths = (
             [str(p) for p in streamed_paths] if streamed_paths is not None else None
@@ -276,6 +369,11 @@ class SUEWSOutput:
             df_state_final.copy() if df_state_final is not None else None
         )
         self._config = config
+        self._site_grids: tuple[tuple[str, int], ...] = (
+            tuple((str(name), int(gid)) for name, gid in site_grids)
+            if site_grids is not None
+            else tuple(_configured_site_grids(config))
+        )
         self._checkpoint = checkpoint
         self._metadata = metadata or {}
         self._kernel_warnings = (
@@ -552,16 +650,26 @@ class SUEWSOutput:
         Parameters
         ----------
         var_name : str
-            Variable name (e.g., 'QH', 'QE', 'Tair')
+            Variable name (e.g., 'QH', 'QE', 'Tair').
         group : str, optional
-            Output group if ambiguous
+            Output group if ambiguous.
         grid : int or str, optional
-            Grid filter
+            Grid ID (``gridiv``), integer grid ID as text, or configured site
+            name (when ``config`` is attached). If ``None``, returns all grids.
 
         Returns
         -------
         pd.DataFrame
-            Time series of requested variable
+            Single-variable DataFrame indexed by ``(grid, datetime)`` when
+            ``grid`` is ``None``, or by ``datetime`` when a grid is selected.
+
+        Raises
+        ------
+        ValueError
+            If the variable, group, or requested grid/site is not found or is
+            ambiguous.
+        TypeError
+            If ``grid`` is neither an integer grid ID nor a string.
         """
         self._require_rows()
         # Check if variable exists (case-insensitive)
@@ -620,10 +728,12 @@ class SUEWSOutput:
 
         # Filter by grid if requested
         if grid is not None:
-            if isinstance(grid, str):
-                result = result.xs(grid, level="grid")
-            else:
-                result = result.iloc[:, grid]
+            result = _select_variable_grid(
+                result,
+                grid,
+                site_grids=self._site_grids,
+                param_name="grid",
+            )
 
         return result
 
@@ -720,14 +830,13 @@ class SUEWSOutput:
         - Accumulated variables: sum
         - State variables: last
 
-        Each value covers the left-open, right-closed interval
-        ``(t - freq, t]`` and is labelled by its end ``t``
-        (``closed="right", label="right"``). At fixed frequencies, DailyState
-        uses the start of the bin containing the day's last model step.
-        For a last step at 23:55, that label is 23:00 for hourly output or
-        00:00 on the same day for daily output. At calendar frequencies
-        (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``) every group takes the period's
-        label. See :ref:`timestamp_convention`.
+        Every output group, including ``DailyState``, covers the left-open,
+        right-closed interval ``(t - freq, t]`` and is labelled by its end
+        ``t`` (``closed="right", label="right"``) at both fixed and calendar
+        frequencies (``"W"``, ``"MS"``, ``"ME"``, ``"YE"``). At hourly and
+        daily frequencies, day ``D``'s ``DailyState`` row is therefore
+        labelled ``D+1 00:00``, aligning on the same row as ``SUEWS``.
+        See :ref:`timestamp_convention`.
 
         Parameters
         ----------
@@ -749,6 +858,7 @@ class SUEWSOutput:
             config=self._config,
             metadata={**self._metadata, "resampled_to": freq},
             checkpoint=self._checkpoint,
+            site_grids=self._site_grids,
         )
 
     # =========================================================================
@@ -773,6 +883,7 @@ class SUEWSOutput:
             self._df_output, self._df_state_final, config=self._config,
             metadata=copy.deepcopy(self._metadata), checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings, units=units,
+            site_grids=self._site_grids,
         )
 
     def save(

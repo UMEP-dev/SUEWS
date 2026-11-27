@@ -1,9 +1,9 @@
 """Regression tests for SPARTACUS roof/wall facet parameter isolation (gh#2085).
 
-``BuildingLayer`` defines ``roof_albedo_dir_mult_fact`` as roof-only and
-``wall_specular_frac`` as wall-only, but both ``RoofLayer`` and ``WallLayer``
-inherit and serialise both fields into engine YAML. These tests verify that
-the Rust YAML bridge routes each field exclusively to its owning facet so
+``RoofLayer`` defines ``roof_albedo_dir_mult_fact`` as roof-only and
+``WallLayer`` defines ``wall_specular_frac`` as wall-only (#2085). Legacy
+YAMLs carrying cross-facet keys strip them on load with a ``DeprecationWarning``
+and cannot affect SPARTACUS radiation or overwrite the owning facet:
 ``walls[i]`` cannot clobber ``roofs[i].roof_albedo_dir_mult_fact`` and
 ``roofs[i]`` cannot populate ``wall_specular_frac``.
 """
@@ -83,6 +83,8 @@ def spartacus_baseline_output(spartacus_summer_day):
     return _run_with_facet_params(base_dict, day_forcing)
 
 
+# Exercises legacy cross-facet copies on WallLayer/RoofLayer, which warn on load.
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
 def test_roof_direct_albedo_multiplier_reaches_spartacus_and_ignores_wall_copy(
     spartacus_summer_day, spartacus_baseline_output
 ):
@@ -128,6 +130,8 @@ def test_roof_direct_albedo_multiplier_reaches_spartacus_and_ignores_wall_copy(
     )
 
 
+# Exercises legacy cross-facet copies on RoofLayer/WallLayer, which warn on load.
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
 def test_wall_specular_frac_reaches_spartacus_and_ignores_roof_copy(
     spartacus_summer_day, spartacus_baseline_output
 ):
@@ -174,6 +178,8 @@ def test_wall_specular_frac_reaches_spartacus_and_ignores_roof_copy(
         )
 
 
+# Exercises legacy cross-facet copies on WallLayer/RoofLayer, which warn on load.
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
 def test_invalid_roof_direct_albedo_multiplier_is_caught_not_clobbered(
     spartacus_summer_day,
 ):

@@ -55,7 +55,7 @@ F90_FMT_FILES=$(echo "$STAGED" | grep -E '^src/suews/src/.*\.f95$' || true)
 RST_FILES=$(echo "$STAGED" | grep -E '\.rst$' || true)
 CHANGELOG=$(echo "$STAGED" | grep -E '^CHANGELOG\.md$' || true)
 CHANGELOG_FRAGMENTS=$(echo "$STAGED" | grep -E '^changes/' || true)
-AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/)' || true)
+AGENT_FILES=$(echo "$STAGED" | grep -E '^(AGENTS\.md|CLAUDE\.md|MAINTAINERS\.md|dev-ref/.*\.md|\.claude/|\.agents/skills/)' || true)
 
 ERRORS=""
 PASS_COUNT=0

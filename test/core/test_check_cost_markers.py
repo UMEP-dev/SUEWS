@@ -489,3 +489,152 @@ def test_require_axis_rejects_partial_lane_metrics_and_workflow_wires_both_axes(
     )
     assert "--require-axis api" in check_step["run"]
     assert "--require-axis physics" in check_step["run"]
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_source_axis_supports_schema1_and_schema2_paths_and_rejects_ambiguity(
+    tmp_path: Path,
+) -> None:
+    """`source_axis` recognises schema 1 and schema 2 paths and fails closed on ambiguity."""
+    cases = [
+        (tmp_path / "api-cp312-manylinux-x86_64.json", "api"),
+        (tmp_path / "physics-cp312-manylinux-x86_64-pytest.json", "physics"),
+        (tmp_path / "physics-core-cp312-manylinux-x86_64-pytest.json", "physics"),
+        (tmp_path / "tooling-cp312-linux-x86_64.json", "tooling"),
+        (tmp_path / "unit-cp312-linux-x86_64-shard-1-of-2.json", "unit"),
+        (tmp_path / "native-cp312-manylinux-x86_64.json", "native"),
+        (tmp_path / "ci-metrics-tooling-cp312-linux-x86_64" / "pytest.json", "tooling"),
+        (tmp_path / "ci-metrics-unit-cp312-linux-x86_64" / "pytest.json", "unit"),
+        (
+            tmp_path / "ci-metrics-native-cp312-manylinux-x86_64" / "pytest.json",
+            "native",
+        ),
+        (tmp_path / "ci-metrics" / "tooling" / "pytest.json", "tooling"),
+        (tmp_path / "ci-metrics" / "physics-core" / "pytest.json", "physics"),
+        # Unrelated directory names and ambiguous multi-axis names must not match.
+        (tmp_path / "unit-tests" / "clean.json", None),
+        (tmp_path / "api-physics.json", None),
+        (tmp_path / "unit-native-cp312.json", None),
+        (tmp_path / "api" / "api-physics.json", None),
+        (tmp_path / "ci-metrics-unit-native-cp312" / "pytest.json", None),
+        # Labelled filenames inside ambiguous or contradictory directories must fail closed.
+        (tmp_path / "ci-metrics-unit-native-cp312" / "unit-cp312.json", None),
+        (tmp_path / "unit-native" / "unit-cp312.json", None),
+        (tmp_path / "ci-metrics-native-cp312" / "unit-cp312.json", None),
+        (tmp_path / "native" / "unit-cp312.json", None),
+        (tmp_path / "ci-metrics-native-cp312" / "unit" / "pytest.json", None),
+        (tmp_path / "native" / "ci-metrics-unit-cp312" / "pytest.json", None),
+    ]
+    for path, expected in cases:
+        assert checker.source_axis(path) == expected, path
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_require_axis_supports_schema2_multi_axis_lanes_and_fails_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Schema 2 axes (`tooling|unit|native|physics`) enforce completeness and detect drift."""
+    metrics_dir = tmp_path / "ci-metrics"
+    for axis in ("tooling", "unit", "native", "physics"):
+        (metrics_dir / axis).mkdir(parents=True)
+
+    _artefact(
+        metrics_dir / "tooling" / "tooling-cp312-linux-x86_64.json",
+        [_record("test/core/test_lint.py::test_ok", call=0.1, markers=("tooling",))],
+    )
+    # A unit artefact containing a test carrying both `unit` and `native` markers must
+    # NOT satisfy --require-axis native.
+    _artefact(
+        metrics_dir / "unit" / "unit-cp312-linux-x86_64.json",
+        [
+            _record(
+                "test/data_model/test_cfg.py::test_dual",
+                call=0.2,
+                markers=("unit", "native"),
+            )
+        ],
+    )
+    _artefact(
+        metrics_dir / "physics" / "physics-core-cp312-manylinux-x86_64-pytest.json",
+        [
+            _record(
+                "test/physics/test_exact.py::test_ok", call=2.0, markers=("physics",)
+            )
+        ],
+    )
+
+    out_json = tmp_path / "schema2-cost-markers.json"
+    req_args = [
+        "--require-axis",
+        "tooling",
+        "--require-axis",
+        "unit",
+        "--require-axis",
+        "native",
+        "--require-axis",
+        "physics",
+        "--json",
+        str(out_json),
+    ]
+
+    # Missing `native` fails closed without writing JSON.
+    assert checker.main([str(metrics_dir), *req_args]) == 2
+    assert not out_json.exists()
+    out = capsys.readouterr().out
+    assert "missing measured metrics for required axis/axes: native" in out
+
+    # Labelled filename inside an ambiguous directory, or generic filename under
+    # conflicting enclosing axis directories, must NOT satisfy --require-axis native.
+    ambig_path = (
+        metrics_dir
+        / "ci-metrics-unit-native-cp312"
+        / "native-cp312-manylinux-x86_64.json"
+    )
+    ambig_path.parent.mkdir(parents=True, exist_ok=True)
+    _artefact(
+        ambig_path,
+        [_record("test/core/test_native.py::test_ambig", call=0.5, markers=("native",))],
+    )
+    conflict_parent_path = (
+        metrics_dir / "ci-metrics-unit-cp312" / "native" / "pytest.json"
+    )
+    conflict_parent_path.parent.mkdir(parents=True, exist_ok=True)
+    _artefact(
+        conflict_parent_path,
+        [
+            _record(
+                "test/core/test_native.py::test_conflict_parent",
+                call=0.5,
+                markers=("native",),
+            )
+        ],
+    )
+    assert checker.main([str(metrics_dir), *req_args]) == 2
+    assert not out_json.exists()
+    ambig_out = capsys.readouterr().out
+    assert "missing measured metrics for required axis/axes: native" in ambig_out
+
+    # Skipped-only `native` artefact also fails closed.
+    _artefact(
+        metrics_dir / "native" / "native-cp312-manylinux-x86_64.json",
+        [_record("test/core/test_native.py::test_skip", call=0.0, outcome="skipped")],
+    )
+    assert checker.main([str(metrics_dir), *req_args]) == 2
+    assert not out_json.exists()
+    capsys.readouterr()
+
+    # Once all four schema 2 axes carry measured tests, clean runs exit 0.
+    _artefact(
+        metrics_dir / "native" / "native-cp312-manylinux-x86_64.json",
+        [_record("test/core/test_native.py::test_ok", call=0.5, markers=("native",))],
+    )
+    assert checker.main([str(metrics_dir), *req_args]) == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert (payload["ok"], payload["flagged"], payload["measured"]) == (True, 0, 6)
+    capsys.readouterr()
+
+    # Unknown axis is rejected directly by missing_required_axes.
+    with pytest.raises(ValueError, match="unknown axis 'bogus'"):
+        checker.missing_required_axes([], ["bogus"])

@@ -9,6 +9,7 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 import yaml
 
 from ..._env import _user_warning_stacklevel
+from ...constants import SEC_PER_DAY
 from ..output.contract import PROVISIONAL_OUTPUT_GROUPS
 from .field_renames import (
     MODELPHYSICS_RENAMES,
@@ -33,6 +34,7 @@ from .type import (
     DataModelBase,
     FlexibleRefValue,
     Reference,
+    reject_bool_input,
     RefValue,
     df_from_col_items,
     df_from_cols,
@@ -277,7 +279,7 @@ class StorageHeatMethod(Enum):
     8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces
     """
 
-    # Note: EHC (option 5) implements explicit heat conduction
+    # EHC (option 5) defaults to implicit coupling; explicit remains available.
     # Note: DyOHM (option 6) calculates OHM coefficients dynamically based on material properties and meteorology
     # Put STEBBSoption here to turn on STEBBS storage heat flux, internal temperature, etc.
 
@@ -299,6 +301,43 @@ class StorageHeatMethod(Enum):
         else:
             obj._internal = False
         return obj
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class EHCSurfaceCoupling(Enum):
+    """
+    Coupling of the EHC (storage_heat 5) surface temperature to the surface energy balance.
+
+    0: EXPLICIT - Conduction driven by the current surface temperature, which a relaxed fixed-point iteration on the residual sensible heat flux updates (legacy)
+    1: IMPLICIT - Surface energy balance solved together with the conduction layers as the top boundary of each column (backward Euler); building energy use enters at the indoor boundary and deep-soil and indoor boundary temperatures follow the annual cycle and the indoor setpoint
+    """
+
+    EXPLICIT = 0
+    IMPLICIT = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class EHCStabilityControl(Enum):
+    """Late-pass acceleration of implicit EHC stability coupling.
+
+    0: OFF - Retain the existing outer iteration
+    1: RELAX - Relax stability-input QH by 0.25 from outer pass 16
+    2: SECANT - Use safeguarded secant/bracketing updates of stability-input QH from pass 16
+    """
+
+    OFF = 0
+    RELAX = 1
+    SECANT = 2
 
     def __int__(self):
         return self.value
@@ -778,6 +817,8 @@ for enum_class in [
     SetpointMethod,
     SnowUse,
     OhmIncQf,
+    EHCSurfaceCoupling,
+    EHCStabilityControl,
     SameAlbedoWall,
     SameAlbedoRoof,
     SameEmissivityWall,
@@ -878,6 +919,37 @@ class StebbsPhysics(DataModelBase):
         # Accept readable method tokens under the nested STEBBS surface while
         # keeping the canonical stored shape as the existing enum code.
         return coerce_nested_to_flat(info.field_name, value)
+
+
+# Required physics switches under ``model.physics`` and nested
+# ``model.physics.stebbs`` that users must declare explicitly (Pydantic backs
+# them with enum defaults, so validators check raw presence explicitly;
+# ``stebbs.enabled`` and ``stebbs.parameters`` default safely when omitted).
+REQUIRED_PHYSICS_OPTIONS: tuple[str, ...] = (
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+)
+
+REQUIRED_STEBBS_SWITCHES: tuple[str, ...] = (
+    "capacitance",
+    "setpoint",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+)
 
 
 class ModelPhysics(DataModelBase):
@@ -1050,6 +1122,78 @@ class ModelPhysics(DataModelBase):
             "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
         },
     )
+    ehc_surface_coupling: FlexibleRefValue(EHCSurfaceCoupling) = Field(
+        default=EHCSurfaceCoupling.IMPLICIT,
+        description=_enum_description(EHCSurfaceCoupling),
+        json_schema_extra={
+            "unit": None,
+            "depends_on": ["storage_heat"],
+            "note": "Only used when storage_heat is EHC (5). Implicit is the default; "
+            "select explicit to retain the legacy surface coupling and boundary treatment.",
+        },
+    )
+    control_ehc_stability: FlexibleRefValue(EHCStabilityControl) = Field(
+        default=EHCStabilityControl.OFF,
+        description=_enum_description(EHCStabilityControl),
+        json_schema_extra={
+            "unit": None,
+            "depends_on": ["ehc_surface_coupling"],
+            "note": "Implicit EHC only. A repaired solution must pass an undamped verification pass. "
+            "The heat ledger, stability functions and convergence tolerances are unchanged.",
+        },
+    )
+    control_ehc_initial_profile: FlexibleRefValue(bool) = Field(
+        default=True,
+        description=(
+            "Initialise implicit EHC roof and wall layer temperatures at cell centres "
+            "on a steady conduction profile between the first-step outdoor air and "
+            "indoor temperatures, linear in cumulative material resistance including "
+            "the indoor surface resistance. Only at a fresh configuration start; "
+            "saved model states are preserved. Ignored by explicit coupling and "
+            "by the shared plan-area slab, which has no separate envelope columns."
+        ),
+        json_schema_extra={"unit": None, "depends_on": ["ehc_surface_coupling"]},
+    )
+    resistance_ehc_indoor_roof: FlexibleRefValue(float) = Field(
+        default=0.10,
+        ge=0.0,
+        description=(
+            "Indoor surface resistance for implicit EHC roofs and the building "
+            "branch of the shared plan-area slab. Added in series to the innermost "
+            "half-cell resistance. ISO 6946:2017 Table 7, upward heat flow: "
+            "0.10 m2 K W-1 (h_in = 10 W m-2 K-1). Zero recovers the bare "
+            "Dirichlet boundary; explicit coupling ignores this value."
+        ),
+        json_schema_extra={"unit": "m2 K W-1", "depends_on": ["ehc_surface_coupling"]},
+    )
+    resistance_ehc_indoor_wall: FlexibleRefValue(float) = Field(
+        default=0.13,
+        ge=0.0,
+        description=(
+            "Indoor surface resistance for implicit EHC walls, in series with the "
+            "innermost half-cell resistance. ISO 6946:2017 Table 7, horizontal "
+            "heat flow: 0.13 m2 K W-1 (h_in = 1/0.13, approximately "
+            "7.7 W m-2 K-1). Zero recovers the bare Dirichlet boundary; "
+            "explicit coupling ignores this value."
+        ),
+        json_schema_extra={"unit": "m2 K W-1", "depends_on": ["ehc_surface_coupling"]},
+    )
+
+    @field_validator(
+        "resistance_ehc_indoor_roof", "resistance_ehc_indoor_wall", mode="before"
+    )
+    @classmethod
+    def _reject_bool_ehc_resistance(cls, value, info):
+        """Refuse booleans, which Pydantic would coerce to float resistances."""
+        return reject_bool_input(value, f"model.physics.{info.field_name}")
+
+    @field_validator("resistance_ehc_indoor_roof", "resistance_ehc_indoor_wall")
+    @classmethod
+    def _finite_ehc_resistance(cls, value):
+        inner = value.value if isinstance(value, RefValue) else value
+        if not np.isfinite(inner):
+            raise ValueError("EHC indoor surface resistance must be finite")
+        return value
     roughness_length_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
@@ -1189,6 +1333,9 @@ class ModelPhysics(DataModelBase):
         ("emissions", "emissionsmethod"),
         ("storage_heat", "storageheatmethod"),
         ("ohm_inc_qf", "ohmincqf"),
+        ("ehc_surface_coupling", "ehc_surface_coupling"),
+        ("control_ehc_stability", "control_ehc_stability"),
+        ("control_ehc_initial_profile", "control_ehc_initial_profile"),
         ("roughness_length_momentum", "roughlenmommethod"),
         ("roughness_length_heat", "roughlenheatmethod"),
         ("stability", "stabilitymethod"),
@@ -1221,6 +1368,12 @@ class ModelPhysics(DataModelBase):
             value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
+
+        for field_name in ("resistance_ehc_indoor_roof", "resistance_ehc_indoor_wall"):
+            value = getattr(self, field_name)
+            cols[(field_name, "0")] = float(
+                value.value if isinstance(value, RefValue) else value
+            )
 
         direct_fraction = self.sw_dn_direct_frac
         direct_fraction = (
@@ -1294,9 +1447,14 @@ class ModelPhysics(DataModelBase):
         optional_new_attrs_with_defaults = {
             ("laimethod", "laimethod"): LAIMethod.MODELLED,
             ("kdown_split_method", "kdown_split_method"): KdownSplitMethod.PEREZ,
+            ("ehc_surface_coupling", "ehc_surface_coupling"): EHCSurfaceCoupling.IMPLICIT,
+            ("control_ehc_stability", "control_ehc_stability"): EHCStabilityControl.OFF,
+            ("control_ehc_initial_profile", "control_ehc_initial_profile"): True,
         }
         optional_float_attrs_with_defaults = {
             "sw_dn_direct_frac": (("sw_dn_direct_frac",), 0.5),
+            "resistance_ehc_indoor_roof": (("resistance_ehc_indoor_roof",), 0.10),
+            "resistance_ehc_indoor_wall": (("resistance_ehc_indoor_wall",), 0.13),
         }
 
         for col_name, field_name in required_attrs:
@@ -1461,8 +1619,9 @@ class OutputControl(DataModelBase):
             "path holding one file per chunk, read back together with "
             "pandas.read_parquet(folder): only the groups listed in 'groups' "
             "(unlike Parquet output saved after an unstreamed run, which holds "
-            "every group), DailyState at its own daily rows as in text output "
-            "rather than resampled, at full float64 precision; prefer it for "
+            "every group), resampled with the same right-labelled rule across "
+            "every group (DailyState included), at full float64 precision; "
+            "prefer it for "
             "streamed runs that will be read back for analysis. 30 (about a "
             "month) or 366 (a calendar year) are "
             "good choices. Limitations: peak memory is still about one chunk "
@@ -1574,7 +1733,7 @@ def check_stream_chunk(
     Shared by the YAML validators and :meth:`SUEWSSimulation.run`, which
     checks again in case the config was changed by attribute assignment.
     """
-    if freq_s is not None and (freq_s <= 0 or 86400 % freq_s != 0):
+    if freq_s is not None and (freq_s <= 0 or SEC_PER_DAY % freq_s != 0):
         raise ValueError(
             "output.stream_chunk needs an output frequency that divides "
             f"one day (86400 s); output.freq is {freq_s} s."

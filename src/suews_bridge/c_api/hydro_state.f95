@@ -2,7 +2,7 @@
 ! SUEWS Rust bridge C API facade for HYDRO_STATE.
 ! -----------------------------------------------------------------------------
 module module_c_api_hydro_state
-use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer, suews_capi_error_text
@@ -76,6 +76,7 @@ public :: suews_hydro_state_len
 public :: suews_hydro_state_schema_version
 public :: suews_hydro_state_default
 public :: suews_hydro_state_error_message
+public :: hydro_state_expected_len
 public :: hydro_state_unpack
 
 contains
@@ -368,6 +369,28 @@ subroutine ensure_vec_alloc(field, n, err)
 
 end subroutine ensure_vec_alloc
 
+subroutine hydro_state_expected_len(nlayer, expected_len, ok)
+   implicit none
+
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(out) :: expected_len
+   logical, intent(out) :: ok
+
+   integer(c_int64_t), parameter :: MAX_C_INT = int(huge(0_c_int), c_int64_t)
+   integer(c_int64_t) :: n_64
+
+   expected_len = 0_c_int
+   ok = .false.
+   if (nlayer<0_c_int) return
+
+   n_64 = int(SUEWS_CAPI_HYDRO_STATE_BASE_LEN, c_int64_t) + 6_c_int64_t * int(nlayer, c_int64_t)
+   if (n_64>MAX_C_INT) return
+
+   expected_len = int(n_64, c_int)
+   ok = .true.
+
+end subroutine hydro_state_expected_len
+
 subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    implicit none
 
@@ -378,16 +401,12 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    integer(c_int), intent(out) :: err
 
    integer(c_int) :: n_expected
+   logical :: len_ok
    integer(c_int) :: idx
    integer(c_int) :: i
 
-   if (nlayer<0_c_int) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   n_expected = SUEWS_CAPI_HYDRO_STATE_BASE_LEN + 6_c_int * nlayer
-   if (n_flat<n_expected) then
+   call hydro_state_expected_len(nlayer, n_expected, len_ok)
+   if (.not. len_ok .or. n_flat/=n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

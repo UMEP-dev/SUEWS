@@ -4,7 +4,7 @@
 use serde_json::{json, Value};
 use suews_bridge::{
     heat_state_expected_flat_len, suews_state_default_from_fortran, suews_state_to_nested_payload,
-    CompositeCodec, HeatState, SuewsDebug, SuewsState, SuewsStateBlock,
+    CompositeCodec, HeatState, SuewsDebug, SuewsState,
 };
 
 const STAGES: [&str; 15] = [
@@ -151,33 +151,4 @@ fn debug_decode_all_named_stages() {
     assert_typed(&debug.state_13_rsl, 13);
     assert_typed(&debug.state_14_biogenco2, 14);
     assert_typed(&debug.state_15_beers, 15);
-}
-
-#[test]
-fn block_encode_preserves_length_dimensions_and_order() {
-    let block = SuewsStateBlock {
-        block: [3, 12, 5].into_iter().map(state).collect(),
-    };
-    let raw = block.to_nested_payload();
-    assert_eq!(raw["dims"], json!({"block": [3]}));
-    let rows = raw["block"].as_array().unwrap();
-    assert_eq!(rows.len(), 3);
-    for (row, id) in rows.iter().zip([3, 12, 5]) {
-        assert_raw(row, id);
-    }
-}
-
-#[test]
-fn block_decode_preserves_length_dimensions_and_order() {
-    let mut raw = json!({"schema_version": 1, "dims": {"block": [3]},
-        "block": [raw_state(11), raw_state(2), raw_state(7)]});
-    let block = SuewsStateBlock::from_nested_payload(&raw).unwrap();
-    assert_eq!(block.block.len(), 3);
-    for (row, id) in block.block.iter().zip([11, 2, 7]) {
-        assert_typed(row, id);
-    }
-    raw["dims"]["block"] = json!([2]);
-    assert!(SuewsStateBlock::from_nested_payload(&raw).is_err());
-    raw["dims"]["block"] = json!([3, 1]);
-    assert!(SuewsStateBlock::from_nested_payload(&raw).is_err());
 }

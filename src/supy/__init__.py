@@ -37,9 +37,9 @@ __all__ = [
     "util",
     "data_model",
     # Validation
-    "validate_suews_config_conditional",
-    "ValidationController",
-    "ValidationResult",
+    "validate_config",
+    "ValidationEngine",
+    "ValidationReport",
     # Modern interface
     "SUEWSSimulation",
     "SUEWSCheckpoint",
@@ -70,6 +70,32 @@ _lazy_cache = {}
 _DEPRECATED_FUNCTIONAL_NAMES = frozenset({
     "load_forcing_grid",
 })
+
+
+class SUEWSKernelError(RuntimeError):
+    """Error raised when the SUEWS Fortran kernel encounters a fatal condition."""
+
+    def __init__(
+        self,
+        code: int | None = None,
+        message: str | None = None,
+        full_message: str | None = None,
+    ) -> None:
+        self.code = code
+        self.message = message or "SUEWS kernel error"
+        if full_message is None:
+            if code is None:
+                full_message = f"simulation failed: {self.message}"
+            else:
+                full_message = f"simulation failed (code {code}): {self.message}"
+        super().__init__(full_message)
+
+    def __reduce__(self):
+        """Return pickle state preserving ``code``, ``message``, and formatted text."""
+        return (
+            self.__class__,
+            (self.code, self.message, self.args[0] if self.args else None),
+        )
 
 
 def __getattr__(name):
@@ -117,26 +143,20 @@ def __getattr__(name):
 
     # Validation functionality
     if name in {
-        "validate_suews_config_conditional",
-        "ValidationController",
-        "ValidationResult",
+        "validate_config",
+        "ValidationEngine",
+        "ValidationReport",
     }:
-        try:
-            from .data_model.validation import (
-                ValidationController,
-                ValidationResult,
-                validate_suews_config_conditional,
-            )
+        from .data_model.validation import (
+            ValidationEngine,
+            ValidationReport,
+            validate_config,
+        )
 
-            _lazy_cache["validate_suews_config_conditional"] = (
-                validate_suews_config_conditional
-            )
-            _lazy_cache["ValidationController"] = ValidationController
-            _lazy_cache["ValidationResult"] = ValidationResult
-            return _lazy_cache[name]
-        except ImportError:
-            _lazy_cache[name] = None
-            return None
+        _lazy_cache["validate_config"] = validate_config
+        _lazy_cache["ValidationEngine"] = ValidationEngine
+        _lazy_cache["ValidationReport"] = ValidationReport
+        return _lazy_cache[name]
 
     # Modern simulation interface
     if name == "SUEWSSimulation":
@@ -208,20 +228,6 @@ def __getattr__(name):
         from .cmd import SUEWS
 
         _lazy_cache[name] = SUEWS
-        return _lazy_cache[name]
-
-    # Exception for Fortran kernel errors (kept for backward compatibility)
-    if name == "SUEWSKernelError":
-
-        class SUEWSKernelError(RuntimeError):
-            """Error raised when the SUEWS Fortran kernel encounters a fatal condition."""
-
-            def __init__(self, code=None, message=None):
-                self.code = code
-                self.message = message or "SUEWS kernel error"
-                super().__init__(f"SUEWS kernel error (code={code}): {self.message}")
-
-        _lazy_cache[name] = SUEWSKernelError
         return _lazy_cache[name]
 
     # Overlapping forcing files that disagree (gh#1747)

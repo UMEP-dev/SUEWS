@@ -22,45 +22,305 @@ SPEC.loader.exec_module(checker)
 
 @pytest.mark.core
 @pytest.mark.smoke
-def test_tree_has_complete_valid_debt_links():
+def test_tree_has_complete_valid_debt_links(tmp_path):
     """Every live record has exactly one contract and well-formed issue owner."""
+    output = tmp_path / "real_report.json"
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--strict"],
+        [sys.executable, str(SCRIPT), "--strict", "--json", str(output)],
         capture_output=True,
         text=True,
         encoding="utf-8",
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["summary"]["records"] == report["summary"]["mapped"]
+    records = report["records"]
+    counters = json.loads(
+        (ROOT / "scripts/lint/rust_optional_reads_baseline.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert sum(r["occurrences"] for r in records if r["ledger"] == "R") == sum(
+        counters["totals"].values()
+    )
+    observer_ids = [r["id"] for r in records if r["ledger"] == "O"]
+    assert observer_ids.count("suews_site.vegfraction") == 1
+    assert not any("heatstate%" in key.lower() for key in observer_ids)
+    active_issues = set(report["active_issues"])
+    rationale_issues = set(report["rationale_issues"])
+    assert active_issues.isdisjoint(rationale_issues)
+    assert sorted(active_issues | rationale_issues) == report["issues"]
+    expected_active = {
+        r["issue"] for r in records if r["classification"] in checker.ACTIVE_CLASSES
+    }
+    expected_rationale = {
+        r["issue"]
+        for r in records
+        if r["classification"] in checker.RATIONALE_CLASSES
+        and r["issue"] not in expected_active
+    }
+    assert active_issues == expected_active
+    assert rationale_issues == expected_rationale
+
+
+_SYNTHETIC_TREE_FILES: dict[str, str] = {
+    "test/contracts.yml": (
+        "contracts:\n"
+        "  - id: C-CAPI\n"
+        "  - id: C-MIGRATE\n"
+        "  - id: C-RESPONSE\n"
+        "  - id: C-ROUNDTRIP\n"
+        "  - id: C-TOOLING\n"
+        "  - id: C-VALID\n"
+    ),
+    checker.LINKS: (
+        "version: 1\n"
+        "mappings:\n"
+        "  - selector:\n"
+        "      ledger: U\n"
+        "      file: src/suews/src/example.f95\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2172\n"
+        "    classification: coverage_gap\n"
+        "  - selector:\n"
+        "      ledger: R\n"
+        "      function: example\n"
+        "    contract: C-CAPI\n"
+        "    issue: 2096\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: L\n"
+        "    contract: C-TOOLING\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: S\n"
+        "      group: derived_run_bounds\n"
+        "    contract: C-VALID\n"
+        "    issue: 2076\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: S\n"
+        "      group: doc_required_when_pending_from_yaml\n"
+        "    contract: C-VALID\n"
+        "    issue: 2083\n"
+        "    classification: coverage_gap\n"
+        "  - selector:\n"
+        "      ledger: M\n"
+        "    contract: C-VALID\n"
+        "    issue: 2098\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: N\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2095\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: J1\n"
+        "    contract: C-CAPI\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: O\n"
+        "    contract: C-CAPI\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: T1\n"
+        "    contract: C-ROUNDTRIP\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: T2\n"
+        "    contract: C-MIGRATE\n"
+        "    issue: 2096\n"
+        "    classification: accepted_exception\n"
+        "  - selector:\n"
+        "      ledger: X1\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2096\n"
+        "    classification: defect\n"
+        "  - selector:\n"
+        "      ledger: X\n"
+        "      id: test/physics/test_example_xfail.py::test_known_xfail::1\n"
+        "    contract: C-RESPONSE\n"
+        "    issue: 2096\n"
+        "    classification: defect\n"
+    ),
+    "scripts/lint/rust_optional_reads_baseline.json": json.dumps(
+        {
+            "description": "Synthetic Rust optional-read baseline.",
+            "totals": {"read_numeric": 2},
+            "functions": {"example": {"read_numeric": 2}},
+        },
+        indent=2,
+    )
+    + "\n",
+    "scripts/lint/fortran_literals_baseline.json": json.dumps(
+        {
+            "description": "Synthetic Fortran literals baseline.",
+            "totals": {"pi": 1},
+            "files": {"src/suews/src/example.f95": {"pi": 1}},
+        },
+        indent=2,
+    )
+    + "\n",
+    "scripts/lint/fortran_uninit_baseline.json": json.dumps(
+        {
+            "description": "Synthetic Fortran uninit baseline.",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "file": "src/suews/src/example.f95",
+                    "proc": "example_proc",
+                    "var": "x",
+                    "kind": "maybe-uninitialized",
+                }
+            ],
+        },
+        indent=2,
+    )
+    + "\n",
+    "scripts/lint/fortran_snan_expected_failures.json": json.dumps(
+        {
+            "description": "Synthetic sNaN expected failures baseline.",
+            "entries": [
+                {"node": "test/physics/test_example.py::test_snan", "issue": "#2095"}
+            ],
+        },
+        indent=2,
+    )
+    + "\n",
+    checker.SCHEMA: json.dumps(
+        {
+            "description": "Synthetic schema contract baseline.",
+            "baseline_commit": "0000000000",
+            "validator_warning_swallows": {},
+            "doc_required_when_pending_from_yaml": {
+                "ExampleParams.example_field": {"owner_issue": "#2083"}
+            },
+            "groups": {
+                "derived_run_bounds": {
+                    "owner_issue": "#2076",
+                    "reason": "Synthetic derived run bounds.",
+                }
+            },
+            "example_section": {
+                "example_category": {"example_field": "derived_run_bounds"}
+            },
+        },
+        indent=2,
+    )
+    + "\n",
+    checker.MUTATIONS: json.dumps(
+        {
+            "schema_version": 1,
+            "entries": [
+                {
+                    "id": "example-gap",
+                    "category": "active_gap",
+                    "owner_issue": "#2098",
+                    "anchors": ["baseline"],
+                    "mutations": {"omit": "silent"},
+                }
+            ],
+        },
+        indent=2,
+    )
+    + "\n",
+    checker.JACOBIAN: (
+        "const KNOWN_DEAD_KEYS: &[&str] = &[\n"
+        '    "sites[0].properties.example_dead_key",\n'
+        "];\n"
+        "const KNOWN_CLOBBERED_SPARTACUS_LAYERS: &[(&str, usize)] = &[];\n"
+        "const KNOWN_NON_UNIT_DELTAS: &[(&str, &str)] = &[];\n"
+        "const REVIEWED_MULTI_OWNER_SLOTS: &[&str] = &[];\n"
+        "const KNOWN_BASELINE_NAN_SLOTS: &[&str] = &[];\n"
+    ),
+    checker.OBSERVER: (
+        "REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {\n"
+        '    ("heat_state", "example_unbridged"): "Synthetic unbridged component.",\n'
+        "}\n"
+        "REVIEWED_DRIVER_EXCLUDED_COMPONENTS: dict[tuple[str, str], str] = {\n"
+        '    ("suews_timer", "iy_st"): (\n'
+        '        "Derived local-standard-time field excluded from C timer ABI."\n'
+        "    ),\n"
+        "}\n"
+    ),
+    checker.MANIFEST: (
+        "pub const OBS_FIELDS_HEAT_STATE: &[ObsFieldDescriptor] = &[\n"
+        "    ObsFieldDescriptor {\n"
+        "        id: 1,\n"
+        '        path: "example_unbridged",\n'
+        "        bridged: false,\n"
+        '        unbridged_reason: Some("Synthetic unbridged component."),\n'
+        "    },\n"
+        "];\n"
+        "\n"
+        "pub const OBS_FIELDS_SUEWS_STATE: &[ObsFieldDescriptor] = &[\n"
+        "    ObsFieldDescriptor {\n"
+        "        id: 1,\n"
+        '        path: "heatState%example_unbridged",\n'
+        "        bridged: false,\n"
+        '        unbridged_reason: Some("Synthetic unbridged component."),\n'
+        "    },\n"
+        "];\n"
+        "\n"
+        "pub const OBS_FIELDS_SUEWS_TIMER: &[ObsFieldDescriptor] = &[\n"
+        "    ObsFieldDescriptor {\n"
+        "        id: 1,\n"
+        '        path: "iy_st",\n'
+        "        bridged: false,\n"
+        "        unbridged_reason: Some(\n"
+        '            "Derived local-standard-time field excluded from C timer ABI.",\n'
+        "        ),\n"
+        "    },\n"
+        "];\n"
+    ),
+    "test/data_model/test_legacy_table_roundtrip.py": (
+        '_SENTINEL_CANONICALISED_COLS = {"FAI_Bldgs"}\n'
+        '_MLM_DERIVED = {"hdd_id"}\n'
+        '_MLM_COMMON = _MLM_DERIVED | {"alb"}\n'
+        '_MLM_ALLOWED = {"2018b": _MLM_COMMON}\n'
+    ),
+    checker.OPTION_SWEEP: (
+        "import pytest\n"
+        "\n"
+        "OPTION_VALUES_XFAIL = {\n"
+        '    ("example_opt", 1): "Synthetic option xfail.",\n'
+        "}\n"
+        "\n"
+        "\n"
+        "def _sweep_params():\n"
+        '    key = ("example_opt", 1)\n'
+        "    marks = [\n"
+        "        pytest.mark.xfail(strict=True, reason=OPTION_VALUES_XFAIL[key])\n"
+        "    ]\n"
+        "    return [pytest.param(key, marks=marks)]\n"
+    ),
+    "test/physics/test_example_xfail.py": (
+        "import pytest\n"
+        "\n"
+        "\n"
+        '@pytest.mark.xfail(strict=True, reason="Synthetic mapped xfail.")\n'
+        "def test_known_xfail():\n"
+        "    pass\n"
+    ),
+}
 
 
 @pytest.fixture
 def tree(tmp_path):
-    """Copy only static ledger inputs; no model installation or execution."""
-    paths = [
-        "test/contracts.yml",
-        "test/known_defects.yml",
-        checker.SCHEMA,
-        checker.MUTATIONS,
-        checker.JACOBIAN,
-        checker.OBSERVER,
-        checker.MANIFEST,
-        "scripts/lint/rust_optional_reads_baseline.json",
-        "scripts/lint/fortran_literals_baseline.json",
-        "scripts/lint/fortran_uninit_baseline.json",
-        "scripts/lint/fortran_snan_expected_failures.json",
-        "scripts/lint/check_saved_fortran_locals.py",
-        "test/data_model/test_legacy_table_roundtrip.py",
-        checker.OPTION_SWEEP,
-        "test/physics/test_calendar_profiles.py",
-        "test/physics/test_parameter_sensitivity.py",
-        "test/physics/test_spartacus_ground_budget.py",
-        "test/physics/test_continuation_matrix.py",
-    ]
-    for name in paths:
+    """Write a minimal valid ledger tree to tmp_path; real repo is checked by smoke."""
+    for name, content in _SYNTHETIC_TREE_FILES.items():
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ROOT / name, target)
+        target.write_text(content, encoding="utf-8")
+    linter = "scripts/lint/check_saved_fortran_locals.py"
+    target = tmp_path / linter
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ROOT / linter, target)
     return tmp_path
 
 
@@ -87,8 +347,7 @@ def test_valid_inventory_counts_weights_and_generated_copies(tree, capsys):
         counters["totals"].values()
     )
     observer_ids = [r["id"] for r in records if r["ledger"] == "O"]
-    assert observer_ids.count("heat_state.temp_surf_ehc_fast") == 1
-    assert not any("heatState%" in key for key in observer_ids)
+    assert sorted(observer_ids) == ["heat_state.example_unbridged", "suews_timer.iy_st"]
     assert (
         "| Contract | Defects | Coverage gaps | Accepted exceptions |"
         in capsys.readouterr().out
@@ -114,6 +373,8 @@ def test_link_failures_reach_strict_exit(tree, fault, diagnostic):
     elif fault == "overlap":
         links["mappings"].append(dict(mapping))
     elif fault == "stale":
+        mapping = next(m for m in links["mappings"] if m["selector"]["ledger"] == "U")
+        assert "function" not in mapping["selector"]
         mapping["selector"]["function"] = "nonexistent_function"
     elif fault == "contract":
         mapping["contract"] = "C-UNKNOWN"
@@ -223,6 +484,7 @@ def test_saved_local_ledger_mutations_fail(tree, mutation):
 )
 def test_real_ledger_dependency_mutations_reach_strict_exit(tree, mutation):
     path = tree / "test/data_model/test_legacy_table_roundtrip.py"
+    shutil.copyfile(ROOT / "test/data_model/test_legacy_table_roundtrip.py", path)
     path.write_text(
         path.read_text(encoding="utf-8") + f"\n{mutation}\n", encoding="utf-8"
     )
@@ -308,8 +570,8 @@ def test_generated_observer_drift_fails(tree):
     path = tree / checker.MANIFEST
     path.write_text(
         path.read_text(encoding="utf-8").replace(
-            'path: "heatState%temp_surf_ehc_fast"',
-            'path: "heatState%unknown"',
+            'path: "iy_st"',
+            'path: "iy_st_unknown"',
         ),
         encoding="utf-8",
     )
@@ -1314,14 +1576,25 @@ def test_saved_local_alias_helper_and_escape_writes_fail_closed_while_linter_acc
 
 
 @pytest.mark.parametrize(
-    "snippet",
+    ("snippet", "annotation_eval"),
     [
-        'witness: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})',
-        'def _ann(x: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})):\n    pass',
-        'def _ret() -> ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"}):\n    pass',
+        (
+            'witness: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})',
+            "import sys as _ann_sys; _ = _ann_sys.modules[__name__].__annotations__",
+        ),
+        (
+            'def _ann(x: ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"})):\n    pass',
+            "_ = _ann.__annotations__",
+        ),
+        (
+            'def _ret() -> ALLOWED.update({("ledger_review_sample.f95", "count"): "#2087"}):\n    pass',
+            "_ = _ret.__annotations__",
+        ),
     ],
 )
-def test_saved_local_evaluated_annotation_writes_fail_closed(tree, snippet):
+def test_saved_local_evaluated_annotation_writes_fail_closed(
+    tree, snippet, annotation_eval
+):
     _write_fortran_sample(tree)
     linter_path = tree / "scripts/lint/check_saved_fortran_locals.py"
     source = linter_path.read_text(encoding="utf-8").replace(
@@ -1332,14 +1605,24 @@ def test_saved_local_evaluated_annotation_writes_fail_closed(tree, snippet):
     linter_path.write_text(
         source.replace(intro, f"{intro}\n{snippet}"), encoding="utf-8"
     )
-    linter_run = _run_saved_locals_linter(tree)
-    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
-    assert "(1 allowlisted)" in linter_run.stdout
+    # Fail closed on the bare annotation on every Python version: SUEWS supports
+    # Python 3.12+, where annotations without future-import execute eagerly, and
+    # on 3.14+ (PEP 649) they still execute whenever __annotations__ is read.
     assert checker.main(["--root", str(tree), "--strict"]) == 1
     assert any(
         "unsupported mutation of constant ALLOWED" in e
         for e in checker.check_tree(tree)["errors"]
     )
+    # Prove the real linter accepts the runtime witness. On Python 3.14+, PEP 649
+    # defers annotation evaluation until __annotations__ is accessed.
+    if sys.version_info >= (3, 14):
+        linter_path.write_text(
+            source.replace(intro, f"{intro}\n{snippet}\n{annotation_eval}"),
+            encoding="utf-8",
+        )
+    linter_run = _run_saved_locals_linter(tree)
+    assert linter_run.returncode == 0, linter_run.stdout + linter_run.stderr
+    assert "(1 allowlisted)" in linter_run.stdout
 
 
 def test_python_ledger_safe_reads_aliases_helpers_and_unrelated_writes_are_allowed(
@@ -1665,3 +1948,390 @@ def test_saved_local_mixed_type_malformed_key_reports_value_error_not_type_error
         in err
         for err in errors
     )
+
+
+def test_owner_lists_split_active_and_rationale_with_mixed_issue(tree, capsys):
+    """Mixed active + accepted_exception owners stay active; rationale-only issues separate."""
+    output = tree / "report.json"
+    assert checker.main(["--root", str(tree), "--strict", "--json", str(output)]) == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["active_issues"] == [2083, 2095, 2096, 2098, 2172]
+    assert report["rationale_issues"] == [2076]
+    assert report["issues"] == [2076, 2083, 2095, 2096, 2098, 2172]
+    rendered = capsys.readouterr().out
+    assert (
+        "Owners: 5 active (must stay open); 1 rationale-only (may be closed)."
+        in rendered
+    )
+
+
+def test_mixed_issue_stays_active_for_coverage_gap_and_moves_when_cleared(tree):
+    """Coverage gaps also keep a mixed issue active until only accepted_exception remains."""
+    links = _links(tree)
+    # Give #2076 a coverage_gap alongside its existing accepted_exception: must become active.
+    for mapping in links["mappings"]:
+        if mapping["selector"].get("ledger") == "U":
+            mapping["issue"] = 2076
+            assert mapping["classification"] == "coverage_gap"
+    _write_links(tree, links)
+    mixed_report = checker.check_tree(tree)
+    assert not mixed_report["errors"]
+    assert 2076 in mixed_report["active_issues"]
+    assert 2076 not in mixed_report["rationale_issues"]
+
+    # Reclassify all active records on #2096 to accepted_exception: moves to rationale_issues.
+    for mapping in links["mappings"]:
+        if mapping["issue"] == 2096 and mapping["classification"] != "accepted_exception":
+            mapping["classification"] = "accepted_exception"
+    _write_links(tree, links)
+    cleared_report = checker.check_tree(tree)
+    assert not cleared_report["errors"]
+    assert 2096 not in cleared_report["active_issues"]
+    assert cleared_report["rationale_issues"] == [2096]
+    assert sorted({*cleared_report["active_issues"], *cleared_report["rationale_issues"]}) == (
+        cleared_report["issues"]
+    )
+
+
+@pytest.mark.parametrize("classification", ["defect", "accepted_exception"])
+def test_all_active_and_all_rationale_inventories(tree, classification):
+    """Single-category inventories emit an empty complementary owner list."""
+    links = _links(tree)
+    for mapping in links["mappings"]:
+        mapping["classification"] = classification
+    _write_links(tree, links)
+    report = checker.check_tree(tree)
+    assert not report["errors"]
+    if classification == "defect":
+        assert report["active_issues"] == report["issues"]
+        assert report["rationale_issues"] == []
+    else:
+        assert report["active_issues"] == []
+        assert report["rationale_issues"] == report["issues"]
+
+
+def test_render_report_accepts_legacy_report_without_split_owner_keys():
+    """Backwards compatibility: render_report handles dicts lacking new owner keys."""
+    legacy = {
+        "summary": {
+            "records": 1,
+            "mapped": 1,
+            "errors": 0,
+            "defect": 1,
+            "coverage_gap": 0,
+            "accepted_exception": 0,
+        },
+        "contracts": {
+            "C-TOOLING": {"defect": 1, "coverage_gap": 0, "accepted_exception": 0}
+        },
+        "groups": [],
+        "issues": [2096],
+        "records": [],
+        "errors": [],
+    }
+    rendered = checker.render_report(legacy)
+    assert "Inventory green with 1 recorded defects;" in rendered
+    assert "Owners: 0 active (must stay open); 0 rationale-only (may be closed)." in rendered
+
+
+def _load_test_debt_owner_script() -> tuple[dict, str]:
+    workflow_path = ROOT / ".github/workflows/test-debt.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    owners_job = workflow["jobs"]["owners"]
+    script_step = next(
+        step
+        for step in owners_job["steps"]
+        if str(step.get("uses", "")).startswith("actions/github-script@")
+    )
+    return workflow, script_step["with"]["script"]
+
+
+def test_debt_workflow_contract_and_read_only_permissions():
+    """Workflow stays read-only, runs strict JSON inventory, and audits split owner lists."""
+    workflow, script = _load_test_debt_owner_script()
+    assert workflow["name"] == "Recorded test debt"
+    assert workflow["permissions"] == {"contents": "read", "issues": "read"}
+    assert workflow["jobs"]["owners"]["permissions"] == {
+        "contents": "read",
+        "issues": "read",
+    }
+    inventory_run = "\n".join(
+        step.get("run", "") for step in workflow["jobs"]["inventory"]["steps"]
+    )
+    assert "check_test_debt.py --strict --json test-debt.json" in inventory_run
+    for token in ("active_issues", "rationale_issues", "report.issues"):
+        assert token in script
+
+
+def test_debt_workflow_owner_audit_script(tree, tmp_path):
+    """Execute the real test-debt.yml github-script against active, rationale, and malformed cases."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip(
+            "Node.js is not installed; required to execute the test-debt.yml github-script"
+        )
+    _, workflow_script = _load_test_debt_owner_script()
+    inventory_json = tmp_path / "synthetic-report.json"
+    assert (
+        checker.main(["--root", str(tree), "--strict", "--json", str(inventory_json)])
+        == 0
+    )
+
+    harness = r"""
+const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const workflowScript = fs.readFileSync(process.argv[2], 'utf8');
+const syntheticReport = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const runAudit = new AsyncFunction('require', 'github', 'context', 'core', workflowScript);
+
+async function execScenario(report, responses) {
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'debt-owner-test-'));
+  const prevCwd = process.cwd();
+  try {
+    fs.mkdirSync(path.join(workDir, 'inventory'), { recursive: true });
+    fs.writeFileSync(
+      path.join(workDir, 'inventory', 'test-debt.json'),
+      JSON.stringify(report),
+      'utf8'
+    );
+    process.chdir(workDir);
+    const fetched = [];
+    const failedMessages = [];
+    const summaryParts = { headings: [], raw: [], tables: [], written: false };
+    const summary = {
+      addHeading(text) { summaryParts.headings.push(text); return summary; },
+      addRaw(text) { summaryParts.raw.push(text); return summary; },
+      addTable(rows) { summaryParts.tables.push(rows); return summary; },
+      async write() { summaryParts.written = true; return summary; },
+    };
+    const core = {
+      summary,
+      setFailed(msg) { failedMessages.push(msg); },
+    };
+    const context = { repo: { owner: 'UMEP-dev', repo: 'SUEWS' } };
+    const github = {
+      rest: {
+        issues: {
+          async get({ owner, repo, issue_number }) {
+            assert.strictEqual(owner, 'UMEP-dev');
+            assert.strictEqual(repo, 'SUEWS');
+            fetched.push(issue_number);
+            const entry = responses[issue_number];
+            if (!entry) {
+              const err = new Error('Not Found');
+              err.status = 404;
+              throw err;
+            }
+            if (entry.throwStatus !== undefined) {
+              const err = new Error('API Error');
+              err.status = entry.throwStatus;
+              throw err;
+            }
+            return { data: entry };
+          },
+        },
+      },
+    };
+    await runAudit(require, github, context, core);
+    return { fetched, failedMessages, summaryParts };
+  } finally {
+    process.chdir(prevCwd);
+    fs.rmSync(workDir, { recursive: true, force: true });
+  }
+}
+
+function issueData(number, state, extra = {}) {
+  return {
+    number,
+    state,
+    repository_url: 'https://api.github.com/repos/UMEP-dev/SUEWS',
+    ...extra,
+  };
+}
+
+(async () => {
+  // 1. End-to-end synthetic report: active open, rationale-only (#2076) closed -> green.
+  const greenResponses = {
+    2076: issueData(2076, 'closed'),
+    2083: issueData(2083, 'open'),
+    2095: issueData(2095, 'open'),
+    2096: issueData(2096, 'open'),
+    2098: issueData(2098, 'open'),
+    2172: issueData(2172, 'open'),
+  };
+  const green = await execScenario(syntheticReport, greenResponses);
+  assert.deepStrictEqual(green.failedMessages, []);
+  assert.deepStrictEqual(green.fetched, [2076, 2083, 2095, 2096, 2098, 2172]);
+  assert.strictEqual(green.summaryParts.written, true);
+  assert.ok(green.summaryParts.raw[0].startsWith('green with '));
+  assert.ok(green.summaryParts.raw[0].includes('5 active owners; 1 rationale owners'));
+  const greenRows = green.summaryParts.tables[0].slice(1);
+  assert.deepStrictEqual(greenRows[0], ['#2076', 'rationale', 'closed']);
+  assert.deepStrictEqual(greenRows[3], ['#2096', 'active', 'open']);
+
+  // 2. Open rationale owner also passes.
+  const openRationale = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2076: issueData(2076, 'open'),
+  });
+  assert.deepStrictEqual(openRationale.failedMessages, []);
+
+  // 3. Closed active owner fails (including mixed defect + accepted_exception #2096).
+  const closedActive = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2096: issueData(2096, 'closed'),
+  });
+  assert.strictEqual(closedActive.failedMessages.length, 1);
+  assert.ok(closedActive.failedMessages[0].includes('#2096 (active): closed'));
+  assert.ok(closedActive.summaryParts.raw[0].startsWith('FAILED owner audit'));
+
+  // 4. Missing rationale owner (404) fails.
+  const missingRationaleResponses = { ...greenResponses };
+  delete missingRationaleResponses[2076];
+  const missingRationale = await execScenario(syntheticReport, missingRationaleResponses);
+  assert.strictEqual(missingRationale.failedMessages.length, 1);
+  assert.ok(missingRationale.failedMessages[0].includes('#2076 (rationale): unverified (HTTP 404)'));
+
+  // 5. Rationale owner that is a pull request fails even when closed.
+  const prRationale = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2076: issueData(2076, 'closed', { pull_request: { url: 'https://api.github.com/repos/UMEP-dev/SUEWS/pulls/2076' } }),
+  });
+  assert.strictEqual(prRationale.failedMessages.length, 1);
+  assert.ok(prRationale.failedMessages[0].includes('#2076 (rationale): is a pull request'));
+
+  // 6. Active owner that is a pull request fails even when open.
+  const prActive = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2095: issueData(2095, 'open', { pull_request: {} }),
+  });
+  assert.strictEqual(prActive.failedMessages.length, 1);
+  assert.ok(prActive.failedMessages[0].includes('#2095 (active): is a pull request'));
+
+  // 7. Redirected issue number fails for rationale owner.
+  const redirected = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2076: issueData(9999, 'closed'),
+  });
+  assert.strictEqual(redirected.failedMessages.length, 1);
+  assert.ok(redirected.failedMessages[0].includes('#2076 (rationale): redirected to #9999 (closed)'));
+
+  // 8. Transferred issue outside this repository fails even if number matches.
+  const transferred = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2076: issueData(2076, 'closed', { repository_url: 'https://api.github.com/repos/other/repo' }),
+  });
+  assert.strictEqual(transferred.failedMessages.length, 1);
+  assert.ok(transferred.failedMessages[0].includes('#2076 (rationale): transferred outside repository'));
+
+  // 9. Unexpected API state fails for rationale owner.
+  const badState = await execScenario(syntheticReport, {
+    ...greenResponses,
+    2076: issueData(2076, 'draft'),
+  });
+  assert.strictEqual(badState.failedMessages.length, 1);
+  assert.ok(badState.failedMessages[0].includes('#2076 (rationale): unexpected state (draft)'));
+
+  // 10. Zero-debt inventory passes with zero API calls.
+  const zeroDebt = await execScenario(
+    {
+      summary: { errors: 0, defect: 0, coverage_gap: 0, accepted_exception: 0 },
+      issues: [],
+      active_issues: [],
+      rationale_issues: [],
+    },
+    {}
+  );
+  assert.deepStrictEqual(zeroDebt.failedMessages, []);
+  assert.deepStrictEqual(zeroDebt.fetched, []);
+
+  // 11. Malformed or inconsistent JSON payloads throw before issuing API calls.
+  const invalidPayloads = [
+    { ...syntheticReport, active_issues: undefined },
+    { ...syntheticReport, rationale_issues: undefined },
+    {
+      summary: { errors: 0, defect: 1, coverage_gap: 0, accepted_exception: 1 },
+      issues: [2096],
+      active_issues: [2096],
+      rationale_issues: [2096],
+    },
+    {
+      summary: { errors: 0, defect: 1, coverage_gap: 0, accepted_exception: 1 },
+      issues: [2076, 2096],
+      active_issues: [2096],
+      rationale_issues: [],
+    },
+    {
+      summary: { errors: 0, defect: 2, coverage_gap: 0, accepted_exception: 0 },
+      issues: [2096],
+      active_issues: [2096, 2096],
+      rationale_issues: [],
+    },
+    {
+      summary: { errors: 0, defect: 1, coverage_gap: 0, accepted_exception: 0 },
+      issues: [2096],
+      active_issues: [],
+      rationale_issues: [2096],
+    },
+    {
+      summary: { errors: 0, defect: 0, coverage_gap: 0, accepted_exception: 1 },
+      issues: [2096],
+      active_issues: [2096],
+      rationale_issues: [],
+    },
+    {
+      summary: { errors: 0, defect: 0, coverage_gap: 0, accepted_exception: 1 },
+      issues: [],
+      active_issues: [],
+      rationale_issues: [],
+    },
+    {
+      summary: { errors: 0, defect: 1, coverage_gap: 0, accepted_exception: 0 },
+      issues: [1, 2],
+      active_issues: [1, 2],
+      rationale_issues: [],
+    },
+    {
+      summary: { errors: 0, defect: 0, coverage_gap: 0, accepted_exception: 1 },
+      issues: [1, 2],
+      active_issues: [],
+      rationale_issues: [1, 2],
+    },
+    {
+      summary: { errors: 1, defect: 1, coverage_gap: 0, accepted_exception: 0 },
+      issues: [2096],
+      active_issues: [2096],
+      rationale_issues: [],
+    },
+  ];
+  for (const [idx, payload] of invalidPayloads.entries()) {
+    let threw = false;
+    try {
+      await execScenario(payload, greenResponses);
+    } catch (_err) {
+      threw = true;
+    }
+    assert.strictEqual(threw, true, `Expected invalid payload #${idx} to throw`);
+  }
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
+"""
+    script_file = tmp_path / "workflow_script.js"
+    harness_file = tmp_path / "harness.js"
+    script_file.write_text(workflow_script, encoding="utf-8")
+    harness_file.write_text(harness, encoding="utf-8")
+    result = subprocess.run(
+        [node, str(harness_file), str(script_file), str(inventory_json)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

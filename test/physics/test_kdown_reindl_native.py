@@ -1,10 +1,8 @@
 """Numerical edge cases for the Fortran splitter in a source build."""
 
-import gzip
-from pathlib import Path
-import shutil
 import subprocess
 
+from conftest import require_fortran_probe_toolchain
 import numpy as np
 import pytest
 
@@ -13,19 +11,11 @@ pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESPONSE")]
 
 @pytest.fixture(scope="module")
 def split_shortwave(tmp_path_factory):
-    compiler = shutil.which("gfortran")
-    suews = Path(__file__).resolve().parents[2] / "src" / "suews"
-    if compiler is None or not (suews / "lib" / "libsuewsphys.a").exists():
-        pytest.skip("Scalar Fortran checks require gfortran and source-build libraries; driver tests cover installed wheels")
-    module = suews / "mod" / "module_phys_spartacus.mod"
-    if module.exists():
-        try:
-            with gzip.open(module, "rb") as stream:
-                is_gnu = stream.readline().startswith(b"GFORTRAN")
-        except gzip.BadGzipFile:
-            is_gnu = False
-        if not is_gnu:
-            pytest.skip("Scalar harness uses gfortran and cannot read modules from a non-GNU source build")
+    compiler, suews = require_fortran_probe_toolchain(
+        "Scalar Fortran shortwave splitter probe",
+        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        modules=("module_phys_spartacus.mod",),
+    )
     directory = tmp_path_factory.mktemp("reindl")
     source = directory / "split.f95"
     source.write_text(

@@ -98,6 +98,19 @@ When fixing CI issues that affect existing PRs:
 3. Rebase the original problematic PR to trigger fresh CI
 4. The rebased PR will use the corrected workflow
 
+### Break-Glass Recovery for Faulty Base-Read Scripts
+
+Several jobs in `.github/workflows/build-publish_to_pypi.yml` sparse-checkout `.github/scripts` at `github.event.pull_request.base.sha` (some with a `|| github.sha` fallback). [fact: git grep -n -A 5 'ref: \${{ github\.event\.pull_request\.base\.sha' .github/workflows/build-publish_to_pypi.yml]
+If a faulty base-read script under `.github/scripts/**` on a required validation path (such as `determine_matrix` or `pr-gate`) lands on `master`, subsequent pull requests -- including a plain revert or fix PR for that script -- still execute the broken copy from `pull_request.base.sha`, deadlocking `PR build validation`.
+
+When that deadlock occurs, a maintainer-approved break-glass recovery is permitted under the following rules: [decision: software maintainer, 2026-11-26]
+
+1. **Trigger and scope:** Use this procedure only when `pull_request.base.sha` holds a faulty base-read script under `.github/scripts/**` that prevents a normal revert or fix PR from passing required CI checks. Do not use it to bypass a failing check on a feature, physics, or general code PR (`.claude/rules/autonomous-workflow.md`, "Gates"). [decision: software maintainer, 2026-11-26]
+2. **Emergency PR (pin to a known-good `master` SHA):** Open a dedicated emergency PR that temporarily pins the affected `.github/scripts` checkout `ref:` in `.github/workflows/build-publish_to_pypi.yml` from `pull_request.base.sha` (with any `|| github.sha` fallback) to an immutable, full 40-character commit SHA already on `master` that predates the fault (never a branch name, tag, or unmerged commit), together with the revert or minimal fix to the faulty script under `.github/scripts/**` (or the pin alone, immediately followed by the script revert or fix PR). If pinning `pr-gate`'s checkout `ref:` trips a workflow-contract test asserting that exact expression (currently `test/core/test_dependency_floors.py`), the emergency PR may include the minimal temporary assertion update for that exact pinned SHA so the emergency PR can pass CI. State the faulty `master` commit, the known-good `master` SHA, and why a normal revert is deadlocked in the PR description, and bundle no unrelated code, test, or `.claude/**` changes. [decision: software maintainer, 2026-11-26]
+3. **Human approval gate:** Explicit software maintainer approval (`MAINTAINERS.md`) is required before merge. An agent may draft the emergency PR when escalated, but never merges or enqueues it (`.claude/rules/autonomous-workflow.md`, "Gating model"). [decision: software maintainer, 2026-11-26]
+4. **Immediate restore PR:** Once `master` holds the repaired script, follow immediately with a tiny restore PR that reverts the temporary `ref:` pin in `.github/workflows/build-publish_to_pypi.yml` back to its original `pull_request.base.sha` expression (`${{ github.event.pull_request.base.sha || github.sha }}` or `${{ github.event.pull_request.base.sha }}`) and restores verbatim any workflow-contract test assertion adjusted in step 2 (and nothing else). Because the restore PR runs against the updated `pull_request.base.sha`, its green `PR build validation` check confirms the repaired base-read script works before normal PR flow resumes. [decision: software maintainer, 2026-11-26]
+5. **No unrelated merges while pinned:** Do not merge unrelated PRs while the `ref:` pin is active on `master`, so no unrelated change skips the current `master` gate scripts. [decision: software maintainer, 2026-11-26]
+
 ---
 
 ## Best Practices
@@ -436,6 +449,49 @@ oldest supported Python; nightly and release CI retain cross-version coverage.
 - If a nightly fails, the issue is visible in the Actions tab and can be addressed before the next release.
 
 **When to reconsider:** If a platform-specific bug reaches master via the merge queue and causes user impact before the nightly catches it, consider either adding macOS Intel to `PR_PLATFORMS` (increases merge queue from 6 to 8 jobs) or running the full matrix on merge queue for `fortran`- or `rust`-touching changes only. [decision: software maintainer, 2026-11-17]
+
+---
+
+## Multi-Axis CI Topology (transitional, #2349)
+
+The current gate's nature markers are `physics | api`, and its `api` lane is
+switched per platform by `run_api_tests`. [fact: git grep -n "run_api_tests:" .github/workflows/build-publish_to_pypi.yml && git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+
+The topology below is the target. Its axis selection takes effect once
+`pyproject.toml` registers `tooling`, `unit` and `native` (#2349 `W1-4`), and
+its lanes once `build-publish_to_pypi.yml` enables `GATE_AXIS_SCHEMA=2` (#2349
+`W1-6`); until then, the existing `physics | api` policy in "Test Tier
+Definitions", "Test Tier Assignment by Event" and "Merge Queue Coverage
+Policy" remains active, and this section does not describe what CI runs. From
+`W1-6` it also supersedes the
+physics worked example in "Where a new expensive check goes" below (slow
+physics tests gating a pull request only through a classification label); the
+general guidance in that section is unchanged. The superseded parts of the
+sections above are pruned in their own pull request after `W1-6` lands, so
+each lane is stated in one place. [decision: software maintainer, 2026-11-26]
+
+- **One required check.** Every axis reports through the existing required
+  check `PR build validation`; no required check is added or renamed. [decision: software maintainer, 2026-11-26]
+  The job that carries that check exists today. [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
+- **From source at t=0.** `tooling` and `unit` start with the workflow, from a
+  source checkout, without waiting for a wheel. [decision: software maintainer, 2026-11-26]
+- **`native` on one Python per OS.** `native` runs once per built OS on cp312
+  (the abi3 build floor), not across Python versions, because the same abi3
+  binary is under test. An installed-wheel `abi3_smoke` lane covers the other
+  interpreters: cp315 on pull requests, cp313 to cp315 on the nightly and on
+  release. [decision: software maintainer, 2026-11-26]
+- **`os_compat` on Windows and macOS.** The `os_compat` slice runs on the
+  Windows and macOS builds as well as Linux; the rest of `tooling` and `unit`
+  runs on Linux only. [decision: software maintainer, 2026-11-26]
+- **Full `physics` selected automatically on exactly four triggers:** (1) pull
+  requests that touch Fortran, Rust or the build (the `fortran`, `rust` and
+  `build` filter categories); (2) pull requests labelled `0-physics:change` or
+  `0-numerics:change`; (3) the merge queue; (4) the nightly. Every other
+  wheel-building Python pull request runs `physics-core`: the smoke tests plus
+  `test/core/test_sample_output_exact.py` (about 50 s). Outside that automatic
+  selection, tag releases keep the full matrix at tier `all`, a manual
+  dispatch keeps its `test_tier` input, and the publish jobs require every axis
+  to have succeeded. [decision: software maintainer, 2026-11-26]
 
 ---
 

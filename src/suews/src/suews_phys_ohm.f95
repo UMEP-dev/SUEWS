@@ -1,14 +1,10 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_ohm
-   ! USE module_ctrl_const_allocate
-   ! USE module_ctrl_const_datain
-   ! USE module_ctrl_const_default
-   ! USE module_ctrl_const_gis
-   ! USE module_ctrl_const_sues
-   ! USE module_ctrl_const_time
+   USE module_ctrl_const_options, ONLY: &
+      DIAG_ON, SHM_DYOHM, SHM_DYOHM_BUILDING, SHM_STEBBS
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
-   USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
+   USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_CLOCK
    USE module_ctrl_const_physconst, ONLY: sec_per_hour
    IMPLICIT NONE
 
@@ -32,7 +28,7 @@ CONTAINS
                   ws_rav, qn_rav, &
                   dz_surf, cp_surf, k_surf, &
                   lambda_c, &
-                  StorageHeatMethod, DiagQS, timer, &
+                  StorageHeatMethod, DiagQS, clock, &
                   a1_bldg, a2_bldg, a3_bldg, &
                   a1_paved, a2_paved, a3_paved, &
                   a1_evetr, a2_evetr, a3_evetr, &
@@ -67,20 +63,14 @@ CONTAINS
       !========================================================================================
 
       USE module_ctrl_const_allocate, ONLY: ndepth
-      USE module_util_datetime, ONLY: datetime, timedelta
-      USE module_ctrl_type, ONLY: SUEWS_TIMER
+      USE module_ctrl_type, ONLY: SUEWS_CLOCK
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(in) :: clock
       INTEGER, INTENT(in) :: StorageHeatMethod !
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
 
-      !INTEGER :: iy, id, it, imin, isec
-      !new_day
-      TYPE(datetime) :: time_now, time_prev, time_next
-      LOGICAL :: first_tstep_Q, last_tstep_Q
-      !INTEGER :: tstep_prev
 
       REAL(KIND(1D0)), INTENT(in) :: qn1 ! net all-wave radiation
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: qn1_surf ! net all-wave radiation for each surface
@@ -165,104 +155,93 @@ CONTAINS
       !real(kind(1d0)):: OHM_TForSummer = 10  !Use summer coefficients if 5-day Tair >= 10 degC - modified for UK HCW 14 Dec 2015
       !real(kind(1d0)):: OHM_SMForWet = 0.9  !Use wet coefficients if SM close to soil capacity
 
-      dyohm_all_surfaces = StorageHeatMethod == 6
-      dyohm_with_stebbs = StorageHeatMethod == 7
-      dyohm_building_only = StorageHeatMethod == 8
+      dyohm_all_surfaces = StorageHeatMethod == SHM_DYOHM
+      dyohm_with_stebbs = StorageHeatMethod == SHM_STEBBS
+      dyohm_building_only = StorageHeatMethod == SHM_DYOHM_BUILDING
       dyohm_active = dyohm_all_surfaces .OR. dyohm_with_stebbs .OR. dyohm_building_only
+
+      ! Preserve previous radiation histories on branches that do not update all six
+      ! INTENT(OUT) slots (surface arrays in grid OHM, grid scalars in full DyOHM,
+      ! or snow history when SnowUse == 0).
+      qn_av_next = qn_av_prev
+      dqndt_next = dqndt_prev
+      qn_surf_next = qn_surf_prev
+      dqndt_surf_next = dqndt_surf_prev
+      qn_s_av_next = qn_s_av_prev
+      dqnsdt_next = dqnsdt_prev
 
       IF (dyohm_active) THEN
          ! MP 14/04/2025
          ! YL 16/10/2025 test using DyOHM for all surface types
-         ! get timestamps
-         ASSOCIATE ( &
-            iy => timer%iy, &
-            id => timer%id, &
-            it => timer%it, &
-            imin => timer%imin, &
-            isec => timer%isec, &
-            tstep_prev => timer%tstep_prev, &
-            new_day => timer%new_day, &
-            dt_since_start_prev => timer%dt_since_start_prev &
-            )
-            time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
-            ! WRF-SUEWS COUPLING: tstep_prev allows for adaptive timesteps in WRF
-            ! In standalone SUEWS, tstep_prev always equals tstep
-            time_prev = time_now - timedelta(seconds=tstep_prev)
-            time_next = time_now + timedelta(seconds=tstep)
+         ! Running means update on every call. Each inner surface-temperature
+         ! pass restarts from the timestep-start OHM_STATE (iter_safe = .FALSE.),
+         ! so no guard against repeated updates is needed (gh#2333).
+         IF (dt_since_start < sec_per_day) THEN
+            ws_rav = ws_rav + (ws - ws_rav)/(dt_since_start/tstep)
+            DO i_surf = 1, nsurf
+               qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
+            END DO
+         ELSE
+            ws_rav = ws_rav + (ws - ws_rav)/(INT(sec_per_day)/tstep)
+            DO i_surf = 1, nsurf
+               qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(INT(sec_per_day)/tstep)
+            END DO
+         END IF
 
-            ! test if time at now is the first/last tstep of today
-            first_tstep_Q = time_now%getDay() /= time_prev%getDay()
-            last_tstep_Q = time_now%getDay() /= time_next%getDay()
-
-            IF (dt_since_start /= dt_since_start_prev) THEN
-               IF (dt_since_start < sec_per_day) THEN
-                  ws_rav = ws_rav + (ws - ws_rav)/(dt_since_start/tstep)
-                  DO i_surf = 1, nsurf
-                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
-                  END DO
-               ELSE
-                  ws_rav = ws_rav + (ws - ws_rav)/(INT(sec_per_day)/tstep)
-                  DO i_surf = 1, nsurf
-                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(INT(sec_per_day)/tstep)
-                  END DO
-               END IF
+         ! Daily coefficient update at the first step of each new calendar day
+         ! (00:00 on midnight-aligned grids). The first step of a run has no
+         ! completed previous day to average over, so it is skipped; a run
+         ! resumed from a checkpoint carries dt_since_start on and is therefore
+         ! not a first step (gh#2333).
+         IF (clock%first_step_of_calendar_day .AND. .NOT. clock%first_step_of_run) THEN
+            IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN
+               ! The building DyOHM coefficients use the building surface,
+               ! not a SPARTACUS wall layer.
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws_rav, T_half_bldg_C, T_prev, qn_rav(BldgSurf), & ! Input
+                               dz_surf(BldgSurf, 1), cp_surf(BldgSurf, 1), &
+                               k_surf(BldgSurf, 1), lambda_c, &
+                               a1_bldg, a2_bldg, a3_bldg & ! Output
+                               )
             END IF
-
-            IF (first_tstep_Q .AND. new_day == 1) THEN
-               IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN
-                  ! The building DyOHM coefficients use the building surface,
-                  ! not a SPARTACUS wall layer.
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws_rav, T_half_bldg_C, T_prev, qn_rav(BldgSurf), & ! Input
-                                  dz_surf(BldgSurf, 1), cp_surf(BldgSurf, 1), &
-                                  k_surf(BldgSurf, 1), lambda_c, &
-                                  a1_bldg, a2_bldg, a3_bldg & ! Output
-                                  )
-               END IF
-               IF (.NOT. dyohm_building_only) THEN
-                  ! Fully coupled DyOHM modes update dynamic coefficients for
-                  ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
-                  ! For non-building surfaces, assume WS=0 at ground level and lambda_c=1.
-                  ws0 = 0.0D0
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
-                                  dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
-                                  a1_paved, a2_paved, a3_paved & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
-                                  dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
-                                  a1_evetr, a2_evetr, a3_evetr & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
-                                  dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
-                                  a1_dectr, a2_dectr, a3_dectr & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
-                                  dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
-                                  a1_grass, a2_grass, a3_grass & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
-                                  dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
-                                  a1_bsoil, a2_bsoil, a3_bsoil & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
-                                  dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
-                                  a1_water, a2_water, a3_water & ! Output
-                                  )
-               END IF
-               new_day = 0
-               T_prev = T_half_bldg_C
-            ELSE IF (last_tstep_Q) THEN
-               new_day = 1
+            IF (.NOT. dyohm_building_only) THEN
+               ! Fully coupled DyOHM modes update dynamic coefficients for
+               ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
+               ! For non-building surfaces, assume WS=0 at ground level and lambda_c=1.
+               ws0 = 0.0D0
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
+                               dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
+                               a1_paved, a2_paved, a3_paved & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
+                               dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
+                               a1_evetr, a2_evetr, a3_evetr & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
+                               dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
+                               a1_dectr, a2_dectr, a3_dectr & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
+                               dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
+                               a1_grass, a2_grass, a3_grass & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
+                               dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
+                               a1_bsoil, a2_bsoil, a3_bsoil & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
+                               dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
+                               a1_water, a2_water, a3_water & ! Output
+                               )
             END IF
-
-            dt_since_start_prev = dt_since_start
-         END ASSOCIATE
+            T_prev = T_half_bldg_C
+         END IF
 
          IF (dyohm_all_surfaces .OR. dyohm_with_stebbs) THEN
             IF (dyohm_all_surfaces) THEN ! buildings use DyOHM coefficients
@@ -437,10 +416,8 @@ CONTAINS
             IF (dyohm_building_only) THEN
                ! Hybrid method: start from ordinary grid OHM, then replace
                ! only the building contribution with DyOHM storage heat.
-               qn_surf_next = qn_surf_prev
-               dqndt_surf_next = dqndt_surf_prev
-               CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                                 qn_av_next, dqndt_next)
+               CALL OHM_dqndt_cal(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                                  qn_av_next, dqndt_next)
                CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)
                qs = qs_ohm_grid
                ! Per-surface static-OHM fluxes from each surface's own
@@ -465,10 +442,10 @@ CONTAINS
                   END IF
                END DO
                IF (sfr_surf(BldgSurf) > 0.0D0) THEN
-                  CALL OHM_dqndt_cal_X(tstep, dt_since_start, &
-                                       qn_surf_prev(BldgSurf), qn1_surf(BldgSurf), &
-                                       dqndt_surf_prev(BldgSurf), &
-                                       qn_surf_next(BldgSurf), dqndt_surf_next(BldgSurf))
+                  CALL OHM_dqndt_cal(tstep, dt_since_start, &
+                                     qn_surf_prev(BldgSurf), qn1_surf(BldgSurf), &
+                                     dqndt_surf_prev(BldgSurf), &
+                                     qn_surf_next(BldgSurf), dqndt_surf_next(BldgSurf))
                   qs_bldg_static = qs_surf(BldgSurf)
                   CALL OHM_QS_cal(qn1_surf(BldgSurf), dqndt_surf_next(BldgSurf), &
                                   a1_bldg, a2_bldg, a3_bldg, qs_bldg_dyohm)
@@ -478,8 +455,8 @@ CONTAINS
             ELSE
                ! Calculate dqndt_next for each surface in full DyOHM modes.
                DO i_surf = 1, nsurf
-                  CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
-                                    qn_surf_next(i_surf), dqndt_surf_next(i_surf))
+                  CALL OHM_dqndt_cal(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
+                                     qn_surf_next(i_surf), dqndt_surf_next(i_surf))
                END DO
                CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
                IF (dyohm_all_surfaces) THEN
@@ -512,11 +489,11 @@ CONTAINS
 
          ELSE
             ! traditional OHM
-            CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                              qn_av_next, dqndt_next)
+            CALL OHM_dqndt_cal(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                               qn_av_next, dqndt_next)
             ! print*, 'new dqndt',dqndt
             CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
-            IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
+            IF (DiagQS == DIAG_ON) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
          END IF
 
       ELSE
@@ -551,8 +528,8 @@ CONTAINS
             ! Store instantaneous qn1 values for previous hour (qn1_store_grid) and average (qn1_av)
             ! CALL OHM_dqndt_cal(nsh,qn1_S,qn1_S_store_grid,qn1_S_av_store_grid,dqndt)
 
-            CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_s_av_prev, qn1_S, dqnsdt_prev, &
-                                 qn_s_av_next, dqnsdt_next)
+            CALL OHM_dqndt_cal(tstep, dt_since_start, qn_s_av_prev, qn1_S, dqnsdt_prev, &
+                               qn_s_av_next, dqnsdt_next)
 
             ! Calculate net storage heat flux for snow surface using winter_wet
             ! coefficients OHM_coef(nsurf + 1, 3, 1:3) = (a1, a2, a3).
@@ -689,7 +666,7 @@ CONTAINS
    END SUBROUTINE OHM_coef_cal
 
 ! Updated OHM calculations for WRF-SUEWS coupling (v2018b onwards) weighted mean (TS Apr 2018)
-   SUBROUTINE OHM_dqndt_cal_X(dt, dt_since_start, qn1_av_prev, qn1, dqndt_prev, qn1_av_next, dqndt_next)
+   SUBROUTINE OHM_dqndt_cal(dt, dt_since_start, qn1_av_prev, qn1, dqndt_prev, qn1_av_next, dqndt_next)
       IMPLICIT NONE
       INTEGER, INTENT(in) :: dt ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
@@ -698,68 +675,28 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! dQ* per dt for 60 min [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(out) :: qn1_av_next ! weighted average of qn1 [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! dQ* per dt for 60 min [W m-2 h-1]
-      REAL(KIND(1D0)), PARAMETER :: window_hr = 2 ! window size for Difference calculation [hr]
+      ! First-moment (mean-age) matched time constants for the 2016 1 h boxcar + 2 h diff
+      ! formulation: boxcar centroid T1/2 = 0.5 h and backward-diff centroid T2/2 = 1.0 h.
+      REAL(KIND(1D0)), PARAMETER :: tau1_hr = 0.5D0 ! stage-1 Q* low-pass timescale [h]
+      REAL(KIND(1D0)), PARAMETER :: tau2_hr = 1.0D0 ! stage-2 dQ*/dt low-pass timescale [h]
+      REAL(KIND(1D0)), PARAMETER :: sec_hr = REAL(sec_per_hour, KIND(1D0))
+      REAL(KIND(1D0)), PARAMETER :: tau1_max_s = tau1_hr*sec_hr ! 0.5 h low-pass timescale [s]
+      REAL(KIND(1D0)), PARAMETER :: tau2_s = tau2_hr*sec_hr ! 1.0 h tendency timescale [s]
+      REAL(KIND(1D0)) :: dt_s, dt_hr, tau1_s, w1, w2
 
-      INTEGER :: dt0 ! period of dqndt0 [s]
-
-      REAL(KIND(1D0)) :: qn1_av_0 !, qn1_av_start,qn1_av_end
-
-      ! if previous period shorter than sec_per_hour, expand the storage/memory period
-      IF (dt_since_start < sec_per_hour) THEN ! spinup period
-         dt0 = dt_since_start + dt
-
-      ELSE ! effective period
-         dt0 = sec_per_hour
-      END IF
-
-      ! get weighted average at a previous time specified by `window_hr`
-      qn1_av_0 = qn1_av_prev - dqndt_prev*(window_hr - dt/sec_per_hour)
-
-      ! averaged qn1 for previous period = sec_per_hour
-      qn1_av_next = (qn1_av_prev*(dt0 - dt) + qn1*dt)/(dt0)
-
-      ! do weighted average to calculate the difference by using the memory value and new forcing value
-      ! NB: keep the output dqndt in [W m-2 h-1]
-      dqndt_next = (qn1_av_next - qn1_av_0)/window_hr
-
-   END SUBROUTINE OHM_dqndt_cal_X
-
-! New OHM calculations (v2017a-v2018a) using running mean (HCW Dec 2016)
-   SUBROUTINE OHM_dqndt_cal(nsh, qn, qn_store_grid, qn_av_store_grid, dqndt)
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: nsh ! number of timesteps in one hour
-      REAL(KIND(1D0)), INTENT(in) :: qn
-      REAL(KIND(1D0)), INTENT(inout) :: qn_store_grid(nsh) ! instantaneous qn1 values for previous hour
-      REAL(KIND(1D0)), INTENT(inout) :: qn_av_store_grid(2*nsh + 1) ! average qn1 values for previous hour
-      REAL(KIND(1D0)), INTENT(out) :: dqndt !dQ* per dt for 60 min
-
-      REAL(KIND(1D0)) :: qn_av
-      INTEGER :: nsh_nna
-
-      dqndt = -999 ! initialise as -999
-
-      ! Store instantaneous qn1 values for previous hour (qn1_store_grid) and average (qn1_av)
-      IF (nsh > 1) THEN
-         qn_store_grid = CSHIFT(qn_store_grid, 1) ! shift to left with one place
-         qn_store_grid(nsh) = qn
-         nsh_nna = COUNT(qn_store_grid /= -999, dim=1) !Find how many are not -999s  !bug fixed HCW 08 Feb 2017
-         qn_av = SUM(qn_store_grid, mask=qn_store_grid /= -999)/nsh_nna
-      ELSEIF (nsh == 1) THEN
-         qn_store_grid(:) = qn
-         qn_av = qn
-      END IF
-      ! Store hourly average values (calculated every timestep) for previous 2 hours
-      IF (nsh > 1) THEN
-         qn_av_store_grid = CSHIFT(qn_av_store_grid, 1)
-         qn_av_store_grid(2*nsh + 1) = qn_av
-      ELSEIF (nsh == 1) THEN
-         qn_av_store_grid(:) = qn_av
-      END IF
-      ! Calculate dQ* per dt for 60 min (using running mean Q* at t hours and (t-2) hours)
-      IF (ANY(qn_av_store_grid == -999)) THEN
-         dqndt = 0 ! Set dqndt term to zero for spinup
+      dt_s = REAL(dt, KIND(1D0))
+      dt_hr = dt_s/sec_hr
+      IF (dt_since_start <= dt) THEN
+         ! Cold start (step 1): initialise filter from current Q* with zero derivative
+         qn1_av_next = qn1
+         dqndt_next = 0.0D0
       ELSE
-         dqndt = 0.5*(qn_av_store_grid((2*nsh + 1)) - qn_av_store_grid(1))
+         ! Exact zero-order-hold exponential weights preserve 0.5 h + 1.0 h filtering across dt
+         tau1_s = MIN(tau1_max_s, REAL(dt_since_start, KIND(1D0)))
+         w1 = EXP(-dt_s/tau1_s)
+         qn1_av_next = w1*qn1_av_prev + (1.0D0 - w1)*qn1
+         w2 = EXP(-dt_s/tau2_s)
+         dqndt_next = w2*dqndt_prev + (1.0D0 - w2)*((qn1_av_next - qn1_av_prev)/dt_hr)
       END IF
 
    END SUBROUTINE OHM_dqndt_cal
@@ -985,9 +922,3 @@ CONTAINS
    END SUBROUTINE calculate_a3
 
 END MODULE module_phys_ohm
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE OHM_module
-   USE module_phys_ohm
-END MODULE OHM_module

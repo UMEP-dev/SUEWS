@@ -15,8 +15,8 @@ MODULE module_c_api_config
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_LEN = 24_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_SCHEMA_VERSION = 4_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_LEN = 29_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_SCHEMA_VERSION = 5_c_int
 
    TYPE :: suews_config_shadow
       INTEGER :: rsl_method = 0
@@ -43,6 +43,11 @@ MODULE module_c_api_config
       LOGICAL :: flag_test = .FALSE.
       INTEGER :: kdown_split_method = 3
       INTEGER :: forcing_timestamp_reference = 0
+      INTEGER :: ehc_surface_coupling = 1
+      LOGICAL :: control_ehc_initial_profile = .TRUE.
+      REAL(c_double) :: resistance_ehc_indoor_roof = 0.10_c_double
+      REAL(c_double) :: resistance_ehc_indoor_wall = 0.13_c_double
+      INTEGER :: control_ehc_stability = 0
    END TYPE suews_config_shadow
 
    PUBLIC :: suews_config_len
@@ -127,6 +132,11 @@ CONTAINS
       flat(22) = MERGE(1.0_c_double, 0.0_c_double, state%flag_test)
       flat(23) = REAL(state%kdown_split_method, c_double)
       flat(24) = REAL(state%forcing_timestamp_reference, c_double)
+      flat(25) = REAL(state%ehc_surface_coupling, c_double)
+      flat(26) = MERGE(1.0_c_double, 0.0_c_double, state%control_ehc_initial_profile)
+      flat(27) = state%resistance_ehc_indoor_roof
+      flat(28) = state%resistance_ehc_indoor_wall
+      flat(29) = REAL(state%control_ehc_stability, c_double)
 
       err = SUEWS_CAPI_OK
 

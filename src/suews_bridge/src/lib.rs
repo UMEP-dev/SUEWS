@@ -11,12 +11,12 @@
 //!   `config`, `timer`.
 //! - **Codecs, composite containers and restart**: `codec`, `suews_site`
 //!   (18 site parameter members), `suews_state` (13 state members),
-//!   `suews_state_block`, `suews_debug`, `checkpoint`.
+//!   `suews_debug`, `checkpoint`.
 //! - **Per-type parameter and state codecs**: 40 modules pairing 1:1 with
 //!   `c_api/<type>.f95` (including `core`, which also wraps the legacy scalar
 //!   OHM helpers -- a recorded BR-01 deviation).
 //! - **Forcing and outputs**: `forcing`, `forcing_io` (`physics`),
-//!   `forcing_time`, `run_period`, `output_line`, `output_block`, `output_io`
+//!   `forcing_time`, `run_period`, `output_line`, `output_io`
 //!   (`physics` + `arrow-output`).
 //! - **PyO3 extension (`python_bindings`, gated on `python`)**: exposes
 //!   `#[pyclass]` wrappers, simulation entry points (`run_suews*` and
@@ -107,7 +107,7 @@ mod lumps;
 mod nhood;
 mod ohm_coef_lc;
 mod ohm_prm;
-mod output_block;
+pub mod option_codes;
 #[cfg(all(feature = "physics", feature = "arrow-output"))]
 mod output_io;
 mod output_line;
@@ -127,7 +127,6 @@ mod stebbs_state;
 mod suews_debug;
 mod suews_site;
 mod suews_state;
-mod suews_state_block;
 mod surf_store;
 mod timer;
 mod water_dist;
@@ -174,7 +173,6 @@ pub use lumps::*;
 pub use nhood::*;
 pub use ohm_coef_lc::*;
 pub use ohm_prm::*;
-pub use output_block::*;
 #[cfg(all(feature = "physics", feature = "arrow-output"))]
 pub use output_io::*;
 pub use output_line::*;
@@ -206,7 +204,6 @@ pub use stebbs_state::*;
 pub use suews_debug::*;
 pub use suews_site::*;
 pub use suews_state::*;
-pub use suews_state_block::*;
 pub use surf_store::*;
 pub use timer::*;
 pub use water_dist::*;
@@ -215,7 +212,7 @@ pub use yaml_config::*;
 
 /// Minimum OS thread stack size (8 MiB) for Rayon worker threads executing
 /// `-frecursive` Fortran physics routines (`suews_cal_multitsteps_c` ->
-/// `SUEWS_cal_multitsteps_dts` -> `SUEWS_cal_Main` -> `SUEWS_cal_Main_impl`).
+/// `SUEWS_cal_multitsteps` -> `SUEWS_cal_Main` -> `SUEWS_cal_Main_impl`).
 ///
 /// Linux `std::thread` defaults to 2 MiB worker stacks (compared with 8 MiB
 /// on the main thread), which can overflow under recursive Fortran stack
@@ -3910,55 +3907,6 @@ mod python_bindings {
         }
     }
 
-    #[pyclass(name = "OutputBlock")]
-    pub struct PyOutputBlock {
-        state: crate::OutputBlock,
-    }
-
-    #[pymethods]
-    impl PyOutputBlock {
-        #[staticmethod]
-        fn default() -> PyResult<Self> {
-            let state = crate::output_block_default_from_fortran().map_err(map_bridge_error)?;
-            Ok(Self { state })
-        }
-
-        #[staticmethod]
-        fn from_values_payload(
-            schema_version: u32,
-            values: Vec<f64>,
-            dims: HashMap<String, Vec<usize>>,
-        ) -> PyResult<Self> {
-            let payload = crate::OutputBlockValuesPayload {
-                schema_version,
-                values,
-                dims: dims.into_iter().collect(),
-            };
-            let state = crate::output_block_from_values_payload(&payload).map_err(|err| {
-                PyValueError::new_err(format!("invalid output_block values payload: {err}"))
-            })?;
-            Ok(Self { state })
-        }
-
-        fn to_values_payload(&self) -> (u32, Vec<f64>, HashMap<String, Vec<usize>>) {
-            let payload = crate::output_block_to_values_payload(&self.state);
-            (
-                payload.schema_version,
-                payload.values,
-                payload.dims.into_iter().collect(),
-            )
-        }
-
-        #[staticmethod]
-        fn field_names() -> Vec<String> {
-            crate::output_block_field_names()
-        }
-
-        fn to_rows_dict(&self) -> PyResult<BTreeMap<String, Vec<Vec<f64>>>> {
-            crate::output_block_to_rows_map(&self.state).map_err(map_bridge_error)
-        }
-    }
-
     #[pyclass(name = "ErrorEntry")]
     pub struct PyErrorEntry {
         state: crate::ErrorEntry,
@@ -4377,7 +4325,7 @@ mod python_bindings {
         ))
     }
 
-    /// Continue a single-grid simulation from a schema-version-2 checkpoint
+    /// Continue a single-grid simulation from a schema-version-4 checkpoint
     /// JSON envelope, returning `(output_bytes, checkpoint_json, actual_len, warnings)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_with_state")]
@@ -5898,38 +5846,6 @@ mod python_bindings {
         output_line_field_names()
     }
 
-    #[pyfunction(name = "output_block_schema")]
-    fn output_block_schema_py() -> PyResult<usize> {
-        crate::output_block_schema().map_err(map_bridge_error)
-    }
-
-    #[pyfunction(name = "output_block_schema_version")]
-    fn output_block_schema_version_py() -> u32 {
-        crate::output_block_schema_version()
-    }
-
-    #[pyfunction(name = "output_block_schema_version_runtime")]
-    fn output_block_schema_version_runtime_py() -> PyResult<u32> {
-        crate::output_block_schema_version_runtime().map_err(map_bridge_error)
-    }
-
-    #[pyfunction(name = "output_block_schema_meta")]
-    fn output_block_schema_meta_py(
-    ) -> PyResult<(u32, usize, Vec<String>, HashMap<String, Vec<usize>>)> {
-        let meta = crate::output_block_schema_info().map_err(map_bridge_error)?;
-        Ok((
-            meta.schema_version,
-            meta.flat_len,
-            meta.field_names,
-            meta.allocatable_dims.into_iter().collect(),
-        ))
-    }
-
-    #[pyfunction(name = "output_block_fields")]
-    fn output_block_fields_py() -> Vec<String> {
-        crate::output_block_field_names()
-    }
-
     #[pyfunction(name = "error_entry_schema")]
     fn error_entry_schema_py() -> PyResult<(usize, usize, usize)> {
         crate::error_entry_schema().map_err(map_bridge_error)
@@ -6095,7 +6011,6 @@ mod python_bindings {
         m.add_class::<PyBuildingArchetypePrm>()?;
         m.add_class::<PyStebbsPrm>()?;
         m.add_class::<PyOutputLine>()?;
-        m.add_class::<PyOutputBlock>()?;
         m.add_class::<PyErrorEntry>()?;
         m.add_class::<PyErrorState>()?;
         m.add_class::<PyPhenologyState>()?;
@@ -6355,11 +6270,6 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(output_line_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(output_line_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(output_line_fields_py, m)?)?;
-        m.add_function(wrap_pyfunction!(output_block_schema_py, m)?)?;
-        m.add_function(wrap_pyfunction!(output_block_schema_version_py, m)?)?;
-        m.add_function(wrap_pyfunction!(output_block_schema_version_runtime_py, m)?)?;
-        m.add_function(wrap_pyfunction!(output_block_schema_meta_py, m)?)?;
-        m.add_function(wrap_pyfunction!(output_block_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(error_entry_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(error_entry_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(error_entry_schema_version_runtime_py, m)?)?;

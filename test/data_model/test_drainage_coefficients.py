@@ -1,7 +1,16 @@
-"""Consumed drainage coefficients must not acquire implicit zero values."""
+"""Consumed drainage coefficients must not acquire implicit zero values.
+
+Cost shape (gh#2349). The sample YAML and release fixtures are parsed once per
+module with libyaml when available and deep-copied per test. Simulation handoff
+tests share the session-loaded sample config and a two-step forcing slice
+instead of re-parsing the full-year forcing file. The 36-case
+``field x equation x absence`` matrix runs in memory via ``SUEWSConfig(**...)``
+and ``SUEWSConfig.from_dict(...)``, paired with a 6-case covering matrix that
+exercises every field, absence form, and drainage equation through
+``SUEWSSimulation(path)`` on disk.
+"""
 
 from copy import deepcopy
-from importlib.resources import files
 from pathlib import Path
 import re
 
@@ -26,14 +35,80 @@ pytestmark = [
     ),
 ]
 
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+_HANDOFF_STEPS = 2
+_RELEASE_FIXTURES = ("2025.11.20", "2026.4.3", "2026.6.5")
+_FILE_LOAD_CASES = [
+    pytest.param("drain_coef_1", 1, "missing", id="coef1-eq1-missing"),
+    pytest.param("drain_coef_1", 2, "null", id="coef1-eq2-null"),
+    pytest.param("drain_coef_1", 3, "wrapped_null", id="coef1-eq3-wrapped_null"),
+    pytest.param("drain_coef_2", 1, "null", id="coef2-eq1-null"),
+    pytest.param("drain_coef_2", 2, "wrapped_null", id="coef2-eq2-wrapped_null"),
+    pytest.param("drain_coef_2", 3, "missing", id="coef2-eq3-missing"),
+]
+
+
+def _yaml_load(text: str):
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+def _yaml_dump(payload, *, sort_keys: bool = True) -> str:
+    return yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=sort_keys)
+
+
+@pytest.fixture(scope="module")
+def _sample_dict_template(sample_yaml_path):
+    """Parsed sample mapping. READ-ONLY: tests receive a deep copy via ``data``."""
+    return _yaml_load(sample_yaml_path.read_text(encoding="utf-8"))
+
 
 @pytest.fixture
-def data():
-    return yaml.safe_load(
-        files("supy")
-        .joinpath("sample_data/sample_config.yml")
-        .read_text(encoding="utf-8")
+def data(_sample_dict_template):
+    return deepcopy(_sample_dict_template)
+
+
+@pytest.fixture(scope="module")
+def short_forcing(sample_forcing_parsed):
+    """Two forcing timesteps. READ-ONLY: tests take ``.copy()``."""
+    _, forcing = sample_forcing_parsed(_HANDOFF_STEPS)
+    return forcing
+
+
+@pytest.fixture(scope="module")
+def _release_fixture_templates():
+    """Parsed legacy release fixtures. READ-ONLY: callers deep-copy before editing."""
+    fixture_dir = Path(__file__).parents[1] / "fixtures" / "release_configs"
+    return {
+        release: _yaml_load(
+            (fixture_dir / f"{release}.yml").read_text(encoding="utf-8")
+        )
+        for release in _RELEASE_FIXTURES
+    }
+
+
+@pytest.fixture(scope="module")
+def _drainage_state_by_eq(sample_config_loaded):
+    """Sample ``df_state`` per drainage equation. READ-ONLY: callers ``.copy()``."""
+    states = {}
+    for equation in (1, 2, 3):
+        cfg = sample_config_loaded.model_copy(deep=True)
+        cfg.sites[
+            0
+        ].properties.land_cover.paved.storage_drain_params.drain_eq.value = equation
+        states[equation] = cfg.to_df_state()
+    return states
+
+
+def _sim_from_sample(sample_config_loaded, short_forcing=None):
+    """Build a fresh ``SUEWSSimulation`` from the cached sample config and optional forcing."""
+    sim = SUEWSSimulation()
+    sim.update_config(
+        sample_config_loaded.model_copy(deep=True), auto_load_forcing=False
     )
+    if short_forcing is not None:
+        sim.update_forcing(short_forcing.copy())
+    return sim
 
 
 def storage(data, surface="paved", site=0):
@@ -45,10 +120,8 @@ def storage(data, surface="paved", site=0):
 @pytest.mark.parametrize("field", ["drain_coef_1", "drain_coef_2"])
 @pytest.mark.parametrize("equation", [1, 2, 3])
 @pytest.mark.parametrize("absence", ["missing", "null", "wrapped_null"])
-@pytest.mark.parametrize("entry", ["direct", "dict", "file"])
-def test_load_requires_consumed_coefficient(
-    data, tmp_path, field, equation, absence, entry
-):
+@pytest.mark.parametrize("entry", ["direct", "dict"])
+def test_load_requires_consumed_coefficient(data, field, equation, absence, entry):
     params = storage(data)
     params["drain_eq"] = equation
     if absence == "missing":
@@ -59,12 +132,26 @@ def test_load_requires_consumed_coefficient(
     with pytest.raises(ValueError, match=re.escape(path)):
         if entry == "direct":
             SUEWSConfig(**data)
-        elif entry == "dict":
-            SUEWSConfig.from_dict(data)
         else:
-            config_path = tmp_path / "drainage.yml"
-            config_path.write_text(yaml.safe_dump(data), encoding="utf-8")
-            SUEWSSimulation(config_path)
+            SUEWSConfig.from_dict(data)
+
+
+@pytest.mark.parametrize(("field", "equation", "absence"), _FILE_LOAD_CASES)
+def test_file_load_requires_consumed_coefficient(
+    data, tmp_path, field, equation, absence
+):
+    """YAML file loading via ``SUEWSSimulation(path)`` rejects missing or null coefficients."""
+    params = storage(data)
+    params["drain_eq"] = equation
+    if absence == "missing":
+        params.pop(field)
+    else:
+        params[field] = None if absence == "null" else {"value": None}
+    path = f"sites[0].properties.land_cover.paved.storage_drain_params.{field}"
+    config_path = tmp_path / "drainage.yml"
+    config_path.write_text(_yaml_dump(data), encoding="utf-8")
+    with pytest.raises(ValueError, match=re.escape(path)):
+        SUEWSSimulation(config_path)
 
 
 @pytest.mark.parametrize("field", ["drain_coef_1", "drain_coef_2"])
@@ -72,9 +159,14 @@ def test_load_requires_consumed_coefficient(
     "surface", ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"]
 )
 @pytest.mark.parametrize("mutation", ["field", "value"])
-def test_mutable_handoff_checks_current_surface_values(data, field, surface, mutation):
-    config = SUEWSConfig(**data)
-    land = getattr(config.sites[0].properties.land_cover, surface)
+def test_mutable_handoff_checks_current_surface_values(
+    sample_config_loaded, field, surface, mutation
+):
+    config = sample_config_loaded.model_copy(deep=True)
+    lc = config.sites[0].properties.land_cover
+    land = getattr(lc, surface)
+    counterpart = getattr(lc, "bldgs" if surface == "paved" else "paved")
+    counterpart.sfr.value = round(counterpart.sfr.value - (0.1 - land.sfr.value), 6)
     land.sfr.value = 0.1
     land.storage_drain_params.drain_eq.value = 3
     if mutation == "field":
@@ -88,8 +180,10 @@ def test_mutable_handoff_checks_current_surface_values(data, field, surface, mut
 
 
 @pytest.mark.parametrize("field", ["drain_coef_1", "drain_coef_2"])
-def test_mutable_public_run_rejects_omission(field):
-    sim = SUEWSSimulation.from_sample_data()
+def test_mutable_public_run_rejects_omission(
+    sample_config_loaded, short_forcing, field
+):
+    sim = _sim_from_sample(sample_config_loaded, short_forcing)
     setattr(
         sim.config.sites[0].properties.land_cover.paved.storage_drain_params,
         field,
@@ -127,7 +221,7 @@ def test_zero_and_reference_survive_handoff(data, equation, legacy):
         paved = data["sites"][0]["properties"]["land_cover"]["paved"]
         paved["storedrainprm"] = paved.pop("storage_drain_params")
     cfg = SUEWSConfig(**data)
-    emitted = storage(yaml.safe_load(config_to_engine_yaml(cfg)))
+    emitted = storage(_yaml_load(config_to_engine_yaml(cfg)))
     assert emitted["drain_coef_1"]["value"] == 1.25
     assert emitted["drain_coef_1"]["ref"]["desc"] == "Coefficient source"
     # An unannotated FlexibleRefValue may serialise as a bare scalar. Keep the
@@ -149,8 +243,10 @@ def test_ignored_coefficients_may_be_absent(data, surface):
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), "bad", True])
-def test_mutated_supplied_coefficient_must_be_finite_numeric(data, value):
-    cfg = SUEWSConfig(**data)
+def test_mutated_supplied_coefficient_must_be_finite_numeric(
+    sample_config_loaded, value
+):
+    cfg = sample_config_loaded.model_copy(deep=True)
     # Deliberate unchecked mutation tests defence at the execution boundary.
     object.__setattr__(
         cfg.sites[0].properties.land_cover.paved.storage_drain_params,
@@ -184,8 +280,8 @@ def test_migration_preserves_zero_references_and_ignored_absence(data):
 
 
 @pytest.mark.parametrize("field", ["drain_coef_1", "drain_coef_2"])
-def test_partial_update_revalidates_coefficients(field):
-    sim = SUEWSSimulation.from_sample_data()
+def test_partial_update_revalidates_coefficients(sample_config_loaded, field):
+    sim = _sim_from_sample(sample_config_loaded)
     patch = {
         "sites": {
             0: {
@@ -214,7 +310,7 @@ def test_registered_migration_keeps_source_and_checks_coefficients(
         storage(data)["drain_coef_1"] = {"value": 0.0, "ref": {"desc": "Declared zero"}}
     source = tmp_path / "old.yml"
     output = tmp_path / "new.yml"
-    source.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source.write_text(_yaml_dump(data), encoding="utf-8")
     original = source.read_bytes()
     if missing:
         with pytest.raises(YamlUpgradeError, match="drain_coef_1"):
@@ -222,15 +318,17 @@ def test_registered_migration_keeps_source_and_checks_coefficients(
         assert not output.exists()
     else:
         upgrade_yaml(source, output)
-        upgraded = yaml.safe_load(output.read_text(encoding="utf-8"))
+        upgraded = _yaml_load(output.read_text(encoding="utf-8"))
         assert upgraded["schema_version"] == CURRENT_SCHEMA_VERSION
         assert storage(upgraded) == storage(data)
     assert source.read_bytes() == original
 
 
 @pytest.mark.parametrize("equation", [1.5, 2.5, 3.5, 1.0000000001])
-def test_fractional_selector_cannot_bypass_mutable_handoff(data, equation):
-    cfg = SUEWSConfig(**data)
+def test_fractional_selector_cannot_bypass_mutable_handoff(
+    sample_config_loaded, equation
+):
+    cfg = sample_config_loaded.model_copy(deep=True)
     params = cfg.sites[0].properties.land_cover.paved.storage_drain_params
     object.__setattr__(params, "drain_eq", equation)
     params.drain_coef_1 = None
@@ -250,15 +348,17 @@ def test_missing_active_storage_block_is_diagnosed_at_execution(data, tmp_path, 
         cfg = SUEWSConfig.from_dict(data)
     else:
         file = tmp_path / "absent-block.yml"
-        file.write_text(yaml.safe_dump(data), encoding="utf-8")
+        file.write_text(_yaml_dump(data), encoding="utf-8")
         cfg = SUEWSSimulation(file).config
     path = "sites[0].properties.land_cover.paved.storage_drain_params"
     with pytest.raises(ValueError, match=re.escape(path)):
         config_to_engine_yaml(cfg)
 
 
-def test_missing_block_on_mutable_run_reports_full_path():
-    sim = SUEWSSimulation.from_sample_data()
+def test_missing_block_on_mutable_run_reports_full_path(
+    sample_config_loaded, short_forcing
+):
+    sim = _sim_from_sample(sample_config_loaded, short_forcing)
     object.__setattr__(
         sim.config.sites[0].properties.land_cover.paved, "storage_drain_params", None
     )
@@ -282,7 +382,7 @@ def test_unknown_integer_selector_policy_is_unchanged(data, equation):
     params.pop("drain_coef_1")
     params.pop("drain_coef_2")
     cfg = SUEWSConfig(**data)
-    emitted = storage(yaml.safe_load(config_to_engine_yaml(cfg)))
+    emitted = storage(_yaml_load(config_to_engine_yaml(cfg)))
     # This is a transport check, not a claim that a wet run is defined.
     assert emitted["drain_eq"] == equation
 
@@ -303,18 +403,23 @@ def test_before_dev11_migration_applies_drainage_delta(
             "storage_drain_params"
         ]
     source, target = tmp_path / "source.yml", tmp_path / "upgraded.yml"
-    source.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source.write_text(_yaml_dump(data), encoding="utf-8")
     original = source.read_bytes()
     if missing != "coefficient":
         upgrade_yaml(source, target)
-        upgraded = yaml.safe_load(target.read_text(encoding="utf-8"))
+        upgraded = _yaml_load(target.read_text(encoding="utf-8"))
         if missing == "none":
             assert storage(upgraded) == storage(data)
             SUEWSConfig.from_dict(upgraded)
         else:
-            assert "storage_drain_params" not in upgraded["sites"][0]["properties"]["land_cover"]["paved"]
+            assert (
+                "storage_drain_params"
+                not in upgraded["sites"][0]["properties"]["land_cover"]["paved"]
+            )
             cfg = SUEWSConfig.from_dict(upgraded)
-            with pytest.raises(ValueError, match="land_cover.paved.storage_drain_params"):
+            with pytest.raises(
+                ValueError, match="land_cover.paved.storage_drain_params"
+            ):
                 config_to_engine_yaml(cfg)
     else:
         with pytest.raises(
@@ -325,17 +430,14 @@ def test_before_dev11_migration_applies_drainage_delta(
     assert source.read_bytes() == original
 
 
-@pytest.mark.parametrize("release", ["2025.11.20", "2026.4.3", "2026.6.5"])
+@pytest.mark.parametrize("release", _RELEASE_FIXTURES)
 @pytest.mark.parametrize("missing", [False, True])
 def test_released_legacy_migration_preserves_or_refuses_coefficients(
-    tmp_path, release, missing
+    _release_fixture_templates, tmp_path, release, missing
 ):
     from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-    fixture = (
-        Path(__file__).parents[1] / "fixtures" / "release_configs" / f"{release}.yml"
-    )
-    payload = yaml.safe_load(fixture.read_text(encoding="utf-8"))
+    payload = deepcopy(_release_fixture_templates[release])
     paved = payload["sites"][0]["properties"]["land_cover"]["paved"]
     params = paved.get("storage_drain_params", paved.get("storedrainprm"))
     params["drain_coef_1"] = {
@@ -345,7 +447,7 @@ def test_released_legacy_migration_preserves_or_refuses_coefficients(
     if missing:
         params.pop("drain_coef_2")
     source, target = tmp_path / "source.yml", tmp_path / "upgraded.yml"
-    source.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    source.write_text(_yaml_dump(payload), encoding="utf-8")
     original = source.read_bytes()
     if missing:
         with pytest.raises(YamlUpgradeError, match="drain_coef_2"):
@@ -353,7 +455,7 @@ def test_released_legacy_migration_preserves_or_refuses_coefficients(
         assert not target.exists()
     else:
         upgrade_yaml(source, target, from_ver=release)
-        upgraded = yaml.safe_load(target.read_text(encoding="utf-8"))
+        upgraded = _yaml_load(target.read_text(encoding="utf-8"))
         assert storage(upgraded)["drain_coef_1"] == params["drain_coef_1"]
         assert storage(upgraded)["drain_coef_2"] == params["drain_coef_2"]
         SUEWSConfig.from_dict(upgraded)
@@ -367,21 +469,26 @@ def test_historical_targets_do_not_apply_dev15_drainage(data, target):
     from supy.util.converter.yaml_upgrade import _HANDLERS, apply_migration_handler
 
     storage(data).pop("drain_coef_1")
-    upgraded = apply_migration_handler(
-        _HANDLERS[("2026.6.dev10", target)], data
-    )
+    upgraded = apply_migration_handler(_HANDLERS[("2026.6.dev10", target)], data)
     assert "drain_coef_1" not in storage(upgraded)
 
 
 @pytest.mark.parametrize("entry", ["direct", "dict", "yaml", "object"])
-def test_public_sparse_configuration_can_be_updated_but_not_run(data, tmp_path, entry):
+def test_public_sparse_configuration_can_be_updated_but_not_run(
+    data, short_forcing, tmp_path, entry
+):
     """The default public API remains usable without a physical drainage setup."""
     from supy._run_rust import _grid_config_jsons
 
     payload = {
         "name": "partial configuration",
-        "sites": [{"name": "survey", "gridiv": 7,
-                   "properties": {"lat": 51.5, "lng": 0.1}}],
+        "sites": [
+            {
+                "name": "survey",
+                "gridiv": 7,
+                "properties": {"lat": 51.5, "lng": 0.1},
+            }
+        ],
     }
     if entry == "direct":
         # A SUEWSConfig with land cover present and all drainage blocks omitted
@@ -395,7 +502,7 @@ def test_public_sparse_configuration_can_be_updated_but_not_run(data, tmp_path, 
         sim = SUEWSSimulation(payload)
     elif entry == "yaml":
         source = tmp_path / "partial.yml"
-        source.write_text(yaml.safe_dump(payload), encoding="utf-8")
+        source.write_text(_yaml_dump(payload), encoding="utf-8")
         sim = SUEWSSimulation(source)
     else:
         # Includes the true default component factories, without fixture values.
@@ -437,12 +544,14 @@ def test_public_sparse_configuration_can_be_updated_but_not_run(data, tmp_path, 
         assert restored.to_df_state()["storedrainprm"].isna().all().all()
     for cfg in (sim.config, restored):
         for export in (config_to_engine_yaml, _grid_config_jsons):
-            with pytest.raises(ValueError, match=r"sites\[0\].*paved.storage_drain_params"):
+            with pytest.raises(
+                ValueError, match=r"sites\[0\].*paved.storage_drain_params"
+            ):
                 export(cfg)
     # Provide forcing so the refusal tests physical completeness, not the
     # separate, earlier missing-forcing diagnostic.
     sim.update_config({"model": {"control": {"tstep": 300}}}, auto_load_forcing=False)
-    sim.update_forcing(SUEWSSimulation.from_sample_data().forcing.df.iloc[:2])
+    sim.update_forcing(short_forcing.copy())
     with pytest.raises(ValueError, match=r"sites\[0\].*paved.storage_drain_params"):
         sim.run()
 
@@ -453,7 +562,7 @@ def test_omitted_block_stays_missing_through_yaml_and_dataframe(data, tmp_path):
     cfg = SUEWSConfig.from_dict(data)
     saved = tmp_path / "partial.yml"
     cfg.to_yaml(str(saved))
-    assert storage(yaml.safe_load(saved.read_text(encoding="utf-8"))) == {}
+    assert storage(_yaml_load(saved.read_text(encoding="utf-8"))) == {}
     restored_yaml = SUEWSConfig.from_yaml(str(saved))
     restored_df = SUEWSConfig.from_df_state(cfg.to_df_state())
     for restored in (restored_yaml, restored_df):
@@ -463,16 +572,24 @@ def test_omitted_block_stays_missing_through_yaml_and_dataframe(data, tmp_path):
 
 @pytest.mark.parametrize("equation", [1, 2, 3])
 @pytest.mark.parametrize("field_index", [2, 3])
-def test_dataframe_missing_coefficient_cannot_become_zero(data, equation, field_index):
+def test_dataframe_missing_coefficient_cannot_become_zero(
+    _drainage_state_by_eq, equation, field_index
+):
     from supy._run_rust import _grid_config_jsons
 
-    storage(data)["drain_eq"] = equation
-    state = SUEWSConfig(**data).to_df_state()
+    state = _drainage_state_by_eq[equation].copy()
     state.loc[1, ("storedrainprm", f"({field_index}, 0)")] = float("nan")
     cfg = SUEWSConfig.from_df_state(state)
     field = f"drain_coef_{field_index - 1}"
-    assert getattr(cfg.sites[0].properties.land_cover.paved.storage_drain_params, field) is None
-    for handoff in (config_to_engine_yaml, _grid_config_jsons, lambda c: c.to_df_state()):
+    assert (
+        getattr(cfg.sites[0].properties.land_cover.paved.storage_drain_params, field)
+        is None
+    )
+    for handoff in (
+        config_to_engine_yaml,
+        _grid_config_jsons,
+        lambda c: c.to_df_state(),
+    ):
         with pytest.raises(ValueError, match=field):
             handoff(cfg)
 
@@ -482,13 +599,15 @@ def test_drainage_and_existing_errors_share_annotated_diagnostics(data, tmp_path
     storage(data).pop("drain_coef_1")
     data["sites"][0]["properties"]["land_cover"]["bldgs"].pop("bldgh")
     source = tmp_path / "invalid.yml"
-    source.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source.write_text(_yaml_dump(data), encoding="utf-8")
     with pytest.raises(ValueError) as error:
         SUEWSConfig.from_yaml(str(source), auto_generate_annotated=True)
     message = str(error.value)
     assert "bldgh" in message
     assert "paved.storage_drain_params.drain_coef_1" in message
-    assert message.index("bldgh") < message.index("paved.storage_drain_params.drain_coef_1")
+    assert message.index("bldgh") < message.index(
+        "paved.storage_drain_params.drain_coef_1"
+    )
     annotated = source.with_name("invalid_annotated.yml").read_text(encoding="utf-8")
     assert "bldgh:" in annotated
     assert "drain_coef_1:" in annotated
@@ -496,13 +615,22 @@ def test_drainage_and_existing_errors_share_annotated_diagnostics(data, tmp_path
 
 @pytest.mark.parametrize("defect", ["null", "zero_depth"])
 @pytest.mark.parametrize("handoff", ["yaml", "json", "dataframe", "update", "run"])
-def test_master_safety_checks_survive_drainage_integration(defect, handoff):
+def test_master_safety_checks_survive_drainage_integration(
+    sample_config_loaded, short_forcing, defect, handoff
+):
     from supy._run_rust import _grid_config_jsons
-
-    sim = SUEWSSimulation.from_sample_data()
-    cfg = sim.config
-    paved = cfg.sites[0].properties.land_cover.paved
     from supy.data_model.core.hydro import StorageDrainParams
+
+    if handoff == "run":
+        sim = _sim_from_sample(sample_config_loaded, short_forcing)
+        cfg = sim.config
+    elif handoff == "update":
+        sim = _sim_from_sample(sample_config_loaded)
+        cfg = sim.config
+    else:
+        sim = None
+        cfg = sample_config_loaded.model_copy(deep=True)
+    paved = cfg.sites[0].properties.land_cover.paved
 
     # Remove the drainage block too: the existing safety diagnostic must still
     # run, regardless of whether this is a partial or an engine boundary.
@@ -545,10 +673,10 @@ def test_valid_water_distribution_edits_preserve_drainage_values(data, unused):
     paved.waterdist.to_runoff.value = runoff - transfer
     paved.waterdist.to_grass.value = grass + transfer
     paved.emis.value = 0.90
-    expected = storage(yaml.safe_load(config_to_engine_yaml(cfg)))
+    expected = storage(_yaml_load(config_to_engine_yaml(cfg)))
     sim = SUEWSSimulation(cfg)
     sim.update_config({"model": {"control": {"tstep": 600}}}, auto_load_forcing=False)
-    assert storage(yaml.safe_load(config_to_engine_yaml(sim.config))) == expected
+    assert storage(_yaml_load(config_to_engine_yaml(sim.config))) == expected
     assert sim.config.sites[0].properties.land_cover.paved.emis.value == 0.90
 
 
@@ -617,6 +745,8 @@ def test_inactive_missing_coefficients_survive_dataframe_roundtrip(data, equatio
     assert evergreen.storage_drain_params.drain_coef_2.value == 0.0
     config_to_engine_yaml(restored)
     # Activating the surface cannot turn the retained absence into zero.
+    paved = restored.sites[0].properties.land_cover.paved
+    paved.sfr.value = round(paved.sfr.value - 0.1, 6)
     evergreen.sfr.value = 0.1
     with pytest.raises(ValueError, match="evetr.storage_drain_params.drain_coef_1"):
         config_to_engine_yaml(restored)
@@ -705,7 +835,7 @@ def test_public_commands_compose_water_radiation_then_drainage(
     else:
         storage(data)["drain_coef_1"] = {"value": 0.0, "ref": {"desc": "Survey"}}
     source = tmp_path / "legacy.yml"
-    source.write_text(yaml.safe_dump(data), encoding="utf-8")
+    source.write_text(_yaml_dump(data), encoding="utf-8")
     original = source.read_bytes()
     if command == "schema":
         output = source.with_suffix(".migrated.yml")
@@ -723,7 +853,7 @@ def test_public_commands_compose_water_radiation_then_drainage(
         assert output.read_text(encoding="utf-8") == "existing file\n"
     else:
         assert result.exit_code == 0, result.output
-        migrated = yaml.safe_load(output.read_text(encoding="utf-8"))
+        migrated = _yaml_load(output.read_text(encoding="utf-8"))
         assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
         water = migrated["sites"][0]["properties"]["land_cover"]["paved"]["waterdist"]
         assert "to_soilstore" not in water

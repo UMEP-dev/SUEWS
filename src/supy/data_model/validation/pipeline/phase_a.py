@@ -1,20 +1,22 @@
+from copy import deepcopy
+from functools import lru_cache
 import hashlib
 import io
-import yaml
 import os
-import re
-import subprocess
-from copy import deepcopy
-import pandas as pd
 from pathlib import Path
+import re
 from typing import Optional
+import pandas as pd
+import yaml
 
 from .report_writer import REPORT_WRITER
 from ...core._yaml_io import safe_dump_yaml, safe_load_yaml
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
+    normalise_vertical_layer_optical_keys_in_raw_config,
 )
+from ...core.model import REQUIRED_PHYSICS_OPTIONS, REQUIRED_STEBBS_SWITCHES
 from ...core.type import NULL_REJECTED_FIELDS
 from ...core.physics_families import (
     STEBBS_PUBLIC_KEY_ALIASES,
@@ -23,7 +25,10 @@ from ...core.physics_families import (
 )
 from ...core.profile import (
     HOURLY_PROFILE_FIELD_NAMES,
+    TEN_MINUTE_PROFILE_ALIAS_GROUPS,
     normalise_hourly_profile_keys_in_raw_config,
+    normalise_ten_minute_profile_keys_in_raw_config,
+    normalise_ten_minute_profile_mapping,
 )
 
 RENAMED_PARAMS = {
@@ -34,31 +39,13 @@ RENAMED_PARAMS = {
     **RAW_YAML_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
-    "net_radiation",
-    "emissions",
-    "storage_heat",
-    "ohm_inc_qf",
-    "roughness_length_momentum",
-    "roughness_length_heat",
-    "stability",
-    "soil_moisture",
-    "water_use",
-    "roughness_sublayer",
-    "frontal_area_index",
-    "roughness_sublayer_level",
-    "surface_conductance",
-    "snow_use",
+    *REQUIRED_PHYSICS_OPTIONS,
     # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
     # nested leaf names are listed so is_physics_option() matches the new paths.
     "stebbs",
     "enabled",
     "parameters",
-    "capacitance",
-    "same_albedo_wall",
-    "same_albedo_roof",
-    "same_emissivity_wall",
-    "same_emissivity_roof",
-    "setpoint",
+    *REQUIRED_STEBBS_SWITCHES,
 }
 
 _PUBLIC_PHYSICS_DISPLAY_NAMES = {
@@ -388,6 +375,61 @@ def _normalise_model_physics_stebbs(
     return normalised, replacements
 
 
+def _pad_sparse_ten_minute_profiles_in_raw_config(config_data: object) -> object:
+    """Fill missing canonical slots ``"1"``..``"144"`` with ``None`` in authored partial 10-min profiles.
+
+    Preserves missing-slot handling for sparse 10-minute profiles so downstream
+    ``ArchetypeProperties.from_df_state`` does not fall back to uniform defaults
+    when a single slot is omitted. Leaves completely omitted, empty, or
+    malformed-key profiles untouched so strict validation still rejects bad keys.
+    """
+    if not isinstance(config_data, dict):
+        return config_data
+    sites = config_data.get("sites")
+    if not isinstance(sites, list):
+        return config_data
+
+    changed = False
+    result = config_data
+    for site_idx, site in enumerate(sites):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        if not isinstance(props, dict):
+            continue
+        for section_name, _canonical, aliases in TEN_MINUTE_PROFILE_ALIAS_GROUPS:
+            section = props.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            for field_name in aliases:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
+                    continue
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, dict) or not day_map or len(day_map) >= 144:
+                        continue
+                    try:
+                        normalised = normalise_ten_minute_profile_mapping(day_map)
+                    except ValueError:
+                        continue
+                    if len(normalised) >= 144:
+                        continue
+                    if not changed:
+                        result = deepcopy(config_data)
+                        changed = True
+                    target_map = (
+                        result["sites"][site_idx]["properties"][section_name][field_name][
+                            day_type
+                        ]
+                    )
+                    for step in range(1, 145):
+                        key = str(step)
+                        if key not in target_map:
+                            target_map[key] = None
+    return result
+
+
 def _normalise_phase_a_compatibility(
     config_data: object,
 ) -> tuple[object, list[tuple[str, str]]]:
@@ -396,6 +438,9 @@ def _normalise_phase_a_compatibility(
     normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
     replacements.extend(stebbs_replacements)
     normalised, _ = normalise_hourly_profile_keys_in_raw_config(normalised)
+    normalised, _ = normalise_ten_minute_profile_keys_in_raw_config(normalised)
+    normalised = _pad_sparse_ten_minute_profiles_in_raw_config(normalised)
+    normalised, _ = normalise_vertical_layer_optical_keys_in_raw_config(normalised)
     return normalised, replacements
 
 
@@ -494,27 +539,40 @@ def handle_renamed_parameters_in_parsed_yaml(obj, skip=()):
     return replacements
 
 
-def detect_nlayer_from_yaml_data(user_data: object) -> int:
-    """Extract ``nlayer`` from parsed user YAML data, defaulting to 3."""
-    if not isinstance(user_data, dict):
-        return 3
-    sites = user_data.get("sites")
-    if not sites or not isinstance(sites, list) or not isinstance(sites[0], dict):
-        return 3
-    properties = sites[0].get("properties")
+def detect_site_nlayer(site: object, default: int = 3) -> int:
+    """Extract one site's ``nlayer`` (RefValue or bare), falling back to ``default``."""
+    if not isinstance(site, dict):
+        return default
+    properties = site.get("properties")
     vertical_layers = (
         properties.get("vertical_layers") if isinstance(properties, dict) else None
     )
     if not isinstance(vertical_layers, dict):
-        return 3
+        return default
     nlayer = vertical_layers.get("nlayer", {})
-    nlayer_value = nlayer.get("value", 3) if isinstance(nlayer, dict) else nlayer
+    nlayer_value = (
+        nlayer.get("value", default) if isinstance(nlayer, dict) else nlayer
+    )
     if nlayer_value is None:
-        return 3
+        return default
     try:
         return int(nlayer_value)
     except Exception:
+        return default
+
+
+def detect_nlayer_from_yaml_data(user_data: object) -> int:
+    """Extract ``nlayer`` of the first site from parsed user YAML, defaulting to 3.
+
+    Each site may set its own ``nlayer``; ``validate_nlayer_dimensions`` with
+    ``per_site=True`` reads them individually via ``detect_site_nlayer``.
+    """
+    if not isinstance(user_data, dict):
         return 3
+    sites = user_data.get("sites")
+    if not sites or not isinstance(sites, list):
+        return 3
+    return detect_site_nlayer(sites[0])
 
 
 def _snapshot_forcing_user_data(raw_user_data: object) -> object:
@@ -537,93 +595,40 @@ def is_physics_option(param_path):
     return "model.physics" in param_path and param_name in PHYSICS_OPTIONS
 
 
+@lru_cache(maxsize=1)
+def _cached_allowed_nested_sections() -> tuple[str, ...]:
+    """Walk the ``SUEWSConfig`` model graph once to find extra-allowing child sections."""
+    from ...core.config import SUEWSConfig
+
+    visited: set[type] = set()
+    allowed: set[str] = set()
+
+    def _walk(model_cls) -> None:
+        if model_cls is None or model_cls in visited:
+            return
+        visited.add(model_cls)
+        config = getattr(model_cls, "model_config", None)
+        extra_setting = (
+            config.get("extra")
+            if isinstance(config, dict)
+            else getattr(config, "extra", None)
+        )
+        for field_name, field_info in getattr(model_cls, "model_fields", {}).items():
+            nested_model = _extract_nested_model_type(field_info.annotation)
+            if nested_model is not None:
+                if extra_setting == "forbid" and _allows_extra_parameters(nested_model):
+                    allowed.add(field_name)
+                _walk(nested_model)
+
+    _walk(SUEWSConfig)
+    return tuple(sorted(allowed))
+
+
 def get_allowed_nested_sections_in_properties():
-    """Get list of nested sections within models that allow extra parameters.
-
-    This function dynamically introspects all data model classes to find nested
-    BaseModel fields that do not have extra="forbid" configuration.
+    """Return sorted nested BaseModel field names inside extra-forbidding models
+    that themselves permit extra parameters.
     """
-    import importlib
-    from pydantic import BaseModel
-    from typing import get_origin, get_args
-
-    # Data model modules to introspect
-    data_model_modules = [
-        "hydro",
-        "human_activity",
-        "model",
-        "state",
-        "site",
-        "ohm",
-        "profile",
-        "surface",
-        "timezone_enum",
-        "type",
-    ]
-
-    allowed_sections = set()
-
-    for module_name in data_model_modules:
-        try:
-            # Import the module dynamically
-            module = importlib.import_module(
-                f".{module_name}", package="supy.data_model.core"
-            )
-
-            # Find all classes in the module that are BaseModel subclasses
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, BaseModel)
-                    and attr is not BaseModel
-                    and hasattr(attr, "model_config")
-                ):
-                    # Check if this model has extra="forbid"
-                    config = attr.model_config
-                    # Handle both ConfigDict and dict cases
-                    if isinstance(config, dict):
-                        extra_setting = config.get("extra", None)
-                    else:
-                        extra_setting = getattr(config, "extra", None)
-                    if extra_setting == "forbid":
-                        # This is a model with extra="forbid" - check its nested fields
-                        for field_name, field_info in attr.model_fields.items():
-                            nested_model = _extract_nested_model_type(
-                                field_info.annotation
-                            )
-                            if nested_model and _allows_extra_parameters(nested_model):
-                                allowed_sections.add(field_name)
-
-        except (ImportError, AttributeError) as e:
-            # Skip modules that can't be imported or don't have expected structure
-            continue
-
-    # If dynamic introspection found nothing, use known static sections with validation
-    if not allowed_sections:
-        # Known sections from manual analysis - only actual BaseModel fields
-        static_sections = {
-            "stebbs",
-            "irrigation",
-            "snow",
-            "lumps",
-            "spartacus",
-            "building_archetype",
-        }
-
-        # Validate these exist in the actual models (best effort)
-        try:
-            from ...core.site import SiteProperties
-
-            actual_fields = set(SiteProperties.model_fields.keys())
-            validated_sections = static_sections.intersection(actual_fields)
-            allowed_sections = (
-                validated_sections if validated_sections else static_sections
-            )
-        except ImportError:
-            allowed_sections = static_sections
-
-    return sorted(allowed_sections)
+    return list(_cached_allowed_nested_sections())
 
 
 def _extract_nested_model_type(annotation):
@@ -725,9 +730,9 @@ def is_declared_schema_field(param_path: str) -> bool:
 
 
 def _undeclared_schema_paths(value, model, path: str) -> list:
-    """Paths inside a subtree the sample omits that the data model does not declare.
+    """Paths inside a user mapping/list that the Pydantic data model does not declare.
 
-    Walks a user subtree against the declared model rather than the sample,
+    Walks a user subtree against the declared model rather than ``sample_config.yml``,
     so a valid optional block is accepted while a misspelt child in it is
     still reported. Leaves and non-model fields are not descended into.
     """
@@ -741,7 +746,7 @@ def _undeclared_schema_paths(value, model, path: str) -> list:
         return []
     paths = []
     for key, child in value.items():
-        child_path = f"{path}.{key}"
+        child_path = f"{path}.{key}" if path else str(key)
         if key not in fields:
             paths.append(child_path)
         else:
@@ -751,6 +756,201 @@ def _undeclared_schema_paths(value, model, path: str) -> list:
                 )
             )
     return paths
+
+
+# Optional fields declared with ``default=None`` on ``SUEWSConfig`` that are
+# mode-gated or diagnostic-only and must not be reported as omitted when absent.
+_SCHEMA_SKIP_OPTIONAL_FIELDS = frozenset(
+    {
+        "kdownzen",
+        "soil_observation",
+        "soil_field_capacity",
+        "soil_density",
+    }
+)
+
+# Structural root containers that Phase A flags when absent from an empty or
+# incomplete top-level YAML document (even though Pydantic supplies factories).
+_REQUIRED_STRUCTURAL_ROOT_KEYS = frozenset({"model", "sites"})
+
+# Critical STEBBS leaf keys that must be declared explicitly when stebbs is
+# omitted from ``model.physics``. ``enabled`` and ``parameters`` are omitted
+# because they are default-backed toggles (gh#1456).
+_STEBBS_CRITICAL_PLACEHOLDER = {
+    "capacitance": {"value": None},
+    "setpoint": {"value": None},
+    "same_albedo_wall": {"value": None},
+    "same_albedo_roof": {"value": None},
+    "same_emissivity_wall": {"value": None},
+    "same_emissivity_roof": {"value": None},
+}
+
+
+def _is_refvalue_model(model_cls) -> bool:
+    """Return True when *model_cls* is ``RefValue`` or a parametrised ``RefValue[T]``."""
+    if model_cls is None:
+        return False
+    name = getattr(model_cls, "__name__", "")
+    fields = getattr(model_cls, "model_fields", None)
+    return name.startswith("RefValue") or (
+        fields is not None and set(fields.keys()) == {"value", "ref"}
+    )
+
+
+def _field_has_non_none_default(field_info) -> bool:
+    """Return True when *field_info* resolves to a non-None default value."""
+    import inspect
+
+    from pydantic_core import PydanticUndefined
+
+    from ...core.type import RefValue
+
+    if field_info.is_required():
+        return False
+    if field_info.default is not PydanticUndefined:
+        val = field_info.default
+    elif callable(field_info.default_factory):
+        factory = field_info.default_factory
+        try:
+            sig = inspect.signature(factory)
+            needs_args = any(
+                param.default is inspect.Parameter.empty
+                and param.kind
+                in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY,
+                )
+                for param in sig.parameters.values()
+            )
+        except (TypeError, ValueError):
+            needs_args = False
+        if needs_args:
+            return False
+        val = factory()
+    else:
+        return False
+    if isinstance(val, RefValue):
+        return val.value is not None
+    return val is not None
+
+
+def _critical_physics_placeholder(full_path: str, field_info):
+    """Build the null placeholder structure written for a missing critical physics key."""
+    if full_path == "model.physics.stebbs":
+        return deepcopy(_STEBBS_CRITICAL_PLACEHOLDER)
+    nested = _extract_nested_model_type(field_info.annotation)
+    if _is_refvalue_model(nested):
+        return {"value": None}
+    return None
+
+
+def find_extra_parameters_from_schema(user_data, *, _normalised: bool = False) -> list:
+    """Find parameters present in *user_data* that are undeclared in ``SUEWSConfig``."""
+    from ...core.config import SUEWSConfig
+
+    if not _normalised:
+        user_data = deepcopy(user_data)
+        user_data = _strip_ref_blocks(user_data)
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        flatten_physics_in_config(user_data)
+    if not isinstance(user_data, dict):
+        return []
+    return _undeclared_schema_paths(user_data, SUEWSConfig, "")
+
+
+def find_missing_parameters_from_schema(
+    user_data, *, _normalised: bool = False
+) -> list:
+    """Find missing critical physics and non-defaulted optional fields via ``SUEWSConfig``.
+
+    Replaces template-diffing against ``sample_config.yml`` with direct Pydantic
+    schema introspection so Phase A never relies on the sample fixture as a
+    schema oracle.
+    """
+    from ...core.config import SUEWSConfig
+    from ..required_fields import WATER_DISTRIBUTION_REQUIRED
+
+    if not _normalised:
+        user_data = deepcopy(user_data)
+        user_data = _strip_ref_blocks(user_data)
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        flatten_physics_in_config(user_data)
+
+    if not isinstance(user_data, dict):
+        return [
+            ("model", None, False),
+            ("sites", None, False),
+        ]
+
+    missing: list = []
+
+    def _walk(node: dict, model_cls, path: str) -> None:
+        if model_cls is None or _is_refvalue_model(model_cls):
+            return
+        fields = getattr(model_cls, "model_fields", None)
+        if not fields:
+            return
+        for field_name, field_info in fields.items():
+            if field_name.startswith("_") or field_name == "ref":
+                continue
+            full_path = f"{path}.{field_name}" if path else field_name
+            if _is_default_backed_control_path(full_path):
+                continue
+            is_physics = is_physics_option(full_path)
+            if not is_physics and (
+                field_name in NULL_REJECTED_FIELDS
+                or field_name in _SCHEMA_SKIP_OPTIONAL_FIELDS
+            ):
+                continue
+            # Water surface has no waterdist; per-surface waterdist omits
+            # structurally inapplicable destinations (e.g. paved -> paved).
+            if not is_physics and field_name == "waterdist" and path.endswith(".water"):
+                continue
+            if not is_physics and path.endswith(".waterdist"):
+                surface_name = path.rsplit(".", 2)[-2]
+                allowed_dests = WATER_DISTRIBUTION_REQUIRED.get(surface_name)
+                if allowed_dests is not None and field_name not in allowed_dests:
+                    continue
+
+            nested_model = _extract_nested_model_type(field_info.annotation)
+            nested_is_model = nested_model is not None and not _is_refvalue_model(
+                nested_model
+            )
+
+            if field_name not in node:
+                if full_path == "model" and nested_is_model:
+                    missing.append((full_path, None, False))
+                    _walk({}, nested_model, full_path)
+                    continue
+                if full_path == "model.physics" and nested_is_model:
+                    _walk({}, nested_model, full_path)
+                    continue
+                is_structural_root = (
+                    path == "" and field_name in _REQUIRED_STRUCTURAL_ROOT_KEYS
+                )
+                if is_physics:
+                    missing.append(
+                        (
+                            full_path,
+                            _critical_physics_placeholder(full_path, field_info),
+                            True,
+                        )
+                    )
+                elif is_structural_root or not _field_has_non_none_default(field_info):
+                    missing.append((full_path, None, False))
+                continue
+
+            child = node[field_name]
+            if isinstance(child, list) and nested_is_model:
+                for index, item in enumerate(child):
+                    if isinstance(item, dict):
+                        _walk(item, nested_model, f"{full_path}[{index}]")
+            elif isinstance(child, dict) and nested_is_model:
+                _walk(child, nested_model, full_path)
+
+    _walk(user_data, SUEWSConfig, "")
+    return missing
 
 
 LEGACY_SOIL_SELECTORS = ("soil_moisture_deficit", "smdmethod", "smd_method")
@@ -836,14 +1036,44 @@ def find_extra_parameters(
     return extra_params
 
 
+_NO_STANDARD_ITEM = object()
+
+# The sample config carries a single site, which is the template for every
+# user site.
+_SITES_LIST_PATH = "sites"
+
+# Arrays whose length follows each site's nlayer, for any site index (bare or RefValue).
+_NLAYER_DEPENDENT_ARRAY_RE = re.compile(
+    r"^sites\[\d+\]\.(?:"
+    r"properties\.vertical_layers\."
+    r"(?:height|veg_frac|veg_scale|veg_ext|building_frac|building_scale)(?:\.value)?$"
+    r"|properties\.vertical_layers\.(?:roofs|walls)(?:$|\.|\[)"
+    r"|initial_states\.(?:roofs|walls)(?:$|\.|\[)"
+    r")"
+)
+
+
+def _standard_list_item(standard_list, index, current_path):
+    """Return the sample item a user list item is compared against.
+
+    Items pair up by index, except that every user site is compared against
+    the sample's single site template.
+    """
+    if index < len(standard_list):
+        return standard_list[index]
+    if current_path == _SITES_LIST_PATH and standard_list:
+        return standard_list[0]
+    return _NO_STANDARD_ITEM
+
+
 def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
     """Find extra parameters in list structures."""
     extra_params = []
     for i, user_item in enumerate(user_list):
         item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
-        if i < len(standard_list):
+        standard_item = _standard_list_item(standard_list, i, current_path)
+        if standard_item is not _NO_STANDARD_ITEM:
             # Compare with corresponding standard item
-            standard_item = standard_list[i]
             nested_extra = find_extra_parameters(user_item, standard_item, item_path)
             extra_params.extend(nested_extra)
         # Note: We don't flag entire array items as "extra" if they exceed standard length
@@ -928,37 +1158,9 @@ def find_missing_parameters(
 def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
     missing_params = []
 
-    # Skip array element comparison for nlayer-dependent arrays
-    # These arrays have variable length based on user's nlayer value
-    nlayer_dependent_simple_arrays = [
-        "sites[0].properties.vertical_layers.height.value",
-        "sites[0].properties.vertical_layers.veg_frac.value",
-        "sites[0].properties.vertical_layers.veg_scale.value",
-        "sites[0].properties.vertical_layers.veg_ext.value",
-        "sites[0].properties.vertical_layers.building_frac.value",
-        "sites[0].properties.vertical_layers.building_scale.value",
-    ]
-
-    # Nested structure arrays (roofs/walls) - these contain objects, not simple values
-    nlayer_dependent_nested_arrays = [
-        "sites[0].properties.vertical_layers.roofs",
-        "sites[0].properties.vertical_layers.walls",
-        "sites[0].initial_states.roofs",
-        "sites[0].initial_states.walls",
-    ]
-
-    # Check if current path matches any nlayer-dependent array
-    is_nlayer_dependent = any(
-        current_path.startswith(arr) or current_path == arr
-        for arr in nlayer_dependent_simple_arrays
-    ) or any(
-        current_path.startswith(arr) or current_path == arr
-        for arr in nlayer_dependent_nested_arrays
-    )
-
-    if is_nlayer_dependent:
-        # For nlayer-dependent arrays, don't compare lengths - user's length is correct
-        # Only compare elements that exist in both arrays
+    # Arrays whose length follows the user's nlayer: compare only elements
+    # present in both, never the lengths (any site index).
+    if _NLAYER_DEPENDENT_ARRAY_RE.match(current_path):
         for i, standard_item in enumerate(standard_list):
             if i < len(user_list):
                 item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
@@ -985,6 +1187,16 @@ def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
             else:
                 is_physics = is_physics_option(item_path)
                 missing_params.append((item_path, standard_item, is_physics))
+
+    # Sites beyond the sample's single site are checked against that template.
+    for i in range(len(standard_list), len(user_list)):
+        standard_item = _standard_list_item(standard_list, i, current_path)
+        if standard_item is _NO_STANDARD_ITEM:
+            break
+        item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
+        missing_params.extend(
+            find_missing_parameters(user_list[i], standard_item, item_path)
+        )
     return missing_params
 
 
@@ -1318,18 +1530,25 @@ def get_null_placeholder():
     return "null"
 
 
-def create_null_roof_wall_template(reference_element: dict) -> dict:
+def create_null_roof_wall_template(reference_element: object) -> dict | None:
     """Create a null template for roof/wall element based on reference structure.
 
     Args:
         reference_element: A roof or wall element to use as structural template
 
     Returns:
-        A new element with same structure but all values set to null
+        A new element with same structure but all values set to null, or None
+        when *reference_element* is not a mapping.
     """
+    if not isinstance(reference_element, dict):
+        return None
     template = {}
 
     for key, value in reference_element.items():
+        if isinstance(value, list):
+            # Bare per-layer array (gh#2297): keep its length, null its items.
+            template[key] = [None] * len(value)
+            continue
         if isinstance(value, dict):
             if "value" in value:
                 # RefValue format
@@ -1352,6 +1571,8 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
                             }
                         else:
                             thermal_template[thermal_key] = {"value": None}
+                    elif isinstance(thermal_value, list):
+                        thermal_template[thermal_key] = [None] * len(thermal_value)
                     else:
                         thermal_template[thermal_key] = None
                 template[key] = thermal_template
@@ -1365,7 +1586,9 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
     return template
 
 
-def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
+def validate_nlayer_dimensions(
+    user_data: dict, nlayer: int, *, per_site: bool = False
+) -> tuple:
     """
     Validate that vertical layer array dimensions match the specified nlayer value.
 
@@ -1381,6 +1604,10 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
         The user YAML data as a dictionary.
     nlayer : int
         The expected number of vertical layers.
+    per_site : bool, default False
+        When True, each site is checked against its own ``nlayer`` value
+        (the model default of 3 where a site does not set one) and the
+        ``nlayer`` argument is ignored.
 
     Returns
     -------
@@ -1415,8 +1642,15 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     if not isinstance(sites, list):
         return user_data, dimension_errors
 
+    default_nlayer = nlayer
     for site_idx, site in enumerate(sites):
         if not isinstance(site, dict):
+            continue
+        # A site without its own nlayer takes the model default, not site 0's.
+        nlayer = detect_site_nlayer(site) if per_site else default_nlayer
+        # Defer out-of-range nlayer values (e.g. nlayer > 15 or <= 0) to
+        # validate_nlayer_limit instead of attempting unbounded array padding.
+        if isinstance(nlayer, bool) or not isinstance(nlayer, int) or not (1 <= nlayer <= 15):
             continue
 
         # Check vertical_layers arrays in properties
@@ -1526,16 +1760,19 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                     if actual_len < expected_len:
                         # Pad with null template structures and record error
                         nulls_added = expected_len - actual_len
-                        # Use first element as template for structure
-                        if actual_len > 0:
-                            reference_element = actual_arr[0]
+                        # Use first dict element as template for structure
+                        reference_element = next(
+                            (item for item in actual_arr if isinstance(item, dict)),
+                            None,
+                        )
+                        if reference_element is not None:
                             for _ in range(nulls_added):
                                 null_template = create_null_roof_wall_template(
                                     reference_element
                                 )
                                 actual_arr.append(null_template)
                         else:
-                            # No elements to use as reference - just add None
+                            # No dict elements to use as reference - just add None
                             padding = [None] * nulls_added
                             actual_arr.extend(padding)
 
@@ -1579,16 +1816,19 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         if actual_len < expected_len:
                             # Pad with null template structures and record error
                             nulls_added = expected_len - actual_len
-                            # Use first element as template for structure
-                            if actual_len > 0:
-                                reference_element = actual_arr[0]
+                            # Use first dict element as template for structure
+                            reference_element = next(
+                                (item for item in actual_arr if isinstance(item, dict)),
+                                None,
+                            )
+                            if reference_element is not None:
                                 for _ in range(nulls_added):
                                     null_template = create_null_roof_wall_template(
                                         reference_element
                                     )
                                     actual_arr.append(null_template)
                             else:
-                                # No elements to use as reference - just add None
+                                # No dict elements to use as reference - just add None
                                 padding = [None] * nulls_added
                                 actual_arr.extend(padding)
 
@@ -1612,7 +1852,7 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
 
 def validate_nlayer_limit(user_data: dict) -> list:
     """
-    Validate that the 'nlayer' parameter does not exceed the supported limit (15) for each site.
+    Validate that the 'nlayer' parameter is an integer within the supported range [1, 15] for each site.
 
     Parameters
     ----------
@@ -1622,7 +1862,7 @@ def validate_nlayer_limit(user_data: dict) -> list:
     Returns
     -------
     errors : list of tuple
-        Each tuple is (path, nlayer_value, error_message) for each site where nlayer > 15 or cannot be interpreted.
+        Each tuple is (path, nlayer_value, error_message) for each site where nlayer is outside [1, 15] or not an integer.
     """
     errors = []
     if not user_data or "sites" not in user_data:
@@ -1642,14 +1882,41 @@ def validate_nlayer_limit(user_data: dict) -> list:
         except Exception:
             pass
         if nlayer is not None:
-            try:
+            path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
+            if isinstance(nlayer, bool):
+                errors.append((
+                    path,
+                    nlayer,
+                    f"nlayer={nlayer!r} must be an integer within the supported range [1, 15].",
+                ))
+                continue
+            if isinstance(nlayer, float):
+                if not nlayer.is_integer():
+                    errors.append((
+                        path,
+                        nlayer,
+                        f"nlayer={nlayer!r} must be an integer within the supported range [1, 15].",
+                    ))
+                    continue
                 nlayer_int = int(nlayer)
-                if nlayer_int > 15:
-                    path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
-                    errors.append((path, nlayer_int, f"nlayer={nlayer_int} exceeds the supported range [1, 15]. The SPARTACUS radiation scheme supports up to 15 vertical layers. Reduce nlayer to proceed."))
-            except Exception:
-                path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
-                errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
+            elif isinstance(nlayer, int):
+                nlayer_int = nlayer
+            else:
+                try:
+                    nlayer_int = int(str(nlayer).strip())
+                except Exception:
+                    errors.append((
+                        path,
+                        nlayer,
+                        f"nlayer={nlayer!r} must be an integer within the supported range [1, 15].",
+                    ))
+                    continue
+            if not (1 <= nlayer_int <= 15):
+                errors.append((
+                    path,
+                    nlayer_int,
+                    f"nlayer={nlayer_int} is outside the supported range [1, 15]. The SPARTACUS radiation scheme supports 1 to 15 vertical layers.",
+                ))
     return errors
 
 def _validate_single_forcing_file(
@@ -1814,6 +2081,66 @@ def _unwrap_ref(value):
     return value
 
 
+def _control_tstep(control: dict) -> int:
+    """Return ``model.control.tstep`` as an int, defaulting to 300 s."""
+    try:
+        return int(_unwrap_ref(control.get("tstep", 300)))
+    except (TypeError, ValueError):
+        return 300
+
+
+def _load_forcing_index(forcing_file_path, yaml_dir: Path, tstep: int):
+    """Load the forcing as ``SUEWSSimulation`` does and return its time index.
+
+    ``forcing_file_path`` is one path or a list of paths, already unwrapped
+    from any RefValue; relative paths resolve against ``yaml_dir``.
+    """
+    from supy.suews_sim import SUEWSSimulation
+
+    def _resolve(item) -> Path:
+        path = Path(item).expanduser()
+        return path if path.is_absolute() else yaml_dir / path
+
+    if isinstance(forcing_file_path, list):
+        df_forcing = SUEWSSimulation._load_forcing_from_list(
+            [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
+        )
+    else:
+        df_forcing = SUEWSSimulation._load_forcing_file(
+            _resolve(forcing_file_path), tstep_mod=tstep
+        )
+    return df_forcing.index
+
+
+def forcing_date_bounds(
+    config_data: object, yaml_dir: Path
+) -> tuple[str | None, str | None]:
+    """Return the first and last forcing days as ``YYYY-MM-DD`` strings.
+
+    A run with no ``start_time``/``end_time`` covers the forcing it is given,
+    so the validators take the missing bound from the forcing file named in
+    ``model.control``. Returns ``(None, None)`` when the forcing is supplied
+    at runtime, is not named, or cannot be read.
+    """
+    if not isinstance(config_data, dict):
+        return None, None
+    model = config_data.get("model")
+    control = model.get("control") if isinstance(model, dict) else None
+    present, forcing_file_path = _resolve_forcing_file_entry(control)
+    forcing_file_path = _unwrap_ref(forcing_file_path)
+    if not present or forcing_file_path in (None, "", []):
+        return None, None
+    try:
+        index = _load_forcing_index(
+            forcing_file_path, yaml_dir, _control_tstep(control)
+        )
+    except Exception:  # any read failure means the bounds are unknown
+        return None, None
+    if len(index) == 0:
+        return None, None
+    return index[0].strftime("%Y-%m-%d"), index[-1].strftime("%Y-%m-%d")
+
+
 def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> list:
     """
     Check that the forcing covers ``model.control.start_time`` / ``end_time``.
@@ -1843,28 +2170,12 @@ def check_forcing_period(control: dict, forcing_file_path, yaml_dir: Path) -> li
     if start_time is None and end_time is None:
         return []
 
-    try:
-        tstep = int(_unwrap_ref(control.get("tstep", 300)))
-    except (TypeError, ValueError):
-        tstep = 300
+    tstep = _control_tstep(control)
 
     try:
         from supy._run_period import coverage_problem, resolve_run_period
-        from supy.suews_sim import SUEWSSimulation
 
-        def _resolve(item) -> Path:
-            path = Path(item).expanduser()
-            return path if path.is_absolute() else yaml_dir / path
-
-        if isinstance(forcing_file_path, list):
-            df_forcing = SUEWSSimulation._load_forcing_from_list(
-                [_resolve(item) for item in forcing_file_path], tstep_mod=tstep
-            )
-        else:
-            df_forcing = SUEWSSimulation._load_forcing_file(
-                _resolve(forcing_file_path), tstep_mod=tstep
-            )
-        index = df_forcing.index
+        index = _load_forcing_index(forcing_file_path, yaml_dir, tstep)
         period = resolve_run_period(start_time, end_time, index)
         problem = coverage_problem(period, index, tstep)
     except Exception as e:
@@ -2088,6 +2399,12 @@ def create_uptodate_yaml_with_missing_params(
     missing_params.sort(key=lambda x: x[0].count("."), reverse=True)
 
     for param_path, standard_value, is_physics in missing_params:
+        # Never pad omitted optional/defaulted fields with speculative `null`
+        # placeholders: Pydantic supplies their defaults, and padding pollutes
+        # updated YAMLs. Only critical missing physics options receive a null
+        # placeholder so the user sees where to declare an explicit choice.
+        if not is_physics:
+            continue
         # Never pad missing 24-hour profile hour slots or day-type blocks with
         # `null` placeholders: doing so would mask incomplete profiles from
         # downstream strict completeness validation across Phase A -> C.
@@ -2193,6 +2510,7 @@ def create_analysis_report(
         urgent_count
         + len(forbidden_extras)
         + dimension_errors_count
+        + nlayer_limit_errors_count
         + forcing_errors_count
         + len(migration_errors)
     )
@@ -2203,6 +2521,15 @@ def create_analysis_report(
 
         for error_msg in migration_errors:
             report_lines.append(f"- {error_msg}")
+            report_lines.append("")
+
+        if nlayer_limit_errors_count > 0:
+            report_lines.append(
+                f"- Found ({nlayer_limit_errors_count}) nlayer range error(s):"
+            )
+            for path, nlayer_value, message in nlayer_limit_errors:
+                value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
+                report_lines.append(f"-- {path}{value_display}: {message}")
             report_lines.append("")
 
         # Dimension mismatch errors - MOST CRITICAL
@@ -2368,7 +2695,6 @@ def create_analysis_report(
         optional_count > 0
         or allowed_extras_count > 0
         or renamed_count > 0
-        or nlayer_limit_errors_count > 0
         or forcing_warnings_count > 0
     )
 
@@ -2384,16 +2710,16 @@ def create_analysis_report(
                 report_lines.append(f"-- {warning_msg}")
             report_lines.append("")
 
-        # Updated optional missing parameters
+        # Optional omitted parameters (left omitted so model defaults apply)
         if optional_count > 0:
             report_lines.append(
-                f"- Updated ({optional_count}) optional missing parameter(s) with null values:"
+                f"- Found ({optional_count}) optional missing parameter(s) (left omitted in updated YAML):"
             )
             for param_path, standard_value, is_physics in missing_params:
                 if not is_physics:
                     # Show full path instead of just the last component
                     report_lines.append(
-                        f"-- {param_path} added to the updated YAML and set to null"
+                        f"-- {param_path} omitted (left omitted in updated YAML)"
                     )
             report_lines.append("")
 
@@ -2419,18 +2745,6 @@ def create_analysis_report(
                 for param_path in no_action_extras:
                     param_name = param_path.split(".")[-1]
                     report_lines.append(f"-- {param_name} at level {param_path}")
-
-        if nlayer_limit_errors_count > 0:
-            report_lines.append(
-                f"- Detected ({nlayer_limit_errors_count}) nlayer warning(s):"
-            )
-            for path, nlayer_value, message in nlayer_limit_errors:
-                value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
-                report_lines.append(f"-- {path}{value_display}: {message}")
-                report_lines.append(
-                    "The SPARTACUS radiation scheme supports up to 15 vertical layers."
-                )
-            report_lines.append("")
 
     # If neither ACTION NEEDED nor NO ACTION NEEDED sections were added,
     # indicate that Phase A passed without issues
@@ -2480,7 +2794,7 @@ def _load_normalised_standard_data(standard_file: str):
 
 def annotate_missing_parameters(
     user_file,
-    standard_file,
+    standard_file=None,
     uptodate_file=None,
     report_file=None,
     mode="public",
@@ -2491,6 +2805,8 @@ def annotate_missing_parameters(
     detect_nlayer: bool = False,
     _preloaded_user_data=_MISSING,
 ):
+    del standard_file  # Retained for signature compatibility; schema introspection is canonical.
+    nlayer_per_site = False
     try:
         with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
@@ -2504,11 +2820,16 @@ def annotate_missing_parameters(
         # not renamed here: keep its selector and sensor metadata untouched.
         # A mix of legacy and canonical inputs is kept as given and reported.
         if _preloaded_user_data is _MISSING:
-            raw_user_data = safe_load_yaml(original_yaml_content)
+            try:
+                raw_user_data = safe_load_yaml(original_yaml_content)
+            except ValueError as e:
+                raise yaml.YAMLError(str(e)) from e
         else:
             raw_user_data = _preloaded_user_data
         if nlayer is None and detect_nlayer:
             nlayer = detect_nlayer_from_yaml_data(raw_user_data)
+            # A detected nlayer is per site; an explicit one applies to all.
+            nlayer_per_site = True
         forcing_user_data = (
             _snapshot_forcing_user_data(raw_user_data)
             if forcing == "on"
@@ -2521,7 +2842,10 @@ def annotate_missing_parameters(
             original_yaml_content, skip=rename_skip
         )
         if renamed_replacements:
-            user_data = safe_load_yaml(original_yaml_content)
+            try:
+                user_data = safe_load_yaml(original_yaml_content)
+            except ValueError as e:
+                raise yaml.YAMLError(str(e)) from e
         else:
             user_data = raw_user_data
         parsed_renames = handle_renamed_parameters_in_parsed_yaml(
@@ -2551,8 +2875,7 @@ def annotate_missing_parameters(
                 allow_unicode=True,
             )
             original_yaml_content = stream.getvalue()
-        standard_data_no_ref = _load_normalised_standard_data(standard_file)
-        # Collapse readable physics names before structure diffs.
+        # Collapse readable physics names before schema checks.
         flatten_physics_in_config(user_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
@@ -2573,14 +2896,17 @@ def annotate_missing_parameters(
             message=f"Invalid YAML: {e}",
         )
 
+    # Validate nlayer limit first so oversized nlayer values are reported cleanly
+    # instead of triggering unbounded array padding.
+    nlayer_limit_errors = validate_nlayer_limit(user_data)
+
     # Validate nlayer dimensions if nlayer is provided
     dimension_errors = []
     if nlayer is not None:
-        user_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer)
+        user_data, dimension_errors = validate_nlayer_dimensions(
+            user_data, nlayer, per_site=nlayer_per_site
+        )
         # user_data now contains padded arrays with nulls - we'll write this back
-
-    # Validate nlayer limit regardless of CLI nlayer flag
-    nlayer_limit_errors = validate_nlayer_limit(user_data)
 
     # Validate forcing data if enabled
     forcing_errors = []
@@ -2600,11 +2926,11 @@ def annotate_missing_parameters(
 
     user_data_no_ref = _strip_ref_blocks(user_data)
 
-    missing_params = find_missing_parameters(
-        user_data_no_ref, standard_data_no_ref, _normalised=True
+    missing_params = find_missing_parameters_from_schema(
+        user_data_no_ref, _normalised=True
     )
-    extra_params = find_extra_parameters(
-        user_data_no_ref, standard_data_no_ref, _normalised=True
+    extra_params = find_extra_parameters_from_schema(
+        user_data_no_ref, _normalised=True
     )
     migration_errors = []
     if legacy_soil:
@@ -2682,13 +3008,22 @@ def annotate_missing_parameters(
     ]
 
     has_action_needed = bool(
-        critical_params or dimension_errors or forcing_errors or migration_errors
+        critical_params
+        or dimension_errors
+        or nlayer_limit_errors
+        or forcing_errors
+        or migration_errors
     )
     if has_action_needed:
         if migration_errors:
             print("Action needed: LEGACY SOIL-MOISTURE migration:")
             for error_msg in migration_errors:
                 print(f"  - {error_msg}")
+        if nlayer_limit_errors:
+            print("Action needed: NLAYER range errors:")
+            for path, nlayer_value, message in nlayer_limit_errors:
+                value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
+                print(f"  - {path}{value_display}: {message}")
         if critical_params:
             print("Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
@@ -2729,13 +3064,6 @@ def annotate_missing_parameters(
         print("Warning: forcing data supplied at runtime:")
         for warning_msg in forcing_warnings:
             print(f"  - {warning_msg}")
-        print("")
-
-    if nlayer_limit_errors:
-        print("Warning: NLAYERS exceeding recommended limit:")
-        for path, nlayer_value, message in nlayer_limit_errors:
-            value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
-            print(f"  - {path}{value_display}: {message}")
         print("")
 
     # Write output files
@@ -2889,7 +3217,7 @@ def _issues_from_phase_a_state(
         path, _value, err_message = entry
         issues.append(Issue(
             phase="A",
-            severity=SEVERITY_WARNING,
+            severity=SEVERITY_ERROR,
             code="A.NLAYER_LIMIT",
             message=err_message,
             yaml_path=str(path),
@@ -2928,145 +3256,25 @@ def _issues_from_phase_a_state(
     return issues
 
 
-def get_current_git_branch() -> str:
-    """
-    Get the current git branch name.
-
-    Returns:
-        Current branch name or 'unknown' if not in a git repo
-    """
-    try:
-        result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return "unknown"
-
-
-def check_file_differs_from_master(file_path: str) -> bool:
-    """
-    Check if a file differs from its version in the master branch.
-
-    Args:
-        file_path: Path to the file to check
-
-    Returns:
-        True if file differs from master, False if same or on error
-    """
-    try:
-        # Check if file differs from master branch version
-        result = subprocess.run(
-            ["git", "diff", "master", "--", file_path],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        # If diff output is empty, files are the same
-        return len(result.stdout.strip()) > 0
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-
-def validate_standard_file(standard_file: str) -> bool:
-    """
-    Validate that the standard file exists and is up to date with master branch.
-
-    Args:
-        standard_file: Path to the standard YAML file
-
-    Returns:
-        True if validation passes, False if warnings were issued
-    """
-    print("Validating standard configuration file...")
-
-    # Check if file exists
-    if not os.path.exists(standard_file):
-        print(f"❌ ERROR: Standard file not found: {standard_file}")
-        print(f"   Make sure you're running from the SUEWS root directory")
-        return False
-
-    current_branch = get_current_git_branch()
-
-    if current_branch == "unknown":
-        print(
-            "⚠️  WARNING: Not in a git repository - cannot verify standard file is up to date"
-        )
-        return True
-
-    if current_branch != "master":
-        file_differs = check_file_differs_from_master(standard_file)
-
-        if file_differs:
-            print(
-                f"⚠️  WARNING: You are on branch '{current_branch}' and {os.path.basename(standard_file)} differs from master"
-            )
-            print(f"   This may cause inconsistent parameter detection.")
-            print(f"   RECOMMENDED:")
-            print(f"   1. Switch to master branch: git checkout master")
-            print(
-                f"   2. OR update your {os.path.basename(standard_file)} to match master:"
-            )
-            print(f"      git checkout master -- {standard_file}")
-            print()
-            return False
-        else:
-            print(f"[OK] Branch: {current_branch} (standard file matches master)")
-    else:
-        print(f"[OK] Branch: {current_branch}")
-
-    print(f"[OK] Standard file: {standard_file}")
-    return True
-
-
 def main():
     print(" SUEWS YAML Configuration Analysis")
     print("=" * 50)
 
-    standard_file = "src/supy/sample_data/sample_config.yml"
     user_file = "src/supy/data_model/user.yml"
-
-    # Validate standard file is up to date with master branch
-    validation_passed = validate_standard_file(standard_file)
-    print()
-
-    # Print user file info
     print(f"User YAML file: {user_file}")
     print()
 
-    # If validation failed, we can still proceed but user should be aware
-    if not validation_passed:
-        print("⚠️  Proceeding with potentially outdated standard file...")
-        print()
-
     basename = os.path.basename(user_file)
     dirname = os.path.dirname(user_file)
-
-    # Generate file names
     name_without_ext = os.path.splitext(basename)[0]
-    uptodate_filename = f"uptodate_{basename}"
-    report_filename = f"report_{name_without_ext}.txt"
-
-    uptodate_file = os.path.join(dirname, uptodate_filename)
-    report_file = os.path.join(dirname, report_filename)
-
-    # Detect nlayer from user YAML for dimension validation
-    try:
-        from .orchestrator import detect_nlayer_from_user_yaml
-
-        nlayer_value = detect_nlayer_from_user_yaml(user_file)
-    except Exception:
-        nlayer_value = 3  # Default to 3 if detection fails
+    uptodate_file = os.path.join(dirname, f"uptodate_{basename}")
+    report_file = os.path.join(dirname, f"report_{name_without_ext}.txt")
 
     annotate_missing_parameters(
         user_file=user_file,
-        standard_file=standard_file,
         uptodate_file=uptodate_file,
         report_file=report_file,
-        nlayer=nlayer_value,
+        detect_nlayer=True,
     )
 
 

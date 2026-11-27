@@ -1,5 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for SUEWS_TIMER.
+! Schema 2 (gh#2333): the timer carries only the eight caller-supplied
+! inputs; derived values live in the kernel-internal SUEWS_CLOCK.
 ! -----------------------------------------------------------------------------
 MODULE module_c_api_timer
    USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
@@ -15,8 +17,8 @@ MODULE module_c_api_timer
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_SCHEMA_VERSION = 1_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_LEN = 8_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_SCHEMA_VERSION = 2_c_int
 
    TYPE :: suews_timer_shadow
       INTEGER :: id = 0
@@ -27,14 +29,6 @@ MODULE module_c_api_timer
       INTEGER :: tstep = 0
       INTEGER :: tstep_prev = 0
       INTEGER :: dt_since_start = 0
-      INTEGER :: dt_since_start_prev = 0
-      INTEGER :: nsh = 0
-      REAL(c_double) :: nsh_real = 0.0_c_double
-      REAL(c_double) :: tstep_real = 0.0_c_double
-      REAL(c_double) :: dectime = 0.0_c_double
-      INTEGER, DIMENSION(3) :: dayofweek_id = 0
-      INTEGER :: dls = 0
-      INTEGER :: new_day = 0
    END TYPE suews_timer_shadow
 
    PUBLIC :: suews_timer_len
@@ -103,16 +97,6 @@ CONTAINS
       flat(6) = REAL(state%tstep, c_double)
       flat(7) = REAL(state%tstep_prev, c_double)
       flat(8) = REAL(state%dt_since_start, c_double)
-      flat(9) = REAL(state%dt_since_start_prev, c_double)
-      flat(10) = REAL(state%nsh, c_double)
-      flat(11) = state%nsh_real
-      flat(12) = state%tstep_real
-      flat(13) = state%dectime
-      flat(14) = REAL(state%dayofweek_id(1), c_double)
-      flat(15) = REAL(state%dayofweek_id(2), c_double)
-      flat(16) = REAL(state%dayofweek_id(3), c_double)
-      flat(17) = REAL(state%dls, c_double)
-      flat(18) = REAL(state%new_day, c_double)
 
       err = SUEWS_CAPI_OK
 

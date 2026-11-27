@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: 2026.6.dev17
+schema_version: 2026.6.dev23
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
   configuration
 strict_initial_state_bounds: true
@@ -40,6 +40,13 @@ model:
       value: 1
     ohm_inc_qf:
       value: 0
+    ehc_surface_coupling:
+      value: 1
+    control_ehc_stability:
+      value: 0
+    control_ehc_initial_profile: true
+    resistance_ehc_indoor_roof: 0.1
+    resistance_ehc_indoor_wall: 0.13
     roughness_length_momentum:
       value: 1
     roughness_length_heat:
@@ -2734,11 +2741,11 @@ sites:
           value: 0.6
         lai:
           base_temperature:
-            value: 6.0
+            value: 6.5
           gdd_full:
             value: 300.0
           base_temperature_senescence:
-            value: 11.0
+            value: 22.0
           sdd_full:
             value: -450.0
           lai_min:
@@ -2747,15 +2754,19 @@ sites:
             value: 5.1
           lai_power:
             growth_lai:
-              value: 0.04
+              value: -0.02
             growth_gdd:
-              value: 0.001
+              value: 0.04
             senescence_lai:
-              value: -1.5
+              value: -1.0
             senescence_sdd:
-              value: 0.0015
+              value: 0.02
           lai_type:
             value: 1
+          gdd_base:
+            value: 120.0
+          sdd_base:
+            value: -240.0
         ie_a:
           value: 0.0
         ie_m:
@@ -2896,11 +2907,11 @@ sites:
           value: 0.6
         lai:
           base_temperature:
-            value: 6.0
+            value: 6.5
           gdd_full:
             value: 300.0
           base_temperature_senescence:
-            value: 11.0
+            value: 22.0
           sdd_full:
             value: -450.0
           lai_min:
@@ -2909,15 +2920,19 @@ sites:
             value: 5.5
           lai_power:
             growth_lai:
-              value: 0.04
+              value: -0.02
             growth_gdd:
-              value: 0.001
+              value: 0.04
             senescence_lai:
-              value: -1.5
+              value: -1.0
             senescence_sdd:
-              value: 0.0015
+              value: 0.02
           lai_type:
             value: 1
+          gdd_base:
+            value: 120.0
+          sdd_base:
+            value: -240.0
         ie_a:
           value: 0.0
         ie_m:
@@ -3066,11 +3081,11 @@ sites:
           value: 0.6
         lai:
           base_temperature:
-            value: 6.0
+            value: 6.5
           gdd_full:
             value: 300.0
           base_temperature_senescence:
-            value: 11.0
+            value: 22.0
           sdd_full:
             value: -450.0
           lai_min:
@@ -3079,15 +3094,19 @@ sites:
             value: 5.9
           lai_power:
             growth_lai:
-              value: 0.04
+              value: -0.02
             growth_gdd:
-              value: 0.001
+              value: 0.04
             senescence_lai:
-              value: -1.5
+              value: -1.0
             senescence_sdd:
-              value: 0.0015
+              value: 0.02
           lai_type:
             value: 1
+          gdd_base:
+            value: 120.0
+          sdd_base:
+            value: -240.0
         ie_a:
           value: 0.0
         ie_m:
@@ -3373,8 +3392,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.5
         emis:
@@ -3409,8 +3426,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.2
         emis:
@@ -3445,8 +3460,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       walls:
       - alb:
           value: 0.5
@@ -3480,8 +3493,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -3516,8 +3527,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -3552,8 +3561,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
     n_buildings:
@@ -3654,7 +3661,7 @@ sites:
       gdd_id:
         value: 0.0
       sdd_id:
-        value: -450.0
+        value: 0.0
     dectr:
       state:
         value: 0.0
@@ -3688,7 +3695,7 @@ sites:
       gdd_id:
         value: 0.0
       sdd_id:
-        value: -450.0
+        value: 0.0
       porosity_id:
         value: 0.6
       decidcap_id:
@@ -3726,7 +3733,7 @@ sites:
       gdd_id:
         value: 0.0
       sdd_id:
-        value: -450.0
+        value: 0.0
     bsoil:
       state:
         value: 0.0
@@ -3895,7 +3902,7 @@ sites:
 _auto_generate_annotated: false
 _yaml_raw:
   name: sample_config
-  schema_version: 2026.6.dev17
+  schema_version: 2026.6.dev23
   description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
     configuration
   model:
@@ -3935,6 +3942,11 @@ _yaml_raw:
       storage_heat:
         ohm:
           include_qf: false
+      ehc_surface_coupling: implicit
+      control_ehc_stability: 'off'
+      control_ehc_initial_profile: true
+      resistance_ehc_indoor_roof: 0.1
+      resistance_ehc_indoor_wall: 0.13
       roughness_length_momentum: fixed
       roughness_length_heat: K09
       stability: CN98
@@ -6606,11 +6618,11 @@ _yaml_raw:
             value: 0.6
           lai:
             base_temperature:
-              value: 6.0
+              value: 6.5
             gdd_full:
               value: 300.0
             base_temperature_senescence:
-              value: 11.0
+              value: 22.0
             sdd_full:
               value: -450.0
             lai_min:
@@ -6619,15 +6631,19 @@ _yaml_raw:
               value: 5.5
             lai_power:
               growth_lai:
-                value: 0.04
+                value: -0.02
               growth_gdd:
-                value: 0.001
+                value: 0.04
               senescence_lai:
-                value: -1.5
+                value: -1.0
               senescence_sdd:
-                value: 0.0015
+                value: 0.02
             lai_type:
               value: 1
+            gdd_base:
+              value: 120.0
+            sdd_base:
+              value: -240.0
           ie_a:
             value: 0.0
           ie_m:
@@ -6776,11 +6792,11 @@ _yaml_raw:
             value: 0.6
           lai:
             base_temperature:
-              value: 6.0
+              value: 6.5
             gdd_full:
               value: 300.0
             base_temperature_senescence:
-              value: 11.0
+              value: 22.0
             sdd_full:
               value: -450.0
             lai_min:
@@ -6789,15 +6805,19 @@ _yaml_raw:
               value: 5.1
             lai_power:
               growth_lai:
-                value: 0.04
+                value: -0.02
               growth_gdd:
-                value: 0.001
+                value: 0.04
               senescence_lai:
-                value: -1.5
+                value: -1.0
               senescence_sdd:
-                value: 0.0015
+                value: 0.02
             lai_type:
               value: 1
+            gdd_base:
+              value: 120.0
+            sdd_base:
+              value: -240.0
           ie_a:
             value: 0.0
           ie_m:
@@ -6938,11 +6958,11 @@ _yaml_raw:
             value: 0.6
           lai:
             base_temperature:
-              value: 6.0
+              value: 6.5
             gdd_full:
               value: 300.0
             base_temperature_senescence:
-              value: 11.0
+              value: 22.0
             sdd_full:
               value: -450.0
             lai_min:
@@ -6951,15 +6971,19 @@ _yaml_raw:
               value: 5.9
             lai_power:
               growth_lai:
-                value: 0.04
+                value: -0.02
               growth_gdd:
-                value: 0.001
+                value: 0.04
               senescence_lai:
-                value: -1.5
+                value: -1.0
               senescence_sdd:
-                value: 0.0015
+                value: 0.02
             lai_type:
               value: 1
+            gdd_base:
+              value: 120.0
+            sdd_base:
+              value: -240.0
           ie_a:
             value: 0.0
           ie_m:
@@ -7245,8 +7269,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         - alb:
             value: 0.5
           emis:
@@ -7281,8 +7303,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         - alb:
             value: 0.2
           emis:
@@ -7317,8 +7337,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         walls:
         - alb:
             value: 0.5
@@ -7352,8 +7370,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
         - alb:
@@ -7388,8 +7404,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
         - alb:
@@ -7424,8 +7438,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
       n_buildings:
@@ -7522,7 +7534,7 @@ _yaml_raw:
         gdd_id:
           value: 0.0
         sdd_id:
-          value: -450.0
+          value: 0.0
       dectr:
         state:
           value: 0.0
@@ -7556,7 +7568,7 @@ _yaml_raw:
         gdd_id:
           value: 0.0
         sdd_id:
-          value: -450.0
+          value: 0.0
         porosity_id:
           value: 0.6
         decidcap_id:
@@ -7594,7 +7606,7 @@ _yaml_raw:
         gdd_id:
           value: 0.0
         sdd_id:
-          value: -450.0
+          value: 0.0
       bsoil:
         state:
           value: 0.0

@@ -47,7 +47,11 @@ BEERS `DirectRad` (direct beam normal to the sun) and `DiffuseRad` (diffuse on
 the horizontal) columns as the kernel now writes them, after their values were
 found swapped. Output contract `1.1.9` writes every unit in the CF notation
 of `supy.units` (water stores in `kg m-2`), leaving every value, name, group
-and layout unchanged. A group is covered when that group is
+and layout unchanged. Output contract `2.0.0` converts written water fluxes to
+interval-mean `kg m-2 s-1` rates. Output contract `2.1.0` appends seven EHC
+diagnostics to the end of the EHC group (`dUdt_EHC`, `QBot_EHC`, `QIndoor_EHC`,
+`QF_Bldg`, `QF_Air`, `T_Indoor_EHC`, `T_Deep_EHC`); existing columns are
+unchanged. A group is covered when that group is
 present; the contract does not promise that every optional group is emitted by
 every run.
 

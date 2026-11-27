@@ -1,12 +1,22 @@
 from collections.abc import Mapping
+from contextvars import ContextVar
 from dataclasses import dataclass
 import math
 from typing import Any, Optional, Union
 import warnings
+import weakref
 
 import numpy as np
 import pandas as pd
-from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    ValidationInfo,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticUndefined
 
 from ..validation.core.utils import (
@@ -169,12 +179,177 @@ def _is_zero_doy_sentinel(val: Any) -> bool:
     return not isinstance(val, bool) and val == 0
 
 
+# Validation context propagated from SUEWSConfig during nested construction:
+# - None: standalone IrrigationParams construction (no parent model.physics).
+# - True: inside SUEWSConfig where model.physics.water_use is MODELLED (0) or unresolved.
+# - False: inside SUEWSConfig where model.physics.water_use is OBSERVED (1).
+_IRRIGATION_MODELLED_CONTEXT: ContextVar[bool | None] = ContextVar(
+    "_IRRIGATION_MODELLED_CONTEXT", default=None
+)
+
+
+def _build_inactive_doy_ref(
+    inner: Any, ref_obj: Any, field_name: str
+) -> RefValue[int]:
+    """Build a ``RefValue[int]`` preserving raw inactive DOY data while binding strict validation."""
+    if isinstance(inner, np.generic):
+        inner = inner.item()
+    if inner is None:
+        rv = RefValue[int](value=None, ref=ref_obj)
+    else:
+        try:
+            coerced = coerce_integer_doy_scalar(inner, field_name)
+        except ValueError:
+            rv = RefValue[int].model_construct(value=inner, ref=ref_obj)
+        else:
+            rv = (
+                RefValue[int](value=coerced, ref=ref_obj)
+                if 1 <= coerced <= 366
+                else RefValue[int].model_construct(value=inner, ref=ref_obj)
+            )
+    return _bind_doy_ref_validator(rv, field_name)
+
+
+def _normalise_inactive_irrigation_doy(raw: Any, field_name: str) -> Any:
+    """Normalise a valid/disabled DOY when irrigation is inactive; preserve invalid values.
+
+    Every returned ``RefValue`` keeps the strict integer-DOY assignment validator
+    bound so subsequent ``.value = ...`` mutations cannot silently coerce
+    booleans or out-of-range integers once irrigation becomes active.
+    """
+    if isinstance(raw, np.generic):
+        raw = raw.item()
+    if raw is None:
+        return None
+    if _is_disabled_doy_mapping(raw):
+        if not raw:
+            return None
+        ref_raw = raw["ref"]
+        ref_obj = (
+            Reference.model_validate(ref_raw) if isinstance(ref_raw, Mapping) else ref_raw
+        )
+        return _build_inactive_doy_ref(None, ref_obj, field_name)
+    if isinstance(raw, RefValue):
+        return _build_inactive_doy_ref(raw.value, raw.ref, field_name)
+    if isinstance(raw, Mapping) and "value" in raw and set(raw.keys()) <= {"value", "ref"}:
+        ref_raw = raw.get("ref")
+        ref_obj = (
+            Reference.model_validate(ref_raw) if isinstance(ref_raw, Mapping) else ref_raw
+        )
+        return _build_inactive_doy_ref(raw["value"], ref_obj, field_name)
+    try:
+        coerced = coerce_integer_doy_scalar(raw, field_name)
+        if 1 <= coerced <= 366:
+            return coerced
+    except ValueError:
+        pass
+    return raw
+
+
+def _df_state_doy_scalar(val: Any) -> int | float:
+    """Project an irrigation DOY field to a scalar for ``df_state`` export.
+
+    Valid numeric scalars (including inactive float/int placeholders) are
+    preserved as-is; ``None``, booleans, non-finite numbers, oversized
+    integers that overflow float conversion, strings, and container
+    placeholders accepted when modelled irrigation is inactive are
+    projected to neutral ``0`` (disabled), matching the Rust bridge.
+    """
+    raw = val.value if isinstance(val, RefValue) else val
+    if isinstance(raw, np.generic):
+        raw = raw.item()
+    if raw is None or isinstance(raw, bool):
+        return 0
+    if isinstance(raw, (int, float)):
+        try:
+            return raw if math.isfinite(float(raw)) else 0
+        except OverflowError:
+            return 0
+    return 0
+
+
+class _WeakConfigRef:
+    """Picklable, copy-aware weak reference to an owning ``SUEWSConfig``."""
+
+    __slots__ = ("_ref",)
+
+    def __init__(self, config: Any | None = None) -> None:
+        self._ref = weakref.ref(config) if config is not None else None
+
+    def get(self) -> Any | None:
+        """Return the owning ``SUEWSConfig`` if still alive, else ``None``."""
+        return self._ref() if self._ref is not None else None
+
+    def __getstate__(self) -> None:
+        return None
+
+    def __setstate__(self, state: Any) -> None:
+        self._ref = None
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "_WeakConfigRef":
+        target = self.get()
+        if target is None:
+            return _WeakConfigRef(None)
+        copied_target = memo.get(id(target))
+        if copied_target is not None:
+            return _WeakConfigRef(copied_target)
+        return _WeakConfigRef(None)
+
+
 class IrrigationParams(
     DataModelBase
 ):  # TODO: May need to add RefValue to the profiles here
     """Parameters for irrigation and water use management."""
 
     model_config = ConfigDict(title="Irrigation")
+
+    _doy_validation_active: bool = PrivateAttr(default=True)
+    _water_use_modelled: bool | None = PrivateAttr(default=None)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_doy_validation_active(self) -> bool:
+        """Return True when live ``ie_start``/``ie_end`` mutations enforce strict DOY bounds."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            from ..validation.rules.hard_invariants import (
+                is_modelled_irrigation_active,
+                resolve_water_use_code,
+            )
+
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            water_use = getattr(physics, "water_use", None) if physics is not None else None
+            code = resolve_water_use_code(water_use)
+            if code is not None and code != 0:
+                return False
+            return is_modelled_irrigation_active(0, self)
+        water_use_modelled = getattr(self, "_water_use_modelled", None)
+        if water_use_modelled is None:
+            return bool(getattr(self, "_doy_validation_active", True))
+        if not water_use_modelled:
+            return False
+        from ..validation.rules.hard_invariants import is_modelled_irrigation_active
+
+        return is_modelled_irrigation_active(0, self)
+
+    def _sync_doy_validation_state(
+        self,
+        *,
+        active: bool,
+        water_use_modelled: bool | None = None,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise DOY validation state and ensure ``RefValue`` wrappers bind strict validation."""
+        if water_use_modelled is not None:
+            object.__setattr__(self, "_water_use_modelled", water_use_modelled)
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_doy_validation_active", active)
+        for field_name in ("ie_start", "ie_end"):
+            current = getattr(self, field_name, None)
+            if isinstance(current, RefValue):
+                _bind_doy_ref_validator(current, field_name)
 
     h_maintain: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -206,6 +381,43 @@ class IrrigationParams(
         json_schema_extra={"unit": "1", "display_name": "Irrigation End Day"},
     )
 
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_irrigation_doys(cls, data: Any, handler: Any) -> "IrrigationParams":
+        """Skip strict ie_start/ie_end bounds during SUEWSConfig load when irrigation is inactive."""
+        if isinstance(data, IrrigationParams):
+            return handler(data)
+        water_use_ctx = _IRRIGATION_MODELLED_CONTEXT.get()
+        if water_use_ctx is None or not isinstance(data, Mapping):
+            return handler(data)
+
+        from ..validation.rules.hard_invariants import (
+            is_modelled_irrigation_active,
+        )
+
+        active = bool(water_use_ctx) and is_modelled_irrigation_active(0, data)
+        if active:
+            inst = handler(data)
+            object.__setattr__(inst, "_water_use_modelled", bool(water_use_ctx))
+            object.__setattr__(inst, "_doy_validation_active", True)
+            return inst
+
+        stashed: dict[str, Any] = {}
+        stripped: dict[str, Any] = {}
+        for key, val in data.items():
+            if key in {"ie_start", "ie_end"}:
+                stashed[key] = val
+            else:
+                stripped[key] = val
+        inst = handler(stripped)
+        object.__setattr__(inst, "_water_use_modelled", bool(water_use_ctx))
+        object.__setattr__(inst, "_doy_validation_active", False)
+        for field_name, raw_val in stashed.items():
+            normalised = _normalise_inactive_irrigation_doy(raw_val, field_name)
+            object.__setattr__(inst, field_name, normalised)
+            inst.model_fields_set.add(field_name)
+        return inst
+
     @field_validator("ie_start", "ie_end", mode="before")
     @classmethod
     def _validate_irrigation_doy(cls, v: Any, info: ValidationInfo) -> Any:
@@ -216,9 +428,33 @@ class IrrigationParams(
     def _bind_irrigation_doy_ref(cls, v: Any, info: ValidationInfo) -> Any:
         return _bind_doy_ref_validator(v, info.field_name or "ie_start/ie_end")
 
+    @field_serializer("ie_start", "ie_end", mode="wrap")
+    def _serialise_irrigation_doy(self, value: Any, handler: Any) -> Any:
+        """Serialise inactive non-integer DOY placeholders without Pydantic warnings."""
+        if value is None:
+            return None
+        if isinstance(value, RefValue):
+            inner = value.value
+            if inner is None or (isinstance(inner, int) and not isinstance(inner, bool)):
+                return handler(value)
+            out: dict[str, Any] = {"value": inner}
+            if value.ref is not None:
+                out["ref"] = (
+                    value.ref.model_dump(mode="json", exclude_none=True)
+                    if hasattr(value.ref, "model_dump")
+                    else value.ref
+                )
+            return out
+        if isinstance(value, int) and not isinstance(value, bool):
+            return handler(value)
+        return value
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name in {"ie_start", "ie_end"}:
-            value = _validate_and_bind_doy_assignment(value, name)
+            if self._is_doy_validation_active():
+                value = _validate_and_bind_doy_assignment(value, name)
+            else:
+                value = _normalise_inactive_irrigation_doy(value, name)
         super().__setattr__(name, value)
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -271,24 +507,8 @@ class IrrigationParams(
             ("faut", "0"): (
                 self.faut.value if isinstance(self.faut, RefValue) else self.faut
             ),
-            ("ie_start", "0"): (
-                self.ie_start.value
-                if isinstance(self.ie_start, RefValue)
-                and self.ie_start.value is not None
-                else self.ie_start
-                if self.ie_start is not None
-                and not isinstance(self.ie_start, RefValue)
-                else 0
-            ),
-            ("ie_end", "0"): (
-                self.ie_end.value
-                if isinstance(self.ie_end, RefValue)
-                and self.ie_end.value is not None
-                else self.ie_end
-                if self.ie_end is not None
-                and not isinstance(self.ie_end, RefValue)
-                else 0
-            ),
+            ("ie_start", "0"): _df_state_doy_scalar(self.ie_start),
+            ("ie_end", "0"): _df_state_doy_scalar(self.ie_end),
             ("internalwateruse_h", "0"): (
                 self.internalwateruse_h.value
                 if isinstance(self.internalwateruse_h, RefValue)
@@ -344,7 +564,8 @@ class IrrigationParams(
         ie_end_val = df.loc[grid_id, ("ie_end", "0")]
         internalwateruse_h = df.loc[grid_id, ("internalwateruse_h", "0")]
 
-        # Convert to RefValue (treat 0 / 0.0 as None since to_df_state writes None as 0)
+        # Convert to RefValue (treat 0 / 0.0 as None since to_df_state writes None as 0;
+        # preserve NaN so active irrigation validation rejects non-finite DOYs loudly).
         h_maintain = RefValue(h_maintain)
         faut = RefValue(faut)
         ie_start = (
@@ -378,7 +599,16 @@ class IrrigationParams(
 class AnthropogenicHeat(
     DataModelBase
 ):  # TODO: May need to add the RefValue to the profiles here
-    """Anthropogenic heat flux parameters and profiles."""
+    """Anthropogenic heat flux parameters and profiles.
+
+    Compatibility defaults (``popdensnighttime=10.0`` ha-1 and
+    ``DayProfile(working_day=1.0, holiday=0.0)``) are retained so sparse
+    configurations continue to round-trip without schema breaks, but they are
+    uncalibrated placeholders rather than recommended site values. When loaded
+    via ``SUEWSConfig.from_yaml`` or ``SUEWSConfig.from_dict`` under an active
+    modelled emissions method (``model.physics.emissions != 0``), omitting an
+    active parameter emits a ``UserWarning``.
+    """
 
     model_config = ConfigDict(title="Anthropogenic Heat")
 
@@ -397,6 +627,11 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "1",
             "display_name": "Building Fraction of Base QF",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
+            "range_description": "Physical fraction in 0.0-1.0; calibrate by site.",
         },
     )
     qf_a: DayProfile = Field(
@@ -409,6 +644,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 ha",
             "display_name": "QF Coefficient A",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
             "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
         },
     )
@@ -422,6 +661,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1 ha",
             "display_name": "QF Coefficient B",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
             "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
         },
     )
@@ -435,6 +678,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1 ha",
             "display_name": "QF Coefficient C",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
             "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
         },
     )
@@ -449,7 +696,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "degC",
             "display_name": "Base Temperature Cooling",
-            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     baset_heating: DayProfile = Field(
@@ -462,7 +712,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "degC",
             "display_name": "Base Temperature Heating",
-            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ah_min: DayProfile = Field(
@@ -480,7 +733,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2",
             "display_name": "Base Anthropogenic Heat",
-            "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ah_slope_cooling: DayProfile = Field(
@@ -494,7 +750,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1",
             "display_name": "Anthropogenic Heat Slope (Cooling)",
-            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ah_slope_heating: DayProfile = Field(
@@ -509,7 +768,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1",
             "display_name": "Anthropogenic Heat Slope (Heating)",
-            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ahprof_24hr: HourlyProfile = Field(
@@ -521,19 +783,47 @@ class AnthropogenicHeat(
         },
     )
     popdensdaytime: DayProfile = Field(
-        description="Daytime population density",
+        description=(
+            "Daytime population density (people per hectare). The DayProfile "
+            "default (working_day=1.0, holiday=0.0) is a compatibility "
+            "placeholder, not a calibrated site value; specify site-specific "
+            "values when modelled anthropogenic emissions are active."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "ha-1",
             "display_name": "Daytime Population Density",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 204.58 ha^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
+            "range_description": (
+                "Non-negative (>= 0.0 ha^-1); sample benchmark value is 204.58 ha^-1 "
+                "for central London (Ward et al. 2016); calibrate by site."
+            ),
         },
     )
     popdensnighttime: float = Field(
         default=10.0,
-        description="Nighttime population density",
+        description=(
+            "Nighttime population density (people per hectare). The default "
+            "10.0 ha-1 is a compatibility placeholder, not a calibrated site "
+            "value; omitting it under active modelled emissions "
+            "(model.physics.emissions != 0) substitutes 10.0 ha-1 and can "
+            "materially alter simulated QF and metabolic CO2, so specify the "
+            "site value explicitly."
+        ),
         json_schema_extra={
             "unit": "ha-1",
             "display_name": "Nighttime Population Density",
+            "default_description": (
+                "Compatibility placeholder default: 10.0 ha^-1 (not a calibrated site value). "
+                "Sample benchmark value: 204.58 ha^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
+            "range_description": (
+                "Non-negative (>= 0.0 ha^-1); sample benchmark value is 204.58 ha^-1 "
+                "for central London (Ward et al. 2016); calibrate by site."
+            ),
         },
         ge=0.0,
     )

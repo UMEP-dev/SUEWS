@@ -807,17 +807,17 @@ CONTAINS
 
 
    SUBROUTINE SUEWS_update_SoilMoist( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HYDRO_STATE, SUEWS_STATE
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -1206,7 +1206,7 @@ CONTAINS
 
    !===================================================================================
    SUBROUTINE SUEWS_cal_WaterUse( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
       ! anthroEmisState, hydroState) ! INout:
       ! Conversion of water use (irrigation)
@@ -1227,16 +1227,17 @@ CONTAINS
       !        - Add functionality for water on paved surfaces (street cleaning, fountains)
       !------------------------------------------------------------------------------
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, SUEWS_STATE
       USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
+      USE module_ctrl_input_profile, ONLY: get_Prof_SpecTime_sum
       USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -1267,8 +1268,6 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: NAN = -999.
       REAL(KIND(1D0)) :: OverUse
       REAL(KIND(1D0)) :: rain_cum_daily ! accumulated daily rainfall
-
-      ! REAL(KIND(1D0)) :: get_Prof_SpecTime_sum
 
       REAL(KIND(1D0)) :: WUProfA_tstep ! automatic water use profile value at tstep
       REAL(KIND(1D0)) :: WUProfM_tstep ! mannual water use profile value at tstep
@@ -1304,12 +1303,11 @@ CONTAINS
                wu_surf => hydroState%wu_surf, &
                wu_int => hydroState%wu_int, &
                wu_ext => hydroState%wu_ext, &
-               it => timer%it_st, &
-               nsh_real => timer%nsh_real, &
-               DayofWeek_id => timer%DayofWeek_id_st, &
-               NSH => timer%NSH, &
-               DLS => timer%DLS, &
-               imin => timer%imin_st &
+               it => clock%it_st, &
+               nsh_real => clock%nsh_real, &
+               NSH => clock%NSH, &
+               DLS => clock%DLS, &
+               imin => clock%imin_st &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -1375,10 +1373,11 @@ CONTAINS
                ! If water use is modelled, calculate at timestep of model resolution [mm]
                ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled
 
-                  ! Profile-hour (daylight saving) and weekday/weekend index
-                  ! (GH#1559: centralised in module_util_time)
+                  ! Profile-hour (daylight saving) and delivery-day weekday/weekend index
+                  ! (GH#1559, GH#2381, GH#2333: derived once per step in SUEWS_cal_clock
+                  ! so the closing 00:00 interval uses the same delivery day as WUDay_id).
                   ih = cal_profile_hour(it, DLS)
-                  iu = cal_weekday_index(DayofWeek_id(1))
+                  iu = cal_weekday_index(clock%deliv_dow_st)
 
                   WUDay_A_id = 0
                   WUDay_A_id(ConifSurf) = WUDay_id(2)
@@ -1439,39 +1438,5 @@ CONTAINS
          END ASSOCIATE
       END ASSOCIATE
    END SUBROUTINE SUEWS_cal_WaterUse
-   !===================================================================================
-
-   ! TODO: this is a temporary workaround for the fact that the compiler does not support function-calling within associate
-   FUNCTION get_Prof_SpecTime_sum(Hour, Min, Sec, Prof_24h, dt) RESULT(Prof_CurrTime)
-      USE module_ctrl_const_physconst, ONLY: sec_per_hour
-      IMPLICIT NONE
-
-      INTEGER :: i, j !Used to count over hours and sub-hourly timesteps
-      INTEGER, INTENT(IN) :: Hour, Min, Sec, dt
-      INTEGER :: total_sec
-      REAL(KIND(1D0)), DIMENSION(0:23), INTENT(IN) :: Prof_24h
-      REAL(KIND(1D0)), DIMENSION(0:23) :: Prof_24h_sum
-      REAL(KIND(1D0)) :: deltaProf !Change in hourly profiles per model timestep
-      REAL(KIND(1D0)) :: Prof_CurrTime
-
-      total_sec = Min*60 + Sec
-
-      Prof_24h_sum = MERGE(Prof_24h/(SUM(Prof_24h)), 0.D0, SUM(Prof_24h) /= 0) ! prevent zero-division
-
-      i = hour
-      j = i + 1
-      IF (j == 24) j = 0
-
-      deltaProf = (Prof_24h_sum(j) - Prof_24h_sum(i))/sec_per_hour
-      Prof_CurrTime = Prof_24h_sum(hour) + deltaProf*total_sec
-      Prof_CurrTime = Prof_CurrTime*dt/sec_per_hour
-
-   END FUNCTION get_Prof_SpecTime_sum
 
 END MODULE module_phys_waterdist
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE WaterDist_module
-   USE module_phys_waterdist
-END MODULE WaterDist_module

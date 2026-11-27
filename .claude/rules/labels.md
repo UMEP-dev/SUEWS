@@ -46,4 +46,4 @@ new area label seems needed, propose it to a maintainer instead of creating it.
 ## Detail
 
 Layer meanings and the audit procedure are in
-`.claude/skills/triage-issue/references/label-hierarchy.md`.
+`.agents/skills/triage-issue/references/label-hierarchy.md`.

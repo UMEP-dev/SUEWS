@@ -10,7 +10,7 @@ import pytest
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-AUDIT_PATH = PROJECT_ROOT / ".claude" / "skills" / "audit-docs" / "scripts" / "audit.py"
+AUDIT_PATH = PROJECT_ROOT / ".agents" / "skills" / "audit-docs" / "scripts" / "audit.py"
 BIB_PATHS = (
     PROJECT_ROOT / "docs" / "source" / "assets" / "refs" / "refs-SUEWS.bib",
     PROJECT_ROOT / "docs" / "source" / "assets" / "refs" / "refs-community.bib",

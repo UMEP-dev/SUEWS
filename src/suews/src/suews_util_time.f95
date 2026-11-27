@@ -1,7 +1,6 @@
 ! subroutines included:
 ! day2month
 !
-! month2day
 ! leapYearCalc
 !       returns -- number of days in actual year
 !            used    -- LUMPS phenology (initalization)
@@ -22,8 +21,10 @@
 ! Main module following naming standard: matches filename
 MODULE module_util_time
    USE module_ctrl_const_mathconst, ONLY: DEG2RAD, pi
+   USE module_ctrl_const_calendar, ONLY: &
+      NDAYS_WEEK, DOW_SUNDAY, DOW_SATURDAY, DAYTYPE_WEEKDAY, DAYTYPE_WEEKEND
    IMPLICIT NONE
-   PRIVATE :: SUEWS_cal_local_standard_timer
+   PRIVATE :: SUEWS_cal_local_standard_timer, is_same_calendar_day
 CONTAINS
    SUBROUTINE day2month(b, mb, md, seas, year, latitude)
       IMPLICIT NONE
@@ -107,38 +108,6 @@ CONTAINS
       RETURN
    END SUBROUTINE day2month
 !===============================================================================
-   SUBROUTINE month2day(mon, ne, k, b)
-      IMPLICIT NONE
-      INTEGER :: mon, ne, k, b
-
-      IF (mon == 1) THEN
-         NE = 32 - B
-      ELSE IF (mon == 2) THEN
-         NE = 60 + K - B
-      ELSE IF (mon == 3) THEN
-         NE = 91 + K - B
-      ELSE IF (mon == 4) THEN
-         NE = 121 + K - B
-      ELSE IF (mon == 5) THEN
-         NE = 152 + K - B
-      ELSE IF (mon == 6) THEN
-         NE = 182 + K - B
-      ELSE IF (mon == 7) THEN
-         NE = 213 + K - B
-      ELSE IF (mon == 8) THEN
-         NE = 244 + K - B
-         !**********PAGE 151 STARTS HERE**************
-      ELSE IF (mon == 9) THEN
-         NE = 274 + K - B
-      ELSE IF (mon == 10) THEN
-         NE = 305 + K - B
-      ELSE IF (mon == 11) THEN
-         NE = 335 + K - B
-      ELSE IF (mon == 12) THEN
-         NE = 366 + K - B
-      END IF
-   END SUBROUTINE month2day
-!===============================================================================
 !Defines the number or days in each year (defines the leap year)
    SUBROUTINE LeapYearCalc(year_int, nroDays)
 
@@ -154,24 +123,6 @@ CONTAINS
          nroDays = 365
       END IF
    END SUBROUTINE LeapYearCalc
-
-!===============================================================================
-!Defines the number or days in each year (defines the leap year)
-! Ting Sun 09 May 2018
-   ELEMENTAL FUNCTION Days_of_Year(year_int) RESULT(nDays)
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: year_int
-      INTEGER :: nDays
-
-      IF (MOD(year_int, 100) /= 0 .AND. MOD(year_int, 4) == 0) THEN
-         nDays = 366
-      ELSEIF (MOD(year_int, 400) == 0) THEN
-         nDays = 366
-      ELSE
-         nDays = 365
-      END IF
-
-   END FUNCTION Days_of_Year
 
 !===============================================================================
 
@@ -196,7 +147,7 @@ CONTAINS
 10    N1 = (26*(MN + 1))/10
       N2 = (125*YR)/100
       DAY = (DATE + N1 + N2 - (YR/100) + (YR/400) - 1)
-      DOW = MOD(DAY, 7) + 1
+      DOW = MOD(DAY, NDAYS_WEEK) + DOW_SUNDAY
 
       RETURN
    END SUBROUTINE Day_Of_Week
@@ -376,7 +327,14 @@ CONTAINS
       endDLS = ahemisPrm%end_dls
 
       DLS = 0
-      IF (id > startDLS .AND. id < endDLS) dls = 1
+      IF (startDLS <= 0 .OR. endDLS <= 0 .OR. startDLS == endDLS) RETURN
+      IF (startDLS < endDLS) THEN
+         ! Northern Hemisphere (intra-year window): active strictly between startDLS and endDLS.
+         IF (id > startDLS .AND. id < endDLS) DLS = 1
+      ELSE
+         ! Southern Hemisphere (year-wrapping window, startDLS > endDLS): active after startDLS or before endDLS.
+         IF (id > startDLS .OR. id < endDLS) DLS = 1
+      END IF
 
    END SUBROUTINE SUEWS_cal_DLS
 
@@ -400,13 +358,13 @@ CONTAINS
    END FUNCTION cal_profile_hour
 
    PURE FUNCTION cal_weekday_index(dow1) RESULT(iu)
-      ! Weekday/weekend index for profile selection: 1 = weekday, 2 = weekend.
+      ! Weekday/weekend index for profile selection: DAYTYPE_WEEKDAY (1) or DAYTYPE_WEEKEND (2).
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: dow1 ! day of week, dayofWeek_id(1): 1=Sun .. 7=Sat
+      INTEGER, INTENT(IN) :: dow1 ! day of week, dayofWeek_id(1): DOW_SUNDAY..DOW_SATURDAY
       INTEGER :: iu
 
-      iu = 1
-      IF (dow1 == 1 .OR. dow1 == 7) iu = 2
+      iu = DAYTYPE_WEEKDAY
+      IF (dow1 == DOW_SUNDAY .OR. dow1 == DOW_SATURDAY) iu = DAYTYPE_WEEKEND
    END FUNCTION cal_weekday_index
 
    SUBROUTINE SUEWS_cal_local_standard_timer(timer, siteInfo, forcing_timestamp_reference, timer_st)
@@ -456,53 +414,224 @@ CONTAINS
       timer_st%imin = MOD(day_minutes, 60)
    END SUBROUTINE SUEWS_cal_local_standard_timer
 
-   SUBROUTINE SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
-      ! Preserve the established public three-argument timer interface.
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, anthroEMIS_PRM
+   PURE LOGICAL FUNCTION is_same_calendar_day(a, b) RESULT(same_day)
+      USE module_util_datetime, ONLY: datetime
+      IMPLICIT NONE
+      TYPE(datetime), INTENT(IN) :: a, b
+
+      same_day = (a%getDay() == b%getDay()) .AND. &
+                 (a%getMonth() == b%getMonth()) .AND. &
+                 (a%getYear() == b%getYear())
+   END FUNCTION is_same_calendar_day
+
+   SUBROUTINE SUEWS_cal_clock(timer, siteInfo, ahemisPrm, forcing_timestamp_reference, clock)
+      ! Single entry point that derives the per-step clock from the caller's
+      ! timer (gh#2333). The timer is read-only; the clock is rebuilt from
+      ! scratch every call, so nothing derived can leak between timesteps.
+      ! The main clock follows the forcing reference; solar and profile
+      ! consumers also receive a fixed-offset site clock and right-closed
+      ! local-standard delivery day (gh#2381).
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_CLOCK, SUEWS_SITE, anthroEMIS_PRM
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
-      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-      TYPE(anthroEMIS_PRM), INTENT(IN) :: ahemisPrm
-
-      CALL SUEWS_cal_timer_reference(timer, siteInfo, ahemisPrm, 0)
-   END SUBROUTINE SUEWS_cal_timer
-
-   SUBROUTINE SUEWS_cal_timer_reference(timer, siteInfo, ahemisPrm, forcing_timestamp_reference)
-      ! Single entry point that computes all derived timer values for a
-      ! timestep, consolidating the previously separate dectime / tstep /
-      ! weekday / DLS calls. The main clock follows the forcing reference;
-      ! solar and profile consumers also receive a fixed-offset site clock.
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, anthroEMIS_PRM
-
-      IMPLICIT NONE
-
-      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(anthroEMIS_PRM), INTENT(IN) :: ahemisPrm
       INTEGER, INTENT(IN) :: forcing_timestamp_reference
+      TYPE(SUEWS_CLOCK), INTENT(OUT) :: clock
       TYPE(SUEWS_TIMER) :: timer_st
+      INTEGER :: deliv_year_st, deliv_month_st, deliv_day_st, deliv_doy_st, deliv_dow_st
+      LOGICAL :: first_step_of_deliv_day_st
 
-      CALL SUEWS_cal_dectime(timer, timer%dectime)
-      CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
-      CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
+      clock%timer = timer
+
+      CALL SUEWS_cal_dectime(timer, clock%dectime)
+      CALL SUEWS_cal_tstep(timer, clock%nsh, clock%nsh_real, clock%tstep_real)
+      CALL SUEWS_cal_weekday(timer, siteInfo, clock%dayofWeek_id)
+      CALL SUEWS_cal_day_boundaries( &
+         timer, siteInfo%lat, clock%dayofWeek_id, &
+         clock%first_step_of_run, clock%first_step_of_day, clock%last_step_of_day, &
+         clock%prev_step_closed_day, clock%first_step_of_calendar_day, &
+         clock%id_day, clock%dayofWeek_day, clock%elapsed_sec_of_day)
       CALL SUEWS_cal_local_standard_timer(timer, siteInfo, forcing_timestamp_reference, timer_st)
-      CALL SUEWS_cal_dectime(timer_st, timer%dectime_st)
-      CALL SUEWS_cal_weekday(timer_st, siteInfo, timer%dayofWeek_id_st)
-      CALL SUEWS_cal_DLS(timer_st, ahemisPrm, timer%DLS)
-      timer%iy_st = timer_st%iy
-      timer%id_st = timer_st%id
-      timer%it_st = timer_st%it
-      timer%imin_st = timer_st%imin
-      timer%tz_solar = siteInfo%timezone
-      IF (forcing_timestamp_reference == 1) timer%tz_solar = 0.0D0
-   END SUBROUTINE SUEWS_cal_timer_reference
+      CALL SUEWS_cal_dectime(timer_st, clock%dectime_st)
+      CALL SUEWS_cal_weekday(timer_st, siteInfo, clock%dayofWeek_id_st)
+      CALL SUEWS_cal_DLS(timer_st, ahemisPrm, clock%DLS)
+      clock%iy_st = timer_st%iy
+      clock%id_st = timer_st%id
+      clock%it_st = timer_st%it
+      clock%imin_st = timer_st%imin
+      clock%tz_solar = siteInfo%timezone
+      IF (forcing_timestamp_reference == 1) clock%tz_solar = 0.0D0
+      CALL SUEWS_cal_interval_day_st( &
+         clock, deliv_year_st, deliv_month_st, deliv_day_st, &
+         deliv_doy_st, deliv_dow_st, first_step_of_deliv_day_st)
+      clock%deliv_year_st = deliv_year_st
+      clock%deliv_month_st = deliv_month_st
+      clock%deliv_day_st = deliv_day_st
+      clock%deliv_doy_st = deliv_doy_st
+      clock%deliv_dow_st = deliv_dow_st
+      clock%first_step_of_deliv_day_st = first_step_of_deliv_day_st
+   END SUBROUTINE SUEWS_cal_clock
+
+   SUBROUTINE SUEWS_cal_day_boundaries( &
+      timer, lat, dayofWeek_id, &
+      first_step_of_run, first_step_of_day, last_step_of_day, &
+      prev_step_closed_day, first_step_of_calendar_day, &
+      id_day, dayofWeek_day, elapsed_sec_of_day)
+      ! Day-boundary predicates and right-closed accumulated-day identity on
+      ! the main (forcing) clock (gh#2333, gh#2382).
+      ! Under SUEWS's closed="right", label="right" convention, every step
+      ! ending at t in (D 00:00, D+1 00:00] belongs to calendar day
+      ! date(t - 1 s), matching pandas resample(..., closed="right",
+      ! label="right") and SUEWS_cal_interval_day_st across midnight-aligned
+      ! and offset regular grids. DyOHM preserves calendar-day midnight
+      ! updates via first_step_of_calendar_day.
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
+      USE module_ctrl_const_physconst, ONLY: sec_per_hour
+      USE module_util_datetime, ONLY: datetime, timedelta
+
+      IMPLICIT NONE
+
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      REAL(KIND(1D0)), INTENT(IN) :: lat
+      INTEGER, DIMENSION(3), INTENT(IN) :: dayofWeek_id
+      LOGICAL, INTENT(OUT) :: first_step_of_run
+      LOGICAL, INTENT(OUT) :: first_step_of_day
+      LOGICAL, INTENT(OUT) :: last_step_of_day
+      LOGICAL, INTENT(OUT) :: prev_step_closed_day
+      LOGICAL, INTENT(OUT) :: first_step_of_calendar_day
+      INTEGER, INTENT(OUT) :: id_day
+      INTEGER, DIMENSION(3), INTENT(OUT) :: dayofWeek_day
+      INTEGER, INTENT(OUT) :: elapsed_sec_of_day
+
+      TYPE(datetime) :: time_now, time_prev, day_now, day_prev, day_next, prev_pred_next
+      TYPE(timedelta) :: one_sec, step_dt
+      INTEGER :: iy_day, mb_day, date_day, seas_day, wd_day
+
+      one_sec = timedelta(seconds=1)
+      step_dt = timedelta(seconds=timer%tstep)
+      time_now = datetime(year=timer%iy) + &
+                 timedelta(days=timer%id - 1, hours=timer%it, minutes=timer%imin, seconds=timer%isec)
+      time_prev = time_now - step_dt
+      day_now = time_now - one_sec
+      day_prev = time_prev - one_sec
+      day_next = (time_now + step_dt) - one_sec
+
+      first_step_of_run = timer%dt_since_start == timer%tstep
+      first_step_of_day = .NOT. is_same_calendar_day(day_now, day_prev)
+      last_step_of_day = .NOT. is_same_calendar_day(day_now, day_next)
+      IF (timer%tstep_prev > 0) THEN
+         prev_pred_next = day_prev + timedelta(seconds=timer%tstep_prev)
+         prev_step_closed_day = .NOT. is_same_calendar_day(day_prev, prev_pred_next)
+      ELSE
+         prev_step_closed_day = .FALSE.
+      END IF
+      first_step_of_calendar_day = .NOT. is_same_calendar_day(time_now, time_prev)
+
+      IF (.NOT. is_same_calendar_day(time_now, day_now)) THEN
+         iy_day = day_now%getYear()
+         id_day = day_now%yearday()
+         CALL day2month(id_day, mb_day, date_day, seas_day, iy_day, lat)
+         CALL Day_Of_Week(date_day, mb_day, iy_day, wd_day)
+         dayofWeek_day = [wd_day, mb_day, seas_day]
+      ELSE
+         id_day = timer%id
+         dayofWeek_day = dayofWeek_id
+      END IF
+      elapsed_sec_of_day = day_now%getHour()*NINT(sec_per_hour) &
+                           + day_now%getMinute()*60 &
+                           + day_now%getSecond() + 1
+   END SUBROUTINE SUEWS_cal_day_boundaries
+
+   SUBROUTINE SUEWS_cal_interval_day_st( &
+      clock, deliv_year, deliv_month, deliv_day, deliv_doy, deliv_dow, is_new_day)
+      ! Resolve the right-closed local-standard delivery day (D 00:00, D+1 00:00]
+      ! owning the current forcing interval (t_end - step_dt, t_end] on the
+      ! site's fixed-offset local standard clock (gh#2381). Any interval endpoint
+      ! t_end in (D 00:00, D+1 00:00] maps to date(t_end - 1 s), and the previous
+      ! interval ended at t_prev = t_end - step_dt -> date(t_prev - 1 s), which
+      ! stays exact even when adaptive steps or fractional-hour timezones
+      ! (e.g. UTC+05:30 with hourly forcing) straddle local midnight.
+      USE module_ctrl_type, ONLY: SUEWS_CLOCK
+      USE module_ctrl_const_physconst, ONLY: sec_per_day, sec_per_hour
+      IMPLICIT NONE
+
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
+      INTEGER, INTENT(OUT) :: deliv_year, deliv_month, deliv_day, deliv_doy, deliv_dow
+      LOGICAL, INTENT(OUT) :: is_new_day
+
+      INTEGER :: iy_end, id_end, it_end, imin_end
+      INTEGER :: sec_day, sec_hour, step_dt
+      INTEGER :: cur_sec, cur_yr, prev_sec, prev_yr, year_days, year_sec
+      INTEGER :: cur_doy, prev_doy, seas
+
+      sec_day = NINT(sec_per_day)
+      sec_hour = NINT(sec_per_hour)
+
+      IF (clock%iy_st > 0) THEN
+         iy_end = clock%iy_st
+         id_end = clock%id_st
+         it_end = clock%it_st
+         imin_end = clock%imin_st
+      ELSE
+         iy_end = clock%timer%iy
+         id_end = clock%timer%id
+         it_end = clock%timer%it
+         imin_end = clock%timer%imin
+      END IF
+
+      IF (clock%timer%tstep > 0) THEN
+         step_dt = clock%timer%tstep
+      ELSE IF (clock%nsh > 0) THEN
+         step_dt = sec_hour/clock%nsh
+      ELSE
+         step_dt = 0
+      END IF
+
+      ! Current delivery day via right-closed endpoint: date(t_end - 1 s)
+      cur_yr = iy_end
+      cur_sec = (id_end - 1)*sec_day + it_end*sec_hour + imin_end*60 + clock%timer%isec - 1
+      DO
+         CALL LeapYearCalc(cur_yr, year_days)
+         year_sec = year_days*sec_day
+         IF (cur_sec >= 0 .AND. cur_sec < year_sec) EXIT
+         IF (cur_sec < 0) THEN
+            cur_yr = cur_yr - 1
+            CALL LeapYearCalc(cur_yr, year_days)
+            cur_sec = cur_sec + year_days*sec_day
+         ELSE
+            cur_sec = cur_sec - year_sec
+            cur_yr = cur_yr + 1
+         END IF
+      END DO
+      cur_doy = cur_sec/sec_day + 1
+
+      ! Previous interval's delivery day: date((t_end - step_dt) - 1 s)
+      prev_yr = cur_yr
+      prev_sec = cur_sec - step_dt
+      DO
+         CALL LeapYearCalc(prev_yr, year_days)
+         year_sec = year_days*sec_day
+         IF (prev_sec >= 0 .AND. prev_sec < year_sec) EXIT
+         IF (prev_sec < 0) THEN
+            prev_yr = prev_yr - 1
+            CALL LeapYearCalc(prev_yr, year_days)
+            prev_sec = prev_sec + year_days*sec_day
+         ELSE
+            prev_sec = prev_sec - year_sec
+            prev_yr = prev_yr + 1
+         END IF
+      END DO
+      prev_doy = prev_sec/sec_day + 1
+
+      deliv_year = cur_yr
+      deliv_doy = cur_doy
+      CALL day2month(deliv_doy, deliv_month, deliv_day, seas, deliv_year, 0.0D0)
+      CALL Day_Of_Week(deliv_day, deliv_month, deliv_year, deliv_dow)
+      is_new_day = (clock%timer%dt_since_start == step_dt) .OR. &
+                   (cur_yr /= prev_yr) .OR. (cur_doy /= prev_doy)
+   END SUBROUTINE SUEWS_cal_interval_day_st
 
 END MODULE module_util_time
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE time_module
-   USE module_util_time
-END MODULE time_module

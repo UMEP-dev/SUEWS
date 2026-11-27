@@ -2,6 +2,7 @@
 MODULE module_phys_snow
    USE module_phys_evap, ONLY: cal_evap
    USE module_ctrl_const_allocate, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE module_ctrl_const_physconst, ONLY: sec_per_day
    IMPLICIT NONE
 
@@ -1227,7 +1228,7 @@ CONTAINS
    SUBROUTINE Evap_SUEWS_Snow(Qm, QP, lvS_J_kg, avdens, avRh, Press_hPa, Temp_C, RAsnow, psyc_hPa, &
                               tstep, avcp, sIce_hPa, dectime, ev_snow, tlv_sub)
 
-      USE meteo, ONLY: sat_vap_pressice
+      USE module_util_meteo, ONLY: sat_vap_pressice
 
       IMPLICIT NONE
 
@@ -1358,7 +1359,7 @@ CONTAINS
       ELSE
          IF (swe <= sweD) THEN
 
-            asc = 1 - ((1/3.1416)*ACOS(2*(swe/sweD) - 1))**1.7
+            asc = 1 - ((1/pi)*ACOS(2*(swe/sweD) - 1))**1.7
          ELSE
             asc = 1
          END IF
@@ -1369,21 +1370,6 @@ CONTAINS
 
       RETURN
    END FUNCTION SnowDepletionCurve
-
-   SUBROUTINE veg_fr_snow( &
-      sfr_surf, SnowFrac, & !input
-      veg_fr) !output
-
-      IMPLICIT NONE
-
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf !< surface fractions
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowFrac !< snowy surface fractions [-]
-
-      REAL(KIND(1D0)), INTENT(out) :: veg_fr !< vegetated surface fractions [-]
-
-      veg_fr = DOT_PRODUCT(sfr_surf(3:7), 1 - SnowFrac(3:7))
-
-   END SUBROUTINE veg_fr_snow
 
    !In this subroutine the snow properties are updated. The aging functions work for hourly air
    !temperature (dt=1). As the code timestep is typically smaller than one hour, the new albedo
@@ -1559,9 +1545,3 @@ CONTAINS
    END FUNCTION update_snow_dens
 
 END MODULE module_phys_snow
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE Snow_module
-   USE module_phys_snow
-END MODULE Snow_module

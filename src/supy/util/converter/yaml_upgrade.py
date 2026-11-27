@@ -24,6 +24,7 @@ from typing import Callable, Optional, Union
 
 import yaml
 
+from ...constants import C2K
 from ...data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
@@ -46,7 +47,14 @@ from ...data_model.core.field_renames import (
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
+    collect_and_clear_vertical_layer_optical_nulls_in_raw_config,
     rename_keys_recursive,
+    strip_vertical_layer_cross_facet_keys_in_raw_config,
+)
+from ...data_model.core.profile import (
+    TEN_MINUTE_PROFILE_ALIAS_GROUPS as _TEN_MINUTE_PROFILE_ALIAS_GROUPS,
+    normalise_ten_minute_profile_key,
+    normalise_ten_minute_profile_mapping,
 )
 from ...data_model.core.state import validate_sdd_id
 from ...data_model.configuration import CURRENT_SCHEMA_VERSION
@@ -1635,14 +1643,18 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
     if active:
         # Validate all sites against the current schema using a throwaway copy
         # stripped of legacy radiation, continuation-state placeholders,
-        # pre-dev16 non-finite sdd_id values, and pre-dev17 non-integer DOYs;
-        # the returned dev9 mapping stays intact for later deltas and
-        # single-pass logging.
+        # pre-dev16 non-finite sdd_id values, pre-dev17 non-integer DOYs, and
+        # pre-dev20 non-canonical 10-minute profile keys; the returned dev9
+        # mapping stays intact for later deltas and single-pass logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
         candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
         _clear_nonfinite_sdd_for_dev9_candidate(candidate)
         _clear_noninteger_doy_for_dev9_candidate(candidate)
+        _clear_noncanonical_ten_minute_keys_for_dev9_candidate(candidate)
+        candidate = _clear_non_owning_vertical_layer_optical_keys_for_dev9_candidate(
+            candidate
+        )
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -2280,7 +2292,7 @@ def _drop_legacy_continuation_state_placeholders(cfg: dict) -> tuple[dict, list[
         if "tair_av" in states:
             path = f"sites[{index}].initial_states.tair_av"
             val = states["tair_av"]
-            if not (_is_real_zero(val) or _is_real_equal(val, 273.15)):
+            if not (_is_real_zero(val) or _is_real_equal(val, C2K)):
                 raise YamlUpgradeError(
                     f"{path} cannot initialise continuation state for a fresh run. "
                     "Only legacy cold-start placeholders (0 or 273.15) can be migrated. "
@@ -2685,8 +2697,619 @@ for (_source, _target), _handler in list(_HANDLERS.items()):
         _HANDLERS[(_source, "2026.6.dev16")] = _handler
         _HANDLERS[(_source, _target)] = _with_integer_doy_delta(_handler)
 _HANDLERS[("2026.6.dev16", CURRENT_SCHEMA_VERSION)] = _migrate_2026_6_dev16_to_2026_6_dev17
+
+
+def _migrate_2026_6_dev17_to_2026_6_dev18(cfg: dict) -> dict:
+    """Record the default EHC surface-coupling change for storage_heat=5 YAMLs."""
+    physics = (cfg.get("model") or {}).get("physics") or {}
+    storage_heat = physics.get("storage_heat", physics.get("storageheatmethod"))
+    if isinstance(storage_heat, dict):
+        storage_heat = storage_heat.get("value", storage_heat)
+    is_ehc = storage_heat in (5, "5", "ehc", "EHC") or (
+        isinstance(storage_heat, dict) and "ehc" in storage_heat
+    )
+    if is_ehc and "ehc_surface_coupling" not in physics:
+        _log(
+            "[yaml-upgrade] model.physics.ehc_surface_coupling omitted with storage_heat=5: "
+            "2026.6.dev18 defaults to implicit coupling; set ehc_surface_coupling: explicit "
+            "to retain legacy explicit coupling"
+        )
+    return cfg
+
+
+def _with_ehc_implicit_default_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev17_to_2026_6_dev18(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev17")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ehc_implicit_default_delta(_handler)
+_HANDLERS[("2026.6.dev17", "2026.6.dev17")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev17", CURRENT_SCHEMA_VERSION)] = _with_ehc_implicit_default_delta(
+    _with_integer_doy_delta(_with_senescence_check(_identity))
+)
 _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
     _with_senescence_check(_identity)
+)
+
+_WEEKLY_PROFILE_DAYS: tuple[str, ...] = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
+
+
+def _weekly_profile_is_asymmetric(profile: object) -> bool:
+    """Return True if a WeeklyProfile mapping assigns differing weekday values."""
+    if not isinstance(profile, Mapping):
+        return False
+    if "value" in profile and isinstance(profile["value"], Mapping):
+        profile = profile["value"]
+    values: list[object] = []
+    for day in _WEEKLY_PROFILE_DAYS:
+        raw = profile.get(day, 0.0)
+        if isinstance(raw, Mapping) and "value" in raw:
+            raw = raw["value"]
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            val = float(raw)
+            if math.isnan(val):
+                return True
+            values.append(val)
+        else:
+            values.append(raw)
+    first = values[0]
+    return any(val != first for val in values[1:])
+
+
+def _migrate_2026_6_dev18_to_2026_6_dev19(cfg: dict) -> dict:
+    """Log an advisory for asymmetric irrigation weekday schedules without rotating keys."""
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, Mapping) else None
+        irrigation = props.get("irrigation") if isinstance(props, Mapping) else None
+        if not isinstance(irrigation, Mapping):
+            continue
+        for field_name in ("daywat", "daywatper"):
+            if field_name not in irrigation:
+                continue
+            if _weekly_profile_is_asymmetric(irrigation[field_name]):
+                _log(
+                    f"[yaml-upgrade] sites[{index}].properties.irrigation.{field_name} "
+                    "has an asymmetric weekday schedule: 2026.6.dev19 aligns irrigation "
+                    "weekday slots with calendar days (1=Sunday .. 7=Saturday in legacy "
+                    "tables, 0=Sunday .. 6=Saturday in df_state). Keys were left "
+                    "unchanged; if this YAML was converted from legacy "
+                    "SUEWS_Irrigation.txt tables under an earlier schema, verify that "
+                    "weekday entries match the intended calendar days."
+                )
+    return cfg
+
+
+def _with_irrigation_weekday_advisory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_2026_6_dev18_to_2026_6_dev19(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev18")] = _handler
+        _HANDLERS[(_source, _target)] = _with_irrigation_weekday_advisory_delta(
+            _handler
+        )
+_HANDLERS[("2026.6.dev18", "2026.6.dev18")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev18", CURRENT_SCHEMA_VERSION)] = (
+    _with_irrigation_weekday_advisory_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+
+
+def _clear_noncanonical_ten_minute_keys_for_dev9_candidate(candidate: dict) -> None:
+    """Sanitise pre-dev20 malformed/colliding 10-minute keys on the dev9 throwaway copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev20 10-minute profile key
+    validation. Pre-dev20 ``TenMinuteProfile`` coerced arbitrary dict keys with
+    ``str(k)`` while still validating float/None values. Rewrite only mappings
+    whose keys fail dev20 validation (and whose values are all None or numeric)
+    on that throwaway copy so historical targets ``dev9``..``dev19`` retain
+    pre-dev20 behaviour and targeting ``dev20`` fails cleanly with
+    ``YamlUpgradeError`` rather than Pydantic ``ValidationError``.
+    """
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return
+    for site in sites:
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, _canonical_field, candidate_names in (
+            _TEN_MINUTE_PROFILE_ALIAS_GROUPS
+        ):
+            section = props.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            for field_name in candidate_names:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
+                    continue
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, dict):
+                        continue
+                    try:
+                        normalise_ten_minute_profile_mapping(day_map)
+                        continue
+                    except ValueError:
+                        pass
+                    sanitised: dict[str, float | None] = {}
+                    all_values_valid = True
+                    for idx, val in enumerate(day_map.values()):
+                        if val is None:
+                            coerced_val: float | None = None
+                        else:
+                            try:
+                                coerced_val = float(val)
+                            except (TypeError, ValueError):
+                                all_values_valid = False
+                                break
+                        sanitised[str((idx % 144) + 1)] = coerced_val
+                    if all_values_valid:
+                        profile[day_type] = sanitised
+
+
+def _check_and_normalise_ten_minute_profile_keys(cfg: dict) -> dict:
+    """Normalise valid 10-minute STEBBS profile keys and reject malformed/colliding keys."""
+    cfg = deepcopy(cfg)
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    problems: list[str] = []
+    pending_logs: list[str] = []
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, dict) else None
+        if not isinstance(props, dict):
+            continue
+        for section_name, canonical_field, candidate_names in (
+            _TEN_MINUTE_PROFILE_ALIAS_GROUPS
+        ):
+            section = props.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            present = [name for name in candidate_names if name in section]
+            if len(present) > 1:
+                problems.append(
+                    f"sites[{index}].properties.{section_name}: conflicting aliases "
+                    f"for '{canonical_field}': {', '.join(repr(n) for n in present)}"
+                )
+                continue
+            for field_name in present:
+                profile = section.get(field_name)
+                if not isinstance(profile, dict):
+                    continue
+                for day_type in ("working_day", "holiday"):
+                    day_map = profile.get(day_type)
+                    if not isinstance(day_map, Mapping):
+                        continue
+                    path = (
+                        f"sites[{index}].properties.{section_name}."
+                        f"{field_name}.{day_type}"
+                    )
+                    try:
+                        canonical_map = normalise_ten_minute_profile_mapping(
+                            dict(day_map)
+                        )
+                    except ValueError as exc:
+                        problems.append(f"{path}: {exc}")
+                        continue
+                    has_non_canonical = any(
+                        not isinstance(raw_k, str)
+                        or normalise_ten_minute_profile_key(raw_k) != raw_k
+                        for raw_k in day_map
+                    )
+                    if has_non_canonical:
+                        profile[day_type] = canonical_map
+                        pending_logs.append(
+                            f"[yaml-upgrade] normalised {path}: non-canonical 10-minute "
+                            "profile keys -> canonical '1'..'144' strings"
+                        )
+
+    if problems:
+        raise YamlUpgradeError("\n".join(problems))
+
+    for message in pending_logs:
+        _log(message)
+    return cfg
+
+
+def _with_ten_minute_profile_key_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _check_and_normalise_ten_minute_profile_keys(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev19")] = _handler
+        _HANDLERS[(_source, _target)] = _with_ten_minute_profile_key_delta(_handler)
+_HANDLERS[("2026.6.dev19", "2026.6.dev19")] = _with_integer_doy_delta(
+    _with_senescence_check(_identity)
+)
+_HANDLERS[("2026.6.dev19", CURRENT_SCHEMA_VERSION)] = (
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = (
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+
+
+def _is_present_doy_entry(entry: object) -> bool:
+    """Return True when a raw YAML DOY entry carries a non-null scalar value."""
+    if entry is None:
+        return False
+    if isinstance(entry, Mapping):
+        if "value" in entry:
+            return entry["value"] is not None
+        return False
+    return True
+
+
+def _advise_land_cover_and_dst_policy(cfg: dict) -> dict:
+    """Log non-mutating advisories for dev21 land-cover sum and half-DST policies."""
+    from ...data_model.validation.rules.hard_invariants import (  # noqa: PLC0415
+        check_land_cover_fraction_sum,
+    )
+
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, Mapping) else None
+        if not isinstance(props, Mapping):
+            continue
+
+        land_cover = props.get("land_cover")
+        if isinstance(land_cover, Mapping) and land_cover:
+            fractions: dict[str, object] = {}
+            for surface_name, raw_surface in land_cover.items():
+                surface_props = raw_surface
+                if (
+                    isinstance(surface_props, Mapping)
+                    and "value" in surface_props
+                    and isinstance(surface_props["value"], Mapping)
+                ):
+                    surface_props = surface_props["value"]
+                if not isinstance(surface_props, Mapping) or "sfr" not in surface_props:
+                    continue
+                sfr_entry = surface_props["sfr"]
+                if isinstance(sfr_entry, Mapping) and "value" in sfr_entry:
+                    sfr_val = sfr_entry["value"]
+                elif isinstance(sfr_entry, Mapping):
+                    sfr_val = None
+                else:
+                    sfr_val = sfr_entry
+                if sfr_val is not None:
+                    fractions[str(surface_name)] = sfr_val
+            if fractions:
+                sum_check = check_land_cover_fraction_sum(fractions)
+                if sum_check.band == "error" and sum_check.violation is not None:
+                    _log(
+                        f"[yaml-upgrade] sites[{index}].properties.land_cover: "
+                        f"{sum_check.violation.message}. Schema 2026.6.dev21 rejects "
+                        "land-cover surface fraction sum deviations exceeding 1e-4 "
+                        "in Phase B, Phase C, SUEWSConfig.validate_for_engine(), "
+                        "and SUEWSSimulation.run()."
+                    )
+                elif sum_check.band == "auto_fix" and sum_check.violation is not None:
+                    _log(
+                        f"[yaml-upgrade] sites[{index}].properties.land_cover: "
+                        f"{sum_check.violation.message}"
+                    )
+
+        anthro = props.get("anthropogenic_emissions")
+        if isinstance(anthro, Mapping):
+            start_present = _is_present_doy_entry(anthro.get("startdls"))
+            end_present = _is_present_doy_entry(anthro.get("enddls"))
+            if start_present != end_present:
+                _log(
+                    f"[yaml-upgrade] sites[{index}].properties.anthropogenic_emissions: "
+                    "only one of startdls/enddls is specified. Schema 2026.6.dev21 "
+                    "treats half-specified daylight saving as a blocking Phase B error "
+                    "unless both bounds are set, both are omitted/null, or the file "
+                    "is validated with --science-fixes apply."
+                )
+
+    return cfg
+
+
+def _with_land_cover_and_dst_advisory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _advise_land_cover_and_dst_policy(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev20")] = _handler
+        _HANDLERS[(_source, _target)] = _with_land_cover_and_dst_advisory_delta(
+            _handler
+        )
+_HANDLERS[("2026.6.dev20", "2026.6.dev20")] = _with_ten_minute_profile_key_delta(
+    _with_integer_doy_delta(_with_senescence_check(_identity))
+)
+_HANDLERS[("2026.6.dev20", CURRENT_SCHEMA_VERSION)] = (
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+
+
+def _clear_non_owning_vertical_layer_optical_keys_for_dev9_candidate(
+    candidate: dict,
+) -> dict:
+    """Sanitise pre-dev22 vertical-layer optical inputs on the dev9 throwaway copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev22 non-optional facet optical
+    fields and warns on deprecated cross-facet keys. Clear both cross-facet
+    keys and explicit owning nulls on that throwaway copy so historical targets
+    ``dev9``..``dev21`` retain pre-dev22 behaviour while targeting ``dev22``
+    rejects explicit owning nulls via ``YamlUpgradeError``.
+    """
+    cleaned, _ = strip_vertical_layer_cross_facet_keys_in_raw_config(candidate)
+    cleaned, _ = collect_and_clear_vertical_layer_optical_nulls_in_raw_config(
+        cleaned, clear_nulls=True
+    )
+    return cleaned if isinstance(cleaned, dict) else candidate
+
+
+def _strip_non_owning_vertical_layer_optical_keys(cfg: dict) -> dict:
+    """Enforce dev22 non-null owning optical fields and drop cross-facet keys."""
+    raw_sites = cfg.get("sites") if isinstance(cfg, dict) else None
+    _, null_hits = collect_and_clear_vertical_layer_optical_nulls_in_raw_config(
+        cfg, clear_nulls=False
+    )
+    if null_hits:
+        problems = []
+        for site_idx, facet_attr, layer_idx, owning_key in null_hits:
+            site_obj = (
+                raw_sites[site_idx]
+                if isinstance(raw_sites, list) and site_idx < len(raw_sites)
+                else None
+            )
+            prefix = (
+                f"{_format_site_label(site_idx, site_obj)} "
+                f"properties.vertical_layers.{facet_attr}[{layer_idx}]"
+            )
+            problems.append(
+                f"{prefix}.{owning_key}: explicit null is disallowed in schema "
+                "2026.6.dev22; supply a finite number or omit the field to use the default."
+            )
+        raise YamlUpgradeError("\n".join(problems))
+
+    result, removed = strip_vertical_layer_cross_facet_keys_in_raw_config(cfg)
+    for site_idx, facet_attr, layer_idx, key, owner_path in removed:
+        site_obj = (
+            raw_sites[site_idx]
+            if isinstance(raw_sites, list) and site_idx < len(raw_sites)
+            else None
+        )
+        prefix = (
+            f"{_format_site_label(site_idx, site_obj)} "
+            f"properties.vertical_layers.{facet_attr}[{layer_idx}]"
+        )
+        _log(
+            f"[yaml-upgrade] {prefix}: dropped {key!r} "
+            f"(deprecated cross-facet key ignored on {facet_attr}; owned by {owner_path})"
+        )
+    return result
+
+
+def _with_vertical_layer_split_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _strip_non_owning_vertical_layer_optical_keys(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[_source, "2026.6.dev21"] = _handler
+        _HANDLERS[_source, _target] = _with_vertical_layer_split_delta(_handler)
+_HANDLERS["2026.6.dev21", "2026.6.dev21"] = _with_land_cover_and_dst_advisory_delta(
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS["2026.6.dev21", CURRENT_SCHEMA_VERSION] = _with_vertical_layer_split_delta(
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+_HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
+    _with_vertical_layer_split_delta(
+        _with_land_cover_and_dst_advisory_delta(
+            _with_ten_minute_profile_key_delta(
+                _with_integer_doy_delta(_with_senescence_check(_identity))
+            )
+        )
+    )
+)
+
+
+def _is_observed_lai_mode(cfg: Mapping) -> bool:
+    """Return True when model.physics explicitly selects observed LAI (0/'observed')."""
+    model = cfg.get("model")
+    physics = model.get("physics") if isinstance(model, Mapping) else None
+    if not isinstance(physics, Mapping):
+        return False
+    for key in ("leaf_area_index", "laimethod"):
+        if key not in physics:
+            continue
+        raw = physics[key]
+        if isinstance(raw, Mapping) and "value" in raw:
+            raw = raw["value"]
+        if isinstance(raw, bool):
+            continue
+        if raw == 0:
+            return True
+        if isinstance(raw, str) and raw.strip().lower() in ("0", "observed"):
+            return True
+    return False
+
+
+def _advise_lai_daily_increment_phenology(cfg: dict) -> dict:
+    """Log a non-mutating advisory for modelled-LAI configs upgraded to dev23."""
+    if _is_observed_lai_mode(cfg):
+        return cfg
+
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    for index, site in enumerate(sites):
+        if not isinstance(site, Mapping):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, Mapping) else None
+        init_states = site.get("initial_states")
+
+        has_lai_cfg = False
+        if isinstance(land_cover, Mapping):
+            for surf in ("evetr", "dectr", "grass"):
+                surf_cfg = land_cover.get(surf)
+                if isinstance(surf_cfg, Mapping) and isinstance(
+                    surf_cfg.get("lai"), Mapping
+                ):
+                    has_lai_cfg = True
+                    break
+
+        has_nonzero_sdd = False
+        if isinstance(init_states, Mapping):
+            for surf in ("evetr", "dectr", "grass"):
+                surf_init = init_states.get(surf)
+                if not isinstance(surf_init, Mapping) or "sdd_id" not in surf_init:
+                    continue
+                raw_sdd = surf_init["sdd_id"]
+                if isinstance(raw_sdd, Mapping) and "value" in raw_sdd:
+                    raw_sdd = raw_sdd["value"]
+                if (
+                    isinstance(raw_sdd, (int, float))
+                    and not isinstance(raw_sdd, bool)
+                    and raw_sdd != 0
+                ):
+                    has_nonzero_sdd = True
+                    break
+
+        if has_lai_cfg or has_nonzero_sdd:
+            _log(
+                f"[yaml-upgrade] {_format_site_label(index, site)}: schema "
+                "2026.6.dev23 computes modelled LAI from daily GDD/SDD "
+                "increments within fixed growth/senescence seasons (DOY 15 / "
+                "196, swapped in the southern hemisphere). Values were left "
+                "unchanged; existing lai_power coefficients (and any non-zero "
+                "initial sdd_id) need retuning for the daily-increment "
+                "formulation, and legacy gdd_full/sdd_full/lai_type fields "
+                "are now ignored (use gdd_base/sdd_base for onset thresholds)."
+            )
+
+    return cfg
+
+
+def _with_lai_daily_increment_advisory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _advise_lai_daily_increment_phenology(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[_source, "2026.6.dev22"] = _handler
+        _HANDLERS[_source, _target] = _with_lai_daily_increment_advisory_delta(_handler)
+_HANDLERS["2026.6.dev22", "2026.6.dev22"] = _with_vertical_layer_split_delta(
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+_HANDLERS["2026.6.dev22", CURRENT_SCHEMA_VERSION] = (
+    _with_lai_daily_increment_advisory_delta(
+        _with_vertical_layer_split_delta(
+            _with_land_cover_and_dst_advisory_delta(
+                _with_ten_minute_profile_key_delta(
+                    _with_integer_doy_delta(_with_senescence_check(_identity))
+                )
+            )
+        )
+    )
+)
+_HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
+    _with_vertical_layer_split_delta(
+        _with_land_cover_and_dst_advisory_delta(
+            _with_ten_minute_profile_key_delta(
+                _with_integer_doy_delta(_with_senescence_check(_identity))
+            )
+        )
+    )
 )
 
 # ---------------------------------------------------------------------------

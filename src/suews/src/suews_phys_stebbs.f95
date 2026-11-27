@@ -146,17 +146,6 @@ CONTAINS
       q = A*sigma*emis*(Two**4.0) - emis*lw*a ! Revised based on Yiqing's discovery
       RETURN
    END FUNCTION lwoutdoorRadiativeHeatTransfer
-
-   FUNCTION lwoutgoingradiation(A, emis, Two, lw) RESULT(q)
-      !calculate only longwave outgoing radiation only
-      USE module_phys_stebbs_precision
-      USE module_phys_stebbs_core, ONLY: sigma
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: A, emis, Two, lw
-      REAL(KIND(1D0)) :: q
-      q = A*sigma*emis*(Two**4.0) + (1 - emis) * lw * A
-      RETURN
-   END FUNCTION lwoutgoingradiation
    !-------------------------------------------------------------------
    ! Function: windowInsolation
    ! Description: Window Solar Insolation. This should be added as heat gain to internal single mass object
@@ -567,6 +556,7 @@ MODULE module_phys_stebbs_couple
    END TYPE
 END MODULE module_phys_stebbs_couple
 MODULE module_phys_stebbs
+   USE module_ctrl_const_options, ONLY: SETPOINT_CONSTANT, SETPOINT_DEPENDENT, SETPOINT_SCHEDULED
 
    USE module_phys_stebbs_precision, ONLY: rprc
    ! use modulestebbs, ONLY: blds, cases, resolution
@@ -574,7 +564,7 @@ MODULE module_phys_stebbs
 CONTAINS
 
    SUBROUTINE stebbsonlinecouple( &
-      timer, config, forcing, siteInfo, &
+      clock, config, forcing, siteInfo, &
       modState, & ! Input/Output
       datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
@@ -583,7 +573,7 @@ CONTAINS
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       USE module_phys_rslprof, ONLY: interp_z
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
@@ -593,7 +583,7 @@ CONTAINS
       USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
@@ -719,12 +709,12 @@ CONTAINS
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
-         timestep => timer%tstep, &
-         dt_start => timer%dt_since_start, &
-         it => timer%it_st, &!local-standard hour for profiles
-         id => timer%id_st, & !local-standard day of year
-         imin => timer%imin_st, & !local-standard minute for profiles
-         dayofWeek_id => timer%dayofWeek_id_st, & !local-standard weekday/month/season
+         timestep => clock%timer%tstep, &
+         dt_start => clock%timer%dt_since_start, &
+         it => clock%it_st, &!local-standard hour for profiles
+         id => clock%id_st, & !local-standard day of year
+         imin => clock%imin_st, & !local-standard minute for profiles
+         dayofWeek_id => clock%dayofWeek_id_st, & !local-standard weekday/month/season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
@@ -745,7 +735,7 @@ CONTAINS
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
             buildings => stebbsState%buildings, &
-            dt_start => timer%dt_since_start, &
+            dt_start => clock%timer%dt_since_start, &
             !ws => atmState%U10_ms, &
             !Tair_sout => atmState%t2_C, &
             !Tsurf_sout => heatState%Tsurf, &
@@ -869,10 +859,10 @@ CONTAINS
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
             building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants_state
             SELECT CASE (config%setpointmethod)
-            CASE (0) !constant setpoint
+            CASE (SETPOINT_CONSTANT) !constant setpoint
                buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
                buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
-            CASE (1) !setpoints dependent on occupant activity
+            CASE (SETPOINT_DEPENDENT) !setpoints dependent on occupant activity
                IF (building_is_active) THEN
                   buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature + C2K
                   buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature + C2K
@@ -880,7 +870,7 @@ CONTAINS
                   buildings(1)%ts(1) = Unused_heating_setpoint_C + C2K
                   buildings(1)%ts(2) = Unused_cooling_setpoint_C + C2K
                END IF
-            CASE (2) !scheduled setpoints
+            CASE (SETPOINT_SCHEDULED) !scheduled setpoints
                buildings(1)%ts(1) = building_archtype%heating_setpoint_temperature_profile(idx, iu) + C2K
                buildings(1)%ts(2) = building_archtype%cooling_setpoint_temperature_profile(idx, iu) + C2K
             CASE DEFAULT
@@ -2424,12 +2414,11 @@ SUBROUTINE tstep( &
 #endif
    END IF
 END SUBROUTINE tstep
-SUBROUTINE reinitialiseTemperatures
-END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer, errorState)
 
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
+   USE module_ctrl_const_options, ONLY: SETPOINT_SCHEDULED, RC_DEFAULT, RC_PROVIDED, RC_PARAMETERISE
    USE module_phys_stebbs_func, ONLY: calculate_x1
    USE module_ctrl_const_physconst, ONLY: C2K, sec_per_hour
    IMPLICIT NONE
@@ -2584,7 +2573,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%t_ext_window = stebbsState%window_outdoor_surface_temperature + C2K ! # Window outdoor surface temperature (K)
    self%t_int_ground_floor = stebbsState%ground_floor_indoor_surface_temperature + C2K ! # Ground floor indoor surface temperature (K)
    self%t_ext_ground_floor = stebbsState%ground_floor_outdoor_surface_temperature + C2K ! # Ground floor outdoor surface temperature (K)
-   IF (config%setpointmethod == 2) THEN
+   IF (config%setpointmethod == SETPOINT_SCHEDULED) THEN
       self%ts = (/building_archtype%heating_setpoint_temperature_profile(0, 1) + C2K, &
                    building_archtype%cooling_setpoint_temperature_profile(0, 1) + C2K/)
    ELSE
@@ -2649,15 +2638,15 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    self%hw_power_average = (/30000, 30000, 30000/)
 
-   IF (config%rcmethod  == 0) THEN !default value
+   IF (config%rcmethod  == RC_DEFAULT) THEN !default value
       self%weighting_factor_heatcapacity_wall = 0.5
       self%weighting_factor_heatcapacity_roof = 0.5
 
-   ELSEIF (config%rcmethod  == 1) THEN !provided fractional value
+   ELSEIF (config%rcmethod  == RC_PROVIDED) THEN !provided fractional value
       self%weighting_factor_heatcapacity_wall = building_archtype%wall_outer_heat_capacity_fraction
       self%weighting_factor_heatcapacity_roof = building_archtype%roof_outer_heat_capacity_fraction  
 
-   ELSEIF (config%rcmethod == 2) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
+   ELSEIF (config%rcmethod == RC_PARAMETERISE) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
@@ -2681,195 +2670,3 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
       self%weighting_factor_heatcapacity_roof = 0.5
    END IF
 END SUBROUTINE gen_building
-
-SUBROUTINE create_building(CASE, self, icase)
-   USE module_ctrl_type, ONLY: STEBBS_BLDG
-   USE module_ctrl_const_physconst, ONLY: C2K, cp_air
-   IMPLICIT NONE
-   INTEGER, INTENT(in) :: icase
-   CHARACTER(len=256) :: CASE
-   TYPE(STEBBS_BLDG) :: self
-   self%id_lbm = icase
-   ! self%fnml_lbm = './BuildClasses/'//TRIM(CASE)//'.nml'
-   self%fnml_lbm = TRIM(CASE)
-   self%case_id = TRIM(CASE)
-   self%QHload_heating_tstepFA = 0.0 ! # currently only sensible but this needs to be  split into sensible and latent heat components
-   self%QHload_cooling_tstepFA = 0.0 ! # currently only sensible but this needs to be  split into sensible and latent heat components
-
-   self%QH_metabolism = 0.0 ! # Sensible heat flux from people in building
-   self%QE_metabolism = 0.0 ! # Latent heat flux from people in building
-
-   self%QHload_dhw_tstepFA = 0.0
-   self%Qloss_drain_tstepFA = 0.0
-   self%energy_exchanges(:) = 0.0
-   self%building_type = 'None'
-   self%building_name = 'Default'
-   self%ratio_window_wall = 0.4 ! # window to wall ratio
-   self%a_footprint = 225.0
-   self%height_building = 15.0
-   self%wall_external_area = 450.0
-   self%internal_volume_ratio = 0.1
-   self%a_indoor_mass = 6.0*((self%a_footprint*self%height_building*(1.0 - self%internal_volume_ratio)*self%internal_volume_ratio)**(2.0/3.0)) ! Legacy cube-equivalent default for standalone setup
-   self%thickness_wall = 0.25 ! # wallthickness  (in metres)
-   self%thickness_roof = 0.25 ! # roof thickness  (in metres)
-   self%thickness_groundfloor = 0.5 ! # ground floor thickness (in metres)
-   self%depth_ground = 2.0 ! # depth of ground considered for calculating QfB to ground (in metres)
-   self%thickness_window = 0.05 ! # all window's thickness (in metres)
-   self%conv_coeff_intwall = 1
-   self%conv_coeff_introof = 1
-   self%conv_coeff_indoormass = 1
-   self%conv_coeff_intgroundfloor = 1
-   self%conv_coeff_intwindow = 1
-   self%conv_coeff_extwall = 2 ! # Could be changed to react to outdoor wind speed from SUEWS
-   self%conv_coeff_extroof = 2 ! # Could be changed to react to outdoor wind speed from SUEWS
-   self%conv_coeff_extwindow = 2
-   self%conductivity_wall = 0.2
-   self%conductivity_roof = 0.2
-   self%conductivity_groundfloor = 0.2
-   self%conductivity_window = 0.5
-   self%conductivity_ground = 1.0
-   self%density_wall = 50
-   self%density_roof = 50
-   self%weighting_factor_heatcapacity_wall = 0.5
-   self%weighting_factor_heatcapacity_roof = 0.5
-   self%density_groundfloor = 1000
-   self%density_window = 5
-   self%density_indoormass = 250
-   self%density_air_ind = 1.225
-   self%cp_wall = 500
-   self%cp_roof = 500
-   self%cp_groundfloor = 1500
-   self%cp_window = 840
-   self%cp_indoormass = 1000
-   self%cp_air_ind = cp_air
-   self%emissivity_extwall = 0.85
-   self%emissivity_intwall = 0.85
-   self%emissivity_extroof = 0.85
-   self%emissivity_introof = 0.85
-   self%emissivity_indoormass = 0.85
-   self%emissivity_extwindow = 0.85
-   self%emissivity_intwindow = 0.85
-   self%window_transmissivity = 0.9
-   self%window_absorptivity = 0.05
-   self%window_reflectivity = 0.05
-   self%wall_transmissivity_state = 0.0
-   self%wall_absorptivity = 0.5
-   self%wall_reflectivity = 0.5
-   self%roof_transmissivity_state = 0.0
-   self%roof_absorptivity = 0.5
-   self%roof_reflectivity = 0.5
-   self%occupants_state = 15
-   self%metabolic_rate = 250
-   self%ratio_metabolic_latent_sensible = 0.8
-   self%maxheatingpower_air = 45000
-   self%heating_efficiency_air = 0.9
-   self%maxcoolingpower_air = 3000
-   self%coeff_performance_cooling = 2.0
-   self%Vair_ind = &
-      (self%a_footprint*self%height_building)* &
-      (1 - self%internal_volume_ratio) ! # Multiplied by factor that accounts for internal mass
-   self%ventilation_rate = 0 ! # Fixed at begining to have no natural ventilation. Given in units of volume of air per second
-   self%a_wall = (self%wall_external_area*(1 - self%ratio_window_wall))
-   self%a_roof = self%a_footprint !
-   self%v_wall = self%a_wall*self%thickness_wall
-   self%v_roof = self%a_roof*self%thickness_roof
-   self%v_ground_floor = self%a_footprint*self%thickness_groundfloor
-   self%a_window = self%wall_external_area*self%ratio_window_wall
-   self%v_window = self%a_window*self%thickness_window
-   IF (self%ratio_window_wall == 0.0D0) THEN
-      self%wall_surface_active = .TRUE.
-      self%window_surface_active = .FALSE.
-   ELSEIF (self%ratio_window_wall == 1.0D0) THEN
-      self%wall_surface_active = .FALSE.
-      self%window_surface_active = .TRUE.
-   ELSE
-      self%wall_surface_active = .TRUE.
-      self%window_surface_active = .TRUE.
-   END IF
-   self%v_indoor_mass = self%Vair_ind*self%internal_volume_ratio ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
-   self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_intwindow, self%conv_coeff_intgroundfloor , &
-                self%conv_coeff_indoormass/)
-
-   self%h_o = (/self%conv_coeff_extwall, self%conv_coeff_extroof, self%conv_coeff_extwindow/)
-   self%k_eff = (/self%conductivity_wall, self%conductivity_roof, self%conductivity_groundfloor, &
-                  self%conductivity_window, self%conductivity_ground/)
-
-   self%rho = (/self%density_wall, self%density_roof, self%density_groundfloor, &
-                self%density_window, self%density_indoormass, &
-                self%density_air_ind/)
-   self%cp = (/self%cp_wall, self%cp_roof, self%cp_groundfloor, self%cp_window, &
-               self%cp_indoormass, self%cp_air_ind/)
-   self%emis = (/self%emissivity_extwall, self%emissivity_extroof, self%emissivity_intwall, self%emissivity_introof, &
-                 self%emissivity_indoormass, self%emissivity_extwindow, &
-                 self%emissivity_intwindow/)
-   self%witar = (/self%window_transmissivity, self%window_absorptivity, self%window_reflectivity/)
-   self%waTAR = (/self%wall_transmissivity_state, self%wall_absorptivity, self%wall_reflectivity/)
-   self%roofTAR = (/self%roof_transmissivity_state, self%roof_absorptivity, self%roof_reflectivity/)
-
-   self%Tair_ind = 20 + C2K ! # Indoor air temperature (K)
-   self%t_indoor_mass = 20 + C2K ! # Indoor mass temperature (K)
-   self%t_int_wall = 20 + C2K ! # Wall indoor surface temperature (K)
-   self%t_int_roof = 20 + C2K ! # Roof indoor surface temperature (K)
-   self%t_ext_wall = 20 + C2K ! # Wall outdoor surface temperature (K)
-   self%t_ext_roof = 20 + C2K ! # Roof outdoor surface temperature (K)
-   self%t_int_window = 20 + C2K ! # Window indoor surface temperature (K)
-   self%t_ext_window = 20 + C2K ! # Window outdoor surface temperature (K)
-   self%t_int_ground_floor = 20 + C2K ! # Ground floor indoor surface temperature (K)
-   self%t_ext_ground_floor = 20 + C2K ! # Ground floor outdoor surface temperature (K)
-   self%ts = (/18 + C2K, 24 + C2K/) ! # Heating and Cooling setpoint temperatures (K), respectively
-   self%initTs = (/18 + C2K, 24 + C2K/)
-   self%h_ts_average = (/18 + C2K, 18 + C2K, 18 + C2K/) ! #
-   self%HWTsAverage = (/10 + C2K, 10 + C2K, 10 + C2K/)
-   self%Twater_tank = 70 + C2K ! # Water temperature (K) in Hot Water Tank
-   self%Tintwall_tank = 70 + C2K ! # Hot water tank internal wall temperature (K)
-   self%Textwall_tank = 30 + C2K ! # Hot water tank external wall temperature (K)
-   self%thickness_tankwall = 0.1 ! # Hot water tank wall thickness (m)
-   self%Tincomingwater_tank = 10 + C2K ! # Water temperature (K) of Water coming into the Water Tank
-   self%Vwater_tank = 2 ! # Volume of Water in Hot Water Tank (m^3)  h = 1.5, (2/(1.5*3.14))^0.5 = r =
-   self%Asurf_tank = 8.8 ! # Surface Area of Hot Water Tank(m^2) - cylinder h= 1.5
-   self%Vwall_tank = self%Asurf_tank*self%thickness_tankwall ! # Wall volume of Hot Water Tank(m^2)
-   self%setTwater_tank = 60 + C2K ! # Water Tank setpoint temperature (K)
-   self%init_wtTs = 60 + C2K ! # Initial Water Tank setpoint temperature (K)
-
-   self%Twater_vessel = 35 + C2K ! # Water temperature (K) of water held in use in Building
-   self%Tintwall_vessel = 35 + C2K ! # Hot water vessel internal wall temperature (K)
-   self%Textwall_vessel = 25 + C2K ! # Hot water vessel external wall temperature (K)
-   self%thickness_wall_vessel = 0.005 ! # DHW vessels wall thickness (m)
-
-   self%Vwater_vessel = 0 ! # Volume of water held in use in building (m^3)
-   self%Awater_vessel = 10 ! # Surface Area of Hot Water in Vessels in Building (m^2)
-   self%Vwall_vessel = self%Awater_vessel*self%thickness_wall_vessel ! # Wall volume of Hot water Vessels in Building
-   self%flowrate_water_supply = 0 ! # Hot Water Flow Rate in m^3 / s
-   !self%flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
-
-   self%single_flowrate_water_supply = 0 ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   !self%single_flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
-
-   self%cp_water = 4180.1 ! # Specific Heat Capacity of Domestic Hot Water (J/kg K)
-   self%cp_wall_tank = 1000 ! # Specific Heat Capacity of Hot Water Tank wall
-   self%cp_wall_vessel = 1900 ! # Specific Heat Capacity of Vessels containing DHW in use in Building (value here is based on MDPE)
-
-   self%density_water = 1000 ! # Density of water
-   self%density_wall_tank = 50 ! # Density of hot water tank wall
-   self%density_wall_vessel = 930 ! # Density of vessels containing DHW in use in buildings
-
-   self%BVF_tank = 0.0 ! # water tank - building wall view factor
-   self%MVF_tank = 1.0 ! # water tank - building internal mass view factor
-
-   self%conductivity_wall_tank = 0.1 ! # Effective Wall conductivity of the Hot Water Tank (based on polyurethan foam given in https://www.lsta.lt/files/events/28_jarfelt.pdf and from https://www.sciencedirect.com/science/article/pii/S0360544214011189?via%3Dihub)
-   self%conv_coeff_intwall_tank = 243 ! # Effective Internal Wall convection coefficient of the Hot Water Tank (W/m2 . K) given in http://orbit.dtu.dk/fedora/objects/orbit:77843/datastreams/file_2640258/content
-
-   self%conv_coeff_extwall_vessel = 4 ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
-   self%emissivity_extwall_vessel = 0.88 ! # Effective External Wall emissivity of hot water being used within building
-
-   self%maxheatingpower_water = 3000 ! # Watts
-   self%heating_efficiency_water = 0.95
-   !self%minVwater_vessel = 0.1 ! # m3
-   !self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
-
-   self%minHeatingPower_DHW = 3000
-   self%HeatingPower_DHW = 3000
-
-   self%hw_power_average = (/30000, 30000, 30000/)
-   RETURN
-END SUBROUTINE create_building

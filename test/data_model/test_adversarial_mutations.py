@@ -17,8 +17,9 @@ Each mutated leaf must satisfy one of two strict contracts:
    (or engine export) matching the full structured path of the mutated leaf via
    the underlying Pydantic ``ValidationError`` ``loc`` tuples (or, for
    model-level / non-Pydantic diagnostics, strict canonical path matching and
-   the two explicitly documented group-level validators: DLS pair
-   ``startdls``/``enddls`` and ``vertical_layers`` array-length coupling);
+   the three explicitly documented group-level validators: DLS pair
+   ``startdls``/``enddls``, irrigation window pair ``ie_start``/``ie_end``,
+   and ``vertical_layers`` array-length coupling);
    unrelated errors, wrong-path/wrong-index errors, or raw ``TypeError``
    schema-drift wrappers fail as ``unattributed_rejection``, or
 2. emit a finite value of the exact expected type and value from either:
@@ -796,6 +797,26 @@ def _match_documented_group_or_surface_prose(
     ):
         return True
 
+    # Documented group validator #3: Irrigation window pair (`irrigation.{ie_start, ie_end}`)
+    if (
+        parent == "irrigation"
+        and leaf in {"ie_start", "ie_end"}
+        and _word_match("ie_start", core_msg)
+        and _word_match("ie_end", core_msg)
+    ):
+        return True
+
+    # Documented group validator #4: Land-cover surface fraction sum (`land_cover.*.sfr`)
+    if (
+        mut_surf is not None
+        and leaf == "sfr"
+        and (
+            "surface fractions sum to" in core_msg.lower()
+            or "all surface fractions are zero" in core_msg.lower()
+        )
+    ):
+        return True
+
     # Documented group validator #2: VerticalLayers coupled array lengths / heights
     if parent == "vertical_layers":
         lower_msg = core_msg.lower()
@@ -1484,12 +1505,13 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("sites[0].properties.land_cover.dectr.lai.sdd_full", ("omit",)),
     ),
     "irrigation_and_dls": (
-        # Conforming active DLS control and wrapped veg_scale null rejection
+        # Conforming active DLS & irrigation-pair controls and wrapped veg_scale null rejection
         ("sites[0].properties.anthropogenic_emissions.startdls", ("wrapped_null",)),
+        ("sites[0].properties.irrigation.ie_start", ("omit",)),
         ("sites[0].properties.vertical_layers.veg_scale[0]", ("wrapped_null",)),
         # Active irrigation (including h_maintain ponding), DayProfile, LAI-power gaps (#2101) and #2156 output.dir control
         ("sites[0].properties.irrigation.h_maintain", ("omit",)),
-        ("sites[0].properties.irrigation.ie_start", ("omit",)),
+        ("sites[0].properties.irrigation.internalwateruse_h", ("omit",)),
         ("sites[0].properties.land_cover.grass.irrigation_fraction", ("bare_null",)),
         (
             "sites[0].properties.anthropogenic_emissions.heat.qf_a.working_day",
@@ -2448,13 +2470,13 @@ def test_multisite_siteless_root_diagnostic_unattributed(tmp_path: Path) -> None
 
 
 _DAYWAT_SLOTS: tuple[str, ...] = (
+    "sunday",
     "monday",
     "tuesday",
     "wednesday",
     "thursday",
     "friday",
     "saturday",
-    "sunday",
 )
 
 
@@ -2472,36 +2494,47 @@ def _doy_in_fortran_irrigation_season(
     ie_start: int,
     ie_end: int,
 ) -> bool:
-    """Mirror ``update_WaterUse`` hemispheric season gating.
+    """Mirror ``is_in_irrigation_season`` hemispheric season gating.
 
-    Matches ``src/suews/src/suews_phys_dailystate.f95:594-600`` verbatim:
-    - Northern Hemisphere (``lat >= 0``): ``(ie_start - 1) <= doy <= (ie_end + 1)``.
+    Matches ``src/suews/src/suews_phys_dailystate.f95`` (``is_in_irrigation_season``):
+    - Both bounds zero (``ie_start == 0 and ie_end == 0``): window disabled (gh#2329).
+    - Northern Hemisphere (``lat >= 0``): inclusive ``ie_start <= doy <= ie_end``.
       A reversed range such as ``ie_start=280, ie_end=100`` is closed all year.
-    - Southern Hemisphere (``lat < 0``): ``NOT (ie_end <= doy <= ie_start)``.
+    - Southern Hemisphere (``lat < 0``): inclusive ``ie_start <= doy <= ie_end``
+      when ``ie_start <= ie_end``, or inclusive wrap-around
+      ``doy >= ie_start or doy <= ie_end`` when ``ie_start > ie_end``.
     """
+    if ie_start == 0 and ie_end == 0:
+        return False
     if lat >= 0.0:
-        return (ie_start - 1) <= doy <= (ie_end + 1)
-    return not (ie_end <= doy <= ie_start)
+        return ie_start <= doy <= ie_end
+    if ie_start <= ie_end:
+        return ie_start <= doy <= ie_end
+    return doy >= ie_start or doy <= ie_end
 
 
 def _daily_update_dates_for_anchor(doc: dict[str, Any]) -> tuple[date, ...]:
-    """Days with a last timestep on the anchors' midnight-aligned forcing grid."""
+    """Right-closed delivery dates on which ``update_WaterUse`` executes for an anchor."""
     control = doc["model"]["control"]
+    raw_start = _unwrap(control["start_time"])
+    raw_end = _unwrap(control["end_time"])
     period = resolve_run_period(
-        _unwrap(control["start_time"]),
-        _unwrap(control["end_time"]),
+        raw_start,
+        raw_end,
         pd.DatetimeIndex([]),
     )
     assert period.start is not None and period.end is not None
     step = pd.Timedelta(seconds=int(_unwrap(control["tstep"])))
-    midnights = pd.date_range(
-        period.start.normalize(), period.end.normalize(), freq="D"
-    )
-    # Fortran calls update_WaterUse when time_now + tstep falls on the next day.
-    updates = midnights + pd.Timedelta(days=1) - step
-    return tuple(
-        stamp.date() for stamp in updates if period.start <= stamp <= period.end
-    )
+    first_stamp = period.start + step if period.start_is_date else period.start
+    if first_stamp > period.end:
+        return ()
+    # Right-closed delivery day (D 00:00, D+1 00:00] maps endpoint ts to (ts - 1 s).date().
+    # Fortran calls update_WaterUse on the cold-start first step and whenever that
+    # delivery date advances, so it executes once per touched delivery date.
+    one_sec = pd.Timedelta(seconds=1)
+    first_day = (first_stamp - one_sec).date()
+    last_day = (period.end - one_sec).date()
+    return tuple(d.date() for d in pd.date_range(first_day, last_day, freq="D"))
 
 
 def _h_maintain_eligible_dates(
@@ -2511,11 +2544,11 @@ def _h_maintain_eligible_dates(
 ) -> tuple[date, ...]:
     """Return simulation dates on which Fortran ``update_WaterUse`` uses ``h_maintain``.
 
-    Mirrors ``src/suews/src/suews_phys_dailystate.f95:195-201,589-602``:
+    Mirrors ``src/suews/src/suews_phys_dailystate.f95`` (``SUEWS_cal_DailyState`` / ``update_WaterUse``):
     1. ``water_use`` is modelled (``0`` or ``"modelled"``).
-    2. The run reaches the daily update on ``d`` and ``DayWat(wd) == 1.0``, where ``wd`` is the
-       Fortran ``Day_Of_Week`` index (``1..7``) indexing ``[monday..sunday]``.
-    3. ``doy`` passes the hemispheric ``(lat, ie_start, ie_end)`` season test.
+    2. The run touches delivery day ``d`` and ``DayWat(wd) == 1.0``, where ``wd`` is the
+       Fortran ``Day_Of_Week`` index (``DOW_SUNDAY=1..DOW_SATURDAY=7``) indexing ``[sunday..saturday]``.
+    3. ``doy`` passes the inclusive hemispheric ``(lat, ie_start, ie_end)`` season test.
     """
     raw_wu = _unwrap(doc["model"]["physics"]["water_use"])
     if isinstance(raw_wu, str):
@@ -2547,11 +2580,14 @@ def _h_maintain_eligible_dates(
 def test_h_maintain_ledger_matches_fortran_gating_predicate(tmp_path: Path) -> None:
     """Verify ``h_maintain`` active/inactive ledger matches actual Fortran gating.
 
-    In ``update_WaterUse`` (``src/suews/src/suews_phys_dailystate.f95:195-201,589-631``),
-    ponding demand ``WUDay_P`` from ``H_maintain`` executes on simulation date ``d``
-    on its last timestep, iff ``WaterUseMethod == 0`` (``water_use=modelled``), ``DayWat(wd) == 1.0``,
-    and ``doy`` passes the hemispheric ``(lat, Ie_start, Ie_end)`` season gate;
-    neither ``faut == 0`` nor ``irrigation_fraction == 0`` disables ``H_maintain``.
+    In ``SUEWS_cal_DailyState`` / ``update_WaterUse``
+    (``src/suews/src/suews_phys_dailystate.f95``), ponding demand ``WUDay_P``
+    from ``H_maintain`` executes on the opening step (or cold-start first step)
+    of each right-closed local-standard delivery date ``d``, iff
+    ``WaterUseMethod == 0`` (``water_use=modelled``), ``DayWat(wd) == 1.0``,
+    and ``doy`` passes the inclusive hemispheric ``(lat, Ie_start, Ie_end)``
+    season gate; neither ``faut == 0`` nor ``irrigation_fraction == 0``
+    disables ``H_maintain``.
     """
     # ARRANGE
     entries_by_id = {entry["id"]: entry for entry in load_ledger()["entries"]}
@@ -2579,8 +2615,8 @@ def test_h_maintain_ledger_matches_fortran_gating_predicate(tmp_path: Path) -> N
             f"{anchor_name}: resolved anchor has eligible h_maintain dates"
         )
 
-    # ACT / ASSERT 3: active anchor has >= 1 eligible simulation date (183 days in
-    # 2012 including April 11..13) and still drops `h_maintain` until #2101/#2001.
+    # ACT / ASSERT 3: active anchor has >= 1 eligible simulation date (181 days in
+    # 2012 for inclusive DOY 100..280, including April 11..13) and still drops `h_maintain` until #2101/#2001.
     for anchor_name in active_entry["anchors"]:
         base_data = build_anchor_dict(anchor_name)
         res_doc = _export_engine_dict(SUEWSConfig.from_dict(base_data))
@@ -2588,7 +2624,7 @@ def test_h_maintain_ledger_matches_fortran_gating_predicate(tmp_path: Path) -> N
         res_eligible = _h_maintain_eligible_dates(res_doc)
         assert len(src_eligible) >= 1
         assert res_eligible == src_eligible
-        assert len(res_eligible) == 183
+        assert len(res_eligible) == 181
         assert date(2012, 4, 11) in res_eligible
         omit_res = evaluate_mutation(
             anchor_name,
@@ -2604,18 +2640,28 @@ def test_h_maintain_ledger_matches_fortran_gating_predicate(tmp_path: Path) -> N
 @pytest.mark.parametrize(
     ("start", "end", "step_seconds", "expected"),
     [
-        ("2012-04-11 07:00", "2012-04-11 12:00", 300, ()),
-        ("2012-04-11", "2012-04-11 23:50", 300, ()),
-        ("2012-04-11 23:45", "2012-04-11 23:55", 300, (date(2012, 4, 11),)),
-        ("2012-04-11", "2012-04-11 23:50", 600, (date(2012, 4, 11),)),
-        ("2012-04-11 23:55", "2012-04-12 12:00", 600, ()),
+        ("2012-04-11 07:00", "2012-04-11 12:00", 300, (date(2012, 4, 11),)),
+        ("2012-04-11", "2012-04-11 23:50", 300, (date(2012, 4, 11),)),
+        ("2012-04-11 23:55", "2012-04-12 00:00", 300, (date(2012, 4, 11),)),
+        (
+            "2012-04-11 23:55",
+            "2012-04-12 00:05",
+            300,
+            (date(2012, 4, 11), date(2012, 4, 12)),
+        ),
+        (
+            "2012-04-11 23:50",
+            "2012-04-12 12:00",
+            600,
+            (date(2012, 4, 11), date(2012, 4, 12)),
+        ),
         ("2012-04-11", "2012-04-11", 300, (date(2012, 4, 11),)),
     ],
 )
 def test_h_maintain_daily_update_cutoff(
     start: str, end: str, step_seconds: int, expected: tuple[date, ...]
 ) -> None:
-    """A date can contribute demand only if the run includes its daily update."""
+    """Every right-closed delivery day touched by the run runs ``update_WaterUse``."""
     # ARRANGE
     doc = build_anchor_dict("irrigation_and_dls")
     doc["model"]["control"].update(start_time=start, end_time=end, tstep=step_seconds)
@@ -2659,10 +2705,10 @@ def test_h_maintain_season_and_weekday_gate_controls() -> None:
     closed_wd_res = _export_engine_dict(SUEWSConfig.from_dict(closed_weekday))
     assert _h_maintain_eligible_dates(closed_wd_res, dates=april_window) == ()
 
-    # ACT / ASSERT 4: single open weekday matching Apr 11 (Wed -> Fortran wd=4 -> DayWat(4)=thursday)
+    # ACT / ASSERT 4: single open weekday matching Apr 11 (Wed -> Fortran wd=DOW_WEDNESDAY=4 -> wednesday)
     open_one_weekday = copy.deepcopy(closed_weekday)
     open_one_weekday["sites"][0]["properties"]["irrigation"]["daywat"]["monday"] = 0.0
-    open_one_weekday["sites"][0]["properties"]["irrigation"]["daywat"]["thursday"] = 1.0
+    open_one_weekday["sites"][0]["properties"]["irrigation"]["daywat"]["wednesday"] = 1.0
     open_wd_res = _export_engine_dict(SUEWSConfig.from_dict(open_one_weekday))
     assert _h_maintain_eligible_dates(open_wd_res, dates=april_window) == (
         date(2012, 4, 11),
@@ -2786,7 +2832,9 @@ def test_exhaustive_cells_cover_every_anchor_and_ledger_entry() -> None:
                 ):
                     covered_slices.add((entry["id"], anchor_name, mutation))
 
-    assert total_evals >= 20000
+    # Total across 6 anchors x 3 mutations (20,079 before retiring 6 cross-facet
+    # BuildingLayer optical leaves under #2085 => -108 cells).
+    assert total_evals >= 19892
 
     # ASSERT 2: every (entry, anchor, mutation) slice in known_mutation_gaps.json is hit.
     expected_slices = {

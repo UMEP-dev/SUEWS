@@ -18,13 +18,20 @@ public configuration and engine routes:
 Inactive vegetated surfaces (``sfr == 0``) with ``lai_max == 0`` or omitted
 ``lai_max`` and active surfaces with small positive ``lai_max > 0`` remain
 accepted.
+
+Cost shape (gh#2349). The sample YAML and resolved engine mapping are parsed
+once per module with libyaml when available. The full 36-case
+``surface x bad_value`` matrix validates through ``from_dict`` and direct
+``SUEWSConfig(**...)`` in memory, paired with a 6-case ``from_yaml`` matrix
+covering every vegetated surface and YAML value class on disk. Simulation and
+direct Rust bridge checks reuse ``sample_config_loaded`` and a two-step forcing
+slice instead of re-parsing the full-year forcing file.
 """
 
 from __future__ import annotations
 
 import copy
 from importlib import import_module
-from importlib.resources import files
 from pathlib import Path
 from typing import Any
 import warnings
@@ -55,15 +62,69 @@ pytestmark = [
 ]
 
 VEG_SURFACES: tuple[str, ...] = ("evetr", "dectr", "grass")
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+_HANDOFF_STEPS = 2
+_YAML_REJECTION_CASES = [
+    pytest.param("evetr", 0, id="evetr-int-0"),
+    pytest.param("dectr", {"value": 0.0}, id="dectr-ref-0"),
+    pytest.param("grass", -1.0, id="grass-neg-1"),
+    pytest.param("evetr", {"value": -999.0}, id="evetr-ref-sentinel-neg-999"),
+    pytest.param("dectr", float("nan"), id="dectr-nan"),
+    pytest.param("grass", float("inf"), id="grass-pos-inf"),
+]
+
+
+def _yaml_load(text: str) -> dict[str, Any]:
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+def _yaml_dump(data: dict[str, Any]) -> str:
+    return yaml.dump(data, Dumper=_YAML_DUMPER, sort_keys=False)
 
 
 @pytest.fixture(scope="module")
-def sample_dict() -> dict[str, Any]:
-    """Return a parsed copy of the shipped sample configuration."""
-    text = (files("supy") / "sample_data" / "sample_config.yml").read_text(
-        encoding="utf-8"
+def sample_dict(sample_yaml_path: Path) -> dict[str, Any]:
+    """Return a parsed copy of the shipped sample configuration. READ-ONLY."""
+    return _yaml_load(sample_yaml_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def resolved_sample_dict(sample_config_loaded: SUEWSConfig) -> dict[str, Any]:
+    """Parsed resolved engine YAML for the sample config. READ-ONLY."""
+    return _yaml_load(config_to_engine_yaml(sample_config_loaded))
+
+
+@pytest.fixture(scope="module")
+def sample_frames(sample_forcing_parsed):
+    """Sample state frame and two-step forcing slice. READ-ONLY: callers ``.copy()``."""
+    return sample_forcing_parsed(_HANDOFF_STEPS)
+
+
+@pytest.fixture(scope="module")
+def rust_engine_context(sample_config_loaded: SUEWSConfig, sample_frames):
+    """Prepared native Rust module and two-step forcing block. READ-ONLY."""
+    _, short_forcing = sample_frames
+    rust_module = _check_rust_available()
+    forcing_block = _prepare_forcing_block(
+        short_forcing.copy(),
+        soil_moisture_method=int(
+            sample_config_loaded.model.physics.soil_moisture.value.value
+        ),
     )
-    return yaml.safe_load(text)
+    return rust_module, forcing_block, len(short_forcing)
+
+
+def _sim_from_sample(
+    sample_config_loaded: SUEWSConfig, short_forcing
+) -> SUEWSSimulation:
+    """Build a fresh ``SUEWSSimulation`` from cached sample config and two-step forcing."""
+    sim = SUEWSSimulation()
+    sim.update_config(
+        sample_config_loaded.model_copy(deep=True), auto_load_forcing=False
+    )
+    sim.update_forcing(short_forcing.copy())
+    return sim
 
 
 def _land_cover(data: dict[str, Any], site_index: int = 0) -> dict[str, Any]:
@@ -118,7 +179,7 @@ def _with_veg_lai_max(
 
 
 def _write_yaml(data: dict[str, Any], path: Path) -> Path:
-    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    path.write_text(_yaml_dump(data), encoding="utf-8")
     return path
 
 
@@ -160,19 +221,13 @@ def _assert_active_lai_max_error(message: str, surface: str) -> None:
         "pos-inf",
     ],
 )
-def test_from_yaml_and_from_dict_reject_non_positive_or_nonfinite_lai_max(
+def test_from_dict_and_constructor_reject_non_positive_or_nonfinite_lai_max(
     sample_dict: dict[str, Any],
-    tmp_path: Path,
     surface: str,
     bad_value: Any,
 ) -> None:
-    """``from_yaml``, ``from_dict``, and ``SUEWSConfig(**...)`` reject bad active ``lai_max``."""
+    """``from_dict`` and ``SUEWSConfig(**...)`` reject every bad active ``lai_max``."""
     data = _with_veg_lai_max(sample_dict, surface, bad_value, active=True)
-    yaml_path = _write_yaml(data, tmp_path / f"bad_{surface}.yml")
-
-    with pytest.raises(ValueError) as exc_yaml:
-        SUEWSConfig.from_yaml(str(yaml_path))
-    _assert_active_lai_max_error(str(exc_yaml.value), surface)
 
     with pytest.raises(ValueError) as exc_dict:
         SUEWSConfig.from_dict(copy.deepcopy(data))
@@ -181,6 +236,22 @@ def test_from_yaml_and_from_dict_reject_non_positive_or_nonfinite_lai_max(
     with pytest.raises(ValueError) as exc_ctor:
         SUEWSConfig(**copy.deepcopy(data))
     _assert_active_lai_max_error(str(exc_ctor.value), surface)
+
+
+@pytest.mark.parametrize(("surface", "bad_value"), _YAML_REJECTION_CASES)
+def test_from_yaml_rejects_non_positive_or_nonfinite_lai_max(
+    sample_dict: dict[str, Any],
+    tmp_path: Path,
+    surface: str,
+    bad_value: Any,
+) -> None:
+    """``from_yaml`` rejects non-positive and non-finite active ``lai_max`` from disk."""
+    data = _with_veg_lai_max(sample_dict, surface, bad_value, active=True)
+    yaml_path = _write_yaml(data, tmp_path / f"bad_{surface}.yml")
+
+    with pytest.raises(ValueError) as exc_yaml:
+        SUEWSConfig.from_yaml(str(yaml_path))
+    _assert_active_lai_max_error(str(exc_yaml.value), surface)
 
 
 @pytest.mark.parametrize("surface", VEG_SURFACES)
@@ -205,14 +276,12 @@ def test_legacy_laimax_key_zero_rejected_with_canonical_path(
 @pytest.mark.parametrize("surface", VEG_SURFACES)
 def test_inactive_vegetated_surface_allows_zero_lai_max(
     sample_dict: dict[str, Any],
-    tmp_path: Path,
     surface: str,
 ) -> None:
     """``sfr == 0`` with ``lai_max == 0`` remains valid across config and engine export (#2149)."""
     data = _with_veg_lai_max(sample_dict, surface, {"value": 0.0}, active=False)
-    yaml_path = _write_yaml(data, tmp_path / f"inactive_{surface}.yml")
 
-    cfg = SUEWSConfig.from_yaml(str(yaml_path))
+    cfg = SUEWSConfig.from_dict(data)
     cfg.validate_for_engine()
     df_state = cfg.to_df_state()
     engine_yaml = config_to_engine_yaml(cfg)
@@ -229,7 +298,6 @@ def test_inactive_vegetated_surface_allows_zero_lai_max(
 @pytest.mark.parametrize("small_val", [1e-6, 0.05])
 def test_active_vegetated_surface_accepts_small_positive_lai_max(
     sample_dict: dict[str, Any],
-    tmp_path: Path,
     surface: str,
     small_val: float,
 ) -> None:
@@ -237,9 +305,8 @@ def test_active_vegetated_surface_accepts_small_positive_lai_max(
     data = _with_veg_lai_max(sample_dict, surface, {"value": small_val}, active=True)
     # Keep initial lai_id within [lai_min, lai_max] for clean validation.
     data["sites"][0]["initial_states"][surface]["lai_id"] = {"value": small_val}
-    yaml_path = _write_yaml(data, tmp_path / f"pos_{surface}_{small_val}.yml")
 
-    cfg = SUEWSConfig.from_yaml(str(yaml_path))
+    cfg = SUEWSConfig.from_dict(data)
     cfg.validate_for_engine()
     df_state = cfg.to_df_state()
 
@@ -251,16 +318,14 @@ def test_active_vegetated_surface_accepts_small_positive_lai_max(
 
 def test_inactive_omitted_lai_max_keeps_df_default_fallback(
     sample_dict: dict[str, Any],
-    tmp_path: Path,
 ) -> None:
     """Omitted ``lai_max`` on an inactive surface still uses ``LAIMAX_DF_DEFAULT``."""
     data = copy.deepcopy(sample_dict)
     lc = _land_cover(data)
     _deactivate_surface(lc, "grass")
     lc["grass"]["lai"].pop("lai_max", None)
-    yaml_path = _write_yaml(data, tmp_path / "inactive_omitted_grass.yml")
 
-    cfg = SUEWSConfig.from_yaml(str(yaml_path))
+    cfg = SUEWSConfig.from_dict(data)
     df_state = cfg.to_df_state()
     assert float(df_state.iloc[0]["laimax", "(2,)"]) == pytest.approx(
         float(LAIParams.LAIMAX_DF_DEFAULT)
@@ -270,9 +335,12 @@ def test_inactive_omitted_lai_max_keeps_df_default_fallback(
 @pytest.mark.parametrize("surface", VEG_SURFACES)
 def test_post_construction_mutation_rejected_at_all_engine_handoffs(
     sample_dict: dict[str, Any],
+    sample_frames,
     surface: str,
 ) -> None:
     """In-place mutation to ``lai_max <= 0`` or activating a zero-``lai_max`` surface fails."""
+    sample_state, short_forcing = sample_frames
+
     # Case 1: valid active config mutated to lai_max = 0.0
     active_data = copy.deepcopy(sample_dict)
     _activate_surface(_land_cover(active_data), surface)
@@ -306,17 +374,19 @@ def test_post_construction_mutation_rejected_at_all_engine_handoffs(
         sample_dict, surface, {"value": 0.0}, active=False
     )
     cfg_inactive = SUEWSConfig.from_dict(inactive_data)
-    sim_mut = SUEWSSimulation.from_sample_data()
+    sim_mut = SUEWSSimulation()
     sim_mut.update_config(cfg_inactive, auto_load_forcing=False)
-    getattr(cfg_inactive.sites[0].properties.land_cover, surface).sfr = RefValue(0.05)
+    sim_mut.update_forcing(short_forcing.copy())
+    lc_inactive = cfg_inactive.sites[0].properties.land_cover
+    lc_inactive.paved.sfr = RefValue(round(lc_inactive.paved.sfr.value - 0.05, 6))
+    getattr(lc_inactive, surface).sfr = RefValue(0.05)
 
     with pytest.raises(ValueError) as exc_run:
         sim_mut.run()
     _assert_active_lai_max_error(str(exc_run.value), surface)
 
     # Case 3: legacy from_state path with laimax = 0 on an active surface
-    sim_state = SUEWSSimulation.from_sample_data()
-    df_state = sim_state.state_init.copy()
+    df_state = sample_state.copy()
     veg_idx = VEG_SURFACES.index(surface)
     if float(df_state.iloc[0]["sfr_surf", f"({veg_idx + 2},)"]) <= 0.0:
         paved_sfr = float(df_state.iloc[0]["sfr_surf", "(0,)"])
@@ -324,7 +394,7 @@ def test_post_construction_mutation_rejected_at_all_engine_handoffs(
         df_state.loc[:, ("sfr_surf", f"({veg_idx + 2},)")] = 0.05
     df_state.loc[:, ("laimax", f"({veg_idx},)")] = 0.0
     sim_from_state = SUEWSSimulation.from_state(df_state)
-    sim_from_state.update_forcing(sim_state.forcing.df.iloc[:2])
+    sim_from_state.update_forcing(short_forcing.copy())
 
     with pytest.raises(ValueError) as exc_state:
         sim_from_state.run()
@@ -355,11 +425,13 @@ def test_post_construction_mutation_rejected_at_all_engine_handoffs(
     ],
 )
 def test_boolean_and_malformed_live_lai_max_rejected_at_handoffs(
-    sample_dict: dict[str, Any],
+    sample_config_loaded: SUEWSConfig,
+    sample_frames,
     bad_live_value: Any,
 ) -> None:
     """Live boolean or malformed ``lai_max`` assignments fail at every engine handoff."""
-    cfg = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    _, short_forcing = sample_frames
+    cfg = sample_config_loaded.model_copy(deep=True)
     cfg.sites[0].properties.land_cover.grass.lai.lai_max = bad_live_value
 
     with pytest.raises(ValueError) as exc_handoff:
@@ -371,7 +443,7 @@ def test_boolean_and_malformed_live_lai_max_rejected_at_handoffs(
         sim_upd.update_config(cfg, auto_load_forcing=False)
     _assert_active_lai_max_error(str(exc_update.value), "grass")
 
-    sim_run = SUEWSSimulation.from_sample_data()
+    sim_run = _sim_from_sample(sample_config_loaded, short_forcing)
     sim_run.config.sites[0].properties.land_cover.grass.lai.lai_max = bad_live_value
     with pytest.raises(ValueError) as exc_run:
         sim_run.run()
@@ -380,6 +452,7 @@ def test_boolean_and_malformed_live_lai_max_rejected_at_handoffs(
 
 def test_boolean_legacy_laimax_rejected_on_load_and_dict_lai(
     sample_dict: dict[str, Any],
+    sample_config_loaded: SUEWSConfig,
     tmp_path: Path,
 ) -> None:
     """Boolean values on legacy ``laimax`` fail on load and on dict-backed live ``lai``."""
@@ -392,7 +465,7 @@ def test_boolean_legacy_laimax_rejected_on_load_and_dict_lai(
         with pytest.raises(ValueError):
             SUEWSConfig.from_yaml(str(yaml_path))
 
-    cfg = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    cfg = sample_config_loaded.model_copy(deep=True)
     cfg.sites[0].properties.land_cover.grass.lai = {"laimax": False}
     with pytest.raises(ValueError) as exc_dict_lai:
         cfg.validate_for_engine()
@@ -446,22 +519,17 @@ def test_annotated_yaml_fail_path_still_raises_and_writes_file(
 
 @pytest.mark.parametrize("surface", VEG_SURFACES)
 def test_native_rust_bridge_rejects_active_zero_lai_max_directly(
+    resolved_sample_dict: dict[str, Any],
+    rust_engine_context,
     surface: str,
 ) -> None:
     """Direct Rust engine call rejects active ``lai_max <= 0`` bypassing Python."""
-    rust_module = _check_rust_available()
-    sim = SUEWSSimulation.from_sample_data()
-    forcing_slice = sim.forcing.df.iloc[:2]
-    resolved_dict = yaml.safe_load(config_to_engine_yaml(sim.config))
+    rust_module, forcing_block, n_steps = rust_engine_context
+    resolved_dict = copy.deepcopy(resolved_sample_dict)
     lc = resolved_dict["sites"][0]["properties"]["land_cover"]
     _activate_surface(lc, surface)
     lc[surface]["lai"]["lai_max"] = {"value": 0.0}
-    patched_yaml = yaml.safe_dump(resolved_dict, sort_keys=False)
-
-    forcing_block = _prepare_forcing_block(
-        forcing_slice,
-        soil_moisture_method=int(sim.config.model.physics.soil_moisture.value.value),
-    )
+    patched_yaml = _yaml_dump(resolved_dict)
 
     with pytest.raises(
         RuntimeError,
@@ -471,17 +539,18 @@ def test_native_rust_bridge_rejects_active_zero_lai_max_directly(
             rust_module,
             patched_yaml,
             forcing_block,
-            len(forcing_slice),
+            n_steps,
             grid_id=1,
         )
 
 
-def test_native_rust_bridge_accepts_inactive_zero_lai_max_and_small_positive() -> None:
+def test_native_rust_bridge_accepts_inactive_zero_lai_max_and_small_positive(
+    resolved_sample_dict: dict[str, Any],
+    rust_engine_context,
+) -> None:
     """Direct Rust engine call accepts ``sfr == 0`` with ``lai_max == 0`` and small positive ``lai_max``."""
-    rust_module = _check_rust_available()
-    sim = SUEWSSimulation.from_sample_data()
-    forcing_slice = sim.forcing.df.iloc[:2]
-    resolved_dict = yaml.safe_load(config_to_engine_yaml(sim.config))
+    rust_module, forcing_block, n_steps = rust_engine_context
+    resolved_dict = copy.deepcopy(resolved_sample_dict)
     lc = resolved_dict["sites"][0]["properties"]["land_cover"]
     _deactivate_surface(lc, "evetr")
     lc["evetr"]["lai"]["lai_min"] = {"value": 0.0}
@@ -489,18 +558,13 @@ def test_native_rust_bridge_accepts_inactive_zero_lai_max_and_small_positive() -
     lc["grass"]["lai"]["lai_min"] = {"value": 0.0}
     lc["grass"]["lai"]["lai_max"] = {"value": 0.05}
     resolved_dict["sites"][0]["initial_states"]["grass"]["lai_id"] = {"value": 0.05}
-    patched_yaml = yaml.safe_dump(resolved_dict, sort_keys=False)
-
-    forcing_block = _prepare_forcing_block(
-        forcing_slice,
-        soil_moisture_method=int(sim.config.model.physics.soil_moisture.value.value),
-    )
+    patched_yaml = _yaml_dump(resolved_dict)
 
     df_output, _, _ = _run_grid_into(
         rust_module,
         patched_yaml,
         forcing_block,
-        len(forcing_slice),
+        n_steps,
         grid_id=1,
     )
     assert not df_output.empty

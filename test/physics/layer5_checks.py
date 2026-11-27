@@ -3,7 +3,8 @@
 Enforces three defensive contracts across all Layer 5 physics modules:
 1. Active-variable, required-column, and expected-timestep completeness and
    finiteness: every active output group (``SUEWS``, ``DailyState``, ``BEERS``,
-   ``RSL``, ``debug``, plus ``EHC``, ``SPARTACUS``, and ``snow`` when enabled)
+   ``RSL``, ``debug``, plus ``EHC``, ``SPARTACUS``, ``STEBBS``, and ``snow``
+   when enabled)
    must match the forcing-derived timestamps and grid IDs exactly, contain all
    registered columns for that group, reject both non-finite values
    (``NaN``/``+/-Inf``) and exact ``-999.0`` missing-data sentinels on every
@@ -62,8 +63,29 @@ _SAVED_REQUIRED_HEADER_COLUMNS: tuple[str, ...] = (
 )
 
 # DailyState OHM regression coefficients legitimately set to NAN (-999 -> NaN)
-# when StorageHeatMethod == EHC (src/suews/src/suews_ctrl_driver.f95:2459-2461).
+# when OHM is bypassed: StorageHeatMethod == EHC (5,
+# src/suews/src/suews_ctrl_driver.f95:2459-2461) or OBSERVED (0,
+# src/suews/src/suews_ctrl_driver.f95:2553-2585).
 DAILYSTATE_ABSENT_UNDER_EHC: tuple[str, ...] = ("a1", "a2", "a3")
+
+# SUEWS radiation-component outputs legitimately set to NAN (-999 -> NaN)
+# when NetRadiationMethod == 0 and SnowUse == 0 (observed QN without snow,
+# src/suews/src/suews_ctrl_driver.f95:2168-2181; when SnowUse == 1, RadMethod
+# in src/suews/src/suews_phys_narp.f95:65-69 routes to sentinel 3000 and NARP
+# populates these diagnostics).
+SUEWS_ABSENT_UNDER_OBSERVED_QN: tuple[str, ...] = ("Kup", "Ldown", "Lup", "Tsurf")
+
+# SUEWS per-surface soil moisture deficits legitimately set to NAN
+# (-999 -> NaN) when SMDMethod == 1 (observed bulk soil moisture,
+# src/suews/src/suews_phys_waterdist.f95:970-974).
+SUEWS_ABSENT_UNDER_OBSERVED_SMD: tuple[str, ...] = (
+    "SMDPaved",
+    "SMDBldgs",
+    "SMDEveTr",
+    "SMDDecTr",
+    "SMDGrass",
+    "SMDBSoil",
+)
 
 # RSL canopy-parameter diagnostics legitimately set to -999 -> NaN when
 # RSLProfile selects the MOST branch (flag_RSL == 0.0,
@@ -248,12 +270,16 @@ def _same_datetime_instants(left: pd.Index, right: pd.Index) -> bool:
 def expected_dailystate_mask(index: pd.DatetimeIndex, tstep: int) -> np.ndarray:
     """Return mask of exact end-of-day rows where Fortran writes ``DailyState``.
 
-    Matches ``last_tstep_Q = time_now%getDay() /= time_next%getDay()`` in
-    ``src/suews/src/suews_phys_dailystate.f95:269`` across every supported
-    ``tstep`` (e.g. ``23:55`` for 300 s, ``23:00`` for 3600 s).
+    Matches ``last_tstep_Q`` in ``src/suews/src/suews_phys_dailystate.f95``
+    under the unified right-closed day-ownership rule ``date(t - 1 s)``
+    across every supported ``tstep`` on both midnight-aligned (``D+1 00:00``)
+    and offset (e.g. ``D 23:57``) grids.
     """
-    next_ts = index + pd.Timedelta(seconds=int(tstep)).as_unit(index.unit)
-    return np.asarray(next_ts.normalize() != index.normalize(), dtype=bool)
+    one_sec = pd.Timedelta(seconds=1).as_unit(index.unit)
+    step_dt = pd.Timedelta(seconds=int(tstep)).as_unit(index.unit)
+    day_now = (index - one_sec).normalize()
+    day_next = (index + step_dt - one_sec).normalize()
+    return np.asarray(day_now != day_next, dtype=bool)
 
 
 def _assert_group_finiteness(
@@ -439,27 +465,17 @@ def _validate_multiindex_grid_frame(
 def _expected_dailystate_bins(
     eod_stamps: pd.DatetimeIndex,
     *,
+    origin: pd.Timestamp,
     tstep: int,
     output_step: int | None,
 ) -> pd.DatetimeIndex:
-    """Map native DailyState occurrence timestamps to their expected output bins."""
-    if len(eod_stamps) == 0:
-        return pd.DatetimeIndex([], dtype=eod_stamps.dtype)
-    if output_step is None or output_step == tstep:
-        return pd.DatetimeIndex(eod_stamps).unique().sort_values()
-
-    unit = eod_stamps.unit
-    tick = pd.Timedelta(1, unit).as_unit(unit)
-    step = pd.Timedelta(seconds=output_step).as_unit(unit)
-    day = pd.Timedelta(days=1).as_unit(unit)
-    ds_origin = eod_stamps.min().normalize()
-    period_ends = (eod_stamps.normalize() + day) - tick
-    # DailyState covers calendar day D ending at (D + 1 day) - 1 tick and uses
-    # closed="right", label="left" at fixed frequencies, anchored at the
-    # earliest populated DailyState day's midnight (matching supy._post).
-    ds_bin_number = ((period_ends - ds_origin) - tick) // step
-    labels = pd.DatetimeIndex(ds_origin + ds_bin_number * step).as_unit(unit)
-    return labels.unique().sort_values()
+    """Map native DailyState occurrence timestamps to their right-labelled output bins."""
+    return _expected_right_labelled_bins(
+        eod_stamps,
+        origin=origin,
+        tstep=tstep,
+        output_step=output_step,
+    )
 
 
 def _expected_right_labelled_bins(
@@ -540,7 +556,9 @@ def _extract_native_group_evidence(
     """Derive per-group columns and expected resampled bins from native output."""
     _validate_multiindex_grid_frame(native_grid, label=label, kind="native")
     assert len(native_grid) > 0, f"{label}: native DataFrame must be non-empty"
-    origin = native_grid.index[0].normalize()
+    origin = (
+        native_grid.index.min() - pd.Timedelta(1, native_grid.index.unit)
+    ).normalize()
     evidence: dict[str, _NativeGroupEvidence] = {}
     for group_name in native_grid.columns.get_level_values(0).unique():
         native_group = native_grid[group_name]
@@ -549,7 +567,7 @@ def _extract_native_group_evidence(
         )
         if group_name == "DailyState":
             expected_bins = _expected_dailystate_bins(
-                native_stamps, tstep=tstep, output_step=output_step
+                native_stamps, origin=origin, tstep=tstep, output_step=output_step
             )
         else:
             expected_bins = _expected_right_labelled_bins(
@@ -672,8 +690,9 @@ def _expected_cloud_bins(
       anchored at ``forcing.index[0].normalize()`` and averages finite cloud
       observations per bin while retaining all-missing bins as ``NaN``.
     - Combined ``SUEWS`` + ``DailyState`` resampled frames map each end-of-day
-      step to its left-labelled ``DailyState`` bin (which may either overlap a
-      SUEWS bin or sit outside ``suews_index`` as an exclusive structural row).
+      step to its right-labelled ``DailyState`` bin sharing the same fixed
+      origin as ``SUEWS`` (aligned onto ``suews_index`` with zero exclusive
+      structural rows for forcing-aligned EOD timestamps).
       Returns ``(expected_suews, expected_ds_all, expected_ds_only)``.
     """
     index = forcing.index
@@ -704,7 +723,7 @@ def _expected_cloud_bins(
 
     unit = index.unit
     tick = pd.Timedelta(1, unit).as_unit(unit)
-    origin = index[0].normalize()
+    origin = (index.min() - tick).normalize()
     step = pd.Timedelta(seconds=output_step).as_unit(unit)
     bin_labels = pd.DatetimeIndex(
         origin + (((index - origin) - tick) // step + 1) * step
@@ -712,7 +731,7 @@ def _expected_cloud_bins(
     # Every occupied measurement bin survives, including all-missing bins (NaN).
     expected_suews = expected_native.groupby(bin_labels, sort=True).mean()
     expected_ds_all = _expected_dailystate_bins(
-        eod_stamps, tstep=tstep, output_step=output_step
+        eod_stamps, origin=origin, tstep=tstep, output_step=output_step
     )
     expected_ds_only = _dailystate_only_timestamps(
         expected_ds_all, expected_suews.index
@@ -987,10 +1006,10 @@ def assert_dailystate_group_occurrence(
     (``(grid, datetime)`` ``MultiIndex``) output frames. Each grid is checked
     independently: every native row holding at least one valid (finite,
     non-``-999.0``) ``DailyState`` observation is mapped to its fixed-frequency
-    left-labelled bin (or retained verbatim at native cadence), and the
-    corresponding output bin -- whether exclusive or overlapping a ``SUEWS``
-    measurement bin -- must hold at least one valid ``DailyState`` observation,
-    while all other output rows must remain ``NaN`` in ``DailyState``.
+    right-labelled bin sharing the grid's origin (or retained verbatim at
+    native cadence), and the corresponding output bin must hold at least one
+    valid ``DailyState`` observation, while all other output rows must remain
+    ``NaN`` in ``DailyState``.
 
     Scoped strictly to populated-group existence rather than per-field
     completeness across all 47 fields under every physical configuration.
@@ -1002,8 +1021,11 @@ def assert_dailystate_group_occurrence(
         _validate_multiindex_grid_frame(obs_grid, label=grid_label, kind="output")
         obs_ds = _extract_required_group(obs_grid, "DailyState")
         native_stamps = _extract_native_dailystate_stamps(nat_grid, label=grid_label)
+        origin = (
+            nat_grid.index.min() - pd.Timedelta(1, nat_grid.index.unit)
+        ).normalize()
         expected_bins = _expected_dailystate_bins(
-            native_stamps, tstep=tstep, output_step=output_step
+            native_stamps, origin=origin, tstep=tstep, output_step=output_step
         )
         if len(expected_bins) > 0:
             missing_cols = sorted(
@@ -1032,10 +1054,10 @@ def assert_output_group_occurrence(
 
     Supports both single-grid (``DatetimeIndex``) and multi-grid
     (``(grid, datetime)`` ``MultiIndex``) output frames. Each grid is compared
-    against its native evidence across ``DailyState`` (left-labelled) and every
+    against its native evidence across ``DailyState`` and every
     non-``DailyState`` group (``SUEWS``, ``BEERS``, ``RSL``, ``debug``, plus
     enabled ``snow``, ``ESTM``, ``EHC``, ``SPARTACUS``, ``STEBBS``, ``NHood``,
-    ``BL``, right-labelled):
+    ``BL``, all right-labelled under the shared per-grid origin):
 
     - Every active group in ``native`` must remain present in ``observed`` with
       all native columns retained, holding at least one finite non-``-999.0``
@@ -1131,14 +1153,12 @@ def assert_forcing_cloud(
     The writer binds ``Fcld`` to ``forcing%f_cloud`` (``suews_ctrl_driver.f95``),
     not ``atmState%f_cloud``. Native rows retain the forcing clock with no extra
     rows. Fixed-frequency aggregates preserve every required right-closed,
-    right-labelled SUEWS measurement bin (including all-missing bins) and accept
-    extra structural rows only at the exact left-labelled ``DailyState``
-    timestamps outside the SUEWS bin index. On those structural rows ``Fcld``
-    (and every non-``DailyState`` group when a DataFrame is passed) must remain
-    ``NaN``, required SUEWS bins must stay distinguishable as SUEWS
-    observations, and whenever ``observed`` carries a ``DailyState`` group,
-    every expected ``DailyState`` bin (both exclusive and overlapping a SUEWS
-    bin) must hold at least one valid observation while all other rows remain
+    right-labelled SUEWS measurement bin (including all-missing bins) and place
+    ``DailyState`` on the same right-labelled bin grid (leaving zero extra
+    structural rows when native EOD steps sit on the forcing clock). Required
+    SUEWS bins must stay distinguishable as SUEWS observations, and whenever
+    ``observed`` carries a ``DailyState`` group, every expected ``DailyState``
+    bin must hold at least one valid observation while all other rows remain
     ``NaN`` in ``DailyState``. Multi-group frames also enforce group occurrence
     and column retention for active non-``DailyState`` groups (always-active
     ``BEERS``, ``RSL``, ``debug``, plus enabled optional groups such as
@@ -1411,6 +1431,8 @@ def assert_active_output_finiteness(
     storage_heat: int = 1,
     net_radiation: int = 3,
     snow_use: int = 0,
+    soil_moisture: int = 0,
+    stebbs_enabled: bool = False,
     nlayer: int = 3,
     has_buildings: bool = True,
     forcing: pd.DataFrame,
@@ -1445,6 +1467,11 @@ def assert_active_output_finiteness(
     suews = _extract_required_group(grid_df, "SUEWS")
     assert "Fcld" in suews, "SUEWS: missing required output column Fcld"
     assert_forcing_cloud(suews["Fcld"], forcing, tstep=tstep)
+    suews_absent: tuple[str, ...] = ()
+    if int(net_radiation) == 0 and int(snow_use) == 0:
+        suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_QN
+    if int(soil_moisture) == 1:
+        suews_absent += SUEWS_ABSENT_UNDER_OBSERVED_SMD
     # Cloud has already been checked cell by cell, including missing positions.
     _assert_group_finiteness(
         suews.drop(columns="Fcld"),
@@ -1452,6 +1479,7 @@ def assert_active_output_finiteness(
         expected_columns=tuple(
             c for c in expected_group_columns("SUEWS") if c != "Fcld"
         ),
+        expected_all_nan=suews_absent,
     )
     _assert_beers_finiteness(grid_df, has_buildings=has_buildings)
     _assert_rsl_finiteness(grid_df)
@@ -1474,7 +1502,7 @@ def assert_active_output_finiteness(
         assert not non_eod_populated, (
             f"DailyState: unexpected values on non-EOD rows: {non_eod_populated}"
         )
-    ds_absent = DAILYSTATE_ABSENT_UNDER_EHC if int(storage_heat) == 5 else ()
+    ds_absent = DAILYSTATE_ABSENT_UNDER_EHC if int(storage_heat) in {0, 5} else ()
     _assert_group_finiteness(
         ds.loc[eod_mask],
         group="DailyState[EOD]",
@@ -1500,6 +1528,12 @@ def assert_active_output_finiteness(
             expected_columns=sp_cols,
             expected_all_nan=_unused_vertical_layer_columns(sp_cols, nlayer),
         )
+    if stebbs_enabled:
+        _assert_group_finiteness(
+            _extract_required_group(grid_df, "STEBBS"),
+            group="STEBBS",
+            expected_columns=expected_group_columns("STEBBS"),
+        )
     if int(snow_use) == 1:
         _assert_group_finiteness(
             _extract_required_group(grid_df, "snow"),
@@ -1517,6 +1551,8 @@ def assert_simulation_output_finiteness(
     storage_heat: int = 1,
     net_radiation: int = 3,
     snow_use: int = 0,
+    soil_moisture: int = 0,
+    stebbs_enabled: bool = False,
     nlayer: int = 3,
     has_buildings: bool = True,
     forcing: pd.DataFrame | dict[int, pd.DataFrame],
@@ -1557,6 +1593,8 @@ def assert_simulation_output_finiteness(
             storage_heat=storage_heat,
             net_radiation=net_radiation,
             snow_use=snow_use,
+            soil_moisture=soil_moisture,
+            stebbs_enabled=stebbs_enabled,
             nlayer=nlayer,
             has_buildings=has_buildings,
             forcing=forcing[grid_id] if isinstance(forcing, dict) else forcing,

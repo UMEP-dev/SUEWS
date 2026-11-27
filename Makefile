@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge plugin agent-plugin
+.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml contracts-site clean format bridge plugin agent-plugin
 
 # Default Python
 PYTHON := python
@@ -15,6 +15,7 @@ help:
 	@echo "  test-all   - Run ALL tests including slow and peripheral surfaces"
 	@echo "  audit-deps - Audit Python dependencies and startup hooks"
 	@echo "  docs       - Build documentation"
+	@echo "  contracts-site - Build and validate versioned forcing/output contracts site"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
 	@echo "  bridge     - Build the Rust engine CLI with its run command (needs the physics library: make dev)"
 	@echo "  format     - Format Python and Fortran code"
@@ -219,7 +220,7 @@ TEST_DEFAULT_PATHS := test/test_api_surface.py test/core test/data_model test/ph
 # full-year DailyState tests materialises its own year of output (about 1 GB);
 # raise it on a machine with memory to spare: make test TEST_JOBS=8
 TEST_JOBS ?= 4
-test: lint-fortran-constants
+test: lint-fortran-constants lint-python-constants
 	@echo "Running everyday development tests (core, data model, physics, I/O)..."
 	@echo "NOTE: slow regressions and peripheral surfaces (cmd, mcp, docs,"
 	@echo "      knowledge, umep) are excluded - run 'make test-all' or the"
@@ -280,6 +281,17 @@ docs:
 livehtml:
 	$(MAKE) -C docs livehtml
 
+# Build and validate static forcing/output data-contract artefacts (matches CI)
+CONTRACTS_SITE_DIR ?= build/contracts-site/contracts
+CONTRACTS_BASE_URL ?= https://suews.io
+CONTRACTS_PRESERVE_FROM ?=
+contracts-site:
+	@echo "Building and validating forcing and output contract artefacts..."
+	$(PYTHON) scripts/suews/publish_contracts.py \
+		--output-dir "$(CONTRACTS_SITE_DIR)" \
+		--base-url "$(CONTRACTS_BASE_URL)" \
+		$(if $(CONTRACTS_PRESERVE_FROM),--preserve-from "$(CONTRACTS_PRESERVE_FROM)",)
+
 # Smart clean - preserves .venv if you're in it
 clean:
 	@echo "Cleaning build artifacts..."
@@ -317,7 +329,7 @@ format:
 	fprettify src/suews/src/*.f95 || true
 
 # Regenerate the distributable plugin bundle (plugins/suews/skills/) from the
-# single source of truth (.claude/skills/). Run after editing a skill; the
+# single source of truth (.agents/skills/). Run after editing a skill; the
 # parity test in test/mcp/test_packaging_manifests.py guards against drift.
 plugin:
 	$(PYTHON) scripts/build_plugin.py
@@ -337,6 +349,9 @@ test-rss-growth:
 test-rss-growth-contract:
 	$(PYTHON) -m pytest test/core/test_rss_growth.py -q
 
-.PHONY: lint-fortran-constants
+.PHONY: lint-fortran-constants lint-python-constants
 lint-fortran-constants:
 	$(PYTHON) scripts/lint/check_fortran_literals.py
+
+lint-python-constants:
+	$(PYTHON) scripts/lint/check_python_literals.py

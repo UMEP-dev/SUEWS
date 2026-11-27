@@ -248,24 +248,21 @@ class TestResampleOutput:
                     in df_resampled.columns.get_level_values("group").unique()
                 )
 
-    def test_resample_dailystate_label_difference(self):
-        """Test that DailyState uses 'left' label while other groups use 'right'."""
-        # Create minimal test data with known structure
-        dates = pd.date_range("2023-01-01", periods=TIMESTEPS_PER_DAY * 2, freq="5min")
+    def test_resample_dailystate_right_label_alignment(self):
+        """DailyState uses ``closed='right', label='right'`` like every other group."""
+        # Two complete right-closed days: 2023-01-01 00:05 .. 2023-01-03 00:00
+        dates = pd.date_range(
+            "2023-01-01 00:05", periods=TIMESTEPS_PER_DAY * 2, freq="5min"
+        )
         grids = ["grid1"]
-
-        # Create MultiIndex
         index = pd.MultiIndex.from_product([grids, dates], names=["grid", "datetime"])
 
-        # Create test data with regular group and DailyState
-        regular_data = np.random.rand(len(index))
+        regular_data = np.arange(len(index), dtype=float)
         dailystate_data = np.full(len(index), np.nan)
-        # Only fill DailyState at end of each day
-        for i in range(0, len(dates), TIMESTEPS_PER_DAY):
-            if i + TIMESTEPS_PER_DAY - 1 < len(dates):
-                dailystate_data[i + TIMESTEPS_PER_DAY - 1] = np.random.rand()
+        # Kernel emits DailyState at 23:55 of each day
+        eod_mask = (dates.hour == 23) & (dates.minute == 55)
+        dailystate_data[eod_mask] = [10.0, 20.0]
 
-        # Create DataFrame with MultiIndex columns
         columns = pd.MultiIndex.from_tuples(
             [
                 ("SUEWS", "kdown"),
@@ -287,28 +284,29 @@ class TestResampleOutput:
             columns=columns,
         )
 
-        # Create a minimal dict_aggm for testing
         test_dict_aggm = {
             "SUEWS": {"kdown": "mean", "kup": "mean"},
-            "DailyState": {
-                "GDD_id": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,
-                "SDD_id": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,
-            },
+            "DailyState": {"GDD_id": "last", "SDD_id": "last"},
         }
 
-        # Resample
-        df_resampled = _resample_output(
+        df_hourly = _resample_output(
             df_output, freq="60min", dict_aggm=test_dict_aggm
-        )
+        ).xs("grid1", level="grid")
+        ds_hourly = df_hourly["DailyState"]["GDD_id"].dropna()
+        # Day D's 23:55 record lands on D+1 00:00 (not 23:00), sharing the
+        # (23:00, 00:00] row with SUEWS.
+        expected_stamps = pd.DatetimeIndex(["2023-01-02 00:00", "2023-01-03 00:00"])
+        assert ds_hourly.index.equals(expected_stamps)
+        assert ds_hourly.tolist() == [10.0, 20.0]
+        assert df_hourly.loc[expected_stamps, ("SUEWS", "kdown")].notna().all()
+        assert pd.isna(df_hourly.loc["2023-01-01 23:00", ("DailyState", "GDD_id")])
 
-        # Both groups should be present
-        assert "SUEWS" in df_resampled.columns.get_level_values("group").unique()
-        assert "DailyState" in df_resampled.columns.get_level_values("group").unique()
-
-        # The label difference is internal to the function, but we can verify
-        # that both types of data are correctly resampled
-        assert len(df_resampled) > 0
-        assert not df_resampled.empty
+        df_daily = _resample_output(
+            df_output, freq="D", dict_aggm=test_dict_aggm
+        ).xs("grid1", level="grid")
+        assert df_daily.index.equals(expected_stamps)
+        assert df_daily["DailyState", "GDD_id"].tolist() == [10.0, 20.0]
+        assert df_daily["SUEWS", "kdown"].notna().all()
 
     def test_resample_missing_dict_aggm_entry(self):
         """Test behavior when dict_aggm doesn't contain DailyState."""

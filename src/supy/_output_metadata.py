@@ -11,6 +11,7 @@ import pandas as pd
 
 from . import units as unit_conversion
 from ._misc import infer_freq_offset
+from .constants import SEC_PER_DAY, SEC_PER_HOUR
 from .data_model.output.registry import get_output_contract_catalogue
 from .data_model.output.version import CURRENT_OUTPUT_VERSION
 
@@ -109,14 +110,17 @@ def with_daily_coverage(
 ) -> pd.DataFrame:
     """Attach daily coverage before native rows are selected or resampled.
 
-    DailyState accumulates steps stamped within each calendar day. Count those
+    DailyState accumulates steps over each right-closed day
+    ``(D 00:00, D+1 00:00]`` and emits at day ``D``'s closing step
+    (``D+1 00:00`` on midnight-aligned grids). Each timestamp ``t`` belongs to
+    the calendar day ``(t - 1 tick).normalize()``. Count those
     steps using the interval the rows hold (see :func:`resolve_held_interval`:
     a declared interval, or the regular cadence pandas finds in the index),
     never a cadence reconstructed from gaps. Streaming callers supply
-    daily_steps from the complete forcing slice so a midnight step in the
-    preceding chunk still counts towards its day. Without a held interval,
-    mark coverage as unknown (None) so later calls with an output interval
-    cannot fabricate it; amount conversion remains available.
+    daily_steps from the complete forcing slice so days split across chunks
+    still report their full step count. Without a held interval, mark coverage
+    as unknown (None) so later calls with an output interval cannot fabricate
+    it; amount conversion remains available.
     """
     key = "supy_output_daily_coverage_s"
     if key in df_output.attrs or not isinstance(df_output.columns, pd.MultiIndex):
@@ -132,13 +136,16 @@ def with_daily_coverage(
     df_bare = strip_attrs(df_output)
     dates = df_bare.index.get_level_values("datetime")
     grids = df_bare.index.get_level_values("grid")
+    tick = pd.Timedelta(1, dates.unit)
+    day_keys = (dates - tick).normalize()
     counts = pd.Series(
-        1, index=pd.MultiIndex.from_arrays([grids, dates.normalize()])
+        1, index=pd.MultiIndex.from_arrays([grids, day_keys])
     ).groupby(level=[0, 1]).sum()
     daily = df_bare["DailyState"].notna().any(axis=1)
     coverage = {}
     for grid, date in df_bare.index[daily]:
-        count = counts.loc[grid, date.normalize()] if daily_steps is None else daily_steps[date.normalize()]
+        day_key = (date - tick).normalize()
+        count = counts.loc[grid, day_key] if daily_steps is None else daily_steps[day_key]
         coverage[f"{grid}|{date.isoformat()}"] = float(count * step_s)
     result = df_bare.copy(deep=False)
     if attrs_source:
@@ -154,8 +161,8 @@ def _interval(seconds: Optional[int]) -> Optional[str]:
     if seconds <= 0:
         raise ValueError("Output interval must be positive.")
     for divisor, label in (
-        (86400, "day"),
-        (3600, "hour"),
+        (SEC_PER_DAY, "day"),
+        (SEC_PER_HOUR, "hour"),
         (60, "minute"),
         (1, "second"),
     ):
@@ -235,10 +242,6 @@ def resolve_held_interval(
 
     Without any of these the interval is ``"unknown"``; callers then skip
     what depends on it rather than guess.
-
-    DailyState rows may keep their native last-step stamps beside rows at the
-    held interval (streamed output); :func:`supy._post._dailystate_period_end`
-    tells the two apart from the stamps themselves.
     """
     to_offset = pd.tseries.frequencies.to_offset
     if freq_source is not None:
@@ -422,7 +425,11 @@ def project_output_metadata(
             dict_result[column] = {"status": "unknown"}
             continue
         daily_water = identity in daily_water_variables()
-        interval = "covered day" if daily_water else _interval(86400 if identity[0] == "DailyState" else interval_s)
+        interval = (
+            "covered day"
+            if daily_water
+            else _interval(SEC_PER_DAY if identity[0] == "DailyState" else interval_s)
+        )
         unit = (units or {}).get(identity[0], {}).get(identity[1])
         if unit is None:
             unit = "mm" if native and identity in water_flux_variables() else entry.unit

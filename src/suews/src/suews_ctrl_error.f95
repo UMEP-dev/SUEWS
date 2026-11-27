@@ -20,7 +20,10 @@
 !   112: Stability - Non-finite or out-of-domain z/L in stability correction functions (GH#2171)
 !   113: Roughness - RoughLenMomMethod value with no scheme behind it, e.g. 5 / ALTERNATIVE (GH#2105)
 !   114: RSL - Non-finite stability or canopy length-scale input in RSL_cal_prms (GH#2171)
-!   115: C-API bridge - buffer length mismatch across FFI boundary (GH#2085)
+!   115: C-API bridge - buffer length mismatch across FFI boundary (GH#2085, GH#2131)
+!   116: EHC - Invalid implicit coupling arrays, thermal layers, coefficients, indoor resistance or stability control (GH#2108)
+!   117: DailyState - Non-finite or singular calculated LAI in update_gddlai (GH#2066, PR#2346)
+!   118: DailyState - Unsupported intra-day or midnight-skipping timestep change (tstep /= tstep_prev) in SUEWS_cal_DailyState (GH#2382, PR#2388)
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c
@@ -143,10 +146,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    !   If modState is absent, warnings are silently dropped (no module-level state).
    !   Fatal errors use the thread-local store through set_supy_error.
 
-   USE module_ctrl_const_datain
+   USE module_ctrl_const_datain, ONLY: SuppressWarnings
    USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: SUEWS_STATE
-   ! USE module_ctrl_const_wherewhen
 
    IMPLICIT NONE
 

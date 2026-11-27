@@ -1,17 +1,19 @@
 ! -----------------------------------------------------------------------------
-! SUEWS Rust bridge C API facade for batch DTS simulation.
+! SUEWS Rust bridge C API facade for batch simulation.
 !
 ! Notes:
-! - This adapter exposes the batch entry point `SUEWS_cal_multitsteps_dts`.
+! - This adapter exposes the batch entry point `SUEWS_cal_multitsteps`.
 ! - Site/state member payloads are transferred via concatenated buffers and TOC
 !   arrays. Post-simulation state is packed from the modified Fortran types
 !   back into the flat output buffer for Rust codec round-trip.
 ! -----------------------------------------------------------------------------
 module module_c_api_driver
 use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
+use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer
+use module_c_api_config, only: SUEWS_CAPI_CONFIG_LEN
 use module_ctrl_const_allocate, only: ncolumnsDataOutSUEWS, nspec, nsurf, nvegsurf, &
    ncolumnsDataOutSnow, ncolumnsDataOutBEERS, ncolumnsDataOutESTM, ncolumnsDataOutEHC, &
    ncolumnsDataOutDailyState, ncolumnsDataOutRSL, ncolumnsDataOutDebug, &
@@ -21,11 +23,12 @@ use module_ctrl_type, only: SUEWS_TIMER, SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, 
                             SNOW_STATE, HYDRO_STATE, HEAT_STATE, ROUGHNESS_STATE, STEBBS_STATE, NHOOD_STATE
 use module_ctrl_error_state, only: reset_supy_error, set_supy_error, &
    supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN
-use module_c_api_spartacus_prm, only: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN, &
+use module_c_api_spartacus_prm, only: spartacus_prm_expected_len, &
                                       spartacus_prm_unpack
 use module_c_api_lumps, only: lumps_prm_unpack
-use module_c_api_ehc_prm, only: ehc_prm_unpack, ehc_surface_len
-use module_c_api_spartacus_layer_prm, only: spartacus_layer_prm_unpack
+use module_c_api_ehc_prm, only: ehc_prm_expected_len, ehc_prm_unpack
+use module_c_api_spartacus_layer_prm, only: spartacus_layer_prm_expected_len, &
+                                            spartacus_layer_prm_unpack
 use module_c_api_surf_store, only: surf_store_prm_unpack
 use module_c_api_irrigation_prm, only: irrigation_prm_unpack
 use module_c_api_anthro_emis_prm, only: anthro_emis_prm_unpack
@@ -47,20 +50,19 @@ use module_c_api_solar, only: solar_state_unpack
 use module_c_api_atm, only: atm_state_unpack
 use module_c_api_phenology, only: phenology_state_unpack
 use module_c_api_snow, only: SUEWS_CAPI_SNOW_STATE_LEN, snow_state_unpack
-use module_c_api_hydro_state, only: hydro_state_unpack
-use module_c_api_heat_state, only: heat_state_unpack
+use module_c_api_hydro_state, only: hydro_state_expected_len, hydro_state_unpack
+use module_c_api_heat_state, only: heat_state_expected_len, heat_state_unpack
 use module_c_api_roughness, only: roughness_state_unpack
 use module_c_api_stebbs_state, only: SUEWS_CAPI_STEBBS_STATE_BASE_LEN, &
                                      stebbs_state_unpack, stebbs_state_pack_real
 use module_c_api_nhood, only: nhood_state_unpack
-use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps_dts
+use module_ctrl_driver, only: sync_error_to_state, SUEWS_cal_multitsteps
 
 implicit none
 
 private
 
-integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 24_c_int
+integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 8_c_int
 ! Must equal SUEWS_CAPI_SITE_SCALARS_LEN in src/sim.rs (not checked at run
 ! time). The layout is encode_site_scalars (Rust) / unpack_site_scalars here.
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
@@ -290,6 +292,17 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
+   call validate_simulation_dims(nlayer, ndepth, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      if (supy_error_flag()) then
+         call get_supy_error(tls_err_code, tls_err_msg)
+         sim_err_code = int(tls_err_code, c_int)
+         call copy_to_c_buffer(trim(tls_err_msg), sim_err_message, sim_err_message_len)
+      end if
+      err = local_err
+      return
+   end if
+
    if (site_member_count/=SUEWS_CAPI_SITE_MEMBER_COUNT) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
@@ -375,6 +388,11 @@ subroutine suews_cal_multitsteps_c( &
       state_local, nlayer_i, ndepth_i, &
       state_flat, state_flat_len, state_toc, state_toc_len, state_member_count, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
+      if (supy_error_flag()) then
+         call get_supy_error(tls_err_code, tls_err_msg)
+         sim_err_code = int(tls_err_code, c_int)
+         call copy_to_c_buffer(trim(tls_err_msg), sim_err_message, sim_err_message_len)
+      end if
       err = local_err
       return
    end if
@@ -397,7 +415,7 @@ subroutine suews_cal_multitsteps_c( &
    end if
 
    call state_local%errorState%reset()
-   call SUEWS_cal_multitsteps_dts( &
+   call SUEWS_cal_multitsteps( &
       timer_local, metforcing_block, len_sim_i, &
       config_local, site_local, &
       state_local, output_flat(1:len_sim_i, 1:ncols_data), &
@@ -629,6 +647,71 @@ subroutine initialise_site_state( &
 
 end subroutine initialise_site_state
 
+subroutine validate_simulation_dims(nlayer, ndepth, err)
+   implicit none
+
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(in) :: ndepth
+   integer(c_int), intent(out) :: err
+
+   integer(c_int) :: required_len
+   logical :: len_ok
+   character(len=SUPY_ERROR_MESSAGE_LEN) :: err_msg
+
+   call spartacus_prm_expected_len(nlayer, required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A)') &
+         'validate_simulation_dims: spartacus_prm buffer length overflows c_int (nlayer=', &
+         int(nlayer), ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   call ehc_prm_expected_len(nlayer, ndepth, required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A,I0,A)') &
+         'validate_simulation_dims: ehc_prm buffer length overflows c_int (nlayer=', &
+         int(nlayer), ', ndepth=', int(ndepth), ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   call spartacus_layer_prm_expected_len(nlayer, int(nspec, c_int), required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A,I0,A)') &
+         'validate_simulation_dims: spartacus_layer buffer length overflows c_int (nlayer=', &
+         int(nlayer), ', nspec=', nspec, ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   call hydro_state_expected_len(nlayer, required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A)') &
+         'validate_simulation_dims: hydro_state buffer length overflows c_int (nlayer=', &
+         int(nlayer), ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   call heat_state_expected_len(nlayer, ndepth, required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A,I0,A)') &
+         'validate_simulation_dims: heat_state buffer length overflows c_int (nlayer=', &
+         int(nlayer), ', ndepth=', int(ndepth), ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   err = SUEWS_CAPI_OK
+
+end subroutine validate_simulation_dims
+
 subroutine unpack_site_members( &
    site, nlayer, ndepth, &
    site_flat, site_flat_len, site_toc, site_toc_len, site_member_count, err)
@@ -648,7 +731,7 @@ subroutine unpack_site_members( &
    integer(c_int) :: member_len
    integer(c_int) :: local_err
    integer(c_int) :: required_len
-   integer(c_int) :: n_surf_ehc
+   logical :: len_ok
    character(len=SUPY_ERROR_MESSAGE_LEN) :: err_msg
 
    call member_span_from_toc(site_flat_len, site_toc, site_toc_len, site_member_count, &
@@ -657,8 +740,25 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-   required_len = SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN + int(nlayer, c_int) + 1_c_int
-   if (member_len>=required_len) then
+   call spartacus_prm_expected_len(int(nlayer, c_int), required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A)') &
+         'unpack_site_members: spartacus_prm buffer length overflows c_int (nlayer=', &
+         nlayer, ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (member_len>0_c_int) then
+      if (member_len/=required_len) then
+         write (err_msg, '(A,I0,A,I0,A,I0,A)') &
+            'unpack_site_members: spartacus_prm buffer length mismatch: received ', &
+            int(member_len), ', expected ', int(required_len), &
+            ' (nlayer=', nlayer, ')'
+         call set_supy_error(115, trim(err_msg))
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
       call spartacus_prm_unpack(site_flat(int(member_offset) + 1), member_len, int(nlayer, c_int), site%spartacus, local_err)
       if (local_err/=SUEWS_CAPI_OK) then
          err = local_err
@@ -684,10 +784,25 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-   n_surf_ehc = ehc_surface_len(int(nlayer, c_int))
-   required_len = 8_c_int * int(nlayer, c_int) + n_surf_ehc + &
-                  6_c_int * int(nlayer * ndepth, c_int) + 3_c_int * n_surf_ehc * int(ndepth, c_int)
-   if (member_len>=required_len) then
+   call ehc_prm_expected_len(int(nlayer, c_int), int(ndepth, c_int), required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A,I0,A)') &
+         'unpack_site_members: ehc_prm buffer length overflows c_int (nlayer=', &
+         nlayer, ', ndepth=', ndepth, ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (member_len>0_c_int) then
+      if (member_len/=required_len) then
+         write (err_msg, '(A,I0,A,I0,A,I0,A,I0,A)') &
+            'unpack_site_members: ehc_prm buffer length mismatch: received ', &
+            int(member_len), ', expected ', int(required_len), &
+            ' (nlayer=', nlayer, ', ndepth=', ndepth, ')'
+         call set_supy_error(115, trim(err_msg))
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
       call ehc_prm_unpack(site_flat(int(member_offset) + 1), member_len, &
                           int(nlayer, c_int), int(ndepth, c_int), site%ehc, local_err)
       if (local_err/=SUEWS_CAPI_OK) then
@@ -702,7 +817,15 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-   required_len = 9_c_int * int(nlayer, c_int) + 2_c_int * int(nspec, c_int) * int(nlayer, c_int)
+   call spartacus_layer_prm_expected_len(int(nlayer, c_int), int(nspec, c_int), required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A,I0,A)') &
+         'unpack_site_members: spartacus_layer buffer length overflows c_int (nlayer=', &
+         nlayer, ', nspec=', nspec, ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
    if (member_len>0_c_int) then
       if (member_len/=required_len) then
          write (err_msg, '(A,I0,A,I0,A,I0,A,I0,A)') &
@@ -912,6 +1035,8 @@ subroutine unpack_state_members( &
    integer(c_int) :: member_len
    integer(c_int) :: required_len
    integer(c_int) :: local_err
+   logical :: len_ok
+   character(len=SUPY_ERROR_MESSAGE_LEN) :: err_msg
 
    call member_span_from_toc(state_flat_len, state_toc, state_toc_len, state_member_count, &
                              SUEWS_CAPI_STATE_MEMBER_ERROR_STATE, member_offset, member_len, local_err)
@@ -1010,8 +1135,25 @@ subroutine unpack_state_members( &
 
    call member_span_from_toc(state_flat_len, state_toc, state_toc_len, state_member_count, &
                              SUEWS_CAPI_STATE_MEMBER_HYDRO, member_offset, member_len, local_err)
-   required_len = SUEWS_CAPI_HYDRO_STATE_BASE_LEN + 6_c_int * int(nlayer, c_int)
-   if (local_err/=SUEWS_CAPI_OK .or. member_len<required_len) then
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   call hydro_state_expected_len(int(nlayer, c_int), required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A)') &
+         'unpack_state_members: hydro_state buffer length overflows c_int (nlayer=', &
+         nlayer, ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (member_len/=required_len) then
+      write (err_msg, '(A,I0,A,I0,A,I0,A)') &
+         'unpack_state_members: hydro_state buffer length mismatch: received ', &
+         int(member_len), ', expected ', int(required_len), &
+         ' (nlayer=', nlayer, ')'
+      call set_supy_error(115, trim(err_msg))
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
@@ -1023,14 +1165,25 @@ subroutine unpack_state_members( &
 
    call member_span_from_toc(state_flat_len, state_toc, state_toc_len, state_member_count, &
                              SUEWS_CAPI_STATE_MEMBER_HEAT, member_offset, member_len, local_err)
-   if (nlayer>0) then
-      required_len = SUEWS_CAPI_HEAT_STATE_BASE_LEN + 2_c_int * int(nlayer * ndepth, c_int) + &
-                     2_c_int * int(nsurf * ndepth, c_int) + 14_c_int * int(nlayer, c_int) + &
-                     3_c_int * int(nsurf, c_int)
-   else
-      required_len = SUEWS_CAPI_HEAT_STATE_BASE_LEN
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
    end if
-   if (local_err/=SUEWS_CAPI_OK .or. member_len<required_len) then
+   call heat_state_expected_len(int(nlayer, c_int), int(ndepth, c_int), required_len, len_ok)
+   if (.not. len_ok) then
+      write (err_msg, '(A,I0,A,I0,A)') &
+         'unpack_state_members: heat_state buffer length overflows c_int (nlayer=', &
+         nlayer, ', ndepth=', ndepth, ')'
+      call set_supy_error(115, trim(err_msg))
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (member_len/=required_len) then
+      write (err_msg, '(A,I0,A,I0,A,I0,A,I0,A)') &
+         'unpack_state_members: heat_state buffer length mismatch: received ', &
+         int(member_len), ', expected ', int(required_len), &
+         ' (nlayer=', nlayer, ', ndepth=', ndepth, ')'
+      call set_supy_error(115, trim(err_msg))
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
@@ -1055,13 +1208,29 @@ subroutine unpack_state_members( &
 
    call member_span_from_toc(state_flat_len, state_toc, state_toc_len, state_member_count, &
                              SUEWS_CAPI_STATE_MEMBER_STEBBS, member_offset, member_len, local_err)
-   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_STEBBS_STATE_BASE_LEN) then
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   if (member_len<SUEWS_CAPI_STEBBS_STATE_BASE_LEN) then
+      write (err_msg, '(A,I0,A,I0,A,I0,A)') &
+         'unpack_state_members: stebbs_state buffer length mismatch: received ', &
+         int(member_len), ', minimum base_len ', int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN), &
+         ' (nlayer=', nlayer, ')'
+      call set_supy_error(115, trim(err_msg))
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
    call stebbs_state_unpack(state_flat(int(member_offset) + 1), member_len, int(nlayer, c_int), &
                             state%stebbsState, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
+      if (local_err==SUEWS_CAPI_BAD_BUFFER) then
+         write (err_msg, '(A,I0,A,I0,A,I0,A)') &
+            'unpack_state_members: stebbs_state buffer length mismatch: received ', &
+            int(member_len), ', base_len ', int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN), &
+            ' (nlayer=', nlayer, ')'
+         call set_supy_error(115, trim(err_msg))
+      end if
       err = local_err
       return
    end if
@@ -1103,16 +1272,6 @@ subroutine unpack_timer(flat, n_flat, timer, err)
    timer%tstep = int(nint(flat(6)))
    timer%tstep_prev = int(nint(flat(7)))
    timer%dt_since_start = int(nint(flat(8)))
-   timer%dt_since_start_prev = int(nint(flat(9)))
-   timer%nsh = int(nint(flat(10)))
-   timer%nsh_real = flat(11)
-   timer%tstep_real = flat(12)
-   timer%dectime = flat(13)
-   timer%dayofWeek_id(1) = int(nint(flat(14)))
-   timer%dayofWeek_id(2) = int(nint(flat(15)))
-   timer%dayofWeek_id(3) = int(nint(flat(16)))
-   timer%DLS = int(nint(flat(17)))
-   timer%new_day = int(nint(flat(18)))
 
    err = SUEWS_CAPI_OK
 
@@ -1139,16 +1298,6 @@ subroutine pack_timer(timer, flat, n_flat, err)
    flat(6) = real(timer%tstep, c_double)
    flat(7) = real(timer%tstep_prev, c_double)
    flat(8) = real(timer%dt_since_start, c_double)
-   flat(9) = real(timer%dt_since_start_prev, c_double)
-   flat(10) = real(timer%nsh, c_double)
-   flat(11) = timer%nsh_real
-   flat(12) = timer%tstep_real
-   flat(13) = timer%dectime
-   flat(14) = real(timer%dayofWeek_id(1), c_double)
-   flat(15) = real(timer%dayofWeek_id(2), c_double)
-   flat(16) = real(timer%dayofWeek_id(3), c_double)
-   flat(17) = real(timer%DLS, c_double)
-   flat(18) = real(timer%new_day, c_double)
 
    err = SUEWS_CAPI_OK
 
@@ -1164,6 +1313,22 @@ subroutine unpack_config(flat, n_flat, config, err)
 
    if (n_flat<SUEWS_CAPI_CONFIG_LEN) then
       err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   if (.not. ieee_is_finite(flat(25)) .or. &
+       (flat(25)/=0.0_c_double .and. flat(25)/=1.0_c_double)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (.not. ieee_is_finite(flat(27)) .or. flat(27)<0.0_c_double .or. &
+       .not. ieee_is_finite(flat(28)) .or. flat(28)<0.0_c_double) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (.not. ieee_is_finite(flat(29)) .or. &
+       (flat(29)/=0.0_c_double .and. flat(29)/=1.0_c_double .and. flat(29)/=2.0_c_double)) then
+      err = SUEWS_CAPI_BAD_STATE
       return
    end if
 
@@ -1191,6 +1356,11 @@ subroutine unpack_config(flat, n_flat, config, err)
    config%flag_test = flat(22)>=0.5_c_double
    config%KdownSplitMethod = int(nint(flat(23)))
    config%ForcingTimestampReference = int(nint(flat(24)))
+   config%EHCSurfaceCoupling = int(nint(flat(25)))
+   config%control_ehc_initial_profile = flat(26)>=0.5_c_double
+   config%resistance_ehc_indoor_roof = flat(27)
+   config%resistance_ehc_indoor_wall = flat(28)
+   config%control_ehc_stability = int(nint(flat(29)))
 
    err = SUEWS_CAPI_OK
 
@@ -1752,9 +1922,10 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    integer(c_int) :: idx
    integer(c_int) :: i
    integer(c_int) :: n_expected
+   logical :: len_ok
 
-   n_expected = SUEWS_CAPI_HYDRO_STATE_BASE_LEN + 6_c_int * nlayer_c
-   if (n_flat<n_expected) then
+   call hydro_state_expected_len(nlayer_c, n_expected, len_ok)
+   if (.not. len_ok .or. n_flat<n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
@@ -1861,15 +2032,10 @@ subroutine pack_heat_state(s, nlayer_c, ndepth_c, flat, n_flat, err)
    integer(c_int) :: surf_vec_len
    integer(c_int) :: i
    integer(c_int) :: n_expected
+   logical :: len_ok
 
-   if (nlayer_c>0_c_int) then
-      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN + &
-                   2_c_int * nlayer_c * ndepth_c + 2_c_int * int(nsurf, c_int) * ndepth_c + &
-                   14_c_int * nlayer_c + 3_c_int * int(nsurf, c_int)
-   else
-      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN
-   end if
-   if (n_flat<n_expected) then
+   call heat_state_expected_len(nlayer_c, ndepth_c, n_expected, len_ok)
+   if (.not. len_ok .or. n_flat<n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

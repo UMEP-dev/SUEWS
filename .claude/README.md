@@ -37,23 +37,7 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   |-- check-bib-tags.sh         # PostToolUse: .bib topic-tag gate
 |   `-- pre-commit-check.sh       # PreToolUse: quality gate on git commit
 |
-|-- skills/                # Invoked on demand via /skill-name
-|   |-- fix-issue/         # Workflow: issue -> PR-ready branch
-|   |-- triage-issue/      # Workflow: issue governance (audit/rewrite/split)
-|   |-- triage-pr/         # Workflow: PR disposition router
-|   |-- audit-pr/          # Workflow: comprehensive PR review
-|   |-- split-pr/          # Workflow: carve oversized PR into stacked series
-|   |-- queue-pr/          # Workflow: PR coordination and merge-queue preflight
-|   |-- prep-release/      # Workflow: release pre-flight + tag
-|   |-- republish-docs/    # Workflow: move release docs tag to clean anchor
-|   |-- lint-code/         # Operation: static style and contract linters
-|   |-- verify-build/      # Operation: build graph and packaging checks
-|   |-- audit-docs/        # Operation: docs ASCII + bib topic-tag checks
-|   |-- exercise-docs/     # Operation: compile pages, run journeys, draft findings
-|   |   |-- SKILL.md
-|   |   `-- references/    # record-format.md, example.md, pilot.md and modes.md
-|   |-- log-changes/       # Operation: CHANGELOG management
-|   `-- suews/             # User-facing simulation skill (bundled into plugins/suews/)
+|-- skills -> ../.agents/skills   # Compatibility symlink for Claude Code discovery
 |
 |-- reference/
 |   `-- templates/         # Commit message and feature-plan templates
@@ -65,6 +49,26 @@ Shared governance, path-scoped rules, skills, review subagents, hooks, and valid
 |   `-- setup-claude-protection.sh
 |
 `-- README.md              # This file
+
+.agents/
+|-- plugins/               # Codex plugin marketplace manifest
+`-- skills/                # Canonical skills (Agent Skills standard; /skill-name or $skill-name)
+    |-- fix-issue/         # Workflow: issue -> PR-ready branch
+    |-- triage-issue/      # Workflow: issue governance (audit/rewrite/split)
+    |-- triage-pr/         # Workflow: PR disposition router
+    |-- audit-pr/          # Workflow: comprehensive PR review
+    |-- split-pr/          # Workflow: carve oversized PR into stacked series
+    |-- queue-pr/          # Workflow: PR coordination and merge-queue preflight
+    |-- prep-release/      # Workflow: release pre-flight + tag
+    |-- republish-docs/    # Workflow: move release docs tag to clean anchor
+    |-- lint-code/         # Operation: static style and contract linters
+    |-- verify-build/      # Operation: build graph and packaging checks
+    |-- audit-docs/        # Operation: docs ASCII + bib topic-tag checks
+    |-- exercise-docs/     # Operation: compile pages, run journeys, draft findings
+    |   |-- SKILL.md
+    |   `-- references/    # record-format.md, example.md, pilot.md and modes.md
+    |-- log-changes/       # Operation: CHANGELOG management
+    `-- suews/             # User-facing simulation skill (bundled into plugins/suews/)
 ```
 
 ## Rule-Authoring Principles
@@ -117,7 +121,7 @@ Skills run on demand and perform multi-step workflows or atomic checks when invo
 
 `/exercise-docs` compiles and runs reader journeys, drafts PR verdicts for #2187,
 and prepares the committed baseline summaries defined by #2188;
-see `.claude/skills/exercise-docs/SKILL.md` for its approved design and gates.
+see `.agents/skills/exercise-docs/SKILL.md` for its approved design and gates.
 [decision: software maintainer, 2026-11-21]
 
 For whole-repository or subsystem audits at a pinned SHA (as distinct from `/audit-pr` diff review), follow `dev-ref/CODEBASE_AUDIT_PROTOCOL.md`.
@@ -169,7 +173,7 @@ Configured in `.claude/settings.json`:
 - **PostToolUse on Edit/Write**:
   - `validate-tutorial.sh`: Syntax-checks edited `docs/source/tutorials/*.py` files.
   - `check-doc-ascii.sh`: Blocks non-ASCII characters in `docs/source/**/*.{py,rst,md}`.
-  - `check-bib-tags.sh`: Validates topic tags on `docs/source/assets/refs/*.bib` via `.claude/skills/audit-docs/scripts/audit.py`.
+  - `check-bib-tags.sh`: Validates topic tags on `docs/source/assets/refs/*.bib` via `.agents/skills/audit-docs/scripts/audit.py`.
 - **PreToolUse on Bash** (`pre-commit-check.sh`): Runs staged-file quality checks when `git commit` is invoked (skipping files brought in unchanged during a clean merge).
 
 ## Validation

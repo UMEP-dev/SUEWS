@@ -1,6 +1,6 @@
-! Hand-maintained native OUTPUT_LINE and OUTPUT_BLOCK witnesses; capi-observer only.
+! Hand-maintained native OUTPUT_LINE witness; capi-observer only.
 ! Values originate in real typed members, not a shadow or payload codec.
-SUBMODULE (SUEWS_Driver) test_output_groups
+SUBMODULE (module_ctrl_driver) test_output_groups
    IMPLICIT NONE
 CONTAINS
 SUBROUTINE suews_obs_output_groups(data, dates, ld, ncols, err) BIND(C)
@@ -64,107 +64,4 @@ CONTAINS
       END DO
    END SUBROUTINE seed_group_line
 END SUBROUTINE suews_obs_output_groups
-
-SUBROUTINE suews_obs_output_block(nrows, widths_out, corners_out, err) &
-   BIND(C, name='suews_obs_output_block')
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double
-   USE module_ctrl_type, ONLY: output_block
-   IMPLICIT NONE
-   INTEGER(c_int), VALUE, INTENT(IN) :: nrows
-   INTEGER(c_int), INTENT(OUT) :: widths_out(11)
-   REAL(c_double), INTENT(OUT) :: corners_out(4, 11)
-   INTEGER(c_int), INTENT(OUT) :: err
-   TYPE(output_block) :: blk
-   INTEGER :: nrows_i
-   LOGICAL :: ok
-
-   err = 1
-   widths_out = 0_c_int
-   corners_out = 0.0_c_double
-   nrows_i = INT(nrows)
-   IF (nrows_i < 2) RETURN
-
-   CALL blk%init(nrows_i)
-   ok = .TRUE.
-   ! Order matches TYPE(output_block) declaration and OUTPUT_BLOCK_FIELD_ORDER.
-   CALL check_and_seed_block(blk%dataOutBlockSUEWS, 1, nrows_i, widths_out(1), corners_out(:, 1), ok)
-   CALL check_and_seed_block(blk%dataOutBlockSnow, 2, nrows_i, widths_out(2), corners_out(:, 2), ok)
-   CALL check_and_seed_block(blk%dataOutBlockESTM, 3, nrows_i, widths_out(3), corners_out(:, 3), ok)
-   CALL check_and_seed_block(blk%dataOutBlockEHC, 4, nrows_i, widths_out(4), corners_out(:, 4), ok)
-   CALL check_and_seed_block(blk%dataOutBlockRSL, 5, nrows_i, widths_out(5), corners_out(:, 5), ok)
-   CALL check_and_seed_block(blk%dataOutBlockBEERS, 6, nrows_i, widths_out(6), corners_out(:, 6), ok)
-   CALL check_and_seed_block(blk%dataOutBlockDebug, 7, nrows_i, widths_out(7), corners_out(:, 7), ok)
-   CALL check_and_seed_block(blk%dataOutBlockSPARTACUS, 8, nrows_i, widths_out(8), corners_out(:, 8), ok)
-   CALL check_and_seed_block(blk%dataOutBlockDailyState, 9, nrows_i, widths_out(9), corners_out(:, 9), ok)
-   CALL check_and_seed_block(blk%dataOutBlockSTEBBS, 10, nrows_i, widths_out(10), corners_out(:, 10), ok)
-   CALL check_and_seed_block(blk%dataOutBlockNHood, 11, nrows_i, widths_out(11), corners_out(:, 11), ok)
-   IF (.NOT. ok) THEN
-      CALL blk%cleanup()
-      err = 2
-      RETURN
-   END IF
-
-   CALL blk%cleanup()
-   IF (ALLOCATED(blk%dataOutBlockSUEWS) .OR. &
-       ALLOCATED(blk%dataOutBlockSnow) .OR. &
-       ALLOCATED(blk%dataOutBlockESTM) .OR. &
-       ALLOCATED(blk%dataOutBlockEHC) .OR. &
-       ALLOCATED(blk%dataOutBlockRSL) .OR. &
-       ALLOCATED(blk%dataOutBlockBEERS) .OR. &
-       ALLOCATED(blk%dataOutBlockDebug) .OR. &
-       ALLOCATED(blk%dataOutBlockSPARTACUS) .OR. &
-       ALLOCATED(blk%dataOutBlockDailyState) .OR. &
-       ALLOCATED(blk%dataOutBlockSTEBBS) .OR. &
-       ALLOCATED(blk%dataOutBlockNHood)) THEN
-      err = 3
-      RETURN
-   END IF
-   err = 0
-CONTAINS
-   SUBROUTINE check_and_seed_block(arr, gidx, n_rows, width_out, corners, is_ok)
-      REAL(c_double), ALLOCATABLE, INTENT(INOUT) :: arr(:, :)
-      INTEGER, INTENT(IN) :: gidx, n_rows
-      INTEGER(c_int), INTENT(OUT) :: width_out
-      REAL(c_double), INTENT(OUT) :: corners(4)
-      LOGICAL, INTENT(INOUT) :: is_ok
-      INTEGER :: r, c, n_cols
-      REAL(c_double) :: expected_val
-
-      IF (.NOT. is_ok) RETURN
-      IF (.NOT. ALLOCATED(arr)) THEN
-         is_ok = .FALSE.
-         RETURN
-      END IF
-      IF (SIZE(arr, 1) /= n_rows .OR. SIZE(arr, 2) <= 5) THEN
-         is_ok = .FALSE.
-         RETURN
-      END IF
-      IF (ANY(arr /= -999.0_c_double)) THEN
-         is_ok = .FALSE.
-         RETURN
-      END IF
-      n_cols = SIZE(arr, 2)
-      width_out = INT(n_cols, c_int)
-      DO c = 1, n_cols
-         DO r = 1, n_rows
-            arr(r, c) = REAL(gidx * 100000, c_double) + REAL(r * 1000 + c, c_double) + &
-               0.125_c_double * REAL(r, c_double)
-         END DO
-      END DO
-      DO c = 1, n_cols
-         DO r = 1, n_rows
-            expected_val = REAL(gidx * 100000, c_double) + REAL(r * 1000 + c, c_double) + &
-               0.125_c_double * REAL(r, c_double)
-            IF (arr(r, c) /= expected_val) THEN
-               is_ok = .FALSE.
-               RETURN
-            END IF
-         END DO
-      END DO
-      corners(1) = arr(1, 1)
-      corners(2) = arr(1, n_cols)
-      corners(3) = arr(n_rows, 1)
-      corners(4) = arr(n_rows, n_cols)
-   END SUBROUTINE check_and_seed_block
-END SUBROUTINE suews_obs_output_block
 END SUBMODULE test_output_groups

@@ -2,8 +2,12 @@
 //!
 //! Responsibilities, in execution order:
 //!
-//! 1. **Version metadata**: queries `git describe` (mirroring `get_ver_git.py`)
-//!    and exports `SUEWS_VERSION` and `SUEWS_COMMIT` via `cargo:rustc-env`.
+//! 1. **Version metadata**: resolves `SUEWS_VERSION` and `SUEWS_COMMIT` from
+//!    optional environment overrides, `git describe` (mirroring
+//!    `get_ver_git.py`), `src/supy/_version_scm.py` fallback, or crate defaults,
+//!    and exports them via `cargo:rustc-env`. Does not watch `.git/HEAD` or
+//!    `.git/refs` so unrelated commits, branch switches, or tags do not trigger
+//!    48-file Fortran C-API recompiles (gh#1790).
 //! 2. **Lint-only fast path (`SUEWS_BRIDGE_LINT_ONLY=1`)**: generates
 //!    `$OUT_DIR/output_cols.rs` from Fortran source text and returns early,
 //!    skipping gfortran compilation and native linking for `cargo clippy` and
@@ -39,54 +43,24 @@ fn main() {
     let capi_observer_enabled = env::var_os("CARGO_FEATURE_CAPI_OBSERVER").is_some();
     let python_extension_enabled = env::var_os("CARGO_FEATURE_PYTHON_EXTENSION").is_some();
 
-    // --- Git version detection (mirrors get_ver_git.py logic) ---
-    let repo_root = manifest_dir.join("../../");
-    let (version, commit) = match Command::new("git")
-        .args(["describe", "--tags", "--long", "--match=[0-9]*"])
-        .current_dir(&repo_root)
-        .output()
-    {
-        Ok(output) if output.status.success() => {
-            let describe = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            // Pattern: <tag>-<distance>-g<hash>  (optional v prefix on tag)
-            let parts: Vec<&str> = describe.rsplitn(3, '-').collect();
-            if parts.len() == 3 {
-                let hash = parts[0].trim_start_matches('g');
-                let distance: u32 = parts[1].parse().unwrap_or(0);
-                let mut base = parts[2].trim_start_matches('v').to_string();
+    // Track this build script explicitly on every path (including early
+    // returns such as `SUEWS_BRIDGE_LINT_ONLY=1`) so Cargo only re-runs when
+    // declared bridge/Fortran inputs or build env vars change.
+    println!("cargo:rerun-if-changed=build.rs");
 
-                let ver = if base.ends_with(".dev") {
-                    // Nightly: 2025.8.17.dev -> 2025.8.17.devN
-                    format!("{base}{distance}")
-                } else if base.contains(".dev") {
-                    // Already has .devN suffix -- replace N with distance
-                    let idx = base.rfind(".dev").unwrap();
-                    base.truncate(idx);
-                    format!("{base}.dev{distance}")
-                } else if distance == 0 {
-                    base
-                } else {
-                    format!("{base}.dev{distance}")
-                };
-                (ver, hash.to_string())
-            } else {
-                (env!("CARGO_PKG_VERSION").to_string(), "unknown".to_string())
-            }
-        }
-        _ => (env!("CARGO_PKG_VERSION").to_string(), "unknown".to_string()),
-    };
+    // --- Version metadata (mirrors get_ver_git.py logic) ---
+    // Deliberately avoid `cargo:rerun-if-changed=.git/HEAD` or `.git/refs/*`:
+    // watching git refs forces Cargo to re-run this script and recompile all
+    // Fortran `c_api/*.f95` facades on every branch switch, tag, or warm-cache
+    // checkout even when no bridge or Fortran inputs changed (gh#1790).
+    // Callers that need a fresh version stamp without editing bridge sources
+    // can pass `SUEWS_VERSION` / `SUEWS_COMMIT` explicitly.
+    println!("cargo:rerun-if-env-changed=SUEWS_VERSION");
+    println!("cargo:rerun-if-env-changed=SUEWS_COMMIT");
+    let repo_root = manifest_dir.join("../../");
+    let (version, commit) = resolve_version_metadata(&repo_root);
     println!("cargo:rustc-env=SUEWS_VERSION={version}");
     println!("cargo:rustc-env=SUEWS_COMMIT={commit}");
-    // Re-run when the git HEAD changes (new commits, branch switches)
-    // so that the embedded version stays fresh during local development.
-    let git_head = repo_root.join(".git/HEAD");
-    if git_head.exists() {
-        println!("cargo:rerun-if-changed={}", git_head.display());
-        println!(
-            "cargo:rerun-if-changed={}",
-            repo_root.join(".git/refs/tags").display()
-        );
-    }
 
     // Lint-only mode (e.g. `cargo clippy` in CI): skip all native Fortran
     // compilation and linking. clippy only type-checks the crate, so the
@@ -172,7 +146,6 @@ fn main() {
         manifest_dir.join("c_api/stebbs_prm.f95"),
         manifest_dir.join("c_api/stebbs_state.f95"),
         manifest_dir.join("c_api/output_line.f95"),
-        manifest_dir.join("c_api/output_block.f95"),
         manifest_dir.join("c_api/error_entry.f95"),
         manifest_dir.join("c_api/error_state.f95"),
         manifest_dir.join("c_api/surf_store.f95"),
@@ -409,6 +382,136 @@ fn main() {
 
     // --- Generate Rust output column constants from Fortran source ---
     generate_output_col_constants(&manifest_dir, &out_dir);
+}
+
+// ---------------------------------------------------------------------------
+// Version metadata resolution (env override -> git describe -> _version_scm.py
+// -> crate version fallback).
+// ---------------------------------------------------------------------------
+
+fn non_empty_env(name: &str) -> Option<String> {
+    let raw = env::var(name).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    assert!(
+        !trimmed.contains(['\n', '\r']),
+        "{name} must be a single line without newline characters"
+    );
+    Some(trimmed.to_string())
+}
+
+fn resolve_version_metadata(repo_root: &Path) -> (String, String) {
+    let env_version = non_empty_env("SUEWS_VERSION");
+    let env_commit = non_empty_env("SUEWS_COMMIT");
+    if let (Some(ver), Some(commit)) = (&env_version, &env_commit) {
+        return (ver.clone(), commit.clone());
+    }
+
+    let (detected_version, detected_commit) = detect_version_metadata(repo_root);
+    (
+        env_version.unwrap_or(detected_version),
+        env_commit.unwrap_or(detected_commit),
+    )
+}
+
+fn detect_version_metadata(repo_root: &Path) -> (String, String) {
+    if let Ok(output) = Command::new("git")
+        .args(["describe", "--tags", "--long", "--match=[0-9]*"])
+        .current_dir(repo_root)
+        .output()
+    {
+        if output.status.success() {
+            let describe = String::from_utf8_lossy(&output.stdout);
+            if let Some(parsed) = parse_git_describe(&describe) {
+                return parsed;
+            }
+        }
+    }
+
+    // Fallback for builds without `.git` (e.g. containerised wheel builds or
+    // sdist tarballs where `get_ver_git.py` pre-generated `_version_scm.py`).
+    // Deliberately not registered with `cargo:rerun-if-changed` so routine
+    // version-file refreshes on unrelated commits do not bust the Cargo cache.
+    let version_scm = repo_root.join("src/supy/_version_scm.py");
+    if let Ok(contents) = fs::read_to_string(&version_scm) {
+        if let Some(parsed) = parse_version_scm(&contents) {
+            return parsed;
+        }
+    }
+
+    (env!("CARGO_PKG_VERSION").to_string(), "unknown".to_string())
+}
+
+fn parse_git_describe(describe: &str) -> Option<(String, String)> {
+    // Pattern: <tag>-<distance>-g<hash> (optional leading `v` on tag)
+    let line = describe.lines().next()?.trim();
+    let parts: Vec<&str> = line.rsplitn(3, '-').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let hash = parts[0].strip_prefix('g')?;
+    if hash.is_empty() {
+        return None;
+    }
+    let distance: u32 = parts[1].parse().ok()?;
+    let mut base = parts[2].trim_start_matches('v').to_string();
+    if base.is_empty() {
+        return None;
+    }
+
+    let ver = if base.ends_with(".dev") {
+        // Nightly: 2025.8.17.dev -> 2025.8.17.devN
+        format!("{base}{distance}")
+    } else if let Some(idx) = base.rfind(".dev") {
+        // Already has .devN suffix -- replace N with distance
+        base.truncate(idx);
+        format!("{base}.dev{distance}")
+    } else if distance == 0 {
+        base
+    } else {
+        format!("{base}.dev{distance}")
+    };
+    Some((ver, hash.to_string()))
+}
+
+fn parse_version_scm(contents: &str) -> Option<(String, String)> {
+    let mut version = None;
+    let mut commit = None;
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        let Some((lhs, _)) = trimmed.split_once('=') else {
+            continue;
+        };
+        match lhs.trim() {
+            "__version__" => {
+                if let Some(val) = extract_python_string_rhs(trimmed) {
+                    version = Some(val);
+                }
+            }
+            "__commit_hash__" => {
+                if let Some(val) = extract_python_string_rhs(trimmed) {
+                    commit = Some(val);
+                }
+            }
+            _ => {}
+        }
+    }
+    version.map(|v| (v, commit.unwrap_or_else(|| "unknown".to_string())))
+}
+
+fn extract_python_string_rhs(line: &str) -> Option<String> {
+    let rhs = line.rsplit('=').next()?.trim();
+    let unquoted = rhs
+        .strip_prefix('\'')
+        .and_then(|s| s.strip_suffix('\''))
+        .or_else(|| rhs.strip_prefix('"').and_then(|s| s.strip_suffix('"')))?;
+    if unquoted.is_empty() || unquoted.contains(['\n', '\r']) {
+        None
+    } else {
+        Some(unquoted.to_string())
+    }
 }
 
 // ---------------------------------------------------------------------------

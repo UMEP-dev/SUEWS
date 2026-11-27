@@ -1,46 +1,30 @@
+from dataclasses import dataclass
 from typing import (
-    Dict,
+    Any,
     List,
     Optional,
-    Union,
-    Literal,
     Tuple,
-    Type,
-    Generic,
-    TypeVar,
-    Any,
 )
-from pydantic import (
-    ConfigDict,
-    BaseModel,
-    Field,
-    model_validator,
-    field_validator,
-    PrivateAttr,
-    conlist,
-    ValidationError,
-)
+from pydantic import BaseModel
 from collections.abc import Mapping
-import numpy as np
 import pandas as pd
 import yaml
-import csv
-import os
-from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
+
+from ....constants import SEC_PER_HOUR
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
-    has_renamed_key,
     normalise_yaml_renames,
-    read_physics_key,
     read_renamed_key,
-    rename_keys_recursive,
 )
-from ...core.physics_families import coerce_nested_to_flat, flatten_physics_in_config
+from ...core.physics_families import coerce_nested_to_flat
 from ...core.physics_orthogonal import coerce_orthogonal_to_flat
-from ...core.profile import normalise_hourly_profile_keys_in_raw_config
+from ...core.profile import (
+    normalise_hourly_profile_keys_in_raw_config,
+    normalise_ten_minute_profile_keys_in_raw_config,
+)
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -134,6 +118,7 @@ def load_user_yaml_normalised(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as f:
         data = normalise_yaml_renames(yaml.safe_load(f))
     data, _ = normalise_hourly_profile_keys_in_raw_config(data)
+    data, _ = normalise_ten_minute_profile_keys_in_raw_config(data)
     return data
 
 
@@ -175,6 +160,20 @@ def get_ref_or_bare(container, key: str, default=None):
     if isinstance(entry, Mapping):
         return entry.get("value", default)
     return entry
+
+
+def is_ref_only(entry) -> bool:
+    """Return True for a ref-only RefValue placeholder such as ``{"ref": {...}}``.
+
+    Such an entry carries no value (the model and the Rust bridge read it as
+    null), so nullifiers must leave it alone rather than descend into ``ref``.
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" not in entry
+        and bool(entry)
+        and all(key == "ref" for key in entry)
+    )
 
 
 def set_ref_or_bare(container: dict, key: str, new_value) -> None:
@@ -534,41 +533,92 @@ def unwrap_nested_value(x: Any) -> Any:
     return cur
 
 
-class SeasonCheck(BaseModel):
-    start_date: str  # Expected format: YYYY-MM-DD
-    lat: float
+@dataclass(frozen=True)
+class DSTSchedule:
+    """Resolved yearly daylight saving transition schedule for one site."""
 
-    def get_season(self) -> str:
-        try:
-            start = datetime.strptime(self.start_date, "%Y-%m-%d").timetuple().tm_yday
-        except ValueError:
-            raise ValueError("start_date must be in YYYY-MM-DD format")
+    timezone: str | None = None
+    utc_offset_hours: int | float | None = None
+    starts: tuple[int, ...] = ()
+    ends: tuple[int, ...] = ()
+    scan_complete: bool = True
+    offset_step_hours: float | None = None
+    distinct_offset_count: int = 0
 
-        abs_lat = abs(self.lat)
+    @property
+    def has_multiple_periods(self) -> bool:
+        """Return True when the year has more than one DST start or end transition."""
+        return self.scan_complete and (
+            len(self.starts) > 1 or len(self.ends) > 1 or self.distinct_offset_count > 2
+        )
 
-        if abs_lat <= 10:
-            return "equatorial"
-        if 10 < abs_lat < 23.5:
-            return "tropical"
+    @property
+    def has_non_hourly_dst(self) -> bool:
+        """Return True when the yearly offset step is non-zero and not +1 hour."""
+        return (
+            self.scan_complete
+            and self.offset_step_hours is not None
+            and abs(self.offset_step_hours - 1.0) > 1e-9
+        )
 
-        if self.lat >= 0:  # Northern Hemisphere
-            if 150 < start < 250:
-                return "summer"
-            elif 60 < start <= 150:
-                return "spring"
-            elif 250 <= start < 335:
-                return "fall"
-            else:
-                return "winter"
-        else:  # Southern Hemisphere
-            if 150 < start < 250:
-                return "winter"
-            elif 60 < start <= 150:
-                return "fall"
-            elif 250 <= start < 335:
-                return "spring"
-            else:
-                return "summer"
+    @property
+    def has_no_dst(self) -> bool:
+        """Return True when the timezone resolved cleanly with zero DST transitions."""
+        return (
+            self.scan_complete
+            and self.timezone is not None
+            and not self.starts
+            and not self.ends
+        )
+
+    @property
+    def start(self) -> int | None:
+        """Single forward-transition DOY when representable, else ``None``."""
+        if not self.scan_complete or self.has_multiple_periods or self.has_non_hourly_dst:
+            return None
+        return self.starts[0] if len(self.starts) == 1 else None
+
+    @property
+    def end(self) -> int | None:
+        """Single backward-transition DOY when representable, else ``None``."""
+        if not self.scan_complete or self.has_multiple_periods or self.has_non_hourly_dst:
+            return None
+        return self.ends[0] if len(self.ends) == 1 else None
+
+    def describe_multiple_periods(self, year: int) -> str:
+        """Return an ASCII diagnostic phrase listing all transitions found."""
+        tz_label = f"timezone '{self.timezone}'" if self.timezone else "this site"
+        parts: list[str] = []
+        if self.starts:
+            parts.append(f"starts on DOY {', '.join(str(d) for d in self.starts)}")
+        if self.ends:
+            parts.append(f"ends on DOY {', '.join(str(d) for d in self.ends)}")
+        detail = f" ({'; '.join(parts)})" if parts else ""
+        return f"{tz_label} has multiple daylight saving periods in {year}{detail}"
+
+    def describe_non_hourly_dst(self, year: int) -> str:
+        """Return an ASCII diagnostic phrase for a non-1-hour DST offset shift."""
+        tz_label = f"timezone '{self.timezone}'" if self.timezone else "this site"
+        step = self.offset_step_hours
+        step_label = f"{step:g} h" if step is not None else "non-1 h"
+        return (
+            f"{tz_label} uses a non-hourly daylight saving shift ({step_label}) in {year}"
+        )
+
+
+def resolve_dst_schedule(dls_obj: Any) -> DSTSchedule:
+    """Return a :class:`DSTSchedule` from a ``DLSCheck`` or compatible stub."""
+    inspect_fn = getattr(dls_obj, "inspect_dst_schedule", None)
+    if callable(inspect_fn):
+        return inspect_fn()
+    start, end, utc_offset = dls_obj.compute_dst_transitions()
+    return DSTSchedule(
+        timezone="<resolved>" if utc_offset is not None else None,
+        utc_offset_hours=utc_offset,
+        starts=(start,) if start is not None else (),
+        ends=(end,) if end is not None else (),
+        scan_complete=utc_offset is not None or start is not None or end is not None,
+    )
 
 
 class DLSCheck(BaseModel):
@@ -578,63 +628,140 @@ class DLSCheck(BaseModel):
     startdls: Optional[int] = None
     enddls: Optional[int] = None
 
-    def compute_dst_transitions(self):
-        if not HAS_TIMEZONE_FINDER:
+    def inspect_dst_schedule(self) -> DSTSchedule:
+        """Collect all DST transitions for ``self.year`` and derive base UTC offset together."""
+        try:
+            if not HAS_TIMEZONE_FINDER:
+                logger_supy.debug(
+                    "[DLS] No timezone finder available, using limited fallback."
+                )
+                tz_name = _fallback_timezone_name(self.lat, self.lng)
+            else:
+                tf = TimezoneFinder()
+                tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
+        except Exception as e:
             logger_supy.debug(
-                "[DLS] No timezone finder available, using limited fallback."
+                f"[DLS] Timezone finder failed for lat={self.lat}, lng={self.lng}: {e}"
             )
-            tz_name = _fallback_timezone_name(self.lat, self.lng)
-        else:
-            tf = TimezoneFinder()
-            tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
-
+            return DSTSchedule(
+                timezone=None,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
 
         if not tz_name:
             logger_supy.debug(
                 f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
             )
-            return None, None, None
+            return DSTSchedule(
+                timezone=None,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
 
         logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
-        tz = pytz.timezone(tz_name)
-
-        def find_transition(month: int) -> Optional[int]:
-            try:
-                prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
-                prev_offset = prev_dt.utcoffset()
-                for day in range(2, 32):
-                    try:
-                        curr_dt = tz.localize(
-                            datetime(self.year, month, day, 12), is_dst=None
-                        )
-                        curr_offset = curr_dt.utcoffset()
-                        if curr_offset != prev_offset:
-                            return curr_dt.timetuple().tm_yday
-                        prev_offset = curr_offset
-                    except Exception:
-                        continue
-                return None
-            except Exception:
-                return None
-
-        # Get standard UTC offset (in winter)
         try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            utc_offset_hours = int(std_dt.utcoffset().total_seconds() / 3600)
-            logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
+            tz = pytz.timezone(tz_name)
         except Exception as e:
-            logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
-            utc_offset_hours = None
+            logger_supy.debug(f"[DLS] Failed to load timezone '{tz_name}': {e}")
+            return DSTSchedule(
+                timezone=None,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
 
-        # Determine DST start and end days
-        if self.lat >= 0:  # Northern Hemisphere
-            start = find_transition(3) or find_transition(4)
-            end = find_transition(10) or find_transition(11)
-        else:  # Southern Hemisphere
-            start = find_transition(9) or find_transition(10)
-            end = find_transition(3) or find_transition(4)
+        # Scan every day of the target year (comparing against Dec 31 of the
+        # preceding year so 1st-of-month transitions such as April 1 in
+        # Australia/Sydney 2012, mid-year Ramadan windows such as
+        # Africa/Casablanca 2019, and multi-period years such as
+        # Africa/Casablanca 2012 are all captured consistently). Any daily
+        # localisation failure marks the scan incomplete so callers never act
+        # on partial or shifted transition observations.
+        starts: list[int] = []
+        ends: list[int] = []
+        transition_steps: list[float] = []
+        daily_offsets: list[timedelta] = []
+        try:
+            prev_offset = tz.localize(
+                datetime(self.year - 1, 12, 31, 12), is_dst=None
+            ).utcoffset()
+            if prev_offset is None:
+                raise ValueError("Preceding year-end UTC offset is None")
 
-        return start, end, utc_offset_hours
+            curr_date = datetime(self.year, 1, 1, 12)
+            year_end = datetime(self.year, 12, 31, 12)
+            while curr_date <= year_end:
+                curr_offset = tz.localize(curr_date, is_dst=None).utcoffset()
+                if curr_offset is None:
+                    raise ValueError(f"UTC offset is None on {curr_date.date()}")
+                daily_offsets.append(curr_offset)
+                if curr_offset != prev_offset:
+                    doy = curr_date.timetuple().tm_yday
+                    transition_steps.append(
+                        abs((curr_offset - prev_offset).total_seconds()) / SEC_PER_HOUR
+                    )
+                    if curr_offset > prev_offset:
+                        starts.append(doy)
+                    elif curr_offset < prev_offset:
+                        ends.append(doy)
+                prev_offset = curr_offset
+                curr_date += timedelta(days=1)
+        except Exception as e:
+            logger_supy.debug(f"[DLS] Failed to scan DST transitions: {e}")
+            return DSTSchedule(
+                timezone=tz_name,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
+
+        # Derive standard (base) UTC offset from the complete yearly scan
+        # rather than only Jan/Jul samples: SUEWS adds +1 h during DST, so the
+        # minimum yearly offset is always the consistent base offset (covering
+        # northern hemisphere, southern hemisphere, Irish winter, fractional
+        # offsets, and mid-year drop windows such as Africa/Casablanca 2019).
+        # Record transition magnitudes separately (including any Jan 1 boundary
+        # shift such as Asia/Kathmandu 1986 +15 min) so non-hourly shifts can
+        # never bypass the +1 h DST safety check.
+        distinct_offsets = sorted(set(daily_offsets))
+        std_offset = distinct_offsets[0]
+        utc_offset_hours: int | float = std_offset.total_seconds() / SEC_PER_HOUR
+        if utc_offset_hours.is_integer():
+            utc_offset_hours = int(utc_offset_hours)
+        non_hourly_steps = [
+            step for step in transition_steps if abs(step - 1.0) > 1e-9
+        ]
+        offset_step_hours: float | None = None
+        if non_hourly_steps:
+            offset_step_hours = non_hourly_steps[0]
+        elif transition_steps:
+            offset_step_hours = transition_steps[0]
+        elif len(distinct_offsets) == 2:
+            offset_step_hours = (
+                distinct_offsets[1] - distinct_offsets[0]
+            ).total_seconds() / SEC_PER_HOUR
+        logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
+
+        return DSTSchedule(
+            timezone=tz_name,
+            utc_offset_hours=utc_offset_hours,
+            starts=tuple(starts),
+            ends=tuple(ends),
+            scan_complete=True,
+            offset_step_hours=offset_step_hours,
+            distinct_offset_count=len(distinct_offsets),
+        )
+
+    def compute_dst_transitions(self):
+        schedule = self.inspect_dst_schedule()
+        return schedule.start, schedule.end, schedule.utc_offset_hours
 
 
 def nullify_co2_block_recursive(block: Any) -> None:
@@ -653,6 +780,10 @@ def nullify_co2_block_recursive(block: Any) -> None:
     - Robust to empty/missing keys and arbitrary shapes.
     """
     if isinstance(block, dict):
+        # Ref-only placeholder ({"ref": ...}): already value-less; leave its
+        # metadata intact rather than nullifying ref.desc / ref.DOI (gh#2297).
+        if is_ref_only(block):
+            return
         # Handle RefValue leaf ({"value": ...})
         if "value" in block:
             val = block["value"]
@@ -709,14 +840,17 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
     def _p(base: str, key: str) -> str:
         return f"{base}.{key}" if base else key
 
+    def _is_null(value: Any) -> bool:
+        # A list-valued RefValue is nullified element-wise ([None, None, ...]).
+        if isinstance(value, list):
+            return bool(value) and all(item in (None, "") for item in value)
+        return value in (None, "")
+
     # Dict vs Dict
     if isinstance(before, dict) and isinstance(after, dict):
         # RefValue leaf detection
         if "value" in before and "value" in after:
-            if before.get("value") not in (None, "") and after.get("value") in (
-                None,
-                "",
-            ):
+            if not _is_null(before.get("value")) and _is_null(after.get("value")):
                 paths.append(path or "value")
             return paths
 
@@ -800,17 +934,18 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
 
         surface_changed = False
         for param in params:
-            if param not in surface_props:
+            # Reads RefValue dicts and bare values alike; ref-only placeholders
+            # and nulls have no value to clear, so they are left as written.
+            current = get_ref_or_bare(surface_props, param)
+            if current is None:
                 continue
-            val = surface_props[param]
-            if isinstance(val, dict) and "value" in val:
-                if isinstance(val["value"], list):
-                    val["value"] = [None] * len(val["value"])
-                else:
-                    val["value"] = None
-                surface_props[param] = val
+            if isinstance(current, list):
+                if all(item is None for item in current):
+                    continue
+                cleared = [None] * len(current)
             else:
-                surface_props[param] = None
+                cleared = None
+            set_ref_or_bare(surface_props, param, cleared)
             surface_changed = True
 
         if surface_changed:
@@ -820,123 +955,6 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
     if changed:
         props["land_cover"] = land_cover
     return changed
-
-
-def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
-    """
-    Recursively compare two YAML data structures and collect all differences.
-
-    For each mismatch between the original and updated YAML dictionaries or lists, this function:
-
-    - Records the site index (if applicable, extracted from path strings like `sites[0]`).
-    - Identifies the affected parameter (either the key before `.value` or the final key in the path).
-    - Reports the old and new values.
-    - Includes a standard reason string: "Updated by precheck".
-
-    This function is used to build a human-readable report of all changes made during precheck.
-
-    Args:
-        original (Any): The original YAML data (typically before precheck adjustments).
-        updated (Any): The updated YAML data (after precheck).
-        path (str, optional): The current nested path within the YAML structure (used internally for recursion).
-
-    Returns:
-        List[dict]: A list of dictionaries, each describing a difference with keys:
-            - 'site' (int or None)
-            - 'parameter' (str)
-            - 'old_value' (Any)
-            - 'new_value' (Any)
-            - 'reason' (str)
-    """
-
-    diffs = []
-
-    if isinstance(original, dict) and isinstance(updated, dict):
-        all_keys = set(original.keys()) | set(updated.keys())
-        for key in all_keys:
-            new_path = f"{path}.{key}" if path else key
-            orig_val = original.get(key, "__MISSING__")
-            updated_val = updated.get(key, "__MISSING__")
-            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path))
-
-    elif isinstance(original, list) and isinstance(updated, list):
-        max_len = max(len(original), len(updated))
-        for i in range(max_len):
-            orig_val = original[i] if i < len(original) else "__MISSING__"
-            updated_val = updated[i] if i < len(updated) else "__MISSING__"
-            new_path = f"{path}[{i}]"
-            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path))
-
-    else:
-        if original != updated:
-            # Extract site index
-            site = None
-            if "sites[" in path:
-                try:
-                    site = int(path.split("sites[")[1].split("]")[0])
-                except Exception:
-                    site = None
-
-            # Get param name: key before '.value' or the last part of the path
-            if ".value" in path:
-                param_name = path.split(".")[-2]
-            else:
-                param_name = path.split(".")[-1]
-
-            diffs.append({
-                "site": site,
-                "parameter": param_name,
-                "old_value": original,
-                "new_value": updated,
-                "reason": "Updated by precheck",
-            })
-
-    return diffs
-
-
-def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
-    """
-    Save the list of YAML differences found during precheck as a CSV report.
-
-    The report is saved in the same directory as the original YAML file, with a filename like
-    `precheck_report_<original_filename>.csv`.
-
-    Each row in the CSV contains:
-    - Site index (or None if not site-specific)
-    - Parameter name
-    - Old value
-    - New value
-    - Reason for the change (typically "Updated by precheck")
-
-    If no differences are found, the function logs an info message and does not create any file.
-
-    Args:
-        diffs (List[dict]): List of differences produced by `collect_yaml_differences`.
-        original_yaml_path (str): Full path to the original YAML file (used to determine output location and name).
-
-    Returns:
-        None
-    """
-    if not diffs:
-        logger_supy.info("No differences found between original and updated YAML.")
-        return
-
-    report_filename = f"precheck_report_{os.path.basename(original_yaml_path).replace('.yml', '.csv')}"
-    report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
-
-    with open(report_path, "w", encoding="utf-8", newline="") as csvfile:
-        writer = csv.DictWriter(
-            csvfile,
-            fieldnames=["site", "parameter", "old_value", "new_value", "reason"],
-        )
-        writer.writeheader()
-        for row in diffs:
-            for key in ["old_value", "new_value"]:
-                if row[key] is None:
-                    row[key] = "null"
-            writer.writerow(row)
-
-    logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
 
 def get_mean_monthly_air_temperature(
@@ -965,7 +983,6 @@ def get_mean_monthly_air_temperature(
     """
     import pandas as pd
     import numpy as np
-    from pathlib import Path
 
     # Validate inputs
     if not (1 <= month <= 12):
@@ -1124,24 +1141,6 @@ def get_mean_annual_air_temperature(
     return annual_temp
 
 
-def precheck_printing(data: dict) -> dict:
-    """
-    Log the start of the precheck process.
-
-    This function prints a simple info message to indicate that the precheck process has started.
-    It does not modify the input data.
-
-    Args:
-        data (dict): The SUEWS configuration dictionary.
-
-    Returns:
-        dict: The original input data, unmodified.
-    """
-
-    logger_supy.info("Running basic precheck...")
-    return data
-
-
 _BOUND_FORMAT_HINT = "a date (YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM)"
 
 
@@ -1164,12 +1163,24 @@ def _bound_as_date(value, name: str, errors: List[str]) -> Optional[str]:
     return ts.strftime("%Y-%m-%d")
 
 
-def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
+def parse_simulation_bounds(
+    data: dict, allow_missing: bool = False
+) -> Tuple[List[str], Optional[int], Optional[str], Optional[str]]:
     """Read ``model.control.start_time`` / ``end_time`` for the validators.
 
     Both fields accept a date or a timestamp (see ``ModelControl``). The
     validators only need the calendar day, so each bound is returned as a
     ``YYYY-MM-DD`` string together with the model year taken from the start.
+
+    Parameters
+    ----------
+    data : dict
+        Raw YAML configuration.
+    allow_missing : bool, optional
+        When True, a null or absent bound is returned as None without an
+        error; ``ModelControl`` documents both as optional (the run then uses
+        the forcing bounds). A bound that is set but unparsable is still an
+        error. By default both bounds are required.
 
     Returns
     -------
@@ -1177,950 +1188,21 @@ def parse_simulation_bounds(data: dict) -> Tuple[List[str], Optional[int], Optio
         ``(errors, model_year, start_date, end_date)``; ``errors`` is empty
         when both bounds parse.
     """
-    control = data.get("model", {}).get("control", {})
+    model = data.get("model") if isinstance(data, Mapping) else None
+    control = model.get("control") if isinstance(model, Mapping) else None
+    if not isinstance(control, Mapping):
+        control = {}
     errors: List[str] = []
-    start_date = _bound_as_date(control.get("start_time"), "start_time", errors)
-    end_date = _bound_as_date(control.get("end_time"), "end_time", errors)
+    bounds = {}
+    for name in ("start_time", "end_time"):
+        value = control.get(name)
+        if isinstance(value, Mapping) and "value" in value:
+            value = value["value"]
+        if value is None and allow_missing:
+            bounds[name] = None
+        else:
+            bounds[name] = _bound_as_date(value, name, errors)
+    start_date = bounds["start_time"]
+    end_date = bounds["end_time"]
     model_year = int(start_date[:4]) if start_date is not None else None
     return errors, model_year, start_date, end_date
-
-
-def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
-    """
-    Extract model year, start date, and end date from YAML dict.
-
-    This function reads the 'start_time' and 'end_time' fields from the input YAML dict
-    (under 'model.control'), checks that each is a date or a timestamp, and
-    extracts the model year from the start.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Raises:
-        ValueError: If 'start_time' or 'end_time' is missing or cannot be parsed.
-
-    Returns:
-        Tuple[dict, int, str, str]:
-            - Unmodified input data (for chaining)
-            - Model year (int, extracted from start date)
-            - Start date (str, the calendar day in YYYY-MM-DD format)
-            - End date (str, the calendar day in YYYY-MM-DD format)
-    """
-    errors, model_year, start_date, end_date = parse_simulation_bounds(data)
-    if errors:
-        raise ValueError(errors[0])
-    return data, model_year, start_date, end_date
-
-
-def precheck_model_physics_params(data: dict) -> dict:
-    """
-    Validate presence and non-emptiness of required model physics parameters.
-
-    This function checks that all required keys exist under 'model.physics' in the YAML
-    dict and that none of them are empty or null. If 'model.physics' is empty, the check
-    is skipped (used to allow partial configurations during early stages).
-
-    Required fields include:
-        - net_radiation
-        - emissions
-        - storage_heat
-        - ohm_inc_qf
-        - roughness_length_momentum
-        - roughness_length_heat
-        - stability
-        - soil_moisture
-        - water_use
-        - roughness_sublayer
-        - frontal_area_index
-        - roughness_sublayer_level
-        - snow_use
-        - stebbs
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Raises:
-        ValueError: If required parameters are missing or contain empty/null values.
-
-    Returns:
-        dict: Unmodified input data (for chaining).
-    """
-
-    physics = data.get("model", {}).get("physics", {})
-
-    if not physics:
-        logger_supy.debug("Skipping physics param check — physics is empty.")
-        return data
-
-    required = [
-        "net_radiation",
-        "emissions",
-        "storage_heat",
-        "ohm_inc_qf",
-        "roughness_length_momentum",
-        "roughness_length_heat",
-        "stability",
-        "soil_moisture",
-        "water_use",
-        "roughness_sublayer",
-        "frontal_area_index",
-        "roughness_sublayer_level",
-        "snow_use",
-        "stebbs",
-    ]
-
-    missing = [k for k in required if not has_renamed_key(physics, k)]
-    if missing:
-        raise ValueError(f"[model.physics] Missing required params: {missing}")
-
-    empty = [k for k in required if read_physics_key(physics, k) in ("", None)]
-    if empty:
-        raise ValueError(f"[model.physics] Empty or null values for: {empty}")
-
-    logger_supy.debug("All model.physics required params present and non-empty.")
-    return data
-
-
-def precheck_model_options_constraints(data: dict) -> dict:
-    """
-    Enforce internal consistency between model physics options.
-
-    This function verifies logical dependencies between selected model physics methods.
-    Specifically, if 'roughness_sublayer' is set to 2, it enforces that 'stability' equals 3,
-    as required for diagnostic aerodynamic calculations.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Raises:
-        ValueError: If model physics options violate internal consistency rules.
-
-    Returns:
-        dict: Unmodified input data (for chaining).
-    """
-
-    physics = data.get("model", {}).get("physics", {})
-
-    diag = read_physics_key(physics, "roughness_sublayer")
-    stability = read_physics_key(physics, "stability")
-
-    if diag == 2 and stability != 3:
-        raise ValueError(
-            "[model.physics] If roughness_sublayer == 2, stability must be 3."
-        )
-
-    logger_supy.debug("roughness_sublayer-stability constraint passed.")
-    return data
-
-
-def precheck_replace_empty_strings_with_none(data: dict) -> dict:
-    """
-    Replace empty string values with None across the entire YAML dictionary,
-    except for parameters inside 'model.control' and 'model.physics'.
-
-    This step ensures that empty strings are treated as missing values for Pydantic validation,
-    while preserving intentional empty strings in control and physics settings.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Returns:
-        dict: Cleaned YAML dictionary with empty strings replaced by None,
-              except within 'model.control' and 'model.physics'.
-    """
-
-    ignore_keys = {"control", "physics"}
-    doy_keys = {"ie_start", "ie_end", "startdls", "enddls"}
-
-    def recurse(obj: Any, path=()):
-        if isinstance(obj, dict):
-            new = {}
-            for k, v in obj.items():
-                sub_path = path + (k,)
-                is_ignored_model = (
-                    len(sub_path) >= 2
-                    and sub_path[0] == "model"
-                    and sub_path[1] in ignore_keys
-                )
-                is_doy_value = k in doy_keys or (
-                    k == "value" and len(path) >= 1 and path[-1] in doy_keys
-                )
-                if v == "" and not is_ignored_model and not is_doy_value:
-                    new[k] = None
-                else:
-                    new[k] = recurse(v, sub_path)
-            return new
-        elif isinstance(obj, list):
-            return [None if item == "" else recurse(item, path) for item in obj]
-        else:
-            return obj
-
-    cleaned = recurse(data)
-    logger_supy.info(
-        "Empty strings replaced with None (except model.control and model.physics)."
-    )
-    return cleaned
-
-
-def precheck_site_season_adjustments(
-    data: dict, start_date: str, model_year: int
-) -> dict:
-    """
-    Adjust site-specific parameters based on season and geographic location.
-
-    This step:
-    - Determines the season (summer, winter, spring, fall, tropical, equatorial) for each site based on latitude and start_date.
-    - Removes 'snowalb' from initial states for summer/tropical/equatorial sites, so its default applies.
-    - Sets 'lai_id' for deciduous trees based on the detected season and LAI min/max values.
-    - Runs DLSCheck to calculate daylight saving time start/end days and timezone offset for each site, overwriting any existing values.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-        start_date (str): Start date of the simulation (format 'YYYY-MM-DD').
-        model_year (int): Model year extracted from start_date.
-
-    Returns:
-        dict: Updated YAML dictionary with site-level season-dependent adjustments.
-    """
-
-    cleaned_sites = []
-
-    for i, site in enumerate(data.get("sites", [])):
-        if isinstance(site, BaseModel):
-            site = site.model_dump(mode="python")
-
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-
-        # --------------------
-        # 1. Determine season
-        # --------------------
-        lat_entry = props.get("lat", {})
-        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        lng = get_value_safe(props, "lng")
-        season = None
-
-        try:
-            if lat is not None:  # <- Placeholder: consider cases where lat is None
-                season = SeasonCheck(start_date=start_date, lat=lat).get_season()
-                logger_supy.debug(f"[site #{i}] Season detected: {season}")
-
-                # If equatorial / tropical / summer -> drop snowalb so the
-                # default applies (null is rejected, gh#2001)
-                if (
-                    season in ("summer", "tropical", "equatorial")
-                    and "snowalb" in initial_states
-                ):
-                    initial_states.pop("snowalb")
-                    logger_supy.info(f"[site #{i}] Removed snowalb (default applies)")
-        except Exception as e:
-            raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
-
-        # --------------------------------------
-        # 2. Seasonal adjustment for DecTrees LAI
-        # --------------------------------------
-        dectr = props.get("land_cover", {}).get("dectr", {})
-        sfr = get_value_safe(dectr, "sfr", 0)
-
-        if sfr > 0:
-            lai = dectr.get("lai", {})
-            laimin = get_value_safe(lai, "lai_min")
-            laimax = get_value_safe(lai, "lai_max")
-            lai_val = None
-
-            if laimin is not None and laimax is not None:
-                if season == "summer":
-                    lai_val = laimax
-                elif season == "winter":
-                    lai_val = laimin
-                elif season in ("spring", "fall"):
-                    lai_val = (laimax + laimin) / 2
-
-                if "dectr" in initial_states:
-                    initial_states["dectr"]["lai_id"] = {"value": lai_val}
-                    logger_supy.debug(
-                        f"[site #{i}] Set lai_id to {lai_val} for season {season}"
-                    )
-        # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
-        # The warning "Parameters not checked because surface fraction is 0" covers this
-
-        # --------------------------------------
-        # 3. DLS Check (timezone and DST start/end days)
-        # --------------------------------------
-        if (
-            lat is not None and lng is not None
-        ):  # <- Placeholder: consider cases where lat is None
-            try:
-                dls = DLSCheck(lat=lat, lng=lng, year=model_year)
-                start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
-
-                anthro_emissions = props.get("anthropogenic_emissions")
-                if isinstance(anthro_emissions, dict) and start_dls and end_dls:
-                    import calendar
-
-                    from ...core.human_activity import coerce_integer_doy_scalar
-
-                    max_dls_doy = (
-                        366
-                        if (model_year is None or calendar.isleap(model_year))
-                        else 365
-                    )
-
-                    def _classify_doy_entry(section: dict, key: str) -> str:
-                        if key not in section:
-                            return "absent"
-                        raw = section[key]
-                        if raw is None:
-                            return "absent"
-                        if isinstance(raw, dict):
-                            if not (set(raw.keys()) <= {"value", "ref"}):
-                                return "invalid"
-                            if raw.get("value") is None:
-                                return "absent"
-                            raw = raw["value"]
-                        try:
-                            val = coerce_integer_doy_scalar(raw, key)
-                        except ValueError:
-                            return "invalid"
-                        return "valid" if 1 <= val <= max_dls_doy else "invalid"
-
-                    s_state = _classify_doy_entry(anthro_emissions, "startdls")
-                    e_state = _classify_doy_entry(anthro_emissions, "enddls")
-                    if not (
-                        (s_state == "absent" and e_state == "absent")
-                        or s_state == "invalid"
-                        or e_state == "invalid"
-                    ):
-                        anthro_emissions["startdls"] = {"value": start_dls}
-                        anthro_emissions["enddls"] = {"value": end_dls}
-                        logger_supy.debug(
-                            f"[site #{i}] DLS: start={start_dls}, end={end_dls}"
-                        )
-                        logger_supy.info(
-                            f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
-                        )
-
-                if tz_offset is not None:
-                    props["timezone"] = {"value": tz_offset}
-                    logger_supy.debug(f"[site #{i}] Timezone set to {tz_offset}")
-            except Exception as e:
-                logger_supy.warning(
-                    f"[site #{i}] DLSCheck failed: {e}. DST will not be configured automatically."
-                )
-
-        # Final update
-        site["properties"] = props
-        site["initial_states"] = initial_states
-        cleaned_sites.append(site)
-
-    data["sites"] = cleaned_sites
-    return data
-
-
-def precheck_update_temperature(data: dict, start_date: str) -> dict:
-    """
-    Set initial surface temperatures for all surface types based on latitude and start month.
-
-    For each site:
-    - Uses the site's latitude and the month from start_date to estimate mean monthly air temperature using CRU data.
-    - Applies this temperature to all layers of surface temperature arrays, as well as 'tsfc' and 'tin' for each surface type (paved, bldgs, evetr, dectr, grass, bsoil, water).
-    - If latitude is missing, the site is skipped with a warning.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-        start_date (str): Start date of the simulation (format 'YYYY-MM-DD').
-
-    Returns:
-        dict: Updated YAML dictionary with surface temperatures initialised.
-    """
-
-    month = datetime.strptime(start_date, "%Y-%m-%d").month
-
-    for site_idx, site in enumerate(data.get("sites", [])):
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-
-        # Get site latitude
-        lat_entry = props.get("lat", {})
-        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        if lat is None:
-            logger_supy.warning(
-                f"[site #{site_idx}] Latitude missing, skipping surface temperature update."
-            )
-            continue
-
-        # Get site longitude (required for CRU matching)
-        lng_entry = props.get("lng", {})
-        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
-
-        # If longitude is missing, skip this site (should not happen with valid config)
-        if lng is None:
-            logger_supy.warning(
-                f"[site #{site_idx}] Longitude not found in configuration, skipping temperature initialization"
-            )
-            continue
-
-        # Get estimated average temperature
-        avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
-        coord_info = f"lat={lat}, lng={lng}"
-        logger_supy.info(
-            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} C for month {month} ({coord_info})"
-        )
-
-        # Loop over all surface types
-        for surface_type in [
-            "paved",
-            "bldgs",
-            "evetr",
-            "dectr",
-            "grass",
-            "bsoil",
-            "water",
-        ]:
-            surf = initial_states.get(surface_type, {})
-            if not isinstance(surf, dict):
-                continue
-
-            # Set 5-layer temperature array
-            if "temperature" in surf and isinstance(surf["temperature"], dict):
-                surf["temperature"]["value"] = [avg_temp] * 5
-
-            # Set tsfc
-            if "tsfc" in surf and isinstance(surf["tsfc"], dict):
-                surf["tsfc"]["value"] = avg_temp
-
-            # Set tin
-            if "tin" in surf and isinstance(surf["tin"], dict):
-                surf["tin"]["value"] = avg_temp
-
-            initial_states[surface_type] = surf
-
-        # Save back
-        site["initial_states"] = initial_states
-        data["sites"][site_idx] = site
-
-    return data
-
-
-def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
-    """
-    Rename legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
-
-    This function scans both land_cover surface types and vertical_layers for
-    thermal_layers that contain the legacy 'cp' field and automatically renames
-    it to 'rho_cp', which is the correct field name for volumetric heat capacity.
-
-    For each site:
-    - Loops through all surface types under 'land_cover'.
-    - Loops through all vertical layer items under 'vertical_layers'.
-    - If thermal_layers contain a 'cp' field:
-        - Renames 'cp' to 'rho_cp'
-        - Logs an informative message about the change
-        - Preserves all other thermal_layers data unchanged
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Returns:
-        dict: Updated YAML dictionary with cp fields renamed to rho_cp.
-    """
-
-    total_renames = 0
-
-    for site_idx, site in enumerate(data.get("sites", [])):
-        properties = site.get("properties", {})
-
-        # Process land_cover thermal_layers
-        land_cover = properties.get("land_cover", {})
-        for surf_type, props in land_cover.items():
-            if not isinstance(props, dict):
-                continue
-
-            thermal_layers = props.get("thermal_layers")
-            if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
-                # Rename cp to rho_cp
-                thermal_layers["rho_cp"] = thermal_layers.pop("cp")
-                total_renames += 1
-
-                logger_supy.info(
-                    f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
-                    f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
-                )
-
-        # Process vertical_layers thermal_layers
-        vertical_layers = properties.get("vertical_layers", {})
-        if isinstance(vertical_layers, dict):
-            # Process roofs, walls, and other array structures within vertical_layers
-            for structure_name in ["roofs", "walls"]:  # Add more as needed
-                structure_array = vertical_layers.get(structure_name, [])
-                if isinstance(structure_array, list):
-                    for item_idx, item in enumerate(structure_array):
-                        if not isinstance(item, dict):
-                            continue
-
-                        thermal_layers = item.get("thermal_layers")
-                        if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
-                            # Rename cp to rho_cp
-                            thermal_layers["rho_cp"] = thermal_layers.pop("cp")
-                            total_renames += 1
-
-                            logger_supy.info(
-                                f"[site #{site_idx}] Renamed 'vertical_layers.{structure_name}[{item_idx}].thermal_layers.cp' → "
-                                f"'vertical_layers.{structure_name}[{item_idx}].thermal_layers.rho_cp' (legacy field name updated)"
-                            )
-
-    if total_renames > 0:
-        logger_supy.info(
-            f"[precheck] Automatically renamed {total_renames} legacy 'cp' field(s) to 'rho_cp' "
-            f"in thermal_layers. The 'cp' field name is deprecated - use 'rho_cp' for "
-            f"volumetric heat capacity (J/m³/K) in future configurations."
-        )
-
-    return data
-
-
-def precheck_land_cover_fractions(data: dict) -> dict:
-    """
-    Validate and adjust land cover surface fractions (`sfr`) for each site.
-
-    For each site in the configuration, this function:
-
-    - Calculates the total sum of all surface fractions (`sfr` values) across land cover types.
-    - Allows small floating point inaccuracies (~0.0001):
-        - If the total is slightly below 1.0 (e.g., 0.9999 ≤ sum < 1.0), it auto-increases the largest surface fraction to force the sum to exactly 1.0.
-        - If the total is slightly above 1.0 (e.g., 1.0 < sum ≤ 1.0001), it auto-decreases the largest surface fraction to force the sum to exactly 1.0.
-    - If the total `sfr` differs from 1.0 by more than the allowed epsilon, raises an error.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Returns:
-        dict: The updated YAML dictionary with corrected `sfr` sums.
-
-    Raises:
-        ValueError: If land cover fractions sum too low or too high beyond the allowed tolerance.
-    """
-
-    for i, site in enumerate(data.get("sites", [])):
-        props = site.get("properties", {})
-
-        land_cover = props.get("land_cover")
-        if not land_cover:
-            raise ValueError(f"[site #{i}] Missing land_cover block.")
-
-        # Calculate sum of all non-null surface fractions
-        sfr_sum = sum(
-            get_value_safe(v, "sfr", 0)
-            for v in land_cover.values()
-            if isinstance(v, dict) and get_value_safe(v, "sfr") is not None
-        )
-
-        logger_supy.debug(f"[site #{i}] Total land_cover sfr sum: {sfr_sum:.6f}")
-
-        # Auto-fix tiny floating point errors (epsilon ~0.0001)
-        if 0.9999 <= sfr_sum < 1.0:
-            max_key = max(
-                (
-                    k
-                    for k, v in land_cover.items()
-                    if get_value_safe(v, "sfr") is not None
-                ),
-                key=lambda k: get_value_safe(land_cover[k], "sfr"),
-            )
-            correction = 1.0 - sfr_sum
-            # Handle both RefValue and plain formats for writing
-            if isinstance(land_cover[max_key].get("sfr"), dict):
-                land_cover[max_key]["sfr"]["value"] += correction  # RefValue format
-            else:
-                land_cover[max_key]["sfr"] += correction  # Plain format
-            logger_supy.info(
-                f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0"
-            )
-
-        elif 1.0 < sfr_sum <= 1.0001:
-            max_key = max(
-                (
-                    k
-                    for k, v in land_cover.items()
-                    if get_value_safe(v, "sfr") is not None
-                ),
-                key=lambda k: get_value_safe(land_cover[k], "sfr"),
-            )
-            correction = sfr_sum - 1.0
-            # Handle both RefValue and plain formats for writing
-            if isinstance(land_cover[max_key].get("sfr"), dict):
-                land_cover[max_key]["sfr"]["value"] -= correction  # RefValue format
-            else:
-                land_cover[max_key]["sfr"] -= correction  # Plain format
-            logger_supy.info(
-                f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0"
-            )
-
-        elif abs(sfr_sum - 1.0) > 0.0001:
-            raise ValueError(f"[site #{i}] Invalid land_cover sfr sum: {sfr_sum:.6f}")
-
-        site["properties"] = props
-
-    return data
-
-
-def precheck_nullify_zero_sfr_params(data: dict) -> dict:
-    """
-    Nullify all land cover parameters for surface types with zero surface fraction (sfr == 0).
-
-    For each site:
-    - Loops through all surface types under 'land_cover'.
-    - If a surface type has sfr == 0:
-        - Sets all associated parameters (except 'sfr') to None.
-        - This includes both single-value parameters and nested structures (e.g., thermal_layers, ohm_coef).
-        - For list-valued parameters, replaces each element with None.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Returns:
-        dict: Updated YAML dictionary with unused surface type parameters nullified.
-    """
-
-    for site_idx, site in enumerate(data.get("sites", [])):
-        land_cover = site.get("properties", {}).get("land_cover", {})
-        for surf_type, props in land_cover.items():
-            sfr = get_value_safe(props, "sfr", 0)
-            if sfr == 0:
-                logger_supy.info(
-                    f"[site #{site_idx}] Nullifying params for surface '{surf_type}' with sfr == 0"
-                )
-                for param_key, param_val in props.items():
-                    if param_key == "sfr":
-                        continue
-                    # Nullify simple params
-                    if isinstance(param_val, dict) and "value" in param_val:
-                        param_val["value"] = None
-                    # Nullify nested blocks (like ohm_coef, thermal_layers etc)
-                    elif isinstance(param_val, dict):
-
-                        def recursive_nullify(d):
-                            for k, v in d.items():
-                                if isinstance(v, dict):
-                                    if "value" in v:
-                                        if isinstance(v["value"], list):
-                                            v["value"] = [None] * len(v["value"])
-                                        else:
-                                            v["value"] = None
-                                    else:
-                                        recursive_nullify(v)
-
-                        recursive_nullify(param_val)
-    return data
-
-
-def precheck_warn_zero_sfr_params(data: dict) -> dict:
-    """
-    Log an informational warning listing all land cover parameters that were not prechecked for surfaces with zero surface fraction (sfr == 0).
-
-    For each site:
-    - Scans all surface types under 'land_cover'.
-    - If a surface type has sfr == 0:
-        - Collects the names of all parameters (including nested ones) defined under that surface type.
-        - Logs a compact info message listing these parameters, warning that they have not been physically prechecked.
-
-    Note:
-        This function does not modify the input data.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Returns:
-        dict: The original, unmodified YAML dictionary.
-    """
-    for site_idx, site in enumerate(data.get("sites", [])):
-        land_cover = site.get("properties", {}).get("land_cover", {})
-        for surf_type, props in land_cover.items():
-            sfr = get_value_safe(props, "sfr", 0)
-            if sfr == 0:
-                param_list = []
-
-                def collect_param_names(d: dict, prefix: str = ""):
-                    for k, v in d.items():
-                        if k == "sfr":
-                            continue
-                        current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, dict):
-                            if "value" in v:
-                                param_list.append(current_path)
-                            else:
-                                collect_param_names(v, current_path)
-
-                collect_param_names(props)
-
-                if param_list:
-                    param_str = "', '".join(param_list)
-                    logger_supy.info(
-                        f"[site #{site_idx}] As '{surf_type}' (sfr == 0), the following parameters are not prechecked for this surface type : '{param_str}'"
-                    )
-
-    return data
-
-
-def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
-    """
-    Validate that all parameters for land cover surfaces with nonzero surface fraction (sfr > 0) are set and non-null.
-
-    For each site:
-    - Iterates over all surface types in 'land_cover'.
-    - For each surface where sfr > 0:
-        - Recursively checks that all associated parameters (except 'sfr') are:
-            - Not None
-            - Not empty strings
-            - For lists: do not contain None or empty string elements
-
-    If any required parameter is unset (None or empty), the function raises a ValueError with details.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dictionary.
-
-    Returns:
-        dict: The validated YAML dictionary (unchanged if all checks pass).
-
-    Raises:
-        ValueError: If any required parameter for a nonzero-sfr surface is unset or empty.
-    """
-
-    def check_recursively(d: dict, path: list, site_idx: int):
-        if isinstance(d, dict):
-            if "value" in d:
-                val = d["value"]
-                if val in (None, "") or (
-                    isinstance(val, list) and any(v in (None, "") for v in val)
-                ):
-                    full_path = ".".join(path)
-                    raise ValueError(
-                        f"[site #{site_idx}] land_cover.{full_path} must be set (not None or empty) "
-                        f"because {path[0]}.sfr > 0"
-                    )
-            else:
-                for k, v in d.items():
-                    check_recursively(v, path + [k], site_idx)
-
-        elif isinstance(d, list):
-            for idx, item in enumerate(d):
-                check_recursively(item, path + [f"[{idx}]"], site_idx)
-
-    for site_idx, site in enumerate(data.get("sites", [])):
-        land_cover = site.get("properties", {}).get("land_cover", {})
-        for surf_type, props in land_cover.items():
-            sfr = get_value_safe(props, "sfr", 0)
-            if sfr > 0:
-                for param_key, param_val in props.items():
-                    if param_key == "sfr":
-                        continue
-                    check_recursively(
-                        param_val, path=[surf_type, param_key], site_idx=site_idx
-                    )
-
-    logger_supy.info(
-        "[precheck] Nonzero sfr parameters validated (all required fields are set)."
-    )
-    return data
-
-
-def precheck_model_option_rules(data: dict) -> dict:
-    """
-    If a method is switched off, recursively nullify all site-level methods parameters.
-
-    Args:
-        data (dict): YAML configuration data loaded as a dict.
-
-    Returns:
-        dict: The updated YAML dict after applying the nullification rules.
-    """
-    physics = data.get("model", {}).get("physics", {})
-
-    def _recursive_nullify(block):
-        if isinstance(block, dict):
-            for key, val in block.items():
-                if isinstance(val, dict):
-                    if "value" in val:
-                        inner = val["value"]
-                        if isinstance(inner, list):
-                            val["value"] = [None] * len(inner)
-                        else:
-                            val["value"] = None
-                    else:
-                        _recursive_nullify(val)
-                elif isinstance(val, list):
-                    for idx, item in enumerate(val):
-                        if isinstance(item, (dict, list)):
-                            _recursive_nullify(item)
-                        else:
-                            val[idx] = None
-                else:
-                    block[key] = None
-        elif isinstance(block, list):
-            for idx, item in enumerate(block):
-                if isinstance(item, (dict, list)):
-                    _recursive_nullify(item)
-                else:
-                    block[idx] = None
-
-    # --- STEBBS RULE: when stebbs == 0, wipe out all stebbs params ---
-    # gh#1456: compose the legacy stebbsmethod integer from the nested
-    # model.physics.stebbs block (enabled + parameters); also accepts the
-    # legacy flat scalar shape.
-    stebbsmethod = get_stebbsmethod_value(physics)
-    if stebbsmethod == 0:
-        logger_supy.info(
-            "[precheck] stebbs==0 detected -> nullifying all 'stebbs' values."
-        )
-        for site_idx, site in enumerate(data.get("sites", [])):
-            props = site.get("properties", {}) or {}
-            stebbs_block = props.get("stebbs", {}) or {}
-            if isinstance(stebbs_block, dict):
-                _recursive_nullify(stebbs_block)
-                props["stebbs"] = stebbs_block
-        for site_idx, site in enumerate(data.get("sites", [])):
-            props = site.get("properties", {}) or {}
-            archetype_block = props.get("building_archetype", {}) or {}
-            if isinstance(archetype_block, dict):
-                _recursive_nullify(archetype_block)
-                props["building_archetype"] = archetype_block
-            # ALWAYS write back props after making changes above
-            if isinstance(site, dict):
-                site["properties"] = props
-                data["sites"][site_idx] = site
-
-    # --- EMISSIONS / CO2 RULE: when emissions 0..6, CO2 is not output, nullify co2 params ---
-    emissionsmethod = get_value_safe(physics, "emissions")
-    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4, 5, 6):
-        logger_supy.info(
-            "[precheck] emissions 0..6 detected -> nullifying 'anthropogenic_emissions.co2' values."
-        )
-
-        for site_idx, site in enumerate(data.get("sites", [])):
-            props = site.get("properties", {}) or {}
-            anth_emis = props.get("anthropogenic_emissions", {}) or {}
-
-            co2_block = anth_emis.get("co2", {}) or {}
-            if isinstance(co2_block, dict):
-                nullify_co2_block_recursive(co2_block)
-                anth_emis["co2"] = co2_block
-                props["anthropogenic_emissions"] = anth_emis
-
-            # Ensure biogenic dectr fields are nullified during the same precheck pass
-            try:
-                if _nullify_biogenic_in_props(props):
-                    # write back modified props into site
-                    if isinstance(site, dict):
-                        site["properties"] = props
-                        data["sites"][site_idx] = site
-            except Exception:
-                logger_supy.exception(
-                    "[precheck] failed to nullify biogenic dectr params for site %d",
-                    site_idx,
-                )
-
-            # ALWAYS write back props after making changes above
-            if isinstance(site, dict):
-                site["properties"] = props
-                data["sites"][site_idx] = site
-
-    return data
-
-
-def run_precheck(path: str) -> dict:
-    """
-    Perform full preprocessing (precheck) on a YAML configuration file.
-
-    This function runs the complete SUEWS precheck pipeline, applying a sequence of
-    automated corrections, defaults, nullifications, and consistency checks to a YAML
-    configuration file before Pydantic validation.
-
-    The steps include:
-    1. Loading the YAML file into a Python dictionary.
-    2. Extracting simulation dates and model year.
-    3. Validating and completing `model.physics` parameters.
-    4. Enforcing constraints between model physics options.
-    5. Replacing empty strings with `None` (except in `model.control` and `model.physics`).
-    6. Renaming legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
-    7. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
-    8. Setting initial surface temperatures based on latitude and month.
-    9. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
-    10. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
-    11. Checking and auto-fixing small floating point errors in land cover surface fractions.
-    12. Nullify model-option-dependent parameters if specific models are switched off
-    13. Saving the updated YAML to a new file (prefixed with `py0_`).
-    14. Writing a CSV diff report listing all changes made.
-    15. Logging completion.
-
-    Args:
-        path (str): Full path to the input YAML configuration file.
-
-    Returns:
-        dict: The fully prechecked and updated YAML configuration dictionary.
-    """
-
-    # ---- Step 0: Load yaml from path into a dict ----
-    with open(path, "r", encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-
-    original_data = deepcopy(data)
-    data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
-    flatten_physics_in_config(data)
-
-    # ---- Step 1: Print start message ----
-    data = precheck_printing(data)
-
-    # ---- Step 2: Extract start_date, end_date, model_year ----
-    data, model_year, start_date, end_date = precheck_start_end_date(data)
-    logger_supy.debug(
-        f"Start date: {start_date}, end date: {end_date}, year: {model_year}"
-    )
-
-    # ---- Step 3: Check model.physics parameters ----
-    data = precheck_model_physics_params(data)
-
-    # ---- Step 4: Enforce model option constraints ----
-    data = precheck_model_options_constraints(data)
-
-    # ---- Step 5: Clean empty strings (except model.control and model.physics) ----
-    data = precheck_replace_empty_strings_with_none(data)
-
-    # ---- Step 6: Rename legacy 'cp' to 'rho_cp' in thermal_layers ----
-    data = precheck_thermal_layer_cp_renaming(data)
-
-    # ---- Step 7: Season + LAI + DLS adjustments per site ----
-    data = precheck_site_season_adjustments(
-        data, start_date=start_date, model_year=model_year
-    )
-
-    # ---- Step 8: Update temperatures using CRU mean monthly air temperature ----
-    data = precheck_update_temperature(data, start_date=start_date)
-
-    # ---- Step 9: Print warnings for params related to surfaces with sfr == 0 ----
-    data = precheck_warn_zero_sfr_params(data)
-
-    # ---- Step 10: Check existence of params for surfaces with sfr > 0 ----
-    data = precheck_nonzero_sfr_requires_nonnull_params(data)
-
-    # ---- Step 11: Land Cover Fractions checks & adjustments ----
-    data = precheck_land_cover_fractions(data)
-
-    # ---- Step 12: Rules associated to selected model options ----
-    data = precheck_model_option_rules(data)
-
-    # ---- Step 13: Save output YAML ----
-    output_filename = f"py0_{os.path.basename(path)}"
-    output_path = os.path.join(os.path.dirname(path), output_filename)
-
-    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
-        yaml.dump(data, f, sort_keys=False, allow_unicode=True)
-
-    logger_supy.info(f"Saved updated YAML file to: {output_path}")
-
-    # ---- Step 14: Generate precheck diff report CSV ----
-    diffs = collect_yaml_differences(original_data, data)
-    save_precheck_diff_report(diffs, path)
-
-    # ---- Step 15: Print completion ----
-    logger_supy.info("Precheck complete.\n")
-    return data

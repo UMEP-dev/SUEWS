@@ -89,10 +89,10 @@ If auto-detection fails, you can specify the source version explicitly with ``-f
 Path Handling
 -------------
 
-The converter respects path configurations in ``RunControl.nml``:
+The converter respects path configurations in ``RunControl.nml`` when reading source tables:
 
-- **Absolute paths**: Used directly as specified
-- **Relative paths**: Resolved relative to the directory containing ``RunControl.nml``
+- **Absolute and parent-relative paths**: Used as configured to locate the source tables. When :func:`~supy.util.converter.convert_table` writes converted tables to ``toDir``, any ``FileInputPath`` that is absolute or resolves outside ``toDir`` (for example a ``../`` path or a symlink targeting outside ``toDir``) is rewritten in the output ``RunControl.nml`` to a relative folder inside ``toDir`` (such as ``./Input/``) so source tables are not overwritten. Passing a ``toDir`` (different from ``fromDir``) that resolves to the source input directory raises a ``ValueError`` before any files are written. ``FileOutputPath`` is left unchanged, and an external ``FileOutputPath`` directory is not created (only a relative ``FileOutputPath`` resolving inside ``toDir`` is created). Forcing files are not copied by :func:`~supy.util.converter.convert_table`; ``suews convert`` (:func:`~supy.util.converter.convert_to_yaml`) locates them using the original ``RunControl.nml`` ``FileInputPath``.
+- **Relative paths inside the run directory**: Resolved relative to the directory containing ``RunControl.nml`` and preserved in ``convert_table`` output unless they would overwrite the source input directory or escape ``toDir`` via a symlink.
 - **Automatic fallback**: If files aren't found at the configured path, the converter checks:
 
   1. The directory containing ``RunControl.nml``

@@ -2,7 +2,7 @@
 MODULE module_phys_rslprof
    USE module_ctrl_const_mathconst, ONLY: pi
    USE module_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
-   USE meteo, ONLY: RH2qa, qa2RH
+   USE module_util_meteo, ONLY: RH2qa, qa2RH
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
    USE module_ctrl_const_physconst, ONLY: eps_fp
@@ -15,128 +15,6 @@ MODULE module_phys_rslprof
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
 
 CONTAINS
-
-
-   SUBROUTINE cal_profile_MOST( &
-      StabilityMethod, nz, zMeas, zdm, z0m, z0v, L_MOD, &
-      avU1, Temp_C, &
-      TStar, qStar, qa_gkg, &
-      zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)
-
-      IMPLICIT NONE
-
-      INTEGER, INTENT(in) :: StabilityMethod
-      INTEGER, INTENT(in) :: nz
-      REAL(KIND(1D0)), INTENT(in) :: zMeas, zdm, z0m, z0v, L_MOD
-      REAL(KIND(1D0)), INTENT(in) :: avU1, Temp_C
-      REAL(KIND(1D0)), INTENT(in) :: TStar, qStar, qa_gkg
-
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: zarray
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: dataoutLineURSL
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: dataoutLineTRSL
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: dataoutLineqRSL
-
-      ! Local variables
-      REAL(KIND(1D0)) :: psimz0, psimza, psihz0, psihza
-      REAL(KIND(1D0)) :: psimz, psihz
-      REAL(KIND(1D0)) :: UStar_MOST
-      REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
-      INTEGER :: i
-
-      ! Step 1: Generate height array for MOST
-      CALL setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)
-
-      ! Step 2: Calculate stability functions at measurement height
-      psimz0 = stab_psi_mom(StabilityMethod, z0m/L_MOD)
-      psimza = stab_psi_mom(StabilityMethod, (zMeas - zdm)/L_MOD)
-      psihz0 = stab_psi_heat(StabilityMethod, z0v/L_MOD)
-      psihza = stab_psi_heat(StabilityMethod, (zMeas - zdm)/L_MOD)
-
-      ! Step 3: Calculate friction velocity for MOST
-      UStar_MOST = avU1*kappa/(LOG((zMeas - zdm)/z0m) - psimza + psimz0)
-      UStar_MOST = MAX(0.001, UStar_MOST)  ! Apply minimum threshold
-
-      ! Step 4: Calculate profiles at all heights
-      DO i = 1, nz
-         psimz = stab_psi_mom(StabilityMethod, (zarray(i) - zdm)/L_MOD)
-         psihz = stab_psi_heat(StabilityMethod, (zarray(i) - zdm)/L_MOD)
-
-         ! Wind speed profile
-         dataoutLineURSL(i) = UStar_MOST/kappa * (LOG((zarray(i) - zdm)/z0m) - psimz + psimz0)
-
-         ! Temperature and humidity profiles
-         dataoutLineTRSL(i) = Temp_C + TStar/kappa * (LOG((zarray(i) - zdm)/z0v) - psihz + psihz0)
-         dataoutLineqRSL(i) = (qa_gkg/1000. + qStar/kappa * (LOG((zarray(i) - zdm)/z0v) - psihz + psihz0))*1000.
-      END DO
-
-   END SUBROUTINE cal_profile_MOST
-
-   SUBROUTINE cal_profile_RSL( &
-      StabilityMethod, nz, nz_can, zMeas, zH_RSL, &
-      L_MOD_RSL, zd_RSL, z0_RSL, &
-      beta, elm, Scc, fx, &
-      Temp_C, &
-      UStar_RSL, TStar_RSL, qStar_RSL, qa_gkg, &
-      psihatm_z, psihath_z, &
-      zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)
-
-      IMPLICIT NONE
-
-      INTEGER, INTENT(in) :: StabilityMethod
-      INTEGER, INTENT(in) :: nz, nz_can
-      REAL(KIND(1D0)), INTENT(in) :: zMeas, zH_RSL
-      REAL(KIND(1D0)), INTENT(in) :: L_MOD_RSL, zd_RSL, z0_RSL
-      REAL(KIND(1D0)), INTENT(in) :: beta, elm, Scc, fx
-      REAL(KIND(1D0)), INTENT(in) :: Temp_C
-      REAL(KIND(1D0)), INTENT(in) :: UStar_RSL, TStar_RSL, qStar_RSL, qa_gkg
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(in) :: psihatm_z, psihath_z
-
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: zarray
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: dataoutLineURSL
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: dataoutLineTRSL
-      REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: dataoutLineqRSL
-
-      ! Local variables
-      REAL(KIND(1D0)) :: psimz0, psimza, psihz0, psihza
-      REAL(KIND(1D0)) :: psimz, psihz
-      REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
-      INTEGER :: z
-
-      ! Step 1: Generate height array for RSL
-      CALL setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)
-
-      ! Step 2: Calculate stability functions
-      psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
-      psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
-      psihz0 = stab_psi_heat(StabilityMethod, z0_RSL/L_MOD_RSL)
-      psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
-
-      ! Step 3: Above canopy profiles (RSL correction)
-      DO z = nz_can, nz
-         psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-         psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-         dataoutLineURSL(z) = UStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))
-         dataoutLineTRSL(z) = TStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))
-         dataoutLineqRSL(z) = qStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))
-      END DO
-
-      ! Step 4: Within canopy profiles (exponential)
-      IF (nz_can > 1) THEN
-         DO z = 1, nz_can - 1
-            dataoutLineURSL(z) = dataoutLineURSL(nz_can)*EXP(beta*(zarray(z) - zH_RSL)/elm)
-            ! Algebraic cancellation: t_h/TStar = Scc/(beta*fx), avoiding 0/0 when qh=0
-            dataoutLineTRSL(z) = dataoutLineTRSL(nz_can) &
-                                 + Scc*(EXP(beta*fx*(zarray(z) - zH_RSL)/elm) - 1.0D0)/(beta*fx)
-            dataoutLineqRSL(z) = dataoutLineqRSL(nz_can) &
-                                 + Scc*(EXP(beta*fx*(zarray(z) - zH_RSL)/elm) - 1.0D0)/(beta*fx)
-         END DO
-      END IF
-
-      ! Step 5: Convert to physical units
-      dataoutLineTRSL = dataoutLineTRSL + Temp_C
-      dataoutLineqRSL = (dataoutLineqRSL + qa_gkg/1000.)*1000.
-
-   END SUBROUTINE cal_profile_RSL
 
    SUBROUTINE setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)
       IMPLICIT NONE
@@ -260,7 +138,7 @@ CONTAINS
    END SUBROUTINE setup_RSL_heights
 
    SUBROUTINE RSLProfile( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataoutLineRSL) ! output
       !-----------------------------------------------------
@@ -273,7 +151,7 @@ CONTAINS
       ! TODO how to improve the speed of this code
       !
       !-----------------------------------------------------
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
@@ -282,7 +160,7 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -384,7 +262,7 @@ CONTAINS
             zMeas => siteInfo%z, &
             z0m_in => siteInfo%z0m_in, &
             zdm_in => siteInfo%zdm_in, &
-            tstep_real => timer%tstep_real, &
+            tstep_real => clock%tstep_real, &
             ! tsfc_surf => heatState_out%tsfc_surf, &
             ! tsfc_roof => heatState_out%tsfc_roof, &
             ! tsfc_wall => heatState_out%tsfc_wall, &
@@ -877,31 +755,6 @@ CONTAINS
       END IF
 
    END FUNCTION cal_psih_hat
-
-   FUNCTION cal_phim_hat(StabilityMethod, z, zh_RSL, L_MOD, beta, lc) RESULT(phim_hat)
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: StabilityMethod ! stability method
-      REAL(KIND(1D0)), INTENT(in) :: z
-      REAL(KIND(1D0)), INTENT(in) :: zh_RSL
-      REAL(KIND(1D0)), INTENT(in) :: L_MOD
-      REAL(KIND(1D0)), INTENT(in) :: beta
-      REAL(KIND(1D0)), INTENT(in) :: lc
-      REAL(KIND(1D0)) :: phim_hat
-      REAL(KIND(1D0)) :: zd_RSL
-
-      REAL(KIND(1D0)) :: elm
-      REAL(KIND(1D0)) :: c2
-      REAL(KIND(1D0)) :: cm
-
-      elm = cal_elm_RSL(beta, lc)
-
-      zd_RSL = cal_zd_RSL(Zh_RSL, beta, lc)
-
-      CALL cal_cm(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD, c2, cm)
-
-      phim_hat = 1 - cm*EXP(-1.*c2*beta*(z - zd_RSL)/elm)
-
-   END FUNCTION cal_phim_hat
 
    SUBROUTINE cal_cm(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD, c2, cm)
 
@@ -1426,8 +1279,3 @@ CONTAINS
    END FUNCTION cal_beta_lc
 
 END MODULE module_phys_rslprof
-
-! Backward compatibility alias
-MODULE rsl_module
-   USE module_phys_rslprof
-END MODULE rsl_module

@@ -20,7 +20,7 @@ pub enum BridgeError {
     #[error("failed to serialise checkpoint state: {message}")]
     CheckpointSerialization { message: String },
     #[error(
-        "legacy checkpoint schema version 1 has no elapsed timer metadata; rerun the preceding segment with checkpoint schema version 2"
+        "legacy checkpoint schema version 1 has no elapsed timer metadata; rerun the preceding segment with checkpoint schema version 4"
     )]
     LegacyCheckpointMissingTimer,
     #[error("unsupported checkpoint schema version {found}; expected version {expected}")]

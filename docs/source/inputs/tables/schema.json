@@ -124,16 +124,19 @@
       "type": "object"
     },
     "AnthropogenicHeat": {
-      "description": "Anthropogenic heat flux parameters and profiles.",
+      "description": "Anthropogenic heat flux parameters and profiles.\n\nCompatibility defaults (``popdensnighttime=10.0`` ha-1 and\n``DayProfile(working_day=1.0, holiday=0.0)``) are retained so sparse\nconfigurations continue to round-trip without schema breaks, but they are\nuncalibrated placeholders rather than recommended site values. When loaded\nvia ``SUEWSConfig.from_yaml`` or ``SUEWSConfig.from_dict`` under an active\nmodelled emissions method (``model.physics.emissions != 0``), omitting an\nactive parameter emits a ``UserWarning``.",
       "properties": {
         "qf0_beu": {
           "$ref": "#/$defs/DayProfile",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) (not a calibrated site value); calibrate by site.",
           "description": "Fraction of the temperature-independent (base) anthropogenic heat flux that comes from building energy use. Used to separate the building share of heat and CO2 emissions. In the methods with codes ending in 1, 2 or 3 the rest of the base flux, less human metabolism, is attributed to traffic.",
           "display_name": "Building Fraction of Base QF",
+          "range_description": "Physical fraction in 0.0-1.0; calibrate by site.",
           "unit": "1"
         },
         "qf_a": {
           "$ref": "#/$defs/DayProfile",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) (not a calibrated site value); calibrate by site.",
           "description": "Temperature-independent (base) anthropogenic heat flux per unit population density, that is per person, in the J11 heat basis (method codes ending in 2 or 5).",
           "display_name": "QF Coefficient A",
           "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
@@ -141,6 +144,7 @@
         },
         "qf_b": {
           "$ref": "#/$defs/DayProfile",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) (not a calibrated site value); calibrate by site.",
           "description": "Cooling coefficient in the J11 heat basis (method codes ending in 2 or 5): anthropogenic heat flux per cooling degree day and per unit population density, that is per person.",
           "display_name": "QF Coefficient B",
           "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
@@ -148,6 +152,7 @@
         },
         "qf_c": {
           "$ref": "#/$defs/DayProfile",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) (not a calibrated site value); calibrate by site.",
           "description": "Heating coefficient in the J11 heat basis (method codes ending in 2 or 5): anthropogenic heat flux per heating degree day and per unit population density, that is per person.",
           "display_name": "QF Coefficient C",
           "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
@@ -155,35 +160,35 @@
         },
         "baset_cooling": {
           "$ref": "#/$defs/DayProfile",
-          "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
           "description": "Base temperature for cooling degree days. In the L11_UPDATED heat basis (method codes ending in 3 or 6) it is also the critical temperature above which the cooling term applies, compared with a running mean of daily mean air temperature over about five days.",
           "display_name": "Base Temperature Cooling",
           "unit": "degC"
         },
         "baset_heating": {
           "$ref": "#/$defs/DayProfile",
-          "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
           "description": "Base temperature for heating degree days. In the L11 and L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6) it is also the critical air temperature below which the heating term applies.",
           "display_name": "Base Temperature Heating",
           "unit": "degC"
         },
         "ah_min": {
           "$ref": "#/$defs/DayProfile",
-          "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Temperature-independent (base) anthropogenic heat flux in the L11 and L11_UPDATED heat bases (method codes ending in 1, 3, 4 or 6), as a daily mean and not a lower bound: at each timestep it is multiplied by ahprof_24hr normalised to a mean of 1, so the modelled base term is above this value at some hours and below it at others. In the detailed methods (codes ending in 4 or 6) the building heat flux is rescaled by the population profile instead. Not used by the J11 heat basis (codes ending in 2 or 5).",
           "display_name": "Base Anthropogenic Heat",
           "unit": "W m-2"
         },
         "ah_slope_cooling": {
           "$ref": "#/$defs/DayProfile",
-          "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Increase in anthropogenic heat flux per degree by which a running mean of daily mean air temperature (about five days) exceeds baset_cooling. Used only by the L11_UPDATED heat basis (method codes ending in 3 or 6); scaled by the normalised ahprof_24hr.",
           "display_name": "Anthropogenic Heat Slope (Cooling)",
           "unit": "W m-2 K-1"
         },
         "ah_slope_heating": {
           "$ref": "#/$defs/DayProfile",
-          "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
           "description": "Increase in anthropogenic heat flux per degree of air temperature below baset_heating: instantaneous air temperature in the L11 heat basis (method codes ending in 1 or 4), a running mean of daily mean air temperature over about five days in L11_UPDATED (codes ending in 3 or 6). Scaled by the normalised ahprof_24hr.",
           "display_name": "Anthropogenic Heat Slope (Heating)",
           "unit": "W m-2 K-1"
@@ -196,15 +201,19 @@
         },
         "popdensdaytime": {
           "$ref": "#/$defs/DayProfile",
-          "description": "Daytime population density",
+          "default_description": "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). Sample benchmark value: 204.58 ha^-1 (Ward et al. 2016, central London); calibrate by site.",
+          "description": "Daytime population density (people per hectare). The DayProfile default (working_day=1.0, holiday=0.0) is a compatibility placeholder, not a calibrated site value; specify site-specific values when modelled anthropogenic emissions are active.",
           "display_name": "Daytime Population Density",
+          "range_description": "Non-negative (>= 0.0 ha^-1); sample benchmark value is 204.58 ha^-1 for central London (Ward et al. 2016); calibrate by site.",
           "unit": "ha-1"
         },
         "popdensnighttime": {
           "default": 10.0,
-          "description": "Nighttime population density",
+          "default_description": "Compatibility placeholder default: 10.0 ha^-1 (not a calibrated site value). Sample benchmark value: 204.58 ha^-1 (Ward et al. 2016, central London); calibrate by site.",
+          "description": "Nighttime population density (people per hectare). The default 10.0 ha-1 is a compatibility placeholder, not a calibrated site value; omitting it under active modelled emissions (model.physics.emissions != 0) substitutes 10.0 ha-1 and can materially alter simulated QF and metabolic CO2, so specify the site value explicitly.",
           "display_name": "Nighttime Population Density",
           "minimum": 0.0,
+          "range_description": "Non-negative (>= 0.0 ha^-1); sample benchmark value is 204.58 ha^-1 for central London (Ward et al. 2016); calibrate by site.",
           "title": "Popdensnighttime",
           "type": "number",
           "unit": "ha-1"
@@ -2876,7 +2885,7 @@
       "type": "object"
     },
     "DayProfile": {
-      "description": "Scalar values keyed by ``working_day`` and ``holiday``.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.",
+      "description": "Scalar values keyed by ``working_day`` and ``holiday``.\n\nThe field defaults (``working_day=1.0``, ``holiday=0.0``) are asymmetric\ncompatibility placeholders, not calibrated site parameters. Omitting a\n``DayProfile`` field or omitting either key falls back to these values;\nunder active modelled emissions (``model.physics.emissions != 0``),\n``SUEWSConfig.from_yaml`` and ``SUEWSConfig.from_dict`` emit a\n``UserWarning`` when active ``AnthropogenicHeat`` fields rely on them.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -2888,6 +2897,8 @@
             }
           ],
           "default": 1.0,
+          "default_description": "Compatibility placeholder default: 1.0 (not a calibrated site value); specify explicitly for active parameters.",
+          "description": "Scalar value applied on working days (Monday to Friday). The default 1.0 is a compatibility placeholder, not a calibrated site parameter.",
           "display_name": "Working Day",
           "title": "Working Day"
         },
@@ -2901,6 +2912,8 @@
             }
           ],
           "default": 0.0,
+          "default_description": "Compatibility placeholder default: 0.0 (asymmetric with working_day=1.0; not a calibrated site value); specify explicitly for active parameters.",
+          "description": "Scalar value applied on holidays/weekends (Saturday and Sunday). The default 0.0 is an asymmetric compatibility placeholder, not a calibrated site parameter.",
           "display_name": "Holiday",
           "title": "Holiday"
         },
@@ -3518,6 +3531,25 @@
       },
       "title": "Deciduous Trees",
       "type": "object"
+    },
+    "EHCStabilityControl": {
+      "description": "Late-pass acceleration of implicit EHC stability coupling.\n\n0: OFF - Retain the existing outer iteration\n1: RELAX - Relax stability-input QH by 0.25 from outer pass 16\n2: SECANT - Use safeguarded secant/bracketing updates of stability-input QH from pass 16",
+      "enum": [
+        0,
+        1,
+        2
+      ],
+      "title": "EHCStabilityControl",
+      "type": "integer"
+    },
+    "EHCSurfaceCoupling": {
+      "description": "Coupling of the EHC (storage_heat 5) surface temperature to the surface energy balance.\n\n0: EXPLICIT - Conduction driven by the current surface temperature, which a relaxed fixed-point iteration on the residual sensible heat flux updates (legacy)\n1: IMPLICIT - Surface energy balance solved together with the conduction layers as the top boundary of each column (backward Euler); building energy use enters at the indoor boundary and deep-soil and indoor boundary temperatures follow the annual cycle and the indoor setpoint",
+      "enum": [
+        0,
+        1
+      ],
+      "title": "EHCSurfaceCoupling",
+      "type": "integer"
     },
     "EmissionsMethod": {
       "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using a running mean of daily mean air temperature (about five days)\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
@@ -7156,7 +7188,7 @@
             }
           ],
           "default": null,
-          "description": "Growing degree days (GDD) needed for full capacity of LAI",
+          "description": "Legacy compatibility field retained prior to removal; ignored by the fixed-season daily-increment LAI phenology formulation (see gdd_base).",
           "display_name": "Growing Degree Days for Full LAI",
           "title": "Gdd Full",
           "unit": "K d"
@@ -7192,7 +7224,7 @@
             }
           ],
           "default": null,
-          "description": "Senescence degree days (SDD) needed to initiate leaf off",
+          "description": "Legacy compatibility field retained prior to removal; ignored by the fixed-season daily-increment LAI phenology formulation (see sdd_base).",
           "display_name": "Senescence Degree Days for Leaf Off",
           "title": "Sdd Full",
           "unit": "K d"
@@ -7244,10 +7276,42 @@
             }
           ],
           "default": 0,
-          "description": "LAI calculation choice (0: original, 1: new high latitude)",
+          "description": "Legacy compatibility field retained prior to removal; ignored by the fixed-season daily-increment LAI phenology formulation.",
           "display_name": "LAI Calculation Method",
           "title": "Lai Type",
           "unit": null
+        },
+        "gdd_base": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Growing degree days (GDD) that must accumulate in the growth half of the year before leaf growth starts. The default of 0 means no threshold: growth may start on the first day with positive GDD.",
+          "display_name": "Growing Degree Days to Start Leaf Growth",
+          "ge": 0.0,
+          "title": "Gdd Base",
+          "unit": "K d"
+        },
+        "sdd_base": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Senescence degree days (SDD, negative by convention) that must accumulate in the senescence half of the year before leaf off starts. The default of 0 means no threshold: leaf off may start on the first day with negative SDD.",
+          "display_name": "Senescence Degree Days to Start Leaf Off",
+          "le": 0.0,
+          "title": "Sdd Base",
+          "unit": "K d"
         },
         "ref": {
           "anyOf": [
@@ -7668,6 +7732,95 @@
           ],
           "title": "Ohm Inc Qf",
           "unit": null
+        },
+        "ehc_surface_coupling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_EHCSurfaceCoupling_"
+            },
+            {
+              "$ref": "#/$defs/EHCSurfaceCoupling"
+            }
+          ],
+          "default": 1,
+          "depends_on": [
+            "storage_heat"
+          ],
+          "description": "Coupling of the EHC (storage_heat 5) surface temperature to the surface energy balance. Options: 0 (EXPLICIT) = Conduction driven by the current surface temperature, which a relaxed fixed-point iteration on the residual sensible heat flux updates (legacy); 1 (IMPLICIT) = Surface energy balance solved together with the conduction layers as the top boundary of each column (backward Euler); building energy use enters at the indoor boundary and deep-soil and indoor boundary temperatures follow the annual cycle and the indoor setpoint",
+          "note": "Only used when storage_heat is EHC (5). Implicit is the default; select explicit to retain the legacy surface coupling and boundary treatment.",
+          "title": "Ehc Surface Coupling",
+          "unit": null
+        },
+        "control_ehc_stability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_EHCStabilityControl_"
+            },
+            {
+              "$ref": "#/$defs/EHCStabilityControl"
+            }
+          ],
+          "default": 0,
+          "depends_on": [
+            "ehc_surface_coupling"
+          ],
+          "description": "Late-pass acceleration of implicit EHC stability coupling. Options: 0 (OFF) = Retain the existing outer iteration; 1 (RELAX) = Relax stability-input QH by 0.25 from outer pass 16; 2 (SECANT) = Use safeguarded secant/bracketing updates of stability-input QH from pass 16",
+          "note": "Implicit EHC only. A repaired solution must pass an undamped verification pass. The heat ledger, stability functions and convergence tolerances are unchanged.",
+          "title": "Control Ehc Stability",
+          "unit": null
+        },
+        "control_ehc_initial_profile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_bool_"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": true,
+          "depends_on": [
+            "ehc_surface_coupling"
+          ],
+          "description": "Initialise implicit EHC roof and wall layer temperatures at cell centres on a steady conduction profile between the first-step outdoor air and indoor temperatures, linear in cumulative material resistance including the indoor surface resistance. Only at a fresh configuration start; saved model states are preserved. Ignored by explicit coupling and by the shared plan-area slab, which has no separate envelope columns.",
+          "title": "Control Ehc Initial Profile",
+          "unit": null
+        },
+        "resistance_ehc_indoor_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.1,
+          "depends_on": [
+            "ehc_surface_coupling"
+          ],
+          "description": "Indoor surface resistance for implicit EHC roofs and the building branch of the shared plan-area slab. Added in series to the innermost half-cell resistance. ISO 6946:2017 Table 7, upward heat flow: 0.10 m2 K W-1 (h_in = 10 W m-2 K-1). Zero recovers the bare Dirichlet boundary; explicit coupling ignores this value.",
+          "ge": 0.0,
+          "title": "Resistance Ehc Indoor Roof",
+          "unit": "m2 K W-1"
+        },
+        "resistance_ehc_indoor_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.13,
+          "depends_on": [
+            "ehc_surface_coupling"
+          ],
+          "description": "Indoor surface resistance for implicit EHC walls, in series with the innermost half-cell resistance. ISO 6946:2017 Table 7, horizontal heat flow: 0.13 m2 K W-1 (h_in = 1/0.13, approximately 7.7 W m-2 K-1). Zero recovers the bare Dirichlet boundary; explicit coupling ignores this value.",
+          "ge": 0.0,
+          "title": "Resistance Ehc Indoor Wall",
+          "unit": "m2 K W-1"
         },
         "roughness_length_momentum": {
           "anyOf": [
@@ -8114,7 +8267,7 @@
             }
           ],
           "default": null,
-          "description": "Stream the output to disk during the run in chunks of this many days (1 to 366), so memory no longer grows with run length. The run goes through each calendar year in consecutive chunks; each chunk's output is written to disk and then dropped from memory, keeping only the groups listed in 'groups'. Text files are written, or extended, exactly as a run followed by save would write them. Parquet output becomes a folder at the output file's path holding one file per chunk, read back together with pandas.read_parquet(folder): only the groups listed in 'groups' (unlike Parquet output saved after an unstreamed run, which holds every group), DailyState at its own daily rows as in text output rather than resampled, at full float64 precision; prefer it for streamed runs that will be read back for analysis. 30 (about a month) or 366 (a calendar year) are good choices. Limitations: peak memory is still about one chunk of the model's full output (all groups); values read back from text files carry four decimal places; groups not listed in 'groups' are not kept at all. The checkpoint file is replaced at the end of every calendar year, so a run that stops part-way continues from the start of the year it stopped in and writes that year's output again. The output returned to Python holds no rows: read the written files. Needs an output frequency that divides one day (86400 s) and output timestamps on the forcing clock ('timestamp_reference' of 'follow' or the forcing's own reference). Unset (the default) keeps the whole output in memory until it is saved.",
+          "description": "Stream the output to disk during the run in chunks of this many days (1 to 366), so memory no longer grows with run length. The run goes through each calendar year in consecutive chunks; each chunk's output is written to disk and then dropped from memory, keeping only the groups listed in 'groups'. Text files are written, or extended, exactly as a run followed by save would write them. Parquet output becomes a folder at the output file's path holding one file per chunk, read back together with pandas.read_parquet(folder): only the groups listed in 'groups' (unlike Parquet output saved after an unstreamed run, which holds every group), resampled with the same right-labelled rule across every group (DailyState included), at full float64 precision; prefer it for streamed runs that will be read back for analysis. 30 (about a month) or 366 (a calendar year) are good choices. Limitations: peak memory is still about one chunk of the model's full output (all groups); values read back from text files carry four decimal places; groups not listed in 'groups' are not kept at all. The checkpoint file is replaced at the end of every calendar year, so a run that stops part-way continues from the start of the year it stopped in and writes that year's output again. The output returned to Python holds no rows: read the written files. Needs an output frequency that divides one day (86400 s) and output timestamps on the forcing clock ('timestamp_reference' of 'follow' or the forcing's own reference). Unset (the default) keeps the whole output in memory until it is saved.",
           "title": "Stream Chunk",
           "unit": "d"
         }
@@ -8461,6 +8614,68 @@
       ],
       "title": "RSLMethod",
       "type": "integer"
+    },
+    "RefValue_EHCStabilityControl_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EHCStabilityControl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[EHCStabilityControl]",
+      "type": "object"
+    },
+    "RefValue_EHCSurfaceCoupling_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EHCSurfaceCoupling"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[EHCSurfaceCoupling]",
+      "type": "object"
     },
     "RefValue_EmissionsMethod_": {
       "additionalProperties": false,
@@ -9689,47 +9904,6 @@
           "title": "Wet Threshold",
           "unit": "1"
         },
-        "roof_albedo_dir_mult_fact": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
-          "display_name": "Roof Albedo Direct Multiplier",
-          "title": "Roof Albedo Dir Mult Fact",
-          "unit": "1"
-        },
-        "wall_specular_frac": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
-          "display_name": "Wall Specular Fraction",
-          "title": "Wall Specular Frac",
-          "unit": "1"
-        },
         "ref": {
           "anyOf": [
             {
@@ -9740,6 +9914,22 @@
             }
           ],
           "default": null
+        },
+        "roof_albedo_dir_mult_fact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets",
+          "display_name": "Roof Albedo Direct Multiplier",
+          "ge": 0.0,
+          "title": "Roof Albedo Dir Mult Fact",
+          "unit": "1"
         }
       },
       "title": "RoofLayer",
@@ -11753,10 +11943,10 @@
             }
           ],
           "default": 0.05,
-          "default_description": "Missing default explanation.",
+          "default_description": "Nominal positive baseline (0.05 m3, 50 L) representing domestic hot water held in use in building vessels (not derived from a single published reference); set according to the modelled building or archetype.",
           "description": "Volume of water held in use in building [m3]",
           "display_name": "Hot Water Volume",
-          "range_description": "Missing range explanation.",
+          "range_description": "Value must be strictly greater than zero (> 0.0 m3); STEBBS divides by this volume when updating the in-use hot-water temperature from vessel heat exchange and tank-water mixing, and no upper bound is enforced so it can scale with the modelled building or archetype.",
           "title": "Volume Hot Water",
           "unit": "m3"
         },
@@ -13128,47 +13318,6 @@
           "title": "Wet Threshold",
           "unit": "1"
         },
-        "roof_albedo_dir_mult_fact": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
-          "display_name": "Roof Albedo Direct Multiplier",
-          "title": "Roof Albedo Dir Mult Fact",
-          "unit": "1"
-        },
-        "wall_specular_frac": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
-          "display_name": "Wall Specular Fraction",
-          "title": "Wall Specular Frac",
-          "unit": "1"
-        },
         "ref": {
           "anyOf": [
             {
@@ -13179,6 +13328,21 @@
             }
           ],
           "default": null
+        },
+        "wall_specular_frac": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "SPARTACUS-Surface specular reflection fraction for wall facets",
+          "display_name": "Wall Specular Fraction",
+          "title": "Wall Specular Frac",
+          "unit": "1"
         }
       },
       "title": "WallLayer",
@@ -13740,7 +13904,7 @@
       "type": "integer"
     },
     "WeeklyProfile": {
-      "description": "Seven daily values keyed by lowercase weekday names, Monday to Sunday.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for storage order and field uses.",
+      "description": "Seven daily values keyed by lowercase weekday names, Monday to Sunday.\n\nLegacy ``df_state`` arrays and ``SUEWS_Irrigation.txt`` columns\n(``DayWat(1)``..``DayWat(7)``) store the seven days Sunday first\n(``0=sunday`` .. ``6=saturday``). See :doc:`/inputs/yaml/temporal-profiles`\nfor storage order and field uses.",
       "properties": {
         "monday": {
           "anyOf": [
@@ -13843,7 +14007,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev17. Day-of-year fields for irrigation (ie_start, ie_end) and daylight saving time (startdls, enddls) require whole integers in 1..366 or null/omission to disable (#2101, #2001, #2002). The (2026.6.dev16 -> 2026.6.dev17) migration normalises exact whole-number floats (e.g. 86.0 -> 86), preserves null and disabled ref-only/empty mappings, and rejects fractional, boolean, non-finite or out-of-range values rather than truncating or zeroing them.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev23. Compute modelled LAI from daily GDD/SDD increments within fixed growth and senescence seasons (reset before accumulation on DOY 15 and DOY 196, swapped in the southern hemisphere), gating leaf-out and leaf-off onset on gdd_base/sdd_base (#2346, #2066, #2078). Legacy compatibility fields gdd_full, sdd_full, and lai_type remain accepted prior to removal but are ignored by the kernel, and the sample configuration adopts retuned daily-increment rates and thresholds (base_temperature=6.5, base_temperature_senescence=22.0, gdd_base=120.0, sdd_base=-240.0, lai_power=(-0.02, 0.04, -1.0, 0.02), initial sdd_id=0.0) while preserving per-surface lai_min/lai_max envelopes. The (2026.6.dev22 -> 2026.6.dev23) migration preserves existing user parameters unchanged and logs an advisory for sites using modelled LAI so users know to retune legacy lai_power coefficients and review initial sdd_id.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13896,20 +14060,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev17",
+  "title": "SUEWS Configuration Schema v2026.6.dev23",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev17.json",
-  "version": "2026.6.dev17",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev23.json",
+  "version": "2026.6.dev23",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev17"
+    "schema_version": "2026.6.dev23"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev17",
+      "schema_version": "2026.6.dev23",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

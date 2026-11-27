@@ -4,8 +4,9 @@
 Selectors in test/known_defects.yml use exact attributes or an id_prefix (not
 regular expressions). Each stored record must match exactly once. Counts are
 records, not unique bugs or passing tests; weighted occurrences and mutation
-slices are separate quantities. Issue existence/state is checked by CI, offline
-checks validate syntax only. Report mode returns zero even with findings.
+slices are separate quantities. Active and rationale issue existence/state is
+checked by CI, offline checks validate syntax only. Report mode returns zero
+even with findings.
 """
 
 import argparse
@@ -26,7 +27,9 @@ JACOBIAN = "src/suews_bridge/tests/yaml_jacobian.rs"
 OBSERVER = "scripts/suews/gen_capi_field_observer.py"
 MANIFEST = "src/suews_bridge/test_observer/observer_manifest.rs"
 OPTION_SWEEP = "test/physics/test_option_sweep.py"
-CLASSES = ("defect", "coverage_gap", "accepted_exception")
+ACTIVE_CLASSES = ("defect", "coverage_gap")
+RATIONALE_CLASSES = ("accepted_exception",)
+CLASSES = (*ACTIVE_CLASSES, *RATIONALE_CLASSES)
 STRING = r'"(?:[^"\\]|\\.)*"'
 _SAFE_SCALAR_BUILTINS = frozenset({
     "all",
@@ -2802,6 +2805,16 @@ def check_tree(root: Path) -> dict:
         group["records"] += 1
         group["occurrences"] += record.get("occurrences", 0)
         group["slices"] += record.get("slices", 0)
+    active_issues = sorted({
+        item["issue"] for item in linked if item["classification"] in ACTIVE_CLASSES
+    })
+    active_issue_set = set(active_issues)
+    rationale_issues = sorted({
+        item["issue"]
+        for item in linked
+        if item["classification"] in RATIONALE_CLASSES
+        and item["issue"] not in active_issue_set
+    })
     return {
         "summary": {
             "records": len(records),
@@ -2820,7 +2833,9 @@ def check_tree(root: Path) -> dict:
             }
             for key, value in sorted(groups.items())
         ],
-        "issues": sorted({item["issue"] for item in linked}),
+        "issues": sorted({*active_issues, *rationale_issues}),
+        "active_issues": active_issues,
+        "rationale_issues": rationale_issues,
         "records": linked,
         "errors": errors,
     }
@@ -2830,12 +2845,16 @@ def render_report(report: dict) -> str:
     """Render ASCII Markdown; a green inventory is not scientific validation."""
     summary = report["summary"]
     status = "FAILED" if report["errors"] else "green"
+    active_issues = report.get("active_issues", ())
+    rationale_issues = report.get("rationale_issues", ())
     lines = [
         "# Recorded test debt",
         "",
         f"Inventory {status} with {summary['defect']} recorded defects; "
         f"{summary['coverage_gap']} coverage gaps; {summary['accepted_exception']} accepted exceptions.",
         f"{summary['mapped']}/{summary['records']} records mapped; {summary['errors']} errors.",
+        f"Owners: {len(active_issues)} active (must stay open); "
+        f"{len(rationale_issues)} rationale-only (may be closed).",
         "",
         "Counts are stored records, not unique bugs or evidence that physics passes.",
         "Occurrence weights apply only to optional-read/literal counters; slices only to mutation records.",

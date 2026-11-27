@@ -117,18 +117,22 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].properties.stebbs.temperature_air_annual_mean",
 ];
 
-/// Shared `BuildingLayer` schema keys serialised on the non-owning SPARTACUS
-/// facet (`walls[i].roof_albedo_dir_mult_fact` is roof-only;
-/// `roofs[i].wall_specular_frac` is wall-only; see
-/// `src/supy/data_model/core/surface.py`). Perturbing any of these keys must
-/// leave every `RunConfig` slot strictly invariant.
-const NON_OWNING_FACET_KEYS: &[&str] = &[
-    "sites[0].properties.vertical_layers.roofs[0].wall_specular_frac",
-    "sites[0].properties.vertical_layers.roofs[1].wall_specular_frac",
-    "sites[0].properties.vertical_layers.roofs[2].wall_specular_frac",
-    "sites[0].properties.vertical_layers.walls[0].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.walls[2].roof_albedo_dir_mult_fact",
+/// Former shared `BuildingLayer` cross-facet keys (`walls[i].roof_albedo_dir_mult_fact`
+/// and `roofs[i].wall_specular_frac`). Empty now that #2085 moved
+/// `roof_albedo_dir_mult_fact` onto `RoofLayer` only and `wall_specular_frac`
+/// onto `WallLayer` only; runtime invariance for legacy YAML inputs containing
+/// these cross-facet keys is exercised directly in check 7 below.
+const NON_OWNING_FACET_KEYS: &[&str] = &[];
+
+/// Scheme-gated YAML keys whose owning scheme is inactive across all six
+/// default Jacobian anchors (`irrigation.daywat.* == 0.0`, so
+/// `modelled_irrigation_active == false` and Rust exports neutral `0/0`).
+/// Active 1:1 wiring and strict DOY rejection when `daywat == 1.0` are
+/// verified explicitly in `precedence_fallbacks_and_spartacus_facet_isolation`
+/// and `nan_poison_completeness_across_all_six_anchors`.
+const INACTIVE_SCHEME_GATED_KEYS: &[&str] = &[
+    "sites[0].properties.irrigation.ie_start",
+    "sites[0].properties.irrigation.ie_end",
 ];
 
 /// Reviewed slots permitted to be perturbed by more than one distinct YAML key
@@ -1315,20 +1319,21 @@ fn probe_waterdist_simplex_group(
                         .into_iter()
                         .map(|(idx, bv, pv)| (layout.names[idx].clone(), bv, pv))
                         .collect();
-                    let isolated = if named_diffs.len() == 2 {
-                        let d0 = named_diffs[0].2 - named_diffs[0].1;
-                        let d1 = named_diffs[1].2 - named_diffs[1].1;
-                        if (d0 - signed_delta).abs() <= DELTA_TOL
-                            && (d1 + signed_delta).abs() <= DELTA_TOL
-                        {
-                            vec![named_diffs[0].clone()]
-                        } else if (d1 - signed_delta).abs() <= DELTA_TOL
-                            && (d0 + signed_delta).abs() <= DELTA_TOL
-                        {
-                            vec![named_diffs[1].clone()]
-                        } else {
-                            named_diffs
-                        }
+                    let pos_diffs: Vec<(String, f64, f64)> = named_diffs
+                        .iter()
+                        .filter(|(_, bv, pv)| ((pv - bv) - signed_delta).abs() <= DELTA_TOL)
+                        .cloned()
+                        .collect();
+                    let neg_diffs: Vec<(String, f64, f64)> = named_diffs
+                        .iter()
+                        .filter(|(_, bv, pv)| ((pv - bv) + signed_delta).abs() <= DELTA_TOL)
+                        .cloned()
+                        .collect();
+                    let isolated = if !pos_diffs.is_empty()
+                        && pos_diffs.len() == neg_diffs.len()
+                        && pos_diffs.len() + neg_diffs.len() == named_diffs.len()
+                    {
+                        pos_diffs
                     } else {
                         named_diffs
                     };
@@ -1346,6 +1351,7 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     let known_dead: BTreeSet<&str> = KNOWN_DEAD_KEYS
         .iter()
         .chain(NON_OWNING_FACET_KEYS.iter())
+        .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .copied()
         .collect();
     let known_non_unit: BTreeSet<&str> = KNOWN_NON_UNIT_DELTAS.iter().map(|(k, _)| *k).collect();
@@ -1354,12 +1360,19 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     let mut dead_floats: Vec<&NumericLeaf> = Vec::new();
     let mut profile_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
     let mut waterdist_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
+    let mut sfr_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
     let mut scalar_floats: Vec<&NumericLeaf> = Vec::new();
 
     for leaf in leaves {
         if let Some((surf_prefix, _)) = leaf.display.rsplit_once(".waterdist.") {
             waterdist_groups.entry(surf_prefix).or_default().push(leaf);
             continue;
+        }
+        if leaf.display.ends_with(".sfr") {
+            if let Some((site_prefix, _)) = leaf.display.split_once(".properties.land_cover.") {
+                sfr_groups.entry(site_prefix).or_default().push(leaf);
+                continue;
+            }
         }
         let is_known_dead = known_dead.contains(leaf.display.as_str());
         if is_known_dead && !leaf.is_int {
@@ -1370,7 +1383,6 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
             || is_known_dead
             || known_non_unit.contains(leaf.display.as_str())
             || leaf.display.contains(".vertical_layers.building_frac[")
-            || leaf.display.ends_with(".sfr")
             || leaf.display.ends_with(".reduction_factor_shading")
             || leaf.display.ends_with(".fraction_convective_heating");
         if force_single {
@@ -1383,6 +1395,9 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     }
 
     for (_, group_leaves) in waterdist_groups {
+        jobs.push(ProbeJob::WaterdistSimplex(group_leaves));
+    }
+    for (_, group_leaves) in sfr_groups {
         jobs.push(ProbeJob::WaterdistSimplex(group_leaves));
     }
 
@@ -1636,11 +1651,13 @@ fn build_expected_receivers(
     }
 
     // 4. Irrigation scalars, daywat/daywatper, and all 96 24-hour profile slots.
+    //    `ie_start` / `ie_end` are gated on `modelled_irrigation_active`
+    //    (inactive on all six default anchors with `daywat.* == 0.0`) and
+    //    verified live when `daywat.monday == 1.0` in
+    //    `precedence_fallbacks_and_spartacus_facet_isolation`.
     for field in [
         "h_maintain",
         "faut",
-        "ie_start",
-        "ie_end",
         "internalwateruse_h",
     ] {
         b.expect_one(
@@ -2257,6 +2274,8 @@ fn build_expected_receivers(
                 ("lai.lai_min", format!("{site_lc}.lai.laimin")),
                 ("lai.lai_max", format!("{site_lc}.lai.laimax")),
                 ("lai.lai_type", format!("{site_lc}.lai.laitype")),
+                ("lai.gdd_base", format!("{site_lc}.lai.gdd_base")),
+                ("lai.sdd_base", format!("{site_lc}.lai.sdd_base")),
                 (
                     "lai.lai_power.growth_lai",
                     format!("{site_lc}.lai.laipower_1"),
@@ -2655,13 +2674,15 @@ fn validate_sweep_report(
 ) -> Result<ValidationSummary, Vec<String>> {
     let mut violations = Vec::new();
 
-    // The six resolved anchors retain at least 2823 leaves after removing the
-    // 14 forbidden radiation-memory inputs (formerly 2854) and the remaining 17
-    // forbidden continuation-state leaves (formerly 2840). Keep every remaining
-    // leaf in the sweep; no dead-key or profile allowance is relaxed.
-    if report.leaves_tested < 2823 {
+    // The six resolved anchors retain at least 2817 leaves after removing the
+    // 14 forbidden radiation-memory inputs (formerly 2854), the remaining 17
+    // forbidden continuation-state leaves (formerly 2840), and the 6 cross-facet
+    // optical keys split off BuildingLayer under #2085 (formerly 2823). Keep
+    // every remaining leaf in the sweep; no dead-key or profile allowance is
+    // relaxed.
+    if report.leaves_tested < 2817 {
         violations.push(format!(
-            "{fixture_label}: expected >= 2823 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
+            "{fixture_label}: expected >= 2817 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
             report.leaves_tested
         ));
     }
@@ -2726,12 +2747,13 @@ fn validate_sweep_report(
         ));
     }
 
-    // 1a. Non-owning SPARTACUS facet invariance: shared BuildingLayer schema
-    //     keys emitted on the non-owning facet must leave every RunConfig slot
-    //     strictly invariant (zero moved slots).
+    // 1a. Non-owning SPARTACUS facet & inactive scheme-gated invariance:
+    //     keys outside the active owning facet/scheme must leave every
+    //     RunConfig slot strictly invariant (zero moved slots).
     let non_owning_keys: BTreeSet<String> = allowlist
         .non_owning_facet_keys
         .iter()
+        .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .map(|s| (*s).to_string())
         .collect();
     let mut non_owning_violations = Vec::new();
@@ -3779,11 +3801,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
     );
     let base_no_roof0_flat = flatten_run_config_map(&base_no_roof0_rc);
     let mut pert_wall0_mult = no_roof0_mult;
-    let mut wall0_mult_path = wall0_parent.to_vec();
-    wall0_mult_path.push(Step::Key("roof_albedo_dir_mult_fact".into()));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_wall0_mult,
-        &wall0_mult_path,
+        &wall0_parent,
+        "roof_albedo_dir_mult_fact",
         serde_yaml::to_value(0.77_f64).unwrap(),
     ));
     let pert_wall0_mult_flat = flatten_run_config_map(
@@ -3799,17 +3820,16 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
     // 7b: Remove walls[0].wall_specular_frac -> active SPARTACUS rejects even
     //     with roofs[0].wall_specular_frac set (BR-03), and inactive SPARTACUS
     //     leaves roofs[0].wall_specular_frac strictly invariant.
-    let mut roof0_spec_path = roof0_parent.to_vec();
-    roof0_spec_path.push(Step::Key("wall_specular_frac".into()));
     let mut active_no_wall0_spec = orig_stebbs.clone();
     assert!(remove_mapping_key(
         &mut active_no_wall0_spec,
         &wall0_parent,
         "wall_specular_frac",
     ));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut active_no_wall0_spec,
-        &roof0_spec_path,
+        &roof0_parent,
+        "wall_specular_frac",
         serde_yaml::to_value(0.63_f64).unwrap(),
     ));
     let active_err = load_run_config_from_value(&mut active_no_wall0_spec)
@@ -3831,9 +3851,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
             .expect("load inactive SPARTACUS without wall0 specular"),
     );
     let mut pert_roof0_spec = no_wall0_spec;
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_roof0_spec,
-        &roof0_spec_path,
+        &roof0_parent,
+        "wall_specular_frac",
         serde_yaml::to_value(0.63_f64).unwrap(),
     ));
     let pert_roof0_spec_flat = flatten_run_config_map(
@@ -3867,9 +3888,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
         &roof0_mult_path,
         serde_yaml::to_value(exp_roof_mult).unwrap(),
     ));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_both,
-        &wall0_mult_path,
+        &wall0_parent,
+        "roof_albedo_dir_mult_fact",
         serde_yaml::to_value(0.91_f64).unwrap(),
     ));
     assert!(set_scalar_or_ref_value(
@@ -3877,9 +3899,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
         &wall0_spec_path,
         serde_yaml::to_value(exp_wall_spec).unwrap(),
     ));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_both,
-        &roof0_spec_path,
+        &roof0_parent,
+        "wall_specular_frac",
         serde_yaml::to_value(0.73_f64).unwrap(),
     ));
     let pert_both_flat = flatten_run_config_map(
@@ -3920,7 +3943,20 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
             "site.anthroemis.enddls",
         ),
     ];
-    let mut base_sample_mut = orig_sample.clone();
+    let mut active_irr_sample = orig_sample.clone();
+    assert!(set_scalar_or_ref_value(
+        &mut active_irr_sample,
+        &[
+            Step::Key("sites".into()),
+            Step::Idx(0),
+            Step::Key("properties".into()),
+            Step::Key("irrigation".into()),
+            Step::Key("daywat".into()),
+            Step::Key("monday".into()),
+        ],
+        serde_yaml::to_value(1.0_f64).unwrap(),
+    ));
+    let mut base_sample_mut = active_irr_sample.clone();
     let base_flat = flatten_run_config_map(
         &load_run_config_from_value(&mut base_sample_mut).expect("load sample"),
     );
@@ -3933,7 +3969,7 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
         full_path.extend(rel_path.iter().map(|s| Step::Key((*s).to_string())));
         let base_val = base_flat[*slot_name];
         let step: i64 = if base_val >= 366.0 { -1 } else { 1 };
-        let mut pert_root = orig_sample.clone();
+        let mut pert_root = active_irr_sample.clone();
         assert!(set_scalar_or_ref_value(
             &mut pert_root,
             &full_path,
@@ -3954,7 +3990,7 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
             Value::Number(0_i64.into()),
             Value::Number(367_i64.into()),
         ] {
-            let mut bad_root = orig_sample.clone();
+            let mut bad_root = active_irr_sample.clone();
             assert!(set_scalar_or_ref_value(
                 &mut bad_root,
                 &full_path,
@@ -4254,8 +4290,6 @@ fn nan_poison_completeness_across_all_six_anchors() {
             strict_jobs.push((anchor_idx, format!("sites[0].properties.{field}")));
         }
         for field in [
-            "irrigation.ie_start",
-            "irrigation.ie_end",
             "anthropogenic_emissions.startdls",
             "anthropogenic_emissions.enddls",
         ] {
@@ -4706,6 +4740,7 @@ fn make_clean_synthetic_report() -> SweepReport {
     let dead_keys: BTreeSet<String> = KNOWN_DEAD_KEYS
         .iter()
         .chain(NON_OWNING_FACET_KEYS.iter())
+        .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .map(|s| (*s).to_string())
         .collect();
     let non_unit_deltas: BTreeMap<(String, String), String> = KNOWN_NON_UNIT_DELTAS
@@ -4810,8 +4845,7 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     // 4b. Negative control: reintroducing the #2085 cross-facet clobber
     //     (`walls[1].roof_albedo_dir_mult_fact` taking ownership of
     //     `roof_albedo_dir_mult_fact_01_02` from `roofs[1]`) MUST fail
-    //     non-owning facet invariance, cross-facet ownership, and
-    //     named-receiver verification.
+    //     cross-facet ownership and named-receiver verification.
     let mut reintroduced_clobber = clean.clone();
     let r1 = "sites[0].properties.vertical_layers.roofs[1].roof_albedo_dir_mult_fact".to_string();
     let w1 = "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact".to_string();
@@ -4834,12 +4868,9 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     .expect_err("reintroducing #2085 cross-facet clobber must fail immediately");
     assert!(
         err.iter()
-            .any(|m| m.contains("non-owning SPARTACUS facet invariance") && m.contains(&w1))
-            && err
-                .iter()
-                .any(|m| m.contains("unexpected cross-facet SPARTACUS"))
+            .any(|m| m.contains("unexpected cross-facet SPARTACUS"))
             && err.iter().any(|m| m.contains("named receiver-identity")),
-        "reintroduced clobber must fail invariance, cross-facet, and receiver checks, got: {err:#?}"
+        "reintroduced clobber must fail cross-facet and receiver checks, got: {err:#?}"
     );
 
     // 4c. Negative control: wrong `nspec != 1` (e.g. legacy `nspec = 4`

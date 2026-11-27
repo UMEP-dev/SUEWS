@@ -61,7 +61,7 @@ When auditing a diff that adds a guard, special-case, or optimisation:
   follow.
 
 This lens is also wired into the `audit-pr` checklist
-(`.claude/skills/audit-pr/references/review-checklist.md`, "Design and Placement").
+(`.agents/skills/audit-pr/references/review-checklist.md`, "Design and Placement").
 
 ## Origin
 

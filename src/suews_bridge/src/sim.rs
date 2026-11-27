@@ -23,6 +23,7 @@ use crate::lc_paved_prm::lc_paved_prm_from_ordered_values;
 use crate::lc_water_prm::lc_water_prm_from_ordered_values;
 use crate::lumps::lumps_prm_from_ordered_values;
 use crate::nhood::nhood_state_from_ordered_values;
+use crate::option_codes::{is_dyohm, StebbsMethod, StorageHeatMethod};
 use crate::phenology::phenology_state_from_ordered_values;
 use crate::roughness::roughness_state_from_ordered_values;
 use crate::snow::snow_state_from_ordered_values;
@@ -801,18 +802,6 @@ fn day_of_year_to_month(year: i32, day_of_year: i32) -> Result<i32, BridgeError>
     )))
 }
 
-fn fortran_weekday_from_ymd(year: i32, month: i32, day: i32) -> i32 {
-    // Sakamoto algorithm: returns 0=Sunday, 1=Monday, ..., 6=Saturday.
-    let t = [0_i32, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
-    let mut y = year;
-    if month < 3 {
-        y -= 1;
-    }
-    let w = (y + y / 4 - y / 100 + y / 400 + t[(month - 1) as usize] + day) % 7;
-    // Fortran convention: 1=Sunday, ..., 7=Saturday.
-    w + 1
-}
-
 /// Reject a resumed state whose EHC initial temperatures are not finite when
 /// the configuration selects EHC (storage heat method 5), which reads the
 /// first `ndepth` entries of each surface and of the `nlayer` roofs and
@@ -878,7 +867,10 @@ fn validate_checkpoint_ehc_temperatures(run_cfg: &RunConfig) -> Result<(), Bridg
 /// `buildings(:)` dimensions are incompatible with the resumed configuration
 /// (`BR-06`).
 fn validate_checkpoint_stebbs_state(run_cfg: &RunConfig) -> Result<(), BridgeError> {
-    if !matches!(run_cfg.config.stebbs_method, 1 | 2) {
+    if !matches!(
+        StebbsMethod::try_from(run_cfg.config.stebbs_method),
+        Ok(StebbsMethod::Default | StebbsMethod::Provided)
+    ) {
         return Ok(());
     }
     let nlayer = usize::try_from(run_cfg.nlayer).unwrap_or(0);
@@ -904,11 +896,13 @@ fn validate_checkpoint_stebbs_state(run_cfg: &RunConfig) -> Result<(), BridgeErr
 
 fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError> {
     let storage_heat_method = run_cfg.config.storage_heat_method;
-    if !matches!(storage_heat_method, 6..=8) {
+    if !is_dyohm(storage_heat_method) {
         return Ok(());
     }
 
-    if storage_heat_method == 7 && !matches!(run_cfg.config.net_radiation_method, 1001..=1003) {
+    if storage_heat_method == StorageHeatMethod::Stebbs.as_i32()
+        && !matches!(run_cfg.config.net_radiation_method, 1001..=1003)
+    {
         return Err(simulation_error(format!(
             "STEBBS storage heat (method 7) requires SPARTACUS-Surface net radiation (1001, 1002, or 1003); got {}",
             run_cfg.config.net_radiation_method
@@ -922,7 +916,10 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
 
     // Methods 6 and 8 calculate building DyOHM coefficients, whose
     // parameterisation uses the building surface-to-plan-area ratio.
-    if matches!(storage_heat_method, 6 | 8) {
+    if matches!(
+        StorageHeatMethod::try_from(storage_heat_method),
+        Ok(StorageHeatMethod::Dyohm | StorageHeatMethod::DyohmBuilding)
+    ) {
         let lambda_c = run_cfg.site_scalars.lambda_c;
         if !lambda_c.is_finite() || lambda_c <= 0.0 {
             return Err(simulation_error(format!(
@@ -932,13 +929,13 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
     }
 
     for (surf_idx, &surface_name) in SURFACE_NAMES.iter().enumerate() {
-        let material_is_used = match storage_heat_method {
+        let material_is_used = match StorageHeatMethod::try_from(storage_heat_method) {
             // Full DyOHM uses every SUEWS surface. STEBBS owns the building
             // storage heat and temperatures in method 7, so only non-building
             // surfaces use DyOHM materials. Building-only DyOHM uses buildings.
-            6 => true,
-            7 => surf_idx != BUILDING_SURFACE_INDEX,
-            8 => surf_idx == BUILDING_SURFACE_INDEX,
+            Ok(StorageHeatMethod::Dyohm) => true,
+            Ok(StorageHeatMethod::Stebbs) => surf_idx != BUILDING_SURFACE_INDEX,
+            Ok(StorageHeatMethod::DyohmBuilding) => surf_idx == BUILDING_SURFACE_INDEX,
             _ => false,
         };
         if !material_is_used {
@@ -1033,53 +1030,18 @@ fn prepare_fresh_input(
     run_cfg.timer.imin = parse_time_cell(first_row[3], "imin")?;
     run_cfg.timer.isec = 0;
     run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
-    run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
-    run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
-    run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
     // Match SUEWS standalone stepping semantics: first physics step uses one
     // full timestep elapsed, avoiding dt_since_start/tstep == 0 in DyOHM.
     run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
-    run_cfg.timer.dt_since_start_prev = 0;
-    run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
-        + run_cfg.timer.it as f64 / 24.0
-        + run_cfg.timer.imin as f64 / (60.0 * 24.0)
-        + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
     validate_dyohm_material_inputs(&run_cfg)?;
 
-    let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
-    let day_of_month = {
-        let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        let month_days = if is_leap_year(run_cfg.timer.iy) {
-            &month_days_leap
-        } else {
-            &month_days_common
-        };
-        let mut remaining = run_cfg.timer.id;
-        for (idx, days) in month_days.iter().enumerate() {
-            if idx as i32 + 1 == month {
-                break;
-            }
-            remaining -= *days;
-        }
-        remaining
-    };
-    run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
-    run_cfg.timer.dayofweek_id[1] = month;
-    run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
-        if (4..=9).contains(&month) {
-            1
-        } else {
-            2
-        }
-    } else if month >= 10 || month <= 3 {
-        1
-    } else {
-        2
-    };
+    // The kernel derives the calendar (weekday, month, season, decimal time)
+    // from the timer itself (gh#2333); only the day of year is checked here.
+    day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
 
-    // Match old SUEWS_cal_multitsteps state initialisation:
+    // Cold-start state initialisation, as in the removed legacy Fortran
+    // multi-timestep driver:
     // heatState%temp_surf_dyohm = MetForcingBlock(1,12)  [first-row air temp]
     // heatState%tsfc_surf_dyohm = MetForcingBlock(1,12)
     // ohmState%ws_rav = 2.0
@@ -1178,6 +1140,15 @@ fn prepare_checkpoint_input(
         )));
     }
     run_cfg.state = checkpoint.state;
+    // A saved state owns its envelope profile, even if its elapsed timer was
+    // reset externally. The configuration-start option must never replace it.
+    run_cfg.config.control_ehc_initial_profile = false;
+    // `iter_safe` describes the OHM state type, not the model state: OHM, AnOHM
+    // and DyOHM histories must be reset on every inner surface-temperature
+    // pass. Checkpoints written before that was fixed carry `iter_safe = true`,
+    // which would silently switch the reset off on resume, so the stored flag
+    // is ignored here.
+    run_cfg.state.ohm_state.iter_safe = false;
 
     // Set timer fields from the first forcing row.
     let first_row = &forcing_block[..MET_FORCING_COLS];
@@ -1187,52 +1158,18 @@ fn prepare_checkpoint_input(
     run_cfg.timer.imin = parse_time_cell(first_row[3], "imin")?;
     run_cfg.timer.isec = 0;
     run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
-    run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
-    run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
-    run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+    // The elapsed timer carries on, so a resumed step is never treated as the
+    // first step of the run, while genuine day boundaries still fire normally
+    // (gh#2333).
     run_cfg.timer.dt_since_start = checkpoint.timer.dt_since_start;
-    run_cfg.timer.dt_since_start_prev = checkpoint.timer.dt_since_start_prev;
-    run_cfg.timer.new_day = checkpoint.timer.new_day;
-    run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
-        + run_cfg.timer.it as f64 / 24.0
-        + run_cfg.timer.imin as f64 / (60.0 * 24.0)
-        + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
     validate_dyohm_material_inputs(&run_cfg)?;
     validate_checkpoint_ehc_temperatures(&run_cfg)?;
     validate_checkpoint_stebbs_state(&run_cfg)?;
 
-    let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
-    let day_of_month = {
-        let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        let month_days = if is_leap_year(run_cfg.timer.iy) {
-            &month_days_leap
-        } else {
-            &month_days_common
-        };
-        let mut remaining = run_cfg.timer.id;
-        for (idx, days) in month_days.iter().enumerate() {
-            if idx as i32 + 1 == month {
-                break;
-            }
-            remaining -= *days;
-        }
-        remaining
-    };
-    run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
-    run_cfg.timer.dayofweek_id[1] = month;
-    run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
-        if (4..=9).contains(&month) {
-            1
-        } else {
-            2
-        }
-    } else if month >= 10 || month <= 3 {
-        1
-    } else {
-        2
-    };
+    // The kernel derives the calendar (weekday, month, season, decimal time)
+    // from the timer itself (gh#2333); only the day of year is checked here.
+    day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
 
     // NOTE: Do NOT override temp_surf_dyohm / tsfc_surf_dyohm / ws_rav
     // here — the injected state already carries correct evolved values.
@@ -1366,7 +1303,10 @@ pub fn run_simulation_into(
 
     let out_stebbs_bldg_count = if !input.state.stebbs_state.buildings.is_empty() {
         input.state.stebbs_state.buildings.len()
-    } else if matches!(input.config.stebbs_method, 1 | 2) {
+    } else if matches!(
+        StebbsMethod::try_from(input.config.stebbs_method),
+        Ok(StebbsMethod::Default | StebbsMethod::Provided)
+    ) {
         1
     } else {
         0
@@ -2119,5 +2059,318 @@ mod stebbs_checkpoint_validation_tests {
         disabled.state.stebbs_state.buildings.clear();
         validate_checkpoint_stebbs_state(&disabled)
             .expect("STEBBS disabled skips STEBBS buildings validation");
+    }
+}
+
+#[cfg(all(test, feature = "physics"))]
+mod dailystate_timestep_change_tests {
+    use super::*;
+
+    fn met_row(id: f64, it: f64, imin: f64, temp_c: f64, rain: f64, kdown: f64) -> Vec<f64> {
+        let mut row = vec![-999.0_f64; MET_FORCING_COLS];
+        row[0] = 2012.0; // iy
+        row[1] = id; // id (DOY)
+        row[2] = it; // it (hour)
+        row[3] = imin; // imin (minute)
+        row[9] = 2.0; // U
+        row[10] = 60.0; // RH
+        row[11] = temp_c; // Tair
+        row[12] = 101.3; // pres [kPa]
+        row[13] = rain; // rain [mm]
+        row[14] = kdown; // kdown [W m-2]
+        row[15] = 0.0; // snow
+        row[16] = 320.0; // ldown
+        row[17] = 0.5; // fcld
+        row[18] = 0.0; // Wuh
+        row[19] = 0.0; // xsmd
+        row[20] = 4.0; // lai
+        row[21] = 0.0; // kdiff
+        row[22] = 0.0; // kdir
+        row[23] = 180.0; // wdir
+        row
+    }
+
+    fn load_sample_run_cfg() -> crate::yaml_config::RunConfig {
+        let yaml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test/fixtures/bridge/sample_resolved.yml");
+        let yaml_str = std::fs::read_to_string(&yaml_path)
+            .expect("sample_resolved.yml fixture must be readable");
+        let mut run_cfg =
+            load_run_config_from_str(&yaml_str).expect("sample_resolved.yml fixture must load");
+        // Use direct forcing temperature in DailyState (RSLLevel = 0).
+        run_cfg.config.rsl_level = 0;
+        run_cfg
+    }
+
+    #[test]
+    fn between_day_timestep_change_at_closed_midnight_preserves_daily_state() {
+        let mut run_cfg = load_sample_run_cfg();
+
+        // Seed Day 1 state just before its closing 00:00 step (287 five-minute steps done).
+        let steps_before = 287;
+        run_cfg.state.anthroemis_state.hdd_id = [0.0; 12];
+        run_cfg.state.anthroemis_state.hdd_id[2] = 20.0 * (steps_before as f64);
+        run_cfg.state.anthroemis_state.hdd_id[3] = 99.0;
+        run_cfg.state.anthroemis_state.hdd_id[4] = 4.0;
+        run_cfg.state.phenology_state.tmin_id = 18.0;
+        run_cfg.state.phenology_state.tmax_id = 22.0;
+
+        // Step 1: Day 1 closing midnight DOY 2 00:00 at tstep=300 closes and emits Day 1.
+        run_cfg.timer.tstep = 300;
+        run_cfg.timer.tstep_prev = 300;
+        run_cfg.timer.dt_since_start = (steps_before + 1) * 300;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(2.0, 0.0, 0.0, 20.0, 1.5, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("Day 1 closing midnight step should succeed");
+
+        assert!(
+            (out1.state.anthroemis_state.hdd_id[8] - 20.0).abs() < 1e-12,
+            "Day 1 HDD3_Tmean must close cleanly at 20.0, got {}",
+            out1.state.anthroemis_state.hdd_id[8]
+        );
+        assert!(
+            (out1.state.anthroemis_state.hdd_id[10] - 5.5).abs() < 1e-12,
+            "Day 1 P_day must close cleanly at 5.5 mm, got {}",
+            out1.state.anthroemis_state.hdd_id[10]
+        );
+
+        // Step 2: Day 2 opens cleanly at DOY 2 00:20 with a new tstep=1200 (tstep_prev=300)
+        // and continues to 00:40 in the same batch (verifying SUEWS_cal_multitsteps updates
+        // tstep_prev after 00:20 so 00:40 does not falsely trip error 118).
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 1200;
+        timer2.tstep_prev = 300;
+        timer2.dt_since_start = (steps_before + 1) * 300 + 1200;
+
+        let mut forcing_day2 = met_row(2.0, 0.0, 20.0, 6.0, 0.75, 0.0);
+        forcing_day2.extend(met_row(2.0, 0.0, 40.0, 12.0, 0.50, 0.0));
+
+        let out2 = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: forcing_day2,
+            len_sim: 2,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("clean between-day timestep change across multi-step batch should succeed");
+
+        assert_eq!(out2.timer.tstep_prev, 1200);
+        assert!(
+            (out2.state.anthroemis_state.hdd_id[4] - 1.25).abs() < 1e-12,
+            "Day 2 P_day must reset at 00:20 and accumulate through 00:40 (0.75 + 0.50 = 1.25 mm), got {}",
+            out2.state.anthroemis_state.hdd_id[4]
+        );
+        assert!(
+            (out2.state.phenology_state.tmin_id - 6.0).abs() < 1e-12
+                && (out2.state.phenology_state.tmax_id - 12.0).abs() < 1e-12,
+            "Day 2 Tmin/Tmax must span 6.0..12.0 across 00:20..00:40, got {}/{}",
+            out2.state.phenology_state.tmin_id,
+            out2.state.phenology_state.tmax_id
+        );
+    }
+
+    #[test]
+    fn intraday_timestep_change_is_rejected_with_code_118() {
+        let mut run_cfg = load_sample_run_cfg();
+
+        // Step 1: Day 2 opens at 00:05 with tstep=300 (dt_since_start > tstep).
+        run_cfg.timer.tstep = 300;
+        run_cfg.timer.tstep_prev = 300;
+        run_cfg.timer.dt_since_start = 86_400;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(2.0, 0.0, 5.0, 20.0, 1.0, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("step 1 (00:05) should succeed");
+
+        // Step 2: changing tstep mid-day (00:05 -> 00:25, tstep=1200, tstep_prev=300)
+        // must fail loudly with error code 118 rather than corrupting update_HDD means.
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 1200;
+        timer2.tstep_prev = 300;
+        timer2.dt_since_start = 86_400 + 1200;
+
+        let err = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: met_row(2.0, 0.0, 25.0, 20.0, 1.0, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect_err("intra-day timestep change must be rejected");
+
+        assert!(
+            matches!(
+                err,
+                crate::error::BridgeError::SimulationError {
+                    code: 118,
+                    ref message,
+                } if message.contains("SUEWS_cal_DailyState")
+            ),
+            "expected SimulationError code 118 from SUEWS_cal_DailyState, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn midnight_skipping_timestep_change_is_rejected_with_code_118() {
+        let mut run_cfg = load_sample_run_cfg();
+
+        // Step 1: DOY 16 23:55 at tstep=300 leaves DOY 16 open (predicts 00:00 next).
+        let steps_before = 286;
+        run_cfg.timer.tstep = 300;
+        run_cfg.timer.tstep_prev = 300;
+        run_cfg.timer.dt_since_start = (steps_before + 1) * 300;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(16.0, 23.0, 55.0, 20.0, 1.5, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("step 1 (23:55) should succeed");
+
+        // Step 2: jumping across midnight without closing DOY 16 (23:55 -> 00:15,
+        // tstep=1200, tstep_prev=300) must fail loudly with error code 118 instead
+        // of silently dropping DOY 16's DailyStateLine record.
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 1200;
+        timer2.tstep_prev = 300;
+        timer2.dt_since_start = (steps_before + 1) * 300 + 1200;
+
+        let err = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: met_row(17.0, 0.0, 15.0, 3.0, 0.25, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect_err("midnight-skipping timestep change must be rejected");
+
+        assert!(
+            matches!(
+                err,
+                crate::error::BridgeError::SimulationError {
+                    code: 118,
+                    ref message,
+                } if message.contains("SUEWS_cal_DailyState")
+            ),
+            "expected SimulationError code 118 from SUEWS_cal_DailyState, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn between_day_timestep_reduction_does_not_repeat_dyohm_daily_update() {
+        let mut run_cfg = load_sample_run_cfg();
+        run_cfg.config.storage_heat_method = 6; // DyOHM (all surfaces)
+
+        // Step 1: Day 1 closing midnight DOY 2 00:00 at tstep=3600 (24th hour).
+        // DyOHM updates daily coefficients at 00:00 (previous endpoint D1 23:00).
+        run_cfg.timer.tstep = 3600;
+        run_cfg.timer.tstep_prev = 3600;
+        run_cfg.timer.dt_since_start = 24 * 3600;
+        run_cfg.state.ohm_state.ws_rav = 2.5;
+        run_cfg.state.ohm_state.qn_rav = [50.0; 7];
+        run_cfg.state.ohm_state.t2_prev = 10.0;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(2.0, 0.0, 0.0, 20.0, 0.0, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("Day 1 closing midnight step at tstep=3600 should succeed");
+
+        let a1_after_midnight = out1.state.ohm_state.dyn_a1[1];
+        let a2_after_midnight = out1.state.ohm_state.dyn_a2[1];
+        let a3_after_midnight = out1.state.ohm_state.dyn_a3[1];
+        let t2_prev_after_midnight = out1.state.ohm_state.t2_prev;
+        assert!(
+            (t2_prev_after_midnight - 10.0).abs() > 1e-6,
+            "DyOHM must update T_prev at midnight (00:00), got {t2_prev_after_midnight}"
+        );
+
+        // Step 2: reduce tstep from 3600 s to 300 s at DOY 2 00:05 (tstep_prev=3600).
+        // This is a valid between-day timestep change after a closed day boundary,
+        // and its interval is (00:00, 00:05] on DOY 2, so DyOHM must NOT fire its
+        // daily coefficient update a second time.
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 300;
+        timer2.tstep_prev = 3600;
+        timer2.dt_since_start = 24 * 3600 + 300;
+
+        let out2 = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: met_row(2.0, 0.0, 5.0, 25.0, 0.0, 100.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("clean between-day timestep reduction at 00:05 should succeed");
+
+        assert_eq!(out2.timer.tstep_prev, 300);
+        assert_eq!(
+            out2.state.ohm_state.dyn_a1[1].to_bits(),
+            a1_after_midnight.to_bits(),
+            "DyOHM dyn_a1[bldg] must not recompute at 00:05 after timestep reduction"
+        );
+        assert_eq!(
+            out2.state.ohm_state.dyn_a2[1].to_bits(),
+            a2_after_midnight.to_bits(),
+            "DyOHM dyn_a2[bldg] must not recompute at 00:05 after timestep reduction"
+        );
+        assert_eq!(
+            out2.state.ohm_state.dyn_a3[1].to_bits(),
+            a3_after_midnight.to_bits(),
+            "DyOHM dyn_a3[bldg] must not recompute at 00:05 after timestep reduction"
+        );
+        assert_eq!(
+            out2.state.ohm_state.t2_prev.to_bits(),
+            t2_prev_after_midnight.to_bits(),
+            "DyOHM t2_prev must not be overwritten at 00:05 after timestep reduction"
+        );
     }
 }

@@ -15,7 +15,7 @@ from fnmatch import fnmatch
 from heapq import heappop, heappush
 import os
 import os.path
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 import re
 import shutil
 from shutil import copyfile, move, rmtree
@@ -33,6 +33,7 @@ import pandas as pd
 
 from ...._env import logger_supy, trv_supy_module
 from ...._load import load_SUEWS_nml_simple
+from ...._misc import path_insensitive
 from .legacy import LegacyTable, read_legacy_table, write_legacy_table
 from .profile_manager import ProfileManager
 
@@ -798,6 +799,233 @@ def change_var_nml(toFile, toVar, toVal):
     nml.write(toFile)
 
 
+def _extract_leaf_name(raw_path: str, default_name: str = "Input") -> str:
+    """Return the final meaningful folder component of ``raw_path``."""
+    stripped = raw_path.strip()
+    pure_path: PurePath = (
+        PureWindowsPath(stripped)
+        if ("\\" in stripped or PureWindowsPath(stripped).drive)
+        else PurePosixPath(stripped)
+    )
+    parts: list[str] = []
+    for part in pure_path.parts:
+        if part in {"", ".", pure_path.anchor, pure_path.drive, pure_path.root}:
+            continue
+        if part == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(part)
+    return parts[-1] if parts else default_name
+
+
+def _is_absolute_path(raw_path: str) -> bool:
+    """Return ``True`` when ``raw_path`` is absolute in POSIX or Windows syntax."""
+    stripped = raw_path.strip()
+    if not stripped:
+        return False
+    if os.path.isabs(stripped) or PurePosixPath(stripped).is_absolute():
+        return True
+    win_path = PureWindowsPath(stripped)
+    return bool(win_path.drive) or stripped.startswith("\\")
+
+
+def _is_within_dir(raw_path: str, base_dir: Path) -> bool:
+    """Return ``True`` when ``raw_path`` resolves inside ``base_dir``."""
+    stripped = raw_path.strip()
+    if os.name != "nt":
+        win_path = PureWindowsPath(stripped)
+        if win_path.drive or stripped.startswith("\\"):
+            return False
+        if "\\" in stripped:
+            depth = 0
+            for part in win_path.parts:
+                if part in {"", "."}:
+                    continue
+                if part == "..":
+                    depth -= 1
+                    if depth < 0:
+                        return False
+                else:
+                    depth += 1
+    base_resolved = base_dir.resolve()
+    candidate = (base_resolved / stripped).resolve()
+    return candidate.is_relative_to(base_resolved)
+
+
+def _is_relative_within_dir(raw_path: str, base_dir: Path) -> bool:
+    """Return ``True`` when ``raw_path`` is relative and resolves inside ``base_dir``."""
+    return not _is_absolute_path(raw_path) and _is_within_dir(raw_path, base_dir)
+
+
+def _choose_relative_input_dir(
+    raw_input: str,
+    base_dir: Path,
+    raw_output: object = None,
+    source_input_dir: Path | None = None,
+) -> str:
+    """Choose a safe relative ``./<leaf>/`` folder under ``base_dir``."""
+    leaf = _extract_leaf_name(raw_input, default_name="Input")
+    base_resolved = base_dir.resolve()
+    output_resolved: Path | None = None
+    if isinstance(raw_output, str) and _is_within_dir(raw_output, base_resolved):
+        output_resolved = (base_resolved / raw_output.strip()).resolve()
+    source_resolved = (
+        source_input_dir.resolve() if source_input_dir is not None else None
+    )
+
+    def _is_safe_candidate(name: str) -> bool:
+        candidate = (base_resolved / name).resolve()
+        if not candidate.is_relative_to(base_resolved):
+            return False
+        if output_resolved is not None and candidate == output_resolved:
+            return False
+        return source_resolved is None or candidate != source_resolved
+
+    candidates = [leaf]
+    if "Input" not in candidates:
+        candidates.append("Input")
+    candidates.append(f"{leaf}_input")
+
+    for name in candidates:
+        if _is_safe_candidate(name):
+            return f"./{name}/"
+
+    suffix = 2
+    while True:
+        name = f"{leaf}_input_{suffix}"
+        if _is_safe_candidate(name):
+            return f"./{name}/"
+        suffix += 1
+
+
+def _rewrite_external_fileinputpath(
+    path_runcontrol: Path,
+    base_dir: Path,
+    source_input_dir: Path | None = None,
+) -> bool:
+    """Rewrite ``FileInputPath`` in ``RunControl.nml`` when not safely inside ``base_dir``.
+
+    ``FileInputPath`` values that are absolute (POSIX, Windows drive, or UNC),
+    resolve outside ``base_dir`` (for example ``../shared/Input/`` or an
+    escaping symlink), or resolve to ``source_input_dir`` are patched to a
+    relative folder inside ``base_dir`` so converted tables are never written
+    outside ``toDir`` or over source tables. Relative paths already safely
+    inside ``base_dir`` and ``FileOutputPath`` are left untouched.
+    """
+    resolved_rc = Path(path_insensitive(path_runcontrol))
+    if not resolved_rc.is_file():
+        return False
+
+    nml = f90nml.read(str(resolved_rc))
+    if not nml:
+        return False
+    section_name = "runcontrol" if "runcontrol" in nml else next(iter(nml.keys()))
+    section = nml[section_name]
+
+    value = section.get("fileinputpath")
+    if not isinstance(value, str):
+        return False
+
+    base_resolved = base_dir.resolve()
+    source_resolved = (
+        source_input_dir.resolve() if source_input_dir is not None else None
+    )
+    if _is_relative_within_dir(value, base_resolved):
+        candidate = (base_resolved / value.strip()).resolve()
+        if source_resolved is None or candidate != source_resolved:
+            return False
+
+    rewritten = _choose_relative_input_dir(
+        value,
+        base_resolved,
+        section.get("fileoutputpath"),
+        source_input_dir=source_resolved,
+    )
+    tmp_path = resolved_rc.with_name(f".{resolved_rc.name}.tmp")
+    try:
+        f90nml.patch(
+            str(resolved_rc),
+            {section_name: {"fileinputpath": rewritten}},
+            str(tmp_path),
+        )
+        os.replace(tmp_path, resolved_rc)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+    logger_supy.info(
+        "Rewrote FileInputPath %r -> %r in %s so converted tables stay inside %s",
+        value,
+        rewritten,
+        resolved_rc.name,
+        base_dir,
+    )
+    return True
+
+
+def _check_output_dir_not_source_input(
+    path_from_dir: Path,
+    path_to_dir: Path,
+    source_input_dir: Path,
+) -> None:
+    """Reject ``toDir`` equal to ``source_input_dir`` when ``fromDir != toDir``."""
+    from_resolved = path_from_dir.resolve()
+    to_resolved = path_to_dir.resolve()
+    source_resolved = source_input_dir.resolve()
+    if from_resolved != to_resolved and to_resolved == source_resolved:
+        raise ValueError(
+            f"Output directory {to_resolved} resolves to source input directory "
+            f"{source_resolved}; choose a different toDir to avoid overwriting "
+            "source tables."
+        )
+
+
+def _prepare_output_dirs(
+    path_to_dir: Path,
+    source_input_dir: Path | None = None,
+    path_from_dir: Path | None = None,
+) -> tuple[pd.Series, Path]:
+    """Ensure ``FileInputPath`` sits inside ``path_to_dir`` and create output folders.
+
+    ``FileOutputPath`` is left unchanged; its directory is created only when it
+    is relative and resolves inside ``path_to_dir``. When ``path_from_dir``
+    resolves to ``path_to_dir`` (in-place conversion), ``source_input_dir`` is
+    not treated as an overwrite collision.
+    """
+    path_runcontrol = Path(path_insensitive(path_to_dir / "RunControl.nml"))
+    base_resolved = path_to_dir.resolve()
+    source_resolved: Path | None = None
+    if source_input_dir is not None and (
+        path_from_dir is None or path_from_dir.resolve() != base_resolved
+    ):
+        source_resolved = source_input_dir.resolve()
+    _rewrite_external_fileinputpath(
+        path_runcontrol, path_to_dir, source_input_dir=source_resolved
+    )
+
+    ser_nml = load_SUEWS_nml_simple(str(path_runcontrol)).runcontrol
+    path_input = (base_resolved / ser_nml["fileinputpath"].strip()).resolve()
+    if not path_input.is_relative_to(base_resolved):
+        raise ValueError(
+            f"Resolved FileInputPath {path_input} escapes output directory {base_resolved}"
+        )
+    if source_resolved is not None and path_input == source_resolved:
+        raise ValueError(
+            f"Resolved FileInputPath {path_input} would overwrite source input directory"
+        )
+    path_input.mkdir(parents=True, exist_ok=True)
+
+    raw_output = ser_nml.get("fileoutputpath")
+    if isinstance(raw_output, str) and _is_relative_within_dir(
+        raw_output, base_resolved
+    ):
+        path_output = (base_resolved / raw_output.strip()).resolve()
+        path_output.mkdir(parents=True, exist_ok=True)
+
+    return ser_nml, path_input
+
+
 def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
     """Copy files matching patterns and optionally clean text files."""
     for fileX in sorted(os.listdir(fromDir)):
@@ -825,13 +1053,17 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
 
     # Resolve input path from RunControl
-    fileinputpath = ser_nml.get("fileinputpath", "./input/")
+    fileinputpath = ser_nml.get("fileinputpath", "./input/").strip()
     if os.path.isabs(fileinputpath):
         # Absolute path
-        input_dir = Path(fileinputpath)
+        input_dir = Path(fileinputpath).resolve()
     else:
         # Relative path from fromDir
         input_dir = (Path(fromDir) / fileinputpath).resolve()
+
+    _check_output_dir_not_source_input(Path(fromDir), Path(toDir), input_dir)
+    if os.path.exists(toDir) is False:
+        os.mkdir(toDir)
 
     # Copy files from the actual input directory
     if input_dir.exists():
@@ -843,11 +1075,9 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
 
     # Create the standard directory structure
-    ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
-    path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
-    path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()
-    path_input.mkdir(exist_ok=True)
-    path_output.mkdir(exist_ok=True)
+    _, path_input = _prepare_output_dirs(
+        Path(toDir), source_input_dir=input_dir, path_from_dir=Path(fromDir)
+    )
 
     # Move table files to Input directory
     list_table_input = sorted(
@@ -1141,14 +1371,14 @@ def _apply_step_moves(toDir, harvested, fromVer, toVer):
 
 # a single conversion between two versions
 def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
-    # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
-    if os.path.exists(toDir) is False:
-        os.mkdir(toDir)
-
     # Special case: if fromVer == toVer, just copy and clean without conversion
     if fromVer == toVer:
         _handle_same_version_copy(fromDir, toDir, fromVer)
         return
+
+    # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
+    if os.path.exists(toDir) is False:
+        os.mkdir(toDir)
 
     # Normal conversion process continues below
     fileList = _build_file_list(fromDir, fromVer)
@@ -1547,7 +1777,16 @@ def convert_table(
         The conversion process:
         1. Reads input files from fromDir (using paths in RunControl.nml)
         2. Performs chained conversion through intermediate versions if needed
-        3. Writes converted files to toDir in the target version format
+        3. Writes converted files to toDir in the target version format. If
+           ``FileInputPath`` in ``RunControl.nml`` is absolute, resolves
+           outside ``toDir`` (for example a ``../`` path or an escaping
+           symlink), or would overwrite the source input directory, it is
+           rewritten in the output ``RunControl.nml`` to a relative folder
+           inside ``toDir``. Passing a ``toDir`` (different from ``fromDir``)
+           that resolves to the source input directory raises ``ValueError``
+           before any files are written. ``FileOutputPath`` is left unchanged
+           and an external ``FileOutputPath`` directory is not created. Forcing
+           files are not copied.
 
         With debug_dir specified, intermediate conversion steps are preserved for inspection.
 
@@ -1585,6 +1824,11 @@ def convert_table(
     logger_supy.info(f"working on chained conversion {len_chain} actions to take")
     logger_supy.info(f"chained list: {chain_ver[1:]} \n")
 
+    # Locate source input folder and reject toDir == source_input_dir before writing
+    ser_nml = load_SUEWS_nml_simple(str(Path(fromDir) / "RunControl.nml")).runcontrol
+    source_input_dir = (Path(fromDir) / ser_nml["fileinputpath"].strip()).resolve()
+    _check_output_dir_not_source_input(Path(fromDir), Path(toDir), source_input_dir)
+
     # Create debug directory if specified
     if debug_dir is not None:
         debug_path = Path(debug_dir)
@@ -1612,11 +1856,7 @@ def convert_table(
             os.mkdir(tempDir_2)
 
         # flatten all file structures in tempDir_1
-        # locate input folder
-        ser_nml = load_SUEWS_nml_simple(
-            str(Path(fromDir) / "RunControl.nml")
-        ).runcontrol
-        path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
+        path_input = source_input_dir
         list_table_input = sorted(
             list(
                 path_input.glob("SUEWS_*.txt")
@@ -1638,6 +1878,10 @@ def convert_table(
             if path_dst.suffix == ".txt":
                 logger_supy.debug(f"Cleaning original file: {fileX.name}")
                 clean_legacy_table(path_dst)
+
+        # Rewrite any FileInputPath resolving outside tempDir_1 in the working
+        # copy before chained steps run so intermediate steps never re-scan fromDir.
+        _rewrite_external_fileinputpath(tempDir_1 / "RunControl.nml", tempDir_1)
 
         # Indirect version conversion process
         # The alternation logic needs to account for starting position
@@ -1793,12 +2037,9 @@ def convert_table(
             rmtree(tempDir_2, ignore_errors=True)
 
     # cleaning and move input tables into the `input` folder
-    ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
-
-    path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
-    path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()
-    path_input.mkdir(exist_ok=True)
-    path_output.mkdir(exist_ok=True)
+    ser_nml, path_input = _prepare_output_dirs(
+        Path(toDir), source_input_dir=source_input_dir, path_from_dir=Path(fromDir)
+    )
 
     list_table_input = sorted(
         list(Path(toDir).glob("SUEWS*.txt"))

@@ -42,6 +42,7 @@ from ._save import (
     save_df_state,
     save_initcond_nml,
 )
+from .constants import SEC_PER_HOUR
 
 # set up logging module
 logger_supy.setLevel(logging.INFO)
@@ -199,7 +200,7 @@ def load_forcing_grid(
 def _save_supy(
     df_output: pandas.DataFrame,
     df_state_final: pandas.DataFrame,
-    freq_s: int = 3600,
+    freq_s: int = SEC_PER_HOUR,
     site: str = "",
     path_dir_save: str = Path("."),
     path_runcontrol: Optional[str] = None,

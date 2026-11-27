@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from conftest import TIMESTEPS_PER_DAY, load_sample_frames
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -1295,6 +1296,255 @@ class TestGetVariable:
             match="only exists in group 'SUEWS', not in 'NONEXISTENT_GROUP'",
         ):
             completed_sample_sim.get_variable("QH", group="NONEXISTENT_GROUP")
+
+
+@pytest.fixture(scope="module")
+def two_grid_sim(sample_config_loaded, sample_forcing_parsed):
+    """Completed two-grid simulation with distinct site names and surface fractions."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    site_north = cfg.sites[0].model_copy(deep=True)
+    site_north.name = "North"
+    site_north.gridiv = 1
+
+    site_south = cfg.sites[0].model_copy(deep=True)
+    site_south.name = "South"
+    site_south.gridiv = 2
+    # Shift land-cover fractions so grid 1 and grid 2 produce distinct fluxes.
+    lc = site_south.properties.land_cover
+    lc.paved.sfr = 0.05
+    lc.bldgs.sfr = 0.05
+    lc.evetr.sfr = 0.05
+    lc.dectr.sfr = 0.05
+    lc.grass.sfr = 0.70
+    lc.bsoil.sfr = 0.05
+    lc.water.sfr = 0.05
+
+    cfg.sites = [site_north, site_south]
+    _, df_forcing = sample_forcing_parsed(12)
+
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_forcing)
+    sim.run(
+        start_date=df_forcing.index[0],
+        end_date=df_forcing.index[-1],
+        n_jobs=1,
+    )
+    return sim
+
+
+class TestGetVariableMultiGrid:
+    """Two-grid contract tests for ``get_variable(..., site=/grid=)`` (#2212)."""
+
+    @pytest.mark.parametrize("grid_id", [1, 2, np.int64(2)])
+    def test_integer_grid_id_selects_rows_not_columns(self, two_grid_sim, grid_id):
+        """Integer ``site=`` / ``grid=`` selects rows for ``gridiv``, not column positions."""
+        output = two_grid_sim.output
+        expected_grouped = output.df.xs(
+            ("SUEWS", "QH"), level=("group", "var"), axis=1
+        ).xs(int(grid_id), level="grid")
+        expected_ungrouped = output.df.xs("QH", level="var", axis=1).xs(
+            int(grid_id), level="grid"
+        )
+
+        sim_grouped = two_grid_sim.get_variable("QH", group="SUEWS", site=grid_id)
+        out_grouped = output.get_variable("QH", group="SUEWS", grid=grid_id)
+        out_ungrouped = output.get_variable("QH", grid=grid_id)
+        sim_ungrouped = two_grid_sim.get_variable("QH", site=grid_id)
+
+        assert isinstance(sim_grouped, pd.DataFrame)
+        assert sim_grouped.shape == (12, 1)
+        assert isinstance(sim_grouped.index, pd.DatetimeIndex)
+        assert sim_grouped.columns.tolist() == [("SUEWS", "QH")]
+        pd.testing.assert_frame_equal(sim_grouped, expected_grouped)
+        pd.testing.assert_frame_equal(out_grouped, expected_grouped)
+        pd.testing.assert_frame_equal(out_ungrouped, expected_grouped)
+        assert sim_ungrouped.columns.tolist() == ["SUEWS"]
+        pd.testing.assert_frame_equal(sim_ungrouped, expected_ungrouped)
+
+    def test_two_grids_produce_distinct_selected_series(self, two_grid_sim):
+        """Grid 1 and grid 2 selections return their own distinct values."""
+        g1 = two_grid_sim.get_variable("QH", group="SUEWS", site=1)
+        g2 = two_grid_sim.get_variable("QH", group="SUEWS", site=2)
+        all_rows = two_grid_sim.get_variable("QH", group="SUEWS")
+
+        assert len(all_rows) == len(g1) + len(g2) == 24
+        assert not g1.equals(g2)
+
+    @pytest.mark.parametrize("site_name,expected_grid", [("North", 1), ("South", 2)])
+    def test_string_site_name_resolves_to_grid_id(
+        self, two_grid_sim, site_name, expected_grid
+    ):
+        """String site names resolve to the configured ``gridiv`` on both accessors."""
+        output = two_grid_sim.output
+        expected = two_grid_sim.get_variable("QH", group="SUEWS", site=expected_grid)
+
+        pd.testing.assert_frame_equal(
+            two_grid_sim.get_variable("QH", group="SUEWS", site=site_name),
+            expected,
+        )
+        pd.testing.assert_frame_equal(
+            output.get_variable("QH", group="SUEWS", grid=site_name),
+            expected,
+        )
+
+    @pytest.mark.parametrize("grid_text,expected_grid", [("1", 1), ("2", 2)])
+    def test_string_integer_grid_id_resolves(
+        self, two_grid_sim, grid_text, expected_grid
+    ):
+        """Numeric grid ID strings select the matching integer grid ID."""
+        output = two_grid_sim.output
+        expected = output.get_variable("QH", group="SUEWS", grid=expected_grid)
+
+        pd.testing.assert_frame_equal(
+            two_grid_sim.get_variable("QH", group="SUEWS", site=grid_text),
+            expected,
+        )
+        pd.testing.assert_frame_equal(
+            output.get_variable("QH", group="SUEWS", grid=grid_text),
+            expected,
+        )
+
+        # Bare SUEWSOutput without config still resolves integer and numeric-string grid IDs.
+        bare_output = suews_sim_module.SUEWSOutput(output.df, output.state_final)
+        pd.testing.assert_frame_equal(
+            bare_output.get_variable("QH", group="SUEWS", grid=expected_grid),
+            expected,
+        )
+        pd.testing.assert_frame_equal(
+            bare_output.get_variable("QH", group="SUEWS", grid=grid_text),
+            expected,
+        )
+
+    @pytest.mark.parametrize("bad_selector", [0, 99, "0", "99", "Unknown", "1_0"])
+    def test_unknown_grid_or_site_raises_value_error(self, two_grid_sim, bad_selector):
+        """Absent grid IDs (including old positional 0) and unknown names raise ValueError."""
+        with pytest.raises(ValueError, match=r"Available grid IDs: \[1, 2\]"):
+            two_grid_sim.get_variable("QH", group="SUEWS", site=bad_selector)
+        with pytest.raises(ValueError, match=r"Available grid IDs: \[1, 2\]"):
+            two_grid_sim.output.get_variable("QH", group="SUEWS", grid=bad_selector)
+
+    @pytest.mark.parametrize("bad_type", [True, False, 1.5, [1]])
+    def test_invalid_selector_type_raises_type_error(self, two_grid_sim, bad_type):
+        """Booleans and non-(int, str) selectors raise TypeError instead of indexing columns."""
+        with pytest.raises(TypeError, match="integer grid ID or string"):
+            two_grid_sim.get_variable("QH", group="SUEWS", site=bad_type)
+        with pytest.raises(TypeError, match="integer grid ID or string"):
+            two_grid_sim.output.get_variable("QH", group="SUEWS", grid=bad_type)
+
+    def test_ambiguous_duplicate_site_name_raises(self, two_grid_sim):
+        """Duplicate site names across grids raise ValueError instead of picking the first."""
+        dup_cfg = two_grid_sim.config.model_copy(deep=True)
+        dup_cfg.sites[0].name = "SharedSite"
+        dup_cfg.sites[1].name = "SharedSite"
+        dup_output = suews_sim_module.SUEWSOutput(
+            two_grid_sim.output.df,
+            two_grid_sim.output.state_final,
+            config=dup_cfg,
+        )
+        with pytest.raises(ValueError, match=r"ambiguous.*\[1, 2\]"):
+            dup_output.get_variable("QH", group="SUEWS", grid="SharedSite")
+
+    @pytest.mark.parametrize("group", ["SUEWS", "ESTM"])
+    def test_multi_group_variable_with_grid_filter(self, two_grid_sim, group):
+        """Multi-group variables disambiguate by ``group=`` and filter rows by ``site=/grid=``."""
+        output = two_grid_sim.output
+        expected = output.df.xs((group, "QS"), level=("group", "var"), axis=1).xs(
+            2, level="grid"
+        )
+        pd.testing.assert_frame_equal(
+            two_grid_sim.get_variable("QS", group=group, site=2), expected
+        )
+        pd.testing.assert_frame_equal(
+            output.get_variable("QS", group=group, grid=2), expected
+        )
+        with pytest.raises(ValueError, match="appears in multiple groups"):
+            two_grid_sim.get_variable("QS", site=2)
+        with pytest.raises(ValueError, match="appears in multiple groups"):
+            output.get_variable("QS", grid=2)
+
+    def test_single_level_index_without_grid_level_raises(self, two_grid_sim):
+        """Filtering a frame that has no ``grid`` index level raises a clear ValueError."""
+        single_index_df = two_grid_sim.output.df.xs(1, level="grid")
+        out = suews_sim_module.SUEWSOutput(
+            single_index_df, two_grid_sim.output.state_final
+        )
+        with pytest.raises(ValueError, match="no 'grid' level"):
+            out.get_variable("QH", group="SUEWS", grid=1)
+
+    def test_site_name_mapping_survives_config_replacement_and_mutation(
+        self, sample_config_loaded, sample_forcing_parsed
+    ):
+        """Post-run config mutation or ``update_config`` cannot remap existing output site names."""
+        cfg = sample_config_loaded.model_copy(deep=True)
+        site_north = cfg.sites[0].model_copy(deep=True)
+        site_north.name = "North"
+        site_north.gridiv = 1
+
+        site_south = cfg.sites[0].model_copy(deep=True)
+        site_south.name = "South"
+        site_south.gridiv = 2
+        lc = site_south.properties.land_cover
+        lc.paved.sfr = 0.05
+        lc.bldgs.sfr = 0.05
+        lc.evetr.sfr = 0.05
+        lc.dectr.sfr = 0.05
+        lc.grass.sfr = 0.70
+        lc.bsoil.sfr = 0.05
+        lc.water.sfr = 0.05
+        cfg.sites = [site_north, site_south]
+
+        _, df_forcing = sample_forcing_parsed(12)
+        sim = SUEWSSimulation()
+        sim.update_config(cfg, auto_load_forcing=False)
+        sim.update_forcing(df_forcing)
+        output = sim.run(
+            start_date=df_forcing.index[0],
+            end_date=df_forcing.index[-1],
+            n_jobs=1,
+        )
+
+        expected_north = output.get_variable("QH", group="SUEWS", grid=1)
+        expected_south = output.get_variable("QH", group="SUEWS", grid=2)
+        assert not expected_north.equals(expected_south)
+
+        # 1. In-place mutation of the config object referenced by sim and output
+        sim.config.sites[0].gridiv = 2
+        sim.config.sites[1].gridiv = 1
+        pd.testing.assert_frame_equal(
+            output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            output.to_units({"QH": "W m-2"}).get_variable(
+                "QH", group="SUEWS", grid="North"
+            ),
+            expected_north,
+        )
+        pd.testing.assert_frame_equal(
+            output.resample("h").get_variable("QH", group="SUEWS", grid="North"),
+            output.resample("h").get_variable("QH", group="SUEWS", grid=1),
+        )
+        pd.testing.assert_frame_equal(
+            sim.get_variable("QH", group="SUEWS", site="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            sim.output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+
+        # 2. Replacing config via update_config without rerunning keeps the run's mapping
+        swapped_cfg = cfg.model_copy(deep=True)
+        swapped_cfg.sites[0].name = "South"
+        swapped_cfg.sites[1].name = "North"
+        sim.update_config(swapped_cfg, auto_load_forcing=False)
+        pd.testing.assert_frame_equal(
+            sim.get_variable("QH", group="SUEWS", site="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            sim.output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
 
 
 class TestPathResolution:

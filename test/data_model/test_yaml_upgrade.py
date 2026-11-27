@@ -11,6 +11,7 @@ Covers:
     via the shared `-i/-o/-f` flag set.
 """
 
+from copy import deepcopy
 import json
 from pathlib import Path
 
@@ -19,9 +20,10 @@ import pytest
 import yaml
 
 from supy.cmd.table_converter import convert_table_cmd
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
+from supy.data_model.configuration.migration import SchemaMigrator
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.field_renames import CO2PARAMS_RENAMES
-from supy.data_model.configuration import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import (
     YamlUpgradeError,
     upgrade_soil_observation,
@@ -1228,3 +1230,1043 @@ def test_pre_dev9_routes_refuse_active_method_two_transactionally(destination):
         with pytest.raises(YamlUpgradeError, match=SOIL_MIGRATION_MESSAGE):
             SchemaMigrator().migrate(cfg, to_version=destination)
         assert cfg == before
+
+
+def test_dev18_to_dev19_advisory_for_asymmetric_irrigation_preserves_keys(capsys):
+    """2026.6.dev18 -> 2026.6.dev19 logs an advisory for asymmetric schedules without rotating keys."""
+    migrator = SchemaMigrator()
+    asymmetric_daywat = {
+        "monday": 0.0,
+        "tuesday": 0.0,
+        "wednesday": 1.0,
+        "thursday": 0.0,
+        "friday": 0.0,
+        "saturday": 0.0,
+        "sunday": 0.0,
+    }
+    cfg = {
+        "schema_version": "2026.6.dev18",
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": deepcopy(asymmetric_daywat),
+                        "daywatper": {"sunday": 1.0},
+                    }
+                }
+            }
+        ],
+    }
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev19")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev19"
+    assert (
+        migrated["sites"][0]["properties"]["irrigation"]["daywat"] == asymmetric_daywat
+    )
+    assert migrated["sites"][0]["properties"]["irrigation"]["daywatper"] == {
+        "sunday": 1.0
+    }
+    assert (
+        "sites[0].properties.irrigation.daywat has an asymmetric weekday schedule"
+        in err
+    )
+    assert (
+        "sites[0].properties.irrigation.daywatper has an asymmetric weekday schedule"
+        in err
+    )
+
+    # Re-migrating an already-dev19 config is idempotent and does not repeat the advisory.
+    remigrated = migrator.migrate(migrated, to_version="2026.6.dev19")
+    err_repeat = capsys.readouterr().err
+    assert remigrated == migrated
+    assert "asymmetric weekday schedule" not in err_repeat
+
+
+def test_dev18_to_dev19_uniform_irrigation_is_silent(capsys):
+    """Uniform or omitted irrigation weekday schedules emit no dev19 advisory."""
+    migrator = SchemaMigrator()
+    uniform = dict.fromkeys(
+        ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
+        0.5,
+    )
+    cfg = {
+        "schema_version": "2026.6.dev18",
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": uniform,
+                        "daywatper": {"monday": 0, "tuesday": 0.0},
+                    }
+                }
+            },
+            {"properties": {}},
+        ],
+    }
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev19")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev19"
+    assert migrated["sites"][0]["properties"]["irrigation"]["daywat"] == uniform
+    assert "asymmetric weekday schedule" not in err
+
+
+@pytest.mark.parametrize("source_version", ["2026.5", "2026.6.dev17"])
+def test_chained_pre_dev18_to_dev19_preserves_dev18_boundary_and_logs_advisory(
+    source_version, capsys
+):
+    """Chained pre-dev18 -> dev19 runs dev19 advisory, while targeting dev18 does not."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": source_version,
+        "model": {"physics": {"storage_heat": 5}},
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": {"monday": 1.0, "sunday": 0.0},
+                    }
+                }
+            }
+        ],
+    }
+
+    to_dev18 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev18")
+    err_18 = capsys.readouterr().err
+    assert to_dev18["schema_version"] == "2026.6.dev18"
+    assert "ehc_surface_coupling omitted with storage_heat=5" in err_18
+    assert "asymmetric weekday schedule" not in err_18
+
+    to_dev19 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev19")
+    err_19 = capsys.readouterr().err
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert to_dev19["sites"][0]["properties"]["irrigation"]["daywat"] == {
+        "monday": 1.0,
+        "sunday": 0.0,
+    }
+    assert "ehc_surface_coupling omitted with storage_heat=5" in err_19
+    assert (
+        "sites[0].properties.irrigation.daywat has an asymmetric weekday schedule"
+        in err_19
+    )
+
+
+def test_dev19_to_dev20_normalises_ten_minute_profile_keys_and_is_idempotent(capsys):
+    """2026.6.dev19 -> 2026.6.dev20 normalises valid integer/zero-padded 10-min keys."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {
+                            "working_day": {1: 0.1, "02": 0.2, "0144": 0.3},
+                            "holiday": {"1": 0.4, "144": 0.5},
+                        },
+                        "profile_setpoint_temperature_heating_air": {
+                            "working_day": {"001": 20.0, 72: 21.0},
+                            "holiday": None,
+                        },
+                    },
+                    "stebbs": {
+                        "profile_appliance": {
+                            "working_day": {"1": 0.5},
+                            "holiday": {144: 0.9},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+    original = deepcopy(cfg)
+
+    migrated = migrator.migrate(cfg, to_version="2026.6.dev20")
+    err = capsys.readouterr().err
+    assert cfg == original
+    assert migrated["schema_version"] == "2026.6.dev20"
+    arch = migrated["sites"][0]["properties"]["building_archetype"]
+    assert arch["profile_metabolism"]["working_day"] == {
+        "1": 0.1,
+        "2": 0.2,
+        "144": 0.3,
+    }
+    assert arch["profile_metabolism"]["holiday"] == {"1": 0.4, "144": 0.5}
+    assert arch["profile_setpoint_temperature_heating_air"]["working_day"] == {
+        "1": 20.0,
+        "72": 21.0,
+    }
+    assert arch["profile_setpoint_temperature_heating_air"]["holiday"] is None
+    assert migrated["sites"][0]["properties"]["stebbs"]["profile_appliance"][
+        "holiday"
+    ] == {"144": 0.9}
+    assert (
+        "sites[0].properties.building_archetype.profile_metabolism.working_day" in err
+    )
+    assert (
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day"
+        in err
+    )
+    assert "sites[0].properties.stebbs.profile_appliance.holiday" in err
+    assert "profile_metabolism.holiday" not in err
+
+    # Re-migrating an already-canonical dev20 config is idempotent and silent.
+    remigrated = migrator.migrate(migrated, to_version="2026.6.dev20")
+    err_repeat = capsys.readouterr().err
+    assert remigrated == migrated
+    assert err_repeat == ""
+
+
+@pytest.mark.parametrize(
+    ("bad_day_map", "expected_fragment"),
+    [
+        ({"+1": 0.5}, "Invalid 10-minute profile key '+1'"),
+        ({"0": 0.5}, "Invalid 10-minute profile key '0'"),
+        ({"145": 0.5}, "Invalid 10-minute profile key '145'"),
+        ({True: 0.5}, "Invalid 10-minute profile key True"),
+        ({"1": 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+        ({1: 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+    ],
+)
+def test_dev19_to_dev20_rejects_malformed_and_colliding_ten_minute_keys_transactionally(
+    bad_day_map, expected_fragment, capsys
+):
+    """Malformed or colliding 10-minute profile keys fail dev20 migration without mutating input."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {"working_day": {1: 0.5}},
+                    },
+                    "stebbs": {
+                        "profile_flow_hot_water": {"working_day": deepcopy(bad_day_map)},
+                    },
+                }
+            }
+        ],
+    }
+    before = deepcopy(cfg)
+
+    with pytest.raises(
+        YamlUpgradeError, match=r"profile_flow_hot_water\.working_day"
+    ) as exc_info:
+        migrator.migrate(cfg, to_version="2026.6.dev20")
+
+    assert expected_fragment in str(exc_info.value)
+    assert cfg == before
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("source_version", ["2026.5", "2026.6.dev18"])
+def test_chained_pre_dev19_to_dev20_preserves_dev19_boundary(source_version, capsys):
+    """Chained pre-dev19 -> dev20 runs dev20 normalisation, while targeting dev19 does not."""
+    migrator = SchemaMigrator()
+    cfg = {
+        "schema_version": source_version,
+        "sites": [
+            {
+                "properties": {
+                    "irrigation": {
+                        "daywat": {"monday": 1.0, "sunday": 0.0},
+                    },
+                    "building_archetype": {
+                        "profile_setpoint_temperature_cooling_air": {
+                            "working_day": {"01": 25.0, 144: 26.0},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+
+    to_dev19 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev19")
+    err_19 = capsys.readouterr().err
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert (
+        to_dev19["sites"][0]["properties"]["building_archetype"][
+            "profile_setpoint_temperature_cooling_air"
+        ]["working_day"]
+        == {"01": 25.0, 144: 26.0}
+    )
+    assert "asymmetric weekday schedule" in err_19
+    assert "profile_setpoint_temperature_cooling_air" not in err_19
+
+    to_dev20 = migrator.migrate(deepcopy(cfg), to_version="2026.6.dev20")
+    err_20 = capsys.readouterr().err
+    assert to_dev20["schema_version"] == "2026.6.dev20"
+    assert (
+        to_dev20["sites"][0]["properties"]["building_archetype"][
+            "profile_setpoint_temperature_cooling_air"
+        ]["working_day"]
+        == {"1": 25.0, "144": 26.0}
+    )
+    assert "asymmetric weekday schedule" in err_20
+    assert "profile_setpoint_temperature_cooling_air.working_day" in err_20
+
+
+def test_dev20_self_target_normalises_and_rejects_and_dev19_stays_unchanged(capsys):
+    """Same-version dev20 -> dev20 enforces 10-min key rules, while dev19 -> dev19 does not."""
+    migrator = SchemaMigrator()
+    non_canonical_dev20 = {
+        "schema_version": "2026.6.dev20",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {
+                            "working_day": {1: 0.25, "0144": 0.75},
+                        },
+                    },
+                }
+            }
+        ],
+    }
+    migrated = migrator.migrate(non_canonical_dev20, to_version="2026.6.dev20")
+    err = capsys.readouterr().err
+    assert migrated["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"] == {"1": 0.25, "144": 0.75}
+    assert (
+        "sites[0].properties.building_archetype.profile_metabolism.working_day" in err
+    )
+
+    for bad_map, expected in (
+        ({"+1": 0.5}, "Invalid 10-minute profile key '+1'"),
+        ({"1": 0.1, "01": 0.2}, "Duplicate 10-minute profile key '1'"),
+    ):
+        invalid_dev20 = {
+            "schema_version": "2026.6.dev20",
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "profile_appliance": {"holiday": deepcopy(bad_map)},
+                        },
+                    }
+                }
+            ],
+        }
+        before = deepcopy(invalid_dev20)
+        with pytest.raises(
+            YamlUpgradeError, match=r"profile_appliance\.holiday"
+        ) as exc_info:
+            migrator.migrate(invalid_dev20, to_version="2026.6.dev20")
+        assert expected in str(exc_info.value)
+        assert invalid_dev20 == before
+
+    # Same-version dev19 -> dev19 preserves pre-dev20 behaviour without rewriting keys.
+    dev19_cfg = {
+        "schema_version": "2026.6.dev19",
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "profile_metabolism": {"working_day": {"01": 0.5}},
+                    },
+                }
+            }
+        ],
+    }
+    same_dev19 = migrator.migrate(dev19_cfg, to_version="2026.6.dev19")
+    assert same_dev19["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"] == {"01": 0.5}
+    assert capsys.readouterr().err == ""
+
+
+def test_dev8_observed_soil_migration_does_not_leak_dev20_profile_validation():
+    """Observed-soil dev8 -> dev9 validation preserves pre-dev20 keys for <=dev19 and raises YamlUpgradeError for dev20."""
+    from importlib.resources import as_file, files  # noqa: PLC0415
+
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext  # noqa: PLC0415
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    dev8 = deepcopy(base_cfg)
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    bad_wd = dev8["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"]
+    val_1 = bad_wd.pop("1")
+    bad_wd["+1"] = val_1
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    migrator = SchemaMigrator()
+
+    # Historical target dev19 preserves pre-dev20 key behaviour without leaking dev20 validation.
+    to_dev19 = migrator.migrate(
+        deepcopy(dev8), to_version="2026.6.dev19", migration_context=ctx
+    )
+    assert to_dev19["schema_version"] == "2026.6.dev19"
+    assert (
+        "+1"
+        in to_dev19["sites"][0]["properties"]["building_archetype"][
+            "profile_metabolism"
+        ]["working_day"]
+    )
+
+    # Targeting dev20 reaches the dev20 migration delta and raises YamlUpgradeError (not Pydantic ValidationError).
+    with pytest.raises(
+        YamlUpgradeError, match=r"profile_metabolism\.working_day.*Invalid 10-minute profile key '\+1'"
+    ):
+        migrator.migrate(
+            deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
+        )
+
+
+def test_schema_migrate_cli_writes_normalised_output_on_same_version_dev20(
+    tmp_path: Path,
+):
+    """``suews schema migrate`` writes normalised output when same-version dev20 keys change."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    from click.testing import CliRunner  # ruff: ignore[import-outside-top-level]
+
+    from supy.cmd.suews_cli import cli  # ruff: ignore[import-outside-top-level]
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    # 1. Same-version dev20 with valid zero-padded and integer 10-minute keys -> writes output.
+    non_canonical = deepcopy(base_cfg)
+    non_canonical["schema_version"] = "2026.6.dev20"
+    wd = non_canonical["sites"][0]["properties"]["building_archetype"][
+        "profile_metabolism"
+    ]["working_day"]
+    expected_vals = {"1": wd.pop("1"), "2": wd.pop("2"), "144": wd.pop("144")}
+    wd[1] = expected_vals["1"]
+    wd["02"] = expected_vals["2"]
+    wd["0144"] = expected_vals["144"]
+
+    src_path = tmp_path / "dev20_noncanonical.yml"
+    src_text = yaml.safe_dump(non_canonical, sort_keys=False)
+    src_path.write_text(src_text, encoding="utf-8")
+
+    # Dry-run reports migration/normalisation without writing output.
+    runner = CliRunner()
+    dry_res = runner.invoke(
+        cli,
+        [
+            "schema",
+            "migrate",
+            "--target-version",
+            "2026.6.dev20",
+            "--dry-run",
+            str(src_path),
+        ],
+    )
+    assert dry_res.exit_code == 0, dry_res.output
+    assert "Would migrate" in dry_res.output
+    assert not src_path.with_suffix(".migrated.yml").exists()
+
+    # Live run writes <name>.migrated.yml with canonical keys and leaves input untouched.
+    run_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(src_path)],
+    )
+    assert run_res.exit_code == 0, run_res.output
+    assert src_path.read_text(encoding="utf-8") == src_text
+    out_path = src_path.with_suffix(".migrated.yml")
+    assert out_path.exists()
+    out_wd = yaml.safe_load(out_path.read_text(encoding="utf-8"))["sites"][0][
+        "properties"
+    ]["building_archetype"]["profile_metabolism"]["working_day"]
+    assert all(isinstance(k, str) for k in out_wd)
+    assert "02" not in out_wd
+    assert "0144" not in out_wd
+    for key, val in expected_vals.items():
+        assert out_wd[key] == pytest.approx(val)
+
+    # 2. Re-migrating the normalised dev20 config is an idempotent no-op skip (no file written).
+    canonical_path = tmp_path / "dev20_canonical.yml"
+    canonical_path.write_text(out_path.read_text(encoding="utf-8"), encoding="utf-8")
+    skip_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(canonical_path)],
+    )
+    assert skip_res.exit_code == 0, skip_res.output
+    assert "Skipped" in skip_res.output
+    assert not canonical_path.with_suffix(".migrated.yml").exists()
+
+    # 3. Same-version dev20 with colliding 10-minute keys exits nonzero and writes nothing.
+    colliding_cfg = deepcopy(base_cfg)
+    colliding_cfg["schema_version"] = "2026.6.dev20"
+    colliding_cfg["sites"][0]["properties"]["stebbs"]["profile_appliance"][
+        "working_day"
+    ]["01"] = 0.99
+    bad_path = tmp_path / "dev20_colliding.yml"
+    bad_path.write_text(yaml.safe_dump(colliding_cfg, sort_keys=False), encoding="utf-8")
+    bad_res = runner.invoke(
+        cli,
+        [
+            "schema",
+            "--quiet",
+            "migrate",
+            "--target-version",
+            "2026.6.dev20",
+            str(bad_path),
+        ],
+    )
+    assert bad_res.exit_code == 1
+    assert not bad_path.with_suffix(".migrated.yml").exists()
+
+
+@pytest.mark.filterwarnings("default::DeprecationWarning:supy")
+def test_dev20_migration_and_cli_cover_legacy_ten_minute_profile_aliases(
+    tmp_path: Path,
+):
+    """dev20 migration, CLI migrate, and dev8->dev9 observed-soil shim cover legacy 10-minute profile aliases."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    from click.testing import CliRunner  # ruff: ignore[import-outside-top-level]
+
+    from supy.cmd.suews_cli import cli  # ruff: ignore[import-outside-top-level]
+    from supy.util.converter.yaml_upgrade import (  # ruff: ignore[import-outside-top-level]
+        SoilMigrationContext,
+    )
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    migrator = SchemaMigrator()
+    runner = CliRunner()
+
+    # 1. dev19 -> dev20 and same-version dev20 CLI reject collisions under legacy MetabolismProfile.
+    legacy_dup = deepcopy(base_cfg)
+    legacy_dup["schema_version"] = "2026.6.dev19"
+    arch = legacy_dup["sites"][0]["properties"]["building_archetype"]
+    met = arch.pop("profile_metabolism")
+    met["working_day"]["01"] = 0.99
+    arch["MetabolismProfile"] = met
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"MetabolismProfile\.working_day.*Duplicate 10-minute profile key '1'",
+    ):
+        migrator.migrate(deepcopy(legacy_dup), to_version="2026.6.dev20")
+
+    legacy_dup["schema_version"] = "2026.6.dev20"
+    dup_cli_path = tmp_path / "legacy_dup_dev20.yml"
+    dup_cli_path.write_text(yaml.safe_dump(legacy_dup, sort_keys=False), encoding="utf-8")
+    dup_cli_res = runner.invoke(
+        cli,
+        ["schema", "--quiet", "migrate", "--target-version", "2026.6.dev20", str(dup_cli_path)],
+    )
+    assert dup_cli_res.exit_code == 1
+    assert not dup_cli_path.with_suffix(".migrated.yml").exists()
+
+    # 2. Same-version dev20 CLI normalises valid zero-padded keys under legacy hot_water_flow_profile.
+    legacy_valid = deepcopy(base_cfg)
+    legacy_valid["schema_version"] = "2026.6.dev20"
+    stebbs = legacy_valid["sites"][0]["properties"]["stebbs"]
+    hw = stebbs.pop("profile_flow_hot_water")
+    val_1 = hw["working_day"].pop("1")
+    hw["working_day"]["01"] = val_1
+    stebbs["hot_water_flow_profile"] = hw
+    valid_cli_path = tmp_path / "legacy_valid_dev20.yml"
+    valid_cli_path.write_text(
+        yaml.safe_dump(legacy_valid, sort_keys=False), encoding="utf-8"
+    )
+    valid_cli_res = runner.invoke(
+        cli,
+        ["schema", "migrate", "--target-version", "2026.6.dev20", str(valid_cli_path)],
+    )
+    assert valid_cli_res.exit_code == 0, valid_cli_res.output
+    out_hw = yaml.safe_load(
+        valid_cli_path.with_suffix(".migrated.yml").read_text(encoding="utf-8")
+    )["sites"][0]["properties"]["stebbs"]["hot_water_flow_profile"]["working_day"]
+    assert "01" not in out_hw
+    assert out_hw["1"] == pytest.approx(val_1)
+
+    # 3. Conflicting aliases (canonical + legacy) fail dev20 migration explicitly.
+    conflict_cfg = deepcopy(base_cfg)
+    conflict_cfg["schema_version"] = "2026.6.dev19"
+    conflict_cfg["sites"][0]["properties"]["building_archetype"][
+        "MetabolismProfile"
+    ] = deepcopy(
+        conflict_cfg["sites"][0]["properties"]["building_archetype"][
+            "profile_metabolism"
+        ]
+    )
+    with pytest.raises(
+        YamlUpgradeError, match=r"conflicting aliases for 'profile_metabolism'"
+    ):
+        migrator.migrate(conflict_cfg, to_version="2026.6.dev20")
+
+    # 4. Observed-soil dev8 -> dev19 preserves legacy alias MetabolismProfile with "+1", while dev20 rejects it.
+    dev8 = deepcopy(base_cfg)
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    dev8_arch = dev8["sites"][0]["properties"]["building_archetype"]
+    dev8_met = dev8_arch.pop("profile_metabolism")
+    dev8_met["working_day"]["+1"] = dev8_met["working_day"].pop("1")
+    dev8_arch["MetabolismProfile"] = dev8_met
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    to_dev19 = migrator.migrate(
+        deepcopy(dev8), to_version="2026.6.dev19", migration_context=ctx
+    )
+    assert (
+        "+1"
+        in to_dev19["sites"][0]["properties"]["building_archetype"][
+            "MetabolismProfile"
+        ]["working_day"]
+    )
+    with pytest.raises(
+        YamlUpgradeError,
+        match=r"MetabolismProfile\.working_day.*Invalid 10-minute profile key '\+1'",
+    ):
+        migrator.migrate(
+            deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
+        )
+
+
+def test_dev20_to_dev21_land_cover_and_dst_advisories_and_same_version(capsys) -> None:
+    """2026.6.dev20 -> 2026.6.dev21 logs non-mutating advisories for off-sum sfr and half-DST."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    migrator = SchemaMigrator()
+
+    # 1. Clean dev20 config upgrades silently to dev21.
+    clean = deepcopy(base_cfg)
+    clean["schema_version"] = "2026.6.dev20"
+    capsys.readouterr()
+    upgraded = migrator.migrate(clean, to_version="2026.6.dev21")
+    clean_err = capsys.readouterr().err
+    assert upgraded["schema_version"] == "2026.6.dev21"
+    assert "2026.6.dev21" not in clean_err
+
+    # 2. Off-sum land cover (> 1e-4) and half-specified DST log advisories without mutating values.
+    affected = deepcopy(base_cfg)
+    affected["schema_version"] = "2026.6.dev20"
+    affected["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] += 2e-4
+    orig_paved = affected["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"]
+    affected["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {
+        "value": 85
+    }
+    affected["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+
+    capsys.readouterr()
+    migrated_affected = migrator.migrate(affected, to_version="2026.6.dev21")
+    messages = capsys.readouterr().err
+    assert migrated_affected["schema_version"] == "2026.6.dev21"
+    assert (
+        migrated_affected["sites"][0]["properties"]["land_cover"]["paved"]["sfr"][
+            "value"
+        ]
+        == orig_paved
+    )
+    assert (
+        migrated_affected["sites"][0]["properties"]["anthropogenic_emissions"][
+            "enddls"
+        ]
+        is None
+    )
+    assert "Surface fractions sum to" in messages
+    assert "only one of startdls/enddls is specified" in messages
+
+    # 3. Same-version dev21 -> dev21 runs the advisory non-mutating check too,
+    #    while historical target dev19 -> dev20 stays silent on dev21 policies.
+    capsys.readouterr()
+    same_ver = migrator.migrate(migrated_affected, to_version="2026.6.dev21")
+    same_msgs = capsys.readouterr().err
+    assert same_ver["schema_version"] == "2026.6.dev21"
+    assert "Surface fractions sum to" in same_msgs
+    assert "only one of startdls/enddls is specified" in same_msgs
+
+    hist = deepcopy(affected)
+    hist["schema_version"] = "2026.6.dev19"
+    capsys.readouterr()
+    to_dev20 = migrator.migrate(hist, to_version="2026.6.dev20")
+    hist_msgs = capsys.readouterr().err
+    assert to_dev20["schema_version"] == "2026.6.dev20"
+    assert "2026.6.dev21" not in hist_msgs
+
+
+def _unwrap_opt_val(val):
+    if hasattr(val, "value"):
+        return val.value
+    if isinstance(val, dict) and "value" in val:
+        return val["value"]
+    return val
+
+
+def test_building_layer_split_schema_null_rejection_and_df_state_roundtrip() -> None:
+    """gh#2085: RoofLayer and WallLayer own their optical fields as non-optional RefValues."""
+    from supy.data_model.core.surface import (
+        BuildingLayer,
+        RoofLayer,
+        VerticalLayers,
+        WallLayer,
+    )
+
+    assert "roof_albedo_dir_mult_fact" not in BuildingLayer.model_fields
+    assert "wall_specular_frac" not in BuildingLayer.model_fields
+    assert "roof_albedo_dir_mult_fact" in RoofLayer.model_fields
+    assert "wall_specular_frac" not in RoofLayer.model_fields
+    assert "wall_specular_frac" in WallLayer.model_fields
+    assert "roof_albedo_dir_mult_fact" not in WallLayer.model_fields
+
+    assert _unwrap_opt_val(RoofLayer().roof_albedo_dir_mult_fact) == pytest.approx(1.0)
+    assert _unwrap_opt_val(WallLayer().wall_specular_frac) == pytest.approx(0.0)
+    for bad in (None, {"value": None}):
+        with pytest.raises(ValueError, match="roof_albedo_dir_mult_fact"):
+            RoofLayer(roof_albedo_dir_mult_fact=bad)
+        with pytest.raises(ValueError, match="wall_specular_frac"):
+            WallLayer(wall_specular_frac=bad)
+
+    vl = VerticalLayers(
+        roofs=[
+            RoofLayer(roof_albedo_dir_mult_fact=1.15),
+            RoofLayer(roof_albedo_dir_mult_fact=1.35),
+            RoofLayer(roof_albedo_dir_mult_fact=1.55),
+        ],
+        walls=[
+            WallLayer(wall_specular_frac=0.05),
+            WallLayer(wall_specular_frac=0.25),
+            WallLayer(wall_specular_frac=0.45),
+        ],
+    )
+    vl_df = vl.to_df_state(1)
+    assert [
+        list(vl_df.columns).count(("roof_albedo_dir_mult_fact", f"(0, {i})"))
+        for i in range(3)
+    ] == [1, 1, 1]
+    assert [
+        list(vl_df.columns).count(("wall_specular_frac", f"(0, {i})"))
+        for i in range(3)
+    ] == [1, 1, 1]
+    assert [
+        float(vl_df["roof_albedo_dir_mult_fact", f"(0, {i})"].loc[1])
+        for i in range(3)
+    ] == [pytest.approx(v) for v in (1.15, 1.35, 1.55)]
+    assert [
+        float(vl_df["wall_specular_frac", f"(0, {i})"].loc[1]) for i in range(3)
+    ] == [pytest.approx(v) for v in (0.05, 0.25, 0.45)]
+    vl_rt = VerticalLayers.from_df_state(vl_df, 1)
+    assert [_unwrap_opt_val(r.roof_albedo_dir_mult_fact) for r in vl_rt.roofs] == [
+        pytest.approx(v) for v in (1.15, 1.35, 1.55)
+    ]
+    assert [_unwrap_opt_val(w.wall_specular_frac) for w in vl_rt.walls] == [
+        pytest.approx(v) for v in (0.05, 0.25, 0.45)
+    ]
+
+
+def test_cross_facet_optical_keys_strip_with_deprecation_warning() -> None:
+    """gh#2085: legacy cross-facet keys load with DeprecationWarning without mutating input."""
+    import warnings
+
+    from supy.data_model.core.surface import RoofLayer, WallLayer
+
+    raw_roof = {"wall_specular_frac": {"value": 0.4}, "roof_albedo_dir_mult_fact": 1.2}
+    with warnings.catch_warnings(record=True) as caught_roof:
+        warnings.simplefilter("always", DeprecationWarning)
+        roof_obj = RoofLayer.model_validate(raw_roof)
+    assert _unwrap_opt_val(roof_obj.roof_albedo_dir_mult_fact) == pytest.approx(1.2)
+    assert "wall_specular_frac" in raw_roof
+    assert any(
+        issubclass(w.category, DeprecationWarning) and "wall_specular_frac" in str(w.message)
+        for w in caught_roof
+    )
+
+    raw_wall = {"roof_albedo_dir_mult_fact": 0.9, "wall_specular_frac": {"value": 0.3}}
+    with warnings.catch_warnings(record=True) as caught_wall:
+        warnings.simplefilter("always", DeprecationWarning)
+        wall_obj = WallLayer.model_validate(raw_wall)
+    assert _unwrap_opt_val(wall_obj.wall_specular_frac) == pytest.approx(0.3)
+    assert "roof_albedo_dir_mult_fact" in raw_wall
+    assert any(
+        issubclass(w.category, DeprecationWarning)
+        and "roof_albedo_dir_mult_fact" in str(w.message)
+        for w in caught_wall
+    )
+
+
+def test_dev21_to_dev22_migrates_and_phase_a_normalises_cross_facet_keys(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """gh#2085: dev22 migration logs and drops cross-facet keys while preserving dev21."""
+    import warnings
+
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.data_model.core import SUEWSConfig
+    from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    standard_cfg = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    legacy_cfg = deepcopy(standard_cfg)
+    legacy_cfg["schema_version"] = "2026.6.dev21"
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["roofs"][0][
+        "wall_specular_frac"
+    ] = {"value": 0.25}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["walls"][1][
+        "roof_albedo_dir_mult_fact"
+    ] = {"value": 1.35}
+
+    assert not find_extra_parameters(deepcopy(legacy_cfg), deepcopy(standard_cfg))
+
+    with warnings.catch_warnings(record=True) as caught_cfg:
+        warnings.simplefilter("always", DeprecationWarning)
+        loaded = SUEWSConfig.from_dict(deepcopy(legacy_cfg))
+    assert any(
+        issubclass(w.category, DeprecationWarning)
+        and ("wall_specular_frac" in str(w.message) or "roof_albedo_dir_mult_fact" in str(w.message))
+        for w in caught_cfg
+    )
+    dumped = loaded.model_dump(exclude_none=True, mode="json")
+    assert "wall_specular_frac" not in dumped["sites"][0]["properties"]["vertical_layers"]["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" not in dumped["sites"][0]["properties"]["vertical_layers"]["walls"][1]
+
+    migrator = SchemaMigrator()
+    capsys.readouterr()
+
+    stayed_dev21 = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev21")
+    assert "wall_specular_frac" in stayed_dev21["sites"][0]["properties"]["vertical_layers"]["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" in stayed_dev21["sites"][0]["properties"]["vertical_layers"]["walls"][1]
+
+    migrated = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev22")
+    err_log = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev22"
+    assert "wall_specular_frac" not in migrated["sites"][0]["properties"]["vertical_layers"]["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" not in migrated["sites"][0]["properties"]["vertical_layers"]["walls"][1]
+    assert "dropped 'wall_specular_frac'" in err_log
+    assert "dropped 'roof_albedo_dir_mult_fact'" in err_log
+
+    stale_dev22 = deepcopy(legacy_cfg)
+    stale_dev22["schema_version"] = "2026.6.dev22"
+    cleaned_dev22 = migrator.migrate(stale_dev22, to_version="2026.6.dev22")
+    clean_log = capsys.readouterr().err
+    assert "dropped 'wall_specular_frac'" in clean_log
+    assert "dropped 'roof_albedo_dir_mult_fact'" in clean_log
+    assert migrator.migrate(deepcopy(cleaned_dev22), to_version="2026.6.dev22") == cleaned_dev22
+    assert not capsys.readouterr().err
+
+    old_yml = tmp_path / "dev21_cross_facet.yml"
+    new_yml = tmp_path / "dev22_clean.yml"
+    old_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
+    upgrade_yaml(old_yml, new_yml)
+    SUEWSConfig.from_yaml(str(new_yml))
+
+
+def test_phase_a_annotate_cleans_cross_facet_keys_and_preserves_owning_values(
+    tmp_path: Path,
+) -> None:
+    """gh#2085: Phase A annotate_missing_parameters drops cross-facet keys without losing owning values."""
+    from supy.data_model.core import SUEWSConfig
+    from supy.data_model.validation.pipeline.phase_a import annotate_missing_parameters
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    legacy_cfg = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["roofs"][0][
+        "roof_albedo_dir_mult_fact"
+    ] = {"value": 1.25}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["roofs"][0][
+        "wall_specular_frac"
+    ] = {"value": 0.45}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["walls"][1][
+        "wall_specular_frac"
+    ] = {"value": 0.35}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["walls"][1][
+        "roof_albedo_dir_mult_fact"
+    ] = {"value": 0.85}
+
+    user_yml = tmp_path / "user_cross_facet.yml"
+    updated_yml = tmp_path / "updated.yml"
+    report_txt = tmp_path / "report.txt"
+    user_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
+
+    annotate_missing_parameters(
+        user_file=str(user_yml),
+        standard_file=str(sample_path),
+        uptodate_file=str(updated_yml),
+        report_file=str(report_txt),
+        mode="public",
+        forcing="off",
+    )
+
+    updated_doc = yaml.safe_load(updated_yml.read_text(encoding="utf-8"))
+    vlayers = updated_doc["sites"][0]["properties"]["vertical_layers"]
+    assert "wall_specular_frac" not in vlayers["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" not in vlayers["walls"][1]
+    assert _unwrap_opt_val(vlayers["roofs"][0]["roof_albedo_dir_mult_fact"]) == pytest.approx(1.25)
+    assert _unwrap_opt_val(vlayers["walls"][1]["wall_specular_frac"]) == pytest.approx(0.35)
+    SUEWSConfig.from_yaml(str(updated_yml))
+
+
+@pytest.mark.parametrize(
+    ("facet", "field", "null_val"),
+    [
+        ("roofs", "roof_albedo_dir_mult_fact", None),
+        ("roofs", "roof_albedo_dir_mult_fact", {"value": None}),
+        ("walls", "wall_specular_frac", None),
+        ("walls", "wall_specular_frac", {"value": None}),
+    ],
+)
+def test_historical_observed_soil_preserves_optical_null_while_dev22_rejects(
+    tmp_path: Path, facet: str, field: str, null_val
+) -> None:
+    """gh#2085: dev8->dev9..dev21 keeps pre-dev22 owning nulls while dev22 raises YamlUpgradeError."""
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext, YamlUpgradeError
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    dev8 = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    dev8["sites"][0]["properties"]["vertical_layers"][facet][0][field] = deepcopy(null_val)
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    migrator = SchemaMigrator()
+
+    for hist_target in ("2026.6.dev9", "2026.6.dev21"):
+        to_hist = migrator.migrate(deepcopy(dev8), to_version=hist_target, migration_context=ctx)
+        assert to_hist["sites"][0]["properties"]["vertical_layers"][facet][0][field] == null_val
+
+    with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
+        migrator.migrate(deepcopy(dev8), to_version="2026.6.dev22", migration_context=ctx)
+
+    for src_ver in ("2026.6.dev21", "2026.6.dev22"):
+        null_cfg = deepcopy(dev8)
+        null_cfg["schema_version"] = src_ver
+        null_cfg["model"]["physics"].pop("soil_moisture_deficit", None)
+        null_cfg["model"]["physics"]["soil_moisture"] = 0
+        null_cfg["sites"][0]["properties"].pop("soil_observation", None)
+        with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
+            migrator.migrate(deepcopy(null_cfg), to_version="2026.6.dev22")
+        in_yml = tmp_path / f"{src_ver}_{facet}_{field}.yml"
+        out_yml = tmp_path / f"{src_ver}_{facet}_{field}_out.yml"
+        in_yml.write_text(yaml.safe_dump(null_cfg, sort_keys=False), encoding="utf-8")
+        with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
+            upgrade_yaml(in_yml, out_yml)
+
+
+def test_dev22_to_dev23_advisory_preserves_lai_values_and_stays_silent_for_observed(
+    tmp_path: Path, capsys
+) -> None:
+    """gh#2346: 2026.6.dev22 -> 2026.6.dev23 preserves LAI values, logs advisory for modelled LAI, and is idempotent."""
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.data_model.core import SUEWSConfig
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    legacy_cfg = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    legacy_cfg["schema_version"] = "2026.6.dev22"
+    legacy_cfg["sites"][0]["properties"]["land_cover"]["dectr"]["lai"]["lai_power"][
+        "growth_gdd"
+    ] = {"value": 0.001}
+    legacy_cfg["sites"][0]["initial_states"]["dectr"]["sdd_id"] = {"value": -450.0}
+
+    migrator = SchemaMigrator()
+    capsys.readouterr()
+
+    # Historical target 2026.6.dev22 must not emit the dev23 advisory.
+    stayed_dev22 = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev22")
+    assert "2026.6.dev23" not in capsys.readouterr().err
+    assert stayed_dev22["schema_version"] == "2026.6.dev22"
+
+    # Upgrading dev22 -> dev23 preserves values unchanged and emits the advisory.
+    migrated = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev23")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev23"
+    assert (
+        migrated["sites"][0]["properties"]["land_cover"]["dectr"]["lai"]["lai_power"][
+            "growth_gdd"
+        ]
+        == {"value": 0.001}
+    )
+    assert migrated["sites"][0]["initial_states"]["dectr"]["sdd_id"] == {"value": -450.0}
+    assert "2026.6.dev23 computes modelled LAI from daily GDD/SDD increments" in err
+
+    # Re-migrating an already-dev23 config is idempotent and does not repeat the advisory.
+    remigrated = migrator.migrate(deepcopy(migrated), to_version="2026.6.dev23")
+    assert remigrated == migrated
+    assert "2026.6.dev23" not in capsys.readouterr().err
+
+    # Observed LAI mode emits no dev23 advisory (including case/whitespace and wrapped forms).
+    for obs_selector in ("observed", " OBSERVED ", {"value": " Observed "}, {"value": 0}, 0):
+        observed_cfg = deepcopy(legacy_cfg)
+        observed_cfg["model"]["physics"]["leaf_area_index"] = obs_selector
+        migrated_obs = migrator.migrate(observed_cfg, to_version="2026.6.dev23")
+        assert migrated_obs["schema_version"] == "2026.6.dev23"
+        assert "2026.6.dev23" not in capsys.readouterr().err
+
+    # File-level upgrade_yaml produces a valid current-schema SUEWSConfig.
+    in_yml = tmp_path / "dev22_lai.yml"
+    out_yml = tmp_path / "dev23_lai.yml"
+    in_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
+    upgrade_yaml(in_yml, out_yml)
+    loaded = SUEWSConfig.from_yaml(str(out_yml))
+    assert loaded.schema_version == "2026.6.dev23"

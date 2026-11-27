@@ -129,6 +129,43 @@ that introduces a test file without a nature marker.** If you see the
 lint fire, add a `pytestmark = pytest.mark.api` (or physics) line -- do
 not bypass.
 
+### Transition to the 4+1 dependency axes (#2349)
+
+The marker lint currently accepts exactly the `physics | api` nature set. [fact: git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
+That nature axis stays the active rule until `pyproject.toml` registers the
+`tooling`, `unit` and `native` markers (#2349 `W1-4`); until then, do not add
+those markers. From the revision where `W1-4` registers them, the axes below
+replace the nature axis without a further edit to this file. [decision: software maintainer, 2026-11-26]
+
+Each file under `test/` then declares exactly one dependency axis, named for the
+cheapest thing the test needs in order to run: [decision: software maintainer, 2026-11-26]
+
+- `tooling` -- repository scripts, lints, CI helpers and documentation checks;
+  needs neither the compiled extension nor a model run. Runs from source.
+- `unit` -- pure Python in `supy` (data model, validator rules through
+  `SUEWSConfig.from_dict()`, converters, helpers); imports no compiled code.
+  Runs from source.
+- `native` -- needs compiled native code (the Python extension or the
+  standalone `suews-engine` binary) but asserts a contract rather than an
+  output value: bridge loading, guard and error witnesses, I/O wiring. An
+  engine contract witness is `native` plus `e2e`. Guard witnesses follow the
+  layering in `rust/bridge-contract.md` (BR-02).
+- `physics` -- asserts model output values from a compiled run (balances,
+  oracles, reference outputs).
+
+Two orthogonal markers compose with any axis: `os_compat` marks the slice whose
+behaviour depends on the operating system (paths, encodings, process spawning),
+and `e2e` marks a test that starts a subprocess (the CLI or the `suews-engine`
+binary), whose count the static gate caps (#2349 `W1-8`). When two axes fit,
+pick the more expensive one (`native` over `unit`). The `api` axis is retired
+by `W1-4`; its compatibility shim is removed by `W1-7`. Where each axis runs in
+CI is stated once, in `ci/conventions.md` ("Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-26]
+From the revision where `W1-6` enables that topology, its event selection
+supersedes the event-based statements in "PR/CR placement" below (which tiers
+run on draft, ready and merge-queue runs, and that a `slow` test runs before
+merge only when it also carries `core`); the importance and cost definitions,
+including "Cost thresholds", are unchanged. [decision: software maintainer, 2026-11-26]
+
 ### Importance and cost -- independent per-test decorators
 
 ```python
@@ -351,6 +388,9 @@ simulation windows to what the assertion actually requires:
 **Origin.** Derived from the 22 Nov 2026 API-lane profile, in which
 `test/core/test_stream_chunk.py` accounted for 37-38% of API-lane runtime and
 repeated Python setup and reference-run overhead dominated.
+#2349 Wave 0A (`W0A-3`) shortens that file to minimal windows plus pairwise
+checks, so read the figure as the dated baseline that redesign is measured
+against, not as a current reading. [procedure: Principle 1]
 
 ---
 

@@ -7,7 +7,7 @@ paths:
 
 Rules for verifying that the **published release documentation** carries no
 stray development (`.dev`) markers. Run this check whenever cutting a release
-(see `.claude/skills/prep-release/SKILL.md`) and whenever revising the docs of
+(see `.agents/skills/prep-release/SKILL.md`) and whenever revising the docs of
 an already-released version.
 
 Both failures below shipped after 2026.6.5 despite passing every other gate.

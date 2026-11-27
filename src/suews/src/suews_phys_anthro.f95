@@ -46,7 +46,7 @@ CONTAINS
       QF0_BEU, QF_SAHP, &
       Fc_anthro, Fc_metab, Fc_traff, Fc_build, Fc_point, &
       AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea, &
-      modState)
+      modState, QF_build_out)
 
       ! Simple anthropogenic heat parameterisation and co2 calculation
       ! Calculates QF_SAHP and Fc_anthro
@@ -102,6 +102,9 @@ CONTAINS
          Fc_anthro, &
          Fc_metab, Fc_traff, Fc_build, Fc_point
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
+      ! building energy-use part of QF_SAHP [W m-2] (QF_SAHP = QF_build +
+      ! QF_traff + QF_metab), for the implicit EHC coupling's diagnostics
+      REAL(KIND(1D0)), INTENT(out), OPTIONAL :: QF_build_out
 
       INTEGER :: &
          iu, & !1=weekday OR 2=weekend
@@ -126,6 +129,7 @@ CONTAINS
          AHDorNorT ! Anthropogenic heat
 
       ! initialisation
+      QF_build = 0.0D0
       QF_traff = 0
       QF_SAHP_heating = 0
       QF_SAHP_cooling = 0
@@ -360,13 +364,11 @@ CONTAINS
 
       END IF
 
+      IF (PRESENT(QF_build_out)) QF_build_out = QF_build
+
       RETURN
    END SUBROUTINE AnthropogenicEmissions
 
 END MODULE module_phys_anthro
 
-! Backward compatibility alias
-MODULE AnEmsn_module
-   USE module_phys_anthro
-END MODULE AnEmsn_module
 !========================================================================================

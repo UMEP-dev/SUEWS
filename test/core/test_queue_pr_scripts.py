@@ -23,9 +23,9 @@ pytestmark = [
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-QUEUE_READY_SCRIPT = REPO_ROOT / ".claude/skills/queue-pr/scripts/queue-ready-prs.sh"
+QUEUE_READY_SCRIPT = REPO_ROOT / ".agents/skills/queue-pr/scripts/queue-ready-prs.sh"
 MANAGE_QUEUE_SCRIPT = (
-    REPO_ROOT / ".claude/skills/queue-pr/scripts/manage-merge-queue.sh"
+    REPO_ROOT / ".agents/skills/queue-pr/scripts/manage-merge-queue.sh"
 )
 
 

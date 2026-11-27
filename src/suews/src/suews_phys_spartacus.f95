@@ -47,30 +47,6 @@ MODULE module_phys_spartacus
    IMPLICIT NONE
 
 CONTAINS
-   SUBROUTINE SPARTACUS_Initialise
-      USE module_ctrl_const_datain, ONLY: fileinputpath
-      USE module_ctrl_const_allocate
-      IMPLICIT NONE
-      ! INTEGER :: n_vegetation_region_urban, &
-      !            n_stream_sw_urban, n_stream_lw_urban
-      ! REAL(KIND(1D0)) :: sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
-      !                    veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
-      !                    veg_fsd_const, veg_contact_fraction_const, &
-      !                    ground_albedo_dir_mult_fact
-      ! LOGICAL :: use_sw_direct_albedo
-      NAMELIST /Spartacus_Settings/ use_sw_direct_albedo, n_vegetation_region_urban, &
-         n_stream_sw_urban, n_stream_lw_urban &
-         /Spartacus_Constant_Parameters/ sw_dn_direct_frac, air_ext_sw, air_ssa_sw, veg_ssa_sw, air_ext_lw, &
-         air_ssa_lw, veg_ssa_lw, veg_fsd_const, veg_contact_fraction_const, ground_albedo_dir_mult_fact
-
-      ! Bring in SUEWS-SPARTACUS.nml settings and parameters
-      OPEN (511, file=TRIM(FileInputPath)//'SUEWS_SPARTACUS.nml', status='old')
-      READ (511, nml=Spartacus_Settings)
-      READ (511, nml=Spartacus_Constant_Parameters)
-      CLOSE (511)
-
-   END SUBROUTINE SPARTACUS_Initialise
-
    ELEMENTAL LOGICAL FUNCTION invalid_real(value)
       REAL(KIND(1D0)), INTENT(IN) :: value
       invalid_real = IEEE_IS_NAN(value) .OR. value /= value
@@ -213,7 +189,6 @@ CONTAINS
       USE radsurf_boundary_conds_out, ONLY: boundary_conds_out_type
       USE radsurf_canopy_flux, ONLY: canopy_flux_type
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
-      ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
       USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
@@ -1690,9 +1665,3 @@ CONTAINS
    END SUBROUTINE spartacus_spencer_eccentricity
 
 END MODULE module_phys_spartacus
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE SPARTACUS_MODULE
-   USE module_phys_spartacus
-END MODULE SPARTACUS_MODULE

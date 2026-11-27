@@ -16,11 +16,9 @@ from calendar selection:
   disjoint weekday morning vs weekend evening water delivery, plus permutation
   non-invariance under swap.
 - Weekly irrigation schedules (``daywat``, ``daywatper``): single-day watering
-  is not permutation-invariant and scales linearly with ``daywatper`` when
-  ponding demand is zero.
-- Pinned ``xfail(strict=True)`` regression for UMEP-dev/SUEWS#2049, where
-  ``DailyState`` evaluates Monday-first ``daywat`` using Sunday-first
-  ``DayofWeek_id(1)``.
+  is not permutation-invariant, scales linearly with ``daywatper`` when
+  ponding demand is zero, and applies each named weekday on its own calendar
+  day (regression for UMEP-dev/SUEWS#2049).
 """
 
 from __future__ import annotations
@@ -43,7 +41,7 @@ import pytest
 
 from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
-from supy.data_model.core.model import WaterUseMethod
+from supy.data_model.core.model import ForcingTimestampReference, WaterUseMethod
 
 pytestmark = [
     pytest.mark.physics,
@@ -445,11 +443,12 @@ def test_asymmetric_weekly_daywat_schedule_is_not_permutation_invariant(calendar
     assert len(active_wed) == 1, f"Expected exactly 1 irrigated day, got {active_wed}"
     assert len(active_fri) == 1, f"Expected exactly 1 irrigated day, got {active_fri}"
 
-    # Shifting enabled weekday from Wednesday to Friday shifts delivery by +2 days mod 7.
-    day_offset = (active_fri.index[0] - active_wed.index[0]).days % 7
-    assert day_offset == 2, (
-        f"Wednesday -> Friday shift should move irrigation by 2 days mod 7, "
-        f"got {active_wed.index[0].date()} -> {active_fri.index[0].date()}"
+    # Absolute delivery dates must match the configured named weekdays (gh#2381).
+    assert active_wed.index[0] == pd.Timestamp("2012-01-11"), (
+        f"Expected Wednesday delivery on 2012-01-11, got {active_wed.index[0].date()}"
+    )
+    assert active_fri.index[0] == pd.Timestamp("2012-01-13"), (
+        f"Expected Friday delivery on 2012-01-13, got {active_fri.index[0].date()}"
     )
     assert strict_max_abs(irr_wed - irr_fri, label="dIrr_wed_fri") > 0.1
 
@@ -470,79 +469,633 @@ def test_asymmetric_weekly_daywat_schedule_is_not_permutation_invariant(calendar
     )
 
 
-class _Issue2049DayWatDefectError(AssertionError):
-    """Targeted failure for the UMEP-dev/SUEWS#2049 Monday/Sunday DayWat index bug."""
-
-
-@pytest.mark.xfail(
-    strict=True,
-    raises=_Issue2049DayWatDefectError,
-    reason=(
-        "UMEP-dev/SUEWS#2049: update_WaterUse packs daywat/daywatper Monday-first "
-        "but indexes them with Sunday-first DayofWeek_id(1), so enabling only "
-        "monday records non-zero DailyState WU_Grass1 on Sunday instead of Monday"
-    ),
-)
+@pytest.mark.core
 def test_weekly_daywat_dailystate_matches_named_weekday_gh2049(calendar_base):
-    """Enabling only ``monday`` must record DailyState water use on Monday, not Sunday.
+    """Enabling any single named weekday must both record and deliver on that day.
 
-    Pinned ``xfail(strict=True, raises=_Issue2049DayWatDefectError)`` regression
-    witness for UMEP-dev/SUEWS#2049: setup, execution, and active finiteness
-    checks raise ordinary exceptions, and only the Monday-vs-Sunday ``WU_Grass1``
-    assertion raises ``_Issue2049DayWatDefectError``.
+    Regression for UMEP-dev/SUEWS#2049 (Monday/Sunday array packing) and
+    UMEP-dev/SUEWS#2381 (one-day delivery lag from end-of-day ``update_WaterUse``):
+    every named weekday ``sunday``..``saturday`` must produce positive
+    ``DailyState.WU_Grass1`` and positive ``SUEWS.Irr`` / ``SUEWS.WUGrass`` on
+    its own calendar day and exact zero on the other six days of the cycle.
+    """
+    # ARRANGE
+    base_cfg, base_day = calendar_base
+    # 2012-01-05 (Thu) .. 2012-01-14 (Sat): contains a complete Sat..Fri cycle
+    # covering every weekday exactly once in 2012-01-07..2012-01-13.
+    df_forcing = _make_repeated_forcing(base_day, "2012-01-05", n_days=10)
+    midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
+    cycle_days = pd.date_range("2012-01-07", "2012-01-13", freq="D")
+    weekday_dates = (
+        ("saturday", pd.Timestamp("2012-01-07")),
+        ("sunday", pd.Timestamp("2012-01-08")),
+        ("monday", pd.Timestamp("2012-01-09")),
+        ("tuesday", pd.Timestamp("2012-01-10")),
+        ("wednesday", pd.Timestamp("2012-01-11")),
+        ("thursday", pd.Timestamp("2012-01-12")),
+        ("friday", pd.Timestamp("2012-01-13")),
+    )
+
+    # ACT & ASSERT
+    for label, active_day in weekday_dates:
+        cfg = _configure_modelled_irrigation(
+            base_cfg,
+            daywat_enabled={label: 1.0},
+            daywatper_values={label: 1.0},
+            working_profile=midday,
+            holiday_profile=midday,
+        )
+        df_out, _ = _run_config(cfg, df_forcing)
+
+        ds_all = df_out.loc[1, "DailyState"]
+        df_daily = ds_all.loc[expected_dailystate_mask(ds_all.index, tstep=300)]
+        assert len(df_daily) == 10
+        wu_by_day = strict_groupby_reduce(
+            df_daily["WU_Grass1"],
+            _interval_day(df_daily.index),
+            agg="sum",
+            label=f"DailyState.WU_Grass1[{label}]",
+        )
+        irr_by_day = _daily_totals_in_window(df_out, "Irr", "2012-01-07", "2012-01-13")
+        wug_by_day = _daily_totals_in_window(
+            df_out, "WUGrass", "2012-01-07", "2012-01-13"
+        )
+
+        assert float(wu_by_day.loc[active_day]) == pytest.approx(4.0, rel=1e-9), (
+            f"Expected DailyState WU_Grass1=4.0 on {label} ({active_day.date()}), "
+            f"got {wu_by_day.loc[cycle_days].to_dict()}"
+        )
+        assert float(irr_by_day.loc[active_day]) > 0.0, (
+            f"Expected positive SUEWS.Irr on {label} ({active_day.date()}), "
+            f"got {irr_by_day.to_dict()}"
+        )
+        assert float(wug_by_day.loc[active_day]) == pytest.approx(4.0, rel=1e-9), (
+            f"Expected SUEWS.WUGrass=4.0 on {label} ({active_day.date()}), "
+            f"got {wug_by_day.to_dict()}"
+        )
+        for other_day in cycle_days:
+            if other_day == active_day:
+                continue
+            assert np.array_equal(float(wu_by_day.loc[other_day]), 0.0), (
+                f"Expected exact zero DailyState WU_Grass1 on {other_day.date()} when only "
+                f"{label} is enabled, got {wu_by_day.loc[cycle_days].to_dict()}"
+            )
+            assert np.array_equal(float(irr_by_day.loc[other_day]), 0.0), (
+                f"Expected exact zero SUEWS.Irr on {other_day.date()} when only "
+                f"{label} is enabled, got {irr_by_day.to_dict()}"
+            )
+            assert np.array_equal(float(wug_by_day.loc[other_day]), 0.0), (
+                f"Expected exact zero SUEWS.WUGrass on {other_day.date()} when only "
+                f"{label} is enabled, got {wug_by_day.to_dict()}"
+            )
+
+
+@pytest.mark.core
+def test_irrigation_midnight_profiles_do_not_bleed_across_days_gh2381(calendar_base):
+    """Hour-24 and hour-1 profiles must not leak across 23:55 or 00:00 boundaries.
+
+    Regression for UMEP-dev/SUEWS#2381: updating ``WUDay_id`` at ``23:55`` before
+    ``SUEWS_cal_WaterUse`` previously leaked the next day's budget onto ``D 23:55``
+    and truncated ``D+1 23:55`` to zero.
     """
     # ARRANGE
     base_cfg, base_day = calendar_base
     df_forcing = _make_repeated_forcing(base_day, "2012-01-05", n_days=10)
+    monday = pd.Timestamp("2012-01-09")
+    cycle_days = pd.date_range("2012-01-07", "2012-01-13", freq="D")
+
+    for profile_name, hour_key in (("hour24", 24), ("hour1", 1)):
+        prof = _hourly_window_profile({hour_key}, weight=1.0)
+        cfg = _configure_modelled_irrigation(
+            base_cfg,
+            daywat_enabled={"monday": 1.0},
+            daywatper_values={"monday": 1.0},
+            working_profile=prof,
+            holiday_profile=prof,
+        )
+
+        # ACT
+        df_out, _ = _run_config(cfg, df_forcing)
+
+        # ASSERT
+        suews = df_out.loc[1, "SUEWS"]
+        wug_by_day = _daily_totals_in_window(
+            df_out, "WUGrass", "2012-01-07", "2012-01-13"
+        )
+        assert float(wug_by_day.loc[monday]) == pytest.approx(4.0, rel=1e-9), (
+            f"{profile_name}: expected full 4.0 mm on Monday, got {wug_by_day.to_dict()}"
+        )
+        for other_day in cycle_days:
+            if other_day == monday:
+                continue
+            assert np.array_equal(float(wug_by_day.loc[other_day]), 0.0), (
+                f"{profile_name}: expected exact zero WUGrass on {other_day.date()}, "
+                f"got {wug_by_day.to_dict()}"
+            )
+        # No pre-midnight bleed onto Sunday 23:55 and no post-opening bleed onto Tuesday 00:05.
+        assert np.array_equal(float(suews.loc["2012-01-08 23:55:00", "WUGrass"]), 0.0)
+        assert np.array_equal(float(suews.loc["2012-01-10 00:05:00", "WUGrass"]), 0.0)
+        # Monday 23:55 must remain active (not truncated) for both hour-24 and hour-1 ramps.
+        assert float(suews.loc["2012-01-09 23:55:00", "WUGrass"]) > 0.0
+
+
+@pytest.mark.core
+def test_irrigation_asymmetric_sunday_monday_midnight_profile_gh2381(calendar_base):
+    """Sunday's closing 00:00 interval must keep Sunday's holiday profile, not Monday's."""
+    # ARRANGE
+    base_cfg, base_day = calendar_base
+    df_forcing = _make_repeated_forcing(base_day, "2012-01-05", n_days=10)
+    midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
+    hour1 = _hourly_window_profile({1}, weight=1.0)
+    cfg = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"sunday": 1.0},
+        daywatper_values={"sunday": 1.0},
+        working_profile=midday,
+        holiday_profile=hour1,
+    )
+
+    # ACT
+    df_out, _ = _run_config(cfg, df_forcing)
+
+    # ASSERT: full 4.0 mm delivered on Sunday (including closing Mon 00:00), 0 on Monday.
+    suews = df_out.loc[1, "SUEWS"]
+    wug = _daily_totals_in_window(df_out, "WUGrass", "2012-01-07", "2012-01-13")
+    assert float(wug.loc[pd.Timestamp("2012-01-08")]) == pytest.approx(4.0, rel=1e-9)
+    assert float(suews.loc["2012-01-09 00:00:00", "WUGrass"]) > 0.0
+    assert np.array_equal(float(wug.loc[pd.Timestamp("2012-01-09")]), 0.0)
+
+
+@pytest.mark.core
+def test_irrigation_season_bounds_inclusive_nh_and_sh_gh2381(calendar_base):
+    """``ie_start`` and ``ie_end`` must act as inclusive delivery DOY bounds in NH and SH.
+
+    Regression for UMEP-dev/SUEWS#2381: legacy ``Ie_start - 1 .. Ie_end + 1`` in NH
+    combined with the next-day delivery lag extended irrigation to ``ie_end + 2``,
+    while SH ``.NOT. (id >= Ie_end .AND. id <= Ie_start)`` skipped ``ie_start`` and
+    ``ie_start + 1``.
+    """
+    # ARRANGE
+    base_cfg, base_day = calendar_base
+    # 2012-01-05 (DOY 5) .. 2012-01-14 (DOY 14)
+    df_forcing = _make_repeated_forcing(base_day, "2012-01-05", n_days=10)
+    midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
+    all_days = dict.fromkeys(WEEKDAYS, 1.0)
+
+    cases = (
+        # (label, lat, ie_start, ie_end, expected_active_doys)
+        ("nh_inclusive", 51.5, 10, 11, {10, 11}),
+        ("nh_single_day", 51.5, 10, 10, {10}),
+        ("equator_inclusive", 0.0, 10, 11, {10, 11}),
+        ("nh_reversed_closed", 51.5, 12, 9, set()),
+        ("sh_wrap_inclusive", -37.8, 10, 8, {5, 6, 7, 8, 10, 11, 12, 13, 14}),
+        ("sh_within_year_inclusive", -37.8, 10, 11, {10, 11}),
+        ("sh_single_day", -37.8, 10, 10, {10}),
+    )
+
+    for label, lat, ie_start, ie_end, expected_doys in cases:
+        cfg = _configure_modelled_irrigation(
+            base_cfg,
+            daywat_enabled=all_days,
+            daywatper_values=all_days,
+            working_profile=midday,
+            holiday_profile=midday,
+        )
+        cfg.sites[0].properties.lat.value = lat
+        cfg.sites[0].properties.irrigation.ie_start.value = ie_start
+        cfg.sites[0].properties.irrigation.ie_end.value = ie_end
+        # Clear initial rain history (HDD_id(11)) so Day 1 is not manually suppressed.
+        cfg.sites[0].initial_states.hdd_id.precip_daily_total = 0.0
+
+        # ACT
+        df_out, _ = _run_config(cfg, df_forcing)
+
+        # ASSERT
+        wug_by_day = _daily_totals_in_window(
+            df_out, "WUGrass", "2012-01-05", "2012-01-14"
+        )
+        ds_all = df_out.loc[1, "DailyState"]
+        df_daily = ds_all.loc[expected_dailystate_mask(ds_all.index, tstep=300)]
+        ds_by_day = strict_groupby_reduce(
+            df_daily["WU_Grass1"],
+            _interval_day(df_daily.index),
+            agg="sum",
+            label=f"DailyState.WU_Grass1[{label}]",
+        )
+        for dt in wug_by_day.index:
+            doy = int(dt.dayofyear)
+            if doy in expected_doys:
+                assert float(wug_by_day.loc[dt]) == pytest.approx(4.0, rel=1e-9), (
+                    f"{label}: expected delivery on DOY {doy}, got {wug_by_day.to_dict()}"
+                )
+                assert float(ds_by_day.loc[dt]) == pytest.approx(4.0, rel=1e-9), (
+                    f"{label}: expected DailyState on DOY {doy}, got {ds_by_day.to_dict()}"
+                )
+            else:
+                assert np.array_equal(float(wug_by_day.loc[dt]), 0.0), (
+                    f"{label}: expected zero delivery on DOY {doy}, got {wug_by_day.to_dict()}"
+                )
+                assert np.array_equal(float(ds_by_day.loc[dt]), 0.0), (
+                    f"{label}: expected zero DailyState on DOY {doy}, got {ds_by_day.to_dict()}"
+                )
+
+
+@pytest.mark.core
+def test_irrigation_cold_start_and_utc_local_clock_gh2381(calendar_base):
+    """Day-1 cold starts and UTC forcing must irrigate on the named local-standard day."""
+    # ARRANGE 1: cold start directly on Monday 2012-01-09 with daywat.monday=1
+    base_cfg, base_day = calendar_base
+    df_mon_start = _make_repeated_forcing(base_day, "2012-01-09", n_days=3)
     midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
 
-    cfg = _configure_modelled_irrigation(
+    cfg_cold = _configure_modelled_irrigation(
         base_cfg,
         daywat_enabled={"monday": 1.0},
         daywatper_values={"monday": 1.0},
         working_profile=midday,
         holiday_profile=midday,
     )
+    # Include a non-zero temperature coefficient (ie_a2) so HDD_id(9) path is exercised.
+    cfg_cold.sites[0].properties.land_cover.dectr.ie_a.value = 0.05
+    cfg_cold.sites[0].properties.land_cover.dectr.ie_m.value = 0.05
 
-    # ACT
-    df_out, _ = _run_config(cfg, df_forcing)
+    # ACT 1
+    df_out_cold, _ = _run_config(cfg_cold, df_mon_start)
 
-    # ASSERT (ordinary assertions stay outside the narrowed xfail exception type)
-    ds_all = df_out.loc[1, "DailyState"]
-    df_daily = ds_all.loc[expected_dailystate_mask(ds_all.index, tstep=300)]
-    assert len(df_daily) == 10
-    wu_by_day = strict_groupby_reduce(
-        df_daily["WU_Grass1"],
-        _interval_day(df_daily.index),
-        agg="sum",
-        label="DailyState.WU_Grass1",
+    # ASSERT 1: sample_config_short starts with HDD_id = [13.5] * 12, so Day 1
+    # uses initial temp_avg=13.5 (giving auto = 0.5 * (4.0 + 0.05 * 13.5) = 2.3375)
+    # while initial rain_prev=13.5 > 2 mm suppresses manual irrigation on Day 1.
+    wug_cold = _daily_totals_in_window(
+        df_out_cold, "WUGrass", "2012-01-09", "2012-01-11"
     )
-    monday = pd.Timestamp("2012-01-09")
-    sunday = pd.Timestamp("2012-01-08")
-    monday_val = float(wu_by_day.loc[monday])
-    sunday_val = float(wu_by_day.loc[sunday])
+    assert float(wug_cold.loc[pd.Timestamp("2012-01-09")]) == pytest.approx(
+        0.5 * (4.0 + 0.05 * 13.5), rel=1e-9
+    )
+    assert np.array_equal(float(wug_cold.loc[pd.Timestamp("2012-01-10")]), 0.0)
+    assert np.array_equal(float(wug_cold.loc[pd.Timestamp("2012-01-11")]), 0.0)
 
-    if not (monday_val > 0.0 and np.array_equal(sunday_val, 0.0)):
-        raise _Issue2049DayWatDefectError(
-            f"DailyState WU_Grass1 on Monday ({monday.date()}) was {monday_val}; "
-            f"Sunday ({sunday.date()}) was {sunday_val} (gh#2049)"
+    # ARRANGE 2: UTC forcing with timezone=+8h (local standard Monday 2012-01-09
+    # spans 2012-01-08 16:05 UTC .. 2012-01-09 16:00 UTC).
+    df_utc = _make_repeated_forcing(base_day, "2012-01-07", n_days=4)
+    cfg_utc = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"monday": 1.0},
+        daywatper_values={"monday": 1.0},
+        working_profile=midday,
+        holiday_profile=midday,
+    )
+    cfg_utc.model.control.forcing.timestamp_reference = ForcingTimestampReference.UTC
+    cfg_utc.sites[0].properties.timezone.value = 8.0
+
+    # ACT 2
+    df_out_utc, _ = _run_config(cfg_utc, df_utc)
+
+    # ASSERT 2: group by local standard interval day (index + 8h - 1s).
+    suews_utc = df_out_utc.loc[1, "SUEWS"]
+    lst_day = pd.Series(
+        (suews_utc.index + pd.Timedelta(hours=8) - pd.Timedelta(seconds=1)).normalize(),
+        index=suews_utc.index,
+    )
+    wug_lst = suews_utc["WUGrass"].groupby(lst_day).sum()
+    assert float(wug_lst.loc[pd.Timestamp("2012-01-09")]) == pytest.approx(
+        4.0, rel=1e-9
+    )
+    for dt in (
+        pd.Timestamp("2012-01-08"),
+        pd.Timestamp("2012-01-10"),
+    ):
+        assert np.array_equal(float(wug_lst.loc[dt]), 0.0), (
+            f"UTC+8 expected zero WUGrass on local {dt.date()}, got {wug_lst.to_dict()}"
+        )
+
+
+def _assert_checkpoint_split_bit_identical(
+    cfg_path,
+    df_forcing: pd.DataFrame,
+    df_ref: pd.DataFrame,
+    split_idx: int,
+    ckpt_path,
+) -> None:
+    """Resume from checkpoint at ``split_idx`` and verify bit-identical irrigation output."""
+    part1 = df_forcing.iloc[:split_idx].copy()
+    part2 = df_forcing.iloc[split_idx:].copy()
+
+    sim1 = SUEWSSimulation()
+    sim1.update_config(cfg_path, auto_load_forcing=False)
+    sim1.update_forcing(part1)
+    out1 = sim1.run(start_date=part1.index[0], end_date=part1.index[-1], n_jobs=1)
+
+    sim2 = SUEWSSimulation.from_checkpoint(cfg_path, sim1.checkpoint.to_file(ckpt_path))
+    sim2.update_forcing(part2)
+    out2 = sim2.run(start_date=part2.index[0], end_date=part2.index[-1], n_jobs=1)
+
+    combined = pd.concat([out1.df, out2.df])
+    for grp, col in (
+        ("SUEWS", "Irr"),
+        ("SUEWS", "WUGrass"),
+        ("DailyState", "WU_Grass1"),
+    ):
+        a = combined.loc[1, (grp, col)].to_numpy()
+        b = df_ref.loc[1, (grp, col)].to_numpy()
+        equal = (a.view(np.uint64) == b.view(np.uint64)) | (np.isnan(a) & np.isnan(b))
+        assert equal.all(), (
+            f"Checkpoint split at idx={split_idx} ({part1.index[-1]}) diverged on "
+            f"{grp}.{col}"
         )
 
 
 @pytest.mark.core
-def test_gh2049_xfail_marker_narrows_to_defect_subclass():
-    """The #2049 xfail marker must only absorb ``_Issue2049DayWatDefectError``."""
-    marks = [
-        m
-        for m in getattr(
-            test_weekly_daywat_dailystate_matches_named_weekday_gh2049,
-            "pytestmark",
-            [],
+def test_irrigation_checkpoint_continuation_across_midnight_gh2381(
+    calendar_base, tmp_path
+):
+    """Checkpoint resume across 23:55, 00:00, 00:05 and midday must stay bit-identical."""
+    # ARRANGE
+    base_cfg, base_day = calendar_base
+    # 2012-01-08 (Sun) .. 2012-01-10 (Tue): Monday 2012-01-09 is the sole irrigated day.
+    df_forcing = _make_repeated_forcing(base_day, "2012-01-08", n_days=3)
+    mixed_prof = _hourly_window_profile({1, 12, 24}, weight=1.0 / 3.0)
+    cfg = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"monday": 1.0},
+        daywatper_values={"monday": 1.0},
+        working_profile=mixed_prof,
+        holiday_profile=mixed_prof,
+    )
+    cfg_path = tmp_path / "irrig_ckpt_case.yml"
+    cfg.to_yaml(cfg_path)
+
+    sim_ref = SUEWSSimulation()
+    sim_ref.update_config(cfg_path, auto_load_forcing=False)
+    sim_ref.update_forcing(df_forcing.copy())
+    df_ref = sim_ref.run(
+        start_date=df_forcing.index[0],
+        end_date=df_forcing.index[-1],
+        n_jobs=1,
+    ).df
+
+    # ACT & ASSERT: split points immediately around Sunday->Monday midnight and midday:
+    # 2012-01-08 23:55 (idx 286), 2012-01-09 00:00 (idx 287),
+    # 2012-01-09 00:05 (idx 288), 2012-01-09 12:20 (idx 435).
+    for split_idx in (287, 288, 289, 436):
+        _assert_checkpoint_split_bit_identical(
+            cfg_path, df_forcing, df_ref, split_idx, tmp_path / f"ckpt_{split_idx}.json"
         )
-        if m.name == "xfail"
+
+
+def _assert_irrigation_cols_bit_identical(
+    actual: pd.DataFrame, expected: pd.DataFrame, label: str
+) -> None:
+    """Assert exact uint64 bit equality on irrigation and DailyState columns."""
+    for grp, col in (
+        ("SUEWS", "Irr"),
+        ("SUEWS", "WUGrass"),
+        ("DailyState", "WU_Grass1"),
+    ):
+        a = actual.loc[1, (grp, col)].to_numpy()
+        b = expected.loc[1, (grp, col)].to_numpy()
+        equal = (a.view(np.uint64) == b.view(np.uint64)) | (np.isnan(a) & np.isnan(b))
+        assert equal.all(), f"{label} diverged on {grp}.{col}"
+
+
+def _assert_stream_irrigation_bit_identical(
+    cfg_path,
+    df_forcing: pd.DataFrame,
+    sim_ref: SUEWSSimulation,
+    tmp_path,
+    label: str,
+) -> None:
+    """Assert streamed parquet output matches uninterrupted parquet save bit-for-bit."""
+    stream_dir = tmp_path / "stream_pond"
+    stream_out = {
+        "format": "parquet",
+        "freq": 300,
+        "dir": str(stream_dir),
+        "groups": ["SUEWS", "DailyState"],
+        "stream_chunk": 1,
+    }
+    sim_stream = SUEWSSimulation()
+    sim_stream.update_config(cfg_path, auto_load_forcing=False)
+    sim_stream.update_config(
+        {"model": {"control": {"output": stream_out}}}, auto_load_forcing=False
+    )
+    sim_stream.update_forcing(df_forcing.copy())
+    sim_stream.run(
+        start_date=df_forcing.index[0], end_date=df_forcing.index[-1], n_jobs=1
+    )
+    (stream_pq,) = stream_dir.glob("*SUEWS_output*.parquet")
+
+    ref_pq_dir = tmp_path / "ref_pond"
+    ref_pq_dir.mkdir()
+    sim_ref.config.model.control.output.freq = 300
+    sim_ref.config.model.control.output.groups = ["SUEWS", "DailyState"]
+    sim_ref.save(ref_pq_dir, format="parquet")
+    (ref_pq,) = ref_pq_dir.glob("*SUEWS_output*.parquet")
+    _assert_irrigation_cols_bit_identical(
+        pd.read_parquet(stream_pq).sort_index(),
+        pd.read_parquet(ref_pq).sort_index(),
+        label,
+    )
+
+
+@pytest.mark.core
+def test_irrigation_ponding_continuation_modes_gh2381(calendar_base, tmp_path):
+    """Active ponding (h_maintain > 0) stays bit-identical across checkpoint, chunk, and stream."""
+    base_cfg, base_day = calendar_base
+    # 2012-01-08 (Sun) .. 2012-01-10 (Tue): Monday 2012-01-09 has active ponding demand.
+    df_forcing = _make_repeated_forcing(base_day, "2012-01-08", n_days=3)
+    mixed_prof = _hourly_window_profile({1, 12, 24}, weight=1.0 / 3.0)
+    cfg = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"monday": 1.0},
+        daywatper_values={"monday": 1.0},
+        working_profile=mixed_prof,
+        holiday_profile=mixed_prof,
+    )
+    cfg.sites[0].properties.irrigation.h_maintain.value = 5.0
+    pond_path = tmp_path / "irrig_pond.yml"
+    cfg.to_yaml(pond_path)
+
+    sim_ref = SUEWSSimulation()
+    sim_ref.update_config(pond_path, auto_load_forcing=False)
+    sim_ref.update_forcing(df_forcing.copy())
+    df_ref = sim_ref.run(
+        start_date=df_forcing.index[0], end_date=df_forcing.index[-1], n_jobs=1
+    ).df
+
+    # Confirm ponding raised Monday demand above the 4.0 mm baseline and already
+    # delivered water before the mid-Monday split (idx 436 -> 2012-01-09 12:20).
+    wug = df_ref.loc[1, ("SUEWS", "WUGrass")]
+    assert float(wug.sum()) > 4.0
+    assert float(wug.iloc[288:436].sum()) > 1.0
+    assert float(wug.iloc[436:576].sum()) > 1.0
+
+    # 1. Checkpoint resume across midnight (288) and mid-Monday active delivery (436).
+    for split_idx in (288, 436):
+        _assert_checkpoint_split_bit_identical(
+            pond_path,
+            df_forcing,
+            df_ref,
+            split_idx,
+            tmp_path / f"ckpt_pond_{split_idx}.json",
+        )
+
+    # 2. Chunked execution (chunk_day=1).
+    sim_chunk = SUEWSSimulation()
+    sim_chunk.update_config(pond_path, auto_load_forcing=False)
+    sim_chunk.update_forcing(df_forcing.copy())
+    df_chunk = sim_chunk.run(
+        start_date=df_forcing.index[0],
+        end_date=df_forcing.index[-1],
+        n_jobs=1,
+        chunk_day=1,
+    ).df
+    _assert_irrigation_cols_bit_identical(df_chunk, df_ref, "chunk_day=1 ponding")
+
+    # 3. Streamed parquet execution (stream_chunk=1).
+    _assert_stream_irrigation_bit_identical(
+        pond_path, df_forcing, sim_ref, tmp_path, "stream_chunk=1 ponding"
+    )
+
+
+@pytest.mark.core
+def test_irrigation_fractional_tz_hourly_midnight_straddle_gh2381(calendar_base):
+    """Hourly UTC forcing in UTC+05:30 straddles local midnight at 00:30 local time.
+
+    Under right-closed local-standard delivery days ``(D 00:00, D+1 00:00]``,
+    the interval ending ``Mon 00:30`` (``Sun 19:00 UTC``) belongs to Monday,
+    not Sunday. Enabling only Sunday must therefore stop delivering at
+    ``Mon 00:30``, and enabling both Sunday (holiday) and Monday (working_day)
+    with asymmetric profiles must switch profiles on ``Mon 00:30``.
+    """
+    base_cfg, base_day = calendar_base
+    # 72 hourly UTC steps: 2012-01-07 19:00 UTC .. 2012-01-10 18:00 UTC
+    # -> local UTC+05:30: 2012-01-08 00:30 (Sun) .. 2012-01-10 23:30 (Tue).
+    df_hr = _make_repeated_forcing(base_day, "2012-01-07", n_days=4).iloc[11::12].copy()
+    df_hr = df_hr.loc["2012-01-07 19:00:00":"2012-01-10 18:00:00"].copy()
+    assert len(df_hr) == 72
+
+    uniform_prof = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    cfg = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"sunday": 1.0},
+        daywatper_values={"sunday": 1.0},
+        working_profile=uniform_prof,
+        holiday_profile=uniform_prof,
+    )
+    cfg.model.control.tstep = 3600
+    cfg.model.control.forcing.timestamp_reference = ForcingTimestampReference.UTC
+    cfg.sites[0].properties.timezone.value = 5.5
+    cfg.sites[0].initial_states.hdd_id.precip_daily_total = 0.0
+
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_hr)
+    wug = sim.run(start_date=df_hr.index[0], end_date=df_hr.index[-1], n_jobs=1).df.loc[
+        1, ("SUEWS", "WUGrass")
     ]
-    assert len(marks) == 1
-    assert marks[0].kwargs.get("strict") is True
-    assert marks[0].kwargs.get("raises") is _Issue2049DayWatDefectError
-    for unrelated in (KeyError, AttributeError, ValueError, AssertionError):
-        assert not issubclass(unrelated, _Issue2049DayWatDefectError)
+
+    # Sun 23:30 IST (Sun 18:00 UTC) belongs to Sunday; Mon 00:30 IST (Sun 19:00 UTC)
+    # straddles local midnight and belongs to Monday -> must be exact zero.
+    assert float(wug.loc[pd.Timestamp("2012-01-08 18:00:00")]) > 0.0
+    assert np.array_equal(float(wug.loc[pd.Timestamp("2012-01-08 19:00:00")]), 0.0)
+
+    local_idx = df_hr.index + pd.Timedelta(hours=5, minutes=30)
+    by_local = wug.groupby(_interval_day(local_idx).to_numpy()).sum()
+    assert float(by_local.loc[pd.Timestamp("2012-01-08")]) == pytest.approx(
+        4.0, rel=1e-9
+    )
+    assert np.array_equal(float(by_local.loc[pd.Timestamp("2012-01-09")]), 0.0)
+    assert np.array_equal(float(by_local.loc[pd.Timestamp("2012-01-10")]), 0.0)
+
+    # Also verify asymmetric Sunday (holiday) -> Monday (working_day) profile switch
+    # on the midnight-straddling Mon 00:30 IST (Sun 19:00 UTC) step.
+    cfg_asym = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"sunday": 1.0, "monday": 1.0},
+        daywatper_values={"sunday": 1.0, "monday": 1.0},
+        working_profile=_hourly_window_profile({1, 2}, weight=0.5),
+        holiday_profile=_hourly_window_profile({12, 13}, weight=0.5),
+    )
+    cfg_asym.model.control.tstep = 3600
+    cfg_asym.model.control.forcing.timestamp_reference = ForcingTimestampReference.UTC
+    cfg_asym.sites[0].properties.timezone.value = 5.5
+    cfg_asym.sites[0].initial_states.hdd_id.precip_daily_total = 0.0
+    sim_asym = SUEWSSimulation()
+    sim_asym.update_config(cfg_asym, auto_load_forcing=False)
+    sim_asym.update_forcing(df_hr)
+    wug_asym = sim_asym.run(
+        start_date=df_hr.index[0], end_date=df_hr.index[-1], n_jobs=1
+    ).df.loc[1, ("SUEWS", "WUGrass")]
+    assert float(wug_asym.loc[pd.Timestamp("2012-01-08 19:00:00")]) == pytest.approx(
+        2.0, rel=1e-9
+    )
+
+
+@pytest.mark.core
+def test_irrigation_year_rollover_and_leap_day_gh2381(calendar_base):
+    """Year rollover (leap->non-leap) and 29 Feb transitions keep exact delivery days."""
+    base_cfg, base_day = calendar_base
+    midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
+    all_days = dict.fromkeys(WEEKDAYS, 1.0)
+
+    # 1. Year rollover 2012-12-30 (DOY 365) .. 2013-01-02 (DOY 2) with SH wrap [365..1]
+    df_roll = _make_repeated_forcing(base_day, "2012-12-30", n_days=4)
+    cfg_roll = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled=all_days,
+        daywatper_values=all_days,
+        working_profile=midday,
+        holiday_profile=midday,
+    )
+    cfg_roll.sites[0].properties.lat.value = -37.8
+    cfg_roll.sites[0].properties.irrigation.ie_start.value = 365
+    cfg_roll.sites[0].properties.irrigation.ie_end.value = 1
+    cfg_roll.sites[0].initial_states.hdd_id.precip_daily_total = 0.0
+    wug_roll = _daily_totals_in_window(
+        _run_config(cfg_roll, df_roll)[0], "WUGrass", "2012-12-30", "2013-01-02"
+    )
+    for active in ("2012-12-30", "2012-12-31", "2013-01-01"):
+        assert float(wug_roll.loc[pd.Timestamp(active)]) == pytest.approx(4.0, rel=1e-9)
+    assert np.array_equal(float(wug_roll.loc[pd.Timestamp("2013-01-02")]), 0.0)
+
+    # 2. Leap-day transition: 2012-02-29 is Wednesday; only Wednesday enabled.
+    df_leap = _make_repeated_forcing(base_day, "2012-02-28", n_days=3)
+    cfg_leap = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"wednesday": 1.0},
+        daywatper_values={"wednesday": 1.0},
+        working_profile=midday,
+        holiday_profile=midday,
+    )
+    wug_leap = _daily_totals_in_window(
+        _run_config(cfg_leap, df_leap)[0], "WUGrass", "2012-02-28", "2012-03-01"
+    )
+    assert float(wug_leap.loc[pd.Timestamp("2012-02-29")]) == pytest.approx(
+        4.0, rel=1e-9
+    )
+    assert np.array_equal(float(wug_leap.loc[pd.Timestamp("2012-02-28")]), 0.0)
+    assert np.array_equal(float(wug_leap.loc[pd.Timestamp("2012-03-01")]), 0.0)
+
+
+@pytest.mark.core
+def test_irrigation_hourly_tstep_matches_named_weekday_gh2381(calendar_base):
+    """Hourly timestep (tstep = 3600 s) must deliver Monday-only irrigation on Monday."""
+    base_cfg, base_day = calendar_base
+    midday = _hourly_window_profile({11, 12, 13, 14}, weight=0.25)
+    df_hr = _make_repeated_forcing(base_day, "2012-01-08", n_days=3).iloc[11::12].copy()
+    cfg_hr = _configure_modelled_irrigation(
+        base_cfg,
+        daywat_enabled={"monday": 1.0},
+        daywatper_values={"monday": 1.0},
+        working_profile=midday,
+        holiday_profile=midday,
+    )
+    cfg_hr.model.control.tstep = 3600
+    sim_hr = SUEWSSimulation()
+    sim_hr.update_config(cfg_hr, auto_load_forcing=False)
+    sim_hr.update_forcing(df_hr)
+    out_hr = sim_hr.run(start_date=df_hr.index[0], end_date=df_hr.index[-1], n_jobs=1).df
+    wug_hr = out_hr.loc[1, ("SUEWS", "WUGrass")].groupby(_interval_day(df_hr.index)).sum()
+    assert float(wug_hr.loc[pd.Timestamp("2012-01-09")]) == pytest.approx(4.0, rel=1e-9)
+    assert np.array_equal(float(wug_hr.loc[pd.Timestamp("2012-01-08")]), 0.0)
+    assert np.array_equal(float(wug_hr.loc[pd.Timestamp("2012-01-10")]), 0.0)

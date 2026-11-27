@@ -137,6 +137,7 @@ encoding_audit:
   - '**/*.py'
   - '.github/**/*.py'
   - '.claude/**/*.py'
+  - '.agents/**/*.py'
   - '.github/workflows/encoding-audit.yml'
   - '.github/workflows/build-publish_to_pypi.yml'
   - '.github/path-filters.yml'

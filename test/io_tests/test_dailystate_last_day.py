@@ -1,11 +1,9 @@
 """DailyState publishes every reached day-end, separately for each grid.
 
-The forcing uses interval-end stamps: a date-only start selects 00:05, not
-00:00. DailyState currently uses calendar-date stamps, publishing at 23:55
-for a five-minute step even on that first, partial calendar date. See
-suews_phys_dailystate.f95:update_DailyStateLine and
-suews_util_time.f95:SUEWS_cal_tstep. Do not require a midnight first row or
-move publication to the following midnight to match flux intervals.
+Under SUEWS's ``closed="right", label="right"`` convention, day ``D`` spans
+``(D 00:00, D+1 00:00]`` and ``DailyState`` publishes at closing midnight
+``D+1 00:00``. See ``suews_phys_dailystate.f95:update_DailyStateLine`` and
+``docs/source/inputs/timestamp-convention.rst``.
 """
 
 import numpy as np
@@ -16,20 +14,23 @@ pytestmark = [pytest.mark.api, pytest.mark.contract("C-CLOCK", "C-OUTPUT")]
 
 START = "2012-01-01"
 END = "2012-03-02 01:15"
-MIDDLE = pd.Timestamp("2012-01-11 23:55")
+MIDDLE = pd.Timestamp("2012-01-12 00:00")
 
 
 def _publication_calendar(forcing, step, grids):
-    """Derive day-ends from independent, regular forcing and model cadence."""
+    """Derive closing-midnight day-ends from independent, regular forcing."""
     assert len(forcing) > 0
     assert step >= pd.Timedelta(minutes=1)
     assert step % pd.Timedelta(minutes=1) == pd.Timedelta(0)
     assert pd.Timedelta(hours=1) % step == pd.Timedelta(0)
     assert forcing.equals(pd.date_range(forcing[0], forcing[-1], freq=step))
-    days = pd.date_range(forcing[0].normalize(), forcing[-1].normalize(), freq="D")
-    closing = days + pd.Timedelta(days=1) - step
-    # Keep a partial first date if its publication step is reached; exclude
-    # an unfinished last date. Never infer these bounds from surviving output.
+    closing = pd.date_range(
+        forcing[0].normalize(),
+        forcing[-1].normalize() + pd.Timedelta(days=1),
+        freq="D",
+    )
+    # Keep every reached closing midnight D+1 00:00 (including a 1-step partial
+    # first day if forcing starts at 00:00); exclude an unfinished last day.
     closing = closing[(closing >= forcing[0]) & (closing <= forcing[-1])]
     assert closing.isin(forcing).all()
     return pd.MultiIndex.from_product(
@@ -96,13 +97,13 @@ def test_sample_calendar_covers_first_middle_leap_and_last_days(
         ]
         assert len(stamps) == 61  # 31 January + 29 February + 1 March
         for stamp in (
-            "2012-01-01 23:55",
+            "2012-01-02 00:00",
             MIDDLE,
-            "2012-02-29 23:55",
-            "2012-03-01 23:55",
+            "2012-03-01 00:00",
+            "2012-03-02 00:00",
         ):
             assert (grid, pd.Timestamp(stamp)) in stamps
-        assert (grid, pd.Timestamp("2012-03-02 23:55")) not in stamps
+        assert (grid, pd.Timestamp("2012-03-03 00:00")) not in stamps
 
 
 @pytest.mark.parametrize(
@@ -112,18 +113,17 @@ def test_sample_calendar_covers_first_middle_leap_and_last_days(
             "2012-02-28 00:00",
             "2012-03-01 01:15",
             "5min",
-            ["2012-02-28 23:55", "2012-02-29 23:55"],
+            ["2012-02-28 00:00", "2012-02-29 00:00", "2012-03-01 00:00"],
         ),
         (
             "2012-02-28 00:05",
             "2012-03-01 01:15",
             "5min",
-            ["2012-02-28 23:55", "2012-02-29 23:55"],
+            ["2012-02-29 00:00", "2012-03-01 00:00"],
         ),
-        ("2012-02-29 12:00", "2012-02-29 23:50", "5min", []),
-        ("2012-02-29 12:00", "2012-02-29 23:55", "5min", ["2012-02-29 23:55"]),
-        ("2012-02-29 12:00", "2012-03-01 00:00", "5min", ["2012-02-29 23:55"]),
-        ("2012-02-29 12:00", "2012-03-01 01:00", "30min", ["2012-02-29 23:30"]),
+        ("2012-02-29 12:00", "2012-02-29 23:55", "5min", []),
+        ("2012-02-29 12:00", "2012-03-01 00:00", "5min", ["2012-03-01 00:00"]),
+        ("2012-02-29 12:00", "2012-03-01 01:00", "30min", ["2012-03-01 00:00"]),
     ],
 )
 def test_calendar_boundary_semantics(start, end, step, publications):
@@ -162,7 +162,7 @@ def test_coverage_rejects_damaged_publications(output, expected_publications, da
         stamp = {
             "missing-first": expected_publications[0][1],
             "missing-middle": MIDDLE,
-            "missing-leap": pd.Timestamp("2012-02-29 23:55"),
+            "missing-leap": pd.Timestamp("2012-03-01 00:00"),
             "missing-last": expected_publications[-1][1],
         }[damage]
         daily.loc[(grid, stamp), :] = np.nan
@@ -171,17 +171,17 @@ def test_coverage_rejects_damaged_publications(output, expected_publications, da
     elif damage.startswith("truncate-"):
         times = daily.index.get_level_values("datetime")
         if damage == "truncate-first":
-            keep = times > pd.Timestamp("2012-01-01 23:55")
+            keep = times > pd.Timestamp("2012-01-02 00:00")
         else:
-            keep = times < pd.Timestamp("2012-03-01 23:55")
+            keep = times < pd.Timestamp("2012-03-02 00:00")
         daily = daily.loc[keep]
     elif damage == "duplicate":
         daily = pd.concat([daily, daily.loc[[middle]]])
     else:
         stamp = {
             "partial-final": pd.Timestamp(END),
-            "extra-before": pd.Timestamp("2011-12-31 23:55"),
-            "extra-after": pd.Timestamp("2012-03-02 23:55"),
+            "extra-before": pd.Timestamp("2012-01-01 00:00"),
+            "extra-after": pd.Timestamp("2012-03-03 00:00"),
         }.get(damage, MIDDLE - pd.Timedelta(minutes=5))
         daily.loc[(grid, stamp), :] = daily.loc[middle].to_numpy()
         if damage == "wrong-time":

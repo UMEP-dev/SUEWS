@@ -4,7 +4,7 @@
 >
 > Active release rules, sanity checks, and operational skills supersede this manual whenever prose drifts. Always read and execute via:
 > - Rules: [`.claude/rules/docs/release-docs-sanity.md`](../.claude/rules/docs/release-docs-sanity.md), [`.claude/rules/python/schema-versioning.md`](../.claude/rules/python/schema-versioning.md), [`.claude/rules/changelog/format.md`](../.claude/rules/changelog/format.md), [`.claude/rules/physics-change-evidence.md`](../.claude/rules/physics-change-evidence.md), and [`.claude/rules/autonomous-workflow.md`](../.claude/rules/autonomous-workflow.md)
-> - Skills: `/prep-release` ([`.claude/skills/prep-release/SKILL.md`](../.claude/skills/prep-release/SKILL.md)), `/republish-docs` ([`.claude/skills/republish-docs/SKILL.md`](../.claude/skills/republish-docs/SKILL.md)), `/log-changes` ([`.claude/skills/log-changes/SKILL.md`](../.claude/skills/log-changes/SKILL.md)), and `/queue-pr` ([`.claude/skills/queue-pr/SKILL.md`](../.claude/skills/queue-pr/SKILL.md))
+> - Skills: `/prep-release` ([`.agents/skills/prep-release/SKILL.md`](../.agents/skills/prep-release/SKILL.md)), `/republish-docs` ([`.agents/skills/republish-docs/SKILL.md`](../.agents/skills/republish-docs/SKILL.md)), `/log-changes` ([`.agents/skills/log-changes/SKILL.md`](../.agents/skills/log-changes/SKILL.md)), and `/queue-pr` ([`.agents/skills/queue-pr/SKILL.md`](../.agents/skills/queue-pr/SKILL.md))
 
 ## Executive Summary
 

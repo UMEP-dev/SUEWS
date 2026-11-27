@@ -42,7 +42,7 @@ unsafe extern "C" {
     // Batch multi-timestep simulation driver (`c_api/driver.f95`, physics)
     // -----------------------------------------------------------------------
 
-    /// Execute `SUEWS_cal_multitsteps_dts` over `len_sim` forcing timesteps.
+    /// Execute `SUEWS_cal_multitsteps` over `len_sim` forcing timesteps.
     ///
     /// Unpacks `timer_flat`, `config_flat`, `site_scalars_flat`, the 18-member
     /// `site_flat` + `site_toc` buffer and the 13-member `state_flat` +
@@ -318,6 +318,8 @@ unsafe extern "C" {
 
     pub fn suews_spartacus_layer_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
+    pub fn suews_spartacus_layer_prm_compile_nspec(compile_nspec: *mut c_int, err: *mut c_int);
+
     pub fn suews_spartacus_layer_prm_default(
         flat: *mut c_double,
         n_flat: c_int,
@@ -482,14 +484,6 @@ unsafe extern "C" {
     pub fn suews_output_line_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_output_line_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
-
-    pub fn suews_output_block_len(n_flat: *mut c_int, err: *mut c_int);
-
-    pub fn suews_output_block_schema_version(schema_version: *mut c_int, err: *mut c_int);
-
-    pub fn suews_output_block_columns(cols: *mut c_int, n_cols: c_int, err: *mut c_int);
-
-    pub fn suews_output_block_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
     pub fn suews_error_entry_len(
         timer_flat_len: *mut c_int,

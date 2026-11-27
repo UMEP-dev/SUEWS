@@ -2,16 +2,7 @@
   "description": "Classified Layer 1 schema contract ledger and shrink-only ratchets (#2097, part of #2083). Distinguishes runtime-derived, documented conditional, and legitimately nullable fields from unclassified debt so shrinking ratchets cannot be gamed by inventing static defaults.",
   "baseline_commit": "b438c677c0",
   "validator_warning_swallows": {},
-  "doc_required_when_pending_from_yaml": {
-    "IrrigationParams.ie_start": {
-      "owner_issue": "#2083",
-      "current_enforcement": "Phase B validate_irrigation_doy (phase_b_rules.other_rules)"
-    },
-    "IrrigationParams.ie_end": {
-      "owner_issue": "#2083",
-      "current_enforcement": "Phase B validate_irrigation_doy (phase_b_rules.other_rules)"
-    }
-  },
+  "doc_required_when_pending_from_yaml": {},
   "groups": {
     "derived_run_bounds": {
       "owner_issue": "#2076",
@@ -47,15 +38,15 @@
       "reason": "BuildingLayer soil_store_capacity has no default and no validator rule."
     },
     "debt_biogenic_co2": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Biogenic CO2 parameter used under biogenic emissions methods (11-46), not yet in DOC_REQUIRED_WHEN."
     },
     "debt_anthro_co2": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Anthropogenic CO2 parameter used under detailed CO2 emissions methods, not yet in DOC_REQUIRED_WHEN."
     },
     "debt_irrigation_no_default": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Irrigation parameter with default=None and no validator contract."
     },
     "debt_lai_power": {
@@ -63,7 +54,7 @@
       "reason": "LAI power coefficient used when laimethod=1 (MODELLED), not yet in DOC_REQUIRED_WHEN."
     },
     "debt_ohm_coefficients": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "OHM coefficient with default=None and no validator rule."
     },
     "debt_snow_no_default": {
@@ -90,31 +81,27 @@
       "reason": "Optional nested sub-model or temporal profile that may be None when its governing physics option is inactive."
     },
     "debt_opt_stebbs_archetype": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "STEBBS archetype numeric field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_stebbs_props": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "STEBBS numeric/enum field typed Optional[FlexibleRefValue] with non-None default; allows explicit null when STEBBS is inactive."
     },
     "debt_opt_surface_thresholds": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Surface/snow threshold parameter typed Optional[FlexibleRefValue] with non-None default; explicit null bypasses DataModelBase null rejection."
     },
     "debt_opt_bioco2_enh": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Biogenic CO2 enhancement parameter typed Optional[FlexibleRefValue] with non-None default without active-method null guard."
     },
     "debt_opt_surface_init_temp": {
-      "owner_issue": "#2003",
+      "owner_issue": "#2309",
       "reason": "SurfaceInitialState temperature typed Optional[FlexibleRefValue] with non-None default."
     },
-    "debt_opt_building_layer_optical": {
-      "owner_issue": "#2085",
-      "reason": "BuildingLayer optical property typed Optional[FlexibleRefValue] with non-None default."
-    },
     "debt_opt_plain_scalars": {
-      "owner_issue": "#1991",
+      "owner_issue": "#2309",
       "reason": "Plain Optional scalar/metadata field carrying a non-None default (profiles, archetype_name, legacy Conductance.ref placeholder)."
     }
   },
@@ -215,8 +202,8 @@
     "summary_counts": {
       "documented_conditional": 3,
       "legitimately_optional_nullable": 50,
-      "unclassified_debt": 180,
-      "total": 233
+      "unclassified_debt": 174,
+      "total": 227
     },
     "documented_conditional": {
       "StebbsProperties.radiation_threshold_shading": "cond_stebbs_shading",
@@ -341,8 +328,6 @@
       "BsoilProperties.ohm_threshold_summer_winter": "debt_opt_surface_thresholds",
       "BsoilProperties.ohm_threshold_wet_dry": "debt_opt_surface_thresholds",
       "BsoilProperties.snowpack_limit": "debt_opt_surface_thresholds",
-      "BuildingLayer.roof_albedo_dir_mult_fact": "debt_opt_building_layer_optical",
-      "BuildingLayer.wall_specular_frac": "debt_opt_building_layer_optical",
       "DectrProperties.alpha_enh_bioco2": "debt_opt_bioco2_enh",
       "DectrProperties.beta_enh_bioco2": "debt_opt_bioco2_enh",
       "DectrProperties.irrigation_fraction": "debt_opt_surface_thresholds",
@@ -385,8 +370,6 @@
       "PavedProperties.ohm_threshold_summer_winter": "debt_opt_surface_thresholds",
       "PavedProperties.ohm_threshold_wet_dry": "debt_opt_surface_thresholds",
       "PavedProperties.snowpack_limit": "debt_opt_surface_thresholds",
-      "RoofLayer.roof_albedo_dir_mult_fact": "debt_opt_building_layer_optical",
-      "RoofLayer.wall_specular_frac": "debt_opt_building_layer_optical",
       "SnowParams.ohm_threshold_summer_winter": "debt_opt_surface_thresholds",
       "SnowParams.ohm_threshold_wet_dry": "debt_opt_surface_thresholds",
       "StebbsProperties.conductivity_hot_water_tank_wall": "debt_opt_stebbs_props",
@@ -450,8 +433,6 @@
       "VegetatedSurfaceProperties.ohm_threshold_summer_winter": "debt_opt_surface_thresholds",
       "VegetatedSurfaceProperties.ohm_threshold_wet_dry": "debt_opt_surface_thresholds",
       "VegetatedSurfaceProperties.snowpack_limit": "debt_opt_surface_thresholds",
-      "WallLayer.roof_albedo_dir_mult_fact": "debt_opt_building_layer_optical",
-      "WallLayer.wall_specular_frac": "debt_opt_building_layer_optical",
       "WaterProperties.irrigation_fraction": "debt_opt_surface_thresholds",
       "WaterProperties.ohm_threshold_summer_winter": "debt_opt_surface_thresholds",
       "WaterProperties.ohm_threshold_wet_dry": "debt_opt_surface_thresholds",

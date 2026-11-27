@@ -9,6 +9,8 @@ import click
 import f90nml
 
 from ..._load import load_InitialCond_grid_df
+from ..._misc import path_insensitive
+from ...constants import SEC_PER_HOUR
 from ...data_model.core import SUEWSConfig
 from ...data_model.core.model import OutputControl
 from .table import convert_table
@@ -46,11 +48,40 @@ def _prepare_processing_dir(
     return temp_dir_path, temp_dir_obj
 
 
+def _resolve_forcing_search_dir(base: Path, raw_path: str) -> Path:
+    """Resolve a RunControl ``FileInputPath`` entry against ``base``."""
+    stripped = raw_path.strip()
+    if os.path.isabs(stripped):
+        return Path(stripped).resolve()
+    return (base / stripped).resolve()
+
+
+def _original_fileinputpath_dir(
+    input_dir: Path, original_runcontrol: Path | None = None
+) -> Path | None:
+    """Return the resolved ``FileInputPath`` from the original ``RunControl.nml``."""
+    orig_rc = (
+        original_runcontrol
+        if original_runcontrol is not None
+        else Path(path_insensitive(input_dir / "RunControl.nml"))
+    )
+    if not orig_rc.is_file():
+        return None
+    orig_section = f90nml.read(str(orig_rc)).get("runcontrol")
+    if orig_section is None:
+        return None
+    orig_fileinputpath = orig_section.get("fileinputpath")
+    if not isinstance(orig_fileinputpath, str) or not orig_fileinputpath.strip():
+        return None
+    return _resolve_forcing_search_dir(orig_rc.parent.resolve(), orig_fileinputpath)
+
+
 def _configure_forcing_and_output(
     config: SUEWSConfig,
     path_runcontrol: Path,
     input_dir: str,
     output_dir: Path,
+    original_runcontrol: Path | None = None,
 ) -> None:
     """Configure forcing file and output settings based on RunControl."""
     runcontrol_data = f90nml.read(str(path_runcontrol))
@@ -63,16 +94,18 @@ def _configure_forcing_and_output(
     # Look for forcing files matching the pattern
     fileinputpath = runcontrol.get("fileinputpath", "./Input/")
 
-    def _resolve_search_dir(base: Path) -> Path:
-        if os.path.isabs(fileinputpath):
-            return Path(fileinputpath)
-        return (base / fileinputpath).resolve()
-
-    input_path = Path(input_dir)
+    input_resolved = Path(input_dir).resolve()
     search_dirs = []
-    for base in {input_path.resolve(), path_runcontrol.parent.resolve()}:
+    # convert_table rewrites external FileInputPath values into the temporary
+    # directory and does not copy forcing files, so also check FileInputPath
+    # from the original RunControl.nml in input_dir.
+    orig_input_dir = _original_fileinputpath_dir(input_resolved, original_runcontrol)
+    if orig_input_dir is not None:
+        search_dirs.append(orig_input_dir)
+
+    for base in (input_resolved, path_runcontrol.parent.resolve()):
         search_dirs.append(base)
-        search_dirs.append(_resolve_search_dir(base))
+        search_dirs.append(_resolve_forcing_search_dir(base, fileinputpath))
         default_input = base / "Input"
         if default_input.exists():
             search_dirs.append(default_input.resolve())
@@ -113,7 +146,7 @@ def _configure_forcing_and_output(
         )
 
     # Set proper output configuration
-    resolutionfilesout = runcontrol.get("resolutionfilesout", 3600)
+    resolutionfilesout = runcontrol.get("resolutionfilesout", SEC_PER_HOUR)
 
     # Create OutputControl based on RunControl settings
     output_path_setting = runcontrol.get("fileoutputpath", "./Output/")
@@ -131,7 +164,7 @@ def _configure_forcing_and_output(
 
     output_control = OutputControl(
         format="txt",  # Default to txt format for compatibility
-        freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
+        freq=resolutionfilesout if resolutionfilesout > 0 else SEC_PER_HOUR,
         groups=["SUEWS", "DailyState"],  # Default groups
         dir=output_path_relative,
     )
@@ -243,7 +276,11 @@ def convert_to_yaml(
 
                 # Configure forcing file and output settings
                 _configure_forcing_and_output(
-                    config, path_runcontrol, str(table_dir), output_path.parent
+                    config,
+                    path_runcontrol,
+                    str(table_dir),
+                    output_path.parent,
+                    original_runcontrol=input_path,
                 )
 
                 # Legacy table sets can carry initial-state values (e.g. an

@@ -1,4 +1,6 @@
 MODULE module_ctrl_type
+   USE module_ctrl_const_options, ONLY: &
+      SHM_EHC
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, nvegsurf, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
@@ -79,6 +81,11 @@ MODULE module_ctrl_type
       INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
       INTEGER :: ForcingTimestampReference = 0 ! forcing timestamp reference: 0=local standard time, 1=UTC [-]
+      INTEGER :: EHCSurfaceCoupling = 1 ! EHC surface coupling: 0=explicit, 1=implicit (default) [-]
+      INTEGER :: control_ehc_stability = 0 ! late implicit iteration: 0=off, 1=relax QH, 2=secant QH [-]
+      LOGICAL :: control_ehc_initial_profile = .TRUE. ! fresh implicit envelope only [-]
+      REAL(KIND(1D0)) :: resistance_ehc_indoor_roof = 0.10D0 ! ISO 6946 upward [m2 K W-1]
+      REAL(KIND(1D0)) :: resistance_ehc_indoor_wall = 0.13D0 ! ISO 6946 horizontal [m2 K W-1]
    END TYPE SUEWS_CONFIG
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -225,32 +232,59 @@ MODULE module_ctrl_type
    END TYPE SUEWS_FORCING
 
    TYPE, PUBLIC :: SUEWS_TIMER
-      ! Timer type containing temporal information for SUEWS calculations
-      ! Note: tstep_prev is retained for WRF-SUEWS coupling where adaptive timesteps are used
-      INTEGER :: id = 0 !
-      INTEGER :: imin = 0 !
-      INTEGER :: isec = 0 !
-      INTEGER :: it = 0 ! Hour of day
-      INTEGER :: iy = 0 !
-      INTEGER :: tstep = 0 ! Current timestep [s]
-      INTEGER :: tstep_prev = 0 ! Previous timestep [s] - for WRF adaptive stepping (equals tstep in standalone)
-      INTEGER :: dt_since_start = 0 !
-      INTEGER :: dt_since_start_prev = 0 !
+      ! Caller-supplied temporal input for one timestep (gh#2333).
+      ! The caller (driver loop, Rust bridge, WRF coupling) owns these values;
+      ! the kernel never writes them. Everything derived from them lives in
+      ! SUEWS_CLOCK. tstep_prev is retained for WRF-SUEWS coupling with
+      ! adaptive timesteps (it equals tstep in standalone runs).
+      INTEGER :: id = 0 ! day of year [-]
+      INTEGER :: imin = 0 ! minute of hour [-]
+      INTEGER :: isec = 0 ! second of minute [-]
+      INTEGER :: it = 0 ! hour of day [-]
+      INTEGER :: iy = 0 ! year [-]
+      INTEGER :: tstep = 0 ! current timestep [s]
+      INTEGER :: tstep_prev = 0 ! previous timestep [s]
+      INTEGER :: dt_since_start = 0 ! elapsed time at the end of this timestep [s]
+   END TYPE SUEWS_TIMER
 
-      ! values that are derived from tstep
-      INTEGER :: nsh = 0 ! number of timesteps per hour
+   TYPE, PUBLIC :: SUEWS_CLOCK
+      ! Per-step view of time used by the physics (gh#2333).
+      ! Produced afresh every timestep by SUEWS_cal_clock (timer IN, clock OUT)
+      ! and passed INTENT(IN) to the physics. Every other component is a pure
+      ! function of the caller's timer and the site, so a clock carries no
+      ! memory between timesteps and never crosses the C ABI or a checkpoint.
+
+      TYPE(SUEWS_TIMER) :: timer ! the caller-supplied inputs, copied unchanged
+
+      ! values derived from tstep
+      INTEGER :: nsh = 0 ! number of timesteps per hour [-]
       REAL(KIND(1D0)) :: nsh_real = 0.0D0 ! nsh in type real [-]
-      REAL(KIND(1D0)) :: tstep_real = 0.0D0 ! tstep in type real
-      REAL(KIND(1D0)) :: dectime = 0.0D0 !decimal time [-]
+      REAL(KIND(1D0)) :: tstep_real = 0.0D0 ! tstep in type real [s]
+      REAL(KIND(1D0)) :: dectime = 0.0D0 ! decimal time [-]
 
       INTEGER, DIMENSION(3) :: dayofWeek_id = 0 ! 1 - day of week; 2 - month; 3 - season
 
-      INTEGER :: DLS = 0 !daylight saving time offset [h]
+      INTEGER :: DLS = 0 ! daylight saving time offset [h]
 
-      INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
+      ! Day-boundary predicates on the main (forcing) clock.
+      ! DailyState uses the right-closed day (D 00:00, D+1 00:00] defined by
+      ! date(t - 1 s) (gh#2382), counting the first step of a run as a new day.
+      ! DyOHM preserves calendar-day midnight updates (gh#2333) and skips the
+      ! first step of a run.
+      LOGICAL :: first_step_of_run = .FALSE. ! dt_since_start == tstep
+      LOGICAL :: first_step_of_day = .FALSE. ! right-closed day opened on this step
+      LOGICAL :: last_step_of_day = .FALSE. ! right-closed day closes on this step
+      LOGICAL :: prev_step_closed_day = .FALSE. ! previous step closed its right-closed day under tstep_prev
+      LOGICAL :: first_step_of_calendar_day = .FALSE. ! calendar day changed since (t - tstep)
+
+      ! Calendar identity and elapsed duration of the right-closed accumulated
+      ! day date(time_now - 1 s) (gh#2382). At closing midnight D+1 00:00:00
+      ! these belong to day D rather than D+1.
+      INTEGER :: id_day = 0 ! day of year of accumulated day [-]
+      INTEGER, DIMENSION(3) :: dayofWeek_day = 0 ! 1 - day of week; 2 - month; 3 - season of accumulated day
+      INTEGER :: elapsed_sec_of_day = 0 ! seconds elapsed in accumulated day up to time_now [s]
 
       ! Fixed-offset local-standard-time fields for solar and profile consumers.
-      ! They are derived internally and intentionally excluded from the C timer ABI.
       INTEGER :: iy_st = 0
       INTEGER :: id_st = 0
       INTEGER :: it_st = 0
@@ -259,7 +293,15 @@ MODULE module_ctrl_type
       INTEGER, DIMENSION(3) :: dayofWeek_id_st = 0
       REAL(KIND(1D0)) :: tz_solar = 0.0D0
 
-   END TYPE SUEWS_TIMER
+      ! Right-closed local-standard delivery day (D 00:00, D+1 00:00] for
+      ! modelled irrigation budgeting and weekday-profile selection (gh#2381).
+      INTEGER :: deliv_year_st = 0
+      INTEGER :: deliv_month_st = 0
+      INTEGER :: deliv_day_st = 0
+      INTEGER :: deliv_doy_st = 0
+      INTEGER :: deliv_dow_st = 0
+      LOGICAL :: first_step_of_deliv_day_st = .FALSE.
+   END TYPE SUEWS_CLOCK
 
    ! Single error/warning log entry
    TYPE, PUBLIC :: error_entry
@@ -268,25 +310,6 @@ MODULE module_ctrl_type
       CHARACTER(LEN=64) :: location = ''   ! Where (subroutine name)
       LOGICAL :: is_fatal = .FALSE.        ! Stop execution?
    END TYPE error_entry
-
-   TYPE, PUBLIC :: output_block
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSUEWS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSnow
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockESTM
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockEHC
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockRSL
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockBEERS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDebug
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDailyState
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSTEBBS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockNHood
-   CONTAINS
-      ! Procedures
-      PROCEDURE :: init => output_block_init
-      ! PROCEDURE :: finalize => output_block_finalize
-      PROCEDURE :: cleanup => output_block_finalize
-   END TYPE output_block
 
    TYPE, PUBLIC :: output_line
       REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine = -999 !date & time
@@ -332,12 +355,6 @@ MODULE module_ctrl_type
    CONTAINS
       PROCEDURE :: init => init_suews_debug
    END TYPE SUEWS_DEBUG
-
-   TYPE, PUBLIC :: SUEWS_STATE_BLOCK
-      TYPE(SUEWS_STATE), DIMENSION(:), ALLOCATABLE :: BLOCK
-   CONTAINS
-      PROCEDURE :: init => init_suews_state_block
-   END TYPE SUEWS_STATE_BLOCK
 
 CONTAINS
 
@@ -479,22 +496,6 @@ CONTAINS
 
    !===========================================================================
 
-   SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)
-      CLASS(SUEWS_STATE_BLOCK), INTENT(inout) :: self
-      INTEGER, INTENT(in) :: nlayer, ndepth
-      INTEGER, INTENT(in) :: len_sim
-      INTEGER :: ir
-
-      ! allocate debug_state_block
-      ALLOCATE (self%BLOCK(len_sim))
-
-      ! initialise each element
-      DO ir = 1, len_sim
-         CALL self%BLOCK(ir)%ALLOCATE(nlayer, ndepth)
-      END DO
-   END SUBROUTINE init_suews_state_block
-
-
    SUBROUTINE init_suews_debug(self, nlayer, ndepth)
       CLASS(SUEWS_DEBUG), INTENT(inout) :: self
       INTEGER, INTENT(in) :: nlayer, ndepth
@@ -533,56 +534,6 @@ CONTAINS
       self%dataOutLineSTEBBS = -999.0
       self%dataOutLineNHood = -999.0
    END SUBROUTINE output_line_init
-
-   SUBROUTINE output_block_init(self, len)
-      CLASS(output_block), INTENT(inout) :: self
-      INTEGER, INTENT(in) :: len
-
-      ! Allocate memory for the arrays
-      ALLOCATE (self%dataOutBlockSUEWS(len, ncolumnsDataOutSUEWS))
-      ALLOCATE (self%dataOutBlockSnow(len, ncolumnsDataOutSnow))
-      ALLOCATE (self%dataOutBlockESTM(len, ncolumnsDataOutESTM))
-      ALLOCATE (self%dataOutBlockEHC(len, ncolumnsDataOutEHC))
-      ALLOCATE (self%dataOutBlockRSL(len, ncolumnsDataOutRSL))
-      ALLOCATE (self%dataOutBlockBEERS(len, ncolumnsDataOutBEERS))
-      ALLOCATE (self%dataOutBlockDebug(len, ncolumnsDataOutDebug))
-      ALLOCATE (self%dataOutBlockSPARTACUS(len, ncolumnsDataOutSPARTACUS))
-      ALLOCATE (self%dataOutBlockDailyState(len, ncolumnsDataOutDailyState))
-      ALLOCATE (self%dataOutBlockSTEBBS(len, ncolumnsDataOutSTEBBS))
-      ALLOCATE (self%dataOutBlockNHood(len, ncolumnsDataOutNHood))
-
-      ! Set default values
-      self%dataOutBlockSUEWS = -999.0
-      self%dataOutBlockSnow = -999.0
-      self%dataOutBlockESTM = -999.0
-      self%dataOutBlockEHC = -999.0
-      self%dataOutBlockRSL = -999.0
-      self%dataOutBlockBEERS = -999.0
-      self%dataOutBlockDebug = -999.0
-      self%dataOutBlockSPARTACUS = -999.0
-      self%dataOutBlockDailyState = -999.0
-      self%dataOutBlockSTEBBS = -999.0
-      self%dataOutBlockNHood = -999.0
-
-   END SUBROUTINE output_block_init
-
-   SUBROUTINE output_block_finalize(self)
-      CLASS(output_block), INTENT(inout) :: self
-
-      ! Deallocate memory for the arrays
-      IF (ALLOCATED(self%dataOutBlockSUEWS)) DEALLOCATE (self%dataOutBlockSUEWS)
-      IF (ALLOCATED(self%dataOutBlockSnow)) DEALLOCATE (self%dataOutBlockSnow)
-      IF (ALLOCATED(self%dataOutBlockESTM)) DEALLOCATE (self%dataOutBlockESTM)
-      IF (ALLOCATED(self%dataOutBlockEHC)) DEALLOCATE (self%dataOutBlockEHC)
-      IF (ALLOCATED(self%dataOutBlockRSL)) DEALLOCATE (self%dataOutBlockRSL)
-      IF (ALLOCATED(self%dataOutBlockBEERS)) DEALLOCATE (self%dataOutBlockBEERS)
-      IF (ALLOCATED(self%dataOutBlockDebug)) DEALLOCATE (self%dataOutBlockDebug)
-      IF (ALLOCATED(self%dataOutBlockSPARTACUS)) DEALLOCATE (self%dataOutBlockSPARTACUS)
-      IF (ALLOCATED(self%dataOutBlockDailyState)) DEALLOCATE (self%dataOutBlockDailyState)
-      IF (ALLOCATED(self%dataOutBlockSTEBBS)) DEALLOCATE (self%dataOutBlockSTEBBS)
-      IF (ALLOCATED(self%dataOutBlockNHood)) DEALLOCATE (self%dataOutBlockNHood)
-
-   END SUBROUTINE output_block_finalize
 
    SUBROUTINE allocSUEWSState_c(self, nlayer, ndepth)
       IMPLICIT NONE
@@ -705,7 +656,7 @@ CONTAINS
          PervFraction = 1 - ImpervFraction
          NonWaterFraction = 1 - sfr_surf(WaterSurf)
 
-         IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
+         IF (StorageHeatMethod == SHM_EHC .OR. NetRadiationMethod > 1000) THEN
             ! get individual building fractions of each layer
             ! NB.: sum(sfr_roof) = building_frac(1)
             sfr_roof = 0.

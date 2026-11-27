@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
    USE module_ctrl_const_mathconst, ONLY: pi
-   USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
+   USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_CLOCK, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
@@ -86,8 +86,8 @@ CONTAINS
    END FUNCTION relax_free_convection
 
 
-   SUBROUTINE SUEWS_update_atmState(timer, forcing, modState)
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+   SUBROUTINE SUEWS_update_atmState(clock, forcing, modState)
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
       ! TYPE(atm_state), INTENT(inout) :: atmState
@@ -97,9 +97,9 @@ CONTAINS
             Temp_C => forcing%Temp_C, &
             pres => forcing%pres, &
             RH => forcing%RH, &
-            dectime => timer%dectime, &
-            dt_since_start => timer%dt_since_start, &
-            tstep => timer%tstep, &
+            dectime => clock%dectime, &
+            dt_since_start => clock%timer%dt_since_start, &
+            tstep => clock%timer%tstep, &
             Tair_av => atmState%Tair_av, &
             lv_J_kg => atmState%lv_J_kg, &
             lvS_J_kg => atmState%lv_s_j_kg, &
@@ -159,7 +159,7 @@ CONTAINS
       es_hPa, Ea_hPa, VPd_hpa, VPD_Pa, dq, dens_dry, avcp, air_dens, &
       modState) ! optional: for thread-safe error logging
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE meteo, ONLY: &
+      USE module_util_meteo, ONLY: &
          sat_vap_press_x, spec_heat_beer, &
          lat_vap, lat_vapSublim, spec_hum_def
 
@@ -868,30 +868,6 @@ CONTAINS
 
    END FUNCTION
 
-   FUNCTION dPsi_dzL_G00(ZL, psiK, phiK, psiC, phiC) RESULT(dPsi)
-      ! Grachev et al. (2000), eqn 15
-      ! note: Psi is a zL-weighted sum of Kansas and convective components
-      ! derived from d(Psi)/d(zL)=d((psiK+zL**2*psiC)/(1+zL**2))/d(zL)
-
-      REAL(KIND(1D0)) :: zl, dPsi, psiC, phiC, psiK, phiK
-      REAL(KIND(1D0)) :: x_zl, x_psiC, x_phiC, x_psiK, x_phiK
-
-      ! Kansas part
-      x_psiK = -(2*psiK*zL)/(1 + zL**2)**2
-      x_phiK = -phiK/(zL*(1 + zL**2))
-
-      ! convective contribution
-      x_psiC = (2*psiC*zL)/(1 + zL**2)**2
-      x_phiC = -(phiC*zL)/(1 + zL**2)
-
-      ! zL related
-      x_zl = 1/zL
-
-      ! totoal
-      dPsi = x_psiC + x_psiK + x_phiK + x_phiC + x_zl
-
-   END FUNCTION
-
    ! ------------------------------------
 
    ! ------------------------------------
@@ -1158,7 +1134,6 @@ CONTAINS
       ! Note: Unstable part corresponds to Dyer (1974) mod. Hogstrom (1988)
       ! Note: Stable part corresponds to Van Ulden & Holtslag (1985) p 1206 in original code
 
-      ! use mod_z ! Original dependency - removed as not needed in isolated function
       ! use mod_k ! Original dependency - removed as not needed in isolated function
 
       IMPLICIT NONE
@@ -1221,8 +1196,3 @@ CONTAINS
       RETURN
    END FUNCTION psi_heat_W16
 END MODULE module_phys_atmmoiststab
-
-! Backward compatibility alias
-MODULE AtmMoistStab_module
-   USE module_phys_atmmoiststab
-END MODULE AtmMoistStab_module

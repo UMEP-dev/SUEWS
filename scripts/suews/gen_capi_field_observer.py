@@ -4,7 +4,7 @@
 Parses canonical Fortran kernel ``TYPE`` declarations directly from
 ``src/suews/src/suews_type_*.f95`` and ``src/suews/src/suews_ctrl_type.f95``,
 resolves symbolic array-bound ``PARAMETER`` constants from kernel sources,
-verifies static coverage across all 49 bridged types in
+verifies static coverage across all 47 bridged types in
 ``src/suews_bridge/bridge-manifest.json``, and emits two deterministic,
 ASCII-only test artefacts outside ``src/suews_bridge/c_api/``:
 
@@ -548,7 +548,7 @@ DRIVER_PRIVATE_UNPACK_SPECS: dict[str, str] = {
     ),
 }
 
-# 7 manifest types that have no Fortran ``*_unpack`` routine because they are
+# 5 manifest types that have no Fortran ``*_unpack`` routine because they are
 # output-only, error-output-only, raw-matrix forcing, or Rust-side composites.
 NON_UNPACKED_SPECS: dict[str, str] = {
     "error_entry": (
@@ -563,48 +563,19 @@ NON_UNPACKED_SPECS: dict[str, str] = {
         "Single-timestep output row written by kernel and packed output-only; "
         "no unpack entry point (gh#1849, gh#2096)."
     ),
-    "output_block": (
-        "Multi-timestep output matrix block written directly by kernel; "
-        "no unpack entry point (gh#1849, gh#2096)."
-    ),
     "suews_debug": (
         "Diagnostic container of 15 SUEWS_STATE snapshots; Rust CompositeCodec "
         "only with no c_api unpack routine (gh#2096)."
     ),
     "suews_forcing": (
         "No C-API flat unpacker. The typed forcing-row observer exercises the production "
-        "SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
-    ),
-    "suews_state_block": (
-        "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no "
-        "c_api unpack routine (gh#2096)."
+        "module_ctrl_driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
     ),
 }
 
 # Reviewed unbridged kernel components inside DIRECT_UNPACK_SPECS types.
 # Any unlisted component missing from *_unpack fails generation loudly.
-REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {
-    (
-        "heat_state",
-        "temp_surf_ehc_fast",
-    ): "Internal EHC fast thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "temp_surf_ehc_slow",
-    ): "Internal EHC slow thermal working array initialised from temp_surf in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_dif_tsfc",
-    ): "Intra-timestep EHC convergence diagnostic written per iteration in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_dif_qh",
-    ): "Intra-timestep EHC residual-vs-resistance QH diagnostic written in kernel (gh#1574, gh#1989).",
-    (
-        "heat_state",
-        "ehc_iter_score",
-    ): "Intra-timestep EHC iteration quality score written in kernel (gh#1574, gh#1989).",
-}
+REVIEWED_UNBRIDGED_COMPONENTS: dict[tuple[str, str], str] = {}
 
 # Reviewed unused legacy CHARACTER components inside bridged derived-type arrays.
 # The flat f64 C-API carries numeric, integer, and logical state only; any
@@ -630,34 +601,6 @@ REVIEWED_NON_NUMERIC_LEAF_COMPONENTS: dict[tuple[str, str], str] = {
 
 # Reviewed derived-only components inside driver-private types.
 REVIEWED_DRIVER_EXCLUDED_COMPONENTS: dict[tuple[str, str], str] = {
-    (
-        "suews_timer",
-        "iy_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "id_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "it_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "imin_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "dectime_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "dayofweek_id_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "tz_solar",
-    ): "Derived solar timezone offset excluded from C timer ABI (suews_ctrl_type.f95).",
     (
         "suews_site",
         "vegfraction",
@@ -1898,9 +1841,11 @@ def audit_manifest_and_inventory(
     capi_dir: Path,
     kernel_src_dir: Path = KERNEL_SRC_DIR,
 ) -> tuple[list[dict[str, str]], dict[str, list[LeafField]]]:
-    """Validate 100% manifest coverage across all 49 bridged types and their leaves."""
+    """Validate 100% manifest coverage across all 47 bridged types and their leaves."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest_entries: list[dict[str, str]] = manifest["types"]
+    manifest_entries: list[dict[str, str]] = [
+        entry for entry in manifest["types"] if entry.get("status") != "excluded"
+    ]
 
     _audit_category_completeness(manifest_entries, types_by_lower)
     _audit_capi_unpack_registry(capi_dir)
@@ -2335,7 +2280,7 @@ def emit_fortran_observer(
     lines.extend([
         "end module module_test_capi_field_observer",
         "",
-        "submodule (SUEWS_Driver) test_forcing_rows",
+        "submodule (module_ctrl_driver) test_forcing_rows",
         "   use, intrinsic :: iso_c_binding, only: c_double",
         "   implicit none",
         "contains",

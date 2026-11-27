@@ -580,11 +580,13 @@ def test_stebbs_standalone_engine_cli_parity(
         encoding="utf-8",
     )
 
+    # Nightly checked builds (-O0 -fcheck=all) need ~120-145 s for the 48-hour
+    # coupled STEBBS+SPARTACUS run under xdist worker contention (gh#2307).
     result = subprocess.run(
         [str(engine), "run", str(cfg_path)],
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=300,
         check=False,
     )
     assert result.returncode == 0, (

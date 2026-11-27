@@ -1,10 +1,23 @@
 from importlib import import_module
+from importlib.resources import files
+from pathlib import Path
+import pickle
 
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
+import supy as sp
+from supy import SUEWSKernelError, SUEWSSimulation
+from supy.data_model import SUEWSConfig
+from supy.data_model.core.model import ModelPhysics, SMDMethod
+from supy.data_model.core.type import RefValue
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract("C-API", "C-FORCING", "C-NATIVE-ERROR", "C-OUTPUT"),
+]
 
 _run_rust = import_module("supy._run_rust")
 
@@ -169,3 +182,300 @@ def test_prepare_forcing_block_prefers_per_surface_wuh():
     assert block.shape == (len(df_forcing), _run_rust.MET_FORCING_COLS)
     for offset, name in enumerate(per_surface):
         np.testing.assert_allclose(block[:, 23 + offset], df_forcing[name])
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [
+        RefValue(SMDMethod.MODELLED),
+        SMDMethod.MODELLED,
+        RefValue(0),
+        0,
+    ],
+)
+def test_run_suews_rust_accepts_modelled_soil_moisture_representations(
+    raw_value, sample_config_loaded, sample_forcing_parsed
+):
+    """Real configs with wrapped, bare enum, or plain int soil_moisture=0 run cleanly (#2192)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    cfg.model.physics.soil_moisture = raw_value
+    _, df_forcing = sample_forcing_parsed(2)
+
+    df_out, state_json, _ = _run_rust.run_suews_rust(cfg, df_forcing, grid_id=1)
+
+    assert len(df_out) == 2
+    assert isinstance(state_json, str) and state_json
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [
+        RefValue(SMDMethod.OBSERVED),
+        SMDMethod.OBSERVED,
+        RefValue(1),
+        1,
+    ],
+)
+def test_run_suews_rust_routes_observed_soil_moisture_representations_to_method_1(
+    raw_value, sample_config_loaded, sample_forcing_parsed
+):
+    """Real observed-soil configs with wrapped, bare enum, or plain int soil_moisture=1 run method=1 (#2192)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    props = cfg.sites[0].properties
+    props.soil_observation = {
+        "layer_top": 0.0,
+        "layer_depth": 0.2,
+        "soil_not_rocks": 0.9,
+    }
+    for surf_name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        surf = getattr(props.land_cover, surf_name)
+        surf.soil_depth = RefValue(200.0)
+        surf.soil_store_capacity = RefValue(80.0)
+        surf.soil_field_capacity = RefValue(0.6)
+    cfg.model.physics.soil_moisture = raw_value
+    _, df_forcing = sample_forcing_parsed(2)
+    df_forcing = df_forcing.assign(sm=80.0)
+
+    # Direct _run_rust call without prepared deficits proves soil_moisture_method=1
+    # reached _prepare_forcing_block rather than falling back to modelled (0).
+    with pytest.raises(
+        ValueError, match="Observed soil moisture requires prepared deficits"
+    ):
+        _run_rust.run_suews_rust(cfg, df_forcing, grid_id=1)
+
+    # Full SUEWSSimulation path converts canonical sm=80.0 against 120 kg m-2 field
+    # capacity to 40.0 mm deficit and completes cleanly.
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_forcing)
+    out = sim.run(
+        start_date=df_forcing.index[0], end_date=df_forcing.index[-1], n_jobs=1
+    ).df
+    assert len(out) == 2
+    np.testing.assert_allclose(out.loc[1, ("SUEWS", "SMD")].to_numpy(), 40.0)
+
+
+@pytest.mark.parametrize("bad_value", [None, RefValue(None), True, False, "observed"])
+def test_run_suews_rust_rejects_non_integer_soil_moisture_values(
+    bad_value, sample_config_loaded, sample_forcing_parsed
+):
+    """Reject corrupted missing, boolean, or non-integer soil_moisture values on real configs (#2192)."""
+    base = sample_config_loaded.model_copy(deep=True)
+    corrupted_physics = ModelPhysics.model_construct(**{
+        **dict(base.model.physics),
+        "soil_moisture": bad_value,
+    })
+    corrupted_model = base.model.model_construct(**{
+        **dict(base.model),
+        "physics": corrupted_physics,
+    })
+    cfg = SUEWSConfig.model_construct(**{**dict(base), "model": corrupted_model})
+    _, df_forcing = sample_forcing_parsed(2)
+
+    with pytest.raises(ValueError, match="soil_moisture"):
+        _run_rust.run_suews_rust(cfg, df_forcing, grid_id=1)
+
+
+def _sample_config_omitting_soil_moisture(tmp_path: Path) -> SUEWSConfig:
+    """Load sample YAML with ``model.physics.soil_moisture`` omitted so Pydantic supplies the bare enum default."""
+    raw = yaml.safe_load(
+        files("supy")
+        .joinpath("sample_data", "sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
+    raw["model"]["physics"].pop("soil_moisture", None)
+    raw["model"]["physics"].pop("smdmethod", None)
+    cfg_path = tmp_path / "omitted_soil_moisture.yml"
+    cfg_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    cfg = SUEWSConfig.from_yaml(str(cfg_path))
+    assert type(cfg.model.physics.soil_moisture) is SMDMethod
+    return cfg
+
+
+def test_run_rust_entrypoints_accept_omitted_yaml_soil_moisture(
+    tmp_path: Path, sample_forcing_parsed
+):
+    """All Rust execution entry points handle bare enum soil_moisture defaults (#2192)."""
+    cfg = _sample_config_omitting_soil_moisture(tmp_path)
+    _, df_forcing = sample_forcing_parsed(4)
+
+    # 1. Public SUEWSSimulation path (exercises run_suews_rust_chunked -> run_suews_rust_multi)
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_forcing)
+    out_sim = sim.run(
+        start_date=df_forcing.index[0], end_date=df_forcing.index[-1], n_jobs=1
+    ).df
+    assert len(out_sim) == len(df_forcing)
+
+    # 2. Direct single-grid, multi-grid, state-injected, and chunked _run_rust entry points
+    out_single, state_single, _ = _run_rust.run_suews_rust(
+        cfg, df_forcing.iloc[:2], grid_id=1
+    )
+    assert len(out_single) == 2
+    assert isinstance(state_single, str) and state_single
+
+    out_with_state, state_next, _ = _run_rust.run_suews_rust_with_state(
+        cfg, df_forcing.iloc[2:4], grid_id=1, state_json=state_single
+    )
+    assert len(out_with_state) == 2
+    assert isinstance(state_next, str) and state_next
+
+    out_multi, states_multi, _ = _run_rust.run_suews_rust_multi(
+        cfg, df_forcing.iloc[:2], serial_mode=True
+    )
+    assert len(out_multi) == 2
+    assert states_multi is not None and 1 in states_multi
+
+    out_multi_state, _, _ = _run_rust.run_suews_rust_multi_with_state(
+        cfg, df_forcing.iloc[2:4], states_multi, serial_mode=True
+    )
+    assert len(out_multi_state) == 2
+
+    # 3. Multi-chunk path (chunk_day=1 across a 2-day slice triggers run_suews_rust_chunked loop)
+    _, df_two_days = sample_forcing_parsed(289)
+    out_chunked, _, _ = _run_rust.run_suews_rust_chunked(
+        cfg, df_two_days, chunk_day=1, serial_mode=True
+    )
+    assert len(out_chunked) == len(df_two_days)
+
+
+@pytest.mark.core
+def test_kernel_fatal_error_raises_suews_kernel_error_and_runtime_error(
+    sample_config_loaded, sample_forcing_parsed
+):
+    """Fatal Fortran kernel errors raise ``SUEWSKernelError(RuntimeError)`` with ``.code`` (#2111)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    _, df_forcing = sample_forcing_parsed(2)
+    df_bad = df_forcing.copy()
+    df_bad["U"] = float("nan")
+
+    # 1. Single-grid path caught as SUEWSKernelError and as RuntimeError
+    with pytest.raises(SUEWSKernelError) as exc_kernel:
+        _run_rust.run_suews_rust(cfg, df_bad, grid_id=7)
+
+    err = exc_kernel.value
+    assert type(err) is sp.SUEWSKernelError
+    assert isinstance(err, RuntimeError)
+    assert err.code == 110
+    assert "grid 7:" in str(err)
+    assert "simulation failed (code 110):" in str(err)
+    assert err.message
+
+    # Same exception is catchable by existing ``except RuntimeError`` callers
+    with pytest.raises(RuntimeError) as exc_runtime:
+        _run_rust.run_suews_rust(cfg, df_bad, grid_id=7)
+    assert isinstance(exc_runtime.value, SUEWSKernelError)
+    assert exc_runtime.value.code == 110
+
+    # Round-trips through pickle (class is defined at top level of ``supy``)
+    restored = pickle.loads(pickle.dumps(err))
+    assert type(restored) is SUEWSKernelError
+    assert restored.code == err.code
+    assert restored.message == err.message
+    assert str(restored) == str(err)
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("serial_mode", [True, False], ids=["serial", "parallel-rayon"])
+def test_multi_grid_kernel_fatal_error_raises_suews_kernel_error(
+    sample_config_loaded, sample_forcing_parsed, serial_mode
+):
+    """Multi-grid serial and Rayon paths preserve public grid IDs on ``SUEWSKernelError`` (#2111)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    site_a = cfg.sites[0].model_copy(deep=True)
+    site_a.gridiv = 10
+    site_b = cfg.sites[0].model_copy(deep=True)
+    site_b.gridiv = 20
+    cfg.sites = [site_a, site_b]
+    _, df_forcing = sample_forcing_parsed(2)
+    df_bad = df_forcing.copy()
+    df_bad["U"] = float("nan")
+
+    with pytest.raises(SUEWSKernelError) as exc_info:
+        _run_rust.run_suews_rust_multi(cfg, df_bad, serial_mode=serial_mode)
+
+    err = exc_info.value
+    assert isinstance(err, RuntimeError)
+    assert err.code == 110
+    assert "simulation failed (code 110):" in str(err)
+    assert "grid 10:" in str(err) or "grid 20:" in str(err)
+
+
+@pytest.mark.core
+def test_simulation_run_kernel_fatal_error_raises_suews_kernel_error(
+    sample_config_loaded, sample_forcing_parsed
+):
+    """``SUEWSSimulation.run()`` surfaces fatal Fortran kernel errors as ``SUEWSKernelError`` (#2111)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    _, df_forcing = sample_forcing_parsed(2)
+    df_bad = df_forcing.copy()
+    df_bad["U"] = float("nan")
+
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_bad)
+
+    with pytest.raises(SUEWSKernelError) as exc_info:
+        sim.run(
+            start_date=df_bad.index[0],
+            end_date=df_bad.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+
+    err = exc_info.value
+    assert isinstance(err, RuntimeError)
+    assert err.code == 110
+    assert "simulation failed (code 110):" in str(err)
+
+    # Also verify existing ``except RuntimeError`` callers catch it on ``SUEWSSimulation.run()``.
+    with pytest.raises(RuntimeError) as exc_runtime:
+        sim.run(
+            start_date=df_bad.index[0],
+            end_date=df_bad.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+    assert isinstance(exc_runtime.value, SUEWSKernelError)
+    assert exc_runtime.value.code == 110
+
+
+@pytest.mark.core
+def test_non_kernel_bridge_runtime_error_stays_runtime_error(
+    sample_config_loaded, sample_forcing_parsed
+):
+    """Non-kernel bridge failures stay plain ``RuntimeError``, including ``code -1`` validation errors."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    _, df_forcing = sample_forcing_parsed(4)
+
+    # 1. Malformed checkpoint envelope JSON (BridgeError::InvalidCheckpointEnvelope)
+    with pytest.raises(RuntimeError) as exc_json:
+        _run_rust.run_suews_rust_with_state(
+            cfg, df_forcing.iloc[:2], grid_id=1, state_json="{not-valid-json"
+        )
+    assert type(exc_json.value) is RuntimeError
+    assert not isinstance(exc_json.value, SUEWSKernelError)
+
+    # 2. Valid checkpoint with an incompatible timestep (pre-kernel bridge validation, code -1)
+    _, valid_state_json, _ = _run_rust.run_suews_rust(
+        cfg, df_forcing.iloc[:2], grid_id=1
+    )
+    cfg_mismatch = cfg.model_copy(deep=True)
+    cfg_mismatch.model.control.tstep = 600
+    with pytest.raises(RuntimeError, match=r"simulation failed \(code -1\)") as exc_tstep:
+        _run_rust.run_suews_rust_with_state(
+            cfg_mismatch,
+            df_forcing.iloc[2:4],
+            grid_id=1,
+            state_json=valid_state_json,
+        )
+    assert type(exc_tstep.value) is RuntimeError
+    assert not isinstance(exc_tstep.value, SUEWSKernelError)
+
+
+@pytest.mark.parametrize("retired_module", ["supy._run", "supy.cmd.to_yaml"])
+def test_retired_dead_modules_are_not_importable(retired_module):
+    """Callerless retired legacy modules raise ``ModuleNotFoundError`` (#2111)."""
+    with pytest.raises(ModuleNotFoundError):
+        import_module(retired_module)

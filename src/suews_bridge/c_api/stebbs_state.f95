@@ -325,6 +325,15 @@ subroutine stebbs_state_unpack(flat, n_flat, bldg_nlayer, state, err)
    end if
 
    per_bldg_len = int(SUEWS_CAPI_STEBBS_BLDG_BASE_LEN, c_int64_t) + 2_c_int64_t * int(bldg_nlayer, c_int64_t)
+   if (per_bldg_len>int(huge(0_c_int), c_int64_t) - int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (int(bldg_count, c_int64_t) > &
+       (int(huge(0_c_int), c_int64_t) - int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t)) / per_bldg_len) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
    expected_len = int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t) + int(bldg_count, c_int64_t) * per_bldg_len
    if (int(n_flat, c_int64_t)/=expected_len) then
       err = SUEWS_CAPI_BAD_BUFFER
@@ -629,6 +638,15 @@ subroutine stebbs_state_pack_real(state, bldg_nlayer, flat, n_flat, err)
       expected_len = int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t)
    else
       per_bldg_len = int(SUEWS_CAPI_STEBBS_BLDG_BASE_LEN, c_int64_t) + 2_c_int64_t * int(bldg_nlayer, c_int64_t)
+      if (per_bldg_len>int(huge(0_c_int), c_int64_t) - int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t)) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+      if (int(bldg_count, c_int64_t) > &
+          (int(huge(0_c_int), c_int64_t) - int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t)) / per_bldg_len) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
       expected_len = int(SUEWS_CAPI_STEBBS_STATE_BASE_LEN, c_int64_t) + int(bldg_count, c_int64_t) * per_bldg_len
    end if
 

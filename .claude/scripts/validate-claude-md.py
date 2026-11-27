@@ -33,9 +33,11 @@ CRITICAL_SECTIONS = [
 
 # Core skill files that must exist
 REQUIRED_SKILL_FILES = [
-    ".claude/skills/lint-code/SKILL.md",
-    ".claude/skills/audit-docs/SKILL.md",
+    ".agents/skills/lint-code/SKILL.md",
+    ".agents/skills/audit-docs/SKILL.md",
 ]
+SKILLS_COMPAT_LINK = Path(".claude") / "skills"
+SKILLS_COMPAT_TARGET = "../.agents/skills"
 
 # Core rule files that must always exist
 REQUIRED_RULE_FILES = [
@@ -121,7 +123,7 @@ def check_single_roster(root: Path) -> list[str]:
         r"@(" + "|".join(sorted(re.escape(h) for h in handles)) + r")\b"
     )
     files = [root / "AGENTS.md"]
-    for folder in (".claude", "dev-ref"):
+    for folder in (".claude", ".agents/skills", "dev-ref"):
         base = root / folder
         if base.is_dir():
             files.extend(sorted(base.rglob("*.md")))
@@ -496,6 +498,27 @@ def check_hooks_and_settings(root: Path) -> list[str]:
     return warnings
 
 
+def check_skills_compat_link(root: Path) -> list[str]:
+    """Verify `.claude/skills` bridges to `../.agents/skills` for Claude Code."""
+    compat = root / SKILLS_COMPAT_LINK
+    if compat.is_symlink():
+        target = os.readlink(compat)
+        if target != SKILLS_COMPAT_TARGET:
+            return [
+                f".claude/skills symlink target {target!r} != {SKILLS_COMPAT_TARGET!r}"
+            ]
+        return []
+    if compat.is_file():
+        # Git on Windows without core.symlinks checks out a symlink blob as a
+        # plain text file holding its target path.
+        if compat.read_text(encoding="utf-8").strip() == SKILLS_COMPAT_TARGET:
+            return []
+        return [
+            f".claude/skills compatibility stub must point to {SKILLS_COMPAT_TARGET!r}"
+        ]
+    return [f"Missing .claude/skills compatibility symlink to {SKILLS_COMPAT_TARGET}"]
+
+
 def check_file_integrity(filepath: Path) -> dict:
     """Check AGENTS.md and shared `.claude/` governance for integrity issues."""
     if not filepath.exists():
@@ -528,10 +551,11 @@ def check_file_integrity(filepath: Path) -> dict:
     if missing_sections:
         warnings.append(f"Missing critical sections: {', '.join(missing_sections)}")
 
-    # Check that required skill files exist
+    # Check that required skill files exist and `.claude/skills` compatibility link matches
     missing_skills = [sf for sf in REQUIRED_SKILL_FILES if not (root / sf).exists()]
     if missing_skills:
         warnings.append(f"Missing skill files: {', '.join(missing_skills)}")
+    warnings.extend(check_skills_compat_link(root))
 
     # Check that required rule files exist
     missing_rules = [rf for rf in REQUIRED_RULE_FILES if not (root / rf).exists()]

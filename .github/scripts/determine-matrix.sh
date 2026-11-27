@@ -57,8 +57,26 @@
 #                           the requires-python floor source of truth). The
 #                           caller sparse-checks it from github.sha; defaults
 #                           to ./pyproject.toml.
+#   GATE_AXIS_SCHEMA     -- optional axis schema selector (unset/empty/1 = active
+#                           Schema 1 default; 2 = Schema 2 multi-axis topology,
+#                           #2349 W1-3b/W1-6; any other value fails closed).
 
 set -euo pipefail
+
+# Resolve and validate axis schema before emitting any outputs.
+GATE_AXIS_SCHEMA="${GATE_AXIS_SCHEMA:-}"
+case "${GATE_AXIS_SCHEMA}" in
+  ""|1)
+    AXIS_SCHEMA=1
+    ;;
+  2)
+    AXIS_SCHEMA=2
+    ;;
+  *)
+    echo "::error::determine-matrix: invalid GATE_AXIS_SCHEMA='${GATE_AXIS_SCHEMA}' (expected '1' or '2')" >&2
+    exit 1
+    ;;
+esac
 
 # Defaults for vars that may be empty outside their event context
 IS_DRAFT="${IS_DRAFT:-false}"
@@ -128,6 +146,23 @@ BUILD_PYTHON="[\"${BUILD_FLOOR}\"]"
 BOOKEND_PYTHON="$(python3 "${CLAMP}" --pyproject "${PR_PYPROJECT}" --bookend "${PYTHON_CANDIDATES}")"
 ALL_PYTHON="$(python3 "${CLAMP}" --pyproject "${PR_PYPROJECT}" --clamp "${PYTHON_CANDIDATES}")"
 
+# Schema 2 helper: return a JSON list of CPython tags excluding the abi3 build
+# floor (preserving order and deduplicating) for the installed-wheel abi3_smoke lane.
+exclude_floor_python() {
+  python3 -c '
+import json, sys
+floor = sys.argv[1]
+items = json.loads(sys.argv[2])
+seen = set()
+out = []
+for tag in items:
+    if tag != floor and tag not in seen:
+        seen.add(tag)
+        out.append(tag)
+print(json.dumps(out))
+' "${BUILD_FLOOR}" "$1"
+}
+
 # Multiplatform needed when compiled extension might change
 NEEDS_MULTIPLATFORM=false
 if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]] || [[ "${BUILD_CHANGED}" == "true" ]]; then
@@ -135,6 +170,11 @@ if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]] || 
 fi
 
 API_PYTHON="$BOOKEND_PYTHON"
+NATIVE_BUILDPLAT="$MINIMAL_PLATFORMS"
+ABI3_SMOKE_BUILDPLAT="$MINIMAL_PLATFORMS"
+OS_COMPAT_BUILDPLAT="$MINIMAL_PLATFORMS"
+FULL_PHYSICS=false
+PHYSICS_FULL_TRIGGER=none
 
 # Pull requests build and test on Linux only. The 0-ci:full-matrix label opts a
 # PR into PR_PLATFORMS (Linux, macOS arm64, Windows) whatever it changes; use it
@@ -147,7 +187,7 @@ if [[ "${FULL_MATRIX}" == "true" ]]; then
   PR_MATRIX_NOTE="0-ci:full-matrix label - reduced platforms"
 fi
 
-if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; then
+if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]] && [[ "${AXIS_SCHEMA}" -eq 1 ]]; then
   if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
     echo "Draft PR with fortran/rust changes - ${PR_MATRIX_NOTE}, core tests"
     echo "test_tier=core" >> "$GITHUB_OUTPUT"
@@ -163,43 +203,88 @@ if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; the
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
-  # Every ready PR runs standard (gh#2094: never silently deselect newly added
-  # or edited non-smoke unit/API tests), on Linux unless 0-ci:full-matrix is set.
-  TIER=standard
-  if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
-    echo "Ready PR with fortran/build changes - ${PR_MATRIX_NOTE}, standard tests"
-  elif [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
-    echo "Ready PR with python/util changes - ${PR_MATRIX_NOTE}, standard tests"
-  elif [[ "${TESTS_CHANGED}" == "true" ]]; then
-    echo "Ready PR with tests changes - ${PR_MATRIX_NOTE}, standard tests"
-  elif [[ "${CI_CHANGED}" == "true" ]]; then
-    echo "Ready PR with ci-only changes - ${PR_MATRIX_NOTE}, standard tests"
+  # Schema 1: every ready PR runs standard (gh#2094: never silently deselect
+  # newly added or edited non-smoke unit/API tests), on Linux unless
+  # 0-ci:full-matrix is set.
+  # Schema 2 (#2349): applies the four automatic full-physics triggers across
+  # all pull requests (draft and ready) with no draft exemption:
+  # fortran/rust/build changes and 0-physics:change/0-numerics:change both
+  # select physics-full (full `-m physics`, incl. slow), while other
+  # wheel-building Python PRs select physics-core (smoke + exact sample-output
+  # witness) and tooling/unit/native keep their full suites.
+  if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    PR_KIND="Ready PR"
+    if [[ "${IS_DRAFT}" == "true" ]]; then
+      PR_KIND="Draft PR"
+    fi
+    if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
+      TIER=physics-full
+      FULL_PHYSICS=true
+      PHYSICS_FULL_TRIGGER=compiled_or_build_change
+      echo "${PR_KIND} (schema 2) with fortran/rust/build changes - ${PR_MATRIX_NOTE}, full physics (physics-full)"
+    else
+      TIER=physics-core
+      FULL_PHYSICS=false
+      PHYSICS_FULL_TRIGGER=none
+      if [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
+        echo "${PR_KIND} (schema 2) with python/util changes - ${PR_MATRIX_NOTE}, physics-core"
+      elif [[ "${TESTS_CHANGED}" == "true" ]]; then
+        echo "${PR_KIND} (schema 2) with tests changes - ${PR_MATRIX_NOTE}, physics-core"
+      elif [[ "${CI_CHANGED}" == "true" ]]; then
+        echo "${PR_KIND} (schema 2) with ci-only changes - ${PR_MATRIX_NOTE}, physics-core"
+      else
+        echo "${PR_KIND} (schema 2) with tests/other changes - ${PR_MATRIX_NOTE}, physics-core"
+      fi
+    fi
   else
-    echo "Ready PR with tests/other changes - ${PR_MATRIX_NOTE}, standard tests"
+    TIER=standard
+    if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
+      echo "Ready PR with fortran/build changes - ${PR_MATRIX_NOTE}, standard tests"
+    elif [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
+      echo "Ready PR with python/util changes - ${PR_MATRIX_NOTE}, standard tests"
+    elif [[ "${TESTS_CHANGED}" == "true" ]]; then
+      echo "Ready PR with tests changes - ${PR_MATRIX_NOTE}, standard tests"
+    elif [[ "${CI_CHANGED}" == "true" ]]; then
+      echo "Ready PR with ci-only changes - ${PR_MATRIX_NOTE}, standard tests"
+    else
+      echo "Ready PR with tests/other changes - ${PR_MATRIX_NOTE}, standard tests"
+    fi
   fi
   echo "buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "api_buildplat=$PR_MATRIX_PLATFORMS" >> "$GITHUB_OUTPUT"
+  NATIVE_BUILDPLAT="$PR_MATRIX_PLATFORMS"
+  ABI3_SMOKE_BUILDPLAT="$PR_MATRIX_PLATFORMS"
+  OS_COMPAT_BUILDPLAT="$PR_MATRIX_PLATFORMS"
   # gh#1576: a physics- or numerics-change PR runs the full physics tier (incl. slow)
   # so an output shift surfaces here rather than in the nightly. Only the physics axis
   # widens; the api axis stays as standard (see test-api-cross-python EXPR map).
   if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
     echo "Physics/numerics-change PR (0-physics:change or 0-numerics:change) - forcing full physics tier (incl. slow)"
     TIER=physics-full
+    FULL_PHYSICS=true
+    PHYSICS_FULL_TRIGGER=classification_label
   fi
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$TIER" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
-  # gh#1576: the merge queue otherwise runs `standard` (slow excluded), which is
-  # how a known output-changing PR landed without the shift being caught. When
-  # the queued PR carries 0-physics:change or 0-numerics:change, run the full
-  # physics tier here too.
+  # gh#1576: in Schema 1, the merge queue runs `standard` (slow excluded) unless
+  # the queued PR carries 0-physics:change or 0-numerics:change.
+  # Under Schema 2 (#2349), the merge queue is one of the four automatic
+  # full-physics triggers and always selects `physics-full` (full `-m physics`,
+  # incl. slow).
   MERGE_TIER=standard
+  if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    MERGE_TIER=physics-full
+  fi
   MERGE_PLATFORMS="$MERGE_QUEUE_PLATFORMS"
   MERGE_API_PLATFORMS="$MINIMAL_PLATFORMS"
+  FULL_PHYSICS=true
+  PHYSICS_FULL_TRIGGER=merge_group
   if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
     echo "Merge queue validation - physics/numerics-change PR, full physics tier (incl. slow)"
     MERGE_TIER=physics-full
+    PHYSICS_FULL_TRIGGER=classification_label
   elif [[ "$NEEDS_MULTIPLATFORM" == "true" ]] || [[ "${CI_CHANGED}" == "true" ]] || \
        [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
     echo "Merge queue validation - Linux standard tests and api lane, Windows wheel build with smoke tests"
@@ -218,6 +303,9 @@ elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   # queue's job is to validate the combined tree, so repeat it only on the
   # abi3 floor, on Linux.
   API_PYTHON="$BUILD_PYTHON"
+  NATIVE_BUILDPLAT="$MERGE_PLATFORMS"
+  ABI3_SMOKE_BUILDPLAT="[]"
+  OS_COMPAT_BUILDPLAT="$MERGE_PLATFORMS"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "Nightly - full matrix, all tests (api tests skip macos-15-intel; see NIGHTLY_API_PLATFORMS)"
@@ -226,8 +314,23 @@ elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
   API_PYTHON="$ALL_PYTHON"
+  NATIVE_BUILDPLAT="$FULL_PLATFORMS"
+  ABI3_SMOKE_BUILDPLAT="$NIGHTLY_API_PLATFORMS"
+  OS_COMPAT_BUILDPLAT="$FULL_PLATFORMS"
+  FULL_PHYSICS=true
+  PHYSICS_FULL_TRIGGER=schedule
 
 elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+  if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+    case "${INPUT_TEST_TIER}" in
+      smoke|core|cfg|physics-core|standard|physics-full|all)
+        ;;
+      *)
+        echo "::error::determine-matrix: invalid INPUT_TEST_TIER='${INPUT_TEST_TIER}' for schema 2 (expected smoke|core|cfg|physics-core|standard|physics-full|all)" >&2
+        exit 1
+        ;;
+    esac
+  fi
   case "${INPUT_MATRIX_CONFIG}" in
     full)
       echo "Manual dispatch: full matrix"
@@ -237,18 +340,27 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       echo "api_buildplat=$NIGHTLY_API_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       API_PYTHON="$ALL_PYTHON"
+      NATIVE_BUILDPLAT="$FULL_PLATFORMS"
+      ABI3_SMOKE_BUILDPLAT="$NIGHTLY_API_PLATFORMS"
+      OS_COMPAT_BUILDPLAT="$FULL_PLATFORMS"
       ;;
     pr)
       echo "Manual dispatch: PR-style reduced matrix"
       echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
+      NATIVE_BUILDPLAT="$PR_PLATFORMS"
+      ABI3_SMOKE_BUILDPLAT="$PR_PLATFORMS"
+      OS_COMPAT_BUILDPLAT="$PR_PLATFORMS"
       ;;
     minimal)
       echo "Manual dispatch: minimal matrix"
       echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
+      NATIVE_BUILDPLAT="$MINIMAL_PLATFORMS"
+      ABI3_SMOKE_BUILDPLAT="$MINIMAL_PLATFORMS"
+      OS_COMPAT_BUILDPLAT="$MINIMAL_PLATFORMS"
       ;;
     custom)
       echo "Manual dispatch: custom platform matrix"
@@ -288,9 +400,28 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       echo "api_buildplat=$PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       API_PYTHON="$TEST_PYS"
+      NATIVE_BUILDPLAT="$PLATFORMS"
+      ABI3_SMOKE_BUILDPLAT="$PLATFORMS"
+      OS_COMPAT_BUILDPLAT="$PLATFORMS"
+      ;;
+    *)
+      if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+        echo "::error::determine-matrix: invalid INPUT_MATRIX_CONFIG='${INPUT_MATRIX_CONFIG}' for schema 2 (expected full|pr|minimal|custom)" >&2
+        exit 1
+      fi
       ;;
   esac
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"
+  case "${INPUT_TEST_TIER}" in
+    physics-full|all)
+      FULL_PHYSICS=true
+      PHYSICS_FULL_TRIGGER=workflow_dispatch
+      ;;
+    *)
+      FULL_PHYSICS=false
+      PHYSICS_FULL_TRIGGER=none
+      ;;
+  esac
 
 else
   # Tag pushes - full build matrix for releases. The api tests skip
@@ -304,6 +435,11 @@ else
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
   API_PYTHON="$ALL_PYTHON"
+  NATIVE_BUILDPLAT="$FULL_PLATFORMS"
+  ABI3_SMOKE_BUILDPLAT="$NIGHTLY_API_PLATFORMS"
+  OS_COMPAT_BUILDPLAT="$FULL_PLATFORMS"
+  FULL_PHYSICS=true
+  PHYSICS_FULL_TRIGGER=tag_release
 fi
 
 # Cross-version api-test matrix (gh#1300): BOOKEND for PRs, the abi3 floor for
@@ -317,3 +453,21 @@ echo "api_python=$API_PYTHON" >> "$GITHUB_OUTPUT"
 # these two so its artefacts stay comparable night to night, whereas
 # api_python widens to ALL on schedule.
 echo "bookend_python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"
+
+if [[ "${AXIS_SCHEMA}" -eq 2 ]]; then
+  ABI3_SMOKE_PYTHON="$(exclude_floor_python "${API_PYTHON}")"
+  if [[ "${ABI3_SMOKE_PYTHON}" == "[]" ]]; then
+    ABI3_SMOKE_BUILDPLAT="[]"
+  fi
+  echo "gate_axis_schema=2" >> "$GITHUB_OUTPUT"
+  echo 'source_lanes=["tooling","unit"]' >> "$GITHUB_OUTPUT"
+  echo "source_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "source_python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "native_python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "native_buildplat=$NATIVE_BUILDPLAT" >> "$GITHUB_OUTPUT"
+  echo "abi3_smoke_python=$ABI3_SMOKE_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "abi3_smoke_buildplat=$ABI3_SMOKE_BUILDPLAT" >> "$GITHUB_OUTPUT"
+  echo "os_compat_buildplat=$OS_COMPAT_BUILDPLAT" >> "$GITHUB_OUTPUT"
+  echo "full_physics=$FULL_PHYSICS" >> "$GITHUB_OUTPUT"
+  echo "physics_full_trigger=$PHYSICS_FULL_TRIGGER" >> "$GITHUB_OUTPUT"
+fi

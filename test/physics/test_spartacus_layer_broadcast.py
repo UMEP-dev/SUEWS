@@ -85,13 +85,9 @@ def _run_3layer_case(
     ):
         roof["alb"] = {"value": roof_alb[idx]}
         roof["emis"] = {"value": roof_emis[idx]}
-        # Keep the two rank-2 fields homogeneous across roofs/walls so this test
-        # stays independent of gh#2085 / gh#2122 before and after #2122 lands.
         roof["roof_albedo_dir_mult_fact"] = {"value": 1.0}
-        roof["wall_specular_frac"] = {"value": 0.10}
         wall["alb"] = {"value": wall_alb[idx]}
         wall["emis"] = {"value": wall_emis[idx]}
-        wall["roof_albedo_dir_mult_fact"] = {"value": 1.0}
         wall["wall_specular_frac"] = {"value": 0.10}
 
     config = SUEWSConfig.from_dict(cfg_dict)

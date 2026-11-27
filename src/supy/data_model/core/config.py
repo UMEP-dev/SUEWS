@@ -36,8 +36,20 @@ from pathlib import Path
 import warnings
 
 from ._yaml_io import safe_load_yaml
-from .model import FAIMethod, LAIMethod, Model, ModelPhysics, OutputTimestampReference
-from .profile import _CANONICAL_HOUR_KEY_SET, normalise_hourly_profile_mapping
+from .model import (
+    FAIMethod,
+    LAIMethod,
+    Model,
+    ModelPhysics,
+    OutputTimestampReference,
+    REQUIRED_PHYSICS_OPTIONS,
+    REQUIRED_STEBBS_SWITCHES,
+)
+from .profile import (
+    _CANONICAL_HOUR_KEY_SET,
+    normalise_hourly_profile_mapping,
+    normalise_ten_minute_profile_mapping,
+)
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
 from .type import DataModelBase, RefValue, SurfaceType, df_from_cols, merge_df_state_cols
 from .state import validate_sdd_id
@@ -67,6 +79,7 @@ from ..validation.required_fields import (
     STEBBS_SHADING_REQUIRED_MODES,
     stebbs_shading_requirements,
 )
+from ..validation.rules.hard_invariants import check_land_cover_fraction_sum
 
 from datetime import datetime
 import pytz
@@ -434,6 +447,152 @@ def _raw_physics_has_kdown_direct_fraction(physics):
     )
 
 
+_ANTHRO_HEAT_COMMON_DAY_PROFILES: tuple[str, ...] = (
+    "popdensdaytime",
+    "qf0_beu",
+)
+
+# Active AnthropogenicHeat DayProfile fields keyed by emissions method % 10
+# (matching src/suews/src/suews_phys_anthro.f95 and suews_phys_dailystate.f95).
+_ANTHRO_HEAT_ACTIVE_DAY_PROFILES: dict[int, tuple[str, ...]] = {
+    1: (*_ANTHRO_HEAT_COMMON_DAY_PROFILES, "ah_min", "ah_slope_heating", "baset_heating"),
+    2: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "qf_a",
+        "qf_b",
+        "qf_c",
+        "baset_heating",
+        "baset_cooling",
+    ),
+    3: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "ah_min",
+        "ah_slope_heating",
+        "ah_slope_cooling",
+        "baset_heating",
+        "baset_cooling",
+    ),
+    4: (*_ANTHRO_HEAT_COMMON_DAY_PROFILES, "ah_min", "ah_slope_heating", "baset_heating"),
+    5: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "qf_a",
+        "qf_b",
+        "qf_c",
+        "baset_heating",
+        "baset_cooling",
+    ),
+    6: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "ah_min",
+        "ah_slope_heating",
+        "ah_slope_cooling",
+        "baset_heating",
+        "baset_cooling",
+    ),
+}
+
+_DAY_PROFILE_KEY_DEFAULTS: tuple[tuple[str, float], ...] = (
+    ("working_day", 1.0),
+    ("holiday", 0.0),
+)
+
+
+def _warn_deprecated_strict_false(method_name: str, *, stacklevel: int) -> None:
+    """Emit a deprecation warning when ``strict=False`` is passed to a config loader."""
+    warnings.warn(
+        f"Passing strict=False to {method_name}() is deprecated and ignored; "
+        "strict Pydantic validation always applies and the strict parameter "
+        "will be removed in a future release. Omit strict (or pass strict=True) "
+        "for validated loading, or pass use_conditional_validation=False when "
+        "unchecked construction is explicitly required.",
+        DeprecationWarning,
+        stacklevel=stacklevel,
+    )
+
+
+def _warn_anthropogenic_heat_defaults(
+    config: "SUEWSConfig",
+    raw_config: object,
+    *,
+    stacklevel: int,
+) -> None:
+    """Warn when an active emissions config omits AnthropogenicHeat defaults.
+
+    Emits a single ``UserWarning`` when ``model.physics.emissions`` selects a
+    modelled emissions method (non-zero) and user-supplied YAML/dict input
+    relies on compatibility placeholder defaults (``popdensnighttime=10.0`` or
+    ``DayProfile(working_day=1.0, holiday=0.0)``) for active heat fields.
+    """
+    if not isinstance(raw_config, Mapping) or not getattr(config, "sites", None):
+        return
+
+    physics = getattr(getattr(config, "model", None), "physics", None)
+    method = getattr(physics, "emissions", None)
+    method = getattr(method, "value", method)
+    method = getattr(method, "value", method)
+    if not isinstance(method, int) or method == 0:
+        return
+
+    active_day_profiles = _ANTHRO_HEAT_ACTIVE_DAY_PROFILES.get(method % 10)
+    if active_day_profiles is None:
+        return
+
+    raw_sites = raw_config.get("sites")
+    if not isinstance(raw_sites, list):
+        raw_sites = []
+
+    site_notes: list[str] = []
+    for idx, site in enumerate(config.sites):
+        raw_site = raw_sites[idx] if idx < len(raw_sites) else None
+        raw_props = (
+            raw_site.get("properties") if isinstance(raw_site, Mapping) else None
+        )
+        raw_anthro = (
+            raw_props.get("anthropogenic_emissions")
+            if isinstance(raw_props, Mapping)
+            else None
+        )
+        raw_heat = (
+            raw_anthro.get("heat") if isinstance(raw_anthro, Mapping) else None
+        )
+        if not isinstance(raw_heat, Mapping):
+            raw_heat = {}
+
+        omitted: list[str] = []
+        if "popdensnighttime" not in raw_heat:
+            omitted.append("popdensnighttime (default 10.0 ha-1)")
+
+        for field_name in active_day_profiles:
+            if field_name not in raw_heat:
+                omitted.append(
+                    f"{field_name} (DayProfile default working_day=1.0, holiday=0.0)"
+                )
+                continue
+            raw_profile = raw_heat[field_name]
+            if isinstance(raw_profile, Mapping):
+                for key, default_val in _DAY_PROFILE_KEY_DEFAULTS:
+                    if key not in raw_profile:
+                        omitted.append(
+                            f"{field_name}.{key} (DayProfile default {default_val})"
+                        )
+
+        if omitted:
+            site_name = getattr(site, "name", f"site[{idx}]")
+            site_notes.append(f"sites[{idx}] ({site_name}): {', '.join(omitted)}")
+
+    if site_notes:
+        warnings.warn(
+            f"Active anthropogenic emissions method ({method}) is using "
+            "compatibility placeholder default(s) for omitted "
+            "anthropogenic_emissions.heat field(s): "
+            + "; ".join(site_notes)
+            + ". These defaults are not calibrated site values; specify "
+            "site-specific values explicitly in YAML.",
+            UserWarning,
+            stacklevel=stacklevel,
+        )
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -486,6 +645,72 @@ class SUEWSConfig(DataModelBase):
         extra="allow",
         validate_assignment=True,
     )
+
+    @staticmethod
+    def _resolve_water_use_modelled_for_context(data: Any) -> bool:
+        """Return False iff *data* cleanly declares non-modelled ``water_use`` (e.g. observed=1)."""
+        from ..validation.rules.hard_invariants import resolve_water_use_code
+
+        if isinstance(data, SUEWSConfig):
+            wu = getattr(getattr(data.model, "physics", None), "water_use", None)
+            code = resolve_water_use_code(wu)
+            return code is None or code == 0
+        if not isinstance(data, Mapping):
+            return True
+
+        model_raw = data.get("model")
+        physics_raw = (
+            model_raw.get("physics")
+            if isinstance(model_raw, Mapping)
+            else getattr(model_raw, "physics", None)
+        )
+        raw_wu: Any = None
+        found_wu = False
+        if isinstance(physics_raw, Mapping):
+            for key in ("water_use", "water_use_method", "waterusemethod"):
+                if key in physics_raw:
+                    raw_wu = physics_raw[key]
+                    found_wu = True
+                    break
+            if not found_wu:
+                for family_key in ("water", "hydrology"):
+                    fam = physics_raw.get(family_key)
+                    if isinstance(fam, Mapping):
+                        for key in ("water_use", "water_use_method", "waterusemethod"):
+                            if key in fam:
+                                raw_wu = fam[key]
+                                found_wu = True
+                                break
+                    if found_wu:
+                        break
+        elif physics_raw is not None:
+            raw_wu = getattr(physics_raw, "water_use", None)
+            found_wu = raw_wu is not None
+
+        if found_wu:
+            code = resolve_water_use_code(raw_wu)
+            # Only relax child DOY validation when water_use cleanly resolves
+            # to non-modelled (1 / observed); invalid selectors still fail on
+            # ModelPhysics.water_use without masking.
+            if code is not None and code != 0:
+                return False
+        return True
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_irrigation_validation(
+        cls, data: Any, handler: Any
+    ) -> "SUEWSConfig":
+        """Propagate model.physics.water_use into nested IrrigationParams validation."""
+        from .human_activity import _IRRIGATION_MODELLED_CONTEXT
+
+        token = _IRRIGATION_MODELLED_CONTEXT.set(
+            cls._resolve_water_use_modelled_for_context(data)
+        )
+        try:
+            return handler(data)
+        finally:
+            _IRRIGATION_MODELLED_CONTEXT.reset(token)
 
     @model_validator(mode="before")
     @classmethod
@@ -2825,106 +3050,44 @@ class SUEWSConfig(DataModelBase):
     ) -> List[str]:
         """Validate that a surface property is uniform across layers and matches the archetype.
 
-        Used by same_albedo and same_emissivity validators. Checks that:
-        - All values of ``layer_field`` in vertical_layers.<layers_attr> are identical
-        - That common value equals properties.building_archetype.<archetype_attr>
-
-        Parameters
-        ----------
-        layer_field : str
-            Attribute name on each layer object (e.g. "alb", "emis").
-        archetype_attr : str
-            Attribute name on building_archetype (e.g. "reflectivity_wall_external").
-        property_name : str
-            Human-readable name for messages (e.g. "albedo", "emissivity").
+        Delegates the actual invariant checks to
+        ``validation.rules.hard_invariants.check_same_surface_property``.
         """
-        issues: List[str] = []
-        site_name = getattr(site, "name", f"Site {site_index}")
+        from ..validation.rules.hard_invariants import check_same_surface_property
 
-        # --- Get layers ---
+        site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
         vl = getattr(props, "vertical_layers", None) if props is not None else None
         layers = getattr(vl, layers_attr, None) if vl is not None else None
 
-        if not layers:
-            issues.append(
-                f"{site_name}: {param_name}=1, so vertical_layers.{layers_attr} must be defined and non-empty"
-            )
-            return issues
-
-        vals: List[float] = []
-
-        for i, layer in enumerate(layers):
-            field = getattr(layer, layer_field, None)
-            if field is None:
-                issues.append(
-                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].{layer_field} must be set"
-                )
-                continue
-
-            raw = getattr(field, "value", field)
-            try:
-                val_float = float(raw)
-                vals.append(val_float)
-            except (TypeError, ValueError):
-                issues.append(
-                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].{layer_field} ({raw!r}) is not numeric"
+        layer_values = None
+        if layers:
+            layer_values = []
+            for layer in layers:
+                field = getattr(layer, layer_field, None)
+                layer_values.append(
+                    getattr(field, "value", field) if field is not None else None
                 )
 
-        if len(vals) == 0:
-            issues.append(
-                f"{site_name}: {param_name}=1 but no valid {layers_attr} {property_name} values found"
-            )
-            return issues
+        ba = getattr(props, "building_archetype", None) if props is not None else None
+        arch_field = getattr(ba, archetype_attr, None) if ba is not None else None
+        arch_raw = (
+            getattr(arch_field, "value", arch_field) if arch_field is not None else None
+        )
 
-        # --- Check that all values are identical ---
-        first_val = vals[0]
-        tol = SAME_SURFACE_TOL
-        mismatching = [
-            (i, v) for i, v in enumerate(vals) if abs(v - first_val) > tol
-        ]
-
-        if mismatching:
-            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
-            issues.append(
-                f"{site_name}: {param_name}=1, so all {layers_attr} {property_name} values must be identical; "
-                f"found values: {all_str}"
-            )
-
-        # --- Get building_archetype.<archetype_attr> ---
-        ba = getattr(props, "building_archetype", None)
-        if ba is None:
-            issues.append(
-                f"{site_name}: {param_name}=1, so properties.building_archetype must be defined"
-            )
-            return issues
-
-        arch_field = getattr(ba, archetype_attr, None)
-        if arch_field is None:
-            issues.append(
-                f"{site_name}: {param_name}=1, so properties.building_archetype.{archetype_attr} must be set"
-            )
-            return issues
-
-        arch_raw = getattr(arch_field, "value", arch_field)
-        try:
-            arch_val = float(arch_raw)
-        except (TypeError, ValueError):
-            issues.append(
-                f"{site_name}: {param_name}=1 but properties.building_archetype.{archetype_attr} "
-                f"({arch_raw!r}) is not numeric"
-            )
-            return issues
-
-        # --- Check equality between common layer value and archetype value ---
-        if abs(first_val - arch_val) > tol:
-            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
-            issues.append(
-                f"{site_name}: {param_name}=1, so common {layers_attr} {property_name} (found {all_str}) must equal "
-                f"properties.building_archetype.{archetype_attr} ({arch_val})"
-            )
-
-        return issues
+        violations = check_same_surface_property(
+            layer_values,
+            arch_raw,
+            site_name=site_name,
+            layers_attr=layers_attr,
+            layer_field=layer_field,
+            archetype_attr=archetype_attr,
+            param_name=param_name,
+            property_name=property_name,
+            archetype_present=ba is not None,
+            tol=SAME_SURFACE_TOL,
+        )
+        return [v.message for v in violations]
 
     def _validate_same_albedo_wall(self, site: Site, site_index: int) -> List[str]:
         """
@@ -3247,56 +3410,27 @@ class SUEWSConfig(DataModelBase):
     def _validate_spartacus_storage_heat_method_dependency(
         self, site: Site, site_index: int
     ) -> list[str]:
+        """Validate storage heat method dependencies when SPARTACUS is employed.
+
+        Delegates to ``validation.rules.hard_invariants.check_spartacus_storage_heat``
+        so ``SUEWSConfig`` and Phase B enforce the exact same contract (gh#1834).
         """
-        Validate storage heat method dependencies when SPARTACUS is employed.
+        from ..validation.rules.hard_invariants import check_spartacus_storage_heat
 
-        Observed storage heat fluxes are not supported with SPARTACUS. Where a
-        site prescribes a non-zero building surface fraction, the storage heat
-        method must resolve roof and wall facets: EHC, or STEBBS with STEBBS
-        enabled (gh#1834).
-
-        Parameters
-        ----------
-        site : Site
-            The site object to validate.
-        site_index : int
-            Index of the site in the configuration.
-
-        Returns
-        -------
-        issues : list of str
-            List of issue messages if validation fails; empty if valid.
-
-        Notes
-        -----
-        - Storage heat method 0 (observed storage heat fluxes) is rejected
-          whenever SPARTACUS is employed.
-        - Where ``land_cover.bldgs.sfr`` exceeds ``BUILDING_PRESENT_SFR_TOL``,
-          the storage heat method must be in
-          ``SPARTACUS_BUILDING_STORAGE_METHODS``; method 7 additionally needs
-          STEBBS enabled (composed ``stebbsmethod`` 1 or 2).
-        - Missing or non-numeric storage heat and building surface fraction
-          values are not reported here; other checks handle them.
-        - The Phase B rule ``validate_spartacus_dependencies`` reports the same
-          contract for ``suews validate``; this check is the one every
-          ``SUEWSConfig`` load passes through.
-        """
-        issues: list[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
 
         physics = getattr(self.model, "physics", None)
+        net_rad_method = _unwrap_value(getattr(physics, "net_radiation", None))
+        try:
+            net_rad_method = int(net_rad_method)
+        except (TypeError, ValueError):
+            net_rad_method = None
+
         storage_heat_method = _unwrap_value(getattr(physics, "storage_heat", None))
         try:
             storage_heat_method = int(storage_heat_method)
         except (TypeError, ValueError):
             storage_heat_method = None
-
-        if storage_heat_method == SPARTACUS_OBSERVED_STORAGE_METHOD:
-            issues.append(
-                f"{site_name}: observed storage heat fluxes (storage_heat 0) "
-                "are not supported with SPARTACUS; use storage_heat 5 (EHC) "
-                "or 7 (STEBBS)"
-            )
 
         props = getattr(site, "properties", None)
         land_cover = getattr(props, "land_cover", None)
@@ -3306,30 +3440,17 @@ class SUEWSConfig(DataModelBase):
             sfr_value = float(sfr_value)
         except (TypeError, ValueError):
             sfr_value = None
-        if (
-            storage_heat_method is None
-            or sfr_value is None
-            or sfr_value <= BUILDING_PRESENT_SFR_TOL
-        ):
-            return issues
 
-        if storage_heat_method not in SPARTACUS_BUILDING_STORAGE_METHODS:
-            if storage_heat_method != SPARTACUS_OBSERVED_STORAGE_METHOD:
-                issues.append(
-                    f"{site_name}: SPARTACUS with buildings "
-                    f"(land_cover.bldgs.sfr={sfr_value}) requires a facet-resolved "
-                    "storage heat method: storage_heat 7 (STEBBS, with "
-                    "model.physics.stebbs.enabled=true) or 5 (EHC); got "
-                    f"storage_heat {storage_heat_method}"
-                )
-        elif storage_heat_method == 7 and self._composed_stebbsmethod() not in {1, 2}:
-            issues.append(
-                f"{site_name}: SPARTACUS with buildings and storage_heat 7 "
-                "requires STEBBS to be enabled "
-                "(model.physics.stebbs.enabled=true)"
-            )
-
-        return issues
+        violations = check_spartacus_storage_heat(
+            net_rad_method,
+            storage_heat_method,
+            bldgs_present=sfr_value is not None and sfr_value > BUILDING_PRESENT_SFR_TOL,
+            bldgs_sfr=sfr_value,
+            stebbs_method=self._composed_stebbsmethod(),
+            site_name=site_name,
+            check_stebbs_for_method_7=True,
+        )
+        return [v.message for v in violations]
 
     def _validate_conditional_parameters(self) -> List[str]:
         """
@@ -3504,15 +3625,11 @@ class SUEWSConfig(DataModelBase):
 
         Notes
         -----
-        - The list of critical parameters is defined in CRITICAL_PHYSICS_PARAMS.
+        - The list of critical parameters is defined in ``core.model``
+          (``REQUIRED_PHYSICS_OPTIONS`` + ``REQUIRED_STEBBS_SWITCHES``).
         - Handles both direct values and RefValue wrappers.
         - Returns an empty list if all critical parameters are set.
         """
-        # Single source of truth for the critical-physics list lives in the
-        # validation pipeline orchestrator (gh#1409); imported lazily to
-        # avoid a circular import at module load time.
-        from ..validation.pipeline.orchestrator import CRITICAL_PHYSICS_PARAMS
-
         critical_issues = []
 
         if not hasattr(self, "model") or not self.model or not self.model.physics:
@@ -3524,7 +3641,7 @@ class SUEWSConfig(DataModelBase):
         # top-level physics first, then the nested stebbs container.
         stebbs = getattr(physics, "stebbs", None)
 
-        for param_name in CRITICAL_PHYSICS_PARAMS:
+        for param_name in REQUIRED_PHYSICS_OPTIONS + REQUIRED_STEBBS_SWITCHES:
             if hasattr(physics, param_name):
                 container = physics
             elif stebbs is not None and hasattr(stebbs, param_name):
@@ -4028,6 +4145,47 @@ class SUEWSConfig(DataModelBase):
                         )
         return bound_errors
 
+    @staticmethod
+    def _extract_land_cover_fractions(land_cover: Any) -> dict[str, Any]:
+        """Extract unwrapped surface fractions for the seven canonical surfaces."""
+        fractions: dict[str, Any] = {}
+        for surface_type, _ in _LAND_COVER_SURFACE_TYPES:
+            surface = getattr(land_cover, surface_type, None)
+            if surface is not None and hasattr(surface, "sfr"):
+                sfr_raw = _unwrap_value(surface.sfr)
+                fractions[surface_type] = 0.0 if sfr_raw is None else sfr_raw
+            else:
+                fractions[surface_type] = 0.0
+        return fractions
+
+    def validate_land_cover_fractions(self) -> None:
+        """Enforce the three-band land-cover fraction sum policy before engine handoff.
+
+        Raises ``ValueError`` when ``|sum(sfr) - 1.0| > 1e-4`` (or all zero /
+        invalid), and emits a site-specific ``UserWarning`` without mutating
+        the configuration when ``1e-6 < |sum(sfr) - 1.0| <= 1e-4``.
+        """
+        errors: list[str] = []
+        for idx, site in enumerate(getattr(self, "sites", None) or []):
+            props = getattr(site, "properties", None)
+            land_cover = getattr(props, "land_cover", None) if props is not None else None
+            if land_cover is None:
+                continue
+            fractions = self._extract_land_cover_fractions(land_cover)
+            sum_check = check_land_cover_fraction_sum(fractions)
+            if sum_check.band == "error" and sum_check.violation is not None:
+                site_label = self._format_site_label(site, idx)
+                errors.append(f"{site_label}: {sum_check.violation.message}")
+            elif sum_check.band == "auto_fix" and sum_check.violation is not None:
+                site_label = self._format_site_label(site, idx)
+                warnings.warn(
+                    f"{site_label}: {sum_check.violation.message}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        if errors:
+            raise ValueError("\n".join(errors))
+
     def validate_for_engine(
         self,
         *,
@@ -4091,10 +4249,12 @@ class SUEWSConfig(DataModelBase):
             )
 
         self.validate_non_null_ref_values()
+        self.validate_land_cover_fractions()
         self.validate_soil_depths()
         self.validate_active_veg_lai_max()
         self.validate_water_distributions()
         self.validate_hourly_profile_hours()
+        self.validate_ten_minute_profile_keys()
         self._validate_senescence_states()
         self.validate_doy_parameters()
         self._validate_engine_contracts(
@@ -4653,39 +4813,159 @@ class SUEWSConfig(DataModelBase):
         if issues:
             raise ValueError("\n".join(issues))
 
+    def _collect_active_irrigation_doy_errors(self) -> list[str]:
+        """Validate ``ie_start``/``ie_end`` scalars and pairing on active modelled-irrigation sites."""
+        from ..validation.rules.hard_invariants import (
+            check_irrigation_doy_pair,
+            is_modelled_irrigation_active,
+            resolve_water_use_code,
+        )
+        from .human_activity import coerce_integer_doy_scalar
+
+        water_use = (
+            self.model.physics.water_use
+            if getattr(self, "model", None) is not None
+            and getattr(self.model, "physics", None) is not None
+            else None
+        )
+        water_use_code = resolve_water_use_code(water_use)
+        water_use_modelled = not (water_use_code is not None and water_use_code != 0)
+        errors: list[str] = []
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            props = getattr(site, "properties", None)
+            if props is None or props.irrigation is None:
+                continue
+            active = is_modelled_irrigation_active(water_use, props.irrigation)
+            if hasattr(props.irrigation, "_sync_doy_validation_state"):
+                props.irrigation._sync_doy_validation_state(
+                    active=active,
+                    water_use_modelled=water_use_modelled,
+                    config=self,
+                )
+            elif hasattr(props.irrigation, "_doy_validation_active"):
+                object.__setattr__(props.irrigation, "_doy_validation_active", active)
+            if not active:
+                continue
+
+            site_had_scalar_err = False
+            for path, raw in (
+                ("irrigation.ie_start", props.irrigation.ie_start),
+                ("irrigation.ie_end", props.irrigation.ie_end),
+            ):
+                inner = raw.value if isinstance(raw, RefValue) else raw
+                if inner is None:
+                    continue
+                try:
+                    val = coerce_integer_doy_scalar(inner, f"{site_name}: {path}")
+                except ValueError as exc:
+                    errors.append(str(exc))
+                    site_had_scalar_err = True
+                    continue
+                if not (1 <= val <= 366):
+                    errors.append(
+                        f"{site_name}: {path} must be an integer day of year "
+                        f"between 1 and 366 (greater than or equal to 1 and "
+                        f"less than or equal to 366), got {val}."
+                    )
+                    site_had_scalar_err = True
+
+            if not site_had_scalar_err:
+                ie_start_raw = (
+                    props.irrigation.ie_start.value
+                    if isinstance(props.irrigation.ie_start, RefValue)
+                    else props.irrigation.ie_start
+                )
+                ie_end_raw = (
+                    props.irrigation.ie_end.value
+                    if isinstance(props.irrigation.ie_end, RefValue)
+                    else props.irrigation.ie_end
+                )
+                pair_violations, _, _ = check_irrigation_doy_pair(
+                    ie_start_raw,
+                    ie_end_raw,
+                    site_name=site_name,
+                    coerce_doy=coerce_integer_doy_scalar,
+                )
+                errors.extend(v.message for v in pair_violations)
+        return errors
+
+    def _rebind_irrigation_owner_refs(self) -> None:
+        """Rebind each site's ``IrrigationParams`` live owner reference to *self*."""
+        from ..validation.rules.hard_invariants import (
+            is_modelled_irrigation_active,
+            resolve_water_use_code,
+        )
+
+        model = getattr(self, "model", None)
+        physics = getattr(model, "physics", None) if model is not None else None
+        water_use = getattr(physics, "water_use", None) if physics is not None else None
+        water_use_code = resolve_water_use_code(water_use)
+        water_use_modelled = not (water_use_code is not None and water_use_code != 0)
+        sites = getattr(self, "sites", None)
+        if not isinstance(sites, list):
+            return
+        for site in sites:
+            props = getattr(site, "properties", None)
+            irr = getattr(props, "irrigation", None) if props is not None else None
+            if irr is not None and hasattr(irr, "_sync_doy_validation_state"):
+                irr._sync_doy_validation_state(
+                    active=is_modelled_irrigation_active(water_use, irr),
+                    water_use_modelled=water_use_modelled,
+                    config=self,
+                )
+
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> "SUEWSConfig":
+        """Deep-copy the configuration and rebind child irrigation owner references."""
+        copied = super().__deepcopy__(memo)
+        copied._rebind_irrigation_owner_refs()
+        return copied
+
+    def model_copy(
+        self, *, update: Mapping[str, Any] | None = None, deep: bool = False
+    ) -> "SUEWSConfig":
+        """Copy the configuration and rebind child irrigation owner refs on deep copy."""
+        copied = super().model_copy(update=update, deep=deep)
+        if deep:
+            copied._rebind_irrigation_owner_refs()
+        return copied
+
+    @model_validator(mode="after")
+    def validate_irrigation_parameters(self) -> "SUEWSConfig":
+        """Enforce irrigation DOY scalar and pairing invariants when modelled irrigation is active."""
+        errors = self._collect_active_irrigation_doy_errors()
+        if errors:
+            raise ValueError("\n".join(errors))
+        return self
+
     def validate_doy_parameters(self) -> None:
         """Validate integer day-of-year (1..366) invariants across all sites.
 
         Defence in depth at public engine/export boundaries in case a live
-        model was mutated post-construction (for example ``ie_start.value = 0``
-        or ``ie_start = 20.5``).
+        model was mutated post-construction (for example ``ie_start.value = 0``,
+        ``ie_start = 20.5``, or clearing only one end of the irrigation pair).
+        Irrigation checks are gated on active modelled irrigation
+        (``water_use == 0`` and any ``daywat == 1.0``); DLS checks stay separate.
         """
         from .human_activity import coerce_integer_doy_scalar
 
-        errors = []
+        errors = self._collect_active_irrigation_doy_errors()
         for site_index, site in enumerate(self.sites):
             site_name = getattr(site, "name", f"Site {site_index + 1}")
             props = getattr(site, "properties", None)
-            if props is None:
+            if props is None or props.anthropogenic_emissions is None:
                 continue
-            doy_fields = []
-            if props.irrigation is not None:
-                doy_fields.extend([
-                    ("irrigation.ie_start", props.irrigation.ie_start),
-                    ("irrigation.ie_end", props.irrigation.ie_end),
-                ])
-            if props.anthropogenic_emissions is not None:
-                doy_fields.extend([
-                    (
-                        "anthropogenic_emissions.startdls",
-                        props.anthropogenic_emissions.startdls,
-                    ),
-                    (
-                        "anthropogenic_emissions.enddls",
-                        props.anthropogenic_emissions.enddls,
-                    ),
-                ])
-            for path, raw in doy_fields:
+            dls_fields = (
+                (
+                    "anthropogenic_emissions.startdls",
+                    props.anthropogenic_emissions.startdls,
+                ),
+                (
+                    "anthropogenic_emissions.enddls",
+                    props.anthropogenic_emissions.enddls,
+                ),
+            )
+            for path, raw in dls_fields:
                 inner = raw.value if isinstance(raw, RefValue) else raw
                 if inner is None:
                     continue
@@ -5038,35 +5318,17 @@ class SUEWSConfig(DataModelBase):
                                         level="WARNING",
                                     )
 
-        # Check land cover fractions sum to 1.0
-        surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
-        fractions = {}
-
-        for surface_type in surface_types:
-            if hasattr(land_cover, surface_type):
-                surface = getattr(land_cover, surface_type)
-                if surface and hasattr(surface, "sfr") and surface.sfr is not None:
-                    sfr_value = getattr(surface.sfr, "value", surface.sfr)
-                    fractions[surface_type] = (
-                        float(sfr_value) if sfr_value is not None else 0.0
-                    )
-                else:
-                    fractions[surface_type] = 0.0
-            else:
-                fractions[surface_type] = 0.0
-
-        total_fraction = sum(fractions.values())
-        tolerance = 1e-6
-
-        if abs(total_fraction - 1.0) > tolerance:
-            fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
-            difference = abs(total_fraction - 1.0)
+        # Check land cover fractions sum to 1.0 via shared kernel.
+        fractions = self._extract_land_cover_fractions(land_cover)
+        sum_check = check_land_cover_fraction_sum(fractions)
+        if sum_check.band != "pass" and sum_check.violation is not None:
             annotator.add_issue(
                 path=f"sites[{site_index}]/properties/land_cover",
                 param="surface_fractions",
-                message=f"Land cover fractions must sum to 1.0 within tolerance {tolerance} (got {total_fraction:.6f}, difference {difference:.2e}): {fraction_details}",
-                fix=f"Adjust surface fractions so they sum to 1.0 within tolerance {tolerance}",
-                level="WARNING",
+                message=sum_check.violation.message,
+                fix=sum_check.violation.suggested_value
+                or "Adjust surface fractions so they sum to 1.0",
+                level=sum_check.severity,
             )
 
     # @model_validator(mode="after")
@@ -5545,6 +5807,97 @@ class SUEWSConfig(DataModelBase):
         return self
 
     @model_validator(mode="after")
+    def validate_ten_minute_profile_keys(self) -> "SUEWSConfig":
+        """Validate and normalise 10-minute STEBBS profile keys across all sites.
+
+        Enforces canonical ``"1"``..``"144"`` key normalisation and rejects
+        malformed, out-of-range, or colliding keys on live ``TenMinuteProfile``
+        instances (including post-construction in-place mutations) before
+        serialisation, YAML export, or engine handoff.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any 10-minute profile contains a non-mapping day profile, a
+            malformed or out-of-range key, or colliding canonical keys.
+        """
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            errors: list[str] = []
+
+            ten_minute_profiles = []
+            if site.properties and site.properties.building_archetype:
+                archetype = site.properties.building_archetype
+                ten_minute_profiles.extend([
+                    (
+                        "building_archetype.profile_metabolism",
+                        archetype.profile_metabolism,
+                    ),
+                    (
+                        "building_archetype.profile_setpoint_temperature_heating_air",
+                        archetype.profile_setpoint_temperature_heating_air,
+                    ),
+                    (
+                        "building_archetype.profile_setpoint_temperature_cooling_air",
+                        archetype.profile_setpoint_temperature_cooling_air,
+                    ),
+                ])
+
+            if site.properties and site.properties.stebbs:
+                stebbs = site.properties.stebbs
+                ten_minute_profiles.extend([
+                    ("stebbs.profile_flow_hot_water", stebbs.profile_flow_hot_water),
+                    ("stebbs.profile_appliance", stebbs.profile_appliance),
+                ])
+
+            for profile_name, profile in ten_minute_profiles:
+                if profile is None:
+                    continue
+
+                for day_type in ("working_day", "holiday"):
+                    day_profile = (
+                        profile.get(day_type)
+                        if isinstance(profile, dict)
+                        else getattr(profile, day_type, None)
+                    )
+                    if day_profile is None:
+                        continue
+
+                    if not isinstance(day_profile, dict):
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type} must be a mapping "
+                            f"keyed by steps '1'..'144', got {type(day_profile).__name__}."
+                        )
+                        continue
+
+                    try:
+                        normalised = normalise_ten_minute_profile_mapping(day_profile)
+                    except ValueError as exc:
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type}: {exc}"
+                        )
+                        continue
+
+                    if (
+                        normalised != day_profile
+                        or list(normalised.keys()) != list(day_profile.keys())
+                    ):
+                        if isinstance(profile, dict):
+                            profile[day_type] = normalised
+                        else:
+                            setattr(profile, day_type, normalised)
+
+            if errors:
+                raise ValueError("\n".join(errors))
+
+        return self
+
+    @model_validator(mode="after")
     def validate_dls_parameters(self) -> "SUEWSConfig":
         """
         Validate daylight saving time (DLS) parameters across all sites.
@@ -5622,8 +5975,18 @@ class SUEWSConfig(DataModelBase):
                 else anthro.enddls
             )
 
-            # 1. Consistency check: both set or both None
-            if (startdls_val is None) != (enddls_val is None):
+            # 1. Consistency check + 2. Leap year refinement via shared kernel
+            from ..validation.rules.hard_invariants import check_dls_doy_pair
+            from .human_activity import coerce_integer_doy_scalar
+
+            dls_violations, half_configured, _, _ = check_dls_doy_pair(
+                startdls_val,
+                enddls_val,
+                model_year=year,
+                site_name=site_name,
+                coerce_doy=coerce_integer_doy_scalar,
+            )
+            if half_configured:
                 errors.append(
                     f"{site_name}: startdls and enddls must both be set or both be None. "
                     "Cannot have only one parameter set."
@@ -5634,21 +5997,7 @@ class SUEWSConfig(DataModelBase):
             if startdls_val is None and enddls_val is None:
                 continue
 
-            # 2. Leap year refinement
-            if year:
-                if startdls_val > max_doy:
-                    errors.append(
-                        f"{site_name}: startdls DOY {int(startdls_val)} invalid for "
-                        f"{'leap' if is_leap else 'non-leap'} year {year}. "
-                        f"Must be in range [1, {max_doy}]"
-                    )
-
-                if enddls_val > max_doy:
-                    errors.append(
-                        f"{site_name}: enddls DOY {int(enddls_val)} invalid for "
-                        f"{'leap' if is_leap else 'non-leap'} year {year}. "
-                        f"Must be in range [1, {max_doy}]"
-                    )
+            errors.extend(v.message for v in dls_violations)
 
             # 3. Compare user values with calculated DLS values (informational only)
             # Get latitude and longitude for DLS calculation
@@ -5666,13 +6015,34 @@ class SUEWSConfig(DataModelBase):
 
                 if lat_val is not None and lng_val is not None and year:
                     # Import DLSCheck dynamically to avoid circular imports
-                    from ..validation.core.yaml_helpers import DLSCheck
+                    from ..validation.core.yaml_helpers import (
+                        DLSCheck,
+                        resolve_dst_schedule,
+                    )
 
                     # Calculate what DLS values should be
                     dls = DLSCheck(lat=lat_val, lng=lng_val, year=year)
-                    calculated_start, calculated_end, _ = dls.compute_dst_transitions()
+                    schedule = resolve_dst_schedule(dls)
+                    calculated_start = schedule.start
+                    calculated_end = schedule.end
 
-                    if calculated_start and calculated_end:
+                    if schedule.has_multiple_periods:
+                        info_msg = (
+                            f"{site_name}: Cannot compare DLS values automatically "
+                            f"because {schedule.describe_multiple_periods(year)}, which "
+                            "cannot be represented by a single startdls/enddls pair."
+                        )
+                        self._validation_summary["detailed_messages"].append(info_msg)
+                        self._validation_summary["info_messages"].append(info_msg)
+                    elif schedule.has_non_hourly_dst:
+                        info_msg = (
+                            f"{site_name}: Cannot compare DLS values automatically "
+                            f"because {schedule.describe_non_hourly_dst(year)}, whereas "
+                            "SUEWS startdls/enddls assumes a 1-hour DST shift."
+                        )
+                        self._validation_summary["detailed_messages"].append(info_msg)
+                        self._validation_summary["info_messages"].append(info_msg)
+                    elif calculated_start and calculated_end:
                         # Compare user values with calculated values
                         # Create separate messages for each parameter
 
@@ -5738,19 +6108,27 @@ class SUEWSConfig(DataModelBase):
         if isinstance(raw_sites, Iterable) and not isinstance(
             raw_sites, (str, bytes, Mapping)
         ):
-            validated_sites = []
-            for index, raw_site in enumerate(raw_sites):
-                if isinstance(raw_site, Mapping):
-                    try:
-                        raw_site = Site.model_validate(
-                            raw_site, extra="forbid"
-                        )
-                    except ValidationError as error:
-                        line_errors.extend(
-                            _prefixed_line_errors(error, ("sites", index))
-                        )
-                validated_sites.append(raw_site)
-            prepared["sites"] = validated_sites
+            from .human_activity import _IRRIGATION_MODELLED_CONTEXT
+
+            token = _IRRIGATION_MODELLED_CONTEXT.set(
+                cls._resolve_water_use_modelled_for_context(prepared)
+            )
+            try:
+                validated_sites = []
+                for index, raw_site in enumerate(raw_sites):
+                    if isinstance(raw_site, Mapping):
+                        try:
+                            raw_site = Site.model_validate(
+                                raw_site, extra="forbid"
+                            )
+                        except ValidationError as error:
+                            line_errors.extend(
+                                _prefixed_line_errors(error, ("sites", index))
+                            )
+                    validated_sites.append(raw_site)
+                prepared["sites"] = validated_sites
+            finally:
+                _IRRIGATION_MODELLED_CONTEXT.reset(token)
 
         if line_errors:
             raise ValidationError.from_exception_data("SUEWSConfig", line_errors)
@@ -5978,26 +6356,47 @@ class SUEWSConfig(DataModelBase):
         strict: bool = True,
         auto_generate_annotated: bool = False,
     ) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from YAML file with conditional validation.
+        """Initialise SUEWSConfig from a YAML file with conditional validation.
 
-        Args:
-            path (str): Path to YAML configuration file
-            use_conditional_validation (bool): Whether to use conditional validation
-            strict (bool): If True, raise errors on validation failure
-            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+        .. deprecated:: 2026.6
+            Passing ``strict=False`` is deprecated and ignored; strict Pydantic
+            validation always applies and the ``strict`` parameter will be
+            removed in a future release. Omit ``strict`` (or pass
+            ``strict=True``) for validated loading, or pass
+            ``use_conditional_validation=False`` when unchecked construction is
+            explicitly required.
 
-        Returns:
-            SUEWSConfig: Instance of SUEWSConfig initialized from YAML
+        Parameters
+        ----------
+        path : str
+            Path to the YAML configuration file.
+        use_conditional_validation : bool, default True
+            Whether to run full Pydantic and conditional validation.
+        strict : bool, default True
+            Deprecated compatibility parameter. ``strict=False`` emits a
+            ``DeprecationWarning`` and is ignored; strict validation always
+            applies when ``use_conditional_validation=True``.
+        auto_generate_annotated : bool, default False
+            If True, automatically write an annotated YAML file when validation
+            issues are found.
+
+        Returns
+        -------
+        SUEWSConfig
+            Validated instance of SUEWSConfig initialised from YAML.
         """
+        if not strict:
+            _warn_deprecated_strict_false("SUEWSConfig.from_yaml", stacklevel=3)
+
         with open(path, "r", encoding="utf-8") as file:
             config_data = safe_load_yaml(file)
 
-        return cls.from_dict(
+        return cls._from_dict_impl(
             config_data,
             use_conditional_validation=use_conditional_validation,
-            strict=strict,
             auto_generate_annotated=auto_generate_annotated,
             yaml_path=path,
+            _caller_stacklevel=4,
         )
 
     @classmethod
@@ -6067,21 +6466,63 @@ class SUEWSConfig(DataModelBase):
         auto_generate_annotated: bool = False,
         yaml_path: Optional[str] = None,
     ) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from a configuration dict with validation.
+        """Initialise SUEWSConfig from a configuration dict with validation.
 
         This is the single validated construction path for dict input
-        (gh#1530); ``from_yaml`` delegates here after reading the file.
+        (gh#1530); ``from_yaml`` delegates to the same shared loader after
+        reading the file.
 
-        Args:
-            config_data (dict): Configuration data, YAML-shaped.
-            use_conditional_validation (bool): Whether to use conditional validation
-            strict (bool): If True, raise errors on validation failure
-            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
-            yaml_path (str, optional): Source YAML path, when loaded from a file.
+        .. deprecated:: 2026.6
+            Passing ``strict=False`` is deprecated and ignored; strict Pydantic
+            validation always applies and the ``strict`` parameter will be
+            removed in a future release. Omit ``strict`` (or pass
+            ``strict=True``) for validated loading, or pass
+            ``use_conditional_validation=False`` when unchecked construction is
+            explicitly required.
 
-        Returns:
-            SUEWSConfig: Validated instance of SUEWSConfig
+        Parameters
+        ----------
+        config_data : dict
+            Configuration data, YAML-shaped.
+        use_conditional_validation : bool, default True
+            Whether to run full Pydantic and conditional validation.
+        strict : bool, default True
+            Deprecated compatibility parameter. ``strict=False`` emits a
+            ``DeprecationWarning`` and is ignored; strict validation always
+            applies when ``use_conditional_validation=True``.
+        auto_generate_annotated : bool, default False
+            If True, automatically write an annotated YAML file when validation
+            issues are found.
+        yaml_path : str, optional
+            Source YAML path, when loaded from a file.
+
+        Returns
+        -------
+        SUEWSConfig
+            Validated instance of SUEWSConfig.
         """
+        if not strict:
+            _warn_deprecated_strict_false("SUEWSConfig.from_dict", stacklevel=3)
+
+        return cls._from_dict_impl(
+            config_data,
+            use_conditional_validation=use_conditional_validation,
+            auto_generate_annotated=auto_generate_annotated,
+            yaml_path=yaml_path,
+            _caller_stacklevel=4,
+        )
+
+    @classmethod
+    def _from_dict_impl(
+        cls,
+        config_data: dict,
+        *,
+        use_conditional_validation: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: str | None = None,
+        _caller_stacklevel: int = 3,
+    ) -> "SUEWSConfig":
+        """Shared validated dict loader backing ``from_dict`` and ``from_yaml``."""
         config_data, had_signature = cls._prepare_raw_input(
             config_data,
             yaml_path=yaml_path,
@@ -6095,7 +6536,7 @@ class SUEWSConfig(DataModelBase):
             try:
                 # Root ``extra="allow"`` is reserved for the bookkeeping keys
                 # above; the shared raw-mapping path enforces strictness below.
-                return cls._validate_raw_mapping(config_data)
+                config = cls._validate_raw_mapping(config_data)
             except ValidationError as e:
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
                 transformed_error = cls._transform_validation_error(
@@ -6110,6 +6551,12 @@ class SUEWSConfig(DataModelBase):
                 raise cls._build_drift_error(
                     e, config_data, had_signature=had_signature
                 ) from e
+            _warn_anthropogenic_heat_defaults(
+                config,
+                getattr(config, "_yaml_raw", None),
+                stacklevel=_caller_stacklevel,
+            )
+            return config
         else:
             # Optional checks may be bypassed, but observed soil geometry and
             # capacity remain mandatory. Parse only this scientific boundary;
@@ -6303,27 +6750,38 @@ class SUEWSConfig(DataModelBase):
         # Get grid IDs from DataFrame index
         grid_ids = df.index.tolist()
 
-        # Create list of sites
-        sites = []
-        for grid_id in grid_ids:
-            # Create site instance
-            site = Site(gridiv=grid_id)
+        # Reconstruct model first so scheme-gated site parameter validators
+        # (such as modelled irrigation ie_start/ie_end) see resolved physics.
+        model = Model.from_df_state(df, grid_ids[0])
+        _assign_trusted(config, "model", model)
 
-            # Set site properties
-            site_properties = SiteProperties.from_df_state(df, grid_id)
-            _assign_trusted(site, "properties", site_properties)
+        from ..validation.rules.hard_invariants import resolve_water_use_code
+        from .human_activity import _IRRIGATION_MODELLED_CONTEXT
 
-            # Set initial states
-            initial_states = InitialStates.from_df_state(df, grid_id)
-            _assign_trusted(site, "initial_states", initial_states)
+        water_use_code = resolve_water_use_code(model.physics.water_use)
+        ctx_token = _IRRIGATION_MODELLED_CONTEXT.set(water_use_code == 0)
+        try:
+            # Create list of sites
+            sites = []
+            for grid_id in grid_ids:
+                # Create site instance
+                site = Site(gridiv=grid_id)
 
-            sites.append(site)
+                # Set site properties
+                site_properties = SiteProperties.from_df_state(df, grid_id)
+                _assign_trusted(site, "properties", site_properties)
+
+                # Set initial states
+                initial_states = InitialStates.from_df_state(df, grid_id)
+                _assign_trusted(site, "initial_states", initial_states)
+
+                sites.append(site)
+        finally:
+            _IRRIGATION_MODELLED_CONTEXT.reset(ctx_token)
 
         # Update config with reconstructed data
         _assign_trusted(config, "sites", sites)
-
-        # Reconstruct model
-        _assign_trusted(config, "model", Model.from_df_state(df, grid_ids[0]))
+        config._rebind_irrigation_owner_refs()
 
         # Set name and description, using defaults if columns don't exist
         if ("config", "0") in df.columns:
@@ -6359,13 +6817,14 @@ class SUEWSConfig(DataModelBase):
             If True, preserve internal-only fields for lossless round-tripping.
             Set to False to produce a clean user-facing YAML export.
         """
-        # Enforce 24-hour profile key normalisation and rejection before
-        # dumping so post-construction mutations cannot bypass validation on
-        # ordinary YAML export (mirroring config_to_engine_yaml()).
+        # Enforce 24-hour and 10-minute profile key normalisation and rejection
+        # before dumping so post-construction mutations cannot bypass validation
+        # on ordinary YAML export (mirroring config_to_engine_yaml()).
         if isinstance(self.sites, list) and all(
             isinstance(site, Site) for site in self.sites
         ):
             self.validate_hourly_profile_hours()
+            self.validate_ten_minute_profile_keys()
 
         self._validate_senescence_states()
         # Use mode='json' to serialize enums as their values. round_trip

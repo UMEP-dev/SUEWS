@@ -36,7 +36,9 @@ OVERLAP_LINES = 20
 # over the SUEWS sources was ~15 kB, so this bound leaves ordinary source
 # windows untouched and only splits pathological input.
 MAX_CHUNK_BYTES = 32768
-GITHUB_BLOB_TEMPLATE = "https://github.com/UMEP-dev/SUEWS/blob/{git_sha}/{path}#L{line_start}-L{line_end}"
+GITHUB_BLOB_TEMPLATE = (
+    "https://github.com/UMEP-dev/SUEWS/blob/{git_sha}/{path}#L{line_start}-L{line_end}"
+)
 DOCS_URLS = {
     "stable": "https://docs.suews.io/stable/",
     "latest": "https://docs.suews.io/latest/",
@@ -58,6 +60,7 @@ _CONFIGURATION_SCHEMA_VERSION_FILE = "src/supy/data_model/configuration/version.
 # JSON that reads as noise when retrieved. See
 # docs/source/contributing/schema/data_interface_versioning.rst.
 EXCLUDED_GENERATED_ROOTS = (
+    "src/supy/data_model/contract_artefacts/",
     "src/supy/data_model/forcing/artefacts/",
     "src/supy/data_model/output/artefacts/",
 )
@@ -117,7 +120,11 @@ def query_pack(
     manifest = load_manifest(pack if pack_dir is not None else None)
     tokens = _tokenise(question)
     if not tokens:
-        return {"question": question, "matches": [], "manifest": _manifest_summary(manifest)}
+        return {
+            "question": question,
+            "matches": [],
+            "manifest": _manifest_summary(manifest),
+        }
 
     matches: list[dict[str, Any]] = []
     for chunk in _read_chunks(_join_resource(pack, CHUNK_FILE_NAME)):
@@ -130,7 +137,9 @@ def query_pack(
         item["score"] = score
         matches.append(item)
 
-    matches.sort(key=lambda item: (-item["score"], item["repo_path"], item["line_start"]))
+    matches.sort(
+        key=lambda item: (-item["score"], item["repo_path"], item["line_start"])
+    )
     return {
         "question": question,
         "matches": matches[: max(limit, 0)],
@@ -165,7 +174,9 @@ def build_pack(
     path_output = Path(output_dir).resolve()
     path_output.mkdir(parents=True, exist_ok=True)
 
-    resolved_git_sha = git_sha or os.environ.get("SUEWS_KNOWLEDGE_GIT_SHA") or _git_sha(path_repo)
+    resolved_git_sha = (
+        git_sha or os.environ.get("SUEWS_KNOWLEDGE_GIT_SHA") or _git_sha(path_repo)
+    )
     if not resolved_git_sha:
         raise RuntimeError(
             "Cannot build SUEWS knowledge pack without a Git SHA. "
@@ -175,7 +186,9 @@ def build_pack(
 
     list_sources = list(_collect_sources(path_repo))
     if not list_sources:
-        raise RuntimeError(f"No source files selected for SUEWS knowledge pack under {path_repo}")
+        raise RuntimeError(
+            f"No source files selected for SUEWS knowledge pack under {path_repo}"
+        )
 
     list_chunks = list(_iter_chunks(path_repo, list_sources, resolved_git_sha))
     chunk_hash = _write_chunks(path_output / CHUNK_FILE_NAME, list_chunks)
@@ -245,10 +258,14 @@ def _collect_sources(repo_root: Path) -> Iterator[SourceFile]:
 
 
 def _require_source_roots(repo_root: Path) -> None:
-    missing = [root for root in REQUIRED_SOURCE_ROOTS if not (repo_root / root).is_dir()]
+    missing = [
+        root for root in REQUIRED_SOURCE_ROOTS if not (repo_root / root).is_dir()
+    ]
     if missing:
         joined = ", ".join(missing)
-        raise RuntimeError(f"Cannot build SUEWS knowledge pack; missing source roots: {joined}")
+        raise RuntimeError(
+            f"Cannot build SUEWS knowledge pack; missing source roots: {joined}"
+        )
 
 
 def _content_type(path: str) -> str | None:
@@ -265,7 +282,9 @@ def _content_type(path: str) -> str | None:
             "src/suews_bridge/build.rs",
             "src/suews_bridge/bridge-manifest.json",
         }
-        if (path.startswith("src/suews_bridge/src/") and suffix == ".rs") or path in bridge_metadata:
+        if (
+            path.startswith("src/suews_bridge/src/") and suffix == ".rs"
+        ) or path in bridge_metadata:
             content_type = "rust"
     elif path.startswith("src/supy/") and not path.startswith("src/supy/ext_data/"):
         if suffix == ".py" and path.startswith("src/supy/cmd/"):
@@ -312,7 +331,9 @@ def _iter_chunks(
                     line_start=start,
                     line_end=end,
                 ),
-                "symbol": _detect_symbol(source.path, source.content_type, lines, start, end),
+                "symbol": _detect_symbol(
+                    source.path, source.content_type, lines, start, end
+                ),
                 "text": text,
                 "text_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             }
@@ -444,7 +465,11 @@ def _utf8_size(text: str) -> int:
 
 
 def _line_spans(source: SourceFile, lines: list[str]) -> Iterator[tuple[int, int]]:
-    if source.path.endswith(".py") and source.content_type in {"python_api", "python_cli", "schema"}:
+    if source.path.endswith(".py") and source.content_type in {
+        "python_api",
+        "python_cli",
+        "schema",
+    }:
         python_spans = _python_top_level_spans(lines)
         if python_spans:
             for start, end in python_spans:
@@ -492,7 +517,9 @@ def _detect_symbol(
     start: int,
     end: int,
 ) -> str | None:
-    if content_type in {"python_api", "python_cli", "schema"} and repo_path.endswith(".py"):
+    if content_type in {"python_api", "python_cli", "schema"} and repo_path.endswith(
+        ".py"
+    ):
         return _detect_python_symbol(lines, start, end)
     if content_type == "fortran":
         return _detect_regex_symbol(lines, start, end, _FORTRAN_SYMBOL_RE)
@@ -569,7 +596,10 @@ def _read_text_resource(resource: Any) -> str:
 def _read_chunks(path_chunks: Any) -> Iterator[dict[str, Any]]:
     if not _is_file_resource(path_chunks):
         raise FileNotFoundError(f"SUEWS knowledge-pack chunks not found: {path_chunks}")
-    with path_chunks.open("rb") as raw, gzip.open(raw, "rt", encoding="utf-8") as stream:
+    with (
+        path_chunks.open("rb") as raw,
+        gzip.open(raw, "rt", encoding="utf-8") as stream,
+    ):
         for line in stream:
             if line.strip():
                 yield json.loads(line)
@@ -685,7 +715,55 @@ def _read_schema_version(repo_root: Path) -> str:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime
+        .now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def pack_input_paths(repo_root: Path) -> list[Path]:
+    """Return the existing files a rebuilt pack would read or record.
+
+    These are the Ninja depfile inputs of the Meson pack target: every packed
+    source file, the version file behind ``suews_version``, and the Git files
+    that move when the tracked file list (``index``) or ``HEAD`` (``HEAD``,
+    its reflog and the checked-out branch ref) changes. Missing files are
+    dropped, because Ninja treats a missing depfile input as permanently dirty.
+    """
+    path_repo = Path(repo_root).resolve()
+    paths = [path_repo / source.path for source in _collect_sources(path_repo)]
+    paths.append(path_repo / "src/supy/_version_scm.py")
+    git_names = ["index", "HEAD", "logs/HEAD"]
+    branch_ref = _run_git(path_repo, ["symbolic-ref", "-q", "HEAD"])
+    if branch_ref:
+        git_names.append(branch_ref)
+    for name in git_names:
+        resolved = _run_git(path_repo, ["rev-parse", "--git-path", name])
+        if resolved:
+            path_git = Path(resolved)
+            paths.append(path_git if path_git.is_absolute() else path_repo / path_git)
+    return [path for path in paths if path.is_file()]
+
+
+def _write_depfile(depfile: Path, target: str, deps: list[Path]) -> None:
+    """Write ``depfile`` with the shared Meson helper.
+
+    ``pack.py`` runs as a standalone script during the Meson build, before
+    ``supy`` is importable, so the helper is loaded by file path as in
+    ``build_rust_bridge.py``.
+    """
+    import importlib.util
+
+    path_helper = Path(__file__).resolve().parent.parent / "_build_depfile.py"
+    spec = importlib.util.spec_from_file_location("_suews_build_depfile", path_helper)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load depfile helper from {path_helper}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.write_depfile(depfile, target, deps)
 
 
 def _main(argv: list[str] | None = None) -> int:
@@ -694,6 +772,15 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("output_dir", type=Path)
     parser.add_argument("--git-sha")
     parser.add_argument("--command", default="meson knowledge-pack build")
+    parser.add_argument(
+        "--depfile",
+        type=Path,
+        help="Write a Ninja depfile listing the pack inputs (Meson @DEPFILE@).",
+    )
+    parser.add_argument(
+        "--depfile-target",
+        help="Target named in the depfile (Meson @OUTPUT0@); defaults to the manifest path.",
+    )
     args = parser.parse_args(argv)
     manifest = build_pack(
         repo_root=args.repo_root,
@@ -701,7 +788,15 @@ def _main(argv: list[str] | None = None) -> int:
         git_sha=args.git_sha,
         command=args.command,
     )
-    print(json.dumps({"manifest": str(args.output_dir / MANIFEST_FILE_NAME), "content_hash": manifest["content_hash"]}))
+    if args.depfile is not None:
+        target = args.depfile_target or str(args.output_dir / MANIFEST_FILE_NAME)
+        _write_depfile(args.depfile, target, pack_input_paths(args.repo_root))
+    print(
+        json.dumps({
+            "manifest": str(args.output_dir / MANIFEST_FILE_NAME),
+            "content_hash": manifest["content_hash"],
+        })
+    )
     return 0
 
 

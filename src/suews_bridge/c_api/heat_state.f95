@@ -2,7 +2,7 @@
 ! SUEWS Rust bridge C API facade for HEAT_STATE.
 ! -----------------------------------------------------------------------------
 module module_c_api_heat_state
-use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use, intrinsic :: iso_c_binding, only: c_int, c_int64_t, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer, suews_capi_error_text
@@ -20,31 +20,10 @@ public :: SUEWS_CAPI_BAD_STATE
 integer(c_int), parameter, public :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsurf, c_int) + 79_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_HEAT_STATE_SCHEMA_VERSION = 1_c_int
 
+! Fixed-size default shadow for HEAT_STATE base fields (nlayer = 0, ndepth = 0).
+! Allocatable facet/depth arrays remain unallocated in the default state and are
+! unpacked directly into module_type_heat::HEAT_STATE by heat_state_unpack.
 type :: heat_state_shadow
-   real(c_double), dimension(:, :), allocatable :: temp_roof
-   real(c_double), dimension(:, :), allocatable :: temp_wall
-   real(c_double), dimension(:, :), allocatable :: temp_surf
-   real(c_double), dimension(:, :), allocatable :: temp_surf_dyohm
-   real(c_double), dimension(:), allocatable :: tsfc_roof
-   real(c_double), dimension(:), allocatable :: tsfc_wall
-   real(c_double), dimension(:), allocatable :: tsfc_surf
-   real(c_double), dimension(:), allocatable :: tsfc_surf_dyohm
-   real(c_double), dimension(:), allocatable :: tsfc_roof_stepstart
-   real(c_double), dimension(:), allocatable :: tsfc_wall_stepstart
-   real(c_double), dimension(:), allocatable :: tsfc_surf_stepstart
-
-   real(c_double), dimension(:), allocatable :: qs_roof
-   real(c_double), dimension(:), allocatable :: qn_roof
-   real(c_double), dimension(:), allocatable :: qe_roof
-   real(c_double), dimension(:), allocatable :: qh_roof
-   real(c_double), dimension(:), allocatable :: qh_resist_roof
-
-   real(c_double), dimension(:), allocatable :: qs_wall
-   real(c_double), dimension(:), allocatable :: qn_wall
-   real(c_double), dimension(:), allocatable :: qe_wall
-   real(c_double), dimension(:), allocatable :: qh_wall
-   real(c_double), dimension(:), allocatable :: qh_resist_wall
-
    real(c_double), dimension(nsurf) :: qs_surf = 0.0_c_double
    real(c_double), dimension(nsurf) :: qn_surf = 0.0_c_double
    real(c_double), dimension(nsurf) :: qe0_surf = 0.0_c_double
@@ -84,6 +63,7 @@ public :: suews_heat_state_len
 public :: suews_heat_state_schema_version
 public :: suews_heat_state_default
 public :: suews_heat_state_error_message
+public :: heat_state_expected_len
 public :: heat_state_unpack
 
 contains
@@ -96,9 +76,10 @@ subroutine suews_heat_state_len(n_flat, nlayer, ndepth, err) bind(C, name='suews
    integer(c_int), intent(out) :: ndepth
    integer(c_int), intent(out) :: err
 
-   type(heat_state_shadow) :: state
-
-   call heat_state_layout(state, n_flat, nlayer, ndepth, err)
+   n_flat = SUEWS_CAPI_HEAT_STATE_BASE_LEN
+   nlayer = 0_c_int
+   ndepth = 0_c_int
+   err = SUEWS_CAPI_OK
 
 end subroutine suews_heat_state_len
 
@@ -127,291 +108,6 @@ subroutine suews_heat_state_default(flat, n_flat, nlayer, ndepth, err) bind(C, n
    call heat_state_pack(state, flat, n_flat, nlayer, ndepth, err)
 
 end subroutine suews_heat_state_default
-
-subroutine update_nlayer_from_vec(field, nlayer, err)
-   implicit none
-
-   real(c_double), dimension(:), allocatable, intent(in) :: field
-   integer(c_int), intent(inout) :: nlayer
-   integer(c_int), intent(inout) :: err
-   integer(c_int) :: n_here
-
-   if (err/=SUEWS_CAPI_OK) return
-   if (.not. allocated(field)) return
-
-   n_here = int(size(field), c_int)
-   if (nlayer==0_c_int) then
-      nlayer = n_here
-   elseif (nlayer/=n_here) then
-      err = SUEWS_CAPI_BAD_STATE
-   end if
-
-end subroutine update_nlayer_from_vec
-
-subroutine update_layer_depth_from_mat(field, nlayer, ndepth, err)
-   implicit none
-
-   real(c_double), dimension(:, :), allocatable, intent(in) :: field
-   integer(c_int), intent(inout) :: nlayer
-   integer(c_int), intent(inout) :: ndepth
-   integer(c_int), intent(inout) :: err
-   integer(c_int) :: layer_here
-   integer(c_int) :: depth_here
-
-   if (err/=SUEWS_CAPI_OK) return
-   if (.not. allocated(field)) return
-
-   layer_here = int(size(field, 1), c_int)
-   depth_here = int(size(field, 2), c_int)
-
-   if (nlayer==0_c_int) then
-      nlayer = layer_here
-   elseif (nlayer/=layer_here) then
-      err = SUEWS_CAPI_BAD_STATE
-      return
-   end if
-
-   if (ndepth==0_c_int) then
-      ndepth = depth_here
-   elseif (ndepth/=depth_here) then
-      err = SUEWS_CAPI_BAD_STATE
-   end if
-
-end subroutine update_layer_depth_from_mat
-
-subroutine update_depth_from_surf_mat(field, ndepth, err)
-   implicit none
-
-   real(c_double), dimension(:, :), allocatable, intent(in) :: field
-   integer(c_int), intent(inout) :: ndepth
-   integer(c_int), intent(inout) :: err
-   integer(c_int) :: surf_here
-   integer(c_int) :: depth_here
-
-   if (err/=SUEWS_CAPI_OK) return
-   if (.not. allocated(field)) return
-
-   surf_here = int(size(field, 1), c_int)
-   depth_here = int(size(field, 2), c_int)
-   if (surf_here/=int(nsurf, c_int)) then
-      err = SUEWS_CAPI_BAD_STATE
-      return
-   end if
-
-   if (ndepth==0_c_int) then
-      ndepth = depth_here
-   elseif (ndepth/=depth_here) then
-      err = SUEWS_CAPI_BAD_STATE
-   end if
-
-end subroutine update_depth_from_surf_mat
-
-subroutine require_layer_vec(field, nlayer, ndepth, err)
-   implicit none
-
-   real(c_double), dimension(:), allocatable, intent(in) :: field
-   integer(c_int), intent(in) :: nlayer
-   integer(c_int), intent(in) :: ndepth
-   integer(c_int), intent(inout) :: err
-
-   if (err/=SUEWS_CAPI_OK) return
-
-   if (nlayer==0_c_int .and. ndepth==0_c_int) then
-      if (allocated(field)) err = SUEWS_CAPI_BAD_STATE
-   else
-      if (.not. allocated(field)) then
-         err = SUEWS_CAPI_BAD_STATE
-      elseif (int(size(field), c_int)/=nlayer) then
-         err = SUEWS_CAPI_BAD_STATE
-      end if
-   end if
-
-end subroutine require_layer_vec
-
-subroutine require_surf_vec(field, nlayer, ndepth, err)
-   implicit none
-
-   real(c_double), dimension(:), allocatable, intent(in) :: field
-   integer(c_int), intent(in) :: nlayer
-   integer(c_int), intent(in) :: ndepth
-   integer(c_int), intent(inout) :: err
-
-   if (err/=SUEWS_CAPI_OK) return
-
-   if (nlayer==0_c_int .and. ndepth==0_c_int) then
-      if (allocated(field)) err = SUEWS_CAPI_BAD_STATE
-   else
-      if (.not. allocated(field)) then
-         err = SUEWS_CAPI_BAD_STATE
-      elseif (int(size(field), c_int)/=int(nsurf, c_int)) then
-         err = SUEWS_CAPI_BAD_STATE
-      end if
-   end if
-
-end subroutine require_surf_vec
-
-subroutine require_layer_depth_mat(field, nlayer, ndepth, err)
-   implicit none
-
-   real(c_double), dimension(:, :), allocatable, intent(in) :: field
-   integer(c_int), intent(in) :: nlayer
-   integer(c_int), intent(in) :: ndepth
-   integer(c_int), intent(inout) :: err
-
-   if (err/=SUEWS_CAPI_OK) return
-
-   if (nlayer==0_c_int .and. ndepth==0_c_int) then
-      if (allocated(field)) err = SUEWS_CAPI_BAD_STATE
-   else
-      if (.not. allocated(field)) then
-         err = SUEWS_CAPI_BAD_STATE
-      elseif (int(size(field, 1), c_int)/=nlayer .or. &
-              int(size(field, 2), c_int)/=ndepth) then
-         err = SUEWS_CAPI_BAD_STATE
-      end if
-   end if
-
-end subroutine require_layer_depth_mat
-
-subroutine require_surf_depth_mat(field, nlayer, ndepth, err)
-   implicit none
-
-   real(c_double), dimension(:, :), allocatable, intent(in) :: field
-   integer(c_int), intent(in) :: nlayer
-   integer(c_int), intent(in) :: ndepth
-   integer(c_int), intent(inout) :: err
-
-   if (err/=SUEWS_CAPI_OK) return
-
-   if (nlayer==0_c_int .and. ndepth==0_c_int) then
-      if (allocated(field)) err = SUEWS_CAPI_BAD_STATE
-   else
-      if (.not. allocated(field)) then
-         err = SUEWS_CAPI_BAD_STATE
-      elseif (int(size(field, 1), c_int)/=int(nsurf, c_int) .or. &
-              int(size(field, 2), c_int)/=ndepth) then
-         err = SUEWS_CAPI_BAD_STATE
-      end if
-   end if
-
-end subroutine require_surf_depth_mat
-
-subroutine heat_state_layout(state, n_flat, nlayer, ndepth, err)
-   implicit none
-
-   type(heat_state_shadow), intent(in) :: state
-   integer(c_int), intent(out) :: n_flat
-   integer(c_int), intent(out) :: nlayer
-   integer(c_int), intent(out) :: ndepth
-   integer(c_int), intent(out) :: err
-
-   nlayer = 0_c_int
-   ndepth = 0_c_int
-   err = SUEWS_CAPI_OK
-
-   call update_nlayer_from_vec(state%tsfc_roof, nlayer, err)
-   call update_nlayer_from_vec(state%tsfc_wall, nlayer, err)
-   call update_nlayer_from_vec(state%tsfc_roof_stepstart, nlayer, err)
-   call update_nlayer_from_vec(state%tsfc_wall_stepstart, nlayer, err)
-   call update_nlayer_from_vec(state%qs_roof, nlayer, err)
-   call update_nlayer_from_vec(state%qn_roof, nlayer, err)
-   call update_nlayer_from_vec(state%qe_roof, nlayer, err)
-   call update_nlayer_from_vec(state%qh_roof, nlayer, err)
-   call update_nlayer_from_vec(state%qh_resist_roof, nlayer, err)
-   call update_nlayer_from_vec(state%qs_wall, nlayer, err)
-   call update_nlayer_from_vec(state%qn_wall, nlayer, err)
-   call update_nlayer_from_vec(state%qe_wall, nlayer, err)
-   call update_nlayer_from_vec(state%qh_wall, nlayer, err)
-   call update_nlayer_from_vec(state%qh_resist_wall, nlayer, err)
-
-   call update_layer_depth_from_mat(state%temp_roof, nlayer, ndepth, err)
-   call update_layer_depth_from_mat(state%temp_wall, nlayer, ndepth, err)
-   call update_depth_from_surf_mat(state%temp_surf, ndepth, err)
-   call update_depth_from_surf_mat(state%temp_surf_dyohm, ndepth, err)
-
-   if ((nlayer==0_c_int .and. ndepth/=0_c_int) .or. &
-       (nlayer/=0_c_int .and. ndepth==0_c_int)) then
-      err = SUEWS_CAPI_BAD_STATE
-   end if
-
-   call require_layer_depth_mat(state%temp_roof, nlayer, ndepth, err)
-   call require_layer_depth_mat(state%temp_wall, nlayer, ndepth, err)
-   call require_surf_depth_mat(state%temp_surf, nlayer, ndepth, err)
-   call require_surf_depth_mat(state%temp_surf_dyohm, nlayer, ndepth, err)
-
-   call require_layer_vec(state%tsfc_roof, nlayer, ndepth, err)
-   call require_layer_vec(state%tsfc_wall, nlayer, ndepth, err)
-   call require_surf_vec(state%tsfc_surf, nlayer, ndepth, err)
-   call require_surf_vec(state%tsfc_surf_dyohm, nlayer, ndepth, err)
-   call require_layer_vec(state%tsfc_roof_stepstart, nlayer, ndepth, err)
-   call require_layer_vec(state%tsfc_wall_stepstart, nlayer, ndepth, err)
-   call require_surf_vec(state%tsfc_surf_stepstart, nlayer, ndepth, err)
-
-   call require_layer_vec(state%qs_roof, nlayer, ndepth, err)
-   call require_layer_vec(state%qn_roof, nlayer, ndepth, err)
-   call require_layer_vec(state%qe_roof, nlayer, ndepth, err)
-   call require_layer_vec(state%qh_roof, nlayer, ndepth, err)
-   call require_layer_vec(state%qh_resist_roof, nlayer, ndepth, err)
-
-   call require_layer_vec(state%qs_wall, nlayer, ndepth, err)
-   call require_layer_vec(state%qn_wall, nlayer, ndepth, err)
-   call require_layer_vec(state%qe_wall, nlayer, ndepth, err)
-   call require_layer_vec(state%qh_wall, nlayer, ndepth, err)
-   call require_layer_vec(state%qh_resist_wall, nlayer, ndepth, err)
-
-   if (err/=SUEWS_CAPI_OK) then
-      n_flat = 0_c_int
-      return
-   end if
-
-   if (nlayer==0_c_int) then
-      n_flat = SUEWS_CAPI_HEAT_STATE_BASE_LEN
-   else
-      n_flat = SUEWS_CAPI_HEAT_STATE_BASE_LEN + &
-               2_c_int * nlayer * ndepth + 2_c_int * int(nsurf, c_int) * ndepth + &
-               14_c_int * nlayer + 3_c_int * int(nsurf, c_int)
-   end if
-   err = SUEWS_CAPI_OK
-
-end subroutine heat_state_layout
-
-subroutine pack_vec(field, flat, idx, n)
-   implicit none
-
-   real(c_double), dimension(:), allocatable, intent(in) :: field
-   real(c_double), intent(out) :: flat(*)
-   integer(c_int), intent(inout) :: idx
-   integer(c_int), intent(in) :: n
-   integer(c_int) :: i
-
-   if (n<=0_c_int) return
-   do i = 1_c_int, n
-      flat(idx) = field(i)
-      idx = idx + 1_c_int
-   end do
-
-end subroutine pack_vec
-
-subroutine pack_mat(field, flat, idx, n1, n2)
-   implicit none
-
-   real(c_double), dimension(:, :), allocatable, intent(in) :: field
-   real(c_double), intent(out) :: flat(*)
-   integer(c_int), intent(inout) :: idx
-   integer(c_int), intent(in) :: n1
-   integer(c_int), intent(in) :: n2
-   integer(c_int) :: i
-   integer(c_int) :: j
-
-   if (n1<=0_c_int .or. n2<=0_c_int) return
-   do i = 1_c_int, n1
-      do j = 1_c_int, n2
-         flat(idx) = field(i, j)
-         idx = idx + 1_c_int
-      end do
-   end do
-
-end subroutine pack_mat
 
 subroutine ensure_vec_alloc(field, n, err)
    implicit none
@@ -512,48 +208,18 @@ subroutine heat_state_pack(state, flat, n_flat, nlayer, ndepth, err)
    integer(c_int), intent(out) :: nlayer
    integer(c_int), intent(out) :: ndepth
    integer(c_int), intent(out) :: err
-   integer(c_int) :: n_expected
    integer(c_int) :: idx
-   integer(c_int) :: surf_vec_len
    integer(c_int) :: i
 
-   call heat_state_layout(state, n_expected, nlayer, ndepth, err)
-   if (err/=SUEWS_CAPI_OK) return
+   nlayer = 0_c_int
+   ndepth = 0_c_int
 
-   if (n_flat<n_expected) then
+   if (n_flat<SUEWS_CAPI_HEAT_STATE_BASE_LEN) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
 
-   surf_vec_len = 0_c_int
-   if (nlayer>0_c_int) surf_vec_len = int(nsurf, c_int)
-
    idx = 1_c_int
-
-   call pack_mat(state%temp_roof, flat, idx, nlayer, ndepth)
-   call pack_mat(state%temp_wall, flat, idx, nlayer, ndepth)
-   call pack_mat(state%temp_surf, flat, idx, int(nsurf, c_int), ndepth)
-   call pack_mat(state%temp_surf_dyohm, flat, idx, int(nsurf, c_int), ndepth)
-
-   call pack_vec(state%tsfc_roof, flat, idx, nlayer)
-   call pack_vec(state%tsfc_wall, flat, idx, nlayer)
-   call pack_vec(state%tsfc_surf, flat, idx, surf_vec_len)
-   call pack_vec(state%tsfc_surf_dyohm, flat, idx, surf_vec_len)
-   call pack_vec(state%tsfc_roof_stepstart, flat, idx, nlayer)
-   call pack_vec(state%tsfc_wall_stepstart, flat, idx, nlayer)
-   call pack_vec(state%tsfc_surf_stepstart, flat, idx, surf_vec_len)
-
-   call pack_vec(state%qs_roof, flat, idx, nlayer)
-   call pack_vec(state%qn_roof, flat, idx, nlayer)
-   call pack_vec(state%qe_roof, flat, idx, nlayer)
-   call pack_vec(state%qh_roof, flat, idx, nlayer)
-   call pack_vec(state%qh_resist_roof, flat, idx, nlayer)
-
-   call pack_vec(state%qs_wall, flat, idx, nlayer)
-   call pack_vec(state%qn_wall, flat, idx, nlayer)
-   call pack_vec(state%qe_wall, flat, idx, nlayer)
-   call pack_vec(state%qh_wall, flat, idx, nlayer)
-   call pack_vec(state%qh_resist_wall, flat, idx, nlayer)
 
    do i = 1, nsurf
       flat(idx) = state%qs_surf(i)
@@ -626,6 +292,49 @@ subroutine heat_state_pack(state, flat, n_flat, nlayer, ndepth, err)
 
 end subroutine heat_state_pack
 
+subroutine heat_state_expected_len(nlayer, ndepth, expected_len, ok)
+   implicit none
+
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(in) :: ndepth
+   integer(c_int), intent(out) :: expected_len
+   logical, intent(out) :: ok
+
+   integer(c_int64_t), parameter :: MAX_C_INT = int(huge(0_c_int), c_int64_t)
+   integer(c_int64_t) :: nl
+   integer(c_int64_t) :: nd
+   integer(c_int64_t) :: ns
+   integer(c_int64_t) :: n_64
+
+   expected_len = 0_c_int
+   ok = .false.
+   if (nlayer<0_c_int .or. ndepth<0_c_int) return
+   if ((nlayer==0_c_int .and. ndepth/=0_c_int) .or. &
+       (nlayer/=0_c_int .and. ndepth==0_c_int)) return
+
+   if (nlayer==0_c_int) then
+      expected_len = SUEWS_CAPI_HEAT_STATE_BASE_LEN
+      ok = .true.
+      return
+   end if
+
+   nl = int(nlayer, c_int64_t)
+   nd = int(ndepth, c_int64_t)
+   ns = int(nsurf, c_int64_t)
+   if (nl>MAX_C_INT / 14_c_int64_t) return
+   if (nd>MAX_C_INT / (2_c_int64_t * nl)) return
+   if (nd>MAX_C_INT / (2_c_int64_t * ns)) return
+
+   n_64 = int(SUEWS_CAPI_HEAT_STATE_BASE_LEN, c_int64_t) + &
+          2_c_int64_t * nl * nd + 2_c_int64_t * ns * nd + &
+          14_c_int64_t * nl + 3_c_int64_t * ns
+   if (n_64>MAX_C_INT) return
+
+   expected_len = int(n_64, c_int)
+   ok = .true.
+
+end subroutine heat_state_expected_len
+
 subroutine heat_state_unpack(flat, n_flat, nlayer, ndepth, state, err)
    implicit none
 
@@ -637,28 +346,13 @@ subroutine heat_state_unpack(flat, n_flat, nlayer, ndepth, state, err)
    integer(c_int), intent(out) :: err
 
    integer(c_int) :: n_expected
+   logical :: len_ok
    integer(c_int) :: idx
    integer(c_int) :: surf_vec_len
    integer(c_int) :: i
 
-   if (nlayer<0_c_int .or. ndepth<0_c_int) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-   if ((nlayer==0_c_int .and. ndepth/=0_c_int) .or. &
-       (nlayer/=0_c_int .and. ndepth==0_c_int)) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
-   end if
-
-   if (nlayer==0_c_int) then
-      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN
-   else
-      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN + &
-                   2_c_int * nlayer * ndepth + 2_c_int * int(nsurf, c_int) * ndepth + &
-                   14_c_int * nlayer + 3_c_int * int(nsurf, c_int)
-   end if
-   if (n_flat<n_expected) then
+   call heat_state_expected_len(nlayer, ndepth, n_expected, len_ok)
+   if (.not. len_ok .or. n_flat/=n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

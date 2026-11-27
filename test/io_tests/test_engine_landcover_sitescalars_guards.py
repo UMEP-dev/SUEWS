@@ -1,9 +1,8 @@
-"""End-to-end engine and data-model guards for site scalars and land cover (#2002)."""
+"""End-to-end engine and data-model guards for site scalars and land cover (#2002, #2349)."""
 
 from copy import deepcopy
 from importlib import import_module
-from importlib.resources import as_file, files
-import os
+from importlib.resources import files
 from pathlib import Path
 import subprocess
 
@@ -13,10 +12,10 @@ from pyarrow import ipc
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
 from supy.data_model import SUEWSConfig
 
 _run_rust = import_module("supy._run_rust")
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 _SURFACES = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
 _VEG_SURFACES = ("evetr", "dectr", "grass")
@@ -39,28 +38,26 @@ pytestmark = [
 ]
 
 
-def _locate_suews_engine() -> Path:
-    """Return the bundled or locally built ``suews-engine`` binary."""
-    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = files("supy").joinpath("bin").joinpath(binary_name)
-    with as_file(bundled) as bundled_path:
-        if bundled_path.exists():
-            return Path(bundled_path)
-
-    repo_root = Path(__file__).resolve().parents[2]
-    dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / binary_name
-    if dev_binary.exists():
-        return dev_binary
-    pytest.skip("suews-engine binary not found")
+def _dump_yaml(doc: dict) -> str:
+    return yaml.dump(doc, Dumper=_YAML_DUMPER, sort_keys=False)
 
 
-def _stage_engine_case(tmp_path: Path, config_dict: dict) -> tuple[Path, Path]:
+@pytest.fixture(scope="module")
+def _short_forcing_text() -> str:
+    """Cache 13-line hourly forcing prefix from packaged sample data."""
+    raw = (files("supy") / "sample_data" / "Kc_2012_data_60.txt").read_text(
+        encoding="utf-8"
+    )
+    lines = raw.splitlines()
+    return "\n".join(lines[:14]) + "\n"
+
+
+def _stage_engine_case(
+    tmp_path: Path, config_dict: dict, short_forcing_text: str
+) -> tuple[Path, Path]:
     """Write a short forcing slice and YAML config for ``suews-engine``."""
-    repo_root = Path(__file__).resolve().parents[2]
-    forcing_src = repo_root / "src" / "supy" / "sample_data" / "Kc_2012_data_60.txt"
-    lines = forcing_src.read_text(encoding="utf-8").splitlines()
     short_forcing = tmp_path / "forcing.txt"
-    short_forcing.write_text("\n".join(lines[:14]) + "\n", encoding="utf-8")
+    short_forcing.write_text(short_forcing_text, encoding="utf-8")
 
     cfg = deepcopy(config_dict)
     out_dir = tmp_path / "out"
@@ -74,17 +71,17 @@ def _stage_engine_case(tmp_path: Path, config_dict: dict) -> tuple[Path, Path]:
     cfg["model"]["control"]["end_time"] = None
 
     cfg_path = tmp_path / "config.yml"
-    cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    cfg_path.write_text(_dump_yaml(cfg), encoding="utf-8")
     return cfg_path, out_dir
 
 
-def _run_engine(cfg_path: Path) -> subprocess.CompletedProcess[str]:
+def _run_engine(engine: Path, cfg_path: Path) -> subprocess.CompletedProcess[str]:
     """Run ``suews-engine`` against ``cfg_path`` and return the completed process."""
-    engine = _locate_suews_engine()
     return subprocess.run(
         [str(engine), "run", str(cfg_path)],
         capture_output=True,
         text=True,
+        timeout=60,
         check=False,
     )
 
@@ -96,13 +93,14 @@ def _read_ipc_table(path: Path) -> pd.DataFrame:
 
 
 @pytest.fixture(scope="module")
-def sample_bridge_inputs():
+def sample_bridge_inputs(sample_config_loaded, sample_forcing_parsed):
     """Return a clean sample config dict and 12-step forcing payloads (default and observed QN)."""
-    sim = SUEWSSimulation.from_sample_data()
-    df_forcing = sim.forcing.df.iloc[:12].copy()
+    _, df_forcing = sample_forcing_parsed(12)
     df_forcing_obs_qn = df_forcing.copy()
     df_forcing_obs_qn["qn"] = 50.0
-    raw_dict = sim.config.model_dump(exclude_none=True, mode="json")
+    raw_dict = sample_config_loaded.model_dump(exclude_none=True, mode="json")
+    # Establish positive baseline that the unmutated dict passes SUEWSConfig.
+    SUEWSConfig.from_dict(deepcopy(raw_dict))
     forcing_flat = (
         _run_rust._prepare_forcing_block(df_forcing).ravel(order="C").tolist()
     )
@@ -119,7 +117,7 @@ def _run_native(
 ) -> pd.DataFrame:
     """Execute the native Rust/Fortran kernel in memory and parse output."""
     result = _run_rust._check_rust_available().run_suews(
-        yaml.safe_dump(cfg_dict, sort_keys=False),
+        _dump_yaml(cfg_dict),
         forcing_flat,
         count,
     )
@@ -134,10 +132,15 @@ def _set_sfrs(cfg_dict: dict, sfrs: dict[str, float]) -> None:
         lc[surf]["sfr"] = {"value": sfrs[surf]}
 
 
-def test_default_emission_parity_via_suews_config_and_engine(tmp_path):
+def test_default_emission_parity_via_suews_config_and_engine(
+    tmp_path: Path,
+    suews_engine_bin: Path,
+    sample_bridge_inputs,
+    _short_forcing_text: str,
+):
     """Stripping defaulted site scalars and land-cover fields emits valid engine YAML (#2001)."""
-    sim = SUEWSSimulation.from_sample_data()
-    raw = sim.config.model_dump(exclude_none=True, mode="json")
+    base_cfg, _, _, _ = sample_bridge_inputs
+    raw = deepcopy(base_cfg)
     site = raw["sites"][0]
     site.pop("gridiv", None)
     props = site["properties"]
@@ -180,8 +183,8 @@ def test_default_emission_parity_via_suews_config_and_engine(tmp_path):
 
     rebuilt = SUEWSConfig.from_dict(raw)
     dumped = rebuilt.model_dump(exclude_none=True, mode="json")
-    cfg_path, out_dir = _stage_engine_case(tmp_path, dumped)
-    proc = _run_engine(cfg_path)
+    cfg_path, out_dir = _stage_engine_case(tmp_path, dumped, _short_forcing_text)
+    proc = _run_engine(suews_engine_bin, cfg_path)
     assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
 
     arrow_path = out_dir / "suews_output.arrow"
@@ -193,303 +196,72 @@ def test_default_emission_parity_via_suews_config_and_engine(tmp_path):
     assert np.isfinite(df_out[qn_col].to_numpy()).all()
 
 
-_REJECTION_CASES = [
-    pytest.param({}, {}, ("gridiv",), None, "sites[0].gridiv", id="missing_gridiv"),
+_WITNESS_CASES = [
+    # Site scalars subsystem: missing, null, malformed
     pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "paved", "sfr"),
-        None,
-        "sites[gridiv=1].properties.land_cover.paved.sfr",
-        id="missing_sfr",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "paved", "sfr"),
-        {"value": -0.05},
-        "sites[gridiv=1].properties.land_cover.paved.sfr",
-        id="negative_sfr",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "z0m_in"),
-        None,
-        "sites[gridiv=1].properties.z0m_in",
-        id="missing_z0m_in",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "zdm_in"),
-        None,
-        "sites[gridiv=1].properties.zdm_in",
-        id="missing_zdm_in",
-    ),
-    pytest.param(
-        {},
-        {},
         ("properties", "pipecapacity"),
         None,
         "sites[gridiv=1].properties.pipecapacity",
-        id="missing_pipecapacity",
+        None,
+        id="site-scalar-missing-pipecapacity",
     ),
     pytest.param(
-        {},
-        {},
         ("properties", "pipecapacity"),
         {"value": None},
         "sites[gridiv=1].properties.pipecapacity",
-        id="null_pipecapacity",
+        ("pipecapacity", "null"),
+        id="site-scalar-null-pipecapacity",
     ),
     pytest.param(
-        {},
-        {},
-        ("properties", "pipecapacity"),
-        {"value": float("nan")},
-        "sites[gridiv=1].properties.pipecapacity",
-        id="nan_pipecapacity",
-    ),
-    pytest.param(
-        {},
-        {"water": 0.05},
-        ("properties", "runofftowater"),
-        None,
-        "sites[gridiv=1].properties.runofftowater",
-        id="missing_runofftowater",
-    ),
-    pytest.param(
-        {},
-        {"water": 0.05},
-        ("properties", "runofftowater"),
-        {"value": None},
-        "sites[gridiv=1].properties.runofftowater",
-        id="null_runofftowater",
-    ),
-    pytest.param(
-        {},
-        {"water": 0.05},
-        ("properties", "runofftowater"),
-        {"value": float("inf")},
-        "sites[gridiv=1].properties.runofftowater",
-        id="inf_runofftowater",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "n_buildings"),
-        None,
-        "sites[gridiv=1].properties.n_buildings",
-        id="missing_n_buildings",
-    ),
-    pytest.param(
-        {"roughness_sublayer": 2},
-        {
-            "paved": 0.32,
-            "bldgs": 0.68,
-            "evetr": 0.0,
-            "dectr": 0.0,
-            "grass": 0.0,
-            "bsoil": 0.0,
-            "water": 0.0,
-        },
-        ("properties", "n_buildings"),
-        None,
-        "sites[gridiv=1].properties.n_buildings",
-        id="missing_n_buildings_rsl2_pai_068_f32_boundary",
-    ),
-    pytest.param(
-        {"roughness_sublayer": 2},
-        {
-            "paved": 0.32,
-            "bldgs": 0.68,
-            "evetr": 0.0,
-            "dectr": 0.0,
-            "grass": 0.0,
-            "bsoil": 0.0,
-            "water": 0.0,
-        },
-        ("properties", "h_std"),
-        None,
-        "sites[gridiv=1].properties.h_std",
-        id="missing_h_std_rsl2_pai_068_f32_boundary",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "h_std"),
-        None,
-        "sites[gridiv=1].properties.h_std",
-        id="missing_h_std",
-    ),
-    pytest.param(
-        {"storage_heat": 6},
-        {},
-        ("properties", "lambda_c"),
-        None,
-        "sites[gridiv=1].properties.lambda_c",
-        id="missing_lambda_c",
-    ),
-    pytest.param(
-        {"net_radiation": 0, "snow_use": 0, "storage_heat": 1},
-        {},
-        ("properties", "land_cover", "paved", "emis"),
-        None,
-        "sites[gridiv=1].properties.land_cover.paved.emis",
-        id="missing_paved_emis_beers",
-    ),
-    pytest.param(
-        {"net_radiation": 0, "snow_use": 0, "storage_heat": 1},
-        {},
-        ("properties", "land_cover", "bldgs", "emis"),
-        None,
-        "sites[gridiv=1].properties.land_cover.bldgs.emis",
-        id="missing_bldgs_emis_beers",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "bldgs", "bldgh"),
-        None,
-        "sites[gridiv=1].properties.land_cover.bldgs.bldgh",
-        id="missing_bldgh",
-    ),
-    pytest.param(
-        {"frontal_area_index": 0},
-        {},
-        ("properties", "land_cover", "bldgs", "faibldg"),
-        None,
-        "sites[gridiv=1].properties.land_cover.bldgs.faibldg",
-        id="missing_faibldg",
-    ),
-    pytest.param(
-        {},
-        {"evetr": 0.05},
-        ("properties", "land_cover", "evetr", "height_evergreen_tree"),
-        None,
-        "sites[gridiv=1].properties.land_cover.evetr.height_evergreen_tree",
-        id="missing_evetreeh",
-    ),
-    pytest.param(
-        {"frontal_area_index": 0},
-        {"evetr": 0.05},
-        ("properties", "land_cover", "evetr", "fai_evergreen_tree"),
-        None,
-        "sites[gridiv=1].properties.land_cover.evetr.fai_evergreen_tree",
-        id="missing_faievetree",
-    ),
-    pytest.param(
-        {},
-        {"dectr": 0.05},
-        ("properties", "land_cover", "dectr", "height_deciduous_tree"),
-        None,
-        "sites[gridiv=1].properties.land_cover.dectr.height_deciduous_tree",
-        id="missing_dectreeh",
-    ),
-    pytest.param(
-        {"frontal_area_index": 0},
-        {"dectr": 0.05},
-        ("properties", "land_cover", "dectr", "fai_deciduous_tree"),
-        None,
-        "sites[gridiv=1].properties.land_cover.dectr.fai_deciduous_tree",
-        id="missing_faidectree",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "dectr", "porosity_min_deciduous"),
-        None,
-        "sites[gridiv=1].properties.land_cover.dectr.porosity_min_deciduous",
-        id="missing_dectr_pormin",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "evetr", "alb_min"),
-        None,
-        "sites[gridiv=1].properties.land_cover.evetr.alb_min",
-        id="missing_evetr_alb_min",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "grass", "max_conductance"),
-        None,
-        "sites[gridiv=1].properties.land_cover.grass.max_conductance",
-        id="missing_grass_max_cond",
-    ),
-    pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "grass", "wet_threshold"),
-        None,
-        "sites[gridiv=1].properties.land_cover.grass.wet_threshold",
-        id="missing_grass_wet_thresh",
-    ),
-    pytest.param(
-        {"water_use": 0},
-        {},
-        ("properties", "land_cover", "bsoil", "irrigation_fraction"),
-        None,
-        "sites[gridiv=1].properties.land_cover.bsoil.irrigation_fraction",
-        id="missing_bsoil_irrfrac",
-    ),
-    pytest.param(
-        {},
-        {"water": 0.05},
-        ("properties", "land_cover", "water", "state_limit"),
-        None,
-        "sites[gridiv=1].properties.land_cover.water.state_limit",
-        id="missing_water_state_limit",
-    ),
-    pytest.param(
-        {},
-        {},
         ("properties", "narp_trans_site"),
         {"value": "invalid"},
         "sites[gridiv=1].properties.narp_trans_site",
-        id="malformed_inactive_narp_trans",
+        ("narp_trans_site",),
+        id="site-scalar-malformed-narp_trans_site",
+    ),
+    # Land-cover scalars subsystem: missing, null, malformed
+    pytest.param(
+        ("properties", "land_cover", "paved", "sfr"),
+        None,
+        "sites[gridiv=1].properties.land_cover.paved.sfr",
+        None,
+        id="landcover-missing-sfr",
     ),
     pytest.param(
-        {},
-        {},
-        ("properties", "land_cover", "paved", "state_limit"),
-        {"value": "invalid"},
-        "sites[gridiv=1].properties.land_cover.paved.state_limit",
-        id="malformed_inactive_state_limit",
+        ("properties", "land_cover", "paved", "sfr"),
+        {"value": None},
+        "sites[gridiv=1].properties.land_cover.paved.sfr",
+        ("land_cover.paved.sfr", "null"),
+        id="landcover-null-sfr",
+    ),
+    pytest.param(
+        ("properties", "land_cover", "paved", "sfr"),
+        {"value": -0.05},
+        "sites[gridiv=1].properties.land_cover.paved.sfr",
+        ("land_cover.paved.sfr",),
+        id="landcover-malformed-negative-sfr",
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    (
-        "physics_overrides",
-        "sfr_overrides",
-        "target_path",
-        "replacement",
-        "expected_path",
-    ),
-    _REJECTION_CASES,
+    ("target_path", "replacement", "expected_path", "public_needles"),
+    _WITNESS_CASES,
 )
-def test_active_site_scalar_and_landcover_rejections(
+def test_site_scalar_and_landcover_br02_failure_witnesses(
+    tmp_path: Path,
+    suews_engine_bin: Path,
     sample_bridge_inputs,
-    physics_overrides,
-    sfr_overrides,
-    target_path,
+    _short_forcing_text: str,
+    target_path: tuple[str, ...],
     replacement,
-    expected_path,
+    expected_path: str,
+    public_needles: tuple[str, ...] | None,
 ):
-    """Native kernel rejects missing active or malformed inactive scalars with canonical paths."""
+    """BR-02 witnesses for site scalars and land cover across Python and suews-engine."""
     base_cfg, forcing_flat, _, count = sample_bridge_inputs
     cfg = deepcopy(base_cfg)
-    phys = cfg["model"]["physics"]
-    for key, val in physics_overrides.items():
-        phys[key] = {"value": val}
     site = cfg["sites"][0]
-    lc = site["properties"]["land_cover"]
-    for surf, val in sfr_overrides.items():
-        lc[surf]["sfr"] = {"value": val}
 
     parent = site
     for key in target_path[:-1]:
@@ -500,10 +272,28 @@ def test_active_site_scalar_and_landcover_rejections(
     else:
         parent[leaf] = replacement
 
+    # 1. PyO3 Python-bridge witness
     with pytest.raises(
         RuntimeError, match=expected_path.replace("[", r"\[").replace("]", r"\]")
     ):
         _run_native(cfg, forcing_flat, count)
+
+    # 2. Standalone suews-engine witness
+    cfg_path, out_dir = _stage_engine_case(tmp_path, cfg, _short_forcing_text)
+    proc = _run_engine(suews_engine_bin, cfg_path)
+    assert proc.returncode != 0, (
+        f"invalid {expected_path} must not exit 0 (stdout={proc.stdout})"
+    )
+    assert expected_path in f"{proc.stdout}\n{proc.stderr}", proc.stderr
+    assert not (out_dir / "suews_output.arrow").exists()
+
+    # 3. Public Python SUEWSConfig entry point witness
+    if public_needles is not None:
+        with pytest.raises((ValueError, TypeError)) as cfg_exc:
+            SUEWSConfig.from_dict(cfg)
+        msg = str(cfg_exc.value)
+        for needle in public_needles:
+            assert needle in msg, f"expected {needle!r} in {msg!r}"
 
 
 def test_inactive_paved_only_omission_is_bit_identical(sample_bridge_inputs):

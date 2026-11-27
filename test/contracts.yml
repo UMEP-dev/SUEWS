@@ -105,7 +105,7 @@ contracts:
     title: Output meaning
     definition: Output arrays, columns, groups, dimensions, missing values and metadata retain their declared meanings.
     stages: [bridge, capi, kernel, output]
-    implementation: [src/supy/_run_rust.py, src/supy/suews_output.py, src/supy/data_model/output/, src/suews_bridge/src/output_block.rs, src/suews_bridge/src/output_line.rs, src/suews_bridge/src/output_io.rs]
+    implementation: [src/supy/_run_rust.py, src/supy/suews_output.py, src/supy/data_model/output/, src/suews_bridge/src/output_line.rs, src/suews_bridge/src/output_io.rs]
   - id: C-SAVE
     title: Output persistence
     definition: Saving honours destination, format, group and provenance choices while preserving the represented output.
@@ -132,8 +132,8 @@ contracts:
     stages: [bridge, capi, kernel, continuation]
     implementation: [src/suews_bridge/src/stebbs_state.rs, src/suews_bridge/c_api/driver.f95, src/suews/src/]
   - id: C-EHC-RESTART
-    title: Dual-timescale EHC continuation
-    definition: Dual-timescale EHC continuation preserves fast/slow thermal state or explicitly refuses that unsupported mode.
+    title: EHC continuation
+    definition: EHC continuation preserves thermal state (temp_roof, temp_wall, temp_surf, tsfc_*) identically across chunk, checkpoint and stream boundaries for both implicit and explicit coupling.
     stages: [bridge, capi, kernel, continuation]
     implementation: [src/suews_bridge/src/heat_state.rs, src/suews_bridge/c_api/heat_state.f95, src/suews_bridge/c_api/driver.f95, src/suews/src/]
   - id: C-WARMSTART

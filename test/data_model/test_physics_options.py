@@ -115,7 +115,8 @@ class TestYamlRoundTrip:
         dumped_text = yaml.safe_dump(phys.model_dump(mode="json"))
         # Round-trip is flat: no family tags in the dump.
         assert "spartacus" not in dumped_text
-        assert "ehc" not in dumped_text
+        # the family tag, not the ehc_surface_coupling field
+        assert "ehc:" not in dumped_text
         assert "simple:" not in dumped_text
 
     def test_mixed_reject_yaml_raises(self):
@@ -413,6 +414,8 @@ class TestRegistryEnumParity:
             "emissions": m.EmissionsMethod,
             "storage_heat": m.StorageHeatMethod,
             "ohm_inc_qf": m.OhmIncQf,
+            "ehc_surface_coupling": m.EHCSurfaceCoupling,
+            "control_ehc_stability": m.EHCStabilityControl,
             "roughness_length_momentum": m.MomentumRoughnessMethod,
             "roughness_length_heat": m.HeatRoughnessMethod,
             "stability": m.StabilityMethod,
@@ -726,7 +729,13 @@ def test_flatten_physics_accepts_kdown_constant_direct_fraction():
 
     flatten_physics_in_config(data)
 
-    assert data["model"]["physics"] == {"kdown_split_method": {"value": 2}}
+    # The fraction is kept as the flat ModelPhysics field: the validator writes
+    # this flattened dict as its updated YAML, so dropping it would reset the
+    # fraction to the 0.5 default.
+    assert data["model"]["physics"] == {
+        "kdown_split_method": {"value": 2},
+        "sw_dn_direct_frac": 0.45,
+    }
 
 
 def test_model_physics_accepts_orthogonal_spartacus():

@@ -486,7 +486,7 @@ CONTAINS
       freezmelt, freezstate, freezstatevol, &
       Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, &
       AddWater, addwaterrunoff, &
-      soilstore_id, SnowPack, SurplusEvap, & !inout
+      soilstore_id, SnowPack, ev_shortfall_imperv, & !inout
       SnowFrac, SnowWater, iceFrac, SnowDens, &
       runoffAGimpervious, runoffAGveg, surplusWaterBody, &
       ev_tot, qe_tot, runoff_tot, surf_chang_tot, chSnow_tot, & ! output
@@ -597,7 +597,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: SnowWater
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: iceFrac
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: SnowDens
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: SurplusEvap
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: ev_shortfall_imperv
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: rss_surf
       REAL(KIND(1D0)), DIMENSION(nsurf) :: runoffSnow_surf !Initialize for runoff caused by snowmelting
@@ -627,7 +627,7 @@ CONTAINS
       ! REAL(KIND(1d0))::Evap_SUEWS_Snow
       REAL(KIND(1D0)) :: MeltExcess !Excess melt water that needs to leave SnowPack
       REAL(KIND(1D0)) :: snowTotInit
-      REAL(KIND(1D0)) :: EvPart
+      REAL(KIND(1D0)) :: ev_from_imperv
       REAL(KIND(1D0)) :: runoffTest
       REAL(KIND(1D0)) :: snowFracFresh1 !Snow fraction for newly formed SnowPack
       REAL(KIND(1D0)) :: snowFracFresh2 !Snow fraction for newly formed SnowPack from state_id only
@@ -672,7 +672,7 @@ CONTAINS
       changSnow(is) = 0.
       runoffTest = 0.
       SnowToSurf(is) = 0.
-      EvPart = 0.
+      ev_from_imperv = 0.0D0
       ev_snowfree = 0.
       snowFracFresh1 = 0.
       snowFracFresh2 = 0.
@@ -706,7 +706,8 @@ CONTAINS
       !evaporation is taken from pervious surfaces
       IF (is > 2) THEN
          IF (PervFraction /= 0) THEN
-            EvPart = (SurplusEvap(PavSurf)*sfr_surf(PavSurf) + SurplusEvap(BldgSurf)*sfr_surf(BldgSurf))/PervFraction
+            ev_from_imperv = (ev_shortfall_imperv(PavSurf)*sfr_surf(PavSurf) + &
+                              ev_shortfall_imperv(BldgSurf)*sfr_surf(BldgSurf))/PervFraction
          END IF
       END IF
 
@@ -798,7 +799,7 @@ CONTAINS
          IF (snowCalcSwitch(is) > 0) THEN
             IF (SnowPack(is) > 0 .AND. SnowFrac(is) == 1) THEN
 
-               ev_snow(is) = ev_snow(is) + EvPart !Evaporation surplus
+               ev_snow(is) = ev_snow(is) + ev_from_imperv !Evaporation shortfall from impervious surfaces
 
                !(Snowfall per interval+freezing of melt water and surface state_id) - (meltwater+evaporation from SnowPack)
                changSnow(is) = (Precip + freezMelt(is)) - (mw_ind(is) + ev_snow(is)) !Calculate change in SnowPack (in mm)
@@ -863,7 +864,7 @@ CONTAINS
 
                !Snow calculations: SnowPack can either exist or form at the current timestep
                IF (SnowPack(is) > 0) THEN
-                  ev_snow(is) = ev_snow(is) + EvPart !Evaporation surplus
+                  ev_snow(is) = ev_snow(is) + ev_from_imperv !Evaporation shortfall from impervious surfaces
 
                   !----SnowPack water balance for the whole surface area. In reality snow depth = SnowPack/SnowFrac(is)
                   !(Snowfall per interval+freezing of melt water and surface state_id) - (meltwater+evaporation from SnowPack)
@@ -908,7 +909,7 @@ CONTAINS
                   IF ((Precip > 0 .AND. state_id(is) == 0) .OR. (Precip == 0 .AND. FreezState(is) == state_id(is)) .OR. &
                       (Precip > 0 .AND. FreezState(is) == state_id(is))) THEN
 
-                     !ev=ev+EvPart
+                     !ev=ev+ev_from_imperv
                      changSnow(is) = Precip + FreezStateVol(is)
                      SnowPack(is) = SnowPack(is) + changSnow(is) !Update SnowPack
 
@@ -1012,14 +1013,14 @@ CONTAINS
                   runoff_snowfree(is) = runoff_snowfree(is) + drain(is)*AddWaterRunoff(is) !Drainage (not flowing to other surfaces) goes to runoff
 
                   IF (state_id(is) < 0.0) THEN !Surface state_id cannot be negative
-                     SurplusEvap(is) = ABS(state_id(is)) !take evaporation from other surfaces in mm
-                     ev_snowfree = ev_snowfree - SurplusEvap(is)
+                     ev_shortfall_imperv(is) = ABS(state_id(is)) !take evaporation from other surfaces in mm
+                     ev_snowfree = ev_snowfree - ev_shortfall_imperv(is)
                      state_id(is) = 0.0
                   END IF
 
                ELSEIF (is >= 3 .AND. SnowFrac(is) < 1) THEN ! Pervious surfaces (conif, decid, grass unirr, grass irr)
 
-                  ev_snowfree = ev_snowfree + EvPart
+                  ev_snowfree = ev_snowfree + ev_from_imperv
 
                   !Change in water stores
                   IF (VegFraction > 0) THEN

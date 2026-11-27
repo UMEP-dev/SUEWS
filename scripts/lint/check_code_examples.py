@@ -28,9 +28,11 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from types import ModuleType
 
 import click
@@ -51,18 +53,19 @@ _SHELL_CMD_RE = re.compile(r"^\s+suews(?:-[a-z][a-z0-9-]*)?(?:\s|$)")
 _EXAMPLES_HEADER_RE = re.compile(r"^\s*Examples\s*:?\s*$", re.IGNORECASE)
 
 # Isolated subprocess runner executed via ``python -P -c`` so each example
-# block runs in a clean namespace with zero pre-populated globals and writes
-# its structured outcome to a dedicated result file rather than stdout.
+# block runs in a clean namespace with zero pre-populated globals, captures
+# both Python and OS-level fd 1/fd 2 output, and writes its structured outcome
+# to a dedicated result file.
 _SUBPROCESS_RUNNER = r"""
 import doctest
 import errno
-import io
 import json
+import os
 import socket
 import sys
+import tempfile
 import traceback
 import urllib.error
-from contextlib import redirect_stderr, redirect_stdout
 
 PREREQUISITE_TYPES = (
     NameError,
@@ -119,6 +122,89 @@ def _classify_exception(exc: BaseException) -> tuple[str, str]:
     return "error", type(exc).__name__
 
 
+def _format_doctest_exc_only(exc: BaseException) -> str:
+    formatted_ex = traceback.format_exception_only(type(exc), exc)
+    if issubclass(type(exc), SyntaxError):
+        prefixes = (
+            f"{type(exc).__qualname__}:",
+            f"{type(exc).__module__}.{type(exc).__qualname__}:",
+        )
+        exc_msg_index = next(
+            (i for i, line in enumerate(formatted_ex) if line.startswith(prefixes)),
+            0,
+        )
+        formatted_ex = formatted_ex[exc_msg_index:]
+    return "".join(formatted_ex)
+
+
+def _strip_exception_details(msg: str) -> str:
+    start, end = 0, len(msg)
+    nl = msg.find("\n")
+    if nl >= 0:
+        end = nl
+    colon = msg.find(":", 0, end)
+    if colon >= 0:
+        end = colon
+    dot = msg.rfind(".", 0, end)
+    if dot >= 0:
+        start = dot + 1
+    return msg[start:end]
+
+
+def _execute_capturing_fds(
+    source: str,
+    filename: str,
+    globs: dict[str, object],
+) -> tuple[str, str, BaseException | None, str]:
+    orig_displayhook = sys.displayhook
+    raised: BaseException | None = None
+    raised_tb = ""
+
+    def _displayhook(value: object) -> None:
+        if value is not None:
+            sys.stdout.write(repr(value) + "\n")
+            sys.stdout.flush()
+
+    sys.stdout.flush()
+    sys.stderr.flush()
+    saved_fd1 = os.dup(1)
+    saved_fd2 = os.dup(2)
+    tmp_out = tempfile.TemporaryFile(mode="w+b")
+    tmp_err = tempfile.TemporaryFile(mode="w+b")
+    try:
+        os.dup2(tmp_out.fileno(), 1)
+        os.dup2(tmp_err.fileno(), 2)
+        sys.displayhook = _displayhook
+        try:
+            code = compile(source, filename, "single")
+            exec(code, globs)
+        except BaseException as exc:
+            raised = exc
+            raised_tb = traceback.format_exc()
+    finally:
+        sys.displayhook = orig_displayhook
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
+        try:
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os.dup2(saved_fd1, 1)
+        os.dup2(saved_fd2, 2)
+        os.close(saved_fd1)
+        os.close(saved_fd2)
+        tmp_out.seek(0)
+        tmp_err.seek(0)
+        got_out = tmp_out.read().decode("utf-8", errors="replace")
+        got_err = tmp_err.read().decode("utf-8", errors="replace")
+        tmp_out.close()
+        tmp_err.close()
+
+    return got_out, got_err, raised, raised_tb
+
+
 def main() -> None:
     payload_path = sys.argv[1]
     result_path = sys.argv[2]
@@ -160,27 +246,9 @@ def main() -> None:
             else:
                 flags &= ~flag
 
-        buf_out = io.StringIO()
-        buf_err = io.StringIO()
-
-        def _displayhook(value: object) -> None:
-            if value is not None:
-                buf_out.write(repr(value) + "\n")
-
-        orig_displayhook = sys.displayhook
-        raised: BaseException | None = None
-        try:
-            sys.displayhook = _displayhook
-            with redirect_stdout(buf_out), redirect_stderr(buf_err):
-                code = compile(source, f"<doctest {name}[{idx}]>", "single")
-                exec(code, globs)
-        except BaseException as exc:
-            raised = exc
-        finally:
-            sys.displayhook = orig_displayhook
-
-        got = buf_out.getvalue()
-        err_text = buf_err.getvalue()
+        got, err_text, raised, raised_tb = _execute_capturing_fds(
+            source, f"<doctest {name}[{idx}]>", globs
+        )
         if err_text:
             stderr_parts.append(err_text)
         outcome["executed"] = idx
@@ -195,11 +263,16 @@ def main() -> None:
         )
 
         if raised is not None:
-            actual_exc_msg = "".join(
-                traceback.format_exception_only(type(raised), raised)
-            )
+            actual_exc_msg = _format_doctest_exc_only(raised)
             if exc_msg is not None:
-                if checker.check_output(exc_msg, actual_exc_msg, flags):
+                matched = checker.check_output(exc_msg, actual_exc_msg, flags)
+                if not matched and (flags & doctest.IGNORE_EXCEPTION_DETAIL):
+                    matched = checker.check_output(
+                        _strip_exception_details(exc_msg),
+                        _strip_exception_details(actual_exc_msg),
+                        flags,
+                    )
+                if matched:
                     continue
                 diff_example = doctest.Example(
                     source=source,
@@ -225,9 +298,11 @@ def main() -> None:
                 "failed_statement_index": idx,
                 "failed_source": source,
                 "exception_type": type(raised).__name__,
-                "prerequisite_type": root_type if status == "prerequisite-missing" else None,
+                "prerequisite_type": (
+                    root_type if status == "prerequisite-missing" else None
+                ),
                 "exception_message": str(raised),
-                "traceback": traceback.format_exc(),
+                "traceback": raised_tb,
             })
             break
 
@@ -612,6 +687,94 @@ def _isolated_env(temp_dir: Path) -> dict[str, str]:
     return env
 
 
+def _terminate_process_tree(proc: subprocess.Popen[str]) -> None:
+    """Terminate the isolated runner and every descendant in its process group."""
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait(timeout=5)
+        return
+
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(proc.pid, sig)
+        except (ProcessLookupError, PermissionError):
+            break
+        if sig == signal.SIGTERM:
+            try:
+                proc.wait(timeout=0.2)
+            except subprocess.TimeoutExpired:
+                continue
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=5)
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(proc.pid, 0)
+        except (ProcessLookupError, PermissionError):
+            break
+        time.sleep(0.02)
+
+
+def _spawn_isolated_runner(
+    exe: str,
+    path_cwd: Path,
+    path_payload: Path,
+    path_result: Path,
+    path_proc_out: Path,
+    path_proc_err: Path,
+    timeout: float,
+) -> tuple[bool, int]:
+    """Execute the isolated runner in its own process group and reap descendants."""
+    popen_kwargs: dict[str, object] = (
+        {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+        if os.name == "nt"
+        else {"start_new_session": True}
+    )
+    timed_out = False
+    returncode = 0
+    with (
+        path_proc_out.open("w", encoding="utf-8") as fh_out,
+        path_proc_err.open("w", encoding="utf-8") as fh_err,
+    ):
+        proc = subprocess.Popen(
+            [
+                exe,
+                "-P",
+                "-c",
+                _SUBPROCESS_RUNNER,
+                str(path_payload),
+                str(path_result),
+            ],
+            cwd=path_cwd,
+            env=_isolated_env(path_cwd),
+            stdout=fh_out,
+            stderr=fh_err,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            **popen_kwargs,
+        )
+        try:
+            returncode = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _terminate_process_tree(proc)
+        finally:
+            if not timed_out:
+                _terminate_process_tree(proc)
+    return timed_out, returncode
+
+
 def run_example_block(
     block: ExampleBlock,
     name: str,
@@ -619,7 +782,6 @@ def run_example_block(
     python_executable: str | None = None,
 ) -> tuple[str, dict]:
     """Run one ``>>>`` block in a fresh isolated subprocess with empty cwd."""
-    exe = python_executable or sys.executable
     payload = {
         "name": name,
         "examples": [
@@ -639,54 +801,56 @@ def run_example_block(
         tempfile.TemporaryDirectory(prefix="suews-doctest-cwd-") as cwd_dir,
         tempfile.TemporaryDirectory(prefix="suews-doctest-ipc-") as ipc_dir,
     ):
-        path_cwd = Path(cwd_dir)
         path_ipc = Path(ipc_dir)
         path_payload = path_ipc / "payload.json"
         path_result = path_ipc / "result.json"
+        path_proc_out = path_ipc / "proc_stdout.txt"
+        path_proc_err = path_ipc / "proc_stderr.txt"
         path_payload.write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
-        try:
-            proc = subprocess.run(
-                [
-                    exe,
-                    "-P",
-                    "-c",
-                    _SUBPROCESS_RUNNER,
-                    str(path_payload),
-                    str(path_result),
-                ],
-                cwd=path_cwd,
-                env=_isolated_env(path_cwd),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
+        timed_out, returncode = _spawn_isolated_runner(
+            exe=python_executable or sys.executable,
+            path_cwd=Path(cwd_dir),
+            path_payload=path_payload,
+            path_result=path_result,
+            path_proc_out=path_proc_out,
+            path_proc_err=path_proc_err,
+            timeout=timeout,
+        )
+        if timed_out:
             return "error", {
                 "block_index": block.block_index,
                 "statements": len(block.examples),
                 "reason": f"timed out after {timeout:.1f}s",
             }
 
+        proc_stdout = path_proc_out.read_text(encoding="utf-8", errors="replace")
+        proc_stderr = path_proc_err.read_text(encoding="utf-8", errors="replace")
+
         if not path_result.is_file():
             return "error", {
                 "block_index": block.block_index,
                 "statements": len(block.examples),
-                "reason": f"isolated runner exited with code {proc.returncode} without a result",
-                "stdout": proc.stdout,
-                "stderr": proc.stderr,
+                "reason": (
+                    f"isolated runner exited with code {returncode} without a result"
+                ),
+                "stdout": proc_stdout,
+                "stderr": proc_stderr,
             }
 
         outcome = json.loads(path_result.read_text(encoding="utf-8"))
         status = outcome.pop("status")
         outcome["block_index"] = block.block_index
-        if proc.returncode != 0 and status == "ok":
+        if proc_stderr:
+            outcome["stderr"] = (outcome.get("stderr") or "") + proc_stderr
+        if returncode != 0 and status == "ok":
             status = "error"
-            outcome["reason"] = f"isolated runner exited with code {proc.returncode}"
+            outcome["reason"] = f"isolated runner exited with code {returncode}"
+        elif proc_stdout and status == "ok":
+            status = "mismatch"
+            outcome["reason"] = "unexpected output written to stdout outside statements"
+            outcome["got"] = proc_stdout
         return status, outcome
 
 
@@ -1021,15 +1185,17 @@ def _cli_help_text_blocks(
             ):
                 if kw_name not in kwargs:
                     continue
-                if kw_name == "help":
-                    has_command_help_kw = True
                 val_node = kwargs[kw_name]
                 span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
                 try:
                     value = ast.literal_eval(val_node)
                 except (ValueError, TypeError):
+                    if kw_name == "help":
+                        has_command_help_kw = True
                     unsupported.append((origin, f"dynamic command {kw_name}", span))
                     continue
+                if kw_name == "help" and value is not None:
+                    has_command_help_kw = True
                 if isinstance(value, str):
                     blocks.append(
                         TextBlock(

@@ -50,7 +50,10 @@ an expected traceback) runs in a fresh Python subprocess (`python -P`) with:
   that empty directory and stripping `PYTHONPATH`,
 - an empty execution namespace containing only Python builtins and whatever the
   example itself imports,
-- a per-block wall-clock timeout (`--timeout`, default `30.0` seconds).
+- OS file-descriptor capture (`fd 1` and `fd 2`) so both Python and
+  native/subprocess stdout are compared against stated output,
+- a managed process group/tree terminated and reaped on timeout or block exit
+  before temporary directory cleanup (`--timeout`, default `30.0` seconds).
 
 Outputs are compared with `doctest.OutputChecker`. Missing prerequisites
 (undefined names, missing imports, missing input files or configs, or

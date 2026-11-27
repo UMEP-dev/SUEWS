@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -60,8 +61,10 @@ def _init_git_repo(repo_dir: Path, files: dict[str, str]) -> str:
     ).strip()
 
 
-def test_python_worked_case_outcomes_and_isolation(tmp_path: Path):
-    """Cover pass, mismatch, missing prerequisites, errors and no-output exclusion."""
+def test_python_worked_case_outcomes_and_isolation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Cover pass, mismatch, missing prerequisites, errors, CWD isolation and exclusion."""
     sentinel_file = tmp_path / "host_only.txt"
     sentinel_file.write_text(
         "must not be visible to isolated example\n", encoding="utf-8"
@@ -76,6 +79,7 @@ __all__ = [
     "missing_import_example",
     "no_output_example",
     "runtime_error_example",
+    "cross_block_isolation_example",
 ]
 
 
@@ -111,7 +115,7 @@ def missing_name_example():
 
 
 def missing_file_example():
-    """Attempt to open a non-existent file in the isolated empty directory.
+    """Attempt to open a file that exists only in the caller working directory.
 
     Examples
     --------
@@ -141,17 +145,38 @@ def no_output_example():
 
 
 def runtime_error_example():
-    """Classify non-prerequisite runtime exceptions as errors.
+    """Classify non-prerequisite runtime exceptions as errors with tracebacks.
 
     Examples
     --------
     >>> 1 / 0
     0
     """
+
+
+def cross_block_isolation_example():
+    """Ensure files written by one block are invisible to the next block.
+
+    First block creates a local file:
+
+    >>> from pathlib import Path
+    >>> _ = Path("leaked.txt").write_text("secret", encoding="utf-8")
+    >>> Path("leaked.txt").read_text(encoding="utf-8")
+    'secret'
+
+    Second block must run in a fresh empty directory:
+
+    >>> open("leaked.txt", encoding="utf-8").read()
+    'secret'
+    """
 '''
     sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
     module = ModuleType("supy")
     exec(compile(source, "fixture_py.py", "exec"), module.__dict__)
+
+    # Change caller working directory to where host_only.txt actually exists.
+    monkeypatch.chdir(tmp_path)
+    assert Path("host_only.txt").is_file()
 
     revision = checks.Revision(tmp_path, sha)
     report = checks.build_report(
@@ -205,15 +230,21 @@ def runtime_error_example():
         ]
         == "ModuleNotFoundError"
     )
+
+    runtime_err = by_key["supy.runtime_error_example", "docstring-example:1"]
+    assert runtime_err["status"] == "error"
+    assert runtime_err["detail"]["exception_type"] == "ZeroDivisionError"
+    assert "ZeroDivisionError" in runtime_err["detail"]["traceback"]
+    assert "NoneType: None" not in runtime_err["detail"]["traceback"]
+
+    # Cross-block filesystem isolation: block 1 writes leaked.txt, block 2 cannot see it.
     assert (
-        by_key["supy.runtime_error_example", "docstring-example:1"]["status"] == "error"
+        by_key["supy.cross_block_isolation_example", "docstring-example:1"]["status"]
+        == "ok"
     )
-    assert (
-        by_key["supy.runtime_error_example", "docstring-example:1"]["detail"][
-            "exception_type"
-        ]
-        == "ZeroDivisionError"
-    )
+    block2 = by_key["supy.cross_block_isolation_example", "docstring-example:2"]
+    assert block2["status"] == "prerequisite-missing"
+    assert block2["detail"]["prerequisite_type"] == "FileNotFoundError"
 
     # No-stated-output block must be excluded and never executed.
     assert not any(r["object"] == "supy.no_output_example" for r in report["results"])
@@ -228,8 +259,8 @@ def runtime_error_example():
     )
 
 
-def test_python_directives_tracebacks_properties_and_external_members(tmp_path: Path):
-    """Cover expected tracebacks, doctest directives, properties and external members."""
+def test_python_directives_tracebacks_fd_capture_and_external_members(tmp_path: Path):
+    """Cover doctest exception normalisation, fd 1 capture, properties and external members."""
     source = '''\
 from pathlib import Path
 from pydantic import BaseModel
@@ -237,6 +268,7 @@ from pydantic import BaseModel
 __all__ = [
     "expected_traceback_example",
     "ellipsis_and_skip_example",
+    "fd_stdout_example",
     "malformed_doctest_example",
     "PropertyHolder",
     "ExternalModel",
@@ -245,7 +277,7 @@ __all__ = [
 
 
 def expected_traceback_example():
-    """Verify matching and non-matching expected tracebacks.
+    """Verify standard doctest exception matching, IGNORE_EXCEPTION_DETAIL and SyntaxError.
 
     Matching traceback:
 
@@ -260,6 +292,20 @@ def expected_traceback_example():
     Traceback (most recent call last):
         ...
     TypeError: wrong exception type
+
+    IGNORE_EXCEPTION_DETAIL matches differing message text:
+
+    >>> raise ValueError("actual detail")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    ValueError: documented detail
+
+    Expected SyntaxError strips source and caret lines:
+
+    >>> eval("1 +")
+    Traceback (most recent call last):
+        ...
+    SyntaxError: invalid syntax
     """
 
 
@@ -275,6 +321,16 @@ def ellipsis_and_skip_example():
 
     >>> 1 + 1  # doctest: +SKIP
     99
+    """
+
+
+def fd_stdout_example():
+    """Native or direct fd 1 stdout must be captured and compared, never ignored.
+
+    >>> import os
+    >>> _ = os.write(1, b"unexpected")
+    >>> 1 + 1
+    2
     """
 
 
@@ -327,12 +383,24 @@ class ExternalModel(BaseModel):
         == "mismatch"
     )
     assert (
+        by_key["supy.expected_traceback_example", "docstring-example:3"]["status"]
+        == "ok"
+    )
+    assert (
+        by_key["supy.expected_traceback_example", "docstring-example:4"]["status"]
+        == "ok"
+    )
+    assert (
         by_key["supy.ellipsis_and_skip_example", "docstring-example:1"]["status"]
         == "ok"
     )
     skip_unsup = by_key["supy.ellipsis_and_skip_example", "docstring-example:2"]
     assert skip_unsup["status"] == "unsupported"
     assert skip_unsup["detail"]["reason"] == "doctest SKIP directive"
+
+    fd_mismatch = by_key["supy.fd_stdout_example", "docstring-example:1"]
+    assert fd_mismatch["status"] == "mismatch"
+    assert "unexpected" in fd_mismatch["detail"]["got"]
 
     parse_unsup = by_key["supy.malformed_doctest_example", "docstring-example:parse"]
     assert parse_unsup["status"] == "unsupported"
@@ -348,8 +416,43 @@ class ExternalModel(BaseModel):
     assert not any("model_post_init" in r["object"] for r in report["results"])
 
 
+def test_timeout_terminates_spawned_descendant_processes(tmp_path: Path):
+    """Timing out an example must terminate and reap child processes it spawned."""
+    pid_file = tmp_path / "child.pid"
+    source = f'''\
+__all__ = ["hanging_example"]
+
+
+def hanging_example():
+    """Spawn a long-running child subprocess and hang until timed out.
+
+    >>> from pathlib import Path
+    >>> import subprocess, sys
+    >>> p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    >>> _ = Path({str(pid_file)!r}).write_text(str(p.pid), encoding="utf-8")
+    >>> p.wait()
+    0
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_timeout.py", "exec"), module.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(revision=revision, module=module, timeout=0.6)
+    finding = report["results"][0]
+    assert finding["status"] == "error"
+    assert "timed out" in finding["detail"]["reason"]
+
+    assert pid_file.is_file()
+    child_pid = int(pid_file.read_text(encoding="utf-8").strip())
+    if os.name != "nt":
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
+
+
 def test_cli_worked_case_help_examples_and_exclusions(tmp_path: Path):
-    """Cover CLI --help pass, mismatch, missing prerequisite, dynamic help and exclusions."""
+    """Cover CLI --help pass, mismatch, missing prerequisite, help=None and dynamic help."""
     source = '''\
 import click
 
@@ -400,6 +503,15 @@ def demo():
     """
 
 
+@root_cli.command(help=None)
+def fallback():
+    """Explicit help=None falls back to callback docstring just like Click.
+
+    >>> 2 + 3
+    5
+    """
+
+
 @root_cli.command(help=_dynamic_help())
 def dynamic():
     """Dynamic command help must abstain as unsupported."""
@@ -438,6 +550,11 @@ def dynamic():
     # Callback docstring of ``demo`` must not be checked because help= overrides it.
     assert ("suews demo", "cli-help-example:3") not in by_key
 
+    # Explicit help=None must fall back to the callback docstring.
+    fallback_ok = by_key["suews fallback", "cli-help-example:1"]
+    assert fallback_ok["status"] == "ok"
+    assert ">>> 2 + 3" in fallback_ok["source"]
+
     dynamic_unsup = by_key["suews dynamic", "cli-help-example"]
     assert dynamic_unsup["status"] == "unsupported"
     assert dynamic_unsup["detail"]["reason"] == "dynamic command help"
@@ -463,7 +580,8 @@ def test_real_public_python_object_and_cli_worked_cases():
     """Exercise real supy.show_version and real suews CLI against HEAD."""
     revision = checks.Revision(ROOT, "HEAD")
 
-    # 1. Real Python object: supy.show_version
+    # 1. Real Python object: supy.show_version (checks discovery & source binding
+    #    without pinning any current docstring defect to stay broken).
     source = revision.locate(supy.show_version)
     doc_node = checks._docstring_node(source.node)
     assert doc_node is not None
@@ -486,20 +604,20 @@ def test_real_public_python_object_and_cli_worked_cases():
             excluded_items=excluded_items,
         )
     )
-    by_check = {f["check"]: f for f in findings}
-    assert by_check["docstring-example:1"]["revision"] == revision.sha
-    assert by_check["docstring-example:1"]["file"] == "src/supy/_version.py"
-    assert ">>> import supy as sp" in by_check["docstring-example:1"]["source"]
-    assert by_check["docstring-example:1"]["status"] in {"ok", "mismatch"}
+    assert len(findings) >= 1
+    first = findings[0]
+    assert first["revision"] == revision.sha
+    assert first["file"] == "src/supy/_version.py"
+    assert first["definition"] == "supy._version.show_version"
+    assert first["lines"][0] <= first["lines"][1]
+    assert ">>>" in first["source"]
+    assert first["status"] in {"ok", "mismatch", "prerequisite-missing"}
 
-    # Second block omits `import supy as sp` and must fail as prerequisite-missing.
-    assert by_check["docstring-example:2"]["status"] == "prerequisite-missing"
-    assert by_check["docstring-example:2"]["detail"]["prerequisite_type"] == "NameError"
-
-    # Third block (`sp.show_version(as_json=...)`) has no stated output -> excluded.
-    assert excluded_counts["example has no stated output"] == 1
-    assert excluded_items[0]["file"] == "src/supy/_version.py"
-    assert "as_json" in excluded_items[0]["source"]
+    # Every evaluated finding and excluded item must bind back to HEAD source.
+    for item in [*findings, *excluded_items]:
+        assert item["revision"] == revision.sha
+        assert item["file"] == "src/supy/_version.py"
+        assert item["lines"] is not None
 
     # 2. Real CLI commands: suews group tree (including suews run and suews schema export)
     cli_report = checks.build_report(

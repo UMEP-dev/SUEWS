@@ -22,7 +22,6 @@ import datetime
 from decimal import Decimal
 from enum import Enum
 from fractions import Fraction
-import ipaddress
 from pathlib import Path, PosixPath, PurePosixPath, PureWindowsPath, WindowsPath
 import re
 from types import MappingProxyType
@@ -140,12 +139,6 @@ _EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     datetime.timezone,
     ZoneInfo,
     re.Pattern,
-    ipaddress.IPv4Address,
-    ipaddress.IPv6Address,
-    ipaddress.IPv4Network,
-    ipaddress.IPv6Network,
-    ipaddress.IPv4Interface,
-    ipaddress.IPv6Interface,
 })
 
 _NUMPY_IMMUTABLE_SCALARS = (
@@ -540,7 +533,7 @@ def _freeze_container_value(value: Any) -> Any:
     """Freeze containers, NumPy values, models, dataclasses, or reject unsupported types."""
     if isinstance(value, Mapping):
         return _freeze_mapping_entries({
-            k: _deep_freeze_internal(v) for k, v in value.items()
+            _deep_freeze_internal(k): _deep_freeze_internal(v) for k, v in value.items()
         })
     if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
         value, (str, bytes, bytearray, memoryview)
@@ -1028,6 +1021,7 @@ def write_tokens(
     style_ledger: StyleLedger | None = None,
     original_style: WrapperStyle | None = None,
     original_ref: Mapping[str, Any] | None = None,
+    has_ref: bool = False,
     replace_raw: bool = False,
 ) -> bool:
     """Write *new_value* at *tokens* in *data*, preserving style or replacing raw."""
@@ -1050,7 +1044,7 @@ def write_tokens(
 
     effective_style = original_style
     effective_ref = original_ref
-    effective_has_ref = effective_ref is not None
+    effective_has_ref = has_ref or effective_ref is not None
     if style_ledger is not None:
         if effective_style is None:
             effective_style = style_ledger.wrapper_style(canon_path)
@@ -1268,6 +1262,7 @@ class ConfigPatch:
     created_ancestor: tuple[tuple[PathToken, ...], bool] | None = None
     write_style: WrapperStyle | None = None
     write_ref: Mapping[str, Any] | None = None
+    write_has_ref: bool = False
 
     def __post_init__(self) -> None:
         """Defensively copy mutable payloads and freeze ``original_ref`` metadata."""
@@ -1277,6 +1272,8 @@ class ConfigPatch:
             object.__setattr__(self, "original_ref", deep_freeze(self.original_ref))
         if self.write_ref is not None:
             object.__setattr__(self, "write_ref", deep_freeze(self.write_ref))
+            if not self.write_has_ref:
+                object.__setattr__(self, "write_has_ref", True)
         if self.path_tokens is not None:
             object.__setattr__(
                 self,
@@ -1316,15 +1313,22 @@ def apply_patches_in_place(
             else tuple(parse_path_tokens(patch.path))
         )
         if patch.action == "set":
-            if patch.write_style is not None or patch.write_ref is not None:
+            if (
+                patch.write_style is not None
+                or patch.write_ref is not None
+                or patch.write_has_ref
+            ):
                 eff_style = patch.write_style
                 eff_ref = patch.write_ref
+                eff_has_ref = patch.write_has_ref or eff_ref is not None
             elif patch.had_original is None:
                 eff_style = patch.original_style
                 eff_ref = patch.original_ref
+                eff_has_ref = eff_ref is not None
             else:
                 eff_style = None
                 eff_ref = None
+                eff_has_ref = False
             applied = write_tokens(
                 target,
                 tokens,
@@ -1333,6 +1337,7 @@ def apply_patches_in_place(
                 style_ledger=style_ledger,
                 original_style=eff_style,
                 original_ref=eff_ref,
+                has_ref=eff_has_ref,
                 replace_raw=patch.replace_raw,
             )
             if not applied:

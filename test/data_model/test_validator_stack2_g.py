@@ -7,6 +7,7 @@ from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, dataclass
 from enum import Enum, IntEnum, StrEnum
 from importlib.resources import files
+import ipaddress
 import math
 from pathlib import Path
 from types import MappingProxyType
@@ -1776,7 +1777,8 @@ def test_astra_r1_physics_view_nested_forms_and_aliased_yaml_anchors() -> None:
     })
     assert tv_kdown.physics.code("kdown_split_method") == 2
 
-    # Major 2: Aliased mappings (e.g. YAML anchors) preserve direct apply_patches_in_place parity.
+    # Majors 3/4/5 (R2): Aliased mutable containers are explicitly rejected by normalise_patches,
+    # while ConfigDocument.from_text detaches YAML anchors so normalisation and inversion are exact.
     anchor_yaml = "a: &shared\n  x: 0\nb: *shared\n"
     anchor_base = yaml.safe_load(anchor_yaml)
     assert anchor_base["a"] is anchor_base["b"]
@@ -1784,14 +1786,21 @@ def test_astra_r1_physics_view_nested_forms_and_aliased_yaml_anchors() -> None:
         ConfigPatch("a.x", "set", 1, default_wrapped=False),
         ConfigPatch("b.x", "set", 0, default_wrapped=False),
     ]
-    direct_anchor = deepcopy(anchor_base)
-    apply_patches_in_place(direct_anchor, anchor_patches)
-    norm_anchor = normalise_patches(anchor_patches, anchor_base)
-    replayed_anchor = deepcopy(anchor_base)
-    apply_patches_in_place(replayed_anchor, norm_anchor)
-    assert replayed_anchor == direct_anchor == {"a": {"x": 0}, "b": {"x": 0}}
-    apply_patches_in_place(replayed_anchor, invert_patches(norm_anchor))
-    assert replayed_anchor == {"a": {"x": 0}, "b": {"x": 0}}
+    with pytest.raises(ValueError, match="aliased or cyclic"):
+        normalise_patches(anchor_patches, anchor_base)
+    shared_wrapper = {"value": 0}
+    with pytest.raises(ValueError, match="aliased or cyclic"):
+        normalise_patches(
+            [ConfigPatch("a", "set", 1)], {"a": shared_wrapper, "b": shared_wrapper}
+        )
+    anchor_doc = ConfigDocument.from_text(anchor_yaml, normalise=False)
+    assert anchor_doc.data["a"] is not anchor_doc.data["b"]
+    norm_anchor_doc = anchor_doc.normalise_patches(anchor_patches)
+    applied_anchor = anchor_doc.apply_patches(norm_anchor_doc)
+    assert applied_anchor.data == {"a": {"x": 1}, "b": {"x": 0}}
+    assert applied_anchor.apply_patches(invert_patches(norm_anchor_doc)).data == (
+        anchor_doc.data
+    )
 
 
 def test_astra_r1_numpy_patches_and_mutable_subclass_rejection() -> None:
@@ -1911,3 +1920,115 @@ def test_astra_r1_adjustment_reconcile_and_context_annotation() -> None:
     typed_ann = ValidationContext.__annotations__["typed_model"]
     assert "BaseModel" in str(typed_ann)
     assert "ReadOnlyModelProxy" in str(typed_ann)
+
+
+def test_astra_r2_frozen_keys_bound_builtins_ip_and_eager_enum_snapshot() -> None:
+    """Mutable mapping keys, bound built-in methods, and ipaddress objects are rejected; Enum attrs snapshot eagerly."""
+
+    class _Label(str):
+        pass
+
+    label_key = _Label("k")
+    label_key.tags = []
+    # Major 6: mutable str-subclass keys are rejected in deep_freeze and ReadOnlyModelProxy.
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        deep_freeze({label_key: 1})
+
+    class _EdgeProxyModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        keyed: dict[object, int] = Field(default_factory=dict)
+        callback: object = None
+        net: object = None
+        addr: object = None
+
+    items: list[int] = []
+    ro_edge = freeze_model(
+        _EdgeProxyModel(
+            keyed={label_key: 1},
+            callback=items.append,
+            net=ipaddress.ip_network("192.0.2.0/24"),
+            addr=ipaddress.ip_address("192.0.2.1"),
+        )
+    )
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        _ = ro_edge.keyed
+    # Major 7: bound built-in mutating method is rejected.
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        _ = ro_edge.callback
+    assert items == []
+    # Major 8: mutable ipaddress objects are rejected on both surfaces.
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        deep_freeze({"net": ipaddress.ip_network("192.0.2.0/24")})
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        _ = ro_edge.net
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        _ = ro_edge.addr
+
+    # Minor 9: Enum public attributes are snapshotted at freeze_model() time, before first read.
+    class _MutableAttrAfterFreeze(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "before"
+
+    class _EnumHolder(BaseModel):
+        member: _MutableAttrAfterFreeze = _MutableAttrAfterFreeze.ITEM
+
+    ro_holder = freeze_model(_EnumHolder())
+    _MutableAttrAfterFreeze.ITEM.label = "after"
+    try:
+        assert ro_holder.member.label == "before"
+    finally:
+        _MutableAttrAfterFreeze.ITEM.label = "before"
+
+
+def test_astra_r2_null_ref_replay_numpy_plan_ownership_and_yaml_merge_keys() -> None:
+    """Explicit ref: null replays without ledger, NumPy PatchPlan ownership matches safely, and YAML merge keys keep styles."""
+    # Minor 10: normalised delete+set patches preserve explicit ref: null via apply_to_dict without a ledger.
+    for raw_doc, new_val, expected in (
+        ({"a": {"value": 1, "ref": None}}, 2, {"a": {"value": 2, "ref": None}}),
+        ({"a": {"ref": None}}, None, {"a": {"ref": None}}),
+    ):
+        doc = ConfigDocument.from_dict(raw_doc, normalise=False)
+        plan = PatchPlan(
+            patches=[ConfigPatch("a", "delete"), ConfigPatch("a", "set", new_val)]
+        )
+        norm_plan = plan.normalised(doc)
+        assert norm_plan.apply_to_dict(raw_doc) == expected
+
+    # Minor 11: PatchPlan.normalised handles multiple same-path NumPy array patches without ValueError.
+    p1 = ConfigPatch("a", "set", np.array([1.0, 2.0]), default_wrapped=False)
+    p2 = ConfigPatch("a", "set", np.array([3.0, 4.0]), default_wrapped=False)
+    np_plan = PatchPlan(
+        patches=[p1, p2],
+        adjustments=[
+            PlannedAdjustment(
+                parameter="a", old_value=None, new_value="arr", patches=(p2,)
+            )
+        ],
+    )
+    norm_np = np_plan.normalised({"a": np.array([0.0, 0.0])})
+    assert len(norm_np.patches) == 1
+    assert np.array_equal(norm_np.patches[0].new_value, np.array([3.0, 4.0]))
+    assert len(norm_np.adjustments) == 1
+
+    # Minor 12: YAML merge keys (<<: *anchor) succeed and preserve quoting/flow styles across the document.
+    merge_yaml = (
+        "defaults: &def\n"
+        "  quoted: 'hello'\n"
+        "section:\n"
+        "  <<: *def\n"
+        '  extra: "world"\n'
+        "  flow_list: [1, 2, 3]\n"
+    )
+    ledger_merge = StyleLedger.from_yaml_text(merge_yaml)
+    assert ledger_merge.get("section.quoted") is not None
+    assert ledger_merge.get("section.quoted").scalar_style == "'"  # type: ignore[union-attr]
+    assert ledger_merge.get("section.extra").scalar_style == '"'  # type: ignore[union-attr]
+    assert ledger_merge.get("section.flow_list").flow_style is True  # type: ignore[union-attr]
+    doc_merge = ConfigDocument.from_text(merge_yaml, normalise=False)
+    assert doc_merge.style_ledger.source_line("section.extra") == 5
+    dumped_merge = doc_merge.dump_yaml(preserve_style=True)
+    assert "'hello'" in dumped_merge
+    assert '"world"' in dumped_merge
+    assert "[1, 2, 3]" in dumped_merge

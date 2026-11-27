@@ -28,6 +28,7 @@ WrapperStyle = Literal["bare", "ref_value", "ref_only"]
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 _ALLOWED_STR_SCALAR_STYLES = frozenset({None, "", "'", '"', "|", ">"})
 _YAML_STR_TAG = "tag:yaml.org,2002:str"
+_YAML_MERGE_TAG = "tag:yaml.org,2002:merge"
 
 
 def _freeze_value(value: Any) -> Any:
@@ -562,6 +563,11 @@ def _walk_yaml_mapping(
     entries: dict[str, PathStyle],
     val_loader: yaml.SafeLoader,
 ) -> None:
+    if any(
+        isinstance(key_node, yaml.ScalarNode) and key_node.tag == _YAML_MERGE_TAG
+        for key_node, _ in node.value
+    ):
+        val_loader.flatten_mapping(node)
     wrapper_kind, val_node, ref_node, key_order = _classify_mapping_node(
         node, val_loader
     )

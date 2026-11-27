@@ -23,7 +23,6 @@ target :class:`ConfigDocument` or raw mapping without mutating the target:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from copy import deepcopy
 from typing import Any
 
 import numpy as np
@@ -361,12 +360,18 @@ def _apply_atomic_set(
     had_original, old_val, orig_style, orig_ref = _classify_raw_entry(raw_before)
     raw_snapshot = _copy_payload(raw_before) if had_original else _UNSET
     created_ancestor = find_first_created_ancestor(working, tokens)
-    if patch.write_style is not None or patch.write_ref is not None:
+    if (
+        patch.write_style is not None
+        or patch.write_ref is not None
+        or patch.write_has_ref
+    ):
         forward_style = patch.write_style
         forward_ref = patch.write_ref
+        forward_has_ref = patch.write_has_ref or forward_ref is not None
     else:
         forward_style = patch.original_style
         forward_ref = patch.original_ref
+        forward_has_ref = forward_ref is not None
     applied = write_tokens(
         working,
         tokens,
@@ -375,12 +380,18 @@ def _apply_atomic_set(
         style_ledger=style_ledger,
         original_style=forward_style,
         original_ref=forward_ref,
+        has_ref=forward_has_ref,
         replace_raw=patch.replace_raw,
     )
     if not applied:
         raise ValueError(f"Failed to apply 'set' patch at path {patch.path!r}")
     raw_after = read_raw_tokens(working, tokens, default=_MISSING)
     _, _, written_style, written_ref = _classify_raw_entry(raw_after)
+    written_has_ref = (
+        written_style in {"ref_value", "ref_only"}
+        and isinstance(raw_after, Mapping)
+        and "ref" in raw_after
+    )
     recorded = ConfigPatch(
         path=canon_path,
         action="set",
@@ -404,6 +415,7 @@ def _apply_atomic_set(
         created_ancestor=created_ancestor,
         write_style=written_style,
         write_ref=written_ref,
+        write_has_ref=written_has_ref,
     )
     return recorded, _copy_payload(raw_after)
 
@@ -680,6 +692,7 @@ def _merge_with_set(
         created_ancestor=first.created_ancestor,
         write_style=second.write_style,
         write_ref=second.write_ref,
+        write_has_ref=second.write_has_ref,
     )
 
 
@@ -694,59 +707,36 @@ def _merge_same_path(
     return _CANNOT_MERGE
 
 
-def _thaw_copy_preserving_aliases(value: Any) -> tuple[Any, bool]:
-    """Thaw *value* while preserving shared mapping/list aliases (e.g. YAML anchors).
+def _assert_no_aliased_containers(value: Any) -> None:
+    """Reject targets containing shared/aliased or cyclic containers."""
+    seen: set[int] = set()
 
-    Returns ``(thawed, has_aliases)`` where ``has_aliases`` is ``True`` when
-    any mapping or list appears at more than one position in the container graph.
-    """
-    memo: dict[int, Any] = {}
-    in_progress: set[int] = set()
-    has_aliases = False
-
-    def _walk_container(node: Mapping[Any, Any] | list[Any] | tuple[Any, ...]) -> Any:
-        nonlocal has_aliases
-        obj_id = id(node)
-        if obj_id in in_progress:
-            raise ValueError(
-                "Cannot normalise patches against cyclic container references"
-            )
-        if obj_id in memo:
-            has_aliases = True
-            return memo[obj_id]
-        in_progress.add(obj_id)
-        if isinstance(node, Mapping):
-            out_map: dict[Any, Any] = {}
-            memo[obj_id] = out_map
-            for k, v in node.items():
-                out_map[k] = _walk(v)
-            in_progress.remove(obj_id)
-            return out_map
-        out_list: list[Any] = []
-        memo[obj_id] = out_list
-        out_list.extend(_walk(item) for item in node)
-        in_progress.remove(obj_id)
-        return out_list
-
-    def _walk(node: Any) -> Any:
+    def _walk(node: Any) -> None:
         if node is None or type(node) in {bool, int, float, str, bytes}:
-            return node
-        if isinstance(node, (Mapping, list, tuple)):
-            return _walk_container(node)
-        if isinstance(node, set):
-            return {_walk(item) for item in node}
-        if isinstance(node, frozenset):
-            return frozenset(_walk(item) for item in node)
-        return deepcopy(node)
+            return
+        if isinstance(node, (dict, list)) or (isinstance(node, Mapping) and bool(node)):
+            obj_id = id(node)
+            if obj_id in seen:
+                raise ValueError(
+                    "Cannot normalise patches against a target with aliased or cyclic "
+                    "containers; construct a detached copy (e.g. ConfigDocument.from_dict "
+                    "or thaw_copy) first"
+                )
+            seen.add(obj_id)
+            children = node.values() if isinstance(node, Mapping) else node
+            for child in children:
+                _walk(child)
+            return
+        if isinstance(node, (tuple, set, frozenset)):
+            for item in node:
+                _walk(item)
 
-    return _walk(value), has_aliases
+    _walk(value)
 
 
 def _coalesce_owned_patches(
     owned_patches: list[tuple[int | None, ConfigPatch, Any]],
     style_ledger: StyleLedger | None,
-    *,
-    has_aliases: bool = False,
 ) -> list[tuple[int | None, ConfigPatch, Any]]:
     """Coalesce sequential same-path patches without crossing ancestor/descendant barriers."""
     result: list[tuple[int | None, ConfigPatch, Any]] = []
@@ -766,7 +756,7 @@ def _coalesce_owned_patches(
             if prev_tokens == tokens and prev.action != "nullify_tree":
                 merge_idx = idx
                 break
-            if has_aliases or _tokens_overlap(prev_tokens, tokens):
+            if _tokens_overlap(prev_tokens, tokens):
                 break
 
         if merge_idx is None:
@@ -808,7 +798,8 @@ def normalise_owned_patches(
         base_data = target
         style_ledger = None
 
-    working, has_aliases = _thaw_copy_preserving_aliases(base_data)
+    _assert_no_aliased_containers(base_data)
+    working = thaw_copy(base_data)
     recorded: list[tuple[int | None, ConfigPatch, Any]] = []
 
     for owner_idx, patch in owned_patches:
@@ -842,9 +833,7 @@ def normalise_owned_patches(
             )
 
     if coalesce:
-        recorded = _coalesce_owned_patches(
-            recorded, style_ledger, has_aliases=has_aliases
-        )
+        recorded = _coalesce_owned_patches(recorded, style_ledger)
     if drop_noops:
         recorded = [
             (owner, p, raw_after)

@@ -124,6 +124,33 @@ class PlannedAdjustment:
     patches: tuple[ConfigPatch, ...] = ()
 
 
+def _patches_equal(left: ConfigPatch, right: ConfigPatch) -> bool:
+    """Compare two :class:`ConfigPatch` instances safely even with NumPy array payloads."""
+    return (
+        left.path == right.path
+        and left.action == right.action
+        and left.reason == right.reason
+        and left.parameter == right.parameter
+        and left.site_index == right.site_index
+        and left.site_gridid == right.site_gridid
+        and left.source == right.source
+        and left.skip_keys == right.skip_keys
+        and left.default_wrapped == right.default_wrapped
+        and left.had_original == right.had_original
+        and left.original_style == right.original_style
+        and left.original_ref == right.original_ref
+        and left.path_tokens == right.path_tokens
+        and left.replace_raw == right.replace_raw
+        and left.created_ancestor == right.created_ancestor
+        and left.write_style == right.write_style
+        and left.write_ref == right.write_ref
+        and left.write_has_ref == right.write_has_ref
+        and _strict_equal(left.new_value, right.new_value)
+        and _strict_equal(left.old_value, right.old_value)
+        and _strict_equal(left.original_raw, right.original_raw)
+    )
+
+
 @dataclass
 class PatchPlan:
     """Ordered collection of pure patches and their human-readable adjustment records."""
@@ -172,13 +199,19 @@ class PatchPlan:
         claimed: set[int] = set()
         for adj_idx, adj in enumerate(self.adjustments):
             for adj_patch in adj.patches:
+                matched_pos: int | None = None
                 for pos, plan_patch in enumerate(self.patches):
-                    if pos not in claimed and (
-                        plan_patch is adj_patch or plan_patch == adj_patch
-                    ):
-                        owner_by_pos[pos] = adj_idx
-                        claimed.add(pos)
+                    if pos not in claimed and plan_patch is adj_patch:
+                        matched_pos = pos
                         break
+                if matched_pos is None:
+                    for pos, plan_patch in enumerate(self.patches):
+                        if pos not in claimed and _patches_equal(plan_patch, adj_patch):
+                            matched_pos = pos
+                            break
+                if matched_pos is not None:
+                    owner_by_pos[matched_pos] = adj_idx
+                    claimed.add(matched_pos)
 
         owned_norm = normalise_owned_patches(
             list(zip(owner_by_pos, self.patches)),

@@ -14,11 +14,7 @@ from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
 from dataclasses import dataclass, fields as dc_fields, is_dataclass
 from enum import Enum
-from types import (
-    BuiltinFunctionType,
-    MappingProxyType,
-    MethodDescriptorType,
-)
+from types import MappingProxyType
 from typing import Any
 import weakref
 
@@ -41,14 +37,16 @@ from ..pipeline.document import (
 )
 
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
-_PROXY_STATE: dict[int, tuple[BaseModel, dict[str, Any]]] = {}
-_DATACLASS_STATE: dict[int, tuple[Any, dict[str, Any]]] = {}
+_PROXY_STATE: dict[
+    int, tuple[BaseModel, dict[str, Any], dict[int, ReadOnlyEnumProxy]]
+] = {}
+_DATACLASS_STATE: dict[
+    int, tuple[Any, dict[str, Any], dict[int, ReadOnlyEnumProxy]]
+] = {}
 _ENUM_STATE: dict[int, tuple[Enum, Any, Mapping[str, Any]]] = {}
 
 _MODEL_EXTRA_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     PydanticUndefinedType,
-    BuiltinFunctionType,
-    MethodDescriptorType,
 })
 
 
@@ -252,25 +250,83 @@ class ReadOnlyFieldInfo:
         return self
 
 
+def _collect_enum_snapshots(root: Any) -> dict[int, ReadOnlyEnumProxy]:
+    """Eagerly snapshot all reachable immutable ``Enum`` members at freeze time."""
+    snapshots: dict[int, ReadOnlyEnumProxy] = {}
+    visited: set[int] = set()
+
+    def _walk(obj: Any) -> None:
+        if obj is None or _is_exact_immutable_scalar(obj):
+            return
+        if isinstance(obj, Enum):
+            obj_id = id(obj)
+            if obj_id not in snapshots and _is_immutable_enum(obj):
+                snapshots[obj_id] = ReadOnlyEnumProxy(obj)
+            return
+        obj_id = id(obj)
+        if obj_id in visited:
+            return
+        visited.add(obj_id)
+        if isinstance(obj, BaseModel):
+            for field_name in type(obj).model_fields:
+                _walk(getattr(obj, field_name))
+            extra = getattr(obj, "model_extra", None)
+            if isinstance(extra, Mapping):
+                _walk(extra)
+        elif is_dataclass(obj) and not isinstance(obj, type):
+            for dc_field in dc_fields(type(obj)):
+                _walk(getattr(obj, dc_field.name))
+        elif isinstance(obj, Mapping):
+            for k, v in obj.items():
+                _walk(k)
+                _walk(v)
+        elif isinstance(obj, (list, tuple, deque, set, frozenset)):
+            for item in obj:
+                _walk(item)
+        elif type(obj) is slice:
+            _walk(obj.start)
+            _walk(obj.stop)
+            _walk(obj.step)
+
+    _walk(root)
+    return snapshots
+
+
 class ReadOnlyDataclassProxy:
     """Deeply immutable attribute-access proxy over a Python dataclass instance."""
 
     __slots__ = ("__weakref__",)
 
-    def __init__(self, instance: Any, *, _detached: bool = False) -> None:
+    def __init__(
+        self,
+        instance: Any,
+        *,
+        _detached: bool = False,
+        _enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+    ) -> None:
         if not is_dataclass(instance) or isinstance(instance, type):
             raise TypeError(
                 f"ReadOnlyDataclassProxy requires a dataclass instance, got {type(instance).__name__}"
             )
         snapshot = instance if _detached else deepcopy(instance)
+        enum_snapshots = (
+            _enum_snapshots
+            if _enum_snapshots is not None
+            else _collect_enum_snapshots(snapshot)
+        )
         key = id(self)
-        _DATACLASS_STATE[key] = (snapshot, {})
+        _DATACLASS_STATE[key] = (snapshot, {}, enum_snapshots)
         weakref.finalize(self, _DATACLASS_STATE.pop, key, None)
 
     @classmethod
-    def _from_detached(cls, detached_instance: Any) -> ReadOnlyDataclassProxy:
+    def _from_detached(
+        cls,
+        detached_instance: Any,
+        *,
+        enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+    ) -> ReadOnlyDataclassProxy:
         """Wrap an already-detached dataclass snapshot without re-copying."""
-        return cls(detached_instance, _detached=True)
+        return cls(detached_instance, _detached=True, _enum_snapshots=enum_snapshots)
 
     @property
     def dataclass_type(self) -> type[Any]:
@@ -284,21 +340,21 @@ class ReadOnlyDataclassProxy:
                 f"Read-only dataclass view {self.dataclass_type.__name__!r} "
                 f"does not expose private attribute {name!r}"
             )
-        target, cache = _DATACLASS_STATE[id(self)]
+        target, cache, enum_snapshots = _DATACLASS_STATE[id(self)]
         if name in cache:
             return _materialise_readonly(cache[name])
 
         dc_type = type(target)
         field_names = {field.name for field in dc_fields(dc_type)}
         if name in field_names:
-            wrapped = _wrap_readonly(getattr(target, name))
+            wrapped = _wrap_readonly(getattr(target, name), enum_snapshots)
             cache[name] = wrapped
             return _materialise_readonly(wrapped)
 
         for cls_in_mro in dc_type.__mro__:
             if name in cls_in_mro.__dict__:
                 if isinstance(cls_in_mro.__dict__[name], property):
-                    wrapped = _wrap_readonly(getattr(target, name))
+                    wrapped = _wrap_readonly(getattr(target, name), enum_snapshots)
                     cache[name] = wrapped
                     return _materialise_readonly(wrapped)
                 break
@@ -351,19 +407,22 @@ class ReadOnlyDataclassProxy:
         return f"ReadOnlyDataclassProxy({_DATACLASS_STATE[id(self)][0]!r})"
 
 
-def _freeze_ndarray_spec(value: np.ndarray[Any, Any] | np.void) -> Any:
+def _freeze_ndarray_spec(
+    value: np.ndarray[Any, Any] | np.void,
+    enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+) -> Any:
     """Wrap *value* using immutable backing storage or frozen nested containers."""
     if isinstance(value, np.void):
         if value.dtype.names:
             return _freeze_mapping_entries({
-                name: _wrap_readonly(deepcopy(value[name]))
+                name: _wrap_readonly(deepcopy(value[name]), enum_snapshots)
                 for name in value.dtype.names
             })
         return bytes(value)
     if value.dtype.hasobject:
         if value.ndim == 0:
-            return _wrap_readonly(deepcopy(value.item()))
-        return _wrap_readonly(deepcopy(value.tolist()))
+            return _wrap_readonly(deepcopy(value.item()), enum_snapshots)
+        return _wrap_readonly(deepcopy(value.tolist()), enum_snapshots)
     return _FrozenArraySpec(value)
 
 
@@ -372,31 +431,50 @@ def _materialise_readonly(value: Any) -> Any:
     return _materialise_frozen(value)
 
 
-def _wrap_container_or_object(value: Any) -> Any:
+def _wrap_container_or_object(
+    value: Any,
+    enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+) -> Any:
     """Wrap containers, dataclasses, NumPy arrays, or reject unsupported mutable objects."""
     if isinstance(value, Mapping):
-        return _freeze_mapping_entries({k: _wrap_readonly(v) for k, v in value.items()})
+        return _freeze_mapping_entries({
+            _wrap_readonly(k, enum_snapshots): _wrap_readonly(v, enum_snapshots)
+            for k, v in value.items()
+        })
     if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
         value, (str, bytes, bytearray, memoryview)
     ):
-        return _freeze_sequence_items([_wrap_readonly(item) for item in value])
+        return _freeze_sequence_items([
+            _wrap_readonly(item, enum_snapshots) for item in value
+        ])
     if isinstance(value, (set, frozenset, AbstractSet)):
-        return frozenset(_wrap_readonly(item) for item in value)
+        return frozenset(_wrap_readonly(item, enum_snapshots) for item in value)
     if isinstance(value, (np.ndarray, np.void)):
-        return _freeze_ndarray_spec(value)
+        return _freeze_ndarray_spec(value, enum_snapshots)
     if is_dataclass(value) and not isinstance(value, type):
-        return ReadOnlyDataclassProxy._from_detached(value)
+        return ReadOnlyDataclassProxy._from_detached(
+            value, enum_snapshots=enum_snapshots
+        )
     raise TypeError(
         f"ReadOnlyModelProxy cannot safely freeze mutable object of type {type(value).__name__!r}"
     )
 
 
-def _wrap_readonly(value: Any) -> Any:
+def _wrap_readonly(
+    value: Any,
+    enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+) -> Any:
     """Recursively wrap a detached Pydantic/Python value as read-only."""
     if isinstance(value, Enum):
-        return ReadOnlyEnumProxy(value)
+        return (
+            enum_snapshots[id(value)]
+            if enum_snapshots is not None and id(value) in enum_snapshots
+            else ReadOnlyEnumProxy(value)
+        )
     if type(value) is slice:
-        return _freeze_slice_value(value, _wrap_readonly)
+        return _freeze_slice_value(
+            value, lambda bound: _wrap_readonly(bound, enum_snapshots)
+        )
     if (
         _is_exact_immutable_scalar(value)
         or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES
@@ -417,8 +495,8 @@ def _wrap_readonly(value: Any) -> Any:
     if type(value) in {bytearray, memoryview}:
         return bytes(value)
     if isinstance(value, BaseModel):
-        return ReadOnlyModelProxy._from_detached(value)
-    return _wrap_container_or_object(value)
+        return ReadOnlyModelProxy._from_detached(value, enum_snapshots=enum_snapshots)
+    return _wrap_container_or_object(value, enum_snapshots)
 
 
 def _freeze_field_metadata_value(value: Any) -> Any:
@@ -472,20 +550,36 @@ class ReadOnlyModelProxy:
 
     __slots__ = ("__weakref__",)
 
-    def __init__(self, model: BaseModel, *, _detached: bool = False) -> None:
+    def __init__(
+        self,
+        model: BaseModel,
+        *,
+        _detached: bool = False,
+        _enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+    ) -> None:
         if not isinstance(model, BaseModel):
             raise TypeError(
                 f"ReadOnlyModelProxy requires a Pydantic BaseModel, got {type(model).__name__}"
             )
         snapshot = model if _detached else deepcopy(model)
+        enum_snapshots = (
+            _enum_snapshots
+            if _enum_snapshots is not None
+            else _collect_enum_snapshots(snapshot)
+        )
         key = id(self)
-        _PROXY_STATE[key] = (snapshot, {})
+        _PROXY_STATE[key] = (snapshot, {}, enum_snapshots)
         weakref.finalize(self, _PROXY_STATE.pop, key, None)
 
     @classmethod
-    def _from_detached(cls, detached_model: BaseModel) -> ReadOnlyModelProxy:
+    def _from_detached(
+        cls,
+        detached_model: BaseModel,
+        *,
+        enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
+    ) -> ReadOnlyModelProxy:
         """Construct a proxy around an already-detached snapshot without re-copying."""
-        return cls(detached_model, _detached=True)
+        return cls(detached_model, _detached=True, _enum_snapshots=enum_snapshots)
 
     @property
     def model_type(self) -> type[BaseModel]:
@@ -495,7 +589,7 @@ class ReadOnlyModelProxy:
     @property
     def model_fields(self) -> Mapping[str, ReadOnlyFieldInfo]:
         """Detached, deeply immutable view of the model's declared Pydantic fields."""
-        _target, cache = _PROXY_STATE[id(self)]
+        _target, cache, _enums = _PROXY_STATE[id(self)]
         cached = cache.get("__model_fields__")
         if cached is None:
             cached = _freeze_model_fields(self.model_type)
@@ -527,14 +621,14 @@ class ReadOnlyModelProxy:
             raise AttributeError(
                 f"Read-only model view {self.model_type.__name__!r} does not expose private attribute {name!r}"
             )
-        target, cache = _PROXY_STATE[id(self)]
+        target, cache, enum_snapshots = _PROXY_STATE[id(self)]
         if name in cache:
             return _materialise_readonly(cache[name])
 
         model_cls = type(target)
 
         if name in model_cls.model_fields or name in model_cls.model_computed_fields:
-            wrapped = _wrap_readonly(getattr(target, name))
+            wrapped = _wrap_readonly(getattr(target, name), enum_snapshots)
             cache[name] = wrapped
             return _materialise_readonly(wrapped)
 
@@ -542,14 +636,14 @@ class ReadOnlyModelProxy:
             if name in cls_in_mro.__dict__:
                 descriptor = cls_in_mro.__dict__[name]
                 if isinstance(descriptor, property):
-                    wrapped = _wrap_readonly(getattr(target, name))
+                    wrapped = _wrap_readonly(getattr(target, name), enum_snapshots)
                     cache[name] = wrapped
                     return _materialise_readonly(wrapped)
                 break
 
         extra = getattr(target, "model_extra", None)
         if isinstance(extra, Mapping) and name in extra:
-            wrapped = _wrap_readonly(extra[name])
+            wrapped = _wrap_readonly(extra[name], enum_snapshots)
             cache[name] = wrapped
             return _materialise_readonly(wrapped)
 

@@ -1266,13 +1266,25 @@ class SnowParams(DataModelBase):
     )
     snow_depth_limit_building: FlexibleRefValue(float) = Field(
         default=0.1,
-        description="Maximum snow depth limit on buildings",
-        json_schema_extra={"unit": "m", "display_name": "Snow Depth Limit (Buildings)"},
+        description=(
+            "Snow water equivalent (SWE) limit in mm for snow removal from buildings "
+            "(YAML field name snow_depth_limit_building retained for backwards compatibility)"
+        ),
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Snow Water Equivalent Removal Limit (Buildings)",
+        },
     )
     snow_depth_limit_paved: FlexibleRefValue(float) = Field(
         default=0.1,
-        description="Maximum snow depth limit on paved surfaces",
-        json_schema_extra={"unit": "m", "display_name": "Snow Depth Limit (Paved)"},
+        description=(
+            "Snow water equivalent (SWE) limit in mm for snow removal from paved surfaces "
+            "(YAML field name snow_depth_limit_paved retained for backwards compatibility)"
+        ),
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Snow Water Equivalent Removal Limit (Paved)",
+        },
     )
     snow_profile_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile, description="24-hour snow profile"

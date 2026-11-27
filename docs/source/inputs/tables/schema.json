@@ -10740,10 +10740,10 @@
             }
           ],
           "default": 0.1,
-          "description": "Maximum snow depth limit on buildings",
-          "display_name": "Snow Depth Limit (Buildings)",
+          "description": "Snow water equivalent (SWE) limit in mm for snow removal from buildings (YAML field name snow_depth_limit_building retained for backwards compatibility)",
+          "display_name": "Snow Water Equivalent Removal Limit (Buildings)",
           "title": "Snow Depth Limit Building",
-          "unit": "m"
+          "unit": "mm"
         },
         "snow_depth_limit_paved": {
           "anyOf": [
@@ -10755,10 +10755,10 @@
             }
           ],
           "default": 0.1,
-          "description": "Maximum snow depth limit on paved surfaces",
-          "display_name": "Snow Depth Limit (Paved)",
+          "description": "Snow water equivalent (SWE) limit in mm for snow removal from paved surfaces (YAML field name snow_depth_limit_paved retained for backwards compatibility)",
+          "display_name": "Snow Water Equivalent Removal Limit (Paved)",
           "title": "Snow Depth Limit Paved",
-          "unit": "m"
+          "unit": "mm"
         },
         "snow_profile_24hr": {
           "$ref": "#/$defs/HourlyProfile",

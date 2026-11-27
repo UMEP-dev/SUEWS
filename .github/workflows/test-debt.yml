@@ -69,46 +69,97 @@ jobs:
         with:
           name: recorded-test-debt
           path: inventory
-      - name: Verify owner existence and open state
+      - name: Verify active and rationale owners
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const fs = require('fs');
             const report = JSON.parse(fs.readFileSync('inventory/test-debt.json', 'utf8'));
-            if (!Array.isArray(report.issues) || report.issues.length > 1000 ||
-                !report.issues.every(n => Number.isSafeInteger(n) && n > 0) ||
+            const isValidIssueList = list =>
+              Array.isArray(list) &&
+              list.length <= 1000 &&
+              list.every(n => Number.isSafeInteger(n) && n > 0) &&
+              new Set(list).size === list.length;
+            if (!report || typeof report !== 'object' ||
+                !isValidIssueList(report.issues) ||
+                !isValidIssueList(report.active_issues) ||
+                !isValidIssueList(report.rationale_issues) ||
                 !report.summary || report.summary.errors !== 0 ||
                 !['defect', 'coverage_gap', 'accepted_exception'].every(
                   k => Number.isSafeInteger(report.summary[k]) && report.summary[k] >= 0)) {
               throw new Error('Invalid or incomplete debt inventory');
             }
+            const activeSet = new Set(report.active_issues);
+            const rationaleSet = new Set(report.rationale_issues);
+            const allSet = new Set(report.issues);
+            const hasOverlap = [...activeSet].some(n => rationaleSet.has(n));
+            const unionMatchesAll =
+              activeSet.size + rationaleSet.size === allSet.size &&
+              [...activeSet, ...rationaleSet].every(n => allSet.has(n));
+            const activeRecordCount = report.summary.defect + report.summary.coverage_gap;
+            const countsConsistent =
+              (activeRecordCount > 0) === (activeSet.size > 0) &&
+              activeSet.size <= activeRecordCount &&
+              rationaleSet.size <= report.summary.accepted_exception &&
+              (report.summary.accepted_exception === 0 || allSet.size > 0);
+            if (hasOverlap || !unionMatchesAll || !countsConsistent) {
+              throw new Error('Inconsistent active and rationale owner lists');
+            }
+            const expectedRepoSuffix =
+              `/repos/${context.repo.owner}/${context.repo.repo}`.toLowerCase();
             const rows = [[
               {data: 'Issue', header: true},
+              {data: 'Role', header: true},
               {data: 'Owner state', header: true}
             ]];
             const failures = [];
-            for (const number of [...new Set(report.issues)].sort((a, b) => a - b)) {
+            for (const number of [...allSet].sort((a, b) => a - b)) {
+              const role = activeSet.has(number) ? 'active' : 'rationale';
               let state;
               try {
                 const {data} = await github.rest.issues.get({
                   ...context.repo, issue_number: number
                 });
-                state = data.pull_request ? 'is a pull request' : data.state;
-                if (data.number !== number || state !== 'open') failures.push(`#${number}: ${state}`);
+                const repoUrl = typeof (data && data.repository_url) === 'string'
+                  ? data.repository_url.replace(/\/+$/, '').toLowerCase()
+                  : null;
+                if (!data || typeof data !== 'object') {
+                  state = 'unexpected response';
+                  failures.push(`#${number} (${role}): ${state}`);
+                } else if (data.pull_request) {
+                  state = 'is a pull request';
+                  failures.push(`#${number} (${role}): ${state}`);
+                } else if (repoUrl !== null && !repoUrl.endsWith(expectedRepoSuffix)) {
+                  state = `transferred outside repository (${data.repository_url})`;
+                  failures.push(`#${number} (${role}): ${state}`);
+                } else if (data.number !== number) {
+                  state = `redirected to #${data.number} (${data.state || 'unknown'})`;
+                  failures.push(`#${number} (${role}): ${state}`);
+                } else if (data.state !== 'open' && data.state !== 'closed') {
+                  state = `unexpected state (${String(data.state)})`;
+                  failures.push(`#${number} (${role}): ${state}`);
+                } else {
+                  state = data.state;
+                  if (role === 'active' && state !== 'open') {
+                    failures.push(`#${number} (${role}): ${state}`);
+                  }
+                }
               } catch (error) {
-                state = `unverified (HTTP ${Number(error.status) || 'unknown'})`;
-                failures.push(`#${number}: ${state}`);
+                state = `unverified (HTTP ${Number(error && error.status) || 'unknown'})`;
+                failures.push(`#${number} (${role}): ${state}`);
               }
-              rows.push([`#${number}`, state]);
+              rows.push([`#${number}`, role, state]);
             }
             const prefix = failures.length ? 'FAILED owner audit' : 'green';
             await core.summary
               .addHeading('Recorded test debt: owner audit')
               .addRaw(`${prefix} with ${report.summary.defect} recorded defects; ` +
                 `${report.summary.coverage_gap} coverage gaps; ` +
-                `${report.summary.accepted_exception} accepted exceptions.\n\n`)
-              .addRaw('Detection only: a closed owner fails this audit; no issue is reopened. ' +
-                'The schedule audits the default branch. These counts are not unique bugs ' +
-                'or evidence that model tests pass.\n\n')
+                `${report.summary.accepted_exception} accepted exceptions ` +
+                `(${activeSet.size} active owners; ${rationaleSet.size} rationale owners).\n\n`)
+              .addRaw('Detection only: active owners (defect, coverage_gap) must exist as open issues; ' +
+                'rationale owners (accepted_exception only) must exist as issues and may be closed. ' +
+                'No issue is reopened. The schedule audits the default branch. ' +
+                'These counts are not unique bugs or evidence that model tests pass.\n\n')
               .addTable(rows).write();
             if (failures.length) core.setFailed(failures.join('; '));

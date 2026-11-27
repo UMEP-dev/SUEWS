@@ -26,19 +26,26 @@ except ImportError:
 
 
 def pytest_collection_modifyitems(items):
-    """Auto-apply qgis + api markers and skip condition to all tests in this directory.
+    """Auto-apply qgis + native + os_compat markers and skip condition to test/umep/.
 
-    UMEP tests are Python wrapper tests (pydantic/pandas/QGIS plugin glue), so they
-    carry the `api` nature marker (gh#1300). They still matter with the Rust backend:
-    physics coverage lives elsewhere, while this lane guards plugin-facing API,
-    output-path, import, and QGIS stdout/stderr contracts. The `qgis` tier gates them
-    to Windows + Python 3.12; the platform skip below enforces that at runtime.
+    UMEP tests exercise the QGIS plugin-facing wrapper surface including
+    ``SUEWSSimulation.run()`` in ``test_processor.py``, so they carry the
+    ``native`` primary dependency axis alongside ``qgis`` and ``os_compat``
+    (gh#2349 W1-4). Root ``test/conftest.py`` attaches the temporary Schema-1
+    ``api`` compatibility shim automatically until W1-7. The ``qgis`` tier
+    gates them to Windows + Python 3.12; the platform skip below enforces
+    that at runtime.
     """
     for item in items:
         # Only apply to tests in test/umep/
         if "test/umep" in str(item.fspath) or "test\\umep" in str(item.fspath):
-            item.add_marker(pytest.mark.qgis)
-            item.add_marker(pytest.mark.api)
+            existing = {m.name for m in item.iter_markers()}
+            if "qgis" not in existing:
+                item.add_marker(pytest.mark.qgis)
+            if "native" not in existing:
+                item.add_marker(pytest.mark.native)
+            if "os_compat" not in existing:
+                item.add_marker(pytest.mark.os_compat)
             if not _IS_QGIS_TARGET:
                 item.add_marker(
                     pytest.mark.skip(

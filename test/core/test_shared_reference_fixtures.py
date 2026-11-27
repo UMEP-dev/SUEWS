@@ -30,7 +30,7 @@ import pytest
 
 from supy import SUEWSSimulation
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING", "C-ISOLATION")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-TOOLING", "C-ISOLATION")]
 
 CLOCK_FOLLOW = ("local_standard_time", "follow")
 # Wall-clock timestamps in SUEWSOutput.metadata that naturally differ between runs.

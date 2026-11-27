@@ -9,7 +9,12 @@ import tomllib
 
 import pytest
 
-pytestmark = [pytest.mark.physics, pytest.mark.smoke, pytest.mark.contract("C-TOOLING")]
+pytestmark = [
+    pytest.mark.native,
+    pytest.mark.os_compat,
+    pytest.mark.smoke,
+    pytest.mark.contract("C-TOOLING"),
+]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_EXPRESSION = "MPL-2.0 AND Apache-2.0"
@@ -38,9 +43,9 @@ def test_source_licence_signals_are_consistent() -> None:
     )
 
 
-# Also api: importlib.metadata behaviour varies by interpreter, so run it in
-# the cross-CPython lanes too.
-@pytest.mark.api
+# Also smoke_bridge: importlib.metadata behaviour varies by interpreter, so run it
+# in the cross-CPython abi3_smoke lanes too.
+@pytest.mark.smoke_bridge
 def test_installed_wheel_exposes_pep639_licence_metadata() -> None:
     installed = distribution("supy")
     metadata = installed.metadata

@@ -15,7 +15,7 @@ from supy._run_rust import (  # ruff: ignore[import-private-name]
 )
 from supy.suews_checkpoint import SUEWSCheckpoint
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESTART", "C-ERROR")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-RESTART", "C-ERROR")]
 
 
 class _GridIdWrapper:

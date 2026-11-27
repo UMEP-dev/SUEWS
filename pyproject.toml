@@ -209,19 +209,28 @@ timeout = 600
 timeout_method = "thread"
 faulthandler_timeout = 300
 # Test markers.
-# Three orthogonal properties (gh#1300, gh#1680):
-#   nature:     physics | api       -- what the test actually exercises
-#   importance: smoke | core | cfg  -- where the contract must run
-#   cost:       medium | slow       -- absence means fast; thresholds are CPU seconds
+# Orthogonal properties (gh#1300, gh#1680, gh#2349 W1-4):
+#   axis:       tooling | unit | native | physics -- cheapest dependency required
+#   slices:     os_compat | e2e                   -- cross-axis orthogonal slices
+#   importance: smoke | core | cfg                -- where the contract must run
+#   cost:       medium | slow                     -- absence means fast; CPU seconds
 #               on the Linux reference runner, checked nightly by
 #               scripts/lint/check_cost_markers.py (see .claude/rules/tests/patterns.md)
-# Every test file must carry at least one of {physics, api}; importance and
-# cost markers compose independently with the nature axis.
+# Every test file under test/ must declare exactly one primary axis in
+# {tooling, unit, native, physics}. `api` remains registered as a temporary
+# Schema-1 compatibility shim auto-attached by test/conftest.py until W1-7.
 markers = [
     "contract(*ids): test-contract ids from test/contracts.yml",
-    # Nature axis (gh#1300) -- orthogonal to importance and cost.
-    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
-    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Dependency axis (gh#2349 W1-4) -- every test file declares exactly one.
+    "tooling: Repository scripts, lints, CI helpers, and documentation checks; runs from source without compiled code",
+    "unit: Pure-Python supy/suews_mcp tests (data model, validation, converters, helpers); runs from source without compiled code",
+    "native: Compiled extension or standalone suews-engine binary contract/bridge/I/O/guard checks (not physics output oracles)",
+    "physics: Model output values from a compiled run (balances, oracles, reference outputs); sufficient once per (OS, arch) on the build Python",
+    # Orthogonal cross-axis slices (gh#2349 W1-4)
+    "os_compat: OS-sensitive slice (paths, encodings, symlinks/junctions, POSIX permissions, process spawning) run on Windows and macOS as well as Linux",
+    "e2e: Tests that spawn subprocesses for CLI entry points (suews, suews-validate, suews-mcp) or the suews-engine binary",
+    # Temporary Schema-1 compatibility shim (gh#1300; retired in gh#2349 W1-7)
+    "api: Temporary Schema-1 compatibility shim auto-attached by test/conftest.py for non-physics axes until W1-7",
     # Importance markers
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",

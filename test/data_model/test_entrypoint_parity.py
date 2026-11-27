@@ -50,7 +50,7 @@ from supy.data_model.validation.pipeline.phase_a import annotate_missing_paramet
 from supy.suews_sim import SUEWSSimulation
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.contract("C-PARITY", "C-VALID", "C-ROUNDTRIP", "C-EMIT"),
 ]

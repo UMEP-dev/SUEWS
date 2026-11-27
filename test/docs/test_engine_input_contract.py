@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-SCHEMA")]
 ROOT = Path(__file__).resolve().parents[2]
 
 

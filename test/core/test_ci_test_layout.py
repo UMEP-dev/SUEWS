@@ -18,7 +18,7 @@ from scripts.suews.ci_test_layout import (
     physics_shards,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.fixture(autouse=True)

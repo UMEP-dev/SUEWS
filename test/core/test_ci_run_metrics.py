@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 import json
@@ -18,7 +19,7 @@ import yaml
 from scripts.suews import analyse_ci_run
 from scripts.suews.analyse_ci_run import TargetNotCompletedError, analyse_run
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.mark.core
@@ -656,12 +657,24 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
     protocol_test = (root / "test/mcp/test_protocol_handshake.py").read_text(
         encoding="utf-8"
     )
-    # The lane markers must lead the list; later markers (contract tags) may follow.
-    assert re.search(
-        r"^pytestmark = \[pytest\.mark\.api, pytest\.mark\.smoke[,\]]",
-        protocol_test,
-        re.MULTILINE,
-    )
+    # The protocol test must declare smoke plus a non-physics primary axis
+    # (which carries the Schema-1 api shim until W1-7) so the api lane collects it.
+    tree = ast.parse(protocol_test)
+    mod_marks: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "pytestmark" for t in node.targets
+        ):
+            for sub in ast.walk(node.value):
+                if (
+                    isinstance(sub, ast.Attribute)
+                    and isinstance(sub.value, ast.Attribute)
+                    and sub.value.attr == "mark"
+                ):
+                    mod_marks.add(sub.attr)
+    assert "smoke" in mod_marks, mod_marks
+    assert mod_marks & {"tooling", "unit", "native"}, mod_marks
+    assert "physics" not in mod_marks, mod_marks
     assert '_ACTIVE_BIN_DIR = Path(sysconfig.get_path("scripts"))' in protocol_test
 
 

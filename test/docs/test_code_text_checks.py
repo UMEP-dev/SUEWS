@@ -16,7 +16,7 @@ import supy.util
 
 pytest.importorskip("numpydoc", reason="Code-text checker tests require numpydoc")
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(
     "code_text_checks", ROOT / "scripts/lint/check_code_text.py"

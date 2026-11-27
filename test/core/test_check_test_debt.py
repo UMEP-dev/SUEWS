@@ -11,7 +11,7 @@ import sys
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/lint/check_test_debt.py"
 SPEC = importlib.util.spec_from_file_location("check_test_debt", SCRIPT)

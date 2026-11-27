@@ -11,7 +11,7 @@ from supy.data_model.core.site import SoilObservationConfig
 from supy.units import parse_unit
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ROUNDTRIP"),
 ]

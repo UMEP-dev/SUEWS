@@ -26,7 +26,6 @@ _YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 pytestmark = [
     pytest.mark.physics,
-    pytest.mark.api,
     pytest.mark.contract("C-STRICT", "C-BIND", "C-ERROR", "C-PARITY", "C-RESTART"),
 ]
 
@@ -118,6 +117,7 @@ def _write_wet_day_cli_inputs(
         ),
     ],
 )
+@pytest.mark.e2e
 def test_waterdist_br02_failure_witnesses(
     tmp_path: Path,
     suews_engine_bin: Path,
@@ -161,6 +161,7 @@ def test_waterdist_br02_failure_witnesses(
         assert needle in msg, f"{case}: expected {needle!r} in {msg!r}"
 
 
+@pytest.mark.e2e
 def test_cli_accepts_valid_wet_day_and_inactive_omission(
     tmp_path: Path, suews_engine_bin: Path, _waterdist_base: dict
 ) -> None:
@@ -412,6 +413,7 @@ def test_python_and_native_waterdist_sum_boundary_parity(_waterdist_base: dict) 
         ), f"Rust inactive mismatch: {label}"
 
 
+@pytest.mark.e2e
 def test_cli_waterdist_sum_v1_v2_parity(
     tmp_path: Path, suews_engine_bin: Path, _waterdist_base: dict
 ) -> None:

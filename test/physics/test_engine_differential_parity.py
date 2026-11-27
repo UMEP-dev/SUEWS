@@ -425,6 +425,7 @@ def _run_paired_python_and_engine(
     return py_df, eng_timestamps, eng_raw_data, column_names, parsed_layout
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     "case_name",
     [
@@ -467,6 +468,7 @@ def test_live_python_and_engine_bit_identical_across_coupled_anchors(
     _assert_active_physics_witness(case_name, py_df, control_df=control_df)
 
 
+@pytest.mark.e2e
 def test_engine_refuses_observed_soil_moisture_anchor(
     tmp_path: Path,
     sample_data_loaded,
@@ -520,6 +522,7 @@ def test_engine_refuses_observed_soil_moisture_anchor(
     assert not (out_dir / "suews_output.arrow").exists()
 
 
+@pytest.mark.e2e
 def test_differential_comparator_rejects_value_and_sentinel_drift(
     tmp_path: Path,
     sample_data_loaded,

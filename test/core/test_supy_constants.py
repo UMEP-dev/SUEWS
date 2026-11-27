@@ -11,7 +11,7 @@ import pytest
 from supy import constants
 from supy.units import VOCABULARY
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESPONSE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-RESPONSE")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FORTRAN_CONST_PATH = REPO_ROOT / "src" / "suews" / "src" / "suews_ctrl_const.f95"

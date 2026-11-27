@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-ERROR"),
+]
 
 
 def test_resolves_relative_path_under_root(tmp_path: Path) -> None:

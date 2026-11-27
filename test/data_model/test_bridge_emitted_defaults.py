@@ -22,7 +22,7 @@ from supy.data_model.core.model import ModelControl, ModelPhysics
 from supy.data_model.core.surface import VerticalLayers
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-EMIT", "C-ROUNDTRIP"),
 ]

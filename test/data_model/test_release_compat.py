@@ -20,7 +20,7 @@ from supy.util.converter.yaml_upgrade import (
     upgrade_yaml,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-MIGRATE")]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 RELEASE_FIXTURES = REPO_ROOT / "test" / "fixtures" / "release_configs"

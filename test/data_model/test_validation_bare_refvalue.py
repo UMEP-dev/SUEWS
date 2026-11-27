@@ -48,7 +48,7 @@ from supy.data_model.validation.pipeline.phase_b_rules.stebbs_rules import (
     check_archetype_radiation_properties,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-VALID")]
 
 
 def test_get_and_set_ref_or_bare_helpers():

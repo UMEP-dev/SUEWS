@@ -13,7 +13,7 @@ from supy.data_model.core.model import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.contract("C-VALID", "C-MIGRATE", "C-ROUNDTRIP", "C-SCHEMA", "C-BIND"),
 ]
 

@@ -17,7 +17,7 @@ from supy.data_model.core.type import SurfaceType
 from supy.util.converter import yaml_upgrade as upgrade
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-MIGRATE", "C-VALID", "C-SCHEMA"),
 ]

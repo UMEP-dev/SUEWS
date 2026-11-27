@@ -11,7 +11,7 @@ import pytest
 
 from scripts.suews.compare_scheduler_runs import ComparisonError, compare_abba, main
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 SCHEMA_V2_XDIST_FIXTURE = (
     Path(__file__).parents[1] / "fixtures/ci_metrics/schema-v2-xdist.json"

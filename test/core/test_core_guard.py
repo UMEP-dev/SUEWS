@@ -18,7 +18,7 @@ from scripts.suews import ci_test_layout, ci_tiers
 from scripts.suews.check_core_guard import EXACT_REFERENCE_TEST, main, run_guard
 from scripts.suews.pytest_shard import shard_of
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 @pytest.fixture(autouse=True)

@@ -6,6 +6,7 @@ from functools import lru_cache
 import gzip
 import importlib.metadata
 from importlib.resources import as_file
+import importlib.util
 from inspect import signature
 import json
 import os
@@ -340,8 +341,67 @@ def run_simulation(
     return output.df, output.state_final
 
 
-def pytest_collection_modifyitems(items):
-    """Run the import-surface probe first and preserve all other test order.
+# =============================================================================
+# gh#2349 W1-4 — dependency-axis contract, locked-PR mapping, and Schema-1 shim.
+# =============================================================================
+
+_DEFAULT_AXIS_MARKERS: frozenset[str] = frozenset({
+    "tooling",
+    "unit",
+    "native",
+    "physics",
+})
+
+
+def _load_marker_policy() -> tuple[
+    frozenset[str], dict[str, str], dict[str, tuple[str, ...]]
+]:
+    """Load marker policy constants from the static lint script.
+
+    Falls back to the canonical axis set and empty locked-PR maps only when
+    ``scripts/lint/check_test_markers.py`` is absent beside ``test/`` (e.g.
+    isolated synthetic ``tmp_path`` conftest tests).
+    """
+    lint_script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "lint"
+        / "check_test_markers.py"
+    )
+    if not lint_script.is_file():
+        return (_DEFAULT_AXIS_MARKERS, {}, {})
+    spec = importlib.util.spec_from_file_location(
+        "_suews_check_test_markers_policy", lint_script
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load marker policy module from {lint_script}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    extra_raw = getattr(module, "LOCKED_PR_FILE_EXTRA_MARKERS", {})
+    return (
+        frozenset(module.AXIS_MARKERS),
+        dict(module.LOCKED_PR_FILE_AXES),
+        {k: tuple(v) for k, v in extra_raw.items()},
+    )
+
+
+AXIS_MARKERS, LOCKED_PR_FILE_AXES, LOCKED_PR_FILE_EXTRA_MARKERS = _load_marker_policy()
+NON_PHYSICS_AXIS_MARKERS: frozenset[str] = AXIS_MARKERS - {"physics"}
+
+
+def _item_repo_rel_posix(item, repo_root: Path) -> str:
+    """Return ``item``'s POSIX path relative to ``repo_root`` (or empty string)."""
+    raw_path = getattr(item, "path", None) or getattr(item, "fspath", None)
+    if raw_path is None:
+        return ""
+    try:
+        return Path(str(raw_path)).resolve().relative_to(repo_root).as_posix()
+    except (OSError, ValueError):
+        return ""
+
+
+def pytest_collection_modifyitems(items, config=None):
+    """Attach locked-PR axes + Schema-1 ``api`` shim and run ``test_api_surface`` first.
 
     Native simulation calls own fresh state at the Rust/Fortran boundary.  Tests
     that need continuation pass the previous state explicitly, so reference and
@@ -351,10 +411,36 @@ def pytest_collection_modifyitems(items):
     bounded real-node set has an executable collection regression in
     ``test_api_surface.py``.
     """
+    repo_root = (
+        Path(str(config.rootpath)).resolve()
+        if config is not None
+        else Path(__file__).resolve().parents[1]
+    )
     api_surface_tests = []
     other_tests = []
 
     for item in items:
+        if hasattr(item, "iter_markers") and hasattr(item, "add_marker"):
+            marker_names = {m.name for m in item.iter_markers()}
+            rel_posix = _item_repo_rel_posix(item, repo_root)
+            mapped_axis = LOCKED_PR_FILE_AXES.get(rel_posix)
+            if mapped_axis is not None and not (marker_names & AXIS_MARKERS):
+                item.add_marker(getattr(pytest.mark, mapped_axis))
+                marker_names.add(mapped_axis)
+            for extra_mark in LOCKED_PR_FILE_EXTRA_MARKERS.get(rel_posix, ()):
+                if extra_mark not in marker_names:
+                    item.add_marker(getattr(pytest.mark, extra_mark))
+                    marker_names.add(extra_mark)
+            # Temporary Schema-1 compatibility shim (removed in gh#2349 W1-7):
+            # non-physics dependency axes automatically carry `api` so Schema-1
+            # `-m api` lanes and core-guard checks remain 100% green until W1-6.
+            if (
+                (marker_names & NON_PHYSICS_AXIS_MARKERS)
+                and "physics" not in marker_names
+                and "api" not in marker_names
+            ):
+                item.add_marker(pytest.mark.api)
+
         if "test_api_surface" in str(item.fspath):
             api_surface_tests.append(item)
         else:
@@ -364,7 +450,7 @@ def pytest_collection_modifyitems(items):
 
 
 # =============================================================================
-# gh#1300 — enforce the physics/api nature axis on full-tree runs.
+# gh#1300 / gh#2349 — enforce single primary dependency axis on full-tree runs.
 # =============================================================================
 
 
@@ -423,12 +509,12 @@ def pytest_deselected(items):
 
 
 def pytest_collection_finish(session):
-    """Enforce that every collected test carries `physics` or `api` (gh#1300).
+    """Enforce that every collected test carries exactly one primary axis (gh#2349 W1-4).
 
-    Rationale: the composed marker taxonomy only works if every file declares
-    its nature. A missing nature marker would silently drop a file
-    out of CI once the matrix is split in a follow-up PR. Fail loudly at
-    collection time on full-tree runs so the gap is caught before CI.
+    Rationale: the 4+1 dependency-axis topology requires every collected test
+    to belong to exactly one of ``{tooling, unit, native, physics}`` with zero
+    orphans and zero overlap. Fail loudly at collection time on full-tree runs
+    so misclassified tests are caught before CI.
     """
     if not _invocation_targets_full_test_tree(session.config):
         return
@@ -436,32 +522,39 @@ def pytest_collection_finish(session):
     all_items = list(session.items)
     all_items.extend(getattr(session, "_gh1300_deselected_items", ()))
 
+    repo_root = Path(str(session.config.rootpath)).resolve()
     missing_files = []
+    multi_axis_items = []
     for item in all_items:
-        marker_names = {m.name for m in item.iter_markers()}
-        if "physics" in marker_names or "api" in marker_names:
+        axes = {m.name for m in item.iter_markers()} & AXIS_MARKERS
+        if len(axes) == 1:
             continue
-        try:
-            rel = (
-                Path(str(item.fspath))
-                .resolve()
-                .relative_to(Path(str(session.config.rootpath)).resolve())
-            )
-        except ValueError:
-            rel = Path(str(item.fspath))
-        rel_str = str(rel)
-        if rel_str not in missing_files:
-            missing_files.append(rel_str)
+        if not axes:
+            rel_str = _item_repo_rel_posix(item, repo_root) or str(item.fspath)
+            if rel_str not in missing_files:
+                missing_files.append(rel_str)
+        else:
+            multi_axis_items.append(f"{item.nodeid} ({', '.join(sorted(axes))})")
 
+    errors = []
     if missing_files:
         bullet = "\n  - ".join(missing_files)
-        raise pytest.UsageError(
-            "gh#1300 marker lint: these test files are missing both "
-            "`physics` and `api` markers. Every test file must carry at "
-            "least one of the two nature markers (use `pytestmark = "
-            "pytest.mark.api` or `pytest.mark.physics` at module level, or "
-            "auto-apply via `pytest_collection_modifyitems`):\n  - " + bullet
+        errors.append(
+            "gh#2349 marker lint: these test files are missing a primary "
+            "dependency axis marker. Every test must carry exactly one of "
+            "`tooling`, `unit`, `native`, or `physics` (use `pytestmark = "
+            "pytest.mark.<axis>` at module level, or auto-apply via "
+            "`pytest_collection_modifyitems`):\n  - " + bullet
         )
+    if multi_axis_items:
+        bullet = "\n  - ".join(multi_axis_items)
+        errors.append(
+            "gh#2349 marker lint: these test items declare multiple primary "
+            "dependency axis markers (each test must belong to exactly one of "
+            "`tooling`, `unit`, `native`, or `physics`):\n  - " + bullet
+        )
+    if errors:
+        raise pytest.UsageError("\n\n".join(errors))
 
 
 # =============================================================================

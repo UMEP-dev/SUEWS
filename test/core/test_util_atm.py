@@ -27,7 +27,7 @@ from supy.util._atm import (  # ruff: ignore[import-private-name]
     correct_wind_height,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING")]
 
 
 class TestAtmosphericCalculations(TestCase):

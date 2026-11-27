@@ -50,7 +50,7 @@ from supy.util._plot import (
     plot_rsl,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
 
 
 @pytest.fixture(autouse=True)

@@ -35,7 +35,11 @@ from click.testing import CliRunner
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ERROR")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-VALID", "C-ERROR"),
+]
 
 
 @dataclass(frozen=True)
@@ -849,6 +853,7 @@ def _run_installed_validate_subprocess(route, args, cwd):
     )
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("route", "case", "out_format"),
     [

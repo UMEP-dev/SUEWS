@@ -25,7 +25,7 @@ from suews_mcp.prompts import (
     parameter_importance,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API")]
 
 
 # The three prompt functions, in registration order. Keep in sync with the

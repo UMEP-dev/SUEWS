@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 from suews_mcp.resources.docs import _DOCS, _repo_root, list_docs, read_doc
 

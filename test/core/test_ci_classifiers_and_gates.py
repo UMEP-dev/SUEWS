@@ -22,7 +22,7 @@ import yaml
 from scripts.suews import ci_test_layout, ci_tiers
 from scripts.suews.analyse_ci_run import analyse_run
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

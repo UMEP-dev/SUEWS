@@ -17,7 +17,7 @@ from supy.diagnostics import (
     check_run,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-BALANCE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-BALANCE")]
 
 
 def _suews_columns(names: list[str]) -> pd.MultiIndex:

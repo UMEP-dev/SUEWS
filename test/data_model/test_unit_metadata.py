@@ -33,7 +33,7 @@ from supy.data_model.forcing import FORCING_REGISTRY
 from supy.data_model.output import get_output_contract_catalogue
 from supy.units import UnitError, parse_unit
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-SCHEMA")]
 
 
 def _annotation_models(annotation):

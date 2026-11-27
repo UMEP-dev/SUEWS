@@ -11,7 +11,7 @@ from click.testing import CliRunner
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-ERROR")]
 
 
 def _load_sample_dict() -> dict[str, Any]:

@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.tooling,
     pytest.mark.skipif(
         os.name == "nt",
         reason="These Linux workflow regressions require POSIX shell executable fixtures",

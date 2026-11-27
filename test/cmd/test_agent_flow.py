@@ -25,7 +25,7 @@ import pytest
 
 from supy.cmd.suews_cli import cli
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 def _make_run_dir(

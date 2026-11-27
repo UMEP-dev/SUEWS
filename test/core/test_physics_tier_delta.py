@@ -24,7 +24,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.lint import check_physics_tier_delta as checker  # noqa: E402
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 UNRECORDED_NODE = "test/physics/test_synthetic.py::test_slow_without_core"
 

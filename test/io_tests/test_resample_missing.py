@@ -7,7 +7,7 @@ import pytest
 from supy import SUEWSOutput
 from supy.data_model.output import OUTPUT_REGISTRY
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-RESAMPLE")]
 
 
 def _output_frame(rain, *, qh=None, state=None):

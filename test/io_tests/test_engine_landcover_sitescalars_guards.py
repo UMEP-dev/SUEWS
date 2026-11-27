@@ -32,7 +32,7 @@ _DEFAULTED_SITE_SCALARS = (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.physics,
     pytest.mark.core,
     pytest.mark.contract("C-STRICT", "C-EMIT", "C-NATIVE-ERROR"),
 ]
@@ -132,6 +132,7 @@ def _set_sfrs(cfg_dict: dict, sfrs: dict[str, float]) -> None:
         lc[surf]["sfr"] = {"value": sfrs[surf]}
 
 
+@pytest.mark.e2e
 def test_default_emission_parity_via_suews_config_and_engine(
     tmp_path: Path,
     suews_engine_bin: Path,
@@ -244,6 +245,7 @@ _WITNESS_CASES = [
 ]
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("target_path", "replacement", "expected_path", "public_needles"),
     _WITNESS_CASES,

@@ -28,7 +28,7 @@ from supy.suews_forcing import FORCING_ALIASES
 
 # ruff: enable[import-private-name]
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-SCHEMA")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING", "C-SCHEMA")]
 
 
 def test_version_import_does_not_construct_unpublished_registry() -> None:

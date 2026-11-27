@@ -39,7 +39,11 @@ from supy.data_model.forcing.version import CURRENT_FORCING_VERSION, FORCING_VER
 from supy.data_model.output.version import CURRENT_OUTPUT_VERSION, OUTPUT_VERSIONS
 from supy.knowledge.pack import EXCLUDED_GENERATED_ROOTS, build_pack
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
+pytestmark = [
+    pytest.mark.tooling,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-SCHEMA", "C-TOOLING"),
+]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = PROJECT_ROOT / "scripts/suews/publish_contracts.py"

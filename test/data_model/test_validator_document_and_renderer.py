@@ -45,7 +45,7 @@ from supy.data_model.validation.pipeline.report_schema import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ERROR"),
 ]
@@ -430,6 +430,7 @@ def test_phase_c_extra_forbidden_emits_drift_hint_in_single_pass(
     assert "suews-convert -i <old.yml> -o <new.yml>" in hint_issues[0].message
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("schema_mode", "pipeline", "expected_snippet", "forbidden_snippet"),
     [

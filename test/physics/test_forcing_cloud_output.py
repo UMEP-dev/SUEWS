@@ -28,7 +28,7 @@ from supy.data_model.core.model import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.physics,
     pytest.mark.core,
     pytest.mark.contract("C-CLOCK", "C-FORCING", "C-OUTPUT"),
 ]

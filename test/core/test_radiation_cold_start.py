@@ -27,7 +27,7 @@ from supy.suews_checkpoint import SUEWSCheckpoint
 from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.physics,
     pytest.mark.contract(
         "C-VALID", "C-MIGRATE", "C-WARMSTART", "C-RESTART", "C-SAVE", "C-SCHEMA"
     ),

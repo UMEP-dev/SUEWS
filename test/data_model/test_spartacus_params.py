@@ -6,7 +6,7 @@ import yaml
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.site import SPARTACUSParams
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ROUNDTRIP", "C-EMIT")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-ROUNDTRIP", "C-EMIT")]
 
 
 def _inner_value(value):

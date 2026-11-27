@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from supy.util._era5 import gen_forcing_era5, download_era5_timeseries
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING")]
 
 
 def has_cds_credentials():
@@ -119,6 +119,7 @@ class TestERA5Import:
         assert df_50m.attrs["longitude"] == 12.0
 
 
+@pytest.mark.os_compat
 class TestERA5FileCleanup:
     """Test file cleanup behaviour (cross-platform, including Windows)."""
 

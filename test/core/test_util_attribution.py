@@ -43,7 +43,7 @@ from supy.util._attribution._physics import (
     cal_u10_profile_components,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-BALANCE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-BALANCE")]
 
 VON_KARMAN = 0.4
 

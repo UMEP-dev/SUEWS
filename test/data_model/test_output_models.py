@@ -8,7 +8,7 @@ without requiring a full SUEWS build.
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-OUTPUT")]
 
 # Add src/supy/data_model directly to path to avoid importing full supy package
 # Import the PRODUCTION registry -- the same objects _post.py uses --

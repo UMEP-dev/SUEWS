@@ -60,7 +60,7 @@ from supy.data_model.validation.required_fields import (
     required_when,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA", "C-VALID")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-SCHEMA", "C-VALID")]
 
 MODELS = {
     "Conductance": Conductance,

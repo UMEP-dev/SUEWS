@@ -2,7 +2,7 @@
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-SAVE")]
 
 
 @pytest.fixture(scope="module")

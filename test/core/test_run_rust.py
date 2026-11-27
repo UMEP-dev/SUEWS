@@ -15,7 +15,7 @@ from supy.data_model.core.model import ModelPhysics, SMDMethod
 from supy.data_model.core.type import RefValue
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.physics,
     pytest.mark.contract("C-API", "C-FORCING", "C-NATIVE-ERROR", "C-OUTPUT"),
 ]
 

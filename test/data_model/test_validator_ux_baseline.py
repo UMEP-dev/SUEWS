@@ -25,7 +25,7 @@ from supy.cmd.suews_cli import cli as suews_cli
 from supy.data_model.validation.pipeline import phase_b
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ERROR"),
 ]
@@ -427,6 +427,7 @@ def _installed_suews_command() -> list[str]:
     return [str(executable), "validate"]
 
 
+@pytest.mark.e2e
 def test_installed_cli_outer_boundary_json_exit_and_transactional_publication(
     tmp_path: Path,
 ) -> None:
@@ -576,6 +577,7 @@ def test_non_abc_pipeline_rolls_back_prior_outputs_on_publish_failure(
     assert prior_json.read_text(encoding="utf-8") == '{"prior": true}\n'
 
 
+@pytest.mark.e2e
 def test_standalone_phase_c_failure_does_not_publish_rejected_yaml(
     tmp_path: Path,
 ) -> None:

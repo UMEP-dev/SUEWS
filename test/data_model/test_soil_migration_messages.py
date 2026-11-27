@@ -16,7 +16,7 @@ from supy.data_model.validation.pipeline.phase_a import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-ERROR", "C-MIGRATE"),
 ]

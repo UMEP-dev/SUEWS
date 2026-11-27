@@ -9,7 +9,8 @@ from unittest.mock import patch
 import pytest
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
+    pytest.mark.os_compat,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ISOLATION"),
 ]

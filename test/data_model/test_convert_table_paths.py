@@ -17,7 +17,11 @@ import yaml
 from supy.util.converter import convert_table, convert_to_yaml
 from supy.util.converter.table import table as table_mod
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-MIGRATE"),
+]
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables"
 

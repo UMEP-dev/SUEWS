@@ -19,7 +19,7 @@ from supy.data_model.contracts import (
 from supy.data_model.forcing.version import CURRENT_FORCING_VERSION, FORCING_VERSIONS
 from supy.data_model.output.version import CURRENT_OUTPUT_VERSION, OUTPUT_VERSIONS
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-SCHEMA")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-SCHEMA")]
 
 
 def test_contracts_subcommand_registered_on_suews_cli() -> None:
@@ -171,6 +171,8 @@ def test_contracts_show_historical_and_unknown_version() -> None:
     assert any("9.9.9" in err["message"] for err in bad_env["errors"])
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_contracts_export_stdout_file_and_bundle(tmp_path: Path) -> None:
     """``suews contracts export`` writes exact canonical bytes matching registered digests."""
     runner = CliRunner()

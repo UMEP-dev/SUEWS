@@ -17,7 +17,7 @@ from supy.util.converter import (
 )
 from supy.util.converter.df_state import validate_converted_df_state
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-MIGRATE")]
 
 
 class TestDfStateDetection:

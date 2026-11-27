@@ -20,6 +20,7 @@ from ._env import logger_supy, warn_platform_support
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
 from ._post import df_var, gen_index
 from ._run_period import canonicalise_resolved_bound
+from .constants import SEC_PER_DAY
 from .data_model.core.type import RefValue
 from .suews_checkpoint import _format_duplicate_grid_key_error
 
@@ -1600,7 +1601,7 @@ def forcing_year_keys(index: pd.DatetimeIndex, tstep_s: int) -> np.ndarray:
     ar_year = (index - pd.Timedelta(seconds=int(tstep_s))).year.to_numpy()
     if len(ar_year) and (ar_year != ar_year[0]).any():
         n_first = int((ar_year == ar_year[0]).sum())
-        if n_first * int(tstep_s) < 86400:
+        if n_first * int(tstep_s) < SEC_PER_DAY:
             ar_year = np.where(ar_year == ar_year[0], ar_year[n_first], ar_year)
     return ar_year
 
@@ -1626,7 +1627,7 @@ def forcing_chunk_keys(
     # leading stub into the next year, so the first chunk is not a stub.
     if len(ser_day) and (ser_day != ser_day.iloc[0]).any():
         n_first = int((ser_day == ser_day.iloc[0]).sum())
-        if n_first * int(tstep_s) < 86400:
+        if n_first * int(tstep_s) < SEC_PER_DAY:
             ser_day.iloc[:n_first] = ser_day.iloc[n_first]
     df_day = pd.DataFrame({"year": ar_year, "day": ser_day.to_numpy()})
     grp_day = df_day.groupby("year")["day"]

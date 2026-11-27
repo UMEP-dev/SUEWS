@@ -610,28 +610,38 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     profiles_path = d / "SUEWS_Profiles.txt"
     source_profile_codes = extras.get("profile_codes")
     if added_day_night and profiles_path.exists() and source_profile_codes is not None:
-        source_codes_set = {str(code) for code in source_profile_codes}
-        referenced_codes: set[str] = set()
+        def _parse_code_int(token: object) -> Optional[int]:
+            try:
+                return int(str(token).strip())
+            except ValueError:
+                return None
+
+        source_codes_int = {
+            parsed
+            for code in source_profile_codes
+            if (parsed := _parse_code_int(code)) is not None
+        }
+        referenced_codes_int: set[int] = set()
         for tbl in d.glob("SUEWS_*.txt"):
             if tbl.name == "SUEWS_Profiles.txt":
                 continue
             _, tbl_rows = _read_table(tbl)
             for row in tbl_rows:
-                referenced_codes.update(row[1:])
+                for token in row[1:]:
+                    parsed = _parse_code_int(token)
+                    if parsed is not None:
+                        referenced_codes_int.add(parsed)
         prof_header, prof_rows = _read_table(profiles_path)
         pruned: list[list[str]] = []
         for row in prof_rows:
             if not row:
                 continue
-            code_str = row[0]
-            try:
-                code_int = int(code_str)
-            except ValueError:
-                code_int = -1
+            code_int = _parse_code_int(row[0])
             if (
-                code_int >= day_night_base
-                and code_str not in source_codes_set
-                and code_str not in referenced_codes
+                code_int is not None
+                and code_int >= day_night_base
+                and code_int not in source_codes_int
+                and code_int not in referenced_codes_int
             ):
                 continue
             pruned.append(row)

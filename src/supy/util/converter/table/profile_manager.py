@@ -281,7 +281,7 @@ class ProfileManager:
                 row = row.iloc[0]
             vals = pd.to_numeric(row.iloc[:24], errors="coerce").to_numpy(dtype=float)
             if len(vals) == 24 and bool(np.all(np.isfinite(vals))) and bool(
-                np.allclose(vals, 1.0, atol=1e-6)
+                np.all(vals == 1.0)
             ):
                 return preferred
             candidate = preferred + 1

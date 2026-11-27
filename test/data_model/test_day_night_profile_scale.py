@@ -542,6 +542,77 @@ def test_legacy_conversion_preserves_user_99901_and_allocates_unused_code(
     assert "99902" not in rev_by_code
 
 
+def test_legacy_conversion_zero_padded_owner_and_sub_bound_99901(
+    tmp_path: Path,
+) -> None:
+    """Zero-padded user code '099901' survives reverse conversion, and 0.9999995 is never reused."""
+    import shutil  # noqa: PLC0415
+
+    import numpy as np  # noqa: PLC0415
+
+    from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    def _inject_row(src_dir: Path, code_token: str, val_str: str) -> None:
+        prof_file = src_dir / "SUEWS_Profiles.txt"
+        lines = prof_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        insert_at = next(
+            (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+            len(lines),
+        )
+        lines.insert(
+            insert_at, code_token + "\t" + "\t".join([val_str] * 24) + "\n"
+        )
+        prof_file.write_text("".join(lines), encoding="utf-8")
+
+    # 1. Zero-padded user code "099901" with validate_profiles=True must survive reverse.
+    src_zp = tmp_path / "src_zero_padded"
+    shutil.copytree(fixture_2016a, src_zp)
+    _inject_row(src_zp, "099901", "1.700")
+    extras_zp = R.capture_legacy_extras(src_zp, "2016a")
+    dest_zp = tmp_path / "fwd_zero_padded"
+    convert_table(str(src_zp), str(dest_zp), "2016a", "2025a", validate_profiles=True)
+    flat_zp = tmp_path / "flat_zero_padded"
+    rev_zp = tmp_path / "rev_zero_padded"
+    flat_zp.mkdir()
+    for produced in list(dest_zp.rglob("SUEWS_*.txt")) + list(dest_zp.rglob("*.nml")):
+        shutil.copyfile(produced, flat_zp / produced.name)
+    R.reverse_convert_table(flat_zp, rev_zp, "2016a", extras_zp)
+    _, rev_rows = R._read_table(rev_zp / "SUEWS_Profiles.txt")
+    rev_by_int = {int(r[0]): r[1:25] for r in rev_rows if r}
+    assert 99901 in rev_by_int
+    assert all(float(v) == pytest.approx(1.7) for v in rev_by_int[99901])
+    assert 99902 not in rev_by_int
+
+    # 2. Sub-bound 0.9999995 at 99901 with validate_profiles=False must NOT be reused.
+    src_sub = tmp_path / "src_sub_bound"
+    shutil.copytree(fixture_2016a, src_sub)
+    _inject_row(src_sub, "99901", "0.9999995")
+    dest_sub = tmp_path / "fwd_sub_bound"
+    convert_table(
+        str(src_sub), str(dest_sub), "2016a", "2025a", validate_profiles=False
+    )
+    fwd_profiles = next(dest_sub.rglob("SUEWS_Profiles.txt"))
+    _, fwd_rows = R._read_table(fwd_profiles)
+    fwd_by_code = {r[0]: r[1:25] for r in fwd_rows if r}
+    assert "99901" in fwd_by_code
+    assert all(float(v) == pytest.approx(0.9999995) for v in fwd_by_code["99901"])
+    assert "99902" in fwd_by_code
+    df_state = load_InitialCond_grid_df(dest_sub / "RunControl.nml")
+    for var_name in ("popprof_24hr", "humactivity_24hr"):
+        vals = df_state[var_name].to_numpy(dtype=float)
+        assert np.all(vals == 1.0)
+    # Reconstruct through SUEWSConfig to prove strict [1.0, 2.0] validation passes.
+    SUEWSConfig.from_df_state(df_state)
+
+
 @pytest.mark.parametrize(
     ("section", "field"),
     [("heat", "popprof_24hr"), ("co2", "profile_human_activity_24hr")],

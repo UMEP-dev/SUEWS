@@ -934,6 +934,10 @@ def find_missing_parameters_from_schema(
             )
 
             if field_name not in node:
+                if full_path == "model" and nested_is_model:
+                    missing.append((full_path, None, False))
+                    _walk({}, nested_model, full_path)
+                    continue
                 if full_path == "model.physics" and nested_is_model:
                     _walk({}, nested_model, full_path)
                     continue
@@ -1541,15 +1545,18 @@ def get_null_placeholder():
     return "null"
 
 
-def create_null_roof_wall_template(reference_element: dict) -> dict:
+def create_null_roof_wall_template(reference_element: object) -> dict | None:
     """Create a null template for roof/wall element based on reference structure.
 
     Args:
         reference_element: A roof or wall element to use as structural template
 
     Returns:
-        A new element with same structure but all values set to null
+        A new element with same structure but all values set to null, or None
+        when *reference_element* is not a mapping.
     """
+    if not isinstance(reference_element, dict):
+        return None
     template = {}
 
     for key, value in reference_element.items():
@@ -1768,16 +1775,19 @@ def validate_nlayer_dimensions(
                     if actual_len < expected_len:
                         # Pad with null template structures and record error
                         nulls_added = expected_len - actual_len
-                        # Use first element as template for structure
-                        if actual_len > 0:
-                            reference_element = actual_arr[0]
+                        # Use first dict element as template for structure
+                        reference_element = next(
+                            (item for item in actual_arr if isinstance(item, dict)),
+                            None,
+                        )
+                        if reference_element is not None:
                             for _ in range(nulls_added):
                                 null_template = create_null_roof_wall_template(
                                     reference_element
                                 )
                                 actual_arr.append(null_template)
                         else:
-                            # No elements to use as reference - just add None
+                            # No dict elements to use as reference - just add None
                             padding = [None] * nulls_added
                             actual_arr.extend(padding)
 
@@ -1821,16 +1831,19 @@ def validate_nlayer_dimensions(
                         if actual_len < expected_len:
                             # Pad with null template structures and record error
                             nulls_added = expected_len - actual_len
-                            # Use first element as template for structure
-                            if actual_len > 0:
-                                reference_element = actual_arr[0]
+                            # Use first dict element as template for structure
+                            reference_element = next(
+                                (item for item in actual_arr if isinstance(item, dict)),
+                                None,
+                            )
+                            if reference_element is not None:
                                 for _ in range(nulls_added):
                                     null_template = create_null_roof_wall_template(
                                         reference_element
                                     )
                                     actual_arr.append(null_template)
                             else:
-                                # No elements to use as reference - just add None
+                                # No dict elements to use as reference - just add None
                                 padding = [None] * nulls_added
                                 actual_arr.extend(padding)
 
@@ -2822,7 +2835,10 @@ def annotate_missing_parameters(
         # not renamed here: keep its selector and sensor metadata untouched.
         # A mix of legacy and canonical inputs is kept as given and reported.
         if _preloaded_user_data is _MISSING:
-            raw_user_data = safe_load_yaml(original_yaml_content)
+            try:
+                raw_user_data = safe_load_yaml(original_yaml_content)
+            except ValueError as e:
+                raise yaml.YAMLError(str(e)) from e
         else:
             raw_user_data = _preloaded_user_data
         if nlayer is None and detect_nlayer:
@@ -2841,7 +2857,10 @@ def annotate_missing_parameters(
             original_yaml_content, skip=rename_skip
         )
         if renamed_replacements:
-            user_data = safe_load_yaml(original_yaml_content)
+            try:
+                user_data = safe_load_yaml(original_yaml_content)
+            except ValueError as e:
+                raise yaml.YAMLError(str(e)) from e
         else:
             user_data = raw_user_data
         parsed_renames = handle_renamed_parameters_in_parsed_yaml(

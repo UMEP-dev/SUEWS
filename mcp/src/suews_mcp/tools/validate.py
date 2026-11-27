@@ -43,17 +43,20 @@ def validate_config(
       explicitly in the YAML. Pydantic auto-fills these with enum
       defaults, so this check is what stops a YAML with
       ``model.physics: {}`` from looking valid.
+    - **Phase A structural & Phase B scientific checks** in memory
+      (vertical-layer dimension mismatches, legacy soil-moisture migration
+      contracts, public-mode feature restrictions, SPARTACUS/STEBBS/irrigation/
+      land-cover/geographic consistency rules) without writing any files.
     - **Pydantic consistency** via ``SUEWSConfig.from_yaml``,
       including site-level critical-null checks
       (LAI parameters when vegetated surfaces are active,
       ``conductance.*`` when any vegetation is present, ``bldgh`` /
       ``faibldg`` when buildings are present).
 
-    What is **not** checked: forcing-file content, runtime numerical
-    issues (overflow, divergence), or physics-conditional consistency
-    that requires the full Phase A/B pipeline. For those, run
-    ``suews validate <path>`` (no ``--dry-run``) and read the
-    generated report file, or run ``suews run`` end-to-end.
+    What is **not** checked by default: forcing-file content (run
+    ``suews validate --dry-run --forcing on <path>`` from the CLI) or runtime
+    numerical issues (overflow, divergence). For generated output files or
+    end-to-end execution, run ``suews validate <path>`` or ``suews run``.
 
     Parameters
     ----------

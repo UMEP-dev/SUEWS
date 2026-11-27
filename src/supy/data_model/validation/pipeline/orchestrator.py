@@ -24,12 +24,12 @@ import shutil
 import tempfile
 import io
 from contextlib import contextmanager, redirect_stdout, redirect_stderr
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER, sync_text_report_stopping_phase
-from .report_schema import PhaseReport
+from .report_schema import Issue, PhaseReport
 from ...core._yaml_io import safe_load_yaml
 from ...core.physics_families import flatten_physics_in_config
 from ...core.profile import (
@@ -805,6 +805,7 @@ def run_pipeline(
     final_yaml_name: str | None = None,
     continue_on_error: bool = False,
     publish_rejected_yaml: bool = True,
+    prepend_issues: Sequence[Issue] | None = None,
 ) -> ABCPipelineResult:
     """Run any phase combination in private staging, then publish atomically.
 
@@ -832,6 +833,7 @@ def run_pipeline(
             and final_yaml_name is None
             and not continue_on_error
             and publish_rejected_yaml
+            and not prepend_issues
         ):
             return _run_abc_staged(
                 user_yaml_file,
@@ -856,6 +858,7 @@ def run_pipeline(
             final_yaml_name=final_yaml_name,
             continue_on_error=continue_on_error,
             publish_rejected_yaml=publish_rejected_yaml,
+            prepend_issues=prepend_issues,
         )
     except OSError as exc:
         raise ABCOutputError(exc, workspace) from exc
@@ -926,10 +929,11 @@ def _run_pipeline_staged(
     final_yaml_name: str | None = None,
     continue_on_error: bool = False,
     publish_rejected_yaml: bool = True,
+    prepend_issues: Sequence[Issue] | None = None,
 ) -> ABCPipelineResult:
     """Execute any phase combination within one invocation staging directory."""
     from .renderers import render_text_report
-    from .report_schema import JSON_REPORT_WRITER, ValidationReport
+    from .report_schema import JSON_REPORT_WRITER, SEVERITY_ERROR, ValidationReport
     from .report_writer import format_report_stopping_phase
 
     user_path = Path(user_yaml_file)
@@ -948,6 +952,8 @@ def _run_pipeline_staged(
 
     phases_requested = list(pipeline)
     reports: list[PhaseReport] = []
+    extra_issues = list(prepend_issues or ())
+    upstream_policy_error = any(i.severity == SEVERITY_ERROR for i in extra_issues)
     source_yaml: str | None = None
     current_input = user_yaml_file
     phase_a_ran = False
@@ -971,14 +977,16 @@ def _run_pipeline_staged(
         if not phase_a_report.has_errors and Path(uptodate_file).is_file():
             current_input = uptodate_file
 
-    can_continue = not any(r.has_errors for r in reports) or continue_on_error
+    can_continue = (
+        not upstream_policy_error and not any(r.has_errors for r in reports)
+    ) or continue_on_error
     if "B" in phases_requested and can_continue:
         progress("Physics validation check...")
         upstream_failed = any(r.has_errors for r in reports)
         b_input = current_input if Path(current_input).is_file() else user_yaml_file
         effective_science_fixes = (
             "off"
-            if upstream_failed and science_fixes == "apply"
+            if (upstream_policy_error or upstream_failed) and science_fixes == "apply"
             else science_fixes
         )
         phase_b_report = run_phase_b(
@@ -1003,7 +1011,9 @@ def _run_pipeline_staged(
             current_input = science_yaml_file
             progress("[OK] Phase B completed")
 
-    can_continue = not any(r.has_errors for r in reports) or continue_on_error
+    can_continue = (
+        not upstream_policy_error and not any(r.has_errors for r in reports)
+    ) or continue_on_error
     if "C" in phases_requested and can_continue:
         progress("Configuration consistency check...")
         upstream_failed = any(r.has_errors for r in reports)
@@ -1016,6 +1026,7 @@ def _run_pipeline_staged(
             mode=mode,
             phases_run=["C"],
             silent=True,
+            check_missing_critical_physics="A" not in phases_requested,
         )
         reports.append(phase_c_report)
 
@@ -1024,8 +1035,20 @@ def _run_pipeline_staged(
                 phase_c_report.yaml_out = None
             else:
                 source_yaml = c_staged_yaml
-        elif not upstream_failed:
+        elif not upstream_policy_error and not upstream_failed:
             source_yaml = c_staged_yaml
+
+    if extra_issues:
+        if reports:
+            reports[0].issues = [*extra_issues, *reports[0].issues]
+        else:
+            reports.append(
+                PhaseReport(
+                    phase=phases_requested[0],
+                    issues=extra_issues,
+                    yaml_in=user_yaml_file,
+                )
+            )
 
     failed = any(report.has_errors for report in reports)
 
@@ -1039,9 +1062,14 @@ def _run_pipeline_staged(
         raise FileNotFoundError(staged_yaml)
 
     # Render consolidated text report directly from structured ValidationReport
-    # (zero .txt regex scraping). Standalone Phase A preserves Phase A's own text
-    # layout directly from report_a_file.
-    if pipeline == "A" and len(reports) == 1 and Path(report_a_file).is_file():
+    # (zero .txt regex scraping). Standalone Phase A without prepended policy
+    # issues preserves Phase A's own text layout directly from report_a_file.
+    if (
+        pipeline == "A"
+        and len(reports) == 1
+        and not extra_issues
+        and Path(report_a_file).is_file()
+    ):
         rendered_text = format_report_stopping_phase(
             REPORT_WRITER.read(report_a_file), reports
         )
@@ -1369,6 +1397,7 @@ def run_phase_c(
     phases_run: list[str] | None = None,
     no_action_messages: list[str] | None = None,
     silent: bool = False,
+    check_missing_critical_physics: bool = False,
 ) -> PhaseReport:
     """Execute single-pass Phase C validation and return the structured ``PhaseReport``.
 
@@ -1383,7 +1412,10 @@ def run_phase_c(
     from .renderers import render_text_report
     from .report_schema import JSON_REPORT_WRITER, PhaseReport
 
-    result = validate_phase_c(input_yaml_file)
+    result = validate_phase_c(
+        input_yaml_file,
+        check_missing_critical_physics=check_missing_critical_physics,
+    )
     phase_report = PhaseReport(
         phase="C",
         issues=result.issues,
@@ -1610,45 +1642,9 @@ Modes:
                     user_yaml_data = safe_load_yaml(f)
                 flatten_physics_in_config(user_yaml_data)
 
-                # Check public mode restrictions.
-                # Read physics keys via helpers that accept both the new
-                # snake_case name and its legacy alias — the Pydantic shim
-                # accepts both, so this gate must as well.
-                from supy.data_model.core.field_renames import read_physics_key
-                from supy.data_model.validation.core.yaml_helpers import (
-                    get_stebbsmethod_value,
-                )
+                from ..engine import check_public_mode_restrictions
 
-                physics = (
-                    user_yaml_data.get("model", {}).get("physics", {})
-                    if isinstance(user_yaml_data, dict)
-                    else {}
-                )
-                restrictions_violated = []
-
-                # gh#1456: use the shared composer so nested bool-like strings
-                # (`off`, `false`, `0`, etc.) follow Pydantic semantics.
-                try:
-                    stebbsmethod = get_stebbsmethod_value(physics)
-                except ValueError as exc:
-                    restrictions_violated.append(
-                        f"Invalid STEBBS physics configuration: {exc}"
-                    )
-                    stebbsmethod = None
-                if stebbsmethod is not None and stebbsmethod != 0:
-                    restrictions_violated.append(
-                        "STEBBS is enabled (stebbs.enabled is true)"
-                    )
-
-                snowuse = read_physics_key(physics, "snow_use")
-                if snowuse is not None and snowuse != 0:
-                    restrictions_violated.append(
-                        "Snow calculations are enabled (snow_use != 0)"
-                    )
-
-                # Add more restriction checks here as needed
-                # if other_dev_feature_enabled:
-                #     restrictions_violated.append("Other developer feature is enabled")
+                restrictions_violated = check_public_mode_restrictions(user_yaml_data)
 
                 # If any restrictions are violated, halt execution
                 if restrictions_violated:

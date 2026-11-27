@@ -18,6 +18,7 @@ from ...core.field_renames import (
     STEBBS_PHYSICS_LEAF_RENAMES,
     fold_stebbs_physics,
     normalise_yaml_renames,
+    read_physics_key,
 )
 from ...core.physics_families import flatten_physics_in_config
 from .document import (
@@ -81,43 +82,80 @@ class PhaseCResult:
         return any(issue.severity == SEVERITY_ERROR for issue in self.issues)
 
 
-def _collect_critical_physics_nulls(raw_data: Mapping[str, Any]) -> list[Issue]:
-    """Detect critical physics parameters explicitly authored as null.
+_PHYSICS_KEY_MISSING = object()
 
-    Normalises legacy physics spellings and folds flat STEBBS keys onto a
-    shallow copy so explicit nulls under legacy or nested spellings are
-    surfaced as structured ``C.CRITICAL_PARAM.*`` errors instead of falling
-    through to ``C.PIPELINE.UNKNOWN``.
+
+def collect_critical_physics_issues(
+    raw_data: Mapping[str, Any],
+    *,
+    check_missing: bool = True,
+) -> list[Issue]:
+    """Detect missing or null critical physics parameters in raw config data.
+
+    Normalises legacy physics spellings, flattens structured physics families,
+    and folds flat STEBBS keys onto a shallow copy so omitted or explicitly
+    null choices (under canonical, legacy, or nested spellings) are reported
+    identically across Phase C Python/CLI entry points and CLI ``--dry-run``.
     """
+    if not isinstance(raw_data, Mapping):
+        return []
     model_raw = raw_data.get("model")
-    if not isinstance(model_raw, Mapping):
+    if model_raw is not None and not isinstance(model_raw, Mapping):
         return []
-    physics_raw = model_raw.get("physics")
-    if not isinstance(physics_raw, Mapping):
+    physics_raw = model_raw.get("physics") if isinstance(model_raw, Mapping) else None
+    if physics_raw is not None and not isinstance(physics_raw, Mapping):
         return []
+    physics_dict = deepcopy(dict(physics_raw)) if isinstance(physics_raw, Mapping) else {}
 
-    normalised_cfg = normalise_yaml_renames({"model": {"physics": deepcopy(dict(physics_raw))}})
+    normalised_cfg = normalise_yaml_renames({"model": {"physics": physics_dict}})
     flatten_physics_in_config(normalised_cfg)
     physics = normalised_cfg.get("model", {}).get("physics", {})
     if not isinstance(physics, dict):
-        return []
-    folded = fold_stebbs_physics(deepcopy(physics), "model.physics")
+        physics = {}
+    folded = fold_stebbs_physics(deepcopy(physics), "model.physics", warn=False)
+    flatten_physics_in_config({"model": {"physics": folded}})
     stebbs_block = folded.get("stebbs")
-    if not isinstance(stebbs_block, Mapping):
+    if not isinstance(stebbs_block, dict):
         stebbs_block = {}
 
     issues: list[Issue] = []
     for param in _CRITICAL_PHYSICS_PARAMS:
         if param in _STEBBS_LEAF_NAMES:
-            container: Mapping[str, Any] = stebbs_block
+            container: dict[str, Any] = stebbs_block
             field_path = f"model.physics.stebbs.{param}"
         else:
             container = physics
             field_path = f"model.physics.{param}"
 
-        if param not in container:
-            continue
-        entry = container[param]
+        if param in container:
+            entry = container[param]
+        else:
+            fallback = read_physics_key(
+                container, param, default=_PHYSICS_KEY_MISSING
+            )
+            if fallback is _PHYSICS_KEY_MISSING:
+                if check_missing:
+                    issues.append(
+                        Issue(
+                            phase="C",
+                            severity=SEVERITY_ERROR,
+                            code=f"C.MISSING_PARAM.{param.upper()}",
+                            message=(
+                                f"{field_path}: required physics parameter is missing "
+                                "from the input YAML; runtime requires an explicit "
+                                "choice rather than the Pydantic default"
+                            ),
+                            yaml_path=field_path,
+                            category="CONFIG_CONSISTENCY",
+                            suggested_value=(
+                                "Set explicitly to an appropriate non-null value - see "
+                                "documentation at https://docs.suews.io/stable"
+                            ),
+                        )
+                    )
+                continue
+            entry = fallback
+
         is_null = (
             entry is None
             or (isinstance(entry, Mapping) and "value" in entry and entry["value"] is None)
@@ -142,6 +180,11 @@ def _collect_critical_physics_nulls(raw_data: Mapping[str, Any]) -> list[Issue]:
                 )
             )
     return issues
+
+
+def _collect_critical_physics_nulls(raw_data: Mapping[str, Any]) -> list[Issue]:
+    """Detect critical physics parameters explicitly authored as null."""
+    return collect_critical_physics_issues(raw_data, check_missing=False)
 
 
 def _unwrap_model_scalar(value: Any) -> Any:
@@ -275,6 +318,7 @@ def validate_phase_c(
     input_yaml_file: str | None = None,
     *,
     raw_data: dict[str, Any] | None = None,
+    check_missing_critical_physics: bool = False,
 ) -> PhaseCResult:
     """Run a single-pass Phase C Pydantic validation and collect structured issues.
 
@@ -305,7 +349,7 @@ def validate_phase_c(
         try:
             with open(input_yaml_file, encoding="utf-8") as fh:
                 loaded = safe_load_yaml(fh)
-        except (OSError, yaml.YAMLError) as exc:
+        except (OSError, yaml.YAMLError, ValueError) as exc:
             issues.append(
                 Issue(
                     phase="C",
@@ -433,10 +477,12 @@ def validate_phase_c(
     finally:
         supy_logger.setLevel(original_level)
 
-    critical_null_issues = _collect_critical_physics_nulls(loaded)
-    issues.extend(critical_null_issues)
+    critical_physics_issues = collect_critical_physics_issues(
+        loaded, check_missing=check_missing_critical_physics
+    )
+    issues.extend(critical_physics_issues)
 
-    if not critical_null_issues:
+    if not critical_physics_issues:
         if hasattr(config, "_validation_summary"):
             for msg in config._validation_summary.get("info_messages", []):
                 issues.append(

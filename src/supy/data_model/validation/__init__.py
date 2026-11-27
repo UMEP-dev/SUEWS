@@ -32,6 +32,13 @@ from .core.yaml_helpers import (
     run_precheck,
 )
 
+# Public validation engine & report schema
+from .engine import (
+    ValidationEngine,
+    check_public_mode_restrictions,
+    validate_config,
+)
+
 # Pipeline exports (if needed by external modules)
 from .pipeline.orchestrator import (
     validate_input_file,
@@ -40,8 +47,21 @@ from .pipeline.orchestrator import (
     run_phase_b,
     run_phase_c,
 )
+from .pipeline.report_schema import (
+    Issue,
+    PhaseReport,
+    ValidationReport,
+)
 
 __all__ = [
+    # Public validation engine
+    "Issue",
+    "PhaseReport",
+    "ValidationEngine",
+    "ValidationReport",
+    "check_public_mode_restrictions",
+    "logger_supy",
+    "validate_config",
     # Core validation
     "ValidationController",
     "ValidationResult",

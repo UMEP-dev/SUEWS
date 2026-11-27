@@ -174,6 +174,7 @@ py.install_sources(
         ],
         [
             'data_model/validation/__init__.py',
+            'data_model/validation/engine.py',
             'data_model/validation/core/__init__.py',
             'data_model/validation/core/controller.py',
             'data_model/validation/core/feedback.py',

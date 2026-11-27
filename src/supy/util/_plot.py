@@ -200,6 +200,12 @@ def plot_comp(
 
     color_last = ax.lines[0].get_color()
     if show_pdf:
+        if "Obs" in df_var.columns and "Sim" in df_var.columns:
+            kde_x = df_var["Obs"]
+            kde_y = df_var["Sim"]
+        else:
+            kde_x = df_var.iloc[:, 0]
+            kde_y = df_var.iloc[:, 1]
         kde_defaults = {
             "fill": True,
             "thresh": 0.05,
@@ -211,8 +217,8 @@ def plot_comp(
             **(kde_defaults if kde_kws is None else kde_kws),
         }
         sns.kdeplot(
-            x=val_x,
-            y=val_y,
+            x=kde_x,
+            y=kde_y,
             ax=ax,
             **kde_call_kws,
         )

@@ -116,3 +116,24 @@ def test_plot_comp_show_pdf_custom_kde_kws_without_mutating_caller_dict():
     assert contour.filled is False
     assert len(contour.levels) == 5
     assert contour.get_zorder() == 0
+
+
+def test_plot_comp_show_pdf_aligned_array_weights_with_missing_rows():
+    """Row-aligned array kde_kws (e.g. weights) remain aligned with df_var containing NaNs."""
+    df_var = _make_sample_comparison_df()
+    weights = np.linspace(1.0, 2.0, len(df_var))
+
+    fig, ax = plot_comp(
+        df_var,
+        show_pdf=True,
+        kde_kws={"fill": True, "thresh": 0.05, "levels": 4, "weights": weights},
+    )
+
+    assert isinstance(fig, plt.Figure)
+    contour_sets = [coll for coll in ax.collections if isinstance(coll, QuadContourSet)]
+    assert len(contour_sets) == 1
+    contour = contour_sets[0]
+    assert contour.filled is True
+    assert len(contour.levels) == 4
+    assert contour.get_zorder() == 0
+    assert "n=200" in ax.get_legend().get_texts()[0].get_text()

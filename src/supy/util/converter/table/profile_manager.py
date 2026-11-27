@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import ClassVar
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -265,6 +266,33 @@ class ProfileManager:
         )
         return True
 
+    def resolve_day_night_default_code(self, output_path: Path) -> int:
+        """Return a uniform-1.0 profile code in SUEWS_Profiles.txt without clobbering user rows.
+
+        Reuses ``DAY_NIGHT_DEFAULT`` (99901) only when it is absent (creating it)
+        or already holds twenty-four ``1.0`` values. If the table already defines
+        99901 with different values, allocates the next unused code (>= 99902),
+        materialises uniform ``1.0`` there, and leaves the user's 99901 untouched.
+        """
+        preferred = int(self.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+        if preferred in self.available_profiles and self.profile_data is not None:
+            row = self.profile_data.loc[preferred]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            vals = pd.to_numeric(row.iloc[:24], errors="coerce").to_numpy(dtype=float)
+            if len(vals) == 24 and bool(np.all(np.isfinite(vals))) and bool(
+                np.allclose(vals, 1.0, atol=1e-6)
+            ):
+                return preferred
+            candidate = preferred + 1
+            while candidate in self.available_profiles:
+                candidate += 1
+            self.ensure_profile_codes(output_path, [candidate])
+            return candidate
+
+        self.ensure_profile_codes(output_path, [preferred])
+        return preferred
+
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.
 
@@ -276,8 +304,11 @@ class ProfileManager:
         # Validate existing profile table or initialise a 24-hour DataFrame before writing
         profiles_df = self._prepare_profiles_df(f"write {profiles_file}")
 
-        # Add default profiles if they don't exist
+        # Add default profiles if they don't exist (DAY_NIGHT_DEFAULT is resolved
+        # on demand per conversion step via resolve_day_night_default_code).
         for name, code in self.DEFAULT_PROFILES.items():
+            if name == "DAY_NIGHT_DEFAULT":
+                continue
             if code not in profiles_df.index and code > 0:
                 profiles_df.loc[code] = self.create_default_profile(
                     code, columns=profiles_df.columns

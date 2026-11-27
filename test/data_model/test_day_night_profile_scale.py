@@ -146,11 +146,11 @@ def test_day_night_profiles_reject_out_of_range_values(bad_value: float) -> None
     bad = _uniform_profile(1.5)
     bad["holiday"]["12"] = bad_value
 
-    with pytest.raises(ValidationError, match=r"popprof_24hr.*\[1\.0, 2\.0\]"):
+    with pytest.raises(ValidationError, match=r"(?s)popprof_24hr.*\[1\.0, 2\.0\]"):
         AnthropogenicHeat(popprof_24hr=bad)
 
     with pytest.raises(
-        ValidationError, match=r"profile_human_activity_24hr.*\[1\.0, 2\.0\]"
+        ValidationError, match=r"(?s)profile_human_activity_24hr.*\[1\.0, 2\.0\]"
     ):
         CO2Params(profile_human_activity_24hr=bad)
 
@@ -418,3 +418,180 @@ def test_legacy_2016a_conversion_materialises_day_night_default_profile(
         vals = df_state[var_name].to_numpy(dtype=float)
         assert np.all(np.isfinite(vals))
         assert np.all((vals >= 1.0) & (vals <= 2.0))
+
+
+@pytest.mark.parametrize("var_name", ["popprof_24hr", "humactivity_24hr"])
+@pytest.mark.parametrize("sentinel", [-999.0, float("nan")])
+def test_inactive_legacy_state_sentinels_reconstruct_and_run(
+    var_name: str, sentinel: float
+) -> None:
+    """Inactive emissionsmethod=0 states with -999/NaN reconstruct and run cleanly; active rejects."""
+    import supy as sp  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    df_state = cfg.to_df_state()
+
+    # Active emissions (emissionsmethod=2) rejects -999/NaN at reconstruction.
+    df_active_bad = df_state.copy()
+    df_active_bad[(var_name, "(0, 0)")] = sentinel
+    with pytest.raises(ValidationError, match=r"\[1\.0, 2\.0\]"):
+        SUEWSConfig.from_df_state(df_active_bad)
+
+    # Inactive emissions (emissionsmethod=0) accepts -999/NaN as conditional absence
+    # (None) during reconstruction and runs cleanly through the engine.
+    df_inactive = df_active_bad.copy()
+    df_inactive[("emissionsmethod", "0")] = 0
+    reconstructed = SUEWSConfig.from_df_state(df_inactive)
+    anthro = reconstructed.sites[0].properties.anthropogenic_emissions
+    prof = (
+        anthro.heat.popprof_24hr
+        if var_name == "popprof_24hr"
+        else anthro.co2.profile_human_activity_24hr
+    )
+    assert prof.working_day["1"] is None
+
+    df_forcing = sp.SUEWSSimulation.from_sample_data().forcing.df.iloc[:6].copy()
+    # emissionsmethod=0 reads prescribed QF directly from the forcing table.
+    df_forcing["qf"] = 20.0
+    sim = sp.SUEWSSimulation.from_state(df_inactive)
+    sim.update_forcing(df_forcing)
+    df_out = sim.run()
+    assert not df_out.empty
+
+
+@pytest.mark.parametrize("bad_em", [float("inf"), float("-inf")])
+def test_check_state_reports_non_finite_emissionsmethod_without_crashing(
+    bad_em: float,
+) -> None:
+    """Non-finite emissionsmethod yields checker issues rather than OverflowError."""
+    from supy._check import check_state  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    df_state = cfg.to_df_state()
+    df_state[("emissionsmethod", "0")] = bad_em
+    issues = check_state(df_state, fix=False) or []
+    assert any("emissionsmethod" in msg for msg in issues)
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+@pytest.mark.parametrize("existing_val", [2.0, 0.5])
+def test_legacy_conversion_preserves_user_99901_and_allocates_unused_code(
+    tmp_path: Path, validate_profiles: bool, existing_val: float
+) -> None:
+    """An existing non-1.0 user row at 99901 is preserved; conversion allocates 99902."""
+    import shutil  # noqa: PLC0415
+
+    import numpy as np  # noqa: PLC0415
+
+    from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    src = tmp_path / "src_2016a"
+    shutil.copytree(fixture_2016a, src)
+    prof_file = src / "SUEWS_Profiles.txt"
+    text = prof_file.read_text(encoding="utf-8")
+    custom_row = "99901\t" + "\t".join([f"{existing_val:.3f}"] * 24) + "\n"
+    lines = text.splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+        len(lines),
+    )
+    lines.insert(insert_at, custom_row)
+    prof_file.write_text("".join(lines), encoding="utf-8")
+
+    extras = R.capture_legacy_extras(src, "2016a")
+    assert "99901" in extras["profile_codes"]
+
+    dest = tmp_path / f"fwd_{validate_profiles}_{existing_val}"
+    convert_table(
+        str(src), str(dest), "2016a", "2025a", validate_profiles=validate_profiles
+    )
+
+    fwd_profiles = next(dest.rglob("SUEWS_Profiles.txt"))
+    _, fwd_rows = R._read_table(fwd_profiles)
+    rows_by_code = {r[0]: r[1:25] for r in fwd_rows if r}
+    # User's 99901 row is preserved verbatim; conversion allocated 99902 with 1.0.
+    assert "99901" in rows_by_code
+    assert all(float(v) == pytest.approx(existing_val) for v in rows_by_code["99901"])
+    assert "99902" in rows_by_code
+    assert all(float(v) == pytest.approx(1.0) for v in rows_by_code["99902"])
+
+    df_state = load_InitialCond_grid_df(dest / "RunControl.nml")
+    for var_name in ("popprof_24hr", "humactivity_24hr"):
+        vals = df_state[var_name].to_numpy(dtype=float)
+        assert np.allclose(vals, 1.0)
+
+    # Reverse conversion restores user's 99901 and prunes synthetic 99902.
+    flat = tmp_path / f"flat_{validate_profiles}_{existing_val}"
+    rev = tmp_path / f"rev_{validate_profiles}_{existing_val}"
+    flat.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat / produced.name)
+    R.reverse_convert_table(flat, rev, "2016a", extras)
+    _, rev_rows = R._read_table(rev / "SUEWS_Profiles.txt")
+    rev_by_code = {r[0]: r[1:25] for r in rev_rows if r}
+    assert "99901" in rev_by_code
+    assert all(float(v) == pytest.approx(existing_val) for v in rev_by_code["99901"])
+    assert "99902" not in rev_by_code
+
+
+@pytest.mark.parametrize(
+    ("section", "field"),
+    [("heat", "popprof_24hr"), ("co2", "profile_human_activity_24hr")],
+)
+@pytest.mark.parametrize("day_type", ["working_day", "holiday"])
+def test_exported_json_schema_enforces_day_night_profile_bounds(
+    section: str, field: str, day_type: str
+) -> None:
+    """docs/source/inputs/tables/schema.json enforces [1.0, 2.0] on both fields and day types."""
+    import json  # noqa: PLC0415
+
+    import jsonschema  # noqa: PLC0415
+
+    schema_path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "source"
+        / "inputs"
+        / "tables"
+        / "schema.json"
+    )
+    schema_doc = json.loads(schema_path.read_text(encoding="utf-8"))
+    validator = jsonschema.Draft202012Validator(schema_doc)
+
+    # Generic HourlyProfile stays unconstrained while DayNightHourlyProfile enforces [1.0, 2.0].
+    generic_day = schema_doc["$defs"]["HourlyProfile"]["properties"][day_type]
+    assert "minimum" not in json.dumps(generic_day)
+    assert "maximum" not in json.dumps(generic_day)
+
+    def _field_errors(doc: dict) -> list:
+        matched = []
+        for err in validator.iter_errors(doc):
+            if field not in err.absolute_path:
+                continue
+            if day_type in err.absolute_path or any(
+                day_type in sub.absolute_path for sub in err.context
+            ):
+                matched.append(err)
+        return matched
+
+    # Valid sample config conforms on both fields.
+    base_raw = _load_sample_raw()
+    assert _field_errors(base_raw) == []
+
+    for bad_val in (0.5, 2.5):
+        mutated = deepcopy(base_raw)
+        mutated["sites"][0]["properties"]["anthropogenic_emissions"][section][field][
+            day_type
+        ]["8"] = bad_val
+        errors = _field_errors(mutated)
+        assert errors, (
+            f"Expected JSON Schema error for {section}.{field}.{day_type}={bad_val}"
+        )

@@ -203,7 +203,7 @@ the schema that shipped with it via
    Aligns population (``popprof_24hr``) and human-activity
    (``profile_human_activity_24hr``) 24-hour profiles with the kernel's raw
    ``[1.0, 2.0]`` night-to-day transition scale (``1.0`` = night, ``2.0`` =
-   day, values in between = transition; #2043). Omitted fields now default to
+   day, values in between = transition). Omitted fields now default to
    uniform ``1.0`` (night level) instead of ``1/24``, values outside
    ``[1.0, 2.0]`` are rejected by both the Pydantic data model and the Rust
    bridge, and shipped configurations replace the off-scale London QF profile

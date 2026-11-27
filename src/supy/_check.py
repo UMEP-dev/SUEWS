@@ -657,7 +657,12 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
                     em_val = (
                         em_row.iloc[0] if isinstance(em_row, pd.Series) else em_row
                     )
-                    if pd.notna(em_val) and int(em_val) == 0:
+                    if (
+                        isinstance(em_val, (int, float, np.number))
+                        and not isinstance(em_val, bool)
+                        and bool(np.isfinite(em_val))
+                        and float(em_val) == 0.0
+                    ):
                         # When anthropogenic emissions are disabled (emissionsmethod=0),
                         # permit NaN and exact -999 inactive sentinels while still
                         # rejecting +/-inf and any finite value outside [1, 2].

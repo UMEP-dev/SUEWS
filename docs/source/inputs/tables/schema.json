@@ -219,7 +219,7 @@
           "unit": "ha-1"
         },
         "popprof_24hr": {
-          "$ref": "#/$defs/HourlyProfile",
+          "$ref": "#/$defs/DayNightHourlyProfile",
           "description": "24-hour population transition profile on the kernel's [1.0, 2.0] scale (1.0 = night, 2.0 = day, values in between = transition; read raw without normalisation). Defaults to uniform 1.0 (night level).",
           "display_name": "Population Profile (24hr)",
           "unit": "1"
@@ -2527,7 +2527,7 @@
         "profile_human_activity_24hr": {
           "anyOf": [
             {
-              "$ref": "#/$defs/HourlyProfile"
+              "$ref": "#/$defs/DayNightHourlyProfile"
             },
             {
               "type": "null"
@@ -2882,6 +2882,74 @@
         "holiday"
       ],
       "title": "Cooling Setpoint Profile",
+      "type": "object"
+    },
+    "DayNightHourlyProfile": {
+      "description": "24-hour day/night transition profile bounded to ``[1.0, 2.0]``.\n\nUsed by ``popprof_24hr`` and ``profile_human_activity_24hr``, which the\nanthropogenic emissions kernel consumes raw without normalisation\n(``1.0`` = night, ``2.0`` = day, values in between = transition).",
+      "properties": {
+        "working_day": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "maximum": 2.0,
+                    "minimum": 1.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Working Day"
+        },
+        "holiday": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "maximum": 2.0,
+                    "minimum": 1.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Holiday"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "working_day",
+        "holiday"
+      ],
+      "title": "Day/Night Hourly Profile",
       "type": "object"
     },
     "DayProfile": {

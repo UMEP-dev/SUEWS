@@ -1,8 +1,9 @@
 from collections.abc import Callable
 from copy import deepcopy
 import math
-from typing import Dict, Optional
+from typing import Annotated, Dict, Optional
 
+import numpy as np
 import pandas as pd
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
@@ -661,10 +662,108 @@ class HourlyProfile(DataModelBase):
         return cls(working_day=working_day, holiday=holiday)
 
 
-def default_day_night_hourly_profile() -> HourlyProfile:
+DayNightHourValue = Optional[
+    Annotated[
+        float,
+        Field(ge=DAY_NIGHT_PROFILE_MIN, le=DAY_NIGHT_PROFILE_MAX),
+    ]
+]
+
+
+class DayNightHourlyProfile(HourlyProfile):
+    """24-hour day/night transition profile bounded to ``[1.0, 2.0]``.
+
+    Used by ``popprof_24hr`` and ``profile_human_activity_24hr``, which the
+    anthropogenic emissions kernel consumes raw without normalisation
+    (``1.0`` = night, ``2.0`` = day, values in between = transition).
+    """
+
+    model_config = ConfigDict(title="Day/Night Hourly Profile")
+
+    working_day: Optional[Dict[str, DayNightHourValue]]
+    holiday: Optional[Dict[str, DayNightHourValue]]
+
+    @classmethod
+    def __init_default_values__(cls) -> Dict[str, Dict[str, float]]:
+        hourly_values = {
+            str(hour): DAY_NIGHT_PROFILE_DEFAULT for hour in range(1, 25)
+        }
+        return {"working_day": hourly_values.copy(), "holiday": hourly_values.copy()}
+
+    @field_validator("working_day", "holiday", mode="before")
+    @classmethod
+    def _validate_day_night_bounds_before(cls, v: object) -> object:
+        if not isinstance(v, dict):
+            return v
+        coerced = HourlyProfile.convert_keys_to_str(v)
+        bad_entries: list[str] = []
+        for hour, val in coerced.items():
+            if val is None:
+                continue
+            if not math.isfinite(val) or not (
+                DAY_NIGHT_PROFILE_MIN <= val <= DAY_NIGHT_PROFILE_MAX
+            ):
+                bad_entries.append(f"{hour}={val!r}")
+        if bad_entries:
+            preview = ", ".join(bad_entries[:6])
+            if len(bad_entries) > 6:
+                preview += f", ... ({len(bad_entries)} total)"
+            raise ValueError(
+                f"Day/night hourly profile values must be finite numbers in "
+                f"[{DAY_NIGHT_PROFILE_MIN}, {DAY_NIGHT_PROFILE_MAX}] "
+                "(1.0 = night, 2.0 = day, values in between = transition; "
+                f"read raw without normalisation). Out-of-range entries: {preview}."
+            )
+        return coerced
+
+    @classmethod
+    def from_df_state(
+        cls,
+        df: pd.DataFrame,
+        grid_id: int,
+        param_name: str,
+        *,
+        allow_inactive_sentinels: bool = False,
+    ) -> "DayNightHourlyProfile":
+        """Reconstruct a day/night profile from ``df_state``.
+
+        When *allow_inactive_sentinels* is ``True`` (anthropogenic emissions
+        disabled via ``emissionsmethod == 0``), exact ``NaN`` and legacy
+        ``-999`` sentinels are normalised to ``None`` (conditional absence)
+        while preserving rejection of ``+/-inf`` and finite out-of-range values.
+        """
+        from ...util._missing import SUEWS_MISSING  # noqa: PLC0415
+
+        def _normalise_cell(raw_val: object) -> object:
+            if not allow_inactive_sentinels or raw_val is None:
+                return raw_val
+            if isinstance(raw_val, (int, float, np.number)) and not isinstance(
+                raw_val, bool
+            ):
+                fval = float(raw_val)
+                if math.isnan(fval) or fval == SUEWS_MISSING:
+                    return None
+            return raw_val
+
+        working_day = {
+            str(hour + 1): _normalise_cell(
+                df.loc[grid_id, (param_name, f"({hour}, 0)")]
+            )
+            for hour in range(24)
+        }
+        holiday = {
+            str(hour + 1): _normalise_cell(
+                df.loc[grid_id, (param_name, f"({hour}, 1)")]
+            )
+            for hour in range(24)
+        }
+        return cls(working_day=working_day, holiday=holiday)
+
+
+def default_day_night_hourly_profile() -> DayNightHourlyProfile:
     """Return a uniform 1.0 (night-level) 24-hour profile on the ``[1.0, 2.0]`` scale."""
     hourly_values = {str(hour): DAY_NIGHT_PROFILE_DEFAULT for hour in range(1, 25)}
-    return HourlyProfile(
+    return DayNightHourlyProfile(
         working_day=hourly_values.copy(),
         holiday=hourly_values.copy(),
     )

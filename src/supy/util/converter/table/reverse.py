@@ -241,7 +241,23 @@ def capture_legacy_extras(src_dir, from_ver: str) -> dict:
             if header:
                 headers[fname] = header
 
-    return {"from_ver": from_ver, "deleted": deleted, "headers": headers}
+    # Capture the original SUEWS_Profiles.txt code set so reverse conversion can
+    # distinguish conversion-introduced synthetic defaults (e.g. 99901/99902)
+    # from user-owned profile rows and never delete source data.
+    profiles_path = src_dir / "SUEWS_Profiles.txt"
+    profile_codes: Optional[list[str]] = None
+    if profiles_path.exists():
+        _, prof_rows = _read_table(profiles_path)
+        profile_codes = [r[0] for r in prof_rows if r]
+
+    extras_out: dict = {
+        "from_ver": from_ver,
+        "deleted": deleted,
+        "headers": headers,
+    }
+    if profile_codes is not None:
+        extras_out["profile_codes"] = profile_codes
+    return extras_out
 
 
 # --------------------------------------------------------------------------- #
@@ -579,30 +595,48 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             elif path.exists():
                 _rename_table_column(path, new, old)
 
-    # 4. Prune synthetic day/night default profile row (e.g. 99901) introduced
-    # by forward Add rules once no remaining table in ``d`` references it.
+    # 4. Prune synthetic day/night default profile rows (>= DAY_NIGHT_DEFAULT)
+    # introduced by forward Add rules ONLY when ``profile_codes`` proves the
+    # row was absent from the source table and no remaining table in ``d``
+    # references it. User-owned rows (present in source ``profile_codes``) are
+    # never removed.
     from .profile_manager import ProfileManager  # noqa: PLC0415
 
-    day_night_code = str(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+    day_night_base = int(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
     added_day_night = (
         (step["Action"] == "Add")
-        & (step["Value"].astype(str).str.strip() == day_night_code)
+        & (step["Value"].astype(str).str.strip() == str(day_night_base))
     ).any()
     profiles_path = d / "SUEWS_Profiles.txt"
-    if added_day_night and profiles_path.exists():
-        still_referenced = False
+    source_profile_codes = extras.get("profile_codes")
+    if added_day_night and profiles_path.exists() and source_profile_codes is not None:
+        source_codes_set = {str(code) for code in source_profile_codes}
+        referenced_codes: set[str] = set()
         for tbl in d.glob("SUEWS_*.txt"):
             if tbl.name == "SUEWS_Profiles.txt":
                 continue
             _, tbl_rows = _read_table(tbl)
-            if any(day_night_code in row[1:] for row in tbl_rows):
-                still_referenced = True
-                break
-        if not still_referenced:
-            prof_header, prof_rows = _read_table(profiles_path)
-            pruned = [r for r in prof_rows if r and r[0] != day_night_code]
-            if len(pruned) != len(prof_rows):
-                _write_table(profiles_path, prof_header, pruned)
+            for row in tbl_rows:
+                referenced_codes.update(row[1:])
+        prof_header, prof_rows = _read_table(profiles_path)
+        pruned: list[list[str]] = []
+        for row in prof_rows:
+            if not row:
+                continue
+            code_str = row[0]
+            try:
+                code_int = int(code_str)
+            except ValueError:
+                code_int = -1
+            if (
+                code_int >= day_night_base
+                and code_str not in source_codes_set
+                and code_str not in referenced_codes
+            ):
+                continue
+            pruned.append(row)
+        if len(pruned) != len(prof_rows):
+            _write_table(profiles_path, prof_header, pruned)
 
 
 def reverse_convert_table(

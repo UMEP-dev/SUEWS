@@ -25,6 +25,7 @@ from ..validation.core.utils import (
 )
 from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
 from .profile import (
+    DayNightHourlyProfile,
     DayProfile,
     HourlyProfile,
     WeeklyProfile,
@@ -45,6 +46,32 @@ from .unit_metadata import (
     ConditionalUnitSpec,
     conditional_unit_extra,
 )
+
+
+def _is_emissions_inactive_in_df_state(df: pd.DataFrame, grid_id: int) -> bool:
+    """Return True when ``df`` explicitly sets ``emissionsmethod == 0`` for *grid_id*."""
+    if ("emissionsmethod", "0") not in df.columns:
+        return False
+    em_val = df.loc[grid_id, ("emissionsmethod", "0")]
+    if isinstance(em_val, pd.Series):
+        em_val = em_val.iloc[0]
+    return (
+        isinstance(em_val, (int, float, np.number))
+        and not isinstance(em_val, bool)
+        and bool(np.isfinite(em_val))
+        and float(em_val) == 0.0
+    )
+
+
+def _coerce_hourly_profile_input(v: object) -> object:
+    """Allow passing a plain HourlyProfile instance into a DayNightHourlyProfile field."""
+    if isinstance(v, HourlyProfile) and not isinstance(v, DayNightHourlyProfile):
+        return {
+            "working_day": v.working_day,
+            "holiday": v.holiday,
+            "ref": v.ref,
+        }
+    return v
 
 
 def coerce_integer_doy_scalar(raw: Any, field_name: str) -> int:
@@ -805,7 +832,7 @@ class AnthropogenicHeat(
         },
         ge=0.0,
     )
-    popprof_24hr: HourlyProfile = Field(
+    popprof_24hr: DayNightHourlyProfile = Field(
         description=(
             "24-hour population transition profile on the kernel's [1.0, 2.0] scale "
             "(1.0 = night, 2.0 = day, values in between = transition; read raw "
@@ -818,9 +845,16 @@ class AnthropogenicHeat(
         },
     )
 
+    @field_validator("popprof_24hr", mode="before")
+    @classmethod
+    def _coerce_popprof_24hr(cls, v: object) -> object:
+        return _coerce_hourly_profile_input(v)
+
     @field_validator("popprof_24hr", mode="after")
     @classmethod
-    def _validate_popprof_24hr_scale(cls, v: HourlyProfile) -> HourlyProfile:
+    def _validate_popprof_24hr_scale(
+        cls, v: DayNightHourlyProfile
+    ) -> DayNightHourlyProfile:
         validated = validate_day_night_hourly_profile(v, "popprof_24hr")
         assert validated is not None
         return validated
@@ -905,9 +939,15 @@ class AnthropogenicHeat(
         }
 
         # Extract HourlyProfile attributes
+        allow_inactive = _is_emissions_inactive_in_df_state(df, grid_id)
         hourly_profiles = {
             "ahprof_24hr": HourlyProfile.from_df_state(df, grid_id, "ahprof_24hr"),
-            "popprof_24hr": HourlyProfile.from_df_state(df, grid_id, "popprof_24hr"),
+            "popprof_24hr": DayNightHourlyProfile.from_df_state(
+                df,
+                grid_id,
+                "popprof_24hr",
+                allow_inactive_sentinels=allow_inactive,
+            ),
         }
 
         # Extract scalar attribute
@@ -1119,7 +1159,7 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
     # so it will never actually be None unless explicitly set during
     # validation preprocessing.
 
-    profile_human_activity_24hr: Optional[HourlyProfile] = Field(
+    profile_human_activity_24hr: Optional[DayNightHourlyProfile] = Field(
         description=(
             "24-hour human activity transition profile on the kernel's [1.0, 2.0] "
             "scale (1.0 = night, 2.0 = day, values in between = transition; read "
@@ -1131,15 +1171,20 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
             "display_name": "Human Activity Profile (24hr)",
         },
     )
-    # Field is Optional[HourlyProfile] but has a default_factory,
+    # Field is Optional[DayNightHourlyProfile] but has a default_factory,
     # so it will never actually be None unless explicitly set during
     # validation preprocessing.
+
+    @field_validator("profile_human_activity_24hr", mode="before")
+    @classmethod
+    def _coerce_human_activity_profile(cls, v: object) -> object:
+        return _coerce_hourly_profile_input(v)
 
     @field_validator("profile_human_activity_24hr", mode="after")
     @classmethod
     def _validate_human_activity_profile_scale(
-        cls, v: Optional[HourlyProfile]
-    ) -> Optional[HourlyProfile]:
+        cls, v: Optional[DayNightHourlyProfile]
+    ) -> Optional[DayNightHourlyProfile]:
         return validate_day_night_hourly_profile(v, "profile_human_activity_24hr")
 
     ref: Optional[Reference] = None
@@ -1277,12 +1322,16 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
         }
 
         # Extract HourlyProfile attributes
+        allow_inactive = _is_emissions_inactive_in_df_state(df, grid_id)
         hourly_profiles = {
             "profile_traffic_24hr": HourlyProfile.from_df_state(
                 df, grid_id, "traffprof_24hr"
             ),
-            "profile_human_activity_24hr": HourlyProfile.from_df_state(
-                df, grid_id, "humactivity_24hr"
+            "profile_human_activity_24hr": DayNightHourlyProfile.from_df_state(
+                df,
+                grid_id,
+                "humactivity_24hr",
+                allow_inactive_sentinels=allow_inactive,
             ),
         }
 

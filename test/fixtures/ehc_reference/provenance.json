@@ -13,8 +13,8 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "bf800ef",
-    "supy_version": "2026.11.27.dev8"
+    "git_commit": "dcacde6",
+    "supy_version": "2026.11.27.dev28"
   },
   "cases": {
     "ehc_facets": {
@@ -39,7 +39,7 @@
       "config_sha256": "159896183e1197a33aa9e4b5365633db52fda509fbd7a19d53ba13cd38d73772",
       "negative_qf_air_steps": 94,
       "rows": 2591,
-      "sha256": "c57cbdad834240bebd815fa759b004d48e3ddae5c9625bc3ff0f524b29eed603"
+      "sha256": "9c6d5ea705da9ee5f0329d30aedfe54a98139d7d586175a7beca44d55a270db0"
     },
     "ehc_slab": {
       "annual_rows": 105408,
@@ -63,12 +63,12 @@
       "config_sha256": "4a2f8e11d59b2166adcf026543bd7e9e664bb517d12461430b6fbc6558602d1c",
       "negative_qf_air_steps": 0,
       "rows": 2591,
-      "sha256": "c49b3813ad6cf6776cd70e8e10ffea6853c259aa6b911e18da41d78567fe973c"
+      "sha256": "b6235bde44862a657ba5e30f057980149f131197bceb2b43a81fc5824baced3c"
     }
   },
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-27T11:32:01.543773+00:00",
+  "generated_utc": "2026-11-27T16:02:04.005712+00:00",
   "platform": {
     "libc": "glibc 2.17",
     "machine": "x86_64",

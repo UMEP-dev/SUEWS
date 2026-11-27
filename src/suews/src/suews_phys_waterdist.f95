@@ -89,9 +89,9 @@ CONTAINS
       is, sfr_surf, PipeCapacity, RunoffToWater, pin, & ! input:
       WU_surf, &
       drain_surf, AddWater, addImpervious, nsh_real, state_in, frac_water2runoff, &
-      PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, &
+      addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, &
       runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore, & ! inout:
-      surplusWaterBody, SurplusEvap, runoffWaterBody, & ! inout:
+      surplusWaterBody, ev_shortfall_imperv, runoffWaterBody, & ! inout:
       runoff, state_out, & !output:
       modState) !optional: for thread-safe error logging
       !------------------------------------------------------------------------------
@@ -153,13 +153,12 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: pin !Rain per time interval
       REAL(KIND(1D0)), INTENT(in) :: addImpervious !Water from impervious surfaces of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: nsh_real !nsh cast as a real for use in calculations
-      REAL(KIND(1D0)), INTENT(in) :: PervFraction ! sum of surface cover fractions for impervious surfaces
       REAL(KIND(1D0)), INTENT(in) :: addVeg !Water from vegetated surfaces of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: addWaterBody !Water from water surface of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: FlowChange !Difference between the input and output flow in the water body
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: soilstore !Soil moisture of each surface type [mm]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: SurplusEvap !Surplus for evaporation in 5 min timestep
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: ev_shortfall_imperv !Evaporation shortfall that impervious surfaces could not supply [mm]
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: chang !Change in state_id [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: runoff !Runoff from each surface type [mm]
@@ -179,15 +178,16 @@ CONTAINS
 
       REAL(KIND(1D0)) :: p_mm !Inputs to surface water balance
 
-      !Extra evaporation [mm] from impervious surfaces which cannot happen due to lack of water
-      REAL(KIND(1D0)) :: EvPart
+      !Evaporation demand [mm] transferred from paved and building surfaces per unit receiving land-pervious area
+      REAL(KIND(1D0)) :: ev_from_imperv
+      REAL(KIND(1D0)) :: land_perv_fraction !Sum of land-pervious surface cover fractions (ConifSurf:BSoilSurf) [-]
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5
 
       !Threshold for intense precipitation [mm hr-1]
       REAL(KIND(1D0)), PARAMETER :: IPThreshold_mmhr = 10 ! NB:this should be an input and can be specified. SG 25 Apr 2018
 
-      !Initialise extra evaporation to zero
-      EvPart = 0
+      !Initialise transferred evaporation demand to zero
+      ev_from_imperv = 0.0D0
 
       !Initialise runoff to zero
       runoff(is) = 0
@@ -233,9 +233,9 @@ CONTAINS
          ! Check state_id is within physical limits between zero (dry) and max. storage capacity
          IF (state_out(is) < 0.0) THEN ! Cannot have a negative surface state_id
             ! If there is not sufficient water on the surface, then don't allow this evaporation to happen
-            ! Allow evaporation only until surface is dry (state_id(is)=0); additional evaporation -> evaporation surplus
-            SurplusEvap(is) = ABS(state_out(is)) !Surplus evaporation is that which tries to evaporate non-existent water
-            ev = ev - SurplusEvap(is) !Limit evaporation according to water availability
+            ! Allow evaporation only until surface is dry (state_id(is)=0); unmet demand -> impervious shortfall
+            ev_shortfall_imperv(is) = ABS(state_out(is)) !Evaporation shortfall that paved/building surface could not supply
+            ev = ev - ev_shortfall_imperv(is) !Limit evaporation according to water availability
             state_out(is) = 0.0 !Now surface is dry
             ! elseif (state_id(is)>StoreDrainPrm(6,is)) then   !!This should perhaps be StateLimit(is)
             !    !! If state_id exceeds the storage capacity, then the excess goes to surface flooding
@@ -258,15 +258,17 @@ CONTAINS
 
       CASE (ConifSurf:BSoilSurf)
          !==== For Conif, Decid, Grass, BSoil surfaces ==================
-         ! Transfer evaporation surplus from impervious surfaces to pervious surfaces
-         EvPart = MERGE( &
-                  DOT_PRODUCT(SurplusEvap(PavSurf:BldgSurf), sfr_surf(PavSurf:BldgSurf)/PervFraction), &
-                  0D0, &
-                  PervFraction /= 0)
-         ! EvPart needs be distributed to each pervious surface weighted by sfr_surf(is)
-         ! EvPart = EvPart*sfr_surf(is)/PervFraction
-         ! Add surplus evaporation to ev for pervious surfaces
-         ev = ev + EvPart
+         ! Transfer evaporation shortfall from impervious surfaces to land-pervious surfaces
+         ! (ConifSurf:BSoilSurf only; open water does not receive ev_from_imperv, gh#1951).
+         land_perv_fraction = SUM(sfr_surf(ConifSurf:BSoilSurf))
+         IF (land_perv_fraction > 0.0D0) THEN
+            ev_from_imperv = DOT_PRODUCT(ev_shortfall_imperv(PavSurf:BldgSurf), &
+                                         sfr_surf(PavSurf:BldgSurf))/land_perv_fraction
+         ELSE
+            ev_from_imperv = 0.0D0
+         END IF
+         ! Add transferred evaporation demand to ev for this land-pervious surface
+         ev = ev + ev_from_imperv
 
          ! ---- Add water from neighbouring grids (RG2G) ----
          ! Add to Grass and BSoil only, as water cannot flow onto trees
@@ -400,7 +402,6 @@ CONTAINS
       PipeCapacity, RunoffToWater, &
       addImpervious, addVeg, addWaterBody, FlowChange, &
       SoilStoreCap_surf, StateLimit_surf, &
-      PervFraction, &
       sfr_surf, drain_surf, AddWater_surf, frac_water2runoff_surf, WU_surf, &
       ev_surf_in, state_surf_in, soilstore_surf_in, &
       runoffAGimpervious_grid, runoffAGveg_grid, runoffPipes_grid, runoffWaterBody_grid, & ! inout
@@ -430,7 +431,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: pin !Rain per time interval
       REAL(KIND(1D0)), INTENT(in) :: addImpervious !Water from impervious surfaces of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: nsh_real !nsh cast as a real for use in calculations
-      REAL(KIND(1D0)), INTENT(in) :: PervFraction ! sum of surface cover fractions for impervious surfaces
       REAL(KIND(1D0)), INTENT(in) :: addVeg !Water from vegetated surfaces of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: addWaterBody !Water from water surface of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: FlowChange !Difference between the input and output flow in the water body
@@ -447,7 +447,7 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: runoff_surf !Runoff from each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: soilstore !Soil moisture of each surface type [mm]
-      REAL(KIND(1D0)), DIMENSION(2) :: SurplusEvap !Surplus for evaporation in 5 min timestep
+      REAL(KIND(1D0)), DIMENSION(2) :: ev_shortfall_imperv !Evaporation shortfall that impervious surfaces could not supply [mm]
 
       ! =============================
       ! TS 01 Apr 2022:
@@ -459,8 +459,6 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: ev_surf !Evaporation
 
-      !Extra evaporation [mm] from impervious surfaces which cannot happen due to lack of water
-      ! REAL(KIND(1D0)) :: EvPart
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5
 
       !Threshold for intense precipitation [mm hr-1]
@@ -469,7 +467,7 @@ CONTAINS
       ev_surf = ev_surf_in
       soilstore = soilstore_surf_in
 
-      SurplusEvap = 0
+      ev_shortfall_imperv = 0.0D0
       surplusWaterBody = 0
 
       runoff_surf = 0
@@ -483,9 +481,9 @@ CONTAINS
                is, sfr_surf, PipeCapacity, RunoffToWater, pin, & ! input:
                WU_surf, &
                drain_surf, AddWater_surf, addImpervious, nsh_real, state_surf_in, frac_water2runoff_surf, &
-               PervFraction, addVeg, SoilStoreCap_surf, addWaterBody, FlowChange, StateLimit_surf, &
+               addVeg, SoilStoreCap_surf, addWaterBody, FlowChange, StateLimit_surf, &
                runoffAGimpervious_grid, runoffAGveg_grid, runoffPipes_grid, ev_surf(is), soilstore, & ! inout:
-               surplusWaterBody, SurplusEvap, runoffWaterBody_grid, & ! inout:
+               surplusWaterBody, ev_shortfall_imperv, runoffWaterBody_grid, & ! inout:
                runoff_surf, state_surf_out) !output:
          END IF
 

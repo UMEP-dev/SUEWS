@@ -3098,7 +3098,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SnowDens !snow density [kg m-3]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_e_surf !net available energy for evaporation for each surfaces [W m-2]
 
-      REAL(KIND(1D0)), DIMENSION(2) :: SurplusEvap !surface evaporation in 5 min timestep [mm]
+      REAL(KIND(1D0)), DIMENSION(2) :: ev_shortfall_imperv !Evaporation shortfall that impervious surfaces could not supply [mm]
       REAL(KIND(1D0)) :: surplusWaterBody !Extra runoff that goes to water body [mm] as specified by RunoffToWater
       REAL(KIND(1D0)) :: pin !Rain per time interval [mm]
       REAL(KIND(1D0)) :: qn_e !net available energy for evaporation [W m-2]
@@ -3291,7 +3291,7 @@ CONTAINS
                surplusWaterBody = 0
                runoff_surf = 0
                chang = 0
-               SurplusEvap = 0
+               ev_shortfall_imperv = 0.0D0
 
                ! force these facets to be totally dry
                ! TODO: need to consider their hydrologic dynamics
@@ -3357,7 +3357,7 @@ CONTAINS
                         freezmelt, freezstate, freezstatevol, &
                         Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, &
                         AddWater, frac_water2runoff, &
-                        soilstore_id, SnowPack, SurplusEvap, & !inout
+                        soilstore_id, SnowPack, ev_shortfall_imperv, & !inout
                         SnowFrac, SnowWater, iceFrac, SnowDens, &
                         runoffAGimpervious, runoffAGveg, surplusWaterBody, &
                         ev_tot, qe_tot, runoff_tot, surf_chang_tot, chSnow_tot, & ! output
@@ -3379,9 +3379,9 @@ CONTAINS
                         is, sfr_surf, PipeCapacity, RunoffToWater, pin, & ! input:
                         WU_surf, &
                         drain, AddWater, addimpervious, nsh_real, state_id_in, frac_water2runoff, &
-                        PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit_surf, &
+                        addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit_surf, &
                         runoffAGimpervious, runoffAGveg, runoffPipes, ev_free, soilstore_id, & ! inout:
-                        surplusWaterBody, SurplusEvap, runoffwaterbody, & ! inout:
+                        surplusWaterBody, ev_shortfall_imperv, runoffwaterbody, & ! inout:
                         runoff_free, state_free, & !output:
                         modState)
                      ! kept aside: SnowCalc, called for later surfaces on the same array,
@@ -3574,7 +3574,6 @@ CONTAINS
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
             FlowChange => siteInfo%flow_change, &
-            PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
             SurfaceArea => siteInfo%SurfaceArea, &
@@ -3758,7 +3757,6 @@ CONTAINS
                   PipeCapacity, RunoffToWater, & ! input:
                   addImpervious, addVeg, addWaterBody, FlowChange, &
                   SoilStoreCap_surf, StateLimit_surf, &
-                  PervFraction, &
                   sfr_surf, drain_surf, AddWater_surf, frac_water2runoff_surf, WU_surf, &
                   ev0_surf, state_surf_in, soilstore_surf_in, &
                   runoffAGimpervious, runoffAGveg, runoffPipes, runoffwaterbody, & ! output:

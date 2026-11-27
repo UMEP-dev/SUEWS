@@ -341,3 +341,301 @@ def test_get_spinup_state_rejects_invalid_duplication_index(
 
     with pytest.raises(ValueError, match=message):
         get_spinup_state(df_state, df_forcing, "2012-04-10", spinup_days=1)
+
+
+def test_get_spinup_state_exact_pre_analysis_boundary_succeeds(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    """Forcing whose earliest timestamp equals ``start_analysis - spinup_days`` runs cleanly."""
+    # ARRANGE: 730-day forcing starting at 2018-01-01 00:00:00; 1-day spin-up ends 2018-01-02 00:00:00.
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+    df_state_init = df_state_raw.copy()
+
+    # ACT
+    df_state_spinup, df_output_lc, _ = get_spinup_state(
+        df_state_init,
+        df_forcing,
+        start_analysis="2018-01-02",
+        spinup_days=1,
+        save_spinup=True,
+    )
+
+    # ASSERT
+    assert df_state_spinup.shape == df_state_init.shape
+    assert df_state_spinup.index.equals(df_state_init.index)
+    assert not df_output_lc.empty
+    timestamps = df_output_lc.index.get_level_values("datetime")
+    assert timestamps.min() >= pd.Timestamp("2018-01-01 00:00:00")
+    assert timestamps.max() == pd.Timestamp("2018-01-02 00:00:00")
+    grid_id = df_state_spinup.index[0]
+    assert np.isfinite(df_state_spinup.loc[grid_id, ("soilstore_surf", "(2,)")]).all()
+    assert df_state_spinup.loc[grid_id, ("soilstore_surf", "(2,)")] != pytest.approx(
+        df_state_init.loc[grid_id, ("soilstore_surf", "(2,)")]
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "case",
+        "start_analysis",
+        "spinup_days",
+        "drop_first_row",
+        "expected_start",
+        "expected_earliest",
+        "expected_available",
+    ),
+    [
+        (
+            "1_step_short_via_start_analysis",
+            "2018-01-10 23:55:00",
+            10,
+            False,
+            "2017-12-31 23:55:00",
+            "2018-01-01 00:00:00",
+            "9 days 23:55:00",
+        ),
+        (
+            "1_step_short_via_earliest_row",
+            "2018-01-11",
+            10,
+            True,
+            "2018-01-01 00:00:00",
+            "2018-01-01 00:05:00",
+            "9 days 23:55:00",
+        ),
+        (
+            "multi_day_short_gh2129",
+            "2018-01-03",
+            10,
+            False,
+            "2017-12-24 00:00:00",
+            "2018-01-01 00:00:00",
+            "2 days 00:00:00",
+        ),
+        (
+            "zero_pre_analysis_at_start",
+            "2018-01-01",
+            10,
+            False,
+            "2017-12-22 00:00:00",
+            "2018-01-01 00:00:00",
+            "0 days 00:00:00",
+        ),
+        (
+            "start_analysis_precedes_forcing",
+            "2017-12-15",
+            10,
+            False,
+            "2017-12-05 00:00:00",
+            "2018-01-01 00:00:00",
+            "0 days 00:00:00",
+        ),
+    ],
+)
+def test_get_spinup_state_rejects_insufficient_pre_analysis_forcing(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+    case: str,
+    start_analysis: str,
+    spinup_days: int,
+    drop_first_row: bool,
+    expected_start: str,
+    expected_earliest: str,
+    expected_available: str,
+) -> None:
+    """Insufficient pre-analysis forcing fails loudly instead of silently truncating."""
+    # ARRANGE
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_state = df_state_raw.copy()
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+    if drop_first_row:
+        df_forcing = df_forcing.iloc[1:]
+    state_before = df_state.copy(deep=True)
+    forcing_before = df_forcing.copy(deep=True)
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="Insufficient pre-analysis forcing") as exc:
+        get_spinup_state(
+            df_state,
+            df_forcing,
+            start_analysis=start_analysis,
+            spinup_days=spinup_days,
+        )
+    message = str(exc.value)
+    assert f"spinup_days={spinup_days}" in message, case
+    assert expected_start in message, case
+    assert expected_earliest in message, case
+    assert expected_available in message, case
+    pd.testing.assert_frame_equal(df_state, state_before, check_exact=True)
+    pd.testing.assert_frame_equal(df_forcing, forcing_before, check_exact=True)
+
+
+def test_get_spinup_state_rejects_insufficient_pre_analysis_on_1_year_forcing(
+    sample_forcing_parsed,
+) -> None:
+    """1-to-2-year forcing also fails loudly when pre-analysis data is too short."""
+    # ARRANGE: real 2012 sample forcing starts at 2012-01-01 00:05:00.
+    df_state, df_forcing = sample_forcing_parsed()
+
+    # ACT / ASSERT: 1-step short (5 minutes) and default 365-day spin-up both fail loudly.
+    with pytest.raises(
+        ValueError, match="Insufficient pre-analysis forcing"
+    ) as exc_step:
+        get_spinup_state(
+            df_state,
+            df_forcing,
+            start_analysis="2012-01-11",
+            spinup_days=10,
+        )
+    assert "9 days 23:55:00" in str(exc_step.value)
+
+    with pytest.raises(
+        ValueError, match="Insufficient pre-analysis forcing"
+    ) as exc_default:
+        get_spinup_state(
+            df_state,
+            df_forcing,
+            start_analysis="2012-04-10",
+            spinup_days=365,
+        )
+    assert "spinup_days=365" in str(exc_default.value)
+    assert "2011-04-11 00:00:00" in str(exc_default.value)
+
+
+@pytest.mark.parametrize(
+    ("start_analysis", "expected_available"),
+    [
+        ("2020-01-05", "6 days 00:00:00"),
+        ("2020-02-01", "0 days 00:00:00"),
+    ],
+)
+def test_get_spinup_state_rejects_start_analysis_after_forcing_end(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+    start_analysis: str,
+    expected_available: str,
+) -> None:
+    """Forcing ending before ``start_analysis`` fails loudly instead of truncating."""
+    # ARRANGE
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match="Insufficient forcing coverage") as exc:
+        get_spinup_state(
+            df_state_raw.copy(),
+            df_forcing,
+            start_analysis=start_analysis,
+            spinup_days=10,
+        )
+    message = str(exc.value)
+    assert "spinup_days=10" in message
+    assert "2020-01-01 00:00:00" in message
+    assert expected_available in message
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    ["empty", "gap", "duplicate", "reversed", "nat", "all_nat", "non_datetime"],
+)
+def test_get_spinup_state_rejects_invalid_2_year_forcing_index(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+    invalid: str,
+) -> None:
+    """Two-year forcing also enforces a valid, regular, increasing DatetimeIndex."""
+    # ARRANGE
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+    message = "regular, increasing DatetimeIndex"
+    if invalid == "empty":
+        df_forcing = df_forcing.iloc[:0]
+        message = "empty"
+    elif invalid == "gap":
+        df_forcing = df_forcing.drop(df_forcing.index[100])
+    elif invalid == "duplicate":
+        df_forcing = pd.concat([df_forcing.iloc[:101], df_forcing.iloc[100:]])
+    elif invalid == "reversed":
+        df_forcing = df_forcing.iloc[::-1]
+    elif invalid == "non_datetime":
+        df_forcing = df_forcing.reset_index(drop=True)
+        message = "pandas.DatetimeIndex"
+    else:
+        timestamps = df_forcing.index.to_numpy(copy=True)
+        message = "must not contain NaT"
+        if invalid == "all_nat":
+            timestamps[:] = np.datetime64("NaT")
+        else:
+            timestamps[100] = np.datetime64("NaT")
+        df_forcing.index = pd.DatetimeIndex(timestamps)
+
+    # ACT / ASSERT
+    with pytest.raises(ValueError, match=message):
+        get_spinup_state(
+            df_state_raw.copy(),
+            df_forcing,
+            start_analysis="2019-04-15",
+            spinup_days=10,
+        )
+
+
+@pytest.mark.parametrize("bad_days", [0, -1, -999, False, True, 1.5, float("nan")])
+def test_get_spinup_state_rejects_invalid_spinup_days(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+    bad_days,
+) -> None:
+    """Non-positive, boolean, or non-integer ``spinup_days`` raises ValueError."""
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+
+    with pytest.raises(ValueError, match="spinup_days must be a positive integer"):
+        get_spinup_state(
+            df_state_raw.copy(),
+            df_forcing,
+            start_analysis="2019-04-15",
+            spinup_days=bad_days,
+        )
+
+
+@pytest.mark.parametrize(
+    "bad_start", ["not-a-date", "", None, pd.NaT, 20190415, float("nan")]
+)
+def test_get_spinup_state_rejects_invalid_start_analysis(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+    bad_start,
+) -> None:
+    """Unparseable, missing, or numeric ``start_analysis`` raises ValueError."""
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+
+    with pytest.raises(ValueError, match="Invalid start_analysis timestamp"):
+        get_spinup_state(
+            df_state_raw.copy(),
+            df_forcing,
+            start_analysis=bad_start,
+            spinup_days=10,
+        )
+
+
+def test_get_spinup_state_rejects_timezone_mismatch_and_sparse_window(
+    sample_data_loaded: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    """Timezone mismatch and ultra-coarse indices with empty spin-up slices fail loudly."""
+    df_state_raw, df_forcing_raw = sample_data_loaded
+    df_forcing = _extend_forcing(df_forcing_raw, days=730, start="2018-01-01")
+
+    with pytest.raises(ValueError, match="timezone-naive"):
+        get_spinup_state(
+            df_state_raw.copy(),
+            df_forcing,
+            start_analysis="2019-04-15T00:00:00Z",
+            spinup_days=10,
+        )
+
+    # Two rows spanning 730 days satisfy the span check but contain 0 rows in the window.
+    df_sparse = df_forcing.iloc[[0, -1]].copy()
+    with pytest.raises(ValueError, match="Insufficient forcing records"):
+        get_spinup_state(
+            df_state_raw.copy(),
+            df_sparse,
+            start_analysis="2019-04-15",
+            spinup_days=10,
+        )

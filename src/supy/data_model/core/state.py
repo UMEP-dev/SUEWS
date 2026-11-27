@@ -167,6 +167,22 @@ class SurfaceInitialState(DataModelBase):
             inst.model_fields_set.add(field_name)
         return inst
 
+    @model_validator(mode="after")
+    def _reject_non_finite_snow_states(self) -> "SurfaceInitialState":
+        """Reject NaN/Inf on snow initial states in lockstep with native YAML loading."""
+        for field_name in type(self)._SNOW_STATE_FIELDS:
+            raw = getattr(self, field_name, None)
+            val = raw.value if isinstance(raw, RefValue) else raw
+            if (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and not math.isfinite(float(val))
+            ):
+                raise ValueError(
+                    f"{field_name} must be a finite number, got {val!r}"
+                )
+        return self
+
     @field_validator("temperature", mode="before")
     def validate_temperature(cls, v):
         if isinstance(v, dict):

@@ -1228,6 +1228,14 @@ class SnowParams(DataModelBase):
         "temperature_melt_factor",
         "radiation_melt_factor",
     )
+    _SNOW_ALL_SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
+        *_SNOW_NON_OPTIONAL_SCALAR_FIELDS,
+        "temperature_rain_snow_threshold",
+        "snow_density_min",
+        "snow_density_max",
+        "ohm_threshold_summer_winter",
+        "ohm_threshold_wet_dry",
+    )
 
     _snow_validation_active: bool = PrivateAttr(default=True)
     _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
@@ -1490,6 +1498,22 @@ class SnowParams(DataModelBase):
             )
         return values
 
+    @model_validator(mode="after")
+    def _reject_non_finite_snow_scalars(self) -> "SnowParams":
+        """Reject NaN/Inf on supplied snow scalars in lockstep with native YAML loading."""
+        for field_name in type(self)._SNOW_ALL_SCALAR_FIELDS:
+            raw = getattr(self, field_name, None)
+            val = raw.value if isinstance(raw, RefValue) else raw
+            if (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and not math.isfinite(float(val))
+            ):
+                raise ValueError(
+                    f"snow.{field_name} must be a finite number, got {val!r}"
+                )
+        return self
+
     @field_serializer(
         "water_holding_capacity_max",
         "water_holding_capacity_min",
@@ -1524,6 +1548,20 @@ class SnowParams(DataModelBase):
             object.__setattr__(self, "snow_profile_24hr", None)
             self.model_fields_set.add("snow_profile_24hr")
             return
+        if name in type(self)._SNOW_ALL_SCALAR_FIELDS:
+            raw_check = value.value if isinstance(value, RefValue) else (
+                value["value"]
+                if isinstance(value, Mapping) and "value" in value
+                else value
+            )
+            if (
+                isinstance(raw_check, numbers.Real)
+                and not isinstance(raw_check, bool)
+                and not math.isfinite(float(raw_check))
+            ):
+                raise ValueError(
+                    f"snow.{name} must be a finite number, got {raw_check!r}"
+                )
         if name in type(self)._SNOW_NON_OPTIONAL_SCALAR_FIELDS:
             if not self._is_snow_validation_active():
                 ok, normalised = normalise_inactive_float_value(
@@ -3666,10 +3704,15 @@ class SoilObservationConfig(DataModelBase):
         cols = {("gridiv", "0"): grid_id}
         for attr, col_name in self._FIELD_TO_COLUMN.items():
             field_val = getattr(self, attr)
-            if field_val is not None:
-                raw = field_val.value if isinstance(field_val, RefValue) else field_val
+            raw = field_val.value if isinstance(field_val, RefValue) else field_val
+            if attr == "bulk_density":
                 if raw is not None:
                     cols[(col_name, "0")] = raw
+            else:
+                # Always emit non-optional observed-soil columns so inactive
+                # nulls/NaNs survive DataFrame round-trips instead of reverting
+                # to valid defaults (layer_top=0.0, soil_not_rocks=1.0).
+                cols[(col_name, "0")] = raw
         return cols
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -3684,12 +3727,39 @@ class SoilObservationConfig(DataModelBase):
         for name in ("obs_sm_depth", "obs_sm_smcap"):
             if (name, "0") in df.columns:
                 raise ValueError(f"Retired soil observation field {name}; migrate the source configuration")
-        params = {}
-        for field_name, col_name in cls._FIELD_TO_COLUMN.items():
-            if (col_name, "0") in df.columns:
-                value = df.loc[grid_id, (col_name, "0")]
+        soil_obs_inactive = _SOIL_OBSERVED_CONTEXT.get() is False
+        present_cols = {
+            field_name: df.loc[grid_id, (col_name, "0")]
+            for field_name, col_name in cls._FIELD_TO_COLUMN.items()
+            if (col_name, "0") in df.columns
+        }
+        if not present_cols:
+            return None
+        any_non_null = any(
+            val is not None and not pd.isna(val) for val in present_cols.values()
+        )
+        if not any_non_null:
+            return None
+        params: dict[str, Any] = {}
+        for field_name, value in present_cols.items():
+            if field_name == "bulk_density":
                 if value is not None and not pd.isna(value):
                     params[field_name] = RefValue(value)
+                continue
+            if value is None:
+                params[field_name] = None if soil_obs_inactive else RefValue(None)
+            elif (
+                isinstance(value, numbers.Real)
+                and not isinstance(value, bool)
+                and math.isnan(float(value))
+            ):
+                params[field_name] = (
+                    float("nan") if soil_obs_inactive else RefValue(value)
+                )
+            elif pd.isna(value):
+                params[field_name] = None if soil_obs_inactive else RefValue(None)
+            else:
+                params[field_name] = RefValue(value)
         return cls(**params) if params else None
 
 

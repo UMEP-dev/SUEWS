@@ -635,6 +635,143 @@ def test_snowalb_relaxed_construction_retains_unconditional_non_null_guard(
             cfg.sites[0].initial_states.snowalb.value = None
 
 
+def test_yaml_roundtrip_preserves_inactive_snow_and_soil_nulls(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """``to_yaml()`` -> ``from_yaml()`` preserves explicit inactive nulls instead of defaults."""
+    data = copy.deepcopy(sample_dict)
+    _set_snow_use(data, 0)
+    data["model"]["physics"]["soil_moisture"] = "modelled"
+    data["sites"][0]["properties"]["snow"]["tau_cold_snow"] = None
+    data["sites"][0]["properties"]["snow"]["water_holding_capacity_max"] = {
+        "value": None
+    }
+    data["sites"][0]["properties"]["snow"]["snow_profile_24hr"] = None
+    data["sites"][0]["initial_states"]["paved"]["snowfrac"] = None
+    data["sites"][0]["properties"]["soil_observation"] = {
+        "layer_depth": 0.2,
+        "layer_top": None,
+        "soil_not_rocks": {"value": None},
+    }
+    cfg = SUEWSConfig.from_dict(data)
+    yaml_path = tmp_path / "roundtrip_nulls.yml"
+    cfg.to_yaml(str(yaml_path))
+
+    reloaded = SUEWSConfig.from_yaml(str(yaml_path))
+    assert reloaded.sites[0].properties.snow.tau_cold_snow is None
+    assert isinstance(
+        reloaded.sites[0].properties.snow.water_holding_capacity_max, RefValue
+    )
+    assert reloaded.sites[0].properties.snow.water_holding_capacity_max.value is None
+    assert reloaded.sites[0].properties.snow.snow_profile_24hr is None
+    assert reloaded.sites[0].initial_states.paved.snowfrac is None
+    assert reloaded.sites[0].properties.soil_observation.layer_top is None
+    assert reloaded.sites[0].properties.soil_observation.soil_not_rocks.value is None
+    reloaded.validate_for_engine()
+
+    # Enabling either scheme rejects the reloaded configuration just like the original.
+    reloaded_snow = copy.deepcopy(reloaded)
+    reloaded_snow.model.physics.snow_use = SnowUse.ENABLED
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        reloaded_snow.validate_for_engine()
+
+    reloaded_soil = copy.deepcopy(reloaded)
+    reloaded_soil.model.physics.soil_moisture = SMDMethod.OBSERVED
+    with pytest.raises(ValueError, match="layer_top"):
+        reloaded_soil.validate_for_engine()
+
+    # properties.snow: null also survives YAML round-trip without inventing SnowParams().
+    null_snow_data = copy.deepcopy(sample_dict)
+    _set_snow_use(null_snow_data, 0)
+    null_snow_data["sites"][0]["properties"]["snow"] = None
+    null_snow_cfg = SUEWSConfig.from_dict(null_snow_data)
+    null_snow_path = tmp_path / "roundtrip_null_snow_block.yml"
+    null_snow_cfg.to_yaml(str(null_snow_path))
+    reloaded_null_snow = SUEWSConfig.from_yaml(str(null_snow_path))
+    assert reloaded_null_snow.sites[0].properties.snow is None
+
+
+def test_soil_df_state_roundtrip_preserves_inactive_null_and_nan(
+    sample_dict: dict,
+) -> None:
+    """Soil DataFrame round-trip preserves ``layer_top=None`` and ``soil_not_rocks=NaN``."""
+    data = _make_active_observed_soil_dict(sample_dict)
+    data["model"]["physics"]["soil_moisture"] = "modelled"
+    data["sites"][0]["properties"]["soil_observation"] = {
+        "layer_depth": 0.2,
+        "layer_top": None,
+        "soil_not_rocks": float("nan"),
+    }
+    cfg = SUEWSConfig.from_dict(data)
+    df_state = cfg.to_df_state()
+    grid_id = cfg.sites[0].gridiv
+    assert pd.isna(df_state.loc[grid_id, ("obs_sm_layer_top", "0")])
+    assert pd.isna(df_state.loc[grid_id, ("obs_sm_soil_not_rocks", "0")])
+
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert rebuilt.sites[0].properties.soil_observation is not None
+    assert rebuilt.sites[0].properties.soil_observation.layer_top is None
+    assert pd.isna(rebuilt.sites[0].properties.soil_observation.soil_not_rocks)
+    rebuilt.validate_for_engine()
+
+    # Activating observed soil rejects the rebuilt configuration rather than defaulting.
+    rebuilt.model.physics.soil_moisture = SMDMethod.OBSERVED
+    with pytest.raises(ValueError, match="layer_top"):
+        rebuilt.validate_for_engine()
+
+
+@pytest.mark.parametrize(
+    ("mutator", "description"),
+    [
+        (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "water_holding_capacity_max", {"value": float("nan")}
+            ),
+            "wrapped NaN snow scalar",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "tau_cold_snow", float("inf")
+            ),
+            "bare +Inf snow scalar",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "snow_density_min", {"value": float("-inf")}
+            ),
+            "wrapped -Inf optional snow scalar",
+        ),
+        (
+            lambda d: d["sites"][0]["initial_states"]["paved"].__setitem__(
+                "snowpack", float("inf")
+            ),
+            "bare +Inf surface snowpack state",
+        ),
+    ],
+)
+def test_non_finite_inactive_snow_values_rejected_in_lockstep_with_native(
+    sample_dict: dict, mutator, description: str
+) -> None:
+    """NaN/Inf snow scalars and states fail in Python even when ``snow_use == 0``."""
+    data = copy.deepcopy(sample_dict)
+    _set_snow_use(data, 0)
+    mutator(data)
+    with pytest.raises((ValidationError, ValueError)):
+        SUEWSConfig.from_dict(data)
+
+    # Also verify live mutation and handoff guard reject non-finite values.
+    clean = copy.deepcopy(sample_dict)
+    _set_snow_use(clean, 0)
+    cfg = SUEWSConfig.from_dict(clean)
+    with pytest.raises((ValidationError, ValueError)):
+        cfg.sites[0].properties.snow.water_holding_capacity_max = {
+            "value": float("nan")
+        }
+    cfg.sites[0].properties.snow.water_holding_capacity_max.value = float("nan")
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        cfg.validate_for_engine()
+
+
 # =============================================================================
 # 2. Observed soil scheme-gated validation (soil_moisture != 1 vs == 1)
 # =============================================================================

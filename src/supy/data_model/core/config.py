@@ -1632,10 +1632,6 @@ class SUEWSConfig(DataModelBase):
         snow_code = resolve_snow_use_code(
             getattr(getattr(self.model, "physics", None), "snow_use", None)
         )
-        if snow_code == 0:
-            return self
-
-        errors = []
         ground_surfaces = (
             "paved",
             "bldgs",
@@ -1645,6 +1641,63 @@ class SUEWSConfig(DataModelBase):
             "bsoil",
             "water",
         )
+        if snow_code == 0:
+            non_finite_errors = []
+            for i, site in enumerate(self.sites):
+                site_name = getattr(site, "name", f"Site {i}")
+                snow_params = (
+                    getattr(site.properties, "snow", None)
+                    if getattr(site, "properties", None) is not None
+                    else None
+                )
+                if snow_params is not None:
+                    for field_name in SnowParams._SNOW_ALL_SCALAR_FIELDS:
+                        val = _unwrap_value(getattr(snow_params, field_name, None))
+                        if (
+                            isinstance(val, (int, float, np.number))
+                            and not isinstance(val, (bool, np.bool_))
+                            and not math.isfinite(float(val))
+                        ):
+                            non_finite_errors.append(
+                                f"{site_name}: snow.{field_name} ({val!r}) must be finite"
+                            )
+                init_states = getattr(site, "initial_states", None)
+                if init_states is not None:
+                    snowalb_val = _unwrap_value(getattr(init_states, "snowalb", None))
+                    if (
+                        isinstance(snowalb_val, (int, float, np.number))
+                        and not isinstance(snowalb_val, (bool, np.bool_))
+                        and not math.isfinite(float(snowalb_val))
+                    ):
+                        non_finite_errors.append(
+                            f"{site_name}: initial_states.snowalb ({snowalb_val!r}) must be finite"
+                        )
+                    for surf_name in ground_surfaces:
+                        surf_state = getattr(init_states, surf_name, None)
+                        if surf_state is None:
+                            continue
+                        for state_field in (
+                            "snowfrac",
+                            "icefrac",
+                            "snowpack",
+                            "snowwater",
+                            "snowdens",
+                        ):
+                            val = _unwrap_value(getattr(surf_state, state_field, None))
+                            if (
+                                isinstance(val, (int, float, np.number))
+                                and not isinstance(val, (bool, np.bool_))
+                                and not math.isfinite(float(val))
+                            ):
+                                non_finite_errors.append(
+                                    f"{site_name}: initial_states.{surf_name}.{state_field} "
+                                    f"({val!r}) must be finite"
+                                )
+            if non_finite_errors:
+                raise ValueError("; ".join(non_finite_errors))
+            return self
+
+        errors = []
 
         for i, site in enumerate(self.sites):
             site_name = getattr(site, "name", f"Site {i}")
@@ -7104,6 +7157,77 @@ class SUEWSConfig(DataModelBase):
                 .setdefault("forcing", {})
             )
             forcing_dict["file"] = None
+
+        # Preserve explicit scheme-gated nulls on inactive snow/soil fields so
+        # YAML round-tripping does not silently reinstate usable defaults (#2363).
+        sites_out = config_dict.get("sites")
+        if (
+            isinstance(self.sites, list)
+            and isinstance(sites_out, list)
+            and len(self.sites) == len(sites_out)
+        ):
+            for site_obj, site_dict in zip(self.sites, sites_out):
+                if not isinstance(site_obj, Site) or not isinstance(site_dict, dict):
+                    continue
+                props_obj = getattr(site_obj, "properties", None)
+                props_dict = site_dict.get("properties")
+                if props_obj is not None and isinstance(props_dict, dict):
+                    snow_obj = getattr(props_obj, "snow", None)
+                    if snow_obj is None:
+                        props_dict["snow"] = None
+                    elif isinstance(snow_obj, SnowParams):
+                        snow_dict = props_dict.setdefault("snow", {})
+                        for field_name in (
+                            *SnowParams._SNOW_NON_OPTIONAL_SCALAR_FIELDS,
+                            "snow_profile_24hr",
+                        ):
+                            raw = getattr(snow_obj, field_name, None)
+                            if raw is None:
+                                snow_dict[field_name] = None
+                            elif isinstance(raw, RefValue) and raw.value is None:
+                                snow_dict[field_name] = {"value": None}
+                    soil_obs_obj = getattr(props_obj, "soil_observation", None)
+                    if isinstance(soil_obs_obj, SoilObservationConfig):
+                        soil_obs_dict = props_dict.setdefault("soil_observation", {})
+                        for field_name in (
+                            "layer_depth",
+                            "layer_top",
+                            "soil_not_rocks",
+                        ):
+                            raw = getattr(soil_obs_obj, field_name, None)
+                            if raw is None:
+                                soil_obs_dict[field_name] = None
+                            elif isinstance(raw, RefValue) and raw.value is None:
+                                soil_obs_dict[field_name] = {"value": None}
+
+                init_obj = getattr(site_obj, "initial_states", None)
+                init_dict = site_dict.get("initial_states")
+                if init_obj is not None and isinstance(init_dict, dict):
+                    for surf_name in (
+                        "paved",
+                        "bldgs",
+                        "evetr",
+                        "dectr",
+                        "grass",
+                        "bsoil",
+                        "water",
+                    ):
+                        surf_obj = getattr(init_obj, surf_name, None)
+                        surf_dict = init_dict.get(surf_name)
+                        if surf_obj is None or not isinstance(surf_dict, dict):
+                            continue
+                        for state_field in (
+                            "snowfrac",
+                            "snowpack",
+                            "icefrac",
+                            "snowwater",
+                            "snowdens",
+                        ):
+                            raw = getattr(surf_obj, state_field, None)
+                            if raw is None:
+                                surf_dict[state_field] = None
+                            elif isinstance(raw, RefValue) and raw.value is None:
+                                surf_dict[state_field] = {"value": None}
 
         # Strip private implementation fields
         for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):

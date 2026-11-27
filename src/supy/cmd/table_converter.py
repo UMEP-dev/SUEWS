@@ -35,14 +35,15 @@ except ImportError:
 
 
 @click.command(
+    name="convert",
     context_settings={"show_default": True},
     help=(
         "Convert any supported SUEWS input into a current-schema YAML.\n\n"
-        "Input type is auto-detected from the file:\n"
-        "  RunControl.nml / *.nml    legacy SUEWS table set\n"
-        "  *.csv / *.pkl             df_state snapshot\n"
-        "  *.yml / *.yaml            older-release YAML (cross-release upgrade)\n\n"
-        "Pass -f/--from to disambiguate the source version when auto-detection "
+        "Input type is auto-detected from the file:\n\n"
+        "- ``RunControl.nml`` / ``.nml``: legacy SUEWS table set\n"
+        "- ``.csv`` / ``.pkl``: df_state snapshot\n"
+        "- ``.yml`` / ``.yaml``: older-release YAML (cross-release upgrade)\n\n"
+        "Pass ``-f``/``--from`` to disambiguate the source version when auto-detection "
         "is ambiguous (table releases for .nml inputs; release tag or schema "
         "version for .yml inputs)."
     ),
@@ -64,8 +65,8 @@ except ImportError:
     "--input",
     "input_file",
     help=(
-        "Input file: RunControl.nml for tables, *.csv/*.pkl for df_state, "
-        "or *.yml/*.yaml for an older YAML config."
+        "Input file: RunControl.nml for tables, .csv/.pkl for df_state, "
+        "or .yml/.yaml for an older YAML config."
     ),
     type=click.Path(exists=True, dir_okay=False, file_okay=True),
     required=False,

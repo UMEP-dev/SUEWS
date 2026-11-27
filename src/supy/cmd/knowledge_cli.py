@@ -11,7 +11,10 @@ from ..knowledge import build_pack, load_manifest, query_pack
 from .json_envelope import EXIT_OK, EXIT_USER_ERROR, Envelope
 
 
-@click.group(help="Build and query the versioned SUEWS source-evidence pack.")
+@click.group(
+    name="knowledge",
+    help="Build and query the versioned SUEWS source-evidence pack.",
+)
 def knowledge_group() -> None:
     """Knowledge-pack command group."""
 
@@ -32,7 +35,14 @@ def knowledge_group() -> None:
     help="Repository checkout to package.",
 )
 @click.option("--git-sha", help="Explicit Git SHA when building outside a Git checkout.")
-@click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format.",
+)
 def build_cmd(
     output_dir: Path,
     repo_root: Path,
@@ -74,9 +84,17 @@ def build_cmd(
     "--pack",
     "pack_dir",
     type=click.Path(file_okay=False, path_type=Path),
-    help="Knowledge-pack directory. Defaults to the installed pack.",
+    show_default="installed pack",
+    help="Knowledge-pack directory.",
 )
-@click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format.",
+)
 def manifest_cmd(pack_dir: Path | None, output_format: str) -> None:
     """Show the knowledge-pack manifest."""
     command = "suews knowledge manifest"
@@ -106,11 +124,25 @@ def manifest_cmd(pack_dir: Path | None, output_format: str) -> None:
     "--pack",
     "pack_dir",
     type=click.Path(file_okay=False, path_type=Path),
-    help="Knowledge-pack directory. Defaults to the installed pack.",
+    show_default="installed pack",
+    help="Knowledge-pack directory.",
 )
-@click.option("--limit", type=int, default=5, show_default=True)
+@click.option(
+    "--limit",
+    type=int,
+    default=5,
+    show_default=True,
+    help="Maximum number of matches to return.",
+)
 @click.option("--scope", help="Restrict to a content_type such as fortran, rust, python_api, schema.")
-@click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format.",
+)
 def query_cmd(
     question: str,
     pack_dir: Path | None,

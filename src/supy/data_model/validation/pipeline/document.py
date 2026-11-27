@@ -17,15 +17,19 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-import io
 from pathlib import Path
 import re
-from typing import Any, Literal
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Literal
 
-from ...core._yaml_io import safe_dump_yaml, safe_load_yaml
-from ...core.field_renames import normalise_yaml_renames
+from ...core._yaml_io import safe_load_yaml
+from ...core.field_renames import RAW_YAML_FIELD_RENAMES, normalise_yaml_renames
 from ...core.physics_families import flatten_physics_in_config
 from ...core.profile import normalise_hourly_profile_keys_in_raw_config
+from .style_ledger import PathStyle, StyleLedger, WrapperStyle, dump_yaml_with_style
+
+if TYPE_CHECKING:
+    from ..rules.typed_view import TypedConfigView
 
 _MISSING = object()
 _PATH_TOKEN_RE = re.compile(r"([^\.\[\]]+)|\[(\d+)\]")
@@ -35,6 +39,17 @@ _VALID_PATH_RE = re.compile(
 
 PatchAction = Literal["set", "delete", "nullify_tree"]
 _VALID_PATCH_ACTIONS = frozenset({"set", "delete", "nullify_tree"})
+
+
+def deep_freeze(value: Any) -> Any:
+    """Recursively freeze mappings, sequences, and sets into read-only containers."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({k: deep_freeze(v) for k, v in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(deep_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(deep_freeze(item) for item in value)
+    return value
 
 
 def thaw_copy(value: Any) -> Any:
@@ -107,9 +122,46 @@ def read_scalar(container: Any, key: str, default: Any = None) -> Any:
     return entry
 
 
-def _update_existing_entry(existing: Any, new_value: Any) -> Any:
+def _build_new_entry(
+    new_value: Any,
+    *,
+    default_wrapped: bool,
+    wrapper_style: WrapperStyle | None = None,
+    ref_metadata: Mapping[str, Any] | None = None,
+) -> Any:
+    """Construct a new YAML entry honouring recorded authoring style and ``ref`` metadata."""
+    copied = thaw_copy(new_value)
+    if wrapper_style == "bare":
+        return copied
+    if wrapper_style == "ref_only" and copied is None and ref_metadata is not None:
+        return {"ref": thaw_copy(ref_metadata)}
+    if wrapper_style in {"ref_value", "ref_only"}:
+        entry: dict[str, Any] = {"value": copied}
+        if ref_metadata is not None:
+            entry["ref"] = thaw_copy(ref_metadata)
+        return entry
+    if default_wrapped:
+        return {"value": copied}
+    return copied
+
+
+def _update_existing_entry(
+    existing: Any,
+    new_value: Any,
+    *,
+    original_style: WrapperStyle | None = None,
+    original_ref: Mapping[str, Any] | None = None,
+) -> Any:
     """Update an existing bare, ``RefValue``, or ref-only entry preserving metadata."""
     copied = thaw_copy(new_value)
+    if original_style == "ref_only" and copied is None:
+        ref_source = (
+            existing.get("ref")
+            if isinstance(existing, Mapping) and "ref" in existing
+            else original_ref
+        )
+        if ref_source is not None:
+            return {"ref": thaw_copy(ref_source)}
     if isinstance(existing, dict) and (is_ref_wrapper(existing) or is_ref_only(existing)):
         existing["value"] = copied
         return existing
@@ -129,6 +181,8 @@ def write_scalar(
     new_value: Any,
     *,
     default_wrapped: bool = True,
+    wrapper_style: WrapperStyle | None = None,
+    ref_metadata: Mapping[str, Any] | None = None,
 ) -> None:
     """Update ``container[key]`` while preserving ``RefValue`` metadata or bare style.
 
@@ -138,18 +192,28 @@ def write_scalar(
     - Existing read-only ``Mapping`` entries are replaced with a thawed dict
       copy carrying the updated ``"value"``.
     - Existing non-mapping entries (bare scalars, lists, or ``None``) stay bare.
-    - Absent keys are inserted as ``{"value": new_value}`` when
-      ``default_wrapped=True``, or bare ``new_value`` otherwise.
+    - Absent keys consult *wrapper_style* and *ref_metadata* (from a
+      :class:`StyleLedger` or normalised patch) when provided, otherwise falling
+      back to ``{"value": new_value}`` when ``default_wrapped=True`` or bare
+      ``new_value``.
     """
     if key in container:
         existing = container[key]
-        updated = _update_existing_entry(existing, new_value)
+        updated = _update_existing_entry(
+            existing,
+            new_value,
+            original_style=wrapper_style,
+            original_ref=ref_metadata,
+        )
         if updated is not existing:
             container[key] = updated
-    elif default_wrapped:
-        container[key] = {"value": thaw_copy(new_value)}
     else:
-        container[key] = thaw_copy(new_value)
+        container[key] = _build_new_entry(
+            new_value,
+            default_wrapped=default_wrapped,
+            wrapper_style=wrapper_style,
+            ref_metadata=ref_metadata,
+        )
 
 
 def site_gridid(site: Any, fallback: Any = None) -> Any:
@@ -223,6 +287,29 @@ def parse_path_tokens(path: str) -> list[str | int]:
     return tokens
 
 
+def format_path_tokens(tokens: Sequence[str | int]) -> str:
+    """Format parsed path tokens back into a canonical dotted/indexed path string."""
+    if not tokens:
+        raise ValueError("Path tokens cannot be empty")
+    parts: list[str] = []
+    for token in tokens:
+        if isinstance(token, int) and not isinstance(token, bool):
+            if not parts:
+                parts.append(f"[{token}]")
+            else:
+                parts[-1] = f"{parts[-1]}[{token}]"
+        elif isinstance(token, str) and token:
+            parts.append(token)
+        else:
+            raise ValueError(f"Invalid path token: {token!r}")
+    return ".".join(parts)
+
+
+def canonicalise_path(path: str) -> str:
+    """Validate and return the canonical string form of *path*."""
+    return format_path_tokens(parse_path_tokens(path))
+
+
 def _step_read(current: Any, token: str | int) -> Any:
     if isinstance(token, int):
         if isinstance(current, (list, tuple)) and 0 <= token < len(current):
@@ -233,8 +320,8 @@ def _step_read(current: Any, token: str | int) -> Any:
     return _MISSING
 
 
-def read_path(data: Any, path: str, default: Any = None) -> Any:
-    """Resolve a dotted/indexed *path* inside *data*, unwrapping a leaf ``RefValue``."""
+def read_raw_path(data: Any, path: str, default: Any = _MISSING) -> Any:
+    """Resolve *path* inside *data* and return the raw entry without unwrapping ``RefValue``."""
     try:
         tokens = parse_path_tokens(path)
     except ValueError:
@@ -244,7 +331,20 @@ def read_path(data: Any, path: str, default: Any = None) -> Any:
         current = _step_read(current, token)
         if current is _MISSING:
             return default
-    return unwrap_entry(current, default)
+    return current
+
+
+def path_exists(data: Any, path: str) -> bool:
+    """Return True when *path* resolves to an existing entry in *data* (even if ``None``)."""
+    return read_raw_path(data, path, default=_MISSING) is not _MISSING
+
+
+def read_path(data: Any, path: str, default: Any = None) -> Any:
+    """Resolve a dotted/indexed *path* inside *data*, unwrapping a leaf ``RefValue``."""
+    raw = read_raw_path(data, path, default=_MISSING)
+    if raw is _MISSING:
+        return default
+    return unwrap_entry(raw, default)
 
 
 def _can_resolve_parent(
@@ -300,24 +400,47 @@ def write_path(
     *,
     default_wrapped: bool = True,
     create_missing: bool = True,
+    style_ledger: StyleLedger | None = None,
+    original_style: WrapperStyle | None = None,
+    original_ref: Mapping[str, Any] | None = None,
 ) -> bool:
     """Write *new_value* at *path* in *data*, preserving bare vs ``RefValue`` style."""
     tokens = parse_path_tokens(path)
+    canon_path = format_path_tokens(tokens)
     located = _ensure_parent_container(data, tokens, create_missing=create_missing)
     if located is None:
         return False
     parent, leaf = located
+    effective_style = original_style
+    effective_ref = original_ref
+    if style_ledger is not None:
+        if effective_style is None:
+            effective_style = style_ledger.wrapper_style(canon_path)
+        if effective_ref is None:
+            effective_ref = style_ledger.ref_metadata(canon_path)
     if isinstance(leaf, int):
         if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
             return False
         existing = parent[leaf]
-        updated = _update_existing_entry(existing, new_value)
+        updated = _update_existing_entry(
+            existing,
+            new_value,
+            original_style=effective_style,
+            original_ref=effective_ref,
+        )
         if updated is not existing:
             parent[leaf] = updated
         return True
     if not isinstance(parent, dict):
         return False
-    write_scalar(parent, leaf, new_value, default_wrapped=default_wrapped)
+    write_scalar(
+        parent,
+        leaf,
+        new_value,
+        default_wrapped=default_wrapped,
+        wrapper_style=effective_style,
+        ref_metadata=effective_ref,
+    )
     return True
 
 
@@ -430,6 +553,11 @@ class ConfigPatch:
     Pure planners (Phase B scientific suggestions, Phase A normalisations)
     return ``list[ConfigPatch]`` so suggest mode never needs to deep-copy and
     discard mutated trees, and apply mode applies the exact same patch list.
+    When normalised via :func:`normalise_patches`, every patch carries its
+    original value (``old_value``), existence flag (``had_original``),
+    authoring wrapper style (``original_style``), and frozen ``original_ref``
+    metadata so conflicts, oscillation checks, and exact rollbacks are
+    well-defined.
     """
 
     path: str
@@ -443,10 +571,27 @@ class ConfigPatch:
     source: str = ""
     skip_keys: tuple[str, ...] = ()
     default_wrapped: bool = True
+    had_original: bool | None = None
+    original_style: WrapperStyle | None = None
+    original_ref: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Defensively copy mutable payloads and freeze ``original_ref`` metadata."""
+        if isinstance(self.new_value, (Mapping, list, set)):
+            object.__setattr__(self, "new_value", thaw_copy(self.new_value))
+        if isinstance(self.old_value, (Mapping, list, set)):
+            object.__setattr__(self, "old_value", thaw_copy(self.old_value))
+        if self.original_ref is not None and not isinstance(
+            self.original_ref, MappingProxyType
+        ):
+            object.__setattr__(self, "original_ref", deep_freeze(self.original_ref))
 
 
 def apply_patches_in_place(
-    target: dict[str, Any], patches: Sequence[ConfigPatch]
+    target: dict[str, Any],
+    patches: Sequence[ConfigPatch],
+    *,
+    style_ledger: StyleLedger | None = None,
 ) -> dict[str, Any]:
     """Apply a sequence of :class:`ConfigPatch` mutations to *target* in place.
 
@@ -471,6 +616,9 @@ def apply_patches_in_place(
                 patch.path,
                 patch.new_value,
                 default_wrapped=patch.default_wrapped,
+                style_ledger=style_ledger,
+                original_style=patch.original_style,
+                original_ref=patch.original_ref,
             )
             if not applied:
                 raise ValueError(
@@ -509,9 +657,10 @@ def apply_patches_in_place(
 class ConfigDocument:
     """Canonical in-memory representation of a SUEWS YAML configuration.
 
-    Holds the parsed mapping alongside optional original text and source path,
-    providing style-preserving reads, GRIDID maps, immutable patch application,
-    and deterministic YAML serialisation.
+    Holds the parsed mapping alongside its immutable :class:`StyleLedger`,
+    optional original text, and source path, providing style-preserving reads,
+    GRIDID maps, patch normalisation and application, read-only typed views,
+    and style-preserving YAML serialisation.
     """
 
     def __init__(
@@ -520,12 +669,42 @@ class ConfigDocument:
         *,
         source_path: str | Path | None = None,
         raw_text: str | None = None,
+        style_ledger: StyleLedger | None = None,
     ) -> None:
         self.data: dict[str, Any] = data
         self.source_path: Path | None = (
             Path(source_path) if source_path is not None else None
         )
         self.raw_text: str | None = raw_text
+        if style_ledger is not None:
+            self.style_ledger: StyleLedger = style_ledger
+        elif raw_text is not None:
+            self.style_ledger = StyleLedger.from_yaml_text(raw_text, data=data)
+        else:
+            self.style_ledger = StyleLedger.from_mapping(data)
+
+    @classmethod
+    def from_text(
+        cls,
+        raw_text: str,
+        *,
+        source_path: str | Path | None = None,
+        normalise: bool = True,
+        flatten_physics: bool = False,
+    ) -> ConfigDocument:
+        """Load YAML text into a :class:`ConfigDocument`, capturing its :class:`StyleLedger`."""
+        loaded = safe_load_yaml(raw_text)
+        if not isinstance(loaded, dict):
+            raise ValueError("YAML root is not a mapping")
+        ledger = StyleLedger.from_yaml_text(raw_text, data=loaded)
+        return cls.from_dict(
+            loaded,
+            source_path=source_path,
+            raw_text=raw_text,
+            normalise=normalise,
+            flatten_physics=flatten_physics,
+            style_ledger=ledger,
+        )
 
     @classmethod
     def from_file(
@@ -538,13 +717,9 @@ class ConfigDocument:
         """Load a YAML file into a :class:`ConfigDocument`."""
         file_path = Path(path)
         raw_text = file_path.read_text(encoding="utf-8")
-        loaded = safe_load_yaml(raw_text)
-        if not isinstance(loaded, dict):
-            raise ValueError("YAML root is not a mapping")
-        return cls.from_dict(
-            loaded,
+        return cls.from_text(
+            raw_text,
             source_path=file_path,
-            raw_text=raw_text,
             normalise=normalise,
             flatten_physics=flatten_physics,
         )
@@ -558,22 +733,37 @@ class ConfigDocument:
         raw_text: str | None = None,
         normalise: bool = True,
         flatten_physics: bool = False,
+        style_ledger: StyleLedger | None = None,
     ) -> ConfigDocument:
         """Construct a :class:`ConfigDocument` from an in-memory mapping."""
         working = thaw_copy(data)
+        if style_ledger is not None:
+            ledger = style_ledger
+        elif raw_text is not None:
+            ledger = StyleLedger.from_yaml_text(raw_text, data=working)
+        else:
+            ledger = StyleLedger.from_mapping(working)
+
         if normalise:
             working = normalise_yaml_renames(working)
             working, _ = normalise_hourly_profile_keys_in_raw_config(working)
+            ledger = ledger.remap_leaf_keys(RAW_YAML_FIELD_RENAMES)
         if flatten_physics:
             flatten_physics_in_config(working)
-        return cls(working, source_path=source_path, raw_text=raw_text)
+        return cls(
+            working,
+            source_path=source_path,
+            raw_text=raw_text,
+            style_ledger=ledger,
+        )
 
     def clone(self) -> ConfigDocument:
-        """Return an independent deep copy of this document."""
+        """Return an independent deep copy of this document preserving its style ledger."""
         return ConfigDocument(
             thaw_copy(self.data),
             source_path=self.source_path,
             raw_text=self.raw_text,
+            style_ledger=self.style_ledger,
         )
 
     def gridid_map(self) -> dict[int, Any]:
@@ -584,23 +774,101 @@ class ConfigDocument:
         """Read the scalar or subtree at *path*, unwrapping leaf ``RefValue``."""
         return read_path(self.data, path, default=default)
 
-    def apply_patches(self, patches: Sequence[ConfigPatch]) -> ConfigDocument:
+    def frozen_data(self) -> Mapping[str, Any]:
+        """Return a deeply immutable ``MappingProxyType`` snapshot of ``self.data``."""
+        return deep_freeze(self.data)
+
+    def typed_view(self) -> TypedConfigView:
+        """Return a read-only :class:`TypedConfigView` over this document."""
+        from ..rules.typed_view import TypedConfigView  # noqa: PLC0415
+
+        return TypedConfigView.from_document(self)
+
+    def normalise_patches(
+        self,
+        patches: Sequence[ConfigPatch],
+        *,
+        expand_nullify_tree: bool = True,
+        drop_noops: bool = True,
+        coalesce: bool = True,
+    ) -> list[ConfigPatch]:
+        """Normalise *patches* against this document so every patch carries original values."""
+        from .patch_normaliser import normalise_patches  # noqa: PLC0415
+
+        return normalise_patches(
+            patches,
+            self,
+            expand_nullify_tree=expand_nullify_tree,
+            drop_noops=drop_noops,
+            coalesce=coalesce,
+        )
+
+    def apply_patches(
+        self,
+        patches: Sequence[ConfigPatch],
+        *,
+        normalise: bool = False,
+    ) -> ConfigDocument:
         """Return a new :class:`ConfigDocument` with *patches* applied in order."""
+        effective_patches = (
+            self.normalise_patches(patches) if normalise else patches
+        )
         target = self.clone()
-        apply_patches_in_place(target.data, patches)
+        apply_patches_in_place(
+            target.data, effective_patches, style_ledger=self.style_ledger
+        )
         target.raw_text = None
         return target
 
-    def dump_yaml(self, *, header: str | None = None) -> str:
-        """Serialise the document mapping to YAML text with an optional header."""
-        stream = io.StringIO()
-        if header:
-            stream.write(header)
-        safe_dump_yaml(
+    def dump_yaml(
+        self,
+        *,
+        header: str | None = None,
+        preserve_style: bool = True,
+        preserve_leading_comments: bool = False,
+    ) -> str:
+        """Serialise the document mapping to YAML text with optional style preservation."""
+        if preserve_style:
+            return dump_yaml_with_style(
+                self.data,
+                self.style_ledger,
+                header=header,
+                preserve_leading_comments=preserve_leading_comments,
+            )
+        return dump_yaml_with_style(
             self.data,
-            stream,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
+            None,
+            header=header,
+            preserve_leading_comments=False,
         )
-        return stream.getvalue()
+
+
+__all__ = [
+    "ConfigDocument",
+    "ConfigPatch",
+    "PatchAction",
+    "PathStyle",
+    "StyleLedger",
+    "WrapperStyle",
+    "apply_nullify_tree_at_path",
+    "apply_patches_in_place",
+    "canonicalise_path",
+    "deep_freeze",
+    "delete_path",
+    "format_path_tokens",
+    "format_pydantic_loc",
+    "is_ref_only",
+    "is_ref_wrapper",
+    "nullify_tree_in_place",
+    "parse_path_tokens",
+    "path_exists",
+    "read_path",
+    "read_raw_path",
+    "read_scalar",
+    "site_gridid",
+    "site_gridid_map",
+    "thaw_copy",
+    "unwrap_entry",
+    "write_path",
+    "write_scalar",
+]

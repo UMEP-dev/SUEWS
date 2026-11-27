@@ -24,10 +24,13 @@ def function_name(context):
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 import logging
-from types import MappingProxyType
 from typing import Any, Optional
 
-from ..document import thaw_copy
+from pydantic import BaseModel
+
+from ...rules.readonly_model import ReadOnlyModelProxy, freeze_model
+from ...rules.typed_view import TypedConfigView
+from ..document import deep_freeze, thaw_copy
 
 
 logger = logging.getLogger("supy.data_model")
@@ -158,30 +161,37 @@ class ValidationResult:
 
 @dataclass(frozen=True)
 class ValidationContext:
-    """Immutable context for validation rules"""
+    """Immutable context for validation rules carrying a pre-built read-only view."""
 
     yaml_data: dict
     start_date: Optional[str] = None
     model_year: Optional[int] = None
     effective_fixes: str = "suggest"
-
+    typed_model: Optional[ReadOnlyModelProxy] = None
 
     def __post_init__(self):
         for f in fields(self):
             value = getattr(self, f.name)
-            object.__setattr__(self, f.name, self._deep_freeze(value))
+            if f.name == "typed_model":
+                if isinstance(value, (BaseModel, ReadOnlyModelProxy)):
+                    object.__setattr__(self, f.name, freeze_model(value))
+                elif value is not None:
+                    raise TypeError(
+                        "typed_model must be a Pydantic BaseModel, ReadOnlyModelProxy, or None"
+                    )
+            else:
+                object.__setattr__(self, f.name, self._deep_freeze(value))
+        object.__setattr__(
+            self, "_cached_view", TypedConfigView.from_mapping(self.yaml_data)
+        )
 
     def _deep_freeze(self, value):
-        if isinstance(value, Mapping):
-            return MappingProxyType({
-                k: self._deep_freeze(v) for k, v in value.items()
-            })
-        elif isinstance(value, (list, tuple)):
-            return tuple(self._deep_freeze(v) for v in value)
-        elif isinstance(value, (set, frozenset)):
-            return frozenset(self._deep_freeze(v) for v in value)
-        else:
-            return value
+        return deep_freeze(value)
+
+    @property
+    def view(self) -> TypedConfigView:
+        """Return the pre-built deeply immutable :class:`TypedConfigView`."""
+        return object.__getattribute__(self, "_cached_view")
 
 
 class RulesRegistry:
@@ -235,11 +245,11 @@ class RulesRegistry:
                 raise ValueError("Must provide context of type ValidationContext to run validation registry.")
             context = self.context
 
-        from ...rules.typed_view import TypedConfigView
+        view = getattr(context, "view", None)
+        if view is None:
+            view = TypedConfigView.from_mapping(context.yaml_data)
 
-        for site_idx, param, message in TypedConfigView.from_mapping(
-            context.yaml_data
-        ).site_structure_errors:
+        for site_idx, param, message in view.site_structure_errors:
             validation_results.append(
                 ValidationResult(
                     status="ERROR",

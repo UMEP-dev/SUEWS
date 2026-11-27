@@ -43,6 +43,11 @@ from .document import (
     thaw_copy,
     unwrap_entry,
 )
+from .patch_normaliser import (
+    collect_nullifiable_values,
+    invert_patches,
+    normalise_patches,
+)
 
 SURFACE_TYPES: tuple[str, ...] = (
     "paved",
@@ -146,6 +151,65 @@ class PatchPlan:
     def apply_to_document(self, doc: ConfigDocument) -> ConfigDocument:
         """Return a new :class:`ConfigDocument` with all patches applied once."""
         return doc.apply_patches(self.patches)
+
+    def normalised(
+        self,
+        target: ConfigDocument | Mapping[str, Any],
+        *,
+        expand_nullify_tree: bool = True,
+        drop_noops: bool = True,
+        coalesce: bool = True,
+    ) -> PatchPlan:
+        """Return a new :class:`PatchPlan` whose patches are normalised against *target*.
+
+        Every patch in the returned plan carries its verified original value
+        (``old_value``), ``had_original``, ``original_style``, and frozen
+        ``original_ref`` metadata, and each :class:`PlannedAdjustment` binds
+        its corresponding normalised patches.
+        """
+        norm_patches = normalise_patches(
+            self.patches,
+            target,
+            expand_nullify_tree=expand_nullify_tree,
+            drop_noops=drop_noops,
+            coalesce=coalesce,
+        )
+        base_data = target.data if isinstance(target, ConfigDocument) else target
+        working = thaw_copy(base_data)
+        style_ledger = target.style_ledger if isinstance(target, ConfigDocument) else None
+        norm_adjustments: list[PlannedAdjustment] = []
+        for adj in self.adjustments:
+            adj_norm = normalise_patches(
+                adj.patches,
+                ConfigDocument(working, style_ledger=style_ledger)
+                if style_ledger is not None
+                else working,
+                expand_nullify_tree=expand_nullify_tree,
+                drop_noops=drop_noops,
+                coalesce=coalesce,
+            )
+            if adj_norm:
+                apply_patches_in_place(working, adj_norm, style_ledger=style_ledger)
+                norm_adjustments.append(
+                    PlannedAdjustment(
+                        parameter=adj.parameter,
+                        site_index=adj.site_index,
+                        site_gridid=adj.site_gridid,
+                        old_value=adj.old_value,
+                        new_value=adj.new_value,
+                        reason=adj.reason,
+                        patches=tuple(adj_norm),
+                    )
+                )
+        return PatchPlan(
+            patches=norm_patches,
+            adjustments=norm_adjustments,
+            _bound_patch_count=len(norm_patches),
+        )
+
+    def invert(self) -> list[ConfigPatch]:
+        """Return the inverse patch list that undoes this normalised plan."""
+        return invert_patches(self.patches)
 
     def apply_to_dict(
         self, yaml_data: Mapping[str, Any], *, in_place: bool = False
@@ -638,6 +702,7 @@ def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
             continue
 
         max_surface = sum_check.max_surface
+        raw_old_sfr = get_ref_or_bare(unwrap_entry(land_cover[max_surface]), "sfr")
         old_value = float(surface_fractions[max_surface])
         new_value = old_value + sum_check.correction
 
@@ -646,7 +711,9 @@ def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
                 path=f"sites[{site_idx}].properties.land_cover.{max_surface}.sfr",
                 action="set",
                 new_value=new_value,
-                old_value=old_value,
+                old_value=raw_old_sfr if raw_old_sfr is not None else old_value,
+                had_original=True,
+                source="land_cover_fraction",
             )
         )
         plan.record(
@@ -692,11 +759,20 @@ def _plan_disabled_stebbs_patches(
             )
             if not nullifiable:
                 continue
+            orig_values = collect_nullifiable_values(
+                block,
+                prefix="",
+                skip_keys=skip_keys,
+                skip_at_root_only=True,
+            )
             plan.patches.append(
                 ConfigPatch(
                     path=f"sites[{site_idx}].properties.{block_name}",
                     action="nullify_tree",
+                    old_value=orig_values,
                     skip_keys=tuple(skip_keys),
+                    had_original=True,
+                    source="disabled_stebbs",
                 )
             )
             param_list = ", ".join(nullifiable)
@@ -800,10 +876,14 @@ def _plan_disabled_co2_patches(
             if not nullifiable:
                 nullifiable = collect_nullifiable_paths(co2_block)
             if nullifiable:
+                orig_values = collect_nullifiable_values(co2_block, prefix="")
                 plan.patches.append(
                     ConfigPatch(
                         path=f"sites[{site_idx}].properties.anthropogenic_emissions.co2",
                         action="nullify_tree",
+                        old_value=orig_values,
+                        had_original=True,
+                        source="disabled_co2",
                     )
                 )
                 param_list = ", ".join(nullifiable)
@@ -1265,6 +1345,7 @@ def plan_setpointmethod_patches(
                     if not isinstance(day_profile, Mapping):
                         continue
                     if collect_nullifiable_paths(day_profile):
+                        orig_values = collect_nullifiable_values(day_profile, prefix="")
                         plan.patches.append(
                             ConfigPatch(
                                 path=(
@@ -1272,6 +1353,9 @@ def plan_setpointmethod_patches(
                                     f"{prof_param}.{daytype}"
                                 ),
                                 action="nullify_tree",
+                                old_value=orig_values,
+                                had_original=True,
+                                source="setpointmethod",
                             )
                         )
                         plan.record(

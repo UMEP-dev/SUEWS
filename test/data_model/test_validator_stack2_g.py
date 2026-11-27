@@ -1,0 +1,690 @@
+"""Unit and integration tests for Stack 2 g: style ledger, patch normalisation, and read-only typed model."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from dataclasses import FrozenInstanceError
+from importlib.resources import files
+import math
+from types import MappingProxyType
+
+import numpy as np
+from pydantic import BaseModel, ConfigDict
+import pytest
+import yaml
+
+import supy
+from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.validation.pipeline.document import (
+    ConfigDocument,
+    ConfigPatch,
+    PathStyle,
+    StyleLedger,
+    canonicalise_path,
+    deep_freeze,
+    format_path_tokens,
+    nullify_tree_in_place,
+    parse_path_tokens,
+    path_exists,
+    read_raw_path,
+)
+from supy.data_model.validation.pipeline.patch_normaliser import (
+    collect_nullifiable_entries,
+    collect_nullifiable_values,
+    invert_patches,
+    normalise_patches,
+    read_original_unwrapped,
+)
+from supy.data_model.validation.pipeline.patches import (
+    plan_land_cover_fraction_patches,
+    plan_model_dependent_nullification_patches,
+    plan_rcmethod_patches,
+    plan_seasonal_patches,
+    plan_setpointmethod_patches,
+    plan_stebbsmethod_wwr_patches,
+)
+from supy.data_model.validation.pipeline.phase_b_rules import (
+    RulesRegistry,
+    ValidationContext,
+)
+from supy.data_model.validation.rules import (
+    ControlView,
+    LandCoverView,
+    PhysicsView,
+    ReadOnlyModelProxy,
+    SiteView,
+    SurfaceView,
+    TypedConfigView,
+    VerticalLayersView,
+    freeze_model,
+)
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.contract("C-VALID", "C-ERROR", "C-SCHEMA"),
+]
+
+
+def _load_sample_text() -> str:
+    return (files("supy") / "sample_data" / "sample_config.yml").read_text(
+        encoding="utf-8"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Pillar 1: StyleLedger & style-preserving ConfigDocument
+# ---------------------------------------------------------------------------
+
+
+def test_style_ledger_captures_yaml_ast_styles_lines_and_comments() -> None:
+    """StyleLedger.from_yaml_text records wrapper, flow, quote, key-order, line, and comments."""
+    raw_yaml = (
+        "# Top file header\n"
+        "# Second comment line\n"
+        "name: 'London'\n"
+        'description: "Urban test"\n'
+        "sites:\n"
+        "  - name: 'KCL'\n"
+        "    gridiv: {value: 42, ref: {desc: 'site id'}}\n"
+        "    properties:\n"
+        "      lat: 51.5\n"
+        "      lng: {value: -0.1, ref: {DOI: '10.1000/lng'}}\n"
+        "      ie_start: {ref: {desc: 'disabled placeholder'}}\n"
+        "      dz: [0.2, 0.1, 0.5]\n"
+        "      k: {value: [1.2, 1.1, 1.5], ref: {ID: 'K1'}}\n"
+    )
+    doc = ConfigDocument.from_text(raw_yaml, normalise=False)
+    ledger = doc.style_ledger
+
+    assert ledger.leading_comments == ("# Top file header", "# Second comment line")
+    assert ledger.wrapper_style("name") == "bare"
+    assert ledger.get("name").scalar_style == "'"
+    assert ledger.source_line("name") == 3
+    assert ledger.get("description").scalar_style == '"'
+    assert ledger.wrapper_style("sites[0].gridiv") == "ref_value"
+    assert ledger.get("sites[0].gridiv").flow_style is True
+    assert ledger.ref_metadata("sites[0].gridiv") == {"desc": "site id"}
+    assert ledger.wrapper_style("sites[0].properties.lat") == "bare"
+    assert ledger.wrapper_style("sites[0].properties.lng") == "ref_value"
+    assert ledger.wrapper_style("sites[0].properties.ie_start") == "ref_only"
+    assert ledger.ref_metadata("sites[0].properties.ie_start") == {
+        "desc": "disabled placeholder"
+    }
+    assert ledger.get("sites[0].properties.dz").flow_style is True
+    assert ledger.get("sites[0].properties.k").flow_style is True
+    assert ledger.get("sites[0].properties.k").value_flow_style is True
+
+    # Ledger entries and ref metadata are deeply immutable.
+    with pytest.raises(TypeError):
+        ledger.entries["name"] = PathStyle()  # type: ignore[index]
+    with pytest.raises(TypeError):
+        ledger.ref_metadata("sites[0].gridiv")["desc"] = "mutated"  # type: ignore[index]
+
+
+def test_style_ledger_preserves_style_across_delete_reinsert_rename_and_dump() -> None:
+    """Deleting and re-inserting or renaming paths preserves authored style and YAML layout."""
+    raw_yaml = (
+        "# Author header\n"
+        "name: 'London'\n"
+        "label: plain_text\n"
+        "sites:\n"
+        "  - gridiv: 1\n"
+        "    properties:\n"
+        "      soildepth: {value: 350.0, ref: {desc: 'legacy depth'}}\n"
+        "      snowalb: 0.5\n"
+        "      dz: [0.2, 0.1, 0.5]\n"
+    )
+    doc = ConfigDocument.from_text(raw_yaml, normalise=True)
+
+    # Rename normalised soildepth -> soil_depth while carrying style and ref.
+    assert doc.read("sites[0].properties.soil_depth") == pytest.approx(350.0)
+    assert (
+        doc.style_ledger.wrapper_style("sites[0].properties.soil_depth") == "ref_value"
+    )
+    assert doc.style_ledger.ref_metadata("sites[0].properties.soil_depth") == {
+        "desc": "legacy depth"
+    }
+
+    # Delete bare snowalb and wrapped soil_depth, then re-set both:
+    # the style ledger restores bare style for snowalb and RefValue+ref for soil_depth.
+    after_del = doc.apply_patches([
+        ConfigPatch("sites[0].properties.snowalb", "delete"),
+        ConfigPatch("sites[0].properties.soil_depth", "delete"),
+    ])
+    assert "snowalb" not in after_del.data["sites"][0]["properties"]
+    assert "soil_depth" not in after_del.data["sites"][0]["properties"]
+
+    restored = after_del.apply_patches([
+        ConfigPatch("sites[0].properties.snowalb", "set", 0.6),
+        ConfigPatch("sites[0].properties.soil_depth", "set", 400.0),
+        ConfigPatch("name", "set", "Paris"),
+        # Patch plain string to YAML-reserved string "true": must remain str on round-trip!
+        ConfigPatch("label", "set", "true"),
+    ])
+    assert restored.data["sites"][0]["properties"]["snowalb"] == pytest.approx(0.6)
+    assert restored.data["sites"][0]["properties"]["soil_depth"] == {
+        "value": 400.0,
+        "ref": {"desc": "legacy depth"},
+    }
+
+    dumped = restored.dump_yaml(preserve_style=True, preserve_leading_comments=True)
+    assert dumped.startswith("# Author header\n")
+    assert "name: 'Paris'" in dumped
+    assert "[0.2, 0.1, 0.5]" in dumped
+    assert "{value: 400.0, ref: {desc: legacy depth}}" in dumped
+    # Round-trip invariant: yaml.safe_load matches data exactly (including str "true").
+    reloaded = yaml.safe_load(dumped)
+    assert reloaded == restored.data
+    assert reloaded["label"] == "true"
+    assert isinstance(reloaded["label"], str)
+
+
+def test_style_ledger_dominant_style_and_remap_paths() -> None:
+    """dominant_wrapper_style reflects majority authoring style and remap_paths copies subtrees."""
+    bare_ledger = StyleLedger.from_mapping({"a": 1, "b": 2, "c": {"value": 3}})
+    assert bare_ledger.dominant_wrapper_style == "bare"
+
+    wrapped_ledger = StyleLedger.from_mapping({
+        "a": {"value": 1},
+        "b": {"value": 2},
+        "c": 3,
+    })
+    assert wrapped_ledger.dominant_wrapper_style == "ref_value"
+
+    remapped = bare_ledger.remap_paths({"c": "nested.c"})
+    assert remapped.wrapper_style("nested.c") == "ref_value"
+    assert "c" in remapped and "nested.c" in remapped
+    assert StyleLedger.empty().paths() == ()
+
+
+# ---------------------------------------------------------------------------
+# Pillar 2: Patch Normalisation Carrying Original Values & Inversion
+# ---------------------------------------------------------------------------
+
+
+def test_normalise_patches_captures_original_values_existence_and_style() -> None:
+    """normalise_patches fills old_value, had_original, original_style, and original_ref."""
+    doc = ConfigDocument.from_dict(
+        {
+            "sites": [
+                {
+                    "properties": {
+                        "lat": {"value": 51.5, "ref": {"desc": "obs"}},
+                        "lng": -0.1,
+                        "nullable": None,
+                        "placeholder": {"ref": {"desc": "keep"}},
+                    }
+                }
+            ]
+        },
+        normalise=False,
+    )
+    snapshot = deepcopy(doc.data)
+
+    raw_patches = [
+        ConfigPatch("sites[0].properties.lat", "set", 52.0),
+        ConfigPatch("sites[0].properties.lng", "set", 0.2),
+        ConfigPatch("sites[0].properties.nullable", "set", 10.0),
+        ConfigPatch(
+            "sites[0].properties.brand_new", "set", 99.0, default_wrapped=False
+        ),
+        ConfigPatch("sites[0].properties.placeholder", "set", 7.0),
+    ]
+    normalised = normalise_patches(raw_patches, doc)
+
+    # Target document was never mutated.
+    assert doc.data == snapshot
+    assert len(normalised) == 5
+
+    by_path = {p.path: p for p in normalised}
+    assert by_path["sites[0].properties.lat"].old_value == pytest.approx(51.5)
+    assert by_path["sites[0].properties.lat"].had_original is True
+    assert by_path["sites[0].properties.lat"].original_style == "ref_value"
+    assert by_path["sites[0].properties.lat"].original_ref == {"desc": "obs"}
+
+    assert by_path["sites[0].properties.lng"].old_value == pytest.approx(-0.1)
+    assert by_path["sites[0].properties.lng"].had_original is True
+    assert by_path["sites[0].properties.lng"].original_style == "bare"
+
+    assert by_path["sites[0].properties.nullable"].old_value is None
+    assert by_path["sites[0].properties.nullable"].had_original is True
+
+    assert by_path["sites[0].properties.brand_new"].old_value is None
+    assert by_path["sites[0].properties.brand_new"].had_original is False
+
+    assert by_path["sites[0].properties.placeholder"].old_value is None
+    assert by_path["sites[0].properties.placeholder"].had_original is True
+    assert by_path["sites[0].properties.placeholder"].original_style == "ref_only"
+    assert by_path["sites[0].properties.placeholder"].original_ref == {"desc": "keep"}
+
+    # Apply forward, then invert: exact lossless round-trip back to original doc.data!
+    applied = doc.apply_patches(normalised)
+    reverted = applied.apply_patches(invert_patches(normalised))
+    assert reverted.data == snapshot
+
+
+def test_normalise_patches_expands_nullify_tree_matches_in_place_and_inverts() -> None:
+    """Expanding nullify_tree matches nullify_tree_in_place and inverts losslessly."""
+    tree = {
+        "ref": {"desc": "section provenance"},
+        "stebbs": {
+            "alpha": {"value": 1.5, "ref": {"ID": "A1"}},
+            "beta": 2.5,
+            "vec": {"value": [1.0, 2.0], "ref": {"ID": "V1"}},
+            "bare_vec": [3.0, 4.0],
+            "ref_only": {"ref": {"desc": "placeholder"}},
+            "keep_key": 9.9,
+            "wrapped_list": {
+                "value": [
+                    {"value": 10, "ref": {"source": "obs"}},
+                    {"ref": {"source": "empty"}},
+                ],
+                "ref": {"source": "array"},
+            },
+        },
+    }
+    doc = ConfigDocument.from_dict(tree, normalise=False)
+    nullify_patch = ConfigPatch(
+        "stebbs", "nullify_tree", skip_keys=("keep_key",), reason="STEBBS disabled"
+    )
+
+    # 1. Expanded atomic patches carry original values and match nullify_tree_in_place.
+    expanded = doc.normalise_patches([nullify_patch], expand_nullify_tree=True)
+    assert all(p.action == "set" for p in expanded)
+    assert all(p.had_original is True for p in expanded)
+    old_by_path = {p.path: p.old_value for p in expanded}
+    assert old_by_path == {
+        "stebbs.alpha": 1.5,
+        "stebbs.beta": 2.5,
+        "stebbs.vec": [1.0, 2.0],
+        "stebbs.bare_vec[0]": 3.0,
+        "stebbs.bare_vec[1]": 4.0,
+        "stebbs.wrapped_list.value[0]": 10,
+    }
+
+    expected_in_place = deepcopy(tree)
+    nullify_tree_in_place(
+        expected_in_place["stebbs"], skip_keys=frozenset({"keep_key"})
+    )
+    applied = doc.apply_patches(expanded)
+    assert applied.data == expected_in_place
+
+    # Inverting expanded patches restores the exact original tree including ref metadata.
+    reverted = applied.apply_patches(invert_patches(expanded))
+    assert reverted.data == tree
+
+    # 2. Snapshot mode (expand_nullify_tree=False) retains nullify_tree with original leaf map.
+    unexpanded = doc.normalise_patches([nullify_patch], expand_nullify_tree=False)
+    assert len(unexpanded) == 1
+    assert unexpanded[0].action == "nullify_tree"
+    assert unexpanded[0].had_original is True
+    assert unexpanded[0].old_value == {
+        "alpha": 1.5,
+        "beta": 2.5,
+        "vec": [1.0, 2.0],
+        "bare_vec[0]": 3.0,
+        "bare_vec[1]": 4.0,
+        "wrapped_list.value[0]": 10,
+    }
+
+
+def test_normalise_patches_coalescing_barriers_and_type_safe_noops() -> None:
+    """Coalescing keeps initial old_value, respects ancestor/descendant barriers, and drops true no-ops."""
+    doc = ConfigDocument.from_dict(
+        {"a": 1, "b": {"x": 10}, "flag": True, "nan_val": float("nan")},
+        normalise=False,
+    )
+
+    # Sequential same-path chain: set(a, 2) -> set(a, 3) coalesces with old_value=1.
+    chained = doc.normalise_patches([
+        ConfigPatch("a", "set", 2),
+        ConfigPatch("a", "set", 3),
+    ])
+    assert len(chained) == 1
+    assert chained[0].old_value == 1
+    assert chained[0].new_value == 3
+
+    # Set then delete on originally absent key cancels out completely.
+    cancelled = doc.normalise_patches([
+        ConfigPatch("absent_key", "set", 42),
+        ConfigPatch("absent_key", "delete"),
+    ])
+    assert cancelled == []
+
+    # Delete then restore to original value cancels out as a net no-op.
+    restored_noop = doc.normalise_patches([
+        ConfigPatch("a", "delete"),
+        ConfigPatch("a", "set", 1),
+    ])
+    assert restored_noop == []
+
+    # Type-safe equality: setting int 1 -> bool True is NOT a no-op; nan -> nan IS a no-op.
+    type_change = doc.normalise_patches([
+        ConfigPatch("a", "set", True),
+        ConfigPatch("flag", "set", 1),
+        ConfigPatch("nan_val", "set", float("nan")),
+        ConfigPatch("never_existed", "delete"),
+    ])
+    assert [p.path for p in type_change] == ["a", "flag"]
+    assert type_change[0].old_value == 1 and type_change[0].new_value is True
+    assert type_change[1].old_value is True and type_change[1].new_value == 1
+
+    # Ancestor/descendant barrier: set(b.x, 20) -> delete(b) -> set(b.x, 30) must NOT merge across delete(b).
+    barrier_patches = [
+        ConfigPatch("b.x", "set", 20),
+        ConfigPatch("b", "delete"),
+        ConfigPatch("b.x", "set", 30, default_wrapped=False),
+    ]
+    norm_barrier = doc.normalise_patches(barrier_patches)
+    assert len(norm_barrier) == 3
+    assert (
+        doc.apply_patches(norm_barrier).data == doc.apply_patches(barrier_patches).data
+    )
+    assert doc.apply_patches(norm_barrier).apply_patches(
+        invert_patches(norm_barrier)
+    ).data == {
+        "a": 1,
+        "b": {"x": 10},
+        "flag": True,
+        "nan_val": pytest.approx(float("nan"), nan_ok=True),
+    }
+
+
+def test_patch_plan_normalised_and_phase_b_planners_carry_original_values() -> None:
+    """All Phase B patch planners carry original values and invert cleanly via PatchPlan.normalised."""
+    cfg = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": False,
+                    "parameters": "default",
+                    "capacitance": 0,
+                    "setpoint": 0,
+                },
+                "emissions": 2,
+            }
+        },
+        "sites": [
+            {
+                "gridiv": 7,
+                "properties": {
+                    "lat": 51.5,
+                    "lng": -0.1,
+                    "timezone": 1,
+                    "land_cover": {
+                        "paved": {"sfr": "0.600002"},
+                        "bldgs": {"sfr": {"value": 0.4, "ref": {"ID": "b"}}},
+                    },
+                    "stebbs": {
+                        "internal_shading": {"value": 1, "ref": {"ID": "sh"}},
+                    },
+                    "anthropogenic_emissions": {
+                        "co2": {"emission_co2_point_source": 1.2},
+                    },
+                    "building_archetype": {
+                        "fraction_heat_capacity_wall_external": 0.25,
+                        "profile_setpoint_temperature_heating_air": {
+                            "working_day": {"1": 20.0},
+                        },
+                    },
+                },
+                "initial_states": {
+                    "snowalb": 0.55,
+                },
+            }
+        ],
+    }
+    doc = ConfigDocument.from_dict(cfg, normalise=False)
+
+    lc_plan = plan_land_cover_fraction_patches(doc.data)
+    assert lc_plan.patches[0].old_value == "0.600002"
+    assert lc_plan.patches[0].had_original is True
+
+    null_plan = plan_model_dependent_nullification_patches(doc.data)
+    assert all(p.action == "nullify_tree" for p in null_plan.patches)
+    assert all(isinstance(p.old_value, dict) and p.old_value for p in null_plan.patches)
+    assert all(p.had_original is True for p in null_plan.patches)
+
+    norm_null = null_plan.normalised(doc)
+    assert all(p.action == "set" for p in norm_null.patches)
+    assert all(p.had_original is True for p in norm_null.patches)
+    applied = norm_null.apply_to_document(doc)
+    reverted = applied.apply_patches(norm_null.invert())
+    assert reverted.data == doc.data
+
+    # Seasonal delete of snowalb + timezone patch also round-trip losslessly.
+    seasonal = plan_seasonal_patches(doc.data, "2012-07-01", 2012).normalised(doc)
+    assert seasonal.patches
+    assert (
+        seasonal.apply_to_document(doc).apply_patches(seasonal.invert()).data
+        == doc.data
+    )
+
+    # Empty planners for inactive options normalise cleanly to empty plans.
+    assert plan_rcmethod_patches(doc.data).normalised(doc).patches == []
+    assert plan_stebbsmethod_wwr_patches(doc.data).normalised(doc).patches == []
+    sp_plan = plan_setpointmethod_patches(doc.data, skip_when_stebbs_off=False)
+    assert sp_plan.patches[0].old_value == {"1": 20.0}
+    sp_norm = sp_plan.normalised(doc)
+    assert (
+        sp_norm.apply_to_document(doc).apply_patches(sp_norm.invert()).data == doc.data
+    )
+
+
+def test_patch_normaliser_error_guards_and_defensive_copies() -> None:
+    """Error cases raise ValueError and ConfigPatch isolates mutable caller payloads."""
+    caller_list = [1.0, 2.0]
+    patch = ConfigPatch("x", "set", new_value=caller_list, old_value={"k": [3]})
+    caller_list.append(99.0)
+    assert patch.new_value == [1.0, 2.0]
+
+    with pytest.raises(ValueError, match="unexpanded 'nullify_tree'"):
+        invert_patches([ConfigPatch("a", "nullify_tree", had_original=True)])
+    with pytest.raises(ValueError, match="had_original is unknown"):
+        invert_patches([ConfigPatch("a", "set", 1)])
+    with pytest.raises(ValueError, match="Malformed YAML path"):
+        canonicalise_path("sites[0]..lat")
+    with pytest.raises(ValueError, match="Unsupported patch action"):
+        normalise_patches([ConfigPatch("a", "bogus")], {})  # type: ignore[arg-type]
+
+    assert format_path_tokens(parse_path_tokens("sites[0].properties.lat")) == (
+        "sites[0].properties.lat"
+    )
+    assert path_exists({"a": None}, "a") is True
+    assert path_exists({"a": None}, "b") is False
+    assert read_raw_path({"a": {"value": 5}}, "a") == {"value": 5}
+    assert read_original_unwrapped({"a": {"value": 5}}, "a") == (True, 5)
+    assert read_original_unwrapped({}, "a") == (False, None)
+    assert collect_nullifiable_entries({"x": 1}, prefix="p") == [("p.x", 1, None)]
+    assert collect_nullifiable_values({"x": 1}) == {"x": 1}
+
+
+# ---------------------------------------------------------------------------
+# Pillar 3: Read-Only Typed Model (TypedConfigView + ReadOnlyModelProxy)
+# ---------------------------------------------------------------------------
+
+
+def test_typed_config_view_is_deeply_immutable_and_provides_typed_subviews() -> None:
+    """TypedConfigView deeply freezes raw dicts, stebbs_block, and exposes typed sub-views."""
+    raw = {
+        "model": {
+            "control": {
+                "start_time": "2012-01-01",
+                "end_time": "2012-01-02",
+                "tstep": {"value": 300},
+                "forcing": {"file": "forcing.txt"},
+            },
+            "physics": {
+                "net_radiation": 1003,
+                "storage_heat": 5,
+                "stebbs": {"enabled": True, "parameters": "default", "capacitance": 0},
+            },
+        },
+        "sites": [
+            {
+                "name": "London",
+                "gridiv": {"value": 12},
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "lng": -0.1,
+                    "alt": 40.0,
+                    "timezone": 0,
+                    "z": 35.0,
+                    "land_cover": {
+                        "paved": {"sfr": 0.4},
+                        "bldgs": {"sfr": {"value": 0.6}},
+                    },
+                    "vertical_layers": {
+                        "nlayer": {"value": 2},
+                        "height": [0.0, 10.0, 20.0],
+                        "building_frac": [0.6, 0.3],
+                        "veg_frac": [0.0, 0.0],
+                    },
+                },
+            }
+        ],
+    }
+
+    view = TypedConfigView.from_mapping(raw)
+    assert isinstance(view.control, ControlView)
+    assert isinstance(view.physics, PhysicsView)
+    assert isinstance(view.sites[0], SiteView)
+    assert view.control.start_time == "2012-01-01"
+    assert view.control.end_time == "2012-01-02"
+    assert view.control.tstep == pytest.approx(300.0)
+    assert view.control.forcing_file == "forcing.txt"
+
+    site = view.sites[0]
+    assert site.lat == pytest.approx(51.5)
+    assert site.lng == pytest.approx(-0.1)
+    assert site.alt == pytest.approx(40.0)
+    assert site.timezone == pytest.approx(0.0)
+    assert site.z == pytest.approx(35.0)
+
+    lc_view = site.land_cover_view
+    assert isinstance(lc_view, LandCoverView)
+    assert isinstance(lc_view.surface("bldgs"), SurfaceView)
+    assert lc_view.sfr("bldgs") == pytest.approx(0.6)
+    assert lc_view.active_surfaces() == ("paved", "bldgs")
+    assert dict(lc_view.fraction_map()) == {"paved": 0.4, "bldgs": 0.6}
+
+    vl_view = site.vertical_layers_view
+    assert isinstance(vl_view, VerticalLayersView)
+    assert vl_view.nlayer == 2
+    assert vl_view.heights == (0.0, 10.0, 20.0)
+    assert vl_view.building_frac == (0.6, 0.3)
+    assert vl_view.last_nonzero_height == pytest.approx(20.0)
+
+    # Mutating caller's dict after creating view does not affect the frozen view.
+    raw["sites"][0]["properties"]["lat"]["value"] = -80.0
+    assert site.lat == pytest.approx(51.5)
+
+    # Every container on the view is deeply immutable.
+    with pytest.raises(FrozenInstanceError):
+        view.physics = PhysicsView()  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        view.raw["model"] = {}  # type: ignore[index]
+    with pytest.raises(TypeError):
+        view.physics.raw["storage_heat"] = 1  # type: ignore[index]
+    with pytest.raises(TypeError):
+        view.physics.stebbs_block["capacitance"] = 2  # type: ignore[index]
+    with pytest.raises(TypeError):
+        site.properties["lat"] = 0.0  # type: ignore[index]
+    with pytest.raises(TypeError):
+        site.land_cover["paved"]["sfr"] = 0.9  # type: ignore[index]
+    with pytest.raises(TypeError):
+        lc_view.surfaces["paved"] = SurfaceView("paved")  # type: ignore[index]
+    assert isinstance(deep_freeze({"k": [1, {2}]}), MappingProxyType)
+
+
+def test_readonly_model_proxy_blocks_mutations_and_isolates_from_caller() -> None:
+    """freeze_model wraps SUEWSConfig in a deeply immutable proxy isolated from caller edits."""
+    sample_dict = yaml.safe_load(_load_sample_text())
+    cfg = SUEWSConfig.from_dict(deepcopy(sample_dict))
+    orig_lat = cfg.sites[0].properties.lat.value
+
+    ro = freeze_model(cfg)
+    assert isinstance(ro, ReadOnlyModelProxy)
+    assert freeze_model(ro) is ro
+    assert ro.model_type is SUEWSConfig
+    assert ro == cfg
+    assert isinstance(ro.model_fields_set, frozenset)
+    assert isinstance(ro.sites, tuple)
+    assert isinstance(ro.sites[0], ReadOnlyModelProxy)
+    assert ro.sites[0].properties.lat.value == orig_lat
+
+    # Mutating the original SUEWSConfig does NOT leak into the frozen proxy.
+    cfg.sites[0].properties.lat.value = -45.0
+    assert ro.sites[0].properties.lat.value == orig_lat
+    assert ro != cfg
+
+    # Every mutation attempt on the proxy raises TypeError.
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        ro.sites = []  # type: ignore[misc]
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        ro.sites[0].properties.lat.value = 10.0
+    with pytest.raises(TypeError, match="Cannot delete attribute"):
+        del ro.model
+    with pytest.raises(AttributeError):
+        _ = ro._target
+
+    # model_dump() returns a fresh copy; mutating it never affects the proxy.
+    dumped = ro.model_dump(mode="json", round_trip=True)
+    dumped["sites"][0]["properties"]["lat"]["value"] = 0.0
+    assert ro.sites[0].properties.lat.value == orig_lat
+
+    # TypedConfigView.from_config and proxy.to_typed_view agree with ConfigDocument.typed_view.
+    doc = ConfigDocument.from_dict(sample_dict, normalise=True)
+    v_doc = doc.typed_view()
+    v_proxy = ro.to_typed_view()
+    assert v_proxy.sites[0].lat == pytest.approx(v_doc.sites[0].lat)
+    assert v_proxy.sites[0].gridid == v_doc.sites[0].gridid
+
+    # ValidationContext auto-freezes typed_model and pre-builds cached view.
+    ctx = ValidationContext(yaml_data=sample_dict, typed_model=cfg)
+    assert isinstance(ctx.typed_model, ReadOnlyModelProxy)
+    assert ctx.view is ctx.view
+    assert ctx.view.sites[0].gridid == v_doc.sites[0].gridid
+
+    with pytest.raises(TypeError, match="typed_model must be"):
+        ValidationContext(yaml_data=sample_dict, typed_model="invalid")  # type: ignore[arg-type]
+
+    # Public supy.validate_config accepts a ReadOnlyModelProxy directly.
+    report = supy.validate_config(ro, pipeline="ABC", forcing="off")
+    assert report.is_valid
+
+
+def test_readonly_model_proxy_freezes_numpy_arrays_and_phase_b_reuses_cached_view(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NumPy arrays inside models are non-writeable and RulesRegistry reuses context.view."""
+
+    class _ArrayModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        arr: np.ndarray
+
+    m = _ArrayModel(arr=np.array([1.0, 2.0, 3.0]))
+    ro = freeze_model(m)
+    assert ro.arr.flags.writeable is False
+    with pytest.raises(ValueError, match="read-only"):
+        ro.arr[0] = 99.0
+
+    # Verify RulesRegistry.run_validation uses context.view without calling from_mapping per rule.
+    sample_dict = yaml.safe_load(_load_sample_text())
+    ctx = ValidationContext(yaml_data=sample_dict, model_year=2012)
+
+    from_mapping_calls = 0
+    orig_from_mapping = TypedConfigView.from_mapping.__func__
+
+    @classmethod
+    def _counting_from_mapping(cls, data):
+        nonlocal from_mapping_calls
+        from_mapping_calls += 1
+        return orig_from_mapping(cls, data)
+
+    monkeypatch.setattr(TypedConfigView, "from_mapping", _counting_from_mapping)
+    results = RulesRegistry(context=ctx).run_validation()
+    assert results
+    assert from_mapping_calls == 0
+    assert math.isfinite(ctx.view.sites[0].lat or 0.0)

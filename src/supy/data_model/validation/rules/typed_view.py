@@ -1,9 +1,11 @@
 """Typed read-only view over normalised YAML configuration mappings.
 
-Provides a single boundary through which Phase B scientific rules inspect
-frozen or plain YAML trees without repeating ad-hoc ``isinstance(..., dict)``,
-``MappingProxyType``, or ``entry.get("value")`` boilerplate. All unwrapping
-delegates to ``pipeline.document`` and ``core.yaml_helpers``.
+Provides a single deeply immutable boundary through which validation rules
+inspect raw mappings, :class:`ConfigDocument` instances, or validated
+``SUEWSConfig`` models without repeating ad-hoc ``isinstance(..., dict)``,
+``MappingProxyType``, or ``RefValue`` boilerplate. All unwrapping delegates to
+``pipeline.document`` and ``core.yaml_helpers``, and every exposed container
+is frozen via ``deep_freeze``.
 """
 
 from __future__ import annotations
@@ -12,7 +14,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import math
 from numbers import Integral, Real
-from typing import Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any
 
 from ...core.field_renames import read_physics_key
 from ...core.physics_families import resolve_scalar_name
@@ -23,6 +26,8 @@ from ..core.yaml_helpers import (
     get_value_safe,
 )
 from ..pipeline.document import (
+    ConfigDocument,
+    deep_freeze,
     is_ref_only,
     read_scalar,
     site_gridid,
@@ -30,6 +35,20 @@ from ..pipeline.document import (
 )
 from ..required_fields import BUILDING_PRESENT_SFR_TOL
 from .hard_invariants import SPARTACUS_METHODS
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+
+    from .readonly_model import ReadOnlyModelProxy
+
+_EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
+
+
+def _freeze_mapping(value: Any) -> Mapping[str, Any]:
+    """Return a deeply frozen ``MappingProxyType`` for *value*, or an empty mapping."""
+    if not isinstance(value, Mapping) or not value:
+        return _EMPTY_MAPPING
+    return deep_freeze(value)
 
 
 def as_float(value: Any) -> float | None:
@@ -92,30 +111,70 @@ def method_code(value: Any, field_name: str | None = None) -> int | None:
 
 
 @dataclass(frozen=True)
-class PhysicsView:
-    """Read-only typed view over ``model.physics``."""
+class ControlView:
+    """Deeply immutable typed view over ``model.control``."""
 
-    raw: Mapping[str, Any]
+    raw: Mapping[str, Any] = _EMPTY_MAPPING
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing control mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
+
+    @property
+    def start_time(self) -> Any:
+        """Unwrapped ``model.control.start_time``, or None."""
+        return get_value_safe(self.raw, "start_time")
+
+    @property
+    def end_time(self) -> Any:
+        """Unwrapped ``model.control.end_time``, or None."""
+        return get_value_safe(self.raw, "end_time")
+
+    @property
+    def tstep(self) -> float | None:
+        """Unwrapped ``model.control.tstep`` as float, or None."""
+        return as_float(get_value_safe(self.raw, "tstep"))
+
+    @property
+    def forcing_file(self) -> Any:
+        """Unwrapped ``model.control.forcing.file`` (or legacy ``forcing_file``)."""
+        forcing = unwrap_entry(self.raw.get("forcing"))
+        if isinstance(forcing, Mapping) and "file" in forcing:
+            return unwrap_entry(forcing.get("file"))
+        if "forcing_file" in self.raw:
+            return unwrap_entry(self.raw.get("forcing_file"))
+        return None
+
+
+@dataclass(frozen=True)
+class PhysicsView:
+    """Deeply immutable typed view over ``model.physics``."""
+
+    raw: Mapping[str, Any] = _EMPTY_MAPPING
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing physics mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
 
     @property
     def is_empty(self) -> bool:
-        """Return True when the physics mapping is empty."""
+        """Whether the physics mapping is empty."""
         return not self.raw
 
     @property
     def stebbs_block(self) -> Mapping[str, Any]:
-        """Return the folded ``model.physics.stebbs`` mapping."""
+        """Deeply frozen folded ``model.physics.stebbs`` mapping."""
         block = get_stebbs_block(self.raw)
-        return block if isinstance(block, Mapping) else {}
+        return _freeze_mapping(block)
 
     @property
     def stebbs_method(self) -> Any:
-        """Return the composed STEBBS method value (0, 1, 2, or None)."""
+        """Composed STEBBS method value (0, 1, 2, or None)."""
         return get_stebbsmethod_value(self.raw)
 
     @property
     def stebbs_method_int(self) -> int | None:
-        """Return the composed STEBBS method coerced to ``int``, or None."""
+        """Composed STEBBS method coerced to ``int``, or None."""
         raw_val = self.stebbs_method
         try:
             return int(raw_val)
@@ -124,16 +183,21 @@ class PhysicsView:
 
     @property
     def is_spartacus_enabled(self) -> bool:
-        """Return True when ``net_radiation`` selects any SPARTACUS scheme."""
+        """Whether ``net_radiation`` selects any SPARTACUS scheme."""
         try:
             net_radiation = self.read("net_radiation", 0)
         except (TypeError, ValueError):
-            net_radiation = self.raw.get("net_radiation", self.raw.get("netradiationmethod", 0))
+            net_radiation = self.raw.get(
+                "net_radiation", self.raw.get("netradiationmethod", 0)
+            )
         if isinstance(net_radiation, Mapping):
             unwrapped = unwrap_entry(net_radiation)
             if unwrapped is not net_radiation:
                 net_radiation = unwrapped
-            elif "spartacus" in net_radiation or net_radiation.get("scheme") == "spartacus":
+            elif (
+                "spartacus" in net_radiation
+                or net_radiation.get("scheme") == "spartacus"
+            ):
                 return True
         code = method_code(net_radiation, "net_radiation")
         if code is not None:
@@ -154,12 +218,147 @@ class PhysicsView:
 
 
 @dataclass(frozen=True)
+class SurfaceView:
+    """Deeply immutable typed view over one land-cover surface mapping."""
+
+    name: str
+    raw: Mapping[str, Any] = _EMPTY_MAPPING
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing surface mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
+
+    @property
+    def sfr(self) -> float | None:
+        """Surface fraction as a finite float, or None."""
+        return as_float(self.raw.get("sfr"))
+
+    @property
+    def raw_sfr(self) -> Any:
+        """Unwrapped raw ``sfr`` entry before float coercion."""
+        return get_ref_or_bare(self.raw, "sfr")
+
+    def scalar(self, key: str, default: Any = None) -> Any:
+        """Read a rename-aware unwrapped scalar from this surface."""
+        return get_value_safe(self.raw, key, default)
+
+
+@dataclass(frozen=True)
+class LandCoverView:
+    """Deeply immutable typed view over ``site.properties.land_cover``."""
+
+    raw: Mapping[str, Any] = _EMPTY_MAPPING
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing land-cover mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
+
+    @property
+    def surfaces(self) -> Mapping[str, SurfaceView]:
+        """Read-only mapping of surface name to :class:`SurfaceView`."""
+        views: dict[str, SurfaceView] = {}
+        for name, raw_surface in self.raw.items():
+            surface_props = unwrap_entry(raw_surface)
+            if isinstance(surface_props, Mapping):
+                views[str(name)] = SurfaceView(name=str(name), raw=surface_props)
+        return MappingProxyType(views)
+
+    def surface(self, name: str) -> SurfaceView | None:
+        """Return the :class:`SurfaceView` for *name*, or None."""
+        raw_surface = unwrap_entry(self.raw.get(name))
+        if not isinstance(raw_surface, Mapping):
+            return None
+        return SurfaceView(name=name, raw=raw_surface)
+
+    def sfr(self, name: str) -> float | None:
+        """Return the numeric surface fraction for *name*, or None."""
+        surf = self.surface(name)
+        return surf.sfr if surf is not None else None
+
+    def fraction_map(self) -> Mapping[str, Any]:
+        """Return a read-only mapping of non-null ``{surface: raw_sfr}`` pairs."""
+        out: dict[str, Any] = {}
+        for name, raw_surface in self.raw.items():
+            surface_props = unwrap_entry(raw_surface)
+            if isinstance(surface_props, Mapping):
+                sfr_val = get_ref_or_bare(surface_props, "sfr")
+                if sfr_val is not None:
+                    out[str(name)] = sfr_val
+        return MappingProxyType(out)
+
+    def active_surfaces(self, tol: float = 0.0) -> tuple[str, ...]:
+        """Return names of surfaces with numeric ``sfr > tol``."""
+        active: list[str] = []
+        for name, surf in self.surfaces.items():
+            if surf.sfr is not None and surf.sfr > tol:
+                active.append(name)
+        return tuple(active)
+
+
+@dataclass(frozen=True)
+class VerticalLayersView:
+    """Deeply immutable typed view over ``site.properties.vertical_layers``."""
+
+    raw: Mapping[str, Any] = _EMPTY_MAPPING
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing vertical-layers mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
+
+    @property
+    def nlayer(self) -> int | None:
+        """Integer ``nlayer``, or None."""
+        val = read_scalar(self.raw, "nlayer")
+        if val is None or isinstance(val, bool):
+            return None
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
+    def float_array(self, key: str) -> tuple[float | None, ...]:
+        """Return a frozen tuple of finite floats (or None) for array *key*."""
+        arr = unwrap_entry(self.raw.get(key))
+        if not isinstance(arr, (list, tuple)):
+            return ()
+        return tuple(as_float(item) for item in arr)
+
+    @property
+    def heights(self) -> tuple[float | None, ...]:
+        """Frozen tuple of ``vertical_layers.height`` floats."""
+        return self.float_array("height")
+
+    @property
+    def building_frac(self) -> tuple[float | None, ...]:
+        """Frozen tuple of ``vertical_layers.building_frac`` floats."""
+        return self.float_array("building_frac")
+
+    @property
+    def veg_frac(self) -> tuple[float | None, ...]:
+        """Frozen tuple of ``vertical_layers.veg_frac`` floats."""
+        return self.float_array("veg_frac")
+
+    @property
+    def last_nonzero_height(self) -> float | None:
+        """Last non-zero float in ``vertical_layers.height``."""
+        last_nz: float | None = None
+        for val in self.heights:
+            if val is not None and abs(val) > 0.0:
+                last_nz = val
+        return last_nz
+
+
+@dataclass(frozen=True)
 class SiteView:
-    """Read-only typed view over one entry in ``sites``."""
+    """Deeply immutable typed view over one entry in ``sites``."""
 
     index: int
     raw: Mapping[str, Any]
     name: str
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing site mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
 
     @property
     def gridid(self) -> Any:
@@ -173,60 +372,97 @@ class SiteView:
 
     @property
     def properties(self) -> Mapping[str, Any]:
-        """Site ``properties`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties`` mapping (empty mapping when absent)."""
         props = self.raw.get("properties")
-        return props if isinstance(props, Mapping) else {}
+        return props if isinstance(props, Mapping) else _EMPTY_MAPPING
 
     @property
     def initial_states(self) -> Mapping[str, Any]:
-        """Site ``initial_states`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``initial_states`` mapping (empty mapping when absent)."""
         states = self.raw.get("initial_states")
-        return states if isinstance(states, Mapping) else {}
+        return states if isinstance(states, Mapping) else _EMPTY_MAPPING
 
     @property
     def land_cover(self) -> Mapping[str, Any]:
-        """Site ``properties.land_cover`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties.land_cover`` mapping."""
         lc = unwrap_entry(self.properties.get("land_cover"))
-        return lc if isinstance(lc, Mapping) else {}
+        return lc if isinstance(lc, Mapping) else _EMPTY_MAPPING
+
+    @property
+    def land_cover_view(self) -> LandCoverView:
+        """Typed read-only :class:`LandCoverView` for this site."""
+        return LandCoverView(self.land_cover)
 
     @property
     def building_archetype(self) -> Mapping[str, Any]:
-        """Site ``properties.building_archetype`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties.building_archetype`` mapping."""
         ba = unwrap_entry(self.properties.get("building_archetype"))
-        return ba if isinstance(ba, Mapping) else {}
+        return ba if isinstance(ba, Mapping) else _EMPTY_MAPPING
 
     @property
     def stebbs(self) -> Mapping[str, Any]:
-        """Site ``properties.stebbs`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties.stebbs`` mapping."""
         st = unwrap_entry(self.properties.get("stebbs"))
-        return st if isinstance(st, Mapping) else {}
+        return st if isinstance(st, Mapping) else _EMPTY_MAPPING
 
     @property
     def vertical_layers(self) -> Mapping[str, Any]:
-        """Site ``properties.vertical_layers`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties.vertical_layers`` mapping."""
         vl = unwrap_entry(self.properties.get("vertical_layers"))
-        return vl if isinstance(vl, Mapping) else {}
+        return vl if isinstance(vl, Mapping) else _EMPTY_MAPPING
+
+    @property
+    def vertical_layers_view(self) -> VerticalLayersView:
+        """Typed read-only :class:`VerticalLayersView` for this site."""
+        return VerticalLayersView(self.vertical_layers)
 
     @property
     def irrigation(self) -> Mapping[str, Any]:
-        """Site ``properties.irrigation`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties.irrigation`` mapping."""
         irr = unwrap_entry(self.properties.get("irrigation"))
-        return irr if isinstance(irr, Mapping) else {}
+        return irr if isinstance(irr, Mapping) else _EMPTY_MAPPING
 
     @property
     def anthropogenic_emissions(self) -> Mapping[str, Any]:
-        """Site ``properties.anthropogenic_emissions`` mapping (empty dict when absent)."""
+        """Deeply frozen site ``properties.anthropogenic_emissions`` mapping."""
         anthro = unwrap_entry(self.properties.get("anthropogenic_emissions"))
-        return anthro if isinstance(anthro, Mapping) else {}
+        return anthro if isinstance(anthro, Mapping) else _EMPTY_MAPPING
 
+    @property
+    def lat(self) -> float | None:
+        """Site latitude as a finite float, or None."""
+        return as_float(self.scalar(self.properties, "lat"))
+
+    @property
+    def lng(self) -> float | None:
+        """Site longitude as a finite float, or None."""
+        return as_float(self.scalar(self.properties, "lng"))
+
+    @property
+    def alt(self) -> float | None:
+        """Site altitude as a finite float, or None."""
+        return as_float(self.scalar(self.properties, "alt"))
+
+    @property
+    def timezone(self) -> float | None:
+        """Site timezone offset as a finite float, or None."""
+        return as_float(self.scalar(self.properties, "timezone"))
+
+    @property
+    def z(self) -> float | None:
+        """Site forcing measurement height ``z`` as a finite float, or None."""
+        return as_float(self.scalar(self.properties, "z"))
+
+    @staticmethod
     def scalar(
-        self, section: Mapping[str, Any], key: str, default: Any = None
+        section: Mapping[str, Any], key: str, default: Any = None
     ) -> Any:
         """Read a rename-aware unwrapped scalar from *section*."""
         return get_value_safe(section, key, default)
 
+    @staticmethod
     def exact_scalar(
-        self, section: Mapping[str, Any], key: str, default: Any = None
+        section: Mapping[str, Any], key: str, default: Any = None
     ) -> Any:
         """Read an exact-key unwrapped scalar from *section*."""
         return read_scalar(section, key, default)
@@ -263,15 +499,7 @@ class SiteView:
 
     def last_nonzero_height(self) -> float | None:
         """Return the last non-zero float in ``vertical_layers.height``."""
-        arr = unwrap_entry(self.vertical_layers.get("height"))
-        if not isinstance(arr, (list, tuple)) or not arr:
-            return None
-        last_nz: float | None = None
-        for item in arr:
-            val = as_float(item)
-            if val is not None and val != 0.0:
-                last_nz = val
-        return last_nz
+        return self.vertical_layers_view.last_nonzero_height
 
     def facet_layer_values(self, layers_key: str, field: str) -> list[Any]:
         """Collect non-None values of *field* from ``vertical_layers.<layers_key>``."""
@@ -310,20 +538,31 @@ class SiteView:
 
 @dataclass(frozen=True)
 class TypedConfigView:
-    """Immutable typed view over a full SUEWS YAML configuration mapping."""
+    """Deeply immutable typed view over a full SUEWS YAML configuration."""
 
     raw: Mapping[str, Any]
     physics: PhysicsView
     sites: tuple[SiteView, ...]
     site_structure_errors: tuple[tuple[int | None, str, str], ...] = ()
+    control: ControlView = ControlView()
+
+    def __post_init__(self) -> None:
+        """Deep-freeze the backing root configuration mapping."""
+        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
 
     @classmethod
     def from_mapping(cls, yaml_data: Any) -> TypedConfigView:
-        """Construct a ``TypedConfigView`` from a raw or frozen config mapping."""
-        root = yaml_data if isinstance(yaml_data, Mapping) else {}
+        """Construct a deeply immutable ``TypedConfigView`` from any mapping."""
+        root = _freeze_mapping(yaml_data)
         model = root.get("model")
         physics_raw = model.get("physics") if isinstance(model, Mapping) else None
-        physics = PhysicsView(physics_raw if isinstance(physics_raw, Mapping) else {})
+        control_raw = model.get("control") if isinstance(model, Mapping) else None
+        physics = PhysicsView(
+            physics_raw if isinstance(physics_raw, Mapping) else _EMPTY_MAPPING
+        )
+        control = ControlView(
+            control_raw if isinstance(control_raw, Mapping) else _EMPTY_MAPPING
+        )
 
         site_views: list[SiteView] = []
         structure_errors: list[tuple[int | None, str, str]] = []
@@ -371,16 +610,31 @@ class TypedConfigView:
             physics=physics,
             sites=tuple(site_views),
             site_structure_errors=tuple(structure_errors),
+            control=control,
         )
+
+    @classmethod
+    def from_document(cls, document: ConfigDocument) -> TypedConfigView:
+        """Construct a deeply immutable ``TypedConfigView`` from a :class:`ConfigDocument`."""
+        return cls.from_mapping(document.data)
+
+    @classmethod
+    def from_config(
+        cls, config: BaseModel | ReadOnlyModelProxy
+    ) -> TypedConfigView:
+        """Construct a deeply immutable ``TypedConfigView`` from a ``SUEWSConfig`` or proxy."""
+        dumped = config.model_dump(mode="json", round_trip=True)
+        return cls.from_mapping(dumped)
 
     @property
     def start_time(self) -> Any:
-        """Return unwrapped ``model.control.start_time``, or None."""
-        model = self.raw.get("model")
-        control = model.get("control") if isinstance(model, Mapping) else None
-        if not isinstance(control, Mapping):
-            return None
-        return get_value_safe(control, "start_time")
+        """Unwrapped ``model.control.start_time``, or None."""
+        return self.control.start_time
+
+    @property
+    def end_time(self) -> Any:
+        """Unwrapped ``model.control.end_time``, or None."""
+        return self.control.end_time
 
     def any_buildings_present(self, tol: float = BUILDING_PRESENT_SFR_TOL) -> bool:
         """Return True if any site has ``land_cover.bldgs.sfr > tol``."""

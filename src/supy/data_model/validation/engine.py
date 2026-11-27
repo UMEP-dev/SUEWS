@@ -36,6 +36,7 @@ from .pipeline.report_schema import (
     PhaseReport,
     ValidationReport,
 )
+from .rules.readonly_model import ReadOnlyModelProxy, freeze_model
 
 if TYPE_CHECKING:
     from ..core.config import SUEWSConfig
@@ -598,6 +599,9 @@ def _load_source_in_memory(
     """Resolve *source* into ``(raw_data, source_path, error_report)`` without writes."""
     from ..core.config import SUEWSConfig  # noqa: PLC0415
 
+    if isinstance(source, ReadOnlyModelProxy):
+        source = source.unwrap_copy()
+
     if isinstance(source, SUEWSConfig):
         validated_copy, pre_dump_err = _validate_suews_config_before_dump(
             source, first_phase=first_phase
@@ -875,6 +879,7 @@ def _run_phase_b_in_memory(
     science_fixes: str,
     upstream_has_errors: bool,
     base_dir: Path | None = None,
+    typed_model: ReadOnlyModelProxy | None = None,
 ) -> tuple[Any, PhaseReport]:
     """Run Phase B scientific checks and optional in-memory adjustments."""
     if not isinstance(working_data, Mapping):
@@ -924,6 +929,7 @@ def _run_phase_b_in_memory(
             start_date=start_date,
             model_year=model_year,
             effective_fixes=effective_fixes,
+            typed_model=typed_model,
         )
         validation_results = bound_notes + RulesRegistry(
             context=validation_context
@@ -1209,12 +1215,18 @@ class ValidationEngine:
                 bound_base_dir = Path(yaml_path_attr).resolve().parent
 
         if "B" in pipeline_norm and (not has_errors or continue_on_error):
+            typed_model_proxy = (
+                freeze_model(source)
+                if isinstance(source, (BaseModel, ReadOnlyModelProxy))
+                else None
+            )
             phase_b_out, phase_b_report = _run_phase_b_in_memory(
                 working_data,
                 source_path=source_path,
                 science_fixes=fixes_norm,
                 upstream_has_errors=has_errors,
                 base_dir=bound_base_dir,
+                typed_model=typed_model_proxy,
             )
             phases.append(phase_b_report)
             if not phase_b_report.has_errors:

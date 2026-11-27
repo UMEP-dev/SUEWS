@@ -1,16 +1,34 @@
+from collections.abc import Mapping
 import math
-from typing import Optional
-from pydantic import ConfigDict, Field, computed_field, field_validator, model_validator
+import numbers
+from typing import Any, Optional
+from pydantic import (
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    computed_field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from .type import (
     DataModelBase,
     RefValue,
     Reference,
     FlexibleRefValue,
+    _SNOW_ACTIVE_CONTEXT,
+    _SOIL_OBSERVED_CONTEXT,
+    _SchemeActiveGuard,
+    _WeakConfigRef,
     df_from_col_items,
     df_from_cols,
     merge_df_state_col_items,
     merge_df_state_cols,
+    normalise_inactive_float_value,
     reject_bool_input,
+    resolve_snow_use_code,
+    resolve_soil_moisture_code,
+    serialise_relaxed_ref_float,
 )
 from .unit_metadata import (
     ConditionalUnitCase,
@@ -1195,6 +1213,70 @@ def _default_snow_ohm_coef() -> "OHM_Coefficient_season_wetness":
 class SnowParams(DataModelBase):
     model_config = ConfigDict(title="Snow")
 
+    _SNOW_NON_OPTIONAL_SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
+        "water_holding_capacity_max",
+        "water_holding_capacity_min",
+        "narp_emissivity_snow",
+        "precipitation_threshold_albedo_reset",
+        "snow_albedo_max",
+        "snow_albedo_min",
+        "snow_depth_limit_building",
+        "snow_depth_limit_paved",
+        "tau_cold_snow",
+        "tau_melting_snow",
+        "tau_refreezing_snow",
+        "temperature_melt_factor",
+        "radiation_melt_factor",
+    )
+    _SNOW_ALL_SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
+        *_SNOW_NON_OPTIONAL_SCALAR_FIELDS,
+        "temperature_rain_snow_threshold",
+        "snow_density_min",
+        "snow_density_max",
+        "ohm_threshold_summer_winter",
+        "ohm_threshold_wet_dry",
+    )
+
+    _snow_validation_active: bool = PrivateAttr(default=True)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_snow_validation_active(self) -> bool:
+        """Return True when snow parameter constraints apply (standalone or ``snow_use != 0``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            snow_use = getattr(physics, "snow_use", None) if physics is not None else None
+            code = resolve_snow_use_code(snow_use)
+            return code is None or code != 0
+        return bool(getattr(self, "_snow_validation_active", True))
+
+    def _make_snow_guard(self) -> _SchemeActiveGuard:
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        return _SchemeActiveGuard(
+            "snow",
+            active=bool(getattr(self, "_snow_validation_active", True)),
+            config=parent_cfg,
+        )
+
+    def _sync_snow_validation_state(
+        self,
+        *,
+        active: bool,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise cached snow activation state, owner weakref, and RefValue guards."""
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_snow_validation_active", active)
+        guard = self._make_snow_guard()
+        for field_name in type(self)._SNOW_NON_OPTIONAL_SCALAR_FIELDS:
+            current = getattr(self, field_name, None)
+            if isinstance(current, RefValue):
+                current._bind_non_optional(field_name, "number", guard=guard)
+
     water_holding_capacity_max: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum water holding capacity of snow",
@@ -1353,6 +1435,59 @@ class SnowParams(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_snow_params(cls, data: Any, handler: Any) -> "SnowParams":
+        """Relax SnowParams scalar bounds/null checks when ``snow_use == 0`` inside SUEWSConfig."""
+        if isinstance(data, SnowParams):
+            return handler(data)
+        snow_active = _SNOW_ACTIVE_CONTEXT.get()
+        if snow_active is None or not isinstance(data, Mapping):
+            return handler(data)
+        if snow_active:
+            inst = handler(data)
+            object.__setattr__(inst, "_snow_validation_active", True)
+            return inst
+
+        renamed = apply_field_renames(dict(data), SNOWPARAMS_RENAMES, cls.__name__)
+        renamed = apply_field_renames(
+            renamed, SNOWPARAMS_INTERMEDIATE_RENAMES, cls.__name__
+        )
+        stashed: dict[str, Any] = {}
+        stripped: dict[str, Any] = {}
+        null_snow_profile = False
+        for key, val in renamed.items():
+            if key == "snow_profile_24hr" and (
+                val is None
+                or (
+                    isinstance(val, Mapping)
+                    and "value" in val
+                    and val["value"] is None
+                    and set(val.keys()) <= {"value", "ref"}
+                )
+            ):
+                null_snow_profile = True
+                continue
+            if key in cls._SNOW_NON_OPTIONAL_SCALAR_FIELDS:
+                ok, normalised = normalise_inactive_float_value(
+                    val, allow_null=True, allow_non_finite=False
+                )
+                if ok:
+                    stashed[key] = normalised
+                    continue
+            stripped[key] = val
+
+        inst = handler(stripped)
+        object.__setattr__(inst, "_snow_validation_active", False)
+        if null_snow_profile:
+            object.__setattr__(inst, "snow_profile_24hr", None)
+            inst.model_fields_set.add("snow_profile_24hr")
+        for field_name, norm_val in stashed.items():
+            object.__setattr__(inst, field_name, norm_val)
+            inst.model_fields_set.add(field_name)
+        inst._sync_snow_validation_state(active=False)
+        return inst
+
     @model_validator(mode="before")
     @classmethod
     def _rename_snow_fields(cls, values):
@@ -1363,36 +1498,137 @@ class SnowParams(DataModelBase):
             )
         return values
 
+    @model_validator(mode="after")
+    def _reject_non_finite_snow_scalars(self) -> "SnowParams":
+        """Reject NaN/Inf on supplied snow scalars in lockstep with native YAML loading."""
+        for field_name in type(self)._SNOW_ALL_SCALAR_FIELDS:
+            raw = getattr(self, field_name, None)
+            val = raw.value if isinstance(raw, RefValue) else raw
+            if (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and not math.isfinite(float(val))
+            ):
+                raise ValueError(
+                    f"snow.{field_name} must be a finite number, got {val!r}"
+                )
+        return self
+
+    @field_serializer(
+        "water_holding_capacity_max",
+        "water_holding_capacity_min",
+        "narp_emissivity_snow",
+        "precipitation_threshold_albedo_reset",
+        "snow_albedo_max",
+        "snow_albedo_min",
+        "snow_depth_limit_building",
+        "snow_depth_limit_paved",
+        "tau_cold_snow",
+        "tau_melting_snow",
+        "tau_refreezing_snow",
+        "temperature_melt_factor",
+        "radiation_melt_factor",
+        mode="wrap",
+    )
+    def _serialise_snow_scalar(self, value: Any, handler: Any) -> Any:
+        return serialise_relaxed_ref_float(value, handler)
+
+    @field_serializer("snow_profile_24hr", mode="wrap")
+    def _serialise_snow_profile(self, value: Any, handler: Any) -> Any:
+        if value is None:
+            return None
+        return handler(value)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name == "snow_profile_24hr"
+            and value is None
+            and not self._is_snow_validation_active()
+        ):
+            object.__setattr__(self, "snow_profile_24hr", None)
+            self.model_fields_set.add("snow_profile_24hr")
+            return
+        if name in type(self)._SNOW_ALL_SCALAR_FIELDS:
+            raw_check = value.value if isinstance(value, RefValue) else (
+                value["value"]
+                if isinstance(value, Mapping) and "value" in value
+                else value
+            )
+            if (
+                isinstance(raw_check, numbers.Real)
+                and not isinstance(raw_check, bool)
+                and not math.isfinite(float(raw_check))
+            ):
+                raise ValueError(
+                    f"snow.{name} must be a finite number, got {raw_check!r}"
+                )
+        if name in type(self)._SNOW_NON_OPTIONAL_SCALAR_FIELDS:
+            if not self._is_snow_validation_active():
+                ok, normalised = normalise_inactive_float_value(
+                    value, allow_null=True, allow_non_finite=False
+                )
+                if ok:
+                    if isinstance(normalised, RefValue):
+                        normalised._bind_non_optional(
+                            name, "number", guard=self._make_snow_guard()
+                        )
+                    object.__setattr__(self, name, normalised)
+                    self.model_fields_set.add(name)
+                    return
+            super().__setattr__(name, value)
+            bound = getattr(self, name, None)
+            if isinstance(bound, RefValue):
+                bound._bind_non_optional(name, "number", guard=self._make_snow_guard())
+            return
+        super().__setattr__(name, value)
+
+    def validate_non_null_ref_values(self, _path: str = "") -> None:
+        """Skip non-null RefValue enforcement on SnowParams while snow is disabled."""
+        if not self._is_snow_validation_active():
+            return
+        super().validate_non_null_ref_values(_path)
+
     def _to_df_state_cols(self, grid_id: int) -> dict:
-        scalar_params = {
-            "crwmax": self.water_holding_capacity_max,
-            "crwmin": self.water_holding_capacity_min,
-            "narp_emis_snow": self.narp_emissivity_snow,
-            "preciplimit": self.temperature_rain_snow_threshold,
-            "preciplimitalb": self.precipitation_threshold_albedo_reset,
-            "snowalbmax": self.snow_albedo_max,
-            "snowalbmin": self.snow_albedo_min,
-            "snowdensmin": self.snow_density_min,
-            "snowdensmax": self.snow_density_max,
-            "snowlimbldg": self.snow_depth_limit_building,
-            "snowlimpaved": self.snow_depth_limit_paved,
-            "tau_a": self.tau_cold_snow,
-            "tau_f": self.tau_melting_snow,
-            "tau_r": self.tau_refreezing_snow,
-            "tempmeltfact": self.temperature_melt_factor,
-            "radmeltfact": self.radiation_melt_factor,
-        }
+        scalar_fields = (
+            ("crwmax", "water_holding_capacity_max"),
+            ("crwmin", "water_holding_capacity_min"),
+            ("narp_emis_snow", "narp_emissivity_snow"),
+            ("preciplimit", "temperature_rain_snow_threshold"),
+            ("preciplimitalb", "precipitation_threshold_albedo_reset"),
+            ("snowalbmax", "snow_albedo_max"),
+            ("snowalbmin", "snow_albedo_min"),
+            ("snowdensmin", "snow_density_min"),
+            ("snowdensmax", "snow_density_max"),
+            ("snowlimbldg", "snow_depth_limit_building"),
+            ("snowlimpaved", "snow_depth_limit_paved"),
+            ("tau_a", "tau_cold_snow"),
+            ("tau_f", "tau_melting_snow"),
+            ("tau_r", "tau_refreezing_snow"),
+            ("tempmeltfact", "temperature_melt_factor"),
+            ("radmeltfact", "radiation_melt_factor"),
+        )
         cols = {("gridiv", "0"): grid_id}
         defaults = {
             "preciplimit": 2.2,
             "snowdensmin": 100.0,
             "snowdensmax": 400.0,
         }
-        for param_name, value in scalar_params.items():
-            if value is not None:
-                val = value.value if isinstance(value, RefValue) else value
+        for param_name, field_name in scalar_fields:
+            value = getattr(self, field_name)
+            if isinstance(value, RefValue):
+                # Preserve wrapped values verbatim, including explicit RefValue(None),
+                # so active or inactive nulls are never silently replaced with numbers.
+                val = value.value
+            elif (
+                value is None
+                and param_name in defaults
+                and field_name not in self.model_fields_set
+            ):
+                # Preserve legacy DataFrame defaults for the three Optional SnowParams
+                # fields only when omitted (known_df_yaml_parity_gaps #2101).
+                val = defaults[param_name]
             else:
-                val = defaults.get(param_name, 0.0)
+                val = value
             cols[(param_name, "0")] = val
 
         for col, value in (
@@ -1409,11 +1645,16 @@ class SnowParams(DataModelBase):
             self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
         )
         merge_df_state_cols(cols, ohm_coef._to_df_state_cols(grid_id, 7), fill_na=True)
-        merge_df_state_cols(
-            cols,
-            self.snow_profile_24hr._to_df_state_cols(grid_id, "snowprof_24hr"),
-            fill_na=True,
-        )
+        if self.snow_profile_24hr is not None:
+            merge_df_state_cols(
+                cols,
+                self.snow_profile_24hr._to_df_state_cols(grid_id, "snowprof_24hr"),
+                fill_na=True,
+            )
+        else:
+            for hour in range(24):
+                for day_idx in (0, 1):
+                    cols[("snowprof_24hr", f"({hour}, {day_idx})")] = None
         return dict(sorted(cols.items()))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -1446,33 +1687,63 @@ class SnowParams(DataModelBase):
         # DataFrame columns keep the legacy fused spellings; the keys are the
         # canonical field names so the constructor does not trip its own
         # deprecation shim.
-        scalar_params = {
-            "water_holding_capacity_max": df.loc[grid_id, ("crwmax", "0")],
-            "water_holding_capacity_min": df.loc[grid_id, ("crwmin", "0")],
-            "narp_emissivity_snow": df.loc[grid_id, ("narp_emis_snow", "0")],
-            "temperature_rain_snow_threshold": df.loc[grid_id, ("preciplimit", "0")],
-            "precipitation_threshold_albedo_reset": df.loc[
-                grid_id, ("preciplimitalb", "0")
-            ],
-            "snow_albedo_max": df.loc[grid_id, ("snowalbmax", "0")],
-            "snow_albedo_min": df.loc[grid_id, ("snowalbmin", "0")],
-            "snow_density_min": df.loc[grid_id, ("snowdensmin", "0")],
-            "snow_density_max": df.loc[grid_id, ("snowdensmax", "0")],
-            "snow_depth_limit_building": df.loc[grid_id, ("snowlimbldg", "0")],
-            "snow_depth_limit_paved": df.loc[grid_id, ("snowlimpaved", "0")],
-            "tau_cold_snow": df.loc[grid_id, ("tau_a", "0")],
-            "tau_melting_snow": df.loc[grid_id, ("tau_f", "0")],
-            "tau_refreezing_snow": df.loc[grid_id, ("tau_r", "0")],
-            "temperature_melt_factor": df.loc[grid_id, ("tempmeltfact", "0")],
-            "radiation_melt_factor": df.loc[grid_id, ("radmeltfact", "0")],
+        snow_inactive = _SNOW_ACTIVE_CONTEXT.get() is False
+
+        def _is_missing_scalar(val: Any) -> bool:
+            return val is None or (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and math.isnan(float(val))
+            )
+
+        scalar_columns = {
+            "water_holding_capacity_max": ("crwmax", "0"),
+            "water_holding_capacity_min": ("crwmin", "0"),
+            "narp_emissivity_snow": ("narp_emis_snow", "0"),
+            "temperature_rain_snow_threshold": ("preciplimit", "0"),
+            "precipitation_threshold_albedo_reset": ("preciplimitalb", "0"),
+            "snow_albedo_max": ("snowalbmax", "0"),
+            "snow_albedo_min": ("snowalbmin", "0"),
+            "snow_density_min": ("snowdensmin", "0"),
+            "snow_density_max": ("snowdensmax", "0"),
+            "snow_depth_limit_building": ("snowlimbldg", "0"),
+            "snow_depth_limit_paved": ("snowlimpaved", "0"),
+            "tau_cold_snow": ("tau_a", "0"),
+            "tau_melting_snow": ("tau_f", "0"),
+            "tau_refreezing_snow": ("tau_r", "0"),
+            "temperature_melt_factor": ("tempmeltfact", "0"),
+            "radiation_melt_factor": ("radmeltfact", "0"),
         }
 
-        # Convert scalar parameters to RefValue
-        scalar_params = {key: RefValue(value) for key, value in scalar_params.items()}
+        scalar_params: dict[str, Any] = {}
+        for key, col in scalar_columns.items():
+            raw = df.loc[grid_id, col]
+            if _is_missing_scalar(raw):
+                scalar_params[key] = (
+                    None if snow_inactive else RefValue(None if raw is None else raw)
+                )
+            else:
+                scalar_params[key] = RefValue(raw)
 
         # Extract HourlyProfile (DF column stays "snowprof_24hr" for the Fortran
         # bridge; the constructor takes the canonical `snow_profile_24hr`).
-        snow_profile_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
+        snow_prof_cols = [
+            ("snowprof_24hr", f"({hour}, {day_idx})")
+            for hour in range(24)
+            for day_idx in (0, 1)
+        ]
+        if (
+            snow_inactive
+            and all(col in df.columns for col in snow_prof_cols)
+            and all(
+                _is_missing_scalar(df.loc[grid_id, col]) for col in snow_prof_cols
+            )
+        ):
+            snow_profile_24hr = None
+        else:
+            snow_profile_24hr = HourlyProfile.from_df_state(
+                df, grid_id, "snowprof_24hr"
+            )
 
         # Snow's OHM parameters live at surface index 7 (df_state convention).
         ohm_params = {}
@@ -3291,8 +3562,95 @@ class SoilObservationConfig(DataModelBase):
         "bulk_density": "obs_sm_bulk_density",
     }
 
+    _soil_obs_validation_active: bool = PrivateAttr(default=True)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_soil_observation_active(self) -> bool:
+        """Return True when observed soil-moisture checks apply (standalone or ``soil_moisture == 1``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            sm = getattr(physics, "soil_moisture", None) if physics is not None else None
+            code = resolve_soil_moisture_code(sm)
+            return code is None or code == 1
+        return bool(getattr(self, "_soil_obs_validation_active", True))
+
+    def _make_soil_obs_guard(self) -> _SchemeActiveGuard:
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        return _SchemeActiveGuard(
+            "soil_obs",
+            active=bool(getattr(self, "_soil_obs_validation_active", True)),
+            config=parent_cfg,
+        )
+
+    def _sync_soil_obs_validation_state(
+        self,
+        *,
+        active: bool,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise cached observed-soil activation state, owner weakref, and RefValue guards."""
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_soil_obs_validation_active", active)
+        guard = self._make_soil_obs_guard()
+        for field_name in ("layer_depth", "layer_top", "soil_not_rocks"):
+            current = getattr(self, field_name, None)
+            if isinstance(current, RefValue):
+                current._bind_non_optional(field_name, "number", guard=guard)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_soil_observation(
+        cls, data: Any, handler: Any
+    ) -> "SoilObservationConfig":
+        """Skip SoilObservationConfig bounds/required checks when ``soil_moisture != 1``."""
+        if isinstance(data, SoilObservationConfig):
+            return handler(data)
+        soil_obs_active = _SOIL_OBSERVED_CONTEXT.get()
+        if soil_obs_active is None or not isinstance(data, Mapping):
+            return handler(data)
+        if soil_obs_active:
+            inst = handler(data)
+            object.__setattr__(inst, "_soil_obs_validation_active", True)
+            return inst
+
+        stashed: dict[str, Any] = {}
+        stripped: dict[str, Any] = {}
+        had_layer_depth = "layer_depth" in data
+        for key, val in data.items():
+            if key in cls._FIELD_TO_COLUMN:
+                ok, normalised = normalise_inactive_float_value(
+                    val, allow_null=True, allow_non_finite=True
+                )
+                if ok:
+                    stashed[key] = normalised
+                    continue
+            stripped[key] = val
+
+        # Supply a temporary placeholder when layer_depth was omitted or stashed so
+        # Pydantic still enforces extra="forbid" and unrelated field checks cleanly.
+        if "layer_depth" not in stripped:
+            stripped["layer_depth"] = 1.0
+
+        inst = handler(stripped)
+        object.__setattr__(inst, "_soil_obs_validation_active", False)
+        if not had_layer_depth:
+            object.__setattr__(inst, "layer_depth", None)
+            inst.model_fields_set.discard("layer_depth")
+        for field_name, norm_val in stashed.items():
+            object.__setattr__(inst, field_name, norm_val)
+            inst.model_fields_set.add(field_name)
+        inst._sync_soil_obs_validation_state(active=False)
+        return inst
+
     @model_validator(mode="after")
     def _finite_observation_values(self):
+        if _SOIL_OBSERVED_CONTEXT.get() is False or not self._is_soil_observation_active():
+            return self
         for name in self._FIELD_TO_COLUMN:
             value = getattr(self, name)
             if value is None and name == "bulk_density":
@@ -3302,14 +3660,59 @@ class SoilObservationConfig(DataModelBase):
                 raise ValueError(f"{name} must be finite")
         return self
 
+    @field_serializer(
+        "layer_depth",
+        "layer_top",
+        "bulk_density",
+        "soil_not_rocks",
+        mode="wrap",
+    )
+    def _serialise_soil_observation_field(self, value: Any, handler: Any) -> Any:
+        return serialise_relaxed_ref_float(value, handler)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in type(self)._FIELD_TO_COLUMN:
+            if not self._is_soil_observation_active():
+                ok, normalised = normalise_inactive_float_value(
+                    value, allow_null=True, allow_non_finite=True
+                )
+                if ok:
+                    if isinstance(normalised, RefValue) and name != "bulk_density":
+                        normalised._bind_non_optional(
+                            name, "number", guard=self._make_soil_obs_guard()
+                        )
+                    object.__setattr__(self, name, normalised)
+                    self.model_fields_set.add(name)
+                    return
+            super().__setattr__(name, value)
+            if name != "bulk_density":
+                bound = getattr(self, name, None)
+                if isinstance(bound, RefValue):
+                    bound._bind_non_optional(
+                        name, "number", guard=self._make_soil_obs_guard()
+                    )
+            return
+        super().__setattr__(name, value)
+
+    def validate_non_null_ref_values(self, _path: str = "") -> None:
+        """Skip non-null RefValue enforcement on SoilObservationConfig while observed soil is inactive."""
+        if not self._is_soil_observation_active():
+            return
+        super().validate_non_null_ref_values(_path)
+
     def _to_df_state_cols(self, grid_id: int) -> dict:
         cols = {("gridiv", "0"): grid_id}
         for attr, col_name in self._FIELD_TO_COLUMN.items():
             field_val = getattr(self, attr)
-            if field_val is not None:
-                cols[(col_name, "0")] = (
-                    field_val.value if isinstance(field_val, RefValue) else field_val
-                )
+            raw = field_val.value if isinstance(field_val, RefValue) else field_val
+            if attr == "bulk_density":
+                if raw is not None:
+                    cols[(col_name, "0")] = raw
+            else:
+                # Always emit non-optional observed-soil columns so inactive
+                # nulls/NaNs survive DataFrame round-trips instead of reverting
+                # to valid defaults (layer_top=0.0, soil_not_rocks=1.0).
+                cols[(col_name, "0")] = raw
         return cols
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -3324,12 +3727,39 @@ class SoilObservationConfig(DataModelBase):
         for name in ("obs_sm_depth", "obs_sm_smcap"):
             if (name, "0") in df.columns:
                 raise ValueError(f"Retired soil observation field {name}; migrate the source configuration")
-        params = {}
-        for field_name, col_name in cls._FIELD_TO_COLUMN.items():
-            if (col_name, "0") in df.columns:
-                value = df.loc[grid_id, (col_name, "0")]
+        soil_obs_inactive = _SOIL_OBSERVED_CONTEXT.get() is False
+        present_cols = {
+            field_name: df.loc[grid_id, (col_name, "0")]
+            for field_name, col_name in cls._FIELD_TO_COLUMN.items()
+            if (col_name, "0") in df.columns
+        }
+        if not present_cols:
+            return None
+        any_non_null = any(
+            val is not None and not pd.isna(val) for val in present_cols.values()
+        )
+        if not any_non_null:
+            return None
+        params: dict[str, Any] = {}
+        for field_name, value in present_cols.items():
+            if field_name == "bulk_density":
                 if value is not None and not pd.isna(value):
                     params[field_name] = RefValue(value)
+                continue
+            if value is None:
+                params[field_name] = None if soil_obs_inactive else RefValue(None)
+            elif (
+                isinstance(value, numbers.Real)
+                and not isinstance(value, bool)
+                and math.isnan(float(value))
+            ):
+                params[field_name] = (
+                    float("nan") if soil_obs_inactive else RefValue(value)
+                )
+            elif pd.isna(value):
+                params[field_name] = None if soil_obs_inactive else RefValue(None)
+            else:
+                params[field_name] = RefValue(value)
         return cls(**params) if params else None
 
 
@@ -3568,6 +3998,140 @@ class SiteProperties(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    _snow_validation_active: bool = PrivateAttr(default=True)
+    _soil_obs_validation_active: bool = PrivateAttr(default=True)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_snow_validation_active(self) -> bool:
+        """Return True when snow block requirements apply (standalone or ``snow_use != 0``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            snow_use = getattr(physics, "snow_use", None) if physics is not None else None
+            code = resolve_snow_use_code(snow_use)
+            return code is None or code != 0
+        return bool(getattr(self, "_snow_validation_active", True))
+
+    def _is_soil_observation_active(self) -> bool:
+        """Return True when observed-soil requirements apply (standalone or ``soil_moisture == 1``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            sm = getattr(physics, "soil_moisture", None) if physics is not None else None
+            code = resolve_soil_moisture_code(sm)
+            return code is None or code == 1
+        return bool(getattr(self, "_soil_obs_validation_active", True))
+
+    def _sync_snow_validation_state(
+        self,
+        *,
+        active: bool,
+        soil_obs_active: bool | None = None,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise cached scheme activation states and owning ``SUEWSConfig`` weakref."""
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_snow_validation_active", active)
+        if soil_obs_active is not None:
+            object.__setattr__(self, "_soil_obs_validation_active", soil_obs_active)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_optional_snow_block(
+        cls, data: Any, handler: Any
+    ) -> "SiteProperties":
+        """Permit ``properties.snow: null`` inside SUEWSConfig when ``snow_use == 0``."""
+        if isinstance(data, SiteProperties):
+            return handler(data)
+        snow_active = _SNOW_ACTIVE_CONTEXT.get()
+        soil_obs_active = _SOIL_OBSERVED_CONTEXT.get()
+        if snow_active is None or not isinstance(data, Mapping):
+            inst = handler(data)
+            if soil_obs_active is not None:
+                object.__setattr__(
+                    inst, "_soil_obs_validation_active", bool(soil_obs_active)
+                )
+            return inst
+        if snow_active:
+            inst = handler(data)
+            object.__setattr__(inst, "_snow_validation_active", True)
+            if soil_obs_active is not None:
+                object.__setattr__(
+                    inst, "_soil_obs_validation_active", bool(soil_obs_active)
+                )
+            return inst
+
+        had_null_snow = "snow" in data and data["snow"] is None
+        if not had_null_snow:
+            inst = handler(data)
+            object.__setattr__(inst, "_snow_validation_active", False)
+            if soil_obs_active is not None:
+                object.__setattr__(
+                    inst, "_soil_obs_validation_active", bool(soil_obs_active)
+                )
+            return inst
+
+        stripped = {k: v for k, v in data.items() if k != "snow"}
+        inst = handler(stripped)
+        object.__setattr__(inst, "_snow_validation_active", False)
+        if soil_obs_active is not None:
+            object.__setattr__(
+                inst, "_soil_obs_validation_active", bool(soil_obs_active)
+            )
+        object.__setattr__(inst, "snow", None)
+        inst.model_fields_set.add("snow")
+        return inst
+
+    @field_serializer("snow", mode="wrap")
+    def _serialise_optional_snow(self, value: Any, handler: Any) -> Any:
+        if value is None:
+            return None
+        return handler(value)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name == "snow"
+            and value is None
+            and not self._is_snow_validation_active()
+        ):
+            object.__setattr__(self, "snow", None)
+            self.model_fields_set.add("snow")
+            return
+        snow_token = None
+        soil_token = None
+        if name in ("snow", "land_cover"):
+            snow_token = _SNOW_ACTIVE_CONTEXT.set(self._is_snow_validation_active())
+        if name in ("soil_observation", "land_cover"):
+            soil_token = _SOIL_OBSERVED_CONTEXT.set(self._is_soil_observation_active())
+        try:
+            super().__setattr__(name, value)
+        finally:
+            if snow_token is not None:
+                _SNOW_ACTIVE_CONTEXT.reset(snow_token)
+            if soil_token is not None:
+                _SOIL_OBSERVED_CONTEXT.reset(soil_token)
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if name == "snow":
+            assigned = getattr(self, "snow", None)
+            if isinstance(assigned, SnowParams):
+                assigned._sync_snow_validation_state(
+                    active=self._is_snow_validation_active(),
+                    config=parent_cfg,
+                )
+        elif name == "soil_observation":
+            assigned = getattr(self, "soil_observation", None)
+            if isinstance(assigned, SoilObservationConfig):
+                assigned._sync_soil_obs_validation_state(
+                    active=self._is_soil_observation_active(),
+                    config=parent_cfg,
+                )
+
     @field_validator("lambda_c", mode="before")
     @classmethod
     def _reject_boolean_lambda_c(cls, value):
@@ -3629,13 +4193,29 @@ class SiteProperties(DataModelBase):
                 val = val.value
             items.append(((var, "0"), val))
 
+        if self.snow is not None:
+            snow_obj = self.snow
+        else:
+            snow_obj = SnowParams.model_construct(
+                **{
+                    field_name: None
+                    for field_name in SnowParams._SNOW_NON_OPTIONAL_SCALAR_FIELDS
+                },
+                temperature_rain_snow_threshold=RefValue(None),
+                snow_density_min=RefValue(None),
+                snow_density_max=RefValue(None),
+                snow_profile_24hr=None,
+                ohm_coef=_default_snow_ohm_coef(),
+                ohm_threshold_summer_winter=None,
+                ohm_threshold_wet_dry=None,
+            )
         for sub in (
             self.lumps,
             self.spartacus,
             self.conductance,
             self.irrigation,
             self.anthropogenic_emissions,
-            self.snow,
+            snow_obj,
             self.land_cover,
             self.vertical_layers,
             self.stebbs,

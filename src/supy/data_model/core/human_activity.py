@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import math
 from typing import Any, Optional, Union
 import warnings
-import weakref
 
 import numpy as np
 import pandas as pd
@@ -31,6 +30,7 @@ from .type import (
     FlexibleRefValue,
     Reference,
     RefValue,
+    _WeakConfigRef,
     df_from_cols,
     merge_df_state_cols,
 )
@@ -266,34 +266,6 @@ def _df_state_doy_scalar(val: Any) -> int | float:
         except OverflowError:
             return 0
     return 0
-
-
-class _WeakConfigRef:
-    """Picklable, copy-aware weak reference to an owning ``SUEWSConfig``."""
-
-    __slots__ = ("_ref",)
-
-    def __init__(self, config: Any | None = None) -> None:
-        self._ref = weakref.ref(config) if config is not None else None
-
-    def get(self) -> Any | None:
-        """Return the owning ``SUEWSConfig`` if still alive, else ``None``."""
-        return self._ref() if self._ref is not None else None
-
-    def __getstate__(self) -> None:
-        return None
-
-    def __setstate__(self, state: Any) -> None:
-        self._ref = None
-
-    def __deepcopy__(self, memo: dict[int, Any]) -> "_WeakConfigRef":
-        target = self.get()
-        if target is None:
-            return _WeakConfigRef(None)
-        copied_target = memo.get(id(target))
-        if copied_target is not None:
-            return _WeakConfigRef(copied_target)
-        return _WeakConfigRef(None)
 
 
 class IrrigationParams(

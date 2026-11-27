@@ -666,3 +666,124 @@ def test_exported_json_schema_enforces_day_night_profile_bounds(
         assert errors, (
             f"Expected JSON Schema error for {section}.{field}.{day_type}={bad_val}"
         )
+
+
+def test_historical_json_schema_before_dev24_restores_unbounded_hourly_profile() -> (
+    None
+):
+    """generate_json_schema('2026.6.dev23') restores pre-dev24 HourlyProfile refs and accepts 1/24."""
+    import jsonschema  # noqa: PLC0415
+
+    from supy.data_model.configuration.publisher import (  # noqa: PLC0415
+        generate_json_schema,
+    )
+
+    schema_dev23 = generate_json_schema("2026.6.dev23")
+    defs = schema_dev23["$defs"]
+    assert "DayNightHourlyProfile" not in defs
+    assert (
+        defs["AnthropogenicHeat"]["properties"]["popprof_24hr"]["$ref"]
+        == "#/$defs/HourlyProfile"
+    )
+    assert defs["CO2Params"]["properties"]["profile_human_activity_24hr"]["anyOf"] == [
+        {"$ref": "#/$defs/HourlyProfile"},
+        {"type": "null"},
+    ]
+
+    validator = jsonschema.Draft202012Validator(schema_dev23)
+    raw = _load_sample_raw()
+    raw["schema_version"] = "2026.6.dev23"
+    uniform_legacy = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["heat"]["popprof_24hr"] = {
+        "working_day": uniform_legacy.copy(),
+        "holiday": uniform_legacy.copy(),
+    }
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["co2"][
+        "profile_human_activity_24hr"
+    ] = {
+        "working_day": uniform_legacy.copy(),
+        "holiday": uniform_legacy.copy(),
+    }
+    profile_errors = [
+        err
+        for err in validator.iter_errors(raw)
+        if "popprof_24hr" in err.absolute_path
+        or "profile_human_activity_24hr" in err.absolute_path
+    ]
+    assert profile_errors == []
+
+
+def test_in_place_numpy_scalar_mutation_accepted_and_bool_rejected() -> None:
+    """In-place mutation accepts finite NumPy real scalars in [1.0, 2.0] and rejects np.bool_."""
+    import numpy as np  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    anthro = cfg.sites[0].properties.anthropogenic_emissions
+    anthro.heat.popprof_24hr.working_day["8"] = np.float32(1.5)
+    anthro.co2.profile_human_activity_24hr.holiday["12"] = np.int64(2)
+    df_state = cfg.to_df_state()
+    assert float(df_state.loc[df_state.index[0], ("popprof_24hr", "(7, 0)")]) == (
+        pytest.approx(1.5)
+    )
+    assert float(df_state.loc[df_state.index[0], ("humactivity_24hr", "(11, 1)")]) == (
+        pytest.approx(2.0)
+    )
+
+    anthro.heat.popprof_24hr.working_day["8"] = np.bool_(True)
+    with pytest.raises(ValueError, match="popprof_24hr"):
+        cfg.to_df_state()
+
+    anthro.heat.popprof_24hr.working_day["8"] = np.float32(0.5)
+    with pytest.raises(ValueError, match="popprof_24hr"):
+        cfg.to_df_state()
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+def test_legacy_conversion_preserves_decimal_form_user_99901_code(
+    tmp_path: Path, validate_profiles: bool
+) -> None:
+    """Decimal-form original user code '99901.0' survives forward and reverse conversion."""
+    import shutil  # noqa: PLC0415
+
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    src = tmp_path / f"src_dec_{validate_profiles}"
+    shutil.copytree(fixture_2016a, src)
+    prof_file = src / "SUEWS_Profiles.txt"
+    lines = prof_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+        len(lines),
+    )
+    lines.insert(insert_at, "99901.0\t" + "\t".join(["1.750"] * 24) + "\n")
+    prof_file.write_text("".join(lines), encoding="utf-8")
+
+    extras = R.capture_legacy_extras(src, "2016a")
+    assert "99901.0" in extras["profile_codes"]
+
+    dest = tmp_path / f"fwd_dec_{validate_profiles}"
+    convert_table(
+        str(src), str(dest), "2016a", "2025a", validate_profiles=validate_profiles
+    )
+    flat = tmp_path / f"flat_dec_{validate_profiles}"
+    rev = tmp_path / f"rev_dec_{validate_profiles}"
+    flat.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat / produced.name)
+    R.reverse_convert_table(flat, rev, "2016a", extras)
+    _, rev_rows = R._read_table(rev / "SUEWS_Profiles.txt")
+    rev_by_int = {
+        int(float(r[0])): r[1:25]
+        for r in rev_rows
+        if r and r[0].replace(".", "", 1).lstrip("-").isdigit()
+    }
+    assert 99901 in rev_by_int
+    assert all(float(v) == pytest.approx(1.75) for v in rev_by_int[99901])
+    assert 99902 not in rev_by_int

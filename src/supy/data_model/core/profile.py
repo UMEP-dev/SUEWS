@@ -8,7 +8,7 @@ import pandas as pd
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from .field_renames import RAW_YAML_FIELD_RENAMES
-from .type import DataModelBase, Reference, df_from_cols
+from .type import DataModelBase, Reference, df_from_cols, is_finite_real_number
 
 CANONICAL_HOUR_KEYS: tuple[str, ...] = tuple(str(hour) for hour in range(1, 25))
 _CANONICAL_HOUR_KEY_SET: frozenset[str] = frozenset(CANONICAL_HOUR_KEYS)
@@ -600,7 +600,7 @@ class HourlyProfile(DataModelBase):
         for k, val in normalised.items():
             if val is None:
                 out[k] = None
-            elif isinstance(val, bool):
+            elif isinstance(val, (bool, np.bool_)):
                 raise ValueError(
                     f"Hourly profile value for hour {k!r} must be a number, "
                     f"not bool ({val!r})."
@@ -792,11 +792,8 @@ def validate_day_night_hourly_profile(
         for hour, val in day_map.items():
             if val is None:
                 continue
-            if (
-                isinstance(val, bool)
-                or not isinstance(val, (int, float))
-                or not math.isfinite(float(val))
-                or not (DAY_NIGHT_PROFILE_MIN <= float(val) <= DAY_NIGHT_PROFILE_MAX)
+            if not is_finite_real_number(val) or not (
+                DAY_NIGHT_PROFILE_MIN <= float(val) <= DAY_NIGHT_PROFILE_MAX
             ):
                 bad_entries.append(f"{day_type}.{hour}={val!r}")
     if bad_entries:

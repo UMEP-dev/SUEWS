@@ -30,6 +30,7 @@ set is a single column, ``FcEF_v_kgkm`` in ``SUEWS_AnthropogenicHeat.txt``;
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from shutil import copyfile
 from typing import Optional
@@ -611,9 +612,18 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     source_profile_codes = extras.get("profile_codes")
     if added_day_night and profiles_path.exists() and source_profile_codes is not None:
         def _parse_code_int(token: object) -> Optional[int]:
+            text = str(token).strip()
+            if not text:
+                return None
             try:
-                return int(str(token).strip())
+                return int(text)
             except ValueError:
+                try:
+                    fval = float(text)
+                except ValueError:
+                    return None
+                if math.isfinite(fval) and fval.is_integer():
+                    return int(fval)
                 return None
 
         source_codes_int = {

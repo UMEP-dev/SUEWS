@@ -11,7 +11,10 @@ from ..knowledge import build_pack, load_manifest, query_pack
 from .json_envelope import EXIT_OK, EXIT_USER_ERROR, Envelope
 
 
-@click.group(help="Build and query the versioned SUEWS source-evidence pack.")
+@click.group(
+    name="knowledge",
+    help="Build and query the versioned SUEWS source-evidence pack.",
+)
 def knowledge_group() -> None:
     """Knowledge-pack command group."""
 

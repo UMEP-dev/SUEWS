@@ -51,10 +51,11 @@ def _fail(
 
 
 @click.group(
+    name="contracts",
     help=(
         "Inspect, export, publish, and validate versioned SUEWS forcing and "
         "output data contracts."
-    )
+    ),
 )
 def contracts_group() -> None:
     """Data-contract command group."""

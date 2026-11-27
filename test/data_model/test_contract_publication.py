@@ -12,6 +12,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import threading
 from types import ModuleType
 
 from click.testing import CliRunner
@@ -930,3 +931,194 @@ def test_standalone_script_text_mode_surfaces_backup_cleanup_warnings(
         for p in retained_paths:
             if p.exists():
                 real_rmtree(p)
+
+
+def test_concurrent_thread_publishers_preserve_historical_releases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Concurrent in-process publishers serialise on the destination lock."""
+    dest = tmp_path / "contracts"
+    publish_contracts_site(dest, base_url="https://suews.io", validate=True)
+
+    hist_src = tmp_path / "hist_src"
+    publish_contracts_site(hist_src, base_url="https://suews.io", validate=True)
+    cat_bytes = (hist_src / "forcing" / "1.0.0" / "catalogue.json").read_bytes()
+    schema_bytes = (
+        hist_src / "forcing" / "1.0.0" / "catalogue.schema.json"
+    ).read_bytes()
+    _add_indexed_historical_release(
+        hist_src, "forcing", "0.9.0", cat_bytes, schema_bytes
+    )
+
+    a_entered_staging = threading.Event()
+    b_started = threading.Event()
+    orig_write_iface = contracts_mod._write_interface_dir
+
+    def gated_write_iface(iface, staging_dir, base, bundles, preserved):
+        if iface == "forcing" and "0.9.0" in bundles and not a_entered_staging.is_set():
+            a_entered_staging.set()
+            assert b_started.wait(timeout=5.0)
+            contracts_mod.time.sleep(0.15)
+        return orig_write_iface(iface, staging_dir, base, bundles, preserved)
+
+    monkeypatch.setattr(contracts_mod, "_write_interface_dir", gated_write_iface)
+
+    errors: list[BaseException] = []
+    reports: dict[str, dict] = {}
+
+    def run_a() -> None:
+        try:
+            reports["a"] = publish_contracts_site(
+                dest,
+                base_url="https://suews.io",
+                preserve_from=hist_src,
+                validate=True,
+            )
+        except BaseException as exc:  # pragma: no cover - diagnostic capture
+            errors.append(exc)
+
+    def run_b() -> None:
+        try:
+            assert a_entered_staging.wait(timeout=5.0)
+            b_started.set()
+            reports["b"] = publish_contracts_site(
+                dest,
+                base_url="https://suews.io",
+                validate=True,
+            )
+        except BaseException as exc:  # pragma: no cover - diagnostic capture
+            errors.append(exc)
+
+    t_a = threading.Thread(target=run_a)
+    t_b = threading.Thread(target=run_b)
+    t_a.start()
+    t_b.start()
+    t_a.join(timeout=30.0)
+    t_b.join(timeout=30.0)
+    assert not errors, f"concurrent publishers raised: {errors}"
+    assert "0.9.0" in reports["b"]["interfaces"]["forcing"]["versions"]
+    assert (dest / "forcing" / "0.9.0" / "catalogue.json").read_bytes() == cat_bytes
+    assert not list(tmp_path.glob(".contracts.publish.lock"))
+    validate_published_contracts(dest, base_url="https://suews.io")
+
+
+def test_concurrent_process_publishers_preserve_historical_releases(
+    tmp_path: Path,
+) -> None:
+    """Concurrent OS processes serialise on the destination lock without dropping history."""
+    dest = tmp_path / "contracts"
+    publish_contracts_site(dest, base_url="https://suews.io", validate=True)
+
+    hist_src = tmp_path / "hist_src"
+    publish_contracts_site(hist_src, base_url="https://suews.io", validate=True)
+    cat_bytes = (hist_src / "forcing" / "1.0.0" / "catalogue.json").read_bytes()
+    schema_bytes = (
+        hist_src / "forcing" / "1.0.0" / "catalogue.schema.json"
+    ).read_bytes()
+    _add_indexed_historical_release(
+        hist_src, "forcing", "0.8.0", cat_bytes, schema_bytes
+    )
+
+    ready_flag = tmp_path / "child_locked.flag"
+    helper_code = (
+        "from pathlib import Path\n"
+        "import sys, time\n"
+        "from supy.data_model import contracts\n"
+        "dest = Path(sys.argv[1])\n"
+        "src = Path(sys.argv[2])\n"
+        "flag = Path(sys.argv[3])\n"
+        "orig = contracts._write_interface_dir\n"
+        "state = {'signalled': False}\n"
+        "def hook(iface, staging_dir, base, bundles, preserved):\n"
+        "    if not state['signalled']:\n"
+        "        state['signalled'] = True\n"
+        "        flag.write_text('locked', encoding='ascii')\n"
+        "        time.sleep(0.3)\n"
+        "    return orig(iface, staging_dir, base, bundles, preserved)\n"
+        "contracts._write_interface_dir = hook\n"
+        "contracts.publish_contracts_site("
+        "dest, base_url='https://suews.io', preserve_from=src, validate=True)\n"
+    )
+    child = subprocess.Popen([
+        sys.executable,
+        "-c",
+        helper_code,
+        str(dest),
+        str(hist_src),
+        str(ready_flag),
+    ])
+    try:
+        deadline = contracts_mod.time.monotonic() + 10.0
+        while not ready_flag.exists():
+            assert contracts_mod.time.monotonic() < deadline, (
+                "child did not acquire lock"
+            )
+            contracts_mod.time.sleep(0.02)
+        parent_report = publish_contracts_site(
+            dest, base_url="https://suews.io", validate=True
+        )
+        assert child.wait(timeout=30.0) == 0
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=5.0)
+    assert "0.8.0" in parent_report["interfaces"]["forcing"]["versions"]
+    assert (dest / "forcing" / "0.8.0" / "catalogue.json").read_bytes() == cat_bytes
+    assert not list(tmp_path.glob(".contracts.publish.lock"))
+    validate_published_contracts(dest, base_url="https://suews.io")
+
+
+def test_commit_keyboard_interrupt_rolls_back_destination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """KeyboardInterrupt after moving the prior destination restores it intact."""
+    dest = tmp_path / "contracts"
+    publish_contracts_site(dest, base_url="https://suews.io/before", validate=True)
+    before = _snapshot_tree(dest)
+
+    orig_rename = Path.rename
+
+    def interrupt_staging_install(self: Path, target: Path) -> Path:
+        if ".staging-" in self.name and target == dest.resolve():
+            raise KeyboardInterrupt("simulated Ctrl-C during swap")
+        return orig_rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", interrupt_staging_install)
+    with pytest.raises(KeyboardInterrupt, match="simulated Ctrl-C"):
+        publish_contracts_site(dest, base_url="https://suews.io/after", validate=True)
+
+    assert dest.is_dir()
+    assert _snapshot_tree(dest) == before
+    assert not list(tmp_path.glob(".contracts.backup-*"))
+    assert not list(tmp_path.glob(".contracts.staging-*"))
+    validate_published_contracts(dest, base_url="https://suews.io/before")
+
+
+def test_publish_recovers_orphaned_backup_after_crash_window(tmp_path: Path) -> None:
+    """An orphaned backup left when destination is missing is recovered automatically."""
+    dest = tmp_path / "contracts"
+    hist_src = tmp_path / "hist_src"
+    publish_contracts_site(hist_src, base_url="https://suews.io", validate=True)
+    cat_bytes = (hist_src / "forcing" / "1.0.0" / "catalogue.json").read_bytes()
+    schema_bytes = (
+        hist_src / "forcing" / "1.0.0" / "catalogue.schema.json"
+    ).read_bytes()
+    _add_indexed_historical_release(
+        hist_src, "forcing", "0.9.0", cat_bytes, schema_bytes
+    )
+    publish_contracts_site(
+        dest, base_url="https://suews.io", preserve_from=hist_src, validate=True
+    )
+
+    # Simulate an abrupt crash (e.g. SIGKILL) after moving dest to backup and before
+    # installing the new staging directory.
+    orphaned_backup = tmp_path / ".contracts.backup-crashed"
+    dest.rename(orphaned_backup)
+    assert not dest.exists()
+
+    report = publish_contracts_site(dest, base_url="https://suews.io", validate=True)
+    assert dest.is_dir()
+    assert "0.9.0" in report["interfaces"]["forcing"]["versions"]
+    assert (dest / "forcing" / "0.9.0" / "catalogue.json").read_bytes() == cat_bytes
+    assert not orphaned_backup.exists()
+    validate_published_contracts(dest, base_url="https://suews.io")

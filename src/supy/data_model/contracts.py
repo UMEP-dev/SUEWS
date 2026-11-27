@@ -9,6 +9,9 @@ and ``supy.data_model.output.artefacts``.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
+import errno
 from hashlib import sha256
 from html import escape as html_escape
 from html.parser import HTMLParser
@@ -18,11 +21,24 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import stat
 import sys
 import tempfile
+import threading
+import time
 from typing import Any, Literal
 from urllib.parse import urlsplit
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    msvcrt = None  # type: ignore[assignment]
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
@@ -1263,10 +1279,202 @@ def _apply_published_dir_mode(staging_dir: Path, output_dir: Path) -> None:
     staging_dir.chmod(target_mode)
 
 
+_PUBLISH_THREAD_LOCKS_GUARD = threading.Lock()
+_PUBLISH_THREAD_LOCKS: dict[str, list[Any]] = {}
+
+
+@contextmanager
+def _thread_publish_lock(lock_key: str) -> Iterator[None]:
+    """Acquire a ref-counted per-destination in-process lock."""
+    with _PUBLISH_THREAD_LOCKS_GUARD:
+        entry = _PUBLISH_THREAD_LOCKS.get(lock_key)
+        if entry is None:
+            entry = [threading.Lock(), 0]
+            _PUBLISH_THREAD_LOCKS[lock_key] = entry
+        entry[1] += 1
+        thread_lock: threading.Lock = entry[0]
+    try:
+        with thread_lock:
+            yield
+    finally:
+        with _PUBLISH_THREAD_LOCKS_GUARD:
+            cur = _PUBLISH_THREAD_LOCKS.get(lock_key)
+            if cur is not None:
+                cur[1] -= 1
+                if cur[1] <= 0:
+                    _PUBLISH_THREAD_LOCKS.pop(lock_key, None)
+
+
+@contextmanager
+def _posix_file_publish_lock(lock_path: Path) -> Iterator[None]:
+    """Hold an inode-verified ``flock`` lock and unlink it cleanly before releasing."""
+    assert fcntl is not None
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    while True:
+        try:
+            fd = os.open(lock_path, flags, 0o600)
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise ContractPublicationError(
+                    f"output_dir: refuses symlink publish lock file: {lock_path}"
+                ) from exc
+            raise
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            st_fd = os.fstat(fd)
+            st_path = os.lstat(lock_path)
+        except FileNotFoundError:
+            os.close(fd)
+            continue
+        except BaseException:
+            os.close(fd)
+            raise
+        if (st_fd.st_dev, st_fd.st_ino) == (st_path.st_dev, st_path.st_ino):
+            break
+        os.close(fd)
+    try:
+        yield
+    finally:
+        try:
+            with suppress(OSError):
+                os.unlink(lock_path)
+        finally:
+            os.close(fd)
+
+
+@contextmanager
+def _windows_file_publish_lock(lock_path: Path) -> Iterator[None]:  # pragma: no cover
+    """Hold an ``msvcrt.locking`` lock on ``lock_path`` across processes on Windows."""
+    assert msvcrt is not None
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_BINARY", 0)
+    fd = -1
+    for attempt in range(50):
+        try:
+            fd = os.open(lock_path, flags, 0o600)
+            break
+        except OSError as exc:
+            if exc.errno != errno.EACCES or attempt == 49:
+                raise
+            time.sleep(0.01)
+    locked = False
+    try:
+        if os.fstat(fd).st_size == 0:
+            os.lseek(fd, 0, os.SEEK_SET)
+            os.write(fd, b"0")
+        while True:
+            os.lseek(fd, 0, os.SEEK_SET)
+            try:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                locked = True
+                break
+            except OSError as exc:
+                if exc.errno not in (errno.EACCES, errno.EDEADLK):
+                    raise
+                time.sleep(0.01)
+        yield
+    finally:
+        if locked:
+            with suppress(OSError):
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        os.close(fd)
+        with suppress(OSError):
+            os.unlink(lock_path)
+
+
+@contextmanager
+def _destination_publish_lock(output_dir: Path) -> Iterator[None]:
+    """Hold an exclusive in-process and cross-process lock outside ``output_dir``."""
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = output_dir.parent / f".{output_dir.name}.publish.lock"
+    if lock_path.is_symlink():
+        raise ContractPublicationError(
+            f"output_dir: refuses symlink publish lock file: {lock_path}"
+        )
+    with _thread_publish_lock(str(lock_path)):
+        if fcntl is not None:
+            with _posix_file_publish_lock(lock_path):
+                yield
+        elif msvcrt is not None:  # pragma: no cover - Windows
+            with _windows_file_publish_lock(lock_path):
+                yield
+        else:  # pragma: no cover - fallback without flock/msvcrt
+            yield
+
+
+def _recover_orphaned_backup(output_dir: Path) -> None:
+    """Restore an orphaned backup left by a hard crash during destination replacement."""
+    if output_dir.exists() or output_dir.is_symlink() or not output_dir.parent.is_dir():
+        return
+    prefix = f".{output_dir.name}.backup-"
+    candidates = sorted(
+        p for p in output_dir.parent.iterdir() if p.name.startswith(prefix)
+    )
+    if not candidates:
+        return
+    symlinks = [p for p in candidates if p.is_symlink()]
+    if symlinks:
+        raise ContractPublicationError(
+            f"output_dir: refuses symlink orphaned backup: {symlinks[0]}"
+        )
+    backup_dirs = [p for p in candidates if p.is_dir()]
+    if not backup_dirs:
+        return
+    if len(backup_dirs) > 1:
+        names = [p.name for p in backup_dirs]
+        raise ContractPublicationError(
+            f"output_dir: {output_dir} is missing and multiple orphaned backup "
+            f"directories exist ({names}); restore the desired backup manually "
+            "before republishing"
+        )
+    backup = backup_dirs[0]
+    _reject_symlinks_in_tree(backup, "orphaned backup")
+    _assert_owned_contracts_root(backup, "orphaned backup")
+    backup.rename(output_dir)
+
+
+@contextmanager
+def _defer_termination_signals() -> Iterator[None]:
+    """Defer SIGINT/SIGTERM on the main thread during the destination rename swap."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    handled: list[int] = [signal.SIGINT]
+    if hasattr(signal, "SIGTERM"):
+        handled.append(signal.SIGTERM)
+    previous: dict[int, Any] = {}
+    pending: list[int] = []
+
+    def _record(signum: int, _frame: Any) -> None:
+        pending.append(signum)
+
+    for sig in handled:
+        try:
+            previous[sig] = signal.getsignal(sig)
+            signal.signal(sig, _record)
+        except (OSError, ValueError):
+            previous.pop(sig, None)
+    try:
+        yield
+    finally:
+        for sig, prev in previous.items():
+            with suppress(OSError, ValueError):
+                signal.signal(sig, prev)
+        if pending:
+            signal.raise_signal(pending[0])
+
+
 def _commit_staged_dir(
     staging_dir: Path, output_dir: Path
 ) -> tuple[Path | None, str | None]:
-    """Replace ``output_dir`` with ``staging_dir`` atomically with rollback.
+    """Replace ``output_dir`` with ``staging_dir`` using interruption-safe rollback.
+
+    Because replacing an existing non-empty directory portably requires two
+    renames (``output_dir`` -> ``.<name>.backup-*``, then ``staging_dir`` ->
+    ``output_dir``), termination signals are deferred across the swap, any
+    ``BaseException`` restores ``output_dir`` from the backup, and a hard crash
+    in the swap window is recovered automatically by the next locked
+    ``publish_contracts_site`` call.
 
     Returns ``(retained_backup_path, cleanup_warning)`` when the commit
     succeeded but post-commit deletion of the backup directory failed.
@@ -1279,13 +1487,22 @@ def _commit_staged_dir(
         tempfile.mkdtemp(prefix=f".{output_dir.name}.backup-", dir=output_dir.parent)
     )
     backup_dir.rmdir()
-    output_dir.rename(backup_dir)
-    try:
-        staging_dir.rename(output_dir)
-    except Exception:
-        if backup_dir.exists() and not output_dir.exists():
-            backup_dir.rename(output_dir)
-        raise
+    moved_to_backup = False
+    with _defer_termination_signals():
+        try:
+            output_dir.rename(backup_dir)
+            moved_to_backup = True
+            staging_dir.rename(output_dir)
+        except BaseException:
+            if moved_to_backup and backup_dir.exists() and not output_dir.exists():
+                try:
+                    backup_dir.rename(output_dir)
+                except BaseException as rollback_exc:
+                    raise ContractPublicationError(
+                        f"failed to restore {output_dir} from backup {backup_dir} "
+                        f"after interrupted commit: {rollback_exc}"
+                    ) from rollback_exc
+            raise
     try:
         shutil.rmtree(backup_dir)
     except OSError as exc:
@@ -1306,63 +1523,75 @@ def publish_contracts_site(
 ) -> dict[str, Any]:
     """Materialise versioned and ``latest`` forcing and output contract artefacts.
 
-    All preservation checks, bundle authentication, staging writes, and
-    validation complete before ``output_dir`` is updated, so a failed run
-    leaves any existing destination tree unchanged. If post-commit cleanup of
-    the replaced backup directory fails, publication still succeeds and reports
-    the retained backup path in ``warnings`` and ``retained_backup``.
+    An exclusive destination lock (``.<name>.publish.lock`` beside
+    ``output_dir``) serialises concurrent publishers from orphaned-backup
+    recovery and preservation inventory collection through commit. All
+    preservation checks, bundle authentication, staging writes, and validation
+    complete before ``output_dir`` is updated, and any ``BaseException`` during
+    the backup-and-rename replacement restores the prior destination tree. If
+    post-commit cleanup of the replaced backup directory fails, publication
+    still succeeds and reports the retained backup path in ``warnings`` and
+    ``retained_backup``.
     """
     base = _normalise_base_url(base_url)
     output_dir = _normalise_output_dir(output_dir)
-    preserve_sources = _collect_preserve_sources(output_dir, preserve_from)
 
-    # Resolve and authenticate BOTH interfaces before mutating anything on disk.
-    resolved_bundles: dict[ContractInterface, dict[str, dict[str, bytes]]] = {}
-    preserved_summary: dict[ContractInterface, list[str]] = {}
-    for iface in CONTRACT_INTERFACES:
-        resolved_bundles[iface], preserved_summary[iface] = _resolve_interface_bundles(
-            iface, preserve_sources
-        )
+    with _destination_publish_lock(output_dir):
+        _recover_orphaned_backup(output_dir)
+        preserve_sources = _collect_preserve_sources(output_dir, preserve_from)
 
-    output_dir.parent.mkdir(parents=True, exist_ok=True)
-    staging_dir = Path(
-        tempfile.mkdtemp(prefix=f".{output_dir.name}.staging-", dir=output_dir.parent)
-    )
-    retained_backup: Path | None = None
-    warnings: list[str] = []
-    try:
-        root_interfaces: dict[str, Any] = {}
+        # Resolve and authenticate BOTH interfaces before mutating anything on disk.
+        resolved_bundles: dict[ContractInterface, dict[str, dict[str, bytes]]] = {}
+        preserved_summary: dict[ContractInterface, list[str]] = {}
         for iface in CONTRACT_INTERFACES:
-            root_interfaces[iface] = _write_interface_dir(
-                iface,
-                staging_dir,
-                base,
-                resolved_bundles[iface],
-                preserved_summary[iface],
+            resolved_bundles[iface], preserved_summary[iface] = (
+                _resolve_interface_bundles(iface, preserve_sources)
             )
 
-        root_index = {
-            "base_url": base,
-            "contracts_url": f"{base}/{CONTRACTS_URL_PATH}/",
-            "interfaces": root_interfaces,
-        }
-        (staging_dir / "index.json").write_bytes(canonical_json_bytes(root_index))
-        (staging_dir / "index.html").write_text(
-            _render_root_index_html(root_index),
-            encoding="ascii",
+        staging_dir = Path(
+            tempfile.mkdtemp(
+                prefix=f".{output_dir.name}.staging-", dir=output_dir.parent
+            )
         )
+        retained_backup: Path | None = None
+        warnings: list[str] = []
+        try:
+            root_interfaces: dict[str, Any] = {}
+            for iface in CONTRACT_INTERFACES:
+                root_interfaces[iface] = _write_interface_dir(
+                    iface,
+                    staging_dir,
+                    base,
+                    resolved_bundles[iface],
+                    preserved_summary[iface],
+                )
 
-        validation_report: dict[str, Any] | None = None
-        if validate:
-            validation_report = validate_published_contracts(staging_dir, base_url=base)
-            validation_report["contracts_dir"] = str(output_dir)
+            root_index = {
+                "base_url": base,
+                "contracts_url": f"{base}/{CONTRACTS_URL_PATH}/",
+                "interfaces": root_interfaces,
+            }
+            (staging_dir / "index.json").write_bytes(canonical_json_bytes(root_index))
+            (staging_dir / "index.html").write_text(
+                _render_root_index_html(root_index),
+                encoding="ascii",
+            )
 
-        retained_backup, cleanup_warning = _commit_staged_dir(staging_dir, output_dir)
-        if cleanup_warning is not None:
-            warnings.append(cleanup_warning)
-    finally:
-        if staging_dir.exists():
-            shutil.rmtree(staging_dir)
+            validation_report: dict[str, Any] | None = None
+            if validate:
+                validation_report = validate_published_contracts(
+                    staging_dir, base_url=base
+                )
+                validation_report["contracts_dir"] = str(output_dir)
+
+            retained_backup, cleanup_warning = _commit_staged_dir(
+                staging_dir, output_dir
+            )
+            if cleanup_warning is not None:
+                warnings.append(cleanup_warning)
+        finally:
+            if staging_dir.exists():
+                shutil.rmtree(staging_dir)
 
     report: dict[str, Any] = {
         "output_dir": str(output_dir),

@@ -56,6 +56,3 @@ def __getattr__(name):
         return module
 
     raise AttributeError(f"module 'supy.cmd' has no attribute {name!r}")
-
-
-# to_yaml is used internally by table_converter but not exposed as a command

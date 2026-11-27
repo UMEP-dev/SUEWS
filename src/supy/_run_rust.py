@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from . import SUEWSKernelError
 from ._env import logger_supy, warn_platform_support
 from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
 from ._post import df_var, gen_index
@@ -638,9 +639,14 @@ def _write_grid_output(
             state_json,
         )
     except (RuntimeError, ValueError) as error:
-        if grid_id is None:
+        translated = _translate_bridge_error(
+            error,
+            [grid_id] if grid_id is not None else None,
+            [config_text] if grid_id is not None else None,
+        )
+        if translated is error:
             raise
-        raise type(error)(_public_grid_error(str(error), [grid_id], [config_text])) from None
+        raise translated from None
     if len_sim != len_forcing:
         raise RuntimeError(
             f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
@@ -791,9 +797,10 @@ def _write_grids_output(
                 max_workers,
             )
         except (RuntimeError, ValueError) as error:
-            raise type(error)(
-                _public_grid_error(str(error), list_grid_ids, list_config_jsons)
-            ) from None
+            translated = _translate_bridge_error(
+                error, list_grid_ids, list_config_jsons
+            )
+            raise translated from None
         # raw_results: list of (grid_index, state_json, len_sim, warnings)
         for idx, state_json, len_sim, raw_warnings in sorted(
             raw_results, key=lambda r: r[0]
@@ -1051,13 +1058,17 @@ def _run_single_grid_worker(args: tuple) -> tuple[int, list, str | None, int, An
     """
     config_json, forcing_flat, len_forcing, grid_id = args
     rust_module = _check_rust_available()
-    output_flat, state_json, len_sim, raw_warnings = _unpack_run_result(
-        rust_module.run_suews(
-            config_json,
-            forcing_flat,
-            len_forcing,
+    try:
+        output_flat, state_json, len_sim, raw_warnings = _unpack_run_result(
+            rust_module.run_suews(
+                config_json,
+                forcing_flat,
+                len_forcing,
+            )
         )
-    )
+    except (RuntimeError, ValueError) as error:
+        translated = _translate_bridge_error(error, [grid_id], [config_json])
+        raise translated from None
     return grid_id, output_flat, state_json, len_sim, raw_warnings
 
 
@@ -1165,6 +1176,35 @@ def _native_grid_ids(list_grid_ids: list[int]) -> dict[int, int]:
         assigned[grid] = candidate
         reserved.add(candidate)
     return assigned
+
+
+_KERNEL_ERROR_RE = re.compile(
+    r"simulation failed \(code (-?\d+)\):\s*(.*)", re.DOTALL
+)
+
+
+def _translate_bridge_error(
+    error: RuntimeError | ValueError,
+    ids: list[int] | None = None,
+    payloads: list[str] | None = None,
+) -> RuntimeError | ValueError:
+    """Attach public grid IDs and wrap fatal Fortran kernel errors as ``SUEWSKernelError``."""
+    message = (
+        _public_grid_error(str(error), ids, payloads)
+        if ids is not None and payloads is not None
+        else str(error)
+    )
+    if isinstance(error, RuntimeError):
+        match = _KERNEL_ERROR_RE.search(message)
+        if match is not None:
+            return SUEWSKernelError(
+                code=int(match.group(1)),
+                message=match.group(2),
+                full_message=message,
+            )
+    if ids is not None and payloads is not None:
+        return type(error)(message)
+    return error
 
 
 def _public_grid_error(message: str, ids: list[int], payloads: list[str]) -> str:

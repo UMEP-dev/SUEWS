@@ -58,7 +58,12 @@ from .data_model.core.model import OutputControl, check_stream_chunk
 # Import new OOP classes
 from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
-from .suews_output import SUEWSOutput, _variable_groups, streamed_output_error
+from .suews_output import (
+    SUEWSOutput,
+    _select_variable_grid,
+    _variable_groups,
+    streamed_output_error,
+)
 from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
@@ -2362,20 +2367,29 @@ class SUEWSSimulation:
             Output group name if variable appears in multiple groups.
             If None and variable is in multiple groups, raises ValueError.
         site : int or str, optional
-            Site index or name. If None, returns all sites.
+            Grid ID (``gridiv``), integer grid ID as text, or configured site
+            name. If ``None``, returns all sites.
 
         Returns
         -------
         pandas.DataFrame
-            DataFrame with selected variable(s), indexed by time.
+            Single-variable DataFrame indexed by ``(grid, datetime)`` when
+            ``site`` is ``None``, or by ``datetime`` when a single site is
+            selected.
 
         Raises
         ------
         RuntimeError
             If simulation hasn't been run yet.
         ValueError
-            If variable name not found in results, or if variable is ambiguous
-            (appears in multiple groups) and no group specified.
+            If variable name, group, or site is not found in results, or if a
+            variable or site name is ambiguous.
+        TypeError
+            If ``site`` is neither an integer grid ID nor a string.
+
+        See Also
+        --------
+        results : Full simulation output DataFrame
 
         Examples
         --------
@@ -2390,10 +2404,6 @@ class SUEWSSimulation:
 
         >>> # If 'Tair' appears in both 'forcing' and 'output' groups:
         >>> tair = sim.get_variable("Tair", group="output")
-
-        See Also
-        --------
-        results : Full simulation output DataFrame
         """
         if not self._run_completed:
             raise RuntimeError("No results available. Run simulation first.")
@@ -2457,10 +2467,9 @@ class SUEWSSimulation:
 
         # Filter by site if requested
         if site is not None:
-            if isinstance(site, str):
-                result = result[site]
-            else:
-                result = result.iloc[:, site]
+            result = _select_variable_grid(
+                result, site, config=self._config, param_name="site"
+            )
 
         return result
 

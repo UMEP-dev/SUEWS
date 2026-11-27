@@ -1,18 +1,23 @@
 from importlib import import_module
 from importlib.resources import files
 from pathlib import Path
+import pickle
 
 import numpy as np
 import pandas as pd
 import pytest
 import yaml
 
-from supy import SUEWSSimulation
+import supy as sp
+from supy import SUEWSKernelError, SUEWSSimulation
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.model import ModelPhysics, SMDMethod
 from supy.data_model.core.type import RefValue
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-OUTPUT")]
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.contract("C-API", "C-FORCING", "C-NATIVE-ERROR", "C-OUTPUT"),
+]
 
 _run_rust = import_module("supy._run_rust")
 
@@ -333,3 +338,128 @@ def test_run_rust_entrypoints_accept_omitted_yaml_soil_moisture(
         cfg, df_two_days, chunk_day=1, serial_mode=True
     )
     assert len(out_chunked) == len(df_two_days)
+
+
+@pytest.mark.core
+def test_kernel_fatal_error_raises_suews_kernel_error_and_runtime_error(
+    sample_config_loaded, sample_forcing_parsed
+):
+    """Fatal Fortran kernel errors raise ``SUEWSKernelError(RuntimeError)`` with ``.code`` (#2111)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    _, df_forcing = sample_forcing_parsed(2)
+    df_bad = df_forcing.copy()
+    df_bad["U"] = float("nan")
+
+    # 1. Single-grid path caught as SUEWSKernelError and as RuntimeError
+    with pytest.raises(SUEWSKernelError) as exc_kernel:
+        _run_rust.run_suews_rust(cfg, df_bad, grid_id=7)
+
+    err = exc_kernel.value
+    assert type(err) is sp.SUEWSKernelError
+    assert isinstance(err, RuntimeError)
+    assert err.code == 110
+    assert "grid 7:" in str(err)
+    assert "simulation failed (code 110):" in str(err)
+    assert err.message
+
+    # Same exception is catchable by existing ``except RuntimeError`` callers
+    with pytest.raises(RuntimeError) as exc_runtime:
+        _run_rust.run_suews_rust(cfg, df_bad, grid_id=7)
+    assert isinstance(exc_runtime.value, SUEWSKernelError)
+    assert exc_runtime.value.code == 110
+
+    # Round-trips through pickle (class is defined at top level of ``supy``)
+    restored = pickle.loads(pickle.dumps(err))
+    assert type(restored) is SUEWSKernelError
+    assert restored.code == err.code
+    assert restored.message == err.message
+    assert str(restored) == str(err)
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("serial_mode", [True, False], ids=["serial", "parallel-rayon"])
+def test_multi_grid_kernel_fatal_error_raises_suews_kernel_error(
+    sample_config_loaded, sample_forcing_parsed, serial_mode
+):
+    """Multi-grid serial and Rayon paths preserve public grid IDs on ``SUEWSKernelError`` (#2111)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    site_a = cfg.sites[0].model_copy(deep=True)
+    site_a.gridiv = 10
+    site_b = cfg.sites[0].model_copy(deep=True)
+    site_b.gridiv = 20
+    cfg.sites = [site_a, site_b]
+    _, df_forcing = sample_forcing_parsed(2)
+    df_bad = df_forcing.copy()
+    df_bad["U"] = float("nan")
+
+    with pytest.raises(SUEWSKernelError) as exc_info:
+        _run_rust.run_suews_rust_multi(cfg, df_bad, serial_mode=serial_mode)
+
+    err = exc_info.value
+    assert isinstance(err, RuntimeError)
+    assert err.code == 110
+    assert "simulation failed (code 110):" in str(err)
+    assert "grid 10:" in str(err) or "grid 20:" in str(err)
+
+
+@pytest.mark.core
+def test_simulation_run_kernel_fatal_error_raises_suews_kernel_error(
+    sample_config_loaded, sample_forcing_parsed
+):
+    """``SUEWSSimulation.run()`` surfaces fatal Fortran kernel errors as ``SUEWSKernelError`` (#2111)."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    _, df_forcing = sample_forcing_parsed(2)
+    df_bad = df_forcing.copy()
+    df_bad["U"] = float("nan")
+
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(df_bad)
+
+    with pytest.raises(SUEWSKernelError) as exc_info:
+        sim.run(
+            start_date=df_bad.index[0],
+            end_date=df_bad.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+
+    err = exc_info.value
+    assert isinstance(err, RuntimeError)
+    assert err.code == 110
+    assert "simulation failed (code 110):" in str(err)
+
+    # Also verify existing ``except RuntimeError`` callers catch it on ``SUEWSSimulation.run()``.
+    with pytest.raises(RuntimeError) as exc_runtime:
+        sim.run(
+            start_date=df_bad.index[0],
+            end_date=df_bad.index[-1],
+            n_jobs=1,
+            _validate_forcing=False,
+        )
+    assert isinstance(exc_runtime.value, SUEWSKernelError)
+    assert exc_runtime.value.code == 110
+
+
+@pytest.mark.core
+def test_non_kernel_bridge_runtime_error_stays_runtime_error(
+    sample_config_loaded, sample_forcing_parsed
+):
+    """Non-kernel bridge failures (e.g. malformed checkpoint JSON) stay plain ``RuntimeError``."""
+    cfg = sample_config_loaded.model_copy(deep=True)
+    _, df_forcing = sample_forcing_parsed(2)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        _run_rust.run_suews_rust_with_state(
+            cfg, df_forcing, grid_id=1, state_json="{not-valid-json"
+        )
+
+    assert type(exc_info.value) is RuntimeError
+    assert not isinstance(exc_info.value, SUEWSKernelError)
+
+
+@pytest.mark.parametrize("retired_module", ["supy._run", "supy.cmd.to_yaml"])
+def test_retired_dead_modules_are_not_importable(retired_module):
+    """Callerless retired legacy modules raise ``ModuleNotFoundError`` (#2111)."""
+    with pytest.raises(ModuleNotFoundError):
+        import_module(retired_module)

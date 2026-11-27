@@ -1,4 +1,15 @@
-"""Vegetation senescence migration preserves evidence for every grid and surface."""
+"""Vegetation senescence migration preserves evidence for every grid and surface.
+
+Cost shape (gh#2349). Portable, resolved, and dev8 observed-soil templates are
+exported and parsed once per module with libyaml when available, and the sample
+state DataFrame is shared read-only per module. All 49 historical-target x
+non-finite/boolean ``sdd_id`` preservation checks and all 7 ``DEV16`` rejection
+checks run in memory against deep copies of the cached dev8 template without
+repeating identical ``DEV16`` rejections across historical targets. CLI
+command/version combinations exercise transactional file behaviour on compact
+two-site YAML payloads, paired with full-layout in-memory migration checks and
+full-layout CLI witness runs for both ``portable`` and ``resolved`` exports.
+"""
 
 from copy import deepcopy
 from pathlib import Path
@@ -29,20 +40,152 @@ pytestmark = [
 DEV15 = "2026.6.dev15"
 DEV16 = "2026.6.dev16"
 SURFACES = ("evetr", "dectr", "grass")
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
+
+def _yaml_load(text: str | bytes):
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+def _yaml_dump(payload: dict) -> str:
+    return yaml.dump(payload, Dumper=_YAML_DUMPER)
+
+
+def _plant_multisite_nonfinite_sdd(data: dict) -> None:
+    """Plant bare and wrapped non-finite ``sdd_id`` errors across sites 0 and 1."""
+    data["sites"][0]["initial_states"]["grass"]["sdd_id"] = float("nan")
+    states = data["sites"][1]["initial_states"]
+    states["dectr"]["sdd_id"] = {"value": -float("inf")}
+    states["evetr"]["sdd_id"] = {"value": float("inf"), "ref": {"desc": "restart"}}
+
+
+def _expected_multisite_error_tokens(grid0: int) -> tuple[str, ...]:
+    return (
+        f"sites[0] (gridiv={grid0}).initial_states.grass.sdd_id",
+        "sites[1] (gridiv=82).initial_states.dectr.sdd_id",
+        "sites[1] (gridiv=82).initial_states.evetr.sdd_id",
+        "site or restart record",
+    )
+
+
+def _minimal_two_site_sdd_doc(version: str) -> dict:
+    """Compact two-site schema document exercising bare and wrapped ``sdd_id`` forms."""
+    return {
+        "schema_version": version,
+        "name": "minimal_senescence_cli",
+        "sites": [
+            {
+                "name": "site_a",
+                "gridiv": 1,
+                "initial_states": {
+                    "evetr": {"sdd_id": {"value": -450.0}},
+                    "dectr": {"sdd_id": 0.0},
+                    "grass": {"sdd_id": {"value": -17.0, "ref": {"desc": "site_a"}}},
+                    "water": {},
+                },
+            },
+            {
+                "name": "site_b",
+                "gridiv": 82,
+                "initial_states": {
+                    "evetr": {"sdd_id": 12.5},
+                    "dectr": {"sdd_id": {"value": -450.0}},
+                    "grass": {"sdd_id": 0},
+                    "water": {},
+                },
+            },
+        ],
+    }
+
+
+def _assert_cli_migration_and_atomic_refusal(
+    data: dict, version: str, command: str, tmp_path: Path
+) -> None:
+    """Verify valid migration and transactional multi-site error refusal via CLI."""
+    data["schema_version"] = version
+    source = tmp_path / "site.yml"
+    target = source.with_suffix(".migrated.yml")
+    if command == "convert":
+        args = ["convert", "-i", str(source), "-o", str(target)]
+    else:
+        args = ["schema", "--quiet", "migrate", str(source)]
+        if command == "schema-dry-run":
+            args.append("--dry-run")
+    target.write_bytes(b"existing output\n")
+    # Check a valid run through each chosen command before planting its errors.
+    source.write_text(_yaml_dump(data), encoding="utf-8")
+    runner = CliRunner()
+    good = runner.invoke(cli, args, terminal_width=240)
+    assert good.exit_code == 0, good.output
+    if command == "convert" or (
+        version != CURRENT_SCHEMA_VERSION and command == "schema"
+    ):
+        output = _yaml_load(target.read_text(encoding="utf-8"))
+        assert output["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert output["sites"] == data["sites"]
+    else:
+        assert target.read_bytes() == b"existing output\n"
+    target_before = target.read_bytes()
+    _plant_multisite_nonfinite_sdd(data)
+    source.write_text(_yaml_dump(data), encoding="utf-8")
+    source_before = source.read_bytes()
+    result = runner.invoke(cli, args, terminal_width=240)
+    assert result.exit_code != 0, result.output
+    for expected in _expected_multisite_error_tokens(data["sites"][0]["gridiv"]):
+        assert expected in result.output
+    assert source.read_bytes() == source_before
+    assert target.read_bytes() == target_before
+
+
+@pytest.fixture(scope="module")
+def _migration_templates(sample_config_loaded, tmp_path_factory):
+    """Two-site portable and resolved templates at DEV15. READ-ONLY: callers deep-copy."""
+    path = tmp_path_factory.mktemp("sdd_migration") / "portable.yml"
+    sample_config_loaded.to_yaml(str(path), include_internal=False)
+    templates = {}
+    for layout, raw_text in (
+        ("portable", path.read_text(encoding="utf-8")),
+        ("resolved", config_to_engine_yaml(sample_config_loaded)),
+    ):
+        doc = _yaml_load(raw_text)
+        doc["schema_version"] = DEV15
+        doc["sites"].append(deepcopy(doc["sites"][0]))
+        doc["sites"][1]["gridiv"] = 82
+        templates[layout] = doc
+    return templates
 
 
 @pytest.fixture(params=["portable", "resolved"])
-def migration_input(request, tmp_path, sample_config_loaded):
-    if request.param == "portable":
-        path = tmp_path / "portable.yml"
-        sample_config_loaded.to_yaml(str(path), include_internal=False)
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    else:
-        data = yaml.safe_load(config_to_engine_yaml(sample_config_loaded))
-    data["schema_version"] = DEV15
-    data["sites"].append(deepcopy(data["sites"][0]))
-    data["sites"][1]["gridiv"] = 82
+def migration_input(request, _migration_templates):
+    return deepcopy(_migration_templates[request.param])
+
+
+@pytest.fixture(scope="module")
+def _dev8_observed_soil_template(sample_config_loaded):
+    """Resolved dev8 observed-soil config template. READ-ONLY: callers deep-copy."""
+    data = _yaml_load(config_to_engine_yaml(sample_config_loaded))
+    data["schema_version"] = "2026.6.dev8"
+    data["model"]["physics"].pop("soil_moisture", None)
+    data["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        data["sites"][0]["properties"]["land_cover"][surface].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    data["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
     return data
+
+
+@pytest.fixture(scope="module")
+def sample_frame(sample_config_loaded):
+    """Sample ``df_state``. READ-ONLY: tests take ``.copy()`` before mutating."""
+    return sample_config_loaded.to_df_state()
 
 
 def test_migration_preserves_each_field_and_source_representation(migration_input):
@@ -64,49 +207,47 @@ def test_migration_preserves_each_field_and_source_representation(migration_inpu
 @pytest.mark.parametrize("version", [DEV15, DEV16])
 @pytest.mark.parametrize("command", ["schema", "schema-dry-run", "convert"])
 def test_migration_errors_name_all_sites_and_leave_files_intact(
-    migration_input, version, command, tmp_path
+    version, command, tmp_path
 ):
+    data = _minimal_two_site_sdd_doc(version)
+    _assert_cli_migration_and_atomic_refusal(data, version, command, tmp_path)
+
+
+@pytest.mark.parametrize("version", [DEV15, DEV16])
+def test_migration_errors_name_all_sites_for_full_layouts_in_memory(
+    migration_input, version
+):
+    """Full portable and resolved two-site configs migrate cleanly and report all errors."""
     data = migration_input
     data["schema_version"] = version
-    source = tmp_path / "site.yml"
-    target = source.with_suffix(".migrated.yml")
-    if command == "convert":
-        args = ["convert", "-i", str(source), "-o", str(target)]
-    else:
-        args = ["schema", "--quiet", "migrate", str(source)]
-        if command == "schema-dry-run":
-            args.append("--dry-run")
-    target.write_bytes(b"existing output\n")
-    # Check a valid run through each chosen command before planting its errors.
-    source.write_text(yaml.safe_dump(data), encoding="utf-8")
-    runner = CliRunner()
-    good = runner.invoke(cli, args, terminal_width=240)
-    assert good.exit_code == 0, good.output
-    if command == "convert" or (version != CURRENT_SCHEMA_VERSION and command == "schema"):
-        output = yaml.safe_load(target.read_text(encoding="utf-8"))
-        assert output["schema_version"] == CURRENT_SCHEMA_VERSION
-        assert output["sites"] == data["sites"]
-    else:
-        assert target.read_bytes() == b"existing output\n"
-    target_before = target.read_bytes()
-    data["sites"][0]["initial_states"]["grass"]["sdd_id"] = float("nan")
-    states = data["sites"][1]["initial_states"]
-    states["dectr"]["sdd_id"] = {"value": -float("inf")}
-    states["evetr"]["sdd_id"] = {"value": float("inf"), "ref": {"desc": "restart"}}
-    source.write_text(yaml.safe_dump(data), encoding="utf-8")
-    source_before = source.read_bytes()
-    result = runner.invoke(cli, args, terminal_width=240)
-    assert result.exit_code != 0, result.output
-    grid = data["sites"][0]["gridiv"]
-    for expected in (
-        f"sites[0] (gridiv={grid}).initial_states.grass.sdd_id",
-        "sites[1] (gridiv=82).initial_states.dectr.sdd_id",
-        "sites[1] (gridiv=82).initial_states.evetr.sdd_id",
-        "site or restart record",
-    ):
-        assert expected in result.output
-    assert source.read_bytes() == source_before
-    assert target.read_bytes() == target_before
+    migrator = SchemaMigrator()
+    valid = migrator.migrate(data, to_version=CURRENT_SCHEMA_VERSION)
+    assert valid["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert valid["sites"] == data["sites"]
+
+    _plant_multisite_nonfinite_sdd(data)
+    before = deepcopy(data)
+    with pytest.raises(YamlUpgradeError) as error:
+        migrator.migrate(data, to_version=CURRENT_SCHEMA_VERSION)
+    message = str(error.value)
+    for expected in _expected_multisite_error_tokens(data["sites"][0]["gridiv"]):
+        assert expected in message
+    assert data == before
+
+
+@pytest.mark.parametrize(
+    ("layout", "version", "command"),
+    [
+        pytest.param("portable", DEV15, "convert", id="portable-dev15-convert"),
+        pytest.param("resolved", DEV16, "schema", id="resolved-dev16-schema"),
+    ],
+)
+def test_full_exported_layouts_migrate_and_refuse_atomically_via_cli(
+    _migration_templates, layout, version, command, tmp_path
+):
+    """Real exported portable and resolved two-site YAMLs stay atomic through CLI."""
+    data = deepcopy(_migration_templates[layout])
+    _assert_cli_migration_and_atomic_refusal(data, version, command, tmp_path)
 
 
 def test_historical_migration_target_retains_dev15_contract(migration_input):
@@ -118,6 +259,34 @@ def test_historical_migration_target_retains_dev15_contract(migration_input):
     for source in (old, migration_input):
         with pytest.raises(YamlUpgradeError, match=r"sites\[1\].*grass\.sdd_id"):
             migrator.migrate(source, to_version=DEV16)
+
+
+_DEV8_LEGACY_SDD_VALUES = [
+    pytest.param(float("nan"), id="nan"),
+    pytest.param(np.float32("nan"), id="np_float32_nan"),
+    pytest.param(np.longdouble("nan"), id="np_longdouble_nan"),
+    pytest.param(np.longdouble("inf"), id="np_longdouble_inf"),
+    pytest.param(
+        {"value": np.longdouble("-inf"), "ref": {"desc": "legacy"}},
+        id="np_longdouble_neg_inf_wrapped",
+    ),
+    pytest.param(True, id="bool_bare"),
+    pytest.param({"value": True, "ref": {"desc": "legacy"}}, id="bool_wrapped"),
+]
+
+
+def _dev8_observed_soil_context() -> SoilMigrationContext:
+    return SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
 
 
 @pytest.mark.parametrize(
@@ -132,60 +301,17 @@ def test_historical_migration_target_retains_dev15_contract(migration_input):
         DEV15,
     ],
 )
-@pytest.mark.parametrize(
-    "legacy_sdd",
-    [
-        float("nan"),
-        np.float32("nan"),
-        np.longdouble("nan"),
-        np.longdouble("inf"),
-        {"value": np.longdouble("-inf"), "ref": {"desc": "legacy"}},
-        True,
-        {"value": True, "ref": {"desc": "legacy"}},
-    ],
-    ids=[
-        "nan",
-        "np_float32_nan",
-        "np_longdouble_nan",
-        "np_longdouble_inf",
-        "np_longdouble_neg_inf_wrapped",
-        "bool_bare",
-        "bool_wrapped",
-    ],
-)
-def test_dev8_observed_soil_historical_targets_preserve_nonfinite_sdd_and_dev16_rejects(
-    sample_config_loaded, target, legacy_sdd
+@pytest.mark.parametrize("legacy_sdd", _DEV8_LEGACY_SDD_VALUES)
+def test_dev8_observed_soil_historical_targets_preserve_nonfinite_sdd(
+    _dev8_observed_soil_template, target, legacy_sdd
 ):
     """dev8 -> dev9 observed-soil validation must not leak dev16 SDD checks onto historical targets."""
-    data = yaml.safe_load(config_to_engine_yaml(sample_config_loaded))
-    data["schema_version"] = "2026.6.dev8"
-    data["model"]["physics"].pop("soil_moisture", None)
-    data["model"]["physics"]["soil_moisture_deficit"] = 1
-    for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
-        data["sites"][0]["properties"]["land_cover"][surface].update(
-            soil_depth=200.0,
-            soil_store_capacity=80.0,
-            soil_field_capacity=0.6,
-        )
-    data["sites"][0]["properties"]["soil_observation"] = {
-        "depth": 200.0,
-        "bulk_density": 1.25,
-        "soil_not_rocks": 0.8,
-    }
+    data = deepcopy(_dev8_observed_soil_template)
     data["sites"][0]["initial_states"]["grass"]["sdd_id"] = deepcopy(legacy_sdd)
-    context = SoilMigrationContext(
-        layer_bounds={0: (0, 0.2)},
-        original_method=1,
-        forcing_manifest={
-            "completed": True,
-            "original_method": 1,
-            "source_unit": "m3 m-3",
-            "input_sha256": "a" * 64,
-            "output_sha256": "b" * 64,
-        },
+    context = _dev8_observed_soil_context()
+    historical = SchemaMigrator().migrate(
+        data, to_version=target, migration_context=context
     )
-    migrator = SchemaMigrator()
-    historical = migrator.migrate(data, to_version=target, migration_context=context)
     assert historical["schema_version"] == target
     preserved = historical["sites"][0]["initial_states"]["grass"]["sdd_id"]
     if isinstance(legacy_sdd, dict):
@@ -199,8 +325,18 @@ def test_dev8_observed_soil_historical_targets_preserve_nonfinite_sdd_and_dev16_
         assert preserved is legacy_sdd
     else:
         assert not np.isfinite(preserved)
+
+
+@pytest.mark.parametrize("legacy_sdd", _DEV8_LEGACY_SDD_VALUES)
+def test_dev8_observed_soil_dev16_rejects_nonfinite_and_boolean_sdd(
+    _dev8_observed_soil_template, legacy_sdd
+):
+    """Migrating dev8 observed-soil inputs to dev16 rejects non-finite and boolean ``sdd_id``."""
+    data = deepcopy(_dev8_observed_soil_template)
+    data["sites"][0]["initial_states"]["grass"]["sdd_id"] = deepcopy(legacy_sdd)
+    context = _dev8_observed_soil_context()
     with pytest.raises(YamlUpgradeError, match=r"sites\[0\].*grass\.sdd_id"):
-        migrator.migrate(data, to_version=DEV16, migration_context=context)
+        SchemaMigrator().migrate(data, to_version=DEV16, migration_context=context)
 
 
 @pytest.mark.parametrize("source_version", [DEV15, DEV16])
@@ -228,15 +364,15 @@ def test_released_input_requires_an_explicit_repair(release, tmp_path):
     source.write_bytes(fixture.read_bytes())
     upgrade_yaml(source, target, from_ver=release)
     good = target.read_bytes()
-    exported = yaml.safe_load(good)
+    exported = _yaml_load(good)
     assert exported["schema_version"] == CURRENT_SCHEMA_VERSION
     initial = exported["sites"][0]["initial_states"]
     assert [initial[name]["sdd_id"]["value"] for name in SURFACES] == [-450] * 3
 
-    previous = yaml.safe_load(source.read_text(encoding="utf-8"))
+    previous = _yaml_load(source.read_text(encoding="utf-8"))
     grid = previous["sites"][0]["gridiv"]
     previous["sites"][0]["initial_states"]["dectr"]["sdd_id"]["value"] = float("nan")
-    source.write_text(yaml.safe_dump(previous), encoding="utf-8")
+    source.write_text(_yaml_dump(previous), encoding="utf-8")
     before = source.read_bytes()
     with pytest.raises(YamlUpgradeError) as error:
         upgrade_yaml(source, target, from_ver=release)
@@ -283,8 +419,8 @@ def test_published_senescence_description_begins_at_dev16(include_internal):
         assert "sdd_id" not in schema["$defs"]["InitialStateWater"]["properties"]
 
 
-def test_dataframe_assigns_senescence_to_three_vegetation_kinds(sample_config_loaded):
-    frame = sample_config_loaded.to_df_state()
+def test_dataframe_assigns_senescence_to_three_vegetation_kinds(sample_frame):
+    frame = sample_frame.copy()
     labels = [column for column in frame.columns if column[0] == "sdd_id"]
     assert set(labels) == {("sdd_id", "(0,)"), ("sdd_id", "(1,)"), ("sdd_id", "(2,)")}
     grid = frame.index[0]
@@ -297,12 +433,11 @@ def test_dataframe_assigns_senescence_to_three_vegetation_kinds(sample_config_lo
 
 @pytest.mark.parametrize("index,surface", enumerate(SURFACES))
 def test_full_dataframe_requires_each_physical_senescence_column(
-    sample_config_loaded, index, surface
+    sample_frame, index, surface
 ):
-    frame = sample_config_loaded.to_df_state()
     column = ("sdd_id", f"({index},)")
-    grid = frame.index[0]
+    grid = sample_frame.index[0]
     with pytest.raises(KeyError) as error:
-        SUEWSConfig.from_df_state(frame.drop(columns=[column]))
+        SUEWSConfig.from_df_state(sample_frame.drop(columns=[column]))
     assert f"site[gridiv={grid}].initial_states.{surface}.sdd_id" in str(error.value)
     assert repr(column) in str(error.value)

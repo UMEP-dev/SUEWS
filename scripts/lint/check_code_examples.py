@@ -67,7 +67,6 @@ import json
 import os
 import socket
 import sys
-import tempfile
 import time
 import traceback
 import urllib.error
@@ -172,6 +171,8 @@ def _execute_capturing_fds(
     source: str,
     filename: str,
     globs: dict[str, object],
+    read_out: object,
+    read_err: object,
 ) -> tuple[str, str, BaseException | None, str]:
     orig_displayhook = sys.displayhook
     raised: BaseException | None = None
@@ -183,16 +184,7 @@ def _execute_capturing_fds(
             sys.stdout.write(repr(value) + "\n")
             sys.stdout.flush()
 
-    sys.stdout.flush()
-    sys.stderr.flush()
-    _flush_c_stdio()
-    saved_fd1 = os.dup(1)
-    saved_fd2 = os.dup(2)
-    tmp_out = tempfile.TemporaryFile(mode="w+b")
-    tmp_err = tempfile.TemporaryFile(mode="w+b")
     try:
-        os.dup2(tmp_out.fileno(), 1)
-        os.dup2(tmp_err.fileno(), 2)
         sys.displayhook = _displayhook
         try:
             code = compile(source, filename, "single")
@@ -211,20 +203,12 @@ def _execute_capturing_fds(
         except Exception:
             pass
         _flush_c_stdio()
-        os.dup2(saved_fd1, 1)
-        os.dup2(saved_fd2, 2)
-        os.close(saved_fd1)
-        os.close(saved_fd2)
-        tmp_out.seek(0)
-        tmp_err.seek(0)
         got_out = (
-            tmp_out.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
+            read_out.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
         )
         got_err = (
-            tmp_err.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
+            read_err.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
         )
-        tmp_out.close()
-        tmp_err.close()
 
     return got_out, got_err, raised, raised_tb
 
@@ -254,63 +238,115 @@ def main() -> None:
         "stderr": "",
     }
 
-    for idx, item in enumerate(examples, start=1):
-        source = item["source"]
-        want = item["want"]
-        exc_msg = item["exc_msg"]
-        options = {int(k): bool(v) for k, v in item["options"].items()}
+    # Place capture files in the separate IPC directory (never the example cwd/tempdir)
+    # and keep fd 1 / fd 2 attached for the whole block so child processes started in
+    # earlier statements write into the same capture stream read by later statements.
+    capture_dir = os.path.dirname(os.path.abspath(result_path))
+    out_capture_path = os.path.join(capture_dir, "capture_stdout.bin")
+    err_capture_path = os.path.join(capture_dir, "capture_stderr.bin")
 
-        if options.get(doctest.SKIP, False):
-            partial = (idx - 1) > 0
-            outcome.update({
-                "status": "unsupported",
-                "executed": idx - 1,
-                "partial": partial,
-                "failed_statement_index": idx,
-                "failed_source": source,
-                "reason": (
-                    "doctest SKIP directive after partial execution"
-                    if partial
-                    else "doctest SKIP directive"
-                ),
-            })
-            break
+    sys.stdout.flush()
+    sys.stderr.flush()
+    _flush_c_stdio()
+    saved_fd1 = os.dup(1)
+    saved_fd2 = os.dup(2)
+    write_out = open(out_capture_path, "ab")
+    write_err = open(err_capture_path, "ab")
+    read_out = open(out_capture_path, "rb")
+    read_err = open(err_capture_path, "rb")
+    try:
+        os.dup2(write_out.fileno(), 1)
+        os.dup2(write_err.fileno(), 2)
+        for idx, item in enumerate(examples, start=1):
+            source = item["source"]
+            want = item["want"]
+            exc_msg = item["exc_msg"]
+            options = {int(k): bool(v) for k, v in item["options"].items()}
 
-        flags = 0
-        for flag, enabled in options.items():
-            if enabled:
-                flags |= flag
-            else:
-                flags &= ~flag
+            if options.get(doctest.SKIP, False):
+                partial = (idx - 1) > 0
+                outcome.update({
+                    "status": "unsupported",
+                    "executed": idx - 1,
+                    "partial": partial,
+                    "failed_statement_index": idx,
+                    "failed_source": source,
+                    "reason": (
+                        "doctest SKIP directive after partial execution"
+                        if partial
+                        else "doctest SKIP directive"
+                    ),
+                })
+                break
 
-        got, err_text, raised, raised_tb = _execute_capturing_fds(
-            source, f"<doctest {name}[{idx}]>", globs
-        )
-        if err_text:
-            stderr_parts.append(err_text)
-        outcome["executed"] = idx
+            flags = 0
+            for flag, enabled in options.items():
+                if enabled:
+                    flags |= flag
+                else:
+                    flags &= ~flag
 
-        example_obj = doctest.Example(
-            source=source,
-            want=want,
-            exc_msg=exc_msg,
-            lineno=item["lineno"],
-            indent=item["indent"],
-            options=options,
-        )
+            got, err_text, raised, raised_tb = _execute_capturing_fds(
+                source, f"<doctest {name}[{idx}]>", globs, read_out, read_err
+            )
+            if err_text:
+                stderr_parts.append(err_text)
+            outcome["executed"] = idx
 
-        if raised is not None:
-            actual_exc_msg = _format_doctest_exc_only(raised)
-            if exc_msg is not None:
-                matched = checker.check_output(exc_msg, actual_exc_msg, flags)
-                if not matched and (flags & doctest.IGNORE_EXCEPTION_DETAIL):
-                    matched = checker.check_output(
-                        _strip_exception_details(exc_msg),
-                        _strip_exception_details(actual_exc_msg),
-                        flags,
+            example_obj = doctest.Example(
+                source=source,
+                want=want,
+                exc_msg=exc_msg,
+                lineno=item["lineno"],
+                indent=item["indent"],
+                options=options,
+            )
+
+            if raised is not None:
+                actual_exc_msg = _format_doctest_exc_only(raised)
+                if exc_msg is not None:
+                    matched = checker.check_output(exc_msg, actual_exc_msg, flags)
+                    if not matched and (flags & doctest.IGNORE_EXCEPTION_DETAIL):
+                        matched = checker.check_output(
+                            _strip_exception_details(exc_msg),
+                            _strip_exception_details(actual_exc_msg),
+                            flags,
+                        )
+                    if matched:
+                        continue
+                    diff_example = doctest.Example(
+                        source=source,
+                        want=exc_msg,
+                        lineno=item["lineno"],
+                        indent=item["indent"],
+                        options=options,
                     )
-                if matched:
-                    continue
+                    outcome.update({
+                        "status": "mismatch",
+                        "failed_statement_index": idx,
+                        "failed_source": source,
+                        "want": exc_msg,
+                        "got": actual_exc_msg,
+                        "diff": checker.output_difference(
+                            diff_example, actual_exc_msg, flags
+                        ),
+                    })
+                    break
+                status, root_type = _classify_exception(raised)
+                outcome.update({
+                    "status": status,
+                    "failed_statement_index": idx,
+                    "failed_source": source,
+                    "exception_type": type(raised).__name__,
+                    "prerequisite_type": (
+                        root_type if status == "prerequisite-missing" else None
+                    ),
+                    "exception_message": str(raised),
+                    "traceback": raised_tb,
+                })
+                break
+
+            if exc_msg is not None:
                 diff_example = doctest.Example(
                     source=source,
                     want=exc_msg,
@@ -323,55 +359,40 @@ def main() -> None:
                     "failed_statement_index": idx,
                     "failed_source": source,
                     "want": exc_msg,
-                    "got": actual_exc_msg,
-                    "diff": checker.output_difference(
-                        diff_example, actual_exc_msg, flags
-                    ),
+                    "got": got,
+                    "diff": checker.output_difference(diff_example, got, flags),
+                    "reason": "expected exception was not raised",
                 })
                 break
-            status, root_type = _classify_exception(raised)
-            outcome.update({
-                "status": status,
-                "failed_statement_index": idx,
-                "failed_source": source,
-                "exception_type": type(raised).__name__,
-                "prerequisite_type": (
-                    root_type if status == "prerequisite-missing" else None
-                ),
-                "exception_message": str(raised),
-                "traceback": raised_tb,
-            })
-            break
 
-        if exc_msg is not None:
-            diff_example = doctest.Example(
-                source=source,
-                want=exc_msg,
-                lineno=item["lineno"],
-                indent=item["indent"],
-                options=options,
-            )
-            outcome.update({
-                "status": "mismatch",
-                "failed_statement_index": idx,
-                "failed_source": source,
-                "want": exc_msg,
-                "got": got,
-                "diff": checker.output_difference(diff_example, got, flags),
-                "reason": "expected exception was not raised",
-            })
-            break
-
-        if not checker.check_output(want, got, flags):
-            outcome.update({
-                "status": "mismatch",
-                "failed_statement_index": idx,
-                "failed_source": source,
-                "want": want,
-                "got": got,
-                "diff": checker.output_difference(example_obj, got, flags),
-            })
-            break
+            if not checker.check_output(want, got, flags):
+                outcome.update({
+                    "status": "mismatch",
+                    "failed_statement_index": idx,
+                    "failed_source": source,
+                    "want": want,
+                    "got": got,
+                    "diff": checker.output_difference(example_obj, got, flags),
+                })
+                break
+    finally:
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
+        try:
+            sys.stderr.flush()
+        except Exception:
+            pass
+        _flush_c_stdio()
+        os.dup2(saved_fd1, 1)
+        os.dup2(saved_fd2, 2)
+        os.close(saved_fd1)
+        os.close(saved_fd2)
+        read_out.close()
+        read_err.close()
+        write_out.close()
+        write_err.close()
 
     outcome["stderr"] = "".join(stderr_parts)
     with open(result_path, "w", encoding="utf-8") as fh:

@@ -506,24 +506,24 @@ __all__ = ["hanging_example", "background_descendant_example"]
 
 
 def hanging_example():
-    """Spawn a long-running child subprocess and hang until timed out.
+    r"""Spawn a long-running child subprocess and hang until timed out.
 
     >>> from pathlib import Path
     >>> import subprocess, sys
     >>> p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
-    >>> _ = Path({str(timeout_pid_file)!r}).write_text(str(p.pid), encoding="utf-8")
+    >>> _ = Path({timeout_pid_file.as_posix()!r}).write_text(str(p.pid), encoding="utf-8")
     >>> p.wait()
     0
     """
 
 
 def background_descendant_example():
-    """Spawn a background child in the runner's process group and finish normally.
+    r"""Spawn a background child in the runner's process group and finish normally.
 
     >>> from pathlib import Path
     >>> import subprocess, sys
     >>> p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
-    >>> _ = Path({str(normal_pid_file)!r}).write_text(str(p.pid), encoding="utf-8")
+    >>> _ = Path({normal_pid_file.as_posix()!r}).write_text(str(p.pid), encoding="utf-8")
     >>> 1 + 1
     2
     """
@@ -937,3 +937,65 @@ def test_cli_entrypoint_writes_json_and_text_reports_and_fails_on_bad_revision(
             checks.build_report(
                 revision=checks.Revision(ROOT, "HEAD"), timeout=float(bad_timeout)
             )
+
+
+def test_cross_statement_child_stdout_and_empty_workdir_isolation(tmp_path: Path):
+    """Capture inherited child output across statements and keep workdir/tempdir clean."""
+    source = '''\
+__all__ = [
+    "delayed_child_stdout_ok",
+    "delayed_child_stdout_mismatch",
+    "empty_workdir_example",
+]
+
+
+def delayed_child_stdout_ok():
+    r"""Child spawned in statement 1 prints when released in statement 2.
+
+    >>> import subprocess, sys
+    >>> p = subprocess.Popen(
+    ...     [sys.executable, "-c", "import sys; sys.stdin.read(); print('delayed-child-output')"],
+    ...     stdin=subprocess.PIPE,
+    ... )
+    >>> _ = p.communicate(b"go")
+    delayed-child-output
+    """
+
+
+def delayed_child_stdout_mismatch():
+    r"""Omitting expected output from a child released in statement 2 must fail.
+
+    >>> import subprocess, sys
+    >>> p = subprocess.Popen(
+    ...     [sys.executable, "-c", "import sys; sys.stdin.read(); print('unmatched-child-output')"],
+    ...     stdin=subprocess.PIPE,
+    ... )
+    >>> _ = p.communicate(b"go")
+    >>> 1 + 1
+    2
+    """
+
+
+def empty_workdir_example():
+    """Initial working directory (and isolated tempdir) must contain no capture files.
+
+    >>> import os, tempfile
+    >>> sorted(os.listdir("."))
+    []
+    >>> sorted(os.listdir(tempfile.gettempdir()))
+    []
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_capture.py", "exec"), module.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(revision=revision, module=module)
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    assert by_obj["supy.delayed_child_stdout_ok"]["status"] == "ok"
+    mismatch = by_obj["supy.delayed_child_stdout_mismatch"]
+    assert mismatch["status"] == "mismatch"
+    assert "unmatched-child-output" in mismatch["detail"]["got"]
+    assert by_obj["supy.empty_workdir_example"]["status"] == "ok"

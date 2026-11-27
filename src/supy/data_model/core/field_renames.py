@@ -7,7 +7,7 @@ the Phase A validation pipeline, and raw-dict compatibility helpers.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Dict
 import warnings
 
@@ -1899,3 +1899,221 @@ def reverse_field_renames(data: dict) -> dict:
         else:
             result[out_key] = value
     return result
+
+
+# -- BuildingLayer facet split (gh#2085) -------------------------------------
+#
+# Prior to Schema 2026.6.dev22, ``RoofLayer`` and ``WallLayer`` inherited both
+# SPARTACUS optical fields from ``BuildingLayer``. Each property now lives only
+# on its owning facet subclass, while legacy cross-facet keys are stripped on
+# load with a ``DeprecationWarning``.
+
+ROOF_LAYER_DEPRECATED_CROSS_FACET_KEYS: dict[str, str] = {
+    "wall_specular_frac": "sites[*].properties.vertical_layers.walls[*] (WallLayer)",
+}
+
+WALL_LAYER_DEPRECATED_CROSS_FACET_KEYS: dict[str, str] = {
+    "roof_albedo_dir_mult_fact": "sites[*].properties.vertical_layers.roofs[*] (RoofLayer)",
+}
+
+_VERTICAL_LAYER_CROSS_FACET_SPECS = (
+    ("roofs", ROOF_LAYER_DEPRECATED_CROSS_FACET_KEYS),
+    ("walls", WALL_LAYER_DEPRECATED_CROSS_FACET_KEYS),
+)
+
+_VERTICAL_LAYER_OWNING_OPTICAL_KEYS = (
+    ("roofs", "roof_albedo_dir_mult_fact"),
+    ("walls", "wall_specular_frac"),
+)
+
+
+def _is_explicit_optical_null(value: Any) -> bool:
+    return value is None or (
+        isinstance(value, Mapping) and "value" in value and value["value"] is None
+    )
+
+
+def _walk_site_vertical_layers(
+    site_idx: int,
+    raw_site: Any,
+    facet_specs: tuple[tuple[str, Any], ...],
+    on_layer: Callable[[int, str, int, dict[str, Any], Any], tuple[dict[str, Any], list[Any]]],
+) -> tuple[Any, list[Any]]:
+    """Copy-on-write traversal over ``vertical_layers.(roofs|walls)[*]`` for one site."""
+    if not isinstance(raw_site, dict):
+        return raw_site, []
+    raw_props = raw_site.get("properties")
+    if not isinstance(raw_props, dict):
+        return raw_site, []
+    raw_vlayers = raw_props.get("vertical_layers")
+    if not isinstance(raw_vlayers, dict):
+        return raw_site, []
+
+    events: list[Any] = []
+    site_vlayers: dict | None = None
+    for facet_attr, spec in facet_specs:
+        raw_items = raw_vlayers.get(facet_attr)
+        if not isinstance(raw_items, list):
+            continue
+        out_items: list[Any] | None = None
+        for layer_idx, item in enumerate(raw_items):
+            if not isinstance(item, dict):
+                continue
+            cleaned_item, item_events = on_layer(
+                site_idx, facet_attr, layer_idx, item, spec
+            )
+            if item_events:
+                events.extend(item_events)
+            if cleaned_item is not item:
+                if out_items is None:
+                    out_items = list(raw_items)
+                out_items[layer_idx] = cleaned_item
+        if out_items is not None:
+            if site_vlayers is None:
+                site_vlayers = dict(raw_vlayers)
+            site_vlayers[facet_attr] = out_items
+
+    if site_vlayers is None:
+        return raw_site, events
+    new_site = dict(raw_site)
+    new_props = dict(raw_props)
+    new_props["vertical_layers"] = site_vlayers
+    new_site["properties"] = new_props
+    return new_site, events
+
+
+def _walk_vertical_layer_facet_dicts(
+    config_data: Any,
+    facet_specs: tuple[tuple[str, Any], ...],
+    on_layer: Callable[[int, str, int, dict[str, Any], Any], tuple[dict[str, Any], list[Any]]],
+) -> tuple[Any, list[Any]]:
+    """Apply ``on_layer`` copy-on-write across ``sites[*].properties.vertical_layers``."""
+    if not isinstance(config_data, dict):
+        return config_data, []
+    raw_sites = config_data.get("sites")
+    if not isinstance(raw_sites, list):
+        return config_data, []
+
+    events: list[Any] = []
+    out_sites: list[Any] | None = None
+    for site_idx, raw_site in enumerate(raw_sites):
+        updated_site, site_events = _walk_site_vertical_layers(
+            site_idx, raw_site, facet_specs, on_layer
+        )
+        if site_events:
+            events.extend(site_events)
+        if updated_site is not raw_site:
+            if out_sites is None:
+                out_sites = list(raw_sites)
+            out_sites[site_idx] = updated_site
+
+    if out_sites is None:
+        return config_data, events
+    cleaned_cfg = dict(config_data)
+    cleaned_cfg["sites"] = out_sites
+    return cleaned_cfg, events
+
+
+def collect_and_clear_vertical_layer_optical_nulls_in_raw_config(
+    config_data: Any,
+    *,
+    clear_nulls: bool = False,
+) -> tuple[Any, list[tuple[int, str, int, str]]]:
+    """Find (and optionally drop) explicit nulls on owning RoofLayer/WallLayer optical keys."""
+
+    def _on_layer(
+        site_idx: int,
+        facet_attr: str,
+        layer_idx: int,
+        item: dict[str, Any],
+        owning_key: str,
+    ) -> tuple[dict[str, Any], list[tuple[int, str, int, str]]]:
+        if owning_key not in item or not _is_explicit_optical_null(item[owning_key]):
+            return item, []
+        hit = (site_idx, facet_attr, layer_idx, owning_key)
+        if not clear_nulls:
+            return item, [hit]
+        cleaned = dict(item)
+        cleaned.pop(owning_key)
+        return cleaned, [hit]
+
+    return _walk_vertical_layer_facet_dicts(
+        config_data, _VERTICAL_LAYER_OWNING_OPTICAL_KEYS, _on_layer
+    )
+
+
+def strip_cross_facet_building_layer_keys(
+    values: Any,
+    class_name: str,
+    deprecated_keys: Mapping[str, str],
+    *,
+    warn: bool = True,
+    stacklevel: int = 4,
+) -> Any:
+    """Strip deprecated cross-facet optical keys from a layer input mapping.
+
+    Returns a shallow copy when any deprecated key is removed so the caller's
+    mapping is never mutated in place.
+    """
+    if not deprecated_keys or not isinstance(values, Mapping):
+        return values
+    present = [key for key in deprecated_keys if key in values]
+    if not present:
+        return values
+    cleaned = dict(values)
+    for key in present:
+        cleaned.pop(key)
+        if warn:
+            owner_path = deprecated_keys[key]
+            warnings.warn(
+                f"{class_name}: field '{key}' is deprecated on this facet (it had "
+                f"no effect and now belongs exclusively on {owner_path}); remove it "
+                "or run 'suews schema migrate'.",
+                DeprecationWarning,
+                stacklevel=stacklevel,
+            )
+    return cleaned
+
+
+def strip_vertical_layer_cross_facet_keys_in_raw_config(
+    config_data: Any,
+) -> tuple[Any, list[tuple[int, str, int, str, str]]]:
+    """Strip legacy cross-facet optical keys across ``sites[*].properties.vertical_layers``.
+
+    Copies only mutated containers along the modified path so callers never
+    share mutated dicts or mutate input objects in place.
+    """
+
+    def _on_layer(
+        site_idx: int,
+        facet_attr: str,
+        layer_idx: int,
+        item: dict[str, Any],
+        deprecated_map: Mapping[str, str],
+    ) -> tuple[dict[str, Any], list[tuple[int, str, int, str, str]]]:
+        cleaned = strip_cross_facet_building_layer_keys(
+            item,
+            facet_attr,
+            deprecated_map,
+            warn=False,
+        )
+        if cleaned is item:
+            return item, []
+        events = [
+            (site_idx, facet_attr, layer_idx, key, deprecated_map[key])
+            for key in deprecated_map
+            if key in item
+        ]
+        return cleaned, events
+
+    return _walk_vertical_layer_facet_dicts(
+        config_data, _VERTICAL_LAYER_CROSS_FACET_SPECS, _on_layer
+    )
+
+
+def normalise_vertical_layer_optical_keys_in_raw_config(
+    config_data: Any,
+) -> tuple[Any, list[tuple[str, str]]]:
+    """Phase-A wrapper stripping legacy cross-facet optical keys before comparison."""
+    normalised, _ = strip_vertical_layer_cross_facet_keys_in_raw_config(config_data)
+    return normalised, []

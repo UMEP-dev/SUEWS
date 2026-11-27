@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: 2026.6.dev21
+schema_version: 2026.6.dev22
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
   configuration
 strict_initial_state_bounds: true
@@ -3380,8 +3380,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.5
         emis:
@@ -3416,8 +3414,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.2
         emis:
@@ -3452,8 +3448,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       walls:
       - alb:
           value: 0.5
@@ -3487,8 +3481,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -3523,8 +3515,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -3559,8 +3549,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
     n_buildings:
@@ -3902,7 +3890,7 @@ sites:
 _auto_generate_annotated: false
 _yaml_raw:
   name: sample_config
-  schema_version: 2026.6.dev21
+  schema_version: 2026.6.dev22
   description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
     configuration
   model:
@@ -7257,8 +7245,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         - alb:
             value: 0.5
           emis:
@@ -7293,8 +7279,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         - alb:
             value: 0.2
           emis:
@@ -7329,8 +7313,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         walls:
         - alb:
             value: 0.5
@@ -7364,8 +7346,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
         - alb:
@@ -7400,8 +7380,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
         - alb:
@@ -7436,8 +7414,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
       n_buildings:

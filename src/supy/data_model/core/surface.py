@@ -6,7 +6,7 @@ from pydantic import (
     model_validator,
     field_validator,
 )
-from typing import Optional, Literal, List, Union
+from typing import ClassVar, Optional, Literal, List, Union
 import pandas as pd
 import warnings
 from .type import (
@@ -28,9 +28,12 @@ from .type import SurfaceType
 
 from .hydro import WaterDistribution, StorageDrainParams
 from .field_renames import (
+    ROOF_LAYER_DEPRECATED_CROSS_FACET_KEYS,
     SURFACEPROPERTIES_ANOHM_RENAMES,
     SURFACEPROPERTIES_RENAMES,
+    WALL_LAYER_DEPRECATED_CROSS_FACET_KEYS,
     apply_field_renames,
+    strip_cross_facet_building_layer_keys,
 )
 
 
@@ -794,11 +797,21 @@ class PavedProperties(
 class BuildingLayer(
     DataModelBase
 ):  # May need to move VWD for material layers here for referencing
+    _deprecated_cross_facet_keys: ClassVar[dict[str, str]] = {}
+    _optical_df_state_spec: ClassVar[tuple[str, str] | None] = None
+
     @model_validator(mode="before")
     @classmethod
     def _rename_building_layer_fields(cls, values):
         if isinstance(values, dict):
-            return apply_field_renames(values, SURFACEPROPERTIES_RENAMES, cls.__name__)
+            values = strip_cross_facet_building_layer_keys(
+                values,
+                cls.__name__,
+                cls._deprecated_cross_facet_keys,
+            )
+            return apply_field_renames(
+                dict(values), SURFACEPROPERTIES_RENAMES, cls.__name__
+            )
         return values
 
     alb: FlexibleRefValue(float) = Field(
@@ -840,29 +853,6 @@ class BuildingLayer(
             "display_name": "Wetness Threshold",
         },
     )
-    roof_albedo_dir_mult_fact: Optional[FlexibleRefValue(float)] = Field(
-        default=0.1,
-        ge=0.0,
-        description=(
-            "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; "
-            "ignored for wall facets"
-        ),
-        json_schema_extra={
-            "unit": "1",
-            "display_name": "Roof Albedo Direct Multiplier",
-        },
-    )
-    wall_specular_frac: Optional[FlexibleRefValue(float)] = Field(
-        default=0.1,
-        description=(
-            "SPARTACUS-Surface specular reflection fraction for wall facets; "
-            "ignored for roof facets"
-        ),
-        json_schema_extra={
-            "unit": "1",
-            "display_name": "Wall Specular Fraction",
-        },
-    )
     _facet_type: Literal["roof", "wall"] = PrivateAttr(default="roof")
 
     ref: Optional[Reference] = None
@@ -899,19 +889,13 @@ class BuildingLayer(
                 else self.wet_threshold
             ),
         }
-        prefix = facet_type
-        if facet_type == "roof" and self.roof_albedo_dir_mult_fact is not None:
-            cols[(f"{prefix}_albedo_dir_mult_fact", f"(0, {layer_idx})")] = (
-                self.roof_albedo_dir_mult_fact.value
-                if isinstance(self.roof_albedo_dir_mult_fact, RefValue)
-                else self.roof_albedo_dir_mult_fact
-            )
-        elif facet_type == "wall" and self.wall_specular_frac is not None:
-            cols[(f"{prefix}_specular_frac", f"(0, {layer_idx})")] = (
-                self.wall_specular_frac.value
-                if isinstance(self.wall_specular_frac, RefValue)
-                else self.wall_specular_frac
-            )
+        if self._optical_df_state_spec is not None:
+            field_name, col_name = self._optical_df_state_spec
+            opt_val = getattr(self, field_name, None)
+            if opt_val is not None:
+                cols[col_name, f"(0, {layer_idx})"] = (
+                    opt_val.value if isinstance(opt_val, RefValue) else opt_val
+                )
         items: list[tuple[tuple[str, str], object]] = list(cols.items())
         items.extend(
             self.thermal_layers._to_df_state_cols(grid_id, layer_idx, facet_type).items()
@@ -995,18 +979,12 @@ class BuildingLayer(
             "wet_threshold": df.loc[grid_id, (f"wetthresh_{prefix}", layer_idx_str)],
         }
 
-        # Extract optional parameters
-        if facet_type == "roof":
-            # For these optional parameters, check if they exist in the DataFrame
-            opt_key = (f"roof_albedo_dir_mult_fact", f"(0, {layer_idx})")
+        # Extract facet-specific optical parameter owned by this subclass
+        if cls._optical_df_state_spec is not None:
+            field_name, col_name = cls._optical_df_state_spec
+            opt_key = (col_name, f"(0, {layer_idx})")
             if opt_key in df.columns:
-                params["roof_albedo_dir_mult_fact"] = df.loc[grid_id, opt_key]
-
-        elif facet_type == "wall":
-            # For these optional parameters, check if they exist in the DataFrame
-            opt_key = (f"wall_specular_frac", f"(0, {layer_idx})")
-            if opt_key in df.columns:
-                params["wall_specular_frac"] = df.loc[grid_id, opt_key]
+                params[field_name] = df.loc[grid_id, opt_key]
 
         # Extract ThermalLayers
         thermal_layers = ThermalLayers.from_df_state(df, grid_id, layer_idx, facet_type)
@@ -1220,12 +1198,45 @@ class RoofLayer(BuildingLayer):
     """Properties of a horizontal roof facet in a SPARTACUS vertical layer."""
 
     _facet_type: Literal["roof"] = "roof"
+    _deprecated_cross_facet_keys: ClassVar[dict[str, str]] = (
+        ROOF_LAYER_DEPRECATED_CROSS_FACET_KEYS
+    )
+    _optical_df_state_spec: ClassVar[tuple[str, str] | None] = (
+        "roof_albedo_dir_mult_fact",
+        "roof_albedo_dir_mult_fact",
+    )
+
+    roof_albedo_dir_mult_fact: FlexibleRefValue(float) = Field(
+        default=1.0,
+        ge=0.0,
+        description="SPARTACUS-Surface direct-beam albedo multiplier for roof facets",
+        json_schema_extra={
+            "unit": "1",
+            "display_name": "Roof Albedo Direct Multiplier",
+        },
+    )
 
 
 class WallLayer(BuildingLayer):
     """Properties of a vertical wall facet in a SPARTACUS vertical layer."""
 
     _facet_type: Literal["wall"] = "wall"
+    _deprecated_cross_facet_keys: ClassVar[dict[str, str]] = (
+        WALL_LAYER_DEPRECATED_CROSS_FACET_KEYS
+    )
+    _optical_df_state_spec: ClassVar[tuple[str, str] | None] = (
+        "wall_specular_frac",
+        "wall_specular_frac",
+    )
+
+    wall_specular_frac: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description="SPARTACUS-Surface specular reflection fraction for wall facets",
+        json_schema_extra={
+            "unit": "1",
+            "display_name": "Wall Specular Fraction",
+        },
+    )
 
 
 class VerticalLayers(DataModelBase):

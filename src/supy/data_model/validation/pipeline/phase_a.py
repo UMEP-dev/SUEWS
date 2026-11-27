@@ -14,6 +14,7 @@ from ...core._yaml_io import safe_dump_yaml, safe_load_yaml
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
+    normalise_vertical_layer_optical_keys_in_raw_config,
 )
 from ...core.model import REQUIRED_PHYSICS_OPTIONS, REQUIRED_STEBBS_SWITCHES
 from ...core.type import NULL_REJECTED_FIELDS
@@ -439,6 +440,7 @@ def _normalise_phase_a_compatibility(
     normalised, _ = normalise_hourly_profile_keys_in_raw_config(normalised)
     normalised, _ = normalise_ten_minute_profile_keys_in_raw_config(normalised)
     normalised = _pad_sparse_ten_minute_profiles_in_raw_config(normalised)
+    normalised, _ = normalise_vertical_layer_optical_keys_in_raw_config(normalised)
     return normalised, replacements
 
 

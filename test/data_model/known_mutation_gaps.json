@@ -874,57 +874,6 @@
       "rationale": "Vertical-layer facet soil_store_capacity is unused outside SPARTACUS/EHC."
     },
     {
-      "id": "vertical-layers-optical-null-active",
-      "anchors": [
-        "spartacus_ehc_stebbs"
-      ],
-      "path_patterns": [
-        "sites[0].properties.vertical_layers.roofs[*].roof_albedo_dir_mult_fact",
-        "sites[0].properties.vertical_layers.roofs[*].wall_specular_frac",
-        "sites[0].properties.vertical_layers.walls[*].roof_albedo_dir_mult_fact",
-        "sites[0].properties.vertical_layers.walls[*].wall_specular_frac"
-      ],
-      "mutations": {
-        "bare_null": "dropped",
-        "wrapped_null": "null_or_empty"
-      },
-      "category": "active_gap",
-      "active_condition": "Active under SPARTACUS radiation (net_radiation=1003); omit emits defaults while Optional[...] allows explicit null.",
-      "owner_issue": "#2085",
-      "related_issues": [
-        "#2085",
-        "#1991"
-      ],
-      "rationale": "SPARTACUS facet optical multipliers accept bare/wrapped null under active net_radiation=1003."
-    },
-    {
-      "id": "vertical-layers-optical-null-inactive",
-      "anchors": [
-        "all_surfaces_baseline",
-        "co2_methods",
-        "snow_cold",
-        "observed_and_dyohm",
-        "irrigation_and_dls"
-      ],
-      "path_patterns": [
-        "sites[0].properties.vertical_layers.roofs[*].roof_albedo_dir_mult_fact",
-        "sites[0].properties.vertical_layers.roofs[*].wall_specular_frac",
-        "sites[0].properties.vertical_layers.walls[*].roof_albedo_dir_mult_fact",
-        "sites[0].properties.vertical_layers.walls[*].wall_specular_frac"
-      ],
-      "mutations": {
-        "bare_null": "dropped",
-        "wrapped_null": "null_or_empty"
-      },
-      "category": "inactive_optional",
-      "active_condition": "Inactive when SPARTACUS radiation is disabled.",
-      "owner_issue": "#2083",
-      "related_issues": [
-        "#2085"
-      ],
-      "rationale": "SPARTACUS facet optical multipliers are unused when net_radiation uses NARP."
-    },
-    {
       "id": "initial-states-thermal-tsfc-tin-active",
       "anchors": [
         "spartacus_ehc_stebbs",

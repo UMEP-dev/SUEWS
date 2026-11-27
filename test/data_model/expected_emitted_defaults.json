@@ -1029,15 +1029,11 @@
     },
     "sites[0].properties.vertical_layers.roofs[*].roof_albedo_dir_mult_fact": {
       "type": "float",
-      "value": 0.1
+      "value": 1.0
     },
     "sites[0].properties.vertical_layers.roofs[*].state_limit": {
       "type": "float",
       "value": 10.0
-    },
-    "sites[0].properties.vertical_layers.roofs[*].wall_specular_frac": {
-      "type": "float",
-      "value": 0.1
     },
     "sites[0].properties.vertical_layers.roofs[*].wet_threshold": {
       "type": "float",
@@ -1051,17 +1047,13 @@
       "type": "float",
       "value": 0.95
     },
-    "sites[0].properties.vertical_layers.walls[*].roof_albedo_dir_mult_fact": {
-      "type": "float",
-      "value": 0.1
-    },
     "sites[0].properties.vertical_layers.walls[*].state_limit": {
       "type": "float",
       "value": 10.0
     },
     "sites[0].properties.vertical_layers.walls[*].wall_specular_frac": {
       "type": "float",
-      "value": 0.1
+      "value": 0.0
     },
     "sites[0].properties.vertical_layers.walls[*].wet_threshold": {
       "type": "float",

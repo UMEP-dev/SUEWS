@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev21"
+CURRENT_SCHEMA_VERSION = "2026.6.dev22"
 
 # Schema version history and descriptions.
 #
@@ -293,6 +293,20 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "The (2026.6.dev20 -> 2026.6.dev21) migration preserves values "
         "unchanged and logs advisories for off-sum land-cover fractions or "
         "half-specified daylight saving windows."
+    ),
+    "2026.6.dev22": (
+        "Split SPARTACUS building-layer optical properties by facet: move "
+        "roof_albedo_dir_mult_fact exclusively to RoofLayer (default 1.0) and "
+        "wall_specular_frac exclusively to WallLayer (default 0.0) (#2085), "
+        "removing both fields from BuildingLayer, aligning defaults with the "
+        "Rust bridge, sample config, and legacy tables, and making each owning "
+        "field non-optional FlexibleRefValue(float). The (2026.6.dev21 -> "
+        "2026.6.dev22) migration drops legacy cross-facet keys "
+        "(roofs[*].wall_specular_frac and walls[*].roof_albedo_dir_mult_fact) "
+        "with explicit logs, rejects explicit null or {value: null} on the "
+        "owning fields with YamlUpgradeError, and runtime loading strips "
+        "cross-facet keys with a DeprecationWarning while rejecting explicit "
+        "owning nulls with Pydantic ValidationError."
     ),
 }
 

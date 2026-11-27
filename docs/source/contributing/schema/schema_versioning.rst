@@ -196,7 +196,25 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev21** (current development version)
+**Schema 2026.6.dev22** (current development version)
+
+   Splits facet-specific SPARTACUS optical properties out of
+   ``BuildingLayer`` so ``roof_albedo_dir_mult_fact`` lives exclusively on
+   ``RoofLayer`` (``sites[*].properties.vertical_layers.roofs[*]``, default
+   ``1.0``) and ``wall_specular_frac`` lives exclusively on ``WallLayer``
+   (``sites[*].properties.vertical_layers.walls[*]``, default ``0.0``),
+   aligning Pydantic defaults with the Rust bridge, sample configuration, and
+   legacy tables, with each owning field enforced as non-optional
+   ``FlexibleRefValue(float)``. Migration drops legacy cross-facet keys
+   (``roofs[*].wall_specular_frac`` and
+   ``walls[*].roof_albedo_dir_mult_fact``) with explicit log notices, rejects
+   explicit ``null`` or ``{value: null}`` on owning fields with
+   ``YamlUpgradeError`` (while preserving pre-``2026.6.dev22`` historical
+   targets), and runtime loading strips cross-facet keys with a
+   ``DeprecationWarning`` while rejecting explicit owning nulls with Pydantic
+   ``ValidationError``. See :ref:`schema_dev22_building_layer_split`.
+
+**Schema 2026.6.dev21** (development)
 
    Centralises required physics options in ``core.model``, enforces blocking
    Phase B validation for half-specified daylight saving (``startdls`` /

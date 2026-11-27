@@ -1933,3 +1933,282 @@ def test_dev20_to_dev21_land_cover_and_dst_advisories_and_same_version(capsys) -
     hist_msgs = capsys.readouterr().err
     assert to_dev20["schema_version"] == "2026.6.dev20"
     assert "2026.6.dev21" not in hist_msgs
+
+
+def _unwrap_opt_val(val):
+    if hasattr(val, "value"):
+        return val.value
+    if isinstance(val, dict) and "value" in val:
+        return val["value"]
+    return val
+
+
+def test_building_layer_split_schema_null_rejection_and_df_state_roundtrip() -> None:
+    """gh#2085: RoofLayer and WallLayer own their optical fields as non-optional RefValues."""
+    from supy.data_model.core.surface import (
+        BuildingLayer,
+        RoofLayer,
+        VerticalLayers,
+        WallLayer,
+    )
+
+    assert "roof_albedo_dir_mult_fact" not in BuildingLayer.model_fields
+    assert "wall_specular_frac" not in BuildingLayer.model_fields
+    assert "roof_albedo_dir_mult_fact" in RoofLayer.model_fields
+    assert "wall_specular_frac" not in RoofLayer.model_fields
+    assert "wall_specular_frac" in WallLayer.model_fields
+    assert "roof_albedo_dir_mult_fact" not in WallLayer.model_fields
+
+    assert _unwrap_opt_val(RoofLayer().roof_albedo_dir_mult_fact) == pytest.approx(1.0)
+    assert _unwrap_opt_val(WallLayer().wall_specular_frac) == pytest.approx(0.0)
+    for bad in (None, {"value": None}):
+        with pytest.raises(ValueError, match="roof_albedo_dir_mult_fact"):
+            RoofLayer(roof_albedo_dir_mult_fact=bad)
+        with pytest.raises(ValueError, match="wall_specular_frac"):
+            WallLayer(wall_specular_frac=bad)
+
+    vl = VerticalLayers(
+        roofs=[
+            RoofLayer(roof_albedo_dir_mult_fact=1.15),
+            RoofLayer(roof_albedo_dir_mult_fact=1.35),
+            RoofLayer(roof_albedo_dir_mult_fact=1.55),
+        ],
+        walls=[
+            WallLayer(wall_specular_frac=0.05),
+            WallLayer(wall_specular_frac=0.25),
+            WallLayer(wall_specular_frac=0.45),
+        ],
+    )
+    vl_df = vl.to_df_state(1)
+    assert [
+        list(vl_df.columns).count(("roof_albedo_dir_mult_fact", f"(0, {i})"))
+        for i in range(3)
+    ] == [1, 1, 1]
+    assert [
+        list(vl_df.columns).count(("wall_specular_frac", f"(0, {i})"))
+        for i in range(3)
+    ] == [1, 1, 1]
+    assert [
+        float(vl_df["roof_albedo_dir_mult_fact", f"(0, {i})"].loc[1])
+        for i in range(3)
+    ] == [pytest.approx(v) for v in (1.15, 1.35, 1.55)]
+    assert [
+        float(vl_df["wall_specular_frac", f"(0, {i})"].loc[1]) for i in range(3)
+    ] == [pytest.approx(v) for v in (0.05, 0.25, 0.45)]
+    vl_rt = VerticalLayers.from_df_state(vl_df, 1)
+    assert [_unwrap_opt_val(r.roof_albedo_dir_mult_fact) for r in vl_rt.roofs] == [
+        pytest.approx(v) for v in (1.15, 1.35, 1.55)
+    ]
+    assert [_unwrap_opt_val(w.wall_specular_frac) for w in vl_rt.walls] == [
+        pytest.approx(v) for v in (0.05, 0.25, 0.45)
+    ]
+
+
+def test_cross_facet_optical_keys_strip_with_deprecation_warning() -> None:
+    """gh#2085: legacy cross-facet keys load with DeprecationWarning without mutating input."""
+    import warnings
+
+    from supy.data_model.core.surface import RoofLayer, WallLayer
+
+    raw_roof = {"wall_specular_frac": {"value": 0.4}, "roof_albedo_dir_mult_fact": 1.2}
+    with warnings.catch_warnings(record=True) as caught_roof:
+        warnings.simplefilter("always", DeprecationWarning)
+        roof_obj = RoofLayer.model_validate(raw_roof)
+    assert _unwrap_opt_val(roof_obj.roof_albedo_dir_mult_fact) == pytest.approx(1.2)
+    assert "wall_specular_frac" in raw_roof
+    assert any(
+        issubclass(w.category, DeprecationWarning) and "wall_specular_frac" in str(w.message)
+        for w in caught_roof
+    )
+
+    raw_wall = {"roof_albedo_dir_mult_fact": 0.9, "wall_specular_frac": {"value": 0.3}}
+    with warnings.catch_warnings(record=True) as caught_wall:
+        warnings.simplefilter("always", DeprecationWarning)
+        wall_obj = WallLayer.model_validate(raw_wall)
+    assert _unwrap_opt_val(wall_obj.wall_specular_frac) == pytest.approx(0.3)
+    assert "roof_albedo_dir_mult_fact" in raw_wall
+    assert any(
+        issubclass(w.category, DeprecationWarning)
+        and "roof_albedo_dir_mult_fact" in str(w.message)
+        for w in caught_wall
+    )
+
+
+def test_dev21_to_dev22_migrates_and_phase_a_normalises_cross_facet_keys(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """gh#2085: dev22 migration logs and drops cross-facet keys while preserving dev21."""
+    import warnings
+
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.data_model.core import SUEWSConfig
+    from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    standard_cfg = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    legacy_cfg = deepcopy(standard_cfg)
+    legacy_cfg["schema_version"] = "2026.6.dev21"
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["roofs"][0][
+        "wall_specular_frac"
+    ] = {"value": 0.25}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["walls"][1][
+        "roof_albedo_dir_mult_fact"
+    ] = {"value": 1.35}
+
+    assert not find_extra_parameters(deepcopy(legacy_cfg), deepcopy(standard_cfg))
+
+    with warnings.catch_warnings(record=True) as caught_cfg:
+        warnings.simplefilter("always", DeprecationWarning)
+        loaded = SUEWSConfig.from_dict(deepcopy(legacy_cfg))
+    assert any(
+        issubclass(w.category, DeprecationWarning)
+        and ("wall_specular_frac" in str(w.message) or "roof_albedo_dir_mult_fact" in str(w.message))
+        for w in caught_cfg
+    )
+    dumped = loaded.model_dump(exclude_none=True, mode="json")
+    assert "wall_specular_frac" not in dumped["sites"][0]["properties"]["vertical_layers"]["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" not in dumped["sites"][0]["properties"]["vertical_layers"]["walls"][1]
+
+    migrator = SchemaMigrator()
+    capsys.readouterr()
+
+    stayed_dev21 = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev21")
+    assert "wall_specular_frac" in stayed_dev21["sites"][0]["properties"]["vertical_layers"]["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" in stayed_dev21["sites"][0]["properties"]["vertical_layers"]["walls"][1]
+
+    migrated = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev22")
+    err_log = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev22"
+    assert "wall_specular_frac" not in migrated["sites"][0]["properties"]["vertical_layers"]["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" not in migrated["sites"][0]["properties"]["vertical_layers"]["walls"][1]
+    assert "dropped 'wall_specular_frac'" in err_log
+    assert "dropped 'roof_albedo_dir_mult_fact'" in err_log
+
+    stale_dev22 = deepcopy(legacy_cfg)
+    stale_dev22["schema_version"] = "2026.6.dev22"
+    cleaned_dev22 = migrator.migrate(stale_dev22, to_version="2026.6.dev22")
+    clean_log = capsys.readouterr().err
+    assert "dropped 'wall_specular_frac'" in clean_log
+    assert "dropped 'roof_albedo_dir_mult_fact'" in clean_log
+    assert migrator.migrate(deepcopy(cleaned_dev22), to_version="2026.6.dev22") == cleaned_dev22
+    assert not capsys.readouterr().err
+
+    old_yml = tmp_path / "dev21_cross_facet.yml"
+    new_yml = tmp_path / "dev22_clean.yml"
+    old_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
+    upgrade_yaml(old_yml, new_yml)
+    SUEWSConfig.from_yaml(str(new_yml))
+
+
+def test_phase_a_annotate_cleans_cross_facet_keys_and_preserves_owning_values(
+    tmp_path: Path,
+) -> None:
+    """gh#2085: Phase A annotate_missing_parameters drops cross-facet keys without losing owning values."""
+    from supy.data_model.core import SUEWSConfig
+    from supy.data_model.validation.pipeline.phase_a import annotate_missing_parameters
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    legacy_cfg = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["roofs"][0][
+        "roof_albedo_dir_mult_fact"
+    ] = {"value": 1.25}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["roofs"][0][
+        "wall_specular_frac"
+    ] = {"value": 0.45}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["walls"][1][
+        "wall_specular_frac"
+    ] = {"value": 0.35}
+    legacy_cfg["sites"][0]["properties"]["vertical_layers"]["walls"][1][
+        "roof_albedo_dir_mult_fact"
+    ] = {"value": 0.85}
+
+    user_yml = tmp_path / "user_cross_facet.yml"
+    updated_yml = tmp_path / "updated.yml"
+    report_txt = tmp_path / "report.txt"
+    user_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
+
+    annotate_missing_parameters(
+        user_file=str(user_yml),
+        standard_file=str(sample_path),
+        uptodate_file=str(updated_yml),
+        report_file=str(report_txt),
+        mode="public",
+        forcing="off",
+    )
+
+    updated_doc = yaml.safe_load(updated_yml.read_text(encoding="utf-8"))
+    vlayers = updated_doc["sites"][0]["properties"]["vertical_layers"]
+    assert "wall_specular_frac" not in vlayers["roofs"][0]
+    assert "roof_albedo_dir_mult_fact" not in vlayers["walls"][1]
+    assert _unwrap_opt_val(vlayers["roofs"][0]["roof_albedo_dir_mult_fact"]) == pytest.approx(1.25)
+    assert _unwrap_opt_val(vlayers["walls"][1]["wall_specular_frac"]) == pytest.approx(0.35)
+    SUEWSConfig.from_yaml(str(updated_yml))
+
+
+@pytest.mark.parametrize(
+    ("facet", "field", "null_val"),
+    [
+        ("roofs", "roof_albedo_dir_mult_fact", None),
+        ("roofs", "roof_albedo_dir_mult_fact", {"value": None}),
+        ("walls", "wall_specular_frac", None),
+        ("walls", "wall_specular_frac", {"value": None}),
+    ],
+)
+def test_historical_observed_soil_preserves_optical_null_while_dev22_rejects(
+    tmp_path: Path, facet: str, field: str, null_val
+) -> None:
+    """gh#2085: dev8->dev9..dev21 keeps pre-dev22 owning nulls while dev22 raises YamlUpgradeError."""
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext, YamlUpgradeError
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    dev8 = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    dev8["schema_version"] = "2026.6.dev8"
+    dev8["model"]["physics"].pop("soil_moisture", None)
+    dev8["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surf in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        dev8["sites"][0]["properties"]["land_cover"][surf].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    dev8["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    dev8["sites"][0]["properties"]["vertical_layers"][facet][0][field] = deepcopy(null_val)
+
+    ctx = SoilMigrationContext(
+        layer_bounds={0: (0, 0.2)},
+        original_method=1,
+        forcing_manifest={
+            "completed": True,
+            "original_method": 1,
+            "source_unit": "m3 m-3",
+            "input_sha256": "a" * 64,
+            "output_sha256": "b" * 64,
+        },
+    )
+    migrator = SchemaMigrator()
+
+    for hist_target in ("2026.6.dev9", "2026.6.dev21"):
+        to_hist = migrator.migrate(deepcopy(dev8), to_version=hist_target, migration_context=ctx)
+        assert to_hist["sites"][0]["properties"]["vertical_layers"][facet][0][field] == null_val
+
+    with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
+        migrator.migrate(deepcopy(dev8), to_version="2026.6.dev22", migration_context=ctx)
+
+    for src_ver in ("2026.6.dev21", "2026.6.dev22"):
+        null_cfg = deepcopy(dev8)
+        null_cfg["schema_version"] = src_ver
+        null_cfg["model"]["physics"].pop("soil_moisture_deficit", None)
+        null_cfg["model"]["physics"]["soil_moisture"] = 0
+        null_cfg["sites"][0]["properties"].pop("soil_observation", None)
+        with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
+            migrator.migrate(deepcopy(null_cfg), to_version="2026.6.dev22")
+        in_yml = tmp_path / f"{src_ver}_{facet}_{field}.yml"
+        out_yml = tmp_path / f"{src_ver}_{facet}_{field}_out.yml"
+        in_yml.write_text(yaml.safe_dump(null_cfg, sort_keys=False), encoding="utf-8")
+        with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
+            upgrade_yaml(in_yml, out_yml)

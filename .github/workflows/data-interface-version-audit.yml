@@ -93,3 +93,14 @@ jobs:
         run: |
           python scripts/lint/check_forcing_contract_artefacts.py
           python docs/generate_forcing_variable_rst.py --check
+
+      - name: Validate static data-contracts publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/suews/publish_contracts.py \
+            --output-dir build/contracts-site/contracts \
+            --base-url https://suews.io
+          python scripts/suews/publish_contracts.py \
+            --validate-only build/contracts-site/contracts \
+            --base-url https://suews.io

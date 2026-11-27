@@ -211,25 +211,38 @@ output contract release directly through the ``suews contracts`` CLI:
    suews contracts export output --artefact bundle -o ./output-contract
 
 Static site builds materialise deterministic, version-addressed directories
-alongside moving ``latest`` aliases for the target GitHub Pages layout under
-``https://suews.io/contracts/`` (workflow deployment to live GitHub Pages is
-pending the companion Pages workflow update; until that workflow change lands,
-build and inspect the same tree locally with ``make contracts-site`` or export
-directly through ``suews contracts``):
+alongside moving ``latest`` aliases and publish them to GitHub Pages at
+`https://suews.io/contracts/ <https://suews.io/contracts/>`_ via
+``.github/workflows/pages-deploy.yml``. On each deployment, the workflow
+fetches the previously published ``/contracts/`` tree from ``https://suews.io``
+so historical versions remain retrievable (failing closed on HTTP 404 unless an
+initial bootstrap or verified recovery is explicitly authorised via
+``workflow_dispatch`` with ``allow_contracts_bootstrap=true`` and no partial
+interface indices remain). Pull-request and merge-queue CI validate the
+published layout offline in ``.github/workflows/data-interface-version-audit.yml``.
+Locally, ``make contracts-site`` builds and validates the packaged releases;
+pass ``CONTRACTS_PRESERVE_FROM=<previous-contracts-dir>`` pointing to a local
+snapshot of the prior ``/contracts/`` tree to reproduce CI's cross-deployment
+preservation, or inspect releases directly through ``suews contracts``:
 
-- ``https://suews.io/contracts/index.json`` and ``index.html``: top-level
-  machine-readable and HTML discovery indices.
-- ``https://suews.io/contracts/forcing/<version>/`` and
-  ``https://suews.io/contracts/output/<version>/``: immutable release bundles
-  containing ``catalogue.json``, ``catalogue.schema.json`` and
-  ``manifest.json``. Frozen forcing schema and manifest snapshots live under
+- `https://suews.io/contracts/index.json <https://suews.io/contracts/index.json>`_
+  and `https://suews.io/contracts/index.html <https://suews.io/contracts/index.html>`_:
+  top-level machine-readable and HTML discovery indices.
+- `https://suews.io/contracts/forcing/ <https://suews.io/contracts/forcing/>`_
+  (``<version>/``) and
+  `https://suews.io/contracts/output/ <https://suews.io/contracts/output/>`_
+  (``<version>/``): immutable release bundles containing ``catalogue.json``,
+  ``catalogue.schema.json`` and ``manifest.json``. Frozen forcing schema and
+  manifest snapshots live under
   ``src/supy/data_model/contract_artefacts/forcing/<version>/`` alongside the
   canonical forcing catalogues under ``src/supy/data_model/forcing/artefacts/``.
   Previously published versions are preserved across deployments and never
   modified in place.
-- ``https://suews.io/contracts/forcing/latest/`` and
-  ``https://suews.io/contracts/output/latest/``: moving aliases that mirror the
-  current release bundle byte-for-byte.
+- `https://suews.io/contracts/forcing/latest/catalogue.json <https://suews.io/contracts/forcing/latest/catalogue.json>`_
+  and
+  `https://suews.io/contracts/output/latest/catalogue.json <https://suews.io/contracts/output/latest/catalogue.json>`_
+  (under ``forcing/latest/`` and ``output/latest/``): moving aliases that mirror
+  the current release bundle byte-for-byte.
 
 To reproduce publication and validation outside ``make``:
 

@@ -10,7 +10,7 @@ Static site served at https://suews.io/. Sphinx-built documentation lives separa
 - `dependencies/index.html` — Fortran libraries used by the SUEWS core, with sources and licence notes. Python deps are tracked in `pyproject.toml`.
 - `brand/index.html` — brand showcase (palette, typography, logo). Self-contained page with light theme.
 - `brand/brand-workshop.html` — interactive logo customiser; self-contained dark workshop UI.
-- `contracts/` (generated, not committed) -- versioned and `latest` forcing and output data-contract catalogues, JSON Schemas, manifests, and index pages built locally by `make contracts-site` / `scripts/suews/publish_contracts.py` (target layout for `https://suews.io/contracts/`, pending Pages workflow wiring).
+- `contracts/` (generated, not committed) -- versioned and `latest` forcing and output data-contract catalogues, JSON Schemas, manifests, and index pages published to `https://suews.io/contracts/` by `.github/workflows/pages-deploy.yml` (preserving historical versions across deployments; reproducible locally with `make contracts-site` / `scripts/suews/publish_contracts.py`).
 
 ## Stylesheets
 
@@ -33,4 +33,4 @@ When `hostname === 'localhost' || '127.0.0.1'`, `index.html` injects a "LOCAL DE
 
 ## Deployment
 
-`pages-deploy.yml` watches the `master` branch and publishes this directory verbatim to https://suews.io/. Any merge to `master` that touches `site/**` triggers a deploy.
+`pages-deploy.yml` watches the `master` branch and publishes this directory alongside the generated `contracts/` tree (fetching and preserving previously published contract versions from `https://suews.io/contracts/`, and failing closed on missing root indices unless initial bootstrap is authorised via `workflow_dispatch` with `allow_contracts_bootstrap=true`) to https://suews.io/. Any merge to `master` that touches `site/**`, `docs/**`, `src/supy/data_model/**`, `scripts/suews/publish_contracts.py`, or `.github/workflows/pages-deploy.yml` triggers a deploy.

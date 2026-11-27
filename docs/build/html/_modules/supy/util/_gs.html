@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util._gs &#8212; SUEWS 2026.11.27.dev40 documentation</title>
+    <title>supy.util._gs &#8212; SUEWS 2026.11.27.dev42 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=92196c1d"></script>
+    <script src="../../../_static/documentation_options.js?v=3e916e66"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.27.dev40" />
+  <meta name="docsearch:version" content="2026.11.27.dev42" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.27.dev40, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/adbc9679442bc03f35b32b400b050c66bd10a871" style="color: #31708f;">adbc967</a>).
+        (2026.11.27.dev42, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/06431f60c7861c0860104379c37add72a25a6d46" style="color: #31708f;">06431f6</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev40 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev40 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev42 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev42 documentation - Home"/>
   
   
 </a></div>
@@ -807,8 +807,8 @@
 <span class="sd">    ----------</span>
 <span class="sd">    kd : float</span>
 <span class="sd">        Incoming solar radiation [W m-2]</span>
-<span class="sd">    g2 : float</span>
-<span class="sd">        Solar radiation-related correction parameter [-]</span>
+<span class="sd">    g_kd : float</span>
+<span class="sd">        Solar radiation-related correction parameter [W m-2]</span>
 <span class="sd">    kd_max : float, optional</span>
 <span class="sd">        Maximum incoming solar radiation [W m-2], by default 1200.</span>
 
@@ -946,14 +946,14 @@
 
     <span class="c1"># broadcast g_lai – g_smd</span>
     <span class="c1"># print('g_cst', g_cst)</span>
-    <span class="n">g_lai</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">g_dq_base</span><span class="p">,</span> <span class="n">g_dq_shape</span><span class="p">,</span> <span class="n">g_ta</span><span class="p">,</span> <span class="n">g_smd</span> <span class="o">=</span> <span class="n">g_cst</span>
-    <span class="c1"># print(g_lai, g2, g_dq_base, g_dq_shape, g_ta, g_smd)</span>
+    <span class="n">g_lai</span><span class="p">,</span> <span class="n">g_kd</span><span class="p">,</span> <span class="n">g_dq_base</span><span class="p">,</span> <span class="n">g_dq_shape</span><span class="p">,</span> <span class="n">g_ta</span><span class="p">,</span> <span class="n">g_smd</span> <span class="o">=</span> <span class="n">g_cst</span>
+    <span class="c1"># print(g_lai, g_kd, g_dq_base, g_dq_shape, g_ta, g_smd)</span>
     <span class="c1"># lai related</span>
     <span class="n">g_lai</span> <span class="o">=</span> <span class="n">cal_g_lai</span><span class="p">(</span><span class="n">lai</span><span class="p">,</span> <span class="n">g_lai</span><span class="p">,</span> <span class="n">lai_max</span><span class="p">)</span>
     <span class="c1"># print('g_lai', g_lai)</span>
 
     <span class="c1"># kdown related</span>
-    <span class="n">g_kd</span> <span class="o">=</span> <span class="n">cal_g_kd</span><span class="p">(</span><span class="n">kd</span><span class="p">,</span> <span class="n">g2</span><span class="p">)</span>
+    <span class="n">g_kd</span> <span class="o">=</span> <span class="n">cal_g_kd</span><span class="p">(</span><span class="n">kd</span><span class="p">,</span> <span class="n">g_kd</span><span class="p">)</span>
     <span class="c1"># print('g_kd', g_kd)</span>
     <span class="c1"># dq related</span>
     <span class="n">ta_k</span> <span class="o">=</span> <span class="n">ta_c</span> <span class="o">+</span> <span class="n">C2K</span>
@@ -1033,7 +1033,7 @@
 
 <span class="sd">        Note:</span>
 <span class="sd">            Parameters for surface conductance:</span>
-<span class="sd">            g_lai (LAI related), g2 (solar radiation related),</span>
+<span class="sd">            g_lai (LAI related), g_kd (solar radiation related),</span>
 <span class="sd">            g_dq_base (humidity related), g_dq_shape (humidity related),</span>
 <span class="sd">            g_ta (air temperature related),</span>
 <span class="sd">            g_smd (soil moisture related)</span>
@@ -1085,8 +1085,8 @@
         <span class="n">dict_prms_init</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">"lai"</span><span class="p">:</span> <span class="mf">3.5</span><span class="p">,</span>
             <span class="s2">"kd"</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
-            <span class="s2">"q1"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
-            <span class="s2">"q2"</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span>
+            <span class="s2">"dq_base"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+            <span class="s2">"dq_shape"</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span>
             <span class="s2">"ta"</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>
             <span class="s2">"smd"</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span>
         <span class="p">}</span>
@@ -1099,12 +1099,13 @@
         <span class="c1"># g_lai: LAI related</span>
         <span class="n">prms</span><span class="p">[</span><span class="s2">"g_lai"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 
-        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_kd"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+        <span class="c1"># g_kd: strictly positive to avoid 0/0 when kd == 0</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_kd"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
         <span class="c1"># g_dq_base, g_dq_shape: specific humidity related</span>
         <span class="n">prms</span><span class="p">[</span><span class="s2">"g_dq_base"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">prms</span><span class="p">[</span><span class="s2">"g_dq_shape"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="c1"># g_ta: within reasonable temperature ranges</span>
-        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_ta"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=-</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">55</span><span class="p">)</span>
+        <span class="c1"># g_ta: strictly within (tl=-10, th=55) to avoid division by zero in cal_g_ta</span>
+        <span class="n">prms</span><span class="p">[</span><span class="s2">"g_ta"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=-</span><span class="mf">9.9</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">54.9</span><span class="p">)</span>
         <span class="c1"># g_smd: within sensitive ranges of SMD</span>
         <span class="n">prms</span><span class="p">[</span><span class="s2">"g_smd"</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1384,8 +1385,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.27.dev40 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/adbc9679442bc03f35b32b400b050c66bd10a871">adbc967</a> |
+  <p>Version: 2026.11.27.dev42 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/06431f60c7861c0860104379c37add72a25a6d46">06431f6</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -9859,47 +9859,6 @@
           "title": "Wet Threshold",
           "unit": "1"
         },
-        "roof_albedo_dir_mult_fact": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
-          "display_name": "Roof Albedo Direct Multiplier",
-          "title": "Roof Albedo Dir Mult Fact",
-          "unit": "1"
-        },
-        "wall_specular_frac": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
-          "display_name": "Wall Specular Fraction",
-          "title": "Wall Specular Frac",
-          "unit": "1"
-        },
         "ref": {
           "anyOf": [
             {
@@ -9910,6 +9869,22 @@
             }
           ],
           "default": null
+        },
+        "roof_albedo_dir_mult_fact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets",
+          "display_name": "Roof Albedo Direct Multiplier",
+          "ge": 0.0,
+          "title": "Roof Albedo Dir Mult Fact",
+          "unit": "1"
         }
       },
       "title": "RoofLayer",
@@ -13298,47 +13273,6 @@
           "title": "Wet Threshold",
           "unit": "1"
         },
-        "roof_albedo_dir_mult_fact": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; ignored for wall facets",
-          "display_name": "Roof Albedo Direct Multiplier",
-          "title": "Roof Albedo Dir Mult Fact",
-          "unit": "1"
-        },
-        "wall_specular_frac": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.1,
-          "description": "SPARTACUS-Surface specular reflection fraction for wall facets; ignored for roof facets",
-          "display_name": "Wall Specular Fraction",
-          "title": "Wall Specular Frac",
-          "unit": "1"
-        },
         "ref": {
           "anyOf": [
             {
@@ -13349,6 +13283,21 @@
             }
           ],
           "default": null
+        },
+        "wall_specular_frac": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "SPARTACUS-Surface specular reflection fraction for wall facets",
+          "display_name": "Wall Specular Fraction",
+          "title": "Wall Specular Frac",
+          "unit": "1"
         }
       },
       "title": "WallLayer",
@@ -14013,7 +13962,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev21. Unify required physics options in core.model, enforce blocking Phase B validation for half-specified daylight saving (startdls/enddls), and apply the shared three-band land-cover surface fraction sum kernel across Phase B, Phase C, SUEWSConfig.validate_for_engine(), and SUEWSSimulation.run() (#2347). Sums within 1e-6 pass, drift between 1e-6 and 1e-4 is auto-normalisable under --science-fixes apply (or reported as a warning), and deviations exceeding 1e-4 (or all-zero/invalid fractions) are rejected while raw SUEWSConfig loading continues to accept off-sum configurations for inspection. The (2026.6.dev20 -> 2026.6.dev21) migration preserves values unchanged and logs advisories for off-sum land-cover fractions or half-specified daylight saving windows.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev22. Split SPARTACUS building-layer optical properties by facet: move roof_albedo_dir_mult_fact exclusively to RoofLayer (default 1.0) and wall_specular_frac exclusively to WallLayer (default 0.0) (#2085), removing both fields from BuildingLayer, aligning defaults with the Rust bridge, sample config, and legacy tables, and making each owning field non-optional FlexibleRefValue(float). The (2026.6.dev21 -> 2026.6.dev22) migration drops legacy cross-facet keys (roofs[*].wall_specular_frac and walls[*].roof_albedo_dir_mult_fact) with explicit logs, rejects explicit null or {value: null} on the owning fields with YamlUpgradeError, and runtime loading strips cross-facet keys with a DeprecationWarning while rejecting explicit owning nulls with Pydantic ValidationError.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -14066,20 +14015,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev21",
+  "title": "SUEWS Configuration Schema v2026.6.dev22",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev21.json",
-  "version": "2026.6.dev21",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev22.json",
+  "version": "2026.6.dev22",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev21"
+    "schema_version": "2026.6.dev22"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev21",
+      "schema_version": "2026.6.dev22",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

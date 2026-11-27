@@ -2808,7 +2808,9 @@ def test_exhaustive_cells_cover_every_anchor_and_ledger_entry() -> None:
                 ):
                     covered_slices.add((entry["id"], anchor_name, mutation))
 
-    assert total_evals >= 20000
+    # Total across 6 anchors x 3 mutations (20,079 before retiring 6 cross-facet
+    # BuildingLayer optical leaves under #2085 => -108 cells).
+    assert total_evals >= 19892
 
     # ASSERT 2: every (entry, anchor, mutation) slice in known_mutation_gaps.json is hit.
     expected_slices = {

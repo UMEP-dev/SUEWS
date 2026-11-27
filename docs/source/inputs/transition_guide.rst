@@ -231,6 +231,34 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev22_building_layer_split:
+
+Upgrading to Schema 2026.6.dev22
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev22`` removes the two facet-specific SPARTACUS optical properties
+from the shared ``BuildingLayer`` schema so each lives only on its owning
+facet model, and aligns their Pydantic defaults with the Rust bridge, sample
+configuration, and legacy tables:
+
+- ``roof_albedo_dir_mult_fact`` is declared exclusively on ``RoofLayer``
+  (``sites[*].properties.vertical_layers.roofs[*]``, default ``1.0``).
+- ``wall_specular_frac`` is declared exclusively on ``WallLayer``
+  (``sites[*].properties.vertical_layers.walls[*]``, default ``0.0``).
+
+Both owning fields are non-optional numeric values: explicit ``null`` or
+``{value: null}`` raises Pydantic ``ValidationError`` on direct configuration
+loading and ``YamlUpgradeError`` during migration to ``2026.6.dev22``. Legacy
+YAML files carrying the ignored cross-facet keys
+(``roofs[*].wall_specular_frac`` or ``walls[*].roof_albedo_dir_mult_fact``)
+still load with a ``DeprecationWarning`` while stripping the dead cross-facet
+keys, and ``suews schema migrate`` drops them cleanly with an explicit log
+entry:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev22
+
 .. _schema_dev21_land_cover_sum_and_dst:
 
 Upgrading to Schema 2026.6.dev21

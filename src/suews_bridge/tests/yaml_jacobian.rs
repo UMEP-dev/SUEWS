@@ -117,19 +117,12 @@ const KNOWN_DEAD_KEYS: &[&str] = &[
     "sites[0].properties.stebbs.temperature_air_annual_mean",
 ];
 
-/// Shared `BuildingLayer` schema keys serialised on the non-owning SPARTACUS
-/// facet (`walls[i].roof_albedo_dir_mult_fact` is roof-only;
-/// `roofs[i].wall_specular_frac` is wall-only; see
-/// `src/supy/data_model/core/surface.py`). Perturbing any of these keys must
-/// leave every `RunConfig` slot strictly invariant.
-const NON_OWNING_FACET_KEYS: &[&str] = &[
-    "sites[0].properties.vertical_layers.roofs[0].wall_specular_frac",
-    "sites[0].properties.vertical_layers.roofs[1].wall_specular_frac",
-    "sites[0].properties.vertical_layers.roofs[2].wall_specular_frac",
-    "sites[0].properties.vertical_layers.walls[0].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact",
-    "sites[0].properties.vertical_layers.walls[2].roof_albedo_dir_mult_fact",
-];
+/// Former shared `BuildingLayer` cross-facet keys (`walls[i].roof_albedo_dir_mult_fact`
+/// and `roofs[i].wall_specular_frac`). Empty now that #2085 moved
+/// `roof_albedo_dir_mult_fact` onto `RoofLayer` only and `wall_specular_frac`
+/// onto `WallLayer` only; runtime invariance for legacy YAML inputs containing
+/// these cross-facet keys is exercised directly in check 7 below.
+const NON_OWNING_FACET_KEYS: &[&str] = &[];
 
 /// Scheme-gated YAML keys whose owning scheme is inactive across all six
 /// default Jacobian anchors (`irrigation.daywat.* == 0.0`, so
@@ -2679,13 +2672,15 @@ fn validate_sweep_report(
 ) -> Result<ValidationSummary, Vec<String>> {
     let mut violations = Vec::new();
 
-    // The six resolved anchors retain at least 2823 leaves after removing the
-    // 14 forbidden radiation-memory inputs (formerly 2854) and the remaining 17
-    // forbidden continuation-state leaves (formerly 2840). Keep every remaining
-    // leaf in the sweep; no dead-key or profile allowance is relaxed.
-    if report.leaves_tested < 2823 {
+    // The six resolved anchors retain at least 2817 leaves after removing the
+    // 14 forbidden radiation-memory inputs (formerly 2854), the remaining 17
+    // forbidden continuation-state leaves (formerly 2840), and the 6 cross-facet
+    // optical keys split off BuildingLayer under #2085 (formerly 2823). Keep
+    // every remaining leaf in the sweep; no dead-key or profile allowance is
+    // relaxed.
+    if report.leaves_tested < 2817 {
         violations.push(format!(
-            "{fixture_label}: expected >= 2823 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
+            "{fixture_label}: expected >= 2817 perturbed leaves (unthinned profiles + wrapped arrays), got {}",
             report.leaves_tested
         ));
     }
@@ -3804,11 +3799,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
     );
     let base_no_roof0_flat = flatten_run_config_map(&base_no_roof0_rc);
     let mut pert_wall0_mult = no_roof0_mult;
-    let mut wall0_mult_path = wall0_parent.to_vec();
-    wall0_mult_path.push(Step::Key("roof_albedo_dir_mult_fact".into()));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_wall0_mult,
-        &wall0_mult_path,
+        &wall0_parent,
+        "roof_albedo_dir_mult_fact",
         serde_yaml::to_value(0.77_f64).unwrap(),
     ));
     let pert_wall0_mult_flat = flatten_run_config_map(
@@ -3824,17 +3818,16 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
     // 7b: Remove walls[0].wall_specular_frac -> active SPARTACUS rejects even
     //     with roofs[0].wall_specular_frac set (BR-03), and inactive SPARTACUS
     //     leaves roofs[0].wall_specular_frac strictly invariant.
-    let mut roof0_spec_path = roof0_parent.to_vec();
-    roof0_spec_path.push(Step::Key("wall_specular_frac".into()));
     let mut active_no_wall0_spec = orig_stebbs.clone();
     assert!(remove_mapping_key(
         &mut active_no_wall0_spec,
         &wall0_parent,
         "wall_specular_frac",
     ));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut active_no_wall0_spec,
-        &roof0_spec_path,
+        &roof0_parent,
+        "wall_specular_frac",
         serde_yaml::to_value(0.63_f64).unwrap(),
     ));
     let active_err = load_run_config_from_value(&mut active_no_wall0_spec)
@@ -3856,9 +3849,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
             .expect("load inactive SPARTACUS without wall0 specular"),
     );
     let mut pert_roof0_spec = no_wall0_spec;
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_roof0_spec,
-        &roof0_spec_path,
+        &roof0_parent,
+        "wall_specular_frac",
         serde_yaml::to_value(0.63_f64).unwrap(),
     ));
     let pert_roof0_spec_flat = flatten_run_config_map(
@@ -3892,9 +3886,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
         &roof0_mult_path,
         serde_yaml::to_value(exp_roof_mult).unwrap(),
     ));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_both,
-        &wall0_mult_path,
+        &wall0_parent,
+        "roof_albedo_dir_mult_fact",
         serde_yaml::to_value(0.91_f64).unwrap(),
     ));
     assert!(set_scalar_or_ref_value(
@@ -3902,9 +3897,10 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
         &wall0_spec_path,
         serde_yaml::to_value(exp_wall_spec).unwrap(),
     ));
-    assert!(set_scalar_or_ref_value(
+    assert!(set_or_insert_mapping_key(
         &mut pert_both,
-        &roof0_spec_path,
+        &roof0_parent,
+        "wall_specular_frac",
         serde_yaml::to_value(0.73_f64).unwrap(),
     ));
     let pert_both_flat = flatten_run_config_map(
@@ -4847,8 +4843,7 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     // 4b. Negative control: reintroducing the #2085 cross-facet clobber
     //     (`walls[1].roof_albedo_dir_mult_fact` taking ownership of
     //     `roof_albedo_dir_mult_fact_01_02` from `roofs[1]`) MUST fail
-    //     non-owning facet invariance, cross-facet ownership, and
-    //     named-receiver verification.
+    //     cross-facet ownership and named-receiver verification.
     let mut reintroduced_clobber = clean.clone();
     let r1 = "sites[0].properties.vertical_layers.roofs[1].roof_albedo_dir_mult_fact".to_string();
     let w1 = "sites[0].properties.vertical_layers.walls[1].roof_albedo_dir_mult_fact".to_string();
@@ -4871,12 +4866,9 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     .expect_err("reintroducing #2085 cross-facet clobber must fail immediately");
     assert!(
         err.iter()
-            .any(|m| m.contains("non-owning SPARTACUS facet invariance") && m.contains(&w1))
-            && err
-                .iter()
-                .any(|m| m.contains("unexpected cross-facet SPARTACUS"))
+            .any(|m| m.contains("unexpected cross-facet SPARTACUS"))
             && err.iter().any(|m| m.contains("named receiver-identity")),
-        "reintroduced clobber must fail invariance, cross-facet, and receiver checks, got: {err:#?}"
+        "reintroduced clobber must fail cross-facet and receiver checks, got: {err:#?}"
     );
 
     // 4c. Negative control: wrong `nspec != 1` (e.g. legacy `nspec = 4`

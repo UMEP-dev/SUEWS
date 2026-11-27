@@ -1,5 +1,5 @@
 name: test
-schema_version: 2026.6.dev21
+schema_version: 2026.6.dev22
 description: grid 21_25_00_00
 strict_initial_state_bounds: true
 model:
@@ -3343,8 +3343,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.345
         emis:
@@ -3379,8 +3377,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.345
         emis:
@@ -3415,8 +3411,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       walls:
       - alb:
           value: 0.345
@@ -3450,8 +3444,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -3486,8 +3478,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -3522,8 +3512,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
     n_buildings:
@@ -7154,8 +7142,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         - alb:
             value: 0.345
           emis:
@@ -7190,8 +7176,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         - alb:
             value: 0.345
           emis:
@@ -7226,8 +7210,6 @@ _yaml_raw:
             value: 5.0
           roof_albedo_dir_mult_fact:
             value: 1.0
-          wall_specular_frac:
-            value: 0.1
         walls:
         - alb:
             value: 0.345
@@ -7261,8 +7243,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
         - alb:
@@ -7297,8 +7277,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
         - alb:
@@ -7333,8 +7311,6 @@ _yaml_raw:
             value: 120.0
           wet_threshold:
             value: 5.0
-          roof_albedo_dir_mult_fact:
-            value: 0.1
           wall_specular_frac:
             value: 0.0
       n_buildings:

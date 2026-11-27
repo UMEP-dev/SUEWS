@@ -210,12 +210,15 @@ of the roof and wall facets:
        vertical layer.
    * - ``roof_albedo_dir_mult_fact``
      - Roof only
-     - Used by SPARTACUS-Surface to derive direct-beam roof albedo. A value on a
-       wall item is ignored.
+     - Used by SPARTACUS-Surface to derive direct-beam roof albedo. Declared
+       only on ``roofs[*]`` (``RoofLayer``); legacy copies on ``walls[*]`` are
+       deprecated and stripped on load with a ``DeprecationWarning``.
    * - ``wall_specular_frac``
      - Wall only
      - Used by SPARTACUS-Surface as the specular fraction of wall shortwave
-       reflection. A value on a roof item is ignored.
+       reflection. Declared only on ``walls[*]`` (``WallLayer``); legacy copies
+       on ``roofs[*]`` are deprecated and stripped on load with a
+       ``DeprecationWarning``.
 
 If SPARTACUS-Surface is not selected, the height-dependent roof and wall
 optical properties do not control the standard aggregate radiation calculation.

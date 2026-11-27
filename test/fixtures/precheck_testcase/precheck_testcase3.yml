@@ -1820,8 +1820,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.5
         emis:
@@ -1856,8 +1854,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       - alb:
           value: 0.2
         emis:
@@ -1892,8 +1888,6 @@ sites:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
-        wall_specular_frac:
-          value: 0.1
       walls:
       - alb:
           value: 0.5
@@ -1927,8 +1921,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -1963,8 +1955,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
       - alb:
@@ -1999,8 +1989,6 @@ sites:
           value: 120.0
         wet_threshold:
           value: 5.0
-        roof_albedo_dir_mult_fact:
-          value: 0.1
         wall_specular_frac:
           value: 0.0
     n_buildings:

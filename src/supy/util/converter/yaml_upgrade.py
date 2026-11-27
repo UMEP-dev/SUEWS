@@ -46,7 +46,9 @@ from ...data_model.core.field_renames import (
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
+    collect_and_clear_vertical_layer_optical_nulls_in_raw_config,
     rename_keys_recursive,
+    strip_vertical_layer_cross_facet_keys_in_raw_config,
 )
 from ...data_model.core.profile import (
     TEN_MINUTE_PROFILE_ALIAS_GROUPS as _TEN_MINUTE_PROFILE_ALIAS_GROUPS,
@@ -1649,6 +1651,9 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         _clear_nonfinite_sdd_for_dev9_candidate(candidate)
         _clear_noninteger_doy_for_dev9_candidate(candidate)
         _clear_noncanonical_ten_minute_keys_for_dev9_candidate(candidate)
+        candidate = _clear_non_owning_vertical_layer_optical_keys_for_dev9_candidate(
+            candidate
+        )
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -3083,10 +3088,102 @@ _HANDLERS[("2026.6.dev20", CURRENT_SCHEMA_VERSION)] = (
         )
     )
 )
-_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = (
+
+
+def _clear_non_owning_vertical_layer_optical_keys_for_dev9_candidate(
+    candidate: dict,
+) -> dict:
+    """Sanitise pre-dev22 vertical-layer optical inputs on the dev9 throwaway copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy with the
+    current ``SUEWSConfig`` model, which enforces dev22 non-optional facet optical
+    fields and warns on deprecated cross-facet keys. Clear both cross-facet
+    keys and explicit owning nulls on that throwaway copy so historical targets
+    ``dev9``..``dev21`` retain pre-dev22 behaviour while targeting ``dev22``
+    rejects explicit owning nulls via ``YamlUpgradeError``.
+    """
+    cleaned, _ = strip_vertical_layer_cross_facet_keys_in_raw_config(candidate)
+    cleaned, _ = collect_and_clear_vertical_layer_optical_nulls_in_raw_config(
+        cleaned, clear_nulls=True
+    )
+    return cleaned if isinstance(cleaned, dict) else candidate
+
+
+def _strip_non_owning_vertical_layer_optical_keys(cfg: dict) -> dict:
+    """Enforce dev22 non-null owning optical fields and drop cross-facet keys."""
+    raw_sites = cfg.get("sites") if isinstance(cfg, dict) else None
+    _, null_hits = collect_and_clear_vertical_layer_optical_nulls_in_raw_config(
+        cfg, clear_nulls=False
+    )
+    if null_hits:
+        problems = []
+        for site_idx, facet_attr, layer_idx, owning_key in null_hits:
+            site_obj = (
+                raw_sites[site_idx]
+                if isinstance(raw_sites, list) and site_idx < len(raw_sites)
+                else None
+            )
+            prefix = (
+                f"{_format_site_label(site_idx, site_obj)} "
+                f"properties.vertical_layers.{facet_attr}[{layer_idx}]"
+            )
+            problems.append(
+                f"{prefix}.{owning_key}: explicit null is disallowed in schema "
+                "2026.6.dev22; supply a finite number or omit the field to use the default."
+            )
+        raise YamlUpgradeError("\n".join(problems))
+
+    result, removed = strip_vertical_layer_cross_facet_keys_in_raw_config(cfg)
+    for site_idx, facet_attr, layer_idx, key, owner_path in removed:
+        site_obj = (
+            raw_sites[site_idx]
+            if isinstance(raw_sites, list) and site_idx < len(raw_sites)
+            else None
+        )
+        prefix = (
+            f"{_format_site_label(site_idx, site_obj)} "
+            f"properties.vertical_layers.{facet_attr}[{layer_idx}]"
+        )
+        _log(
+            f"[yaml-upgrade] {prefix}: dropped {key!r} "
+            f"(deprecated cross-facet key ignored on {facet_attr}; owned by {owner_path})"
+        )
+    return result
+
+
+def _with_vertical_layer_split_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _strip_non_owning_vertical_layer_optical_keys(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[_source, "2026.6.dev21"] = _handler
+        _HANDLERS[_source, _target] = _with_vertical_layer_split_delta(_handler)
+_HANDLERS["2026.6.dev21", "2026.6.dev21"] = _with_land_cover_and_dst_advisory_delta(
+    _with_ten_minute_profile_key_delta(
+        _with_integer_doy_delta(_with_senescence_check(_identity))
+    )
+)
+_HANDLERS["2026.6.dev21", CURRENT_SCHEMA_VERSION] = _with_vertical_layer_split_delta(
     _with_land_cover_and_dst_advisory_delta(
         _with_ten_minute_profile_key_delta(
             _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+_HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
+    _with_vertical_layer_split_delta(
+        _with_land_cover_and_dst_advisory_delta(
+            _with_ten_minute_profile_key_delta(
+                _with_integer_doy_delta(_with_senescence_check(_identity))
+            )
         )
     )
 )

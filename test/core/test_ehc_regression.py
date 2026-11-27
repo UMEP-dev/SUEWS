@@ -111,3 +111,51 @@ def test_ehc_spartacus_facet_storage_is_sensitive_to_building_rho_cp():
 
     assert low_cp_qs.shape == high_cp_qs.shape
     assert np.max(np.abs(high_cp_qs - low_cp_qs)) > 1.0
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("coupling", ["explicit", "implicit"])
+def test_ehc_building_facets_evap_matches_qe(coupling):
+    """Regression test for GH#1883: EHC building-facet Evap must match QE."""
+    sim = sp.SUEWSSimulation.from_sample_data()
+    cfg = sim._config.model_dump(exclude_none=True, mode="json")
+    land_cover = cfg["sites"][0]["properties"]["land_cover"]
+    vertical_layers = cfg["sites"][0]["properties"]["vertical_layers"]
+    vertical_layers["building_frac"]["value"][0] = land_cover["bldgs"]["sfr"]["value"]
+    vertical_layers["veg_frac"]["value"][0] = (
+        land_cover["evetr"]["sfr"]["value"] + land_cover["dectr"]["sfr"]["value"]
+    )
+    vertical_layers["veg_frac"]["value"][2] = 0.0
+    vertical_layers["veg_scale"]["value"][2] = 0.0
+    cfg["model"]["physics"]["net_radiation"] = {"value": 1003}
+    cfg["model"]["physics"]["storage_heat"] = {"value": 5}
+    cfg["model"]["physics"]["ehc_surface_coupling"] = coupling
+    for internal_key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
+        cfg.pop(internal_key, None)
+
+    sim.update_config(cfg, auto_load_forcing=False)
+    # Use a 24-hour summer window with precipitation so roof/wall facets wet
+    # and evaporate, exercising the building-facet water balance.
+    forcing = sim._df_forcing.copy()
+    forcing_win = forcing.loc["2012-07-01 00:05:00":"2012-07-02 00:00:00"].copy()
+    forcing_win.iloc[12:18, forcing_win.columns.get_loc("rain")] = 1.0
+    sim.update_forcing(forcing_win)
+
+    output = sim.run(
+        start_date=forcing_win.index[0],
+        end_date=forcing_win.index[-1],
+        n_jobs=1,
+    )
+    df = output.df
+    tstep = float(sim._config.model.control.tstep)
+    tlv = df["debug", "lv_J_kg"].to_numpy(dtype=float) / tstep
+
+    qe_bldgs = df["debug", "QE_Bldgs"].to_numpy(dtype=float)
+    ev_bldgs = df["debug", "ev_Bldgs"].to_numpy(dtype=float)
+    qe_grid = df["SUEWS", "QE"].to_numpy(dtype=float)
+    ev_grid = df["SUEWS", "Evap"].to_numpy(dtype=float)
+
+    # Confirm the building-facet latent heat path was actively exercised.
+    assert np.max(np.abs(qe_bldgs)) > 1.0
+    np.testing.assert_allclose(qe_bldgs, tlv * ev_bldgs, rtol=1e-12, atol=1e-10)
+    np.testing.assert_allclose(qe_grid, tlv * ev_grid, rtol=1e-12, atol=1e-10)

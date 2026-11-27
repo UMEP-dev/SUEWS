@@ -259,3 +259,50 @@ class TestWindProfiles:
             df_output, df_state_issue, df_forcing_short, "SUEWS", ["U10"]
         )
         assert (u10 >= 0).all(), "Negative full-building auto MOST wind output"
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("canopy_height", [0.5, 1.0, 1.5])
+def test_forced_rsl_low_canopy_uses_consistent_zh_floor(canopy_height):
+    """Regression test for GH#1883: RSL_cal_prms and RSLProfile share the 2 m zH floor."""
+    df_state_init, df_forcing = load_sample_frames()
+    df_state = df_state_init.iloc[[0]].copy()
+    df_forcing_short = df_forcing.iloc[:4]
+
+    df_state.loc[:, ("rslmethod", "0")] = 1
+    df_state.loc[:, ("bldgh", "0")] = canopy_height
+    df_state.loc[:, ("evetreeh", "0")] = canopy_height
+    df_state.loc[:, ("dectreeh", "0")] = canopy_height
+
+    df_output, _ = run_simulation(df_forcing_short, df_state)
+    diag = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        ["flag_RSL", "z_10", "z_20", "zH_RSL"],
+    )
+    assert (diag[:, 0] == 1).all()
+    np.testing.assert_allclose(diag[:, 3], 2.0, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(diag[:, 2], diag[:, 3], rtol=0, atol=1e-9)
+    np.testing.assert_allclose(diag[:, 1], 0.5 * diag[:, 3], rtol=0, atol=1e-9)
+
+    z_profile = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        [f"z_{i}" for i in PROFILE_LEVELS],
+    )
+    u_profile = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        [f"U_{i}" for i in PROFILE_LEVELS],
+    )
+    assert (np.diff(z_profile, axis=1) > 0).all()
+    assert (u_profile >= 0).all()
+    # Within the canopy (levels 1..20), wind must decay downward rather than
+    # jumping above U_20 due to zarray(z) > zH_RSL.
+    assert (np.diff(u_profile[:, :20], axis=1) >= 0).all()

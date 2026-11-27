@@ -10,7 +10,7 @@
 ! - tstep_prev: Allows adaptive timesteps (in standalone: always equals tstep)
 ! - Additional atmospheric variables passed from WRF
 !========================================================================================
-MODULE SUEWS_Driver
+MODULE module_ctrl_driver
    USE module_ctrl_const_options, ONLY: &
       OHM_QF_EXCLUDE, OHM_QF_INCLUDE, SHM_ANOHM, SHM_DYOHM, &
       SHM_DYOHM_BUILDING, SHM_EHC, SHM_OBSERVED, SHM_OHM, &
@@ -30,7 +30,7 @@ MODULE SUEWS_Driver
                             output_line
    USE module_type_surface, ONLY: ANOHM_MAX_SAMPLES, ANOHM_MIN_VALID_SAMPLES
    USE module_phys_anohm, ONLY: AnOHM
-   USE meteo, ONLY: qsatf, RH2qa, qa2RH
+   USE module_util_meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, &
                                      SUEWS_update_atmState, relax_zl, stability_scales, &
                                      free_convection_velocity, relax_free_convection
@@ -1626,9 +1626,9 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: nsurf, NVegSurf, &
                                ivConif, ivDecid, ivGrass, &
                                ConifSurf, DecidSurf, GrassSurf, BSoilSurf
-      USE CO2_module, ONLY: CO2_biogen
-      USE resist_module, ONLY: SurfaceResistance
-      USE AtmMoistStab_module, ONLY: cal_AtmMoist
+      USE module_phys_biogenco2, ONLY: CO2_biogen
+      USE module_phys_resist, ONLY: SurfaceResistance
+      USE module_phys_atmmoiststab, ONLY: cal_AtmMoist
 
       IMPLICIT NONE
 
@@ -5158,9 +5158,9 @@ END FUNCTION cal_tsfc_dyohm
 
    END SUBROUTINE sync_error_to_state
 
-END MODULE SUEWS_Driver
+END MODULE module_ctrl_driver
 
-SUBMODULE (SUEWS_Driver) SUEWS_driver_io
+SUBMODULE (module_ctrl_driver) SUEWS_driver_io
    IMPLICIT NONE
 CONTAINS
    ! Transfer this timestep's measured inputs to the object passed to SUEWS_cal_Main_impl.

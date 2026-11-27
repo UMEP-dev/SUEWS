@@ -56,7 +56,7 @@ use module_c_api_roughness, only: roughness_state_unpack
 use module_c_api_stebbs_state, only: SUEWS_CAPI_STEBBS_STATE_BASE_LEN, &
                                      stebbs_state_unpack, stebbs_state_pack_real
 use module_c_api_nhood, only: nhood_state_unpack
-use SUEWS_Driver, only: sync_error_to_state, SUEWS_cal_multitsteps
+use module_ctrl_driver, only: sync_error_to_state, SUEWS_cal_multitsteps
 
 implicit none
 

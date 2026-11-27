@@ -1227,7 +1227,7 @@ CONTAINS
    SUBROUTINE Evap_SUEWS_Snow(Qm, QP, lvS_J_kg, avdens, avRh, Press_hPa, Temp_C, RAsnow, psyc_hPa, &
                               tstep, avcp, sIce_hPa, dectime, ev_snow, tlv_sub)
 
-      USE meteo, ONLY: sat_vap_pressice
+      USE module_util_meteo, ONLY: sat_vap_pressice
 
       IMPLICIT NONE
 
@@ -1544,9 +1544,3 @@ CONTAINS
    END FUNCTION update_snow_dens
 
 END MODULE module_phys_snow
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE Snow_module
-   USE module_phys_snow
-END MODULE Snow_module

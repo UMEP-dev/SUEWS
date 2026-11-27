@@ -22,7 +22,7 @@ CONTAINS
       ! LJ June 2012    - Modified to work with snow (Qm added in the equations!)
       ! SG Feb 2012     - added some comments
       ! --------------------------------------------------------------
-      USE meteo, ONLY: psyc_const, slope_svp, slopeice_svp
+      USE module_util_meteo, ONLY: psyc_const, slope_svp, slopeice_svp
       USE module_ctrl_type, ONLY: LUMPS_PRM, SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
@@ -272,9 +272,3 @@ CONTAINS
    END SUBROUTINE LUMPS_cal_QHQE
 
 END MODULE module_phys_lumps
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE lumps_module
-   USE module_phys_lumps
-END MODULE lumps_module

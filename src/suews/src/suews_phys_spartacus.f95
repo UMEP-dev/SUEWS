@@ -1665,9 +1665,3 @@ CONTAINS
    END SUBROUTINE spartacus_spencer_eccentricity
 
 END MODULE module_phys_spartacus
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE SPARTACUS_MODULE
-   USE module_phys_spartacus
-END MODULE SPARTACUS_MODULE

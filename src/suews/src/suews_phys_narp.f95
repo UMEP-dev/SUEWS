@@ -1446,9 +1446,3 @@ CONTAINS
    END FUNCTION transmissivity
    !===============================================================================
 END MODULE module_phys_narp
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE NARP_MODULE
-   USE module_phys_narp
-END MODULE NARP_MODULE

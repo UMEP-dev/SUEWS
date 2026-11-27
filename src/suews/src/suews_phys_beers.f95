@@ -1288,8 +1288,3 @@ CONTAINS
 !========================================================================
 
 END MODULE module_phys_beers
-
-! Backward compatibility alias
-MODULE beers_module
-   USE module_phys_beers
-END MODULE beers_module

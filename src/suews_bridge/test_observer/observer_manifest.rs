@@ -1028,7 +1028,7 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         name: "SUEWS_FORCING",
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::NonUnpacked,
-        detail: "No C-API flat unpacker. The typed forcing-row observer exercises the production SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096).",
+        detail: "No C-API flat unpacker. The typed forcing-row observer exercises the production module_ctrl_driver::SUEWS_load_forcing_row matrix reader (gh#2096).",
     },
     ManifestTypeEntry {
         name: "SUEWS_SITE",

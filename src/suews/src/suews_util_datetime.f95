@@ -93,10 +93,6 @@ MODULE module_util_datetime_strftime
 !=======================================================================
 END MODULE module_util_datetime_strftime
 
-! Backward compatibility alias
-MODULE mod_strftime
-   USE module_util_datetime_strftime
-END MODULE mod_strftime
 
 !
 ! datetime-fortran - A Fortran library for date and time manipulation
@@ -143,10 +139,6 @@ MODULE module_util_datetime_const
 !=======================================================================
 END MODULE module_util_datetime_const
 
-! Backward compatibility alias
-MODULE mod_constants
-   USE module_util_datetime_const
-END MODULE mod_constants
 
 !
 ! datetime-fortran - A Fortran library for date and time manipulation
@@ -442,10 +434,6 @@ CONTAINS
 !=======================================================================
 END MODULE module_util_datetime_timedelta
 
-! Backward compatibility alias
-MODULE mod_timedelta
-   USE module_util_datetime_timedelta
-END MODULE mod_timedelta
 
 !
 ! datetime-fortran - A Fortran library for date and time manipulation
@@ -1662,10 +1650,6 @@ CONTAINS
 !=======================================================================
 END MODULE module_util_datetime_core
 
-! Backward compatibility alias
-MODULE mod_datetime
-   USE module_util_datetime_core
-END MODULE mod_datetime
 
 !
 ! datetime-fortran - A Fortran library for date and time manipulation
@@ -1761,10 +1745,6 @@ CONTAINS
 !=======================================================================
 END MODULE module_util_datetime_clock
 
-! Backward compatibility alias
-MODULE mod_clock
-   USE module_util_datetime_clock
-END MODULE mod_clock
 
 ! datetime-fortran - A Fortran library for date and time manipulation
 ! Copyright (c) 2013-2017, Wavebit Scientific LLC
@@ -1781,8 +1761,3 @@ MODULE module_util_datetime
    USE module_util_datetime_strftime
 
 END MODULE module_util_datetime
-
-! Backward compatibility alias
-MODULE datetime_module
-   USE module_util_datetime
-END MODULE datetime_module

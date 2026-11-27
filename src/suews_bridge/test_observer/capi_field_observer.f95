@@ -19138,7 +19138,7 @@ contains
 
 end module module_test_capi_field_observer
 
-submodule (SUEWS_Driver) test_forcing_rows
+submodule (module_ctrl_driver) test_forcing_rows
    use, intrinsic :: iso_c_binding, only: c_double
    implicit none
 contains

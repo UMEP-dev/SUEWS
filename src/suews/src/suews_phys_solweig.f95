@@ -1441,8 +1441,3 @@ CONTAINS
    END SUBROUTINE sunonsurface_veg
 
 END MODULE module_phys_solweig
-
-! Backward compatibility alias
-MODULE solweig_module
-   USE module_phys_solweig
-END MODULE solweig_module

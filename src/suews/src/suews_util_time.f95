@@ -540,9 +540,3 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_interval_day_st
 
 END MODULE module_util_time
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE time_module
-   USE module_util_time
-END MODULE time_module

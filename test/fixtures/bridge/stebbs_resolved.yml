@@ -1,5 +1,5 @@
 name: test
-schema_version: 2026.6.dev22
+schema_version: 2026.6.dev23
 description: grid 21_25_00_00
 strict_initial_state_bounds: true
 model:

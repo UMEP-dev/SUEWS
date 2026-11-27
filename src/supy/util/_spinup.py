@@ -81,10 +81,11 @@ def _apply_grid_evolved_state(
             ]
 
     for _, veg_idx, veg_name, df_alb_col, ckpt_alb_key in _VEG_SURFACE_SPECS:
-        if "lai_id" in top_cols:
-            df_target.loc[row_selector, ("lai_id", f"({veg_idx},)")] = pheno_dict[
-                f"lai_id.{veg_name}"
-            ]
+        for state_var in ("lai_id", "gdd_id", "sdd_id"):
+            if state_var in top_cols:
+                df_target.loc[row_selector, (state_var, f"({veg_idx},)")] = pheno_dict[
+                    f"{state_var}.{veg_name}"
+                ]
         if df_alb_col in top_cols:
             df_target.loc[row_selector, df_alb_col] = pheno_dict[ckpt_alb_key]
 
@@ -116,10 +117,11 @@ def _assign_spinup_state(
             ]
 
     for grid_idx, veg_idx, veg_name, df_alb_col, ckpt_alb_key in _VEG_SURFACE_SPECS:
-        if "lai_id" in top_cols:
-            df_target.loc[:, ("lai_id", f"({veg_idx},)")] = pheno_by_grid[grid_idx][
-                f"lai_id.{veg_name}"
-            ]
+        for state_var in ("lai_id", "gdd_id", "sdd_id"):
+            if state_var in top_cols:
+                df_target.loc[:, (state_var, f"({veg_idx},)")] = pheno_by_grid[
+                    grid_idx
+                ][f"{state_var}.{veg_name}"]
         if df_alb_col in top_cols:
             df_target.loc[:, df_alb_col] = pheno_by_grid[grid_idx][ckpt_alb_key]
 

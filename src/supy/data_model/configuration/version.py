@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev22"
+CURRENT_SCHEMA_VERSION = "2026.6.dev23"
 
 # Schema version history and descriptions.
 #
@@ -307,6 +307,22 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "owning fields with YamlUpgradeError, and runtime loading strips "
         "cross-facet keys with a DeprecationWarning while rejecting explicit "
         "owning nulls with Pydantic ValidationError."
+    ),
+    "2026.6.dev23": (
+        "Compute modelled LAI from daily GDD/SDD increments within fixed "
+        "growth and senescence seasons (reset before accumulation on DOY 15 "
+        "and DOY 196, swapped in the southern hemisphere), gating leaf-out "
+        "and leaf-off onset on gdd_base/sdd_base (#2346, #2066, #2078). "
+        "Legacy compatibility fields gdd_full, sdd_full, and lai_type remain "
+        "accepted prior to removal but are ignored by the kernel, and the "
+        "sample configuration adopts retuned daily-increment rates and "
+        "thresholds (base_temperature=6.5, base_temperature_senescence=22.0, "
+        "gdd_base=120.0, sdd_base=-240.0, lai_power=(-0.02, 0.04, -1.0, 0.02), "
+        "initial sdd_id=0.0) while preserving per-surface lai_min/lai_max "
+        "envelopes. The (2026.6.dev22 -> 2026.6.dev23) migration preserves "
+        "existing user parameters unchanged and logs an advisory for sites "
+        "using modelled LAI so users know to retune legacy lai_power "
+        "coefficients and review initial sdd_id."
     ),
 }
 

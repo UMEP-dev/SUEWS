@@ -3188,6 +3188,129 @@ _HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
     )
 )
 
+
+def _is_observed_lai_mode(cfg: Mapping) -> bool:
+    """Return True when model.physics explicitly selects observed LAI (0/'observed')."""
+    model = cfg.get("model")
+    physics = model.get("physics") if isinstance(model, Mapping) else None
+    if not isinstance(physics, Mapping):
+        return False
+    for key in ("leaf_area_index", "laimethod"):
+        if key not in physics:
+            continue
+        raw = physics[key]
+        if isinstance(raw, Mapping) and "value" in raw:
+            raw = raw["value"]
+        if isinstance(raw, bool):
+            continue
+        if raw == 0:
+            return True
+        if isinstance(raw, str) and raw.strip().lower() in ("0", "observed"):
+            return True
+    return False
+
+
+def _advise_lai_daily_increment_phenology(cfg: dict) -> dict:
+    """Log a non-mutating advisory for modelled-LAI configs upgraded to dev23."""
+    if _is_observed_lai_mode(cfg):
+        return cfg
+
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    for index, site in enumerate(sites):
+        if not isinstance(site, Mapping):
+            continue
+        props = site.get("properties")
+        land_cover = props.get("land_cover") if isinstance(props, Mapping) else None
+        init_states = site.get("initial_states")
+
+        has_lai_cfg = False
+        if isinstance(land_cover, Mapping):
+            for surf in ("evetr", "dectr", "grass"):
+                surf_cfg = land_cover.get(surf)
+                if isinstance(surf_cfg, Mapping) and isinstance(
+                    surf_cfg.get("lai"), Mapping
+                ):
+                    has_lai_cfg = True
+                    break
+
+        has_nonzero_sdd = False
+        if isinstance(init_states, Mapping):
+            for surf in ("evetr", "dectr", "grass"):
+                surf_init = init_states.get(surf)
+                if not isinstance(surf_init, Mapping) or "sdd_id" not in surf_init:
+                    continue
+                raw_sdd = surf_init["sdd_id"]
+                if isinstance(raw_sdd, Mapping) and "value" in raw_sdd:
+                    raw_sdd = raw_sdd["value"]
+                if (
+                    isinstance(raw_sdd, (int, float))
+                    and not isinstance(raw_sdd, bool)
+                    and raw_sdd != 0
+                ):
+                    has_nonzero_sdd = True
+                    break
+
+        if has_lai_cfg or has_nonzero_sdd:
+            _log(
+                f"[yaml-upgrade] {_format_site_label(index, site)}: schema "
+                "2026.6.dev23 computes modelled LAI from daily GDD/SDD "
+                "increments within fixed growth/senescence seasons (DOY 15 / "
+                "196, swapped in the southern hemisphere). Values were left "
+                "unchanged; existing lai_power coefficients (and any non-zero "
+                "initial sdd_id) need retuning for the daily-increment "
+                "formulation, and legacy gdd_full/sdd_full/lai_type fields "
+                "are now ignored (use gdd_base/sdd_base for onset thresholds)."
+            )
+
+    return cfg
+
+
+def _with_lai_daily_increment_advisory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _advise_lai_daily_increment_phenology(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[_source, "2026.6.dev22"] = _handler
+        _HANDLERS[_source, _target] = _with_lai_daily_increment_advisory_delta(_handler)
+_HANDLERS["2026.6.dev22", "2026.6.dev22"] = _with_vertical_layer_split_delta(
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+_HANDLERS["2026.6.dev22", CURRENT_SCHEMA_VERSION] = (
+    _with_lai_daily_increment_advisory_delta(
+        _with_vertical_layer_split_delta(
+            _with_land_cover_and_dst_advisory_delta(
+                _with_ten_minute_profile_key_delta(
+                    _with_integer_doy_delta(_with_senescence_check(_identity))
+                )
+            )
+        )
+    )
+)
+_HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
+    _with_vertical_layer_split_delta(
+        _with_land_cover_and_dst_advisory_delta(
+            _with_ten_minute_profile_key_delta(
+                _with_integer_doy_delta(_with_senescence_check(_identity))
+            )
+        )
+    )
+)
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

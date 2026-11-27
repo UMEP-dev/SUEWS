@@ -583,6 +583,10 @@
       "type": "float",
       "value": 0.4
     },
+    "sites[0].properties.land_cover.*.lai.gdd_base": {
+      "type": "float",
+      "value": 0.0
+    },
     "sites[0].properties.land_cover.*.lai.lai_min": {
       "type": "float",
       "value": 0.1
@@ -590,6 +594,10 @@
     "sites[0].properties.land_cover.*.lai.lai_type": {
       "type": "int",
       "value": 0
+    },
+    "sites[0].properties.land_cover.*.lai.sdd_base": {
+      "type": "float",
+      "value": 0.0
     },
     "sites[0].properties.land_cover.*.max_conductance": {
       "type": "float",

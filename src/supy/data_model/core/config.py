@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import math
 from collections.abc import Iterable, Mapping
 from typing import (
@@ -50,8 +51,19 @@ from .profile import (
     normalise_hourly_profile_mapping,
     normalise_ten_minute_profile_mapping,
 )
-from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SoilObservationConfig
-from .type import DataModelBase, RefValue, SurfaceType, df_from_cols, merge_df_state_cols
+from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SnowParams, SoilObservationConfig
+from .type import (
+    DataModelBase,
+    RefValue,
+    SurfaceType,
+    _SNOW_ACTIVE_CONTEXT,
+    _SOIL_OBSERVED_CONTEXT,
+    df_from_cols,
+    is_finite_real_number,
+    merge_df_state_cols,
+    resolve_snow_use_code,
+    resolve_soil_moisture_code,
+)
 from .state import validate_sdd_id
 
 from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
@@ -696,21 +708,118 @@ class SUEWSConfig(DataModelBase):
                 return False
         return True
 
+    @staticmethod
+    def _resolve_snow_active_for_context(data: Any) -> bool:
+        """Return False iff *data* resolves ``snow_use`` cleanly to 0 (disabled).
+
+        ``ModelPhysics.snow_use`` defaults to ``SnowUse.DISABLED`` (0), so an
+        omitted selector resolves to inactive (``False``). Unparseable/invalid
+        selectors return ``True`` so downstream ``ModelPhysics`` validation
+        still surfaces the error without masking.
+        """
+        if isinstance(data, SUEWSConfig):
+            raw_snow = getattr(getattr(data.model, "physics", None), "snow_use", None)
+            code = resolve_snow_use_code(raw_snow)
+            return code is None or code != 0
+        if not isinstance(data, Mapping):
+            return True
+
+        model_raw = data.get("model")
+        physics_raw = (
+            model_raw.get("physics")
+            if isinstance(model_raw, Mapping)
+            else getattr(model_raw, "physics", None)
+        )
+        raw_snow: Any = None
+        found_snow = False
+        if isinstance(physics_raw, Mapping):
+            for key in ("snow_use", "snow", "snowuse"):
+                if key in physics_raw:
+                    raw_snow = physics_raw[key]
+                    found_snow = True
+                    break
+        elif physics_raw is not None:
+            raw_snow = getattr(physics_raw, "snow_use", None)
+            found_snow = raw_snow is not None
+
+        if not found_snow:
+            return False
+        code = resolve_snow_use_code(raw_snow)
+        return not (code is not None and code == 0)
+
+    @staticmethod
+    def _resolve_soil_moisture_observed_for_context(data: Any) -> bool:
+        """Return False iff *data* resolves ``soil_moisture`` cleanly to 0 (modelled).
+
+        ``ModelPhysics.soil_moisture`` defaults to ``SMDMethod.MODELLED`` (0),
+        so an omitted selector resolves to inactive (``False``). Method 1,
+        legacy method 2, or unparseable selectors return ``True`` so strict
+        checks remain active.
+        """
+        if isinstance(data, SUEWSConfig):
+            raw_sm = getattr(getattr(data.model, "physics", None), "soil_moisture", None)
+            code = resolve_soil_moisture_code(raw_sm)
+            return code is None or code != 0
+        if not isinstance(data, Mapping):
+            return True
+
+        model_raw = data.get("model")
+        physics_raw = (
+            model_raw.get("physics")
+            if isinstance(model_raw, Mapping)
+            else getattr(model_raw, "physics", None)
+        )
+        raw_sm: Any = None
+        found_sm = False
+        if isinstance(physics_raw, Mapping):
+            for key in ("soil_moisture", *_LEGACY_SOIL_SELECTORS):
+                if key in physics_raw:
+                    raw_sm = physics_raw[key]
+                    found_sm = True
+                    break
+        elif physics_raw is not None:
+            raw_sm = getattr(physics_raw, "soil_moisture", None)
+            found_sm = raw_sm is not None
+
+        if not found_sm:
+            return False
+        code = resolve_soil_moisture_code(raw_sm)
+        return not (code is not None and code == 0)
+
+    @classmethod
+    @contextmanager
+    def _scheme_validation_context(
+        cls,
+        *,
+        water_use_modelled: bool,
+        snow_active: bool,
+        soil_observed: bool,
+    ):
+        """Propagate scheme activation flags into nested site/surface/state validators."""
+        from .human_activity import _IRRIGATION_MODELLED_CONTEXT
+
+        tok_irr = _IRRIGATION_MODELLED_CONTEXT.set(water_use_modelled)
+        tok_snow = _SNOW_ACTIVE_CONTEXT.set(snow_active)
+        tok_soil = _SOIL_OBSERVED_CONTEXT.set(soil_observed)
+        try:
+            yield
+        finally:
+            _SOIL_OBSERVED_CONTEXT.reset(tok_soil)
+            _SNOW_ACTIVE_CONTEXT.reset(tok_snow)
+            _IRRIGATION_MODELLED_CONTEXT.reset(tok_irr)
+
     @model_validator(mode="wrap")
     @classmethod
     def _contextualise_irrigation_validation(
         cls, data: Any, handler: Any
     ) -> "SUEWSConfig":
-        """Propagate model.physics.water_use into nested IrrigationParams validation."""
-        from .human_activity import _IRRIGATION_MODELLED_CONTEXT
-
-        token = _IRRIGATION_MODELLED_CONTEXT.set(
-            cls._resolve_water_use_modelled_for_context(data)
-        )
-        try:
+        """Propagate model.physics scheme switches into nested site/surface/state validation."""
+        with cls._scheme_validation_context(
+            water_use_modelled=cls._resolve_water_use_modelled_for_context(data),
+            snow_active=cls._resolve_snow_active_for_context(data),
+            soil_observed=cls._resolve_soil_moisture_observed_for_context(data),
+        ):
             return handler(data)
-        finally:
-            _IRRIGATION_MODELLED_CONTEXT.reset(token)
 
     @model_validator(mode="before")
     @classmethod
@@ -935,20 +1044,47 @@ class SUEWSConfig(DataModelBase):
     def _validate_soil_observation(self) -> "SUEWSConfig":
         """Observed content must represent every contributing whole soil store.
 
-        This scientific guard is unconditional, including when optional input
-        checks are disabled. Zero-area surfaces do not contribute.
+        This scientific guard is unconditional when ``soil_moisture == 1``,
+        including when optional input checks are disabled. Zero-area surfaces
+        do not contribute. When ``soil_moisture != 1``, observed-soil
+        parameters are inactive and not enforced.
         """
-        if int(_unwrap_value(self.model.physics.soil_moisture)) != 1:
+        sm_code = resolve_soil_moisture_code(
+            getattr(getattr(self.model, "physics", None), "soil_moisture", None)
+        )
+        if sm_code != 1:
             return self
         signatures = []
         for site in self.sites:
             obs = site.properties.soil_observation
             if obs is None:
                 raise ValueError("Observed soil moisture requires soil_observation layer bounds")
-            depth = float(_unwrap_value(obs.layer_depth))
-            top = float(_unwrap_value(obs.layer_top))
+            raw_depth = _unwrap_value(obs.layer_depth)
+            if not is_finite_real_number(raw_depth) or float(raw_depth) <= 0:
+                raise ValueError(
+                    "Observed soil moisture requires finite positive soil_observation.layer_depth"
+                )
+            depth = float(raw_depth)
+            raw_top = _unwrap_value(obs.layer_top)
+            if not is_finite_real_number(raw_top) or float(raw_top) < 0:
+                raise ValueError(
+                    "Observed soil moisture requires finite non-negative soil_observation.layer_top"
+                )
+            top = float(raw_top)
             if abs(top) > 1e-6:
                 raise ValueError("Observed soil moisture requires a whole-store layer with layer_top zero")
+            raw_snr = _unwrap_value(obs.soil_not_rocks)
+            if not is_finite_real_number(raw_snr) or not (0.0 < float(raw_snr) <= 1.0):
+                raise ValueError(
+                    "Observed soil moisture requires soil_observation.soil_not_rocks in (0, 1]"
+                )
+            raw_bd = _unwrap_value(obs.bulk_density)
+            if raw_bd is not None and (
+                not is_finite_real_number(raw_bd) or float(raw_bd) <= 0
+            ):
+                raise ValueError(
+                    "Observed soil moisture requires finite positive soil_observation.bulk_density"
+                )
             area = capacity = field_content = 0.0
             fc_problems = []
             for name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
@@ -959,7 +1095,7 @@ class SUEWSConfig(DataModelBase):
                 d = _unwrap_value(surface.soil_depth)
                 c = _unwrap_value(surface.soil_store_capacity)
                 fc = _unwrap_value(surface.soil_field_capacity)
-                if d is None or not np.isfinite(d) or d <= 0:
+                if d is None or not is_finite_real_number(d) or float(d) <= 0:
                     raise ValueError(f"{name}: observed soil moisture requires finite positive soil_depth")
                 if abs(depth - d / 1000.0) > 1e-6:
                     raise ValueError(
@@ -969,12 +1105,23 @@ class SUEWSConfig(DataModelBase):
                         f"soil_observation.layer_depth (suews convert --layer-depth) to "
                         f"{d / 1000.0:g}, or correct soil_depth."
                     )
-                if c is None or not np.isfinite(c) or c <= 0:
+                if c is None or not is_finite_real_number(c) or float(c) <= 0:
                     raise ValueError(f"{name}: observed soil moisture requires finite positive soil_store_capacity")
-                if fc is None or not np.isfinite(fc) or not 0 < fc <= 1 or fc * d < c:
+                if (
+                    fc is None
+                    or not is_finite_real_number(fc)
+                    or not 0 < float(fc) <= 1
+                    or float(fc) * float(d) < float(c)
+                ):
                     # rho_w theta_fc d >= C with d in mm and C in kg m-2 is fc * d >= C.
                     minimum = math.ceil(c / d * 1e4) / 1e4
-                    state = "missing" if fc is None else f"{fc:g}"
+                    state = (
+                        "missing"
+                        if fc is None
+                        else f"{fc:g}"
+                        if isinstance(fc, (int, float)) and not isinstance(fc, bool)
+                        else repr(fc)
+                    )
                     fc_problems.append(
                         f"{name} ({state}; soil_depth {d:g} mm, soil_store_capacity "
                         f"{c:g} kg m-2, needs at least {minimum:g})"
@@ -1428,10 +1575,14 @@ class SUEWSConfig(DataModelBase):
             "conductance",
             "irrigation",
             "anthropogenic_emissions",
-            "snow",
             "land_cover",
             "vertical_layers",
         ]
+        snow_code = resolve_snow_use_code(
+            getattr(getattr(self.model, "physics", None), "snow_use", None)
+        )
+        if snow_code is None or snow_code != 0:
+            required_fields.append("snow")
 
         for i, site in enumerate(self.sites):
             if not site.properties:
@@ -1470,86 +1621,192 @@ class SUEWSConfig(DataModelBase):
     @model_validator(mode="after")
     def validate_snow_parameters(self) -> "SUEWSConfig":
         """
-        Validate snow parameters for all sites in the configuration.
+        Validate snow parameters and initial snow states when ``snow_use != 0``.
 
-        This validator enforces critical physical constraints on snow parameter values
-        for each site. It is migrated from SnowParams.validate_all for centralized
-        validation.
-
-        Parameters
-        ----------
-        self : SUEWSConfig
-            The SUEWSConfig instance being validated.
-
-        Returns
-        -------
-        SUEWSConfig
-            The validated SUEWSConfig instance.
-
-        Raises
-        ------
-        ValueError
-            If any snow parameter constraint is violated.
-
-        Notes
-        -----
-        The following checks are performed for each site:
-        - crwmin < crwmax : Critical water content minimum must be less than maximum.
-        - 0 <= crwmin <= 1 and 0 <= crwmax <= 1 : Critical water content must be within [0, 1].
-        - snowalbmin < snowalbmax : Minimum snow albedo must be less than maximum.
-        - 0 <= snowalbmin <= 1 and 0 <= snowalbmax <= 1 : Snow albedo must be within [0, 1].
-
-        These constraints are essential for proper snow modeling and will raise
-        a ValueError if violated.
+        When ``model.physics.snow_use == 0`` (disabled), snow-scheme parameter
+        and snow-state constraints are skipped so inactive configurations are
+        never blocked by unused snow parameters. When ``snow_use != 0``, all
+        physical bounds and cross-field constraints are strictly enforced across
+        construction, live mutations, and engine handoff.
         """
-        from .type import RefValue  # Import here to avoid circular import
+        snow_code = resolve_snow_use_code(
+            getattr(getattr(self.model, "physics", None), "snow_use", None)
+        )
+        ground_surfaces = (
+            "paved",
+            "bldgs",
+            "evetr",
+            "dectr",
+            "grass",
+            "bsoil",
+            "water",
+        )
+        if snow_code == 0:
+            non_finite_errors = []
+            for i, site in enumerate(self.sites):
+                site_name = getattr(site, "name", f"Site {i}")
+                snow_params = (
+                    getattr(site.properties, "snow", None)
+                    if getattr(site, "properties", None) is not None
+                    else None
+                )
+                if snow_params is not None:
+                    for field_name in SnowParams._SNOW_ALL_SCALAR_FIELDS:
+                        val = _unwrap_value(getattr(snow_params, field_name, None))
+                        if (
+                            isinstance(val, (int, float, np.number))
+                            and not isinstance(val, (bool, np.bool_))
+                            and not math.isfinite(float(val))
+                        ):
+                            non_finite_errors.append(
+                                f"{site_name}: snow.{field_name} ({val!r}) must be finite"
+                            )
+                init_states = getattr(site, "initial_states", None)
+                if init_states is not None:
+                    snowalb_val = _unwrap_value(getattr(init_states, "snowalb", None))
+                    if (
+                        isinstance(snowalb_val, (int, float, np.number))
+                        and not isinstance(snowalb_val, (bool, np.bool_))
+                        and not math.isfinite(float(snowalb_val))
+                    ):
+                        non_finite_errors.append(
+                            f"{site_name}: initial_states.snowalb ({snowalb_val!r}) must be finite"
+                        )
+                    for surf_name in ground_surfaces:
+                        surf_state = getattr(init_states, surf_name, None)
+                        if surf_state is None:
+                            continue
+                        for state_field in (
+                            "snowfrac",
+                            "icefrac",
+                            "snowpack",
+                            "snowwater",
+                            "snowdens",
+                        ):
+                            val = _unwrap_value(getattr(surf_state, state_field, None))
+                            if (
+                                isinstance(val, (int, float, np.number))
+                                and not isinstance(val, (bool, np.bool_))
+                                and not math.isfinite(float(val))
+                            ):
+                                non_finite_errors.append(
+                                    f"{site_name}: initial_states.{surf_name}.{state_field} "
+                                    f"({val!r}) must be finite"
+                                )
+            if non_finite_errors:
+                raise ValueError("; ".join(non_finite_errors))
+            return self
 
         errors = []
 
         for i, site in enumerate(self.sites):
-            if not site.properties or not site.properties.snow:
-                continue
-
             site_name = getattr(site, "name", f"Site {i}")
-            snow_params = site.properties.snow
-
-            # Extract values using helper for consistent unwrapping
-            crwmin_val = _unwrap_value(snow_params.water_holding_capacity_min)
-            crwmax_val = _unwrap_value(snow_params.water_holding_capacity_max)
-            snowalbmin_val = _unwrap_value(snow_params.snow_albedo_min)
-            snowalbmax_val = _unwrap_value(snow_params.snow_albedo_max)
-
-            # Validate critical water content range
-            if crwmin_val >= crwmax_val:
+            if not site.properties or site.properties.snow is None:
                 errors.append(
-                    f"{site_name}: crwmin ({crwmin_val}) must be less than crwmax ({crwmax_val})"
+                    f"{site_name}: Required field 'snow' is missing when snow_use is enabled"
                 )
+            else:
+                snow_params = site.properties.snow
 
-            # Validate physical bounds for critical water content
-            if not (0 <= crwmin_val <= 1):
-                errors.append(
-                    f"{site_name}: crwmin ({crwmin_val}) must be in range [0, 1]"
-                )
-            if not (0 <= crwmax_val <= 1):
-                errors.append(
-                    f"{site_name}: crwmax ({crwmax_val}) must be in range [0, 1]"
-                )
+                for field_name in SnowParams._SNOW_NON_OPTIONAL_SCALAR_FIELDS:
+                    val = _unwrap_value(getattr(snow_params, field_name, None))
+                    if not is_finite_real_number(val):
+                        errors.append(
+                            f"{site_name}: snow.{field_name} ({val!r}) must be a finite number "
+                            "when snow_use is enabled"
+                        )
 
-            # Validate physical bounds for snow albedo
-            if not (0 <= snowalbmin_val <= 1):
-                errors.append(
-                    f"{site_name}: snowalbmin ({snowalbmin_val}) must be in range [0, 1]"
-                )
-            if not (0 <= snowalbmax_val <= 1):
-                errors.append(
-                    f"{site_name}: snowalbmax ({snowalbmax_val}) must be in range [0, 1]"
+                # Extract values using helper for consistent unwrapping
+                crwmin_val = _unwrap_value(snow_params.water_holding_capacity_min)
+                crwmax_val = _unwrap_value(snow_params.water_holding_capacity_max)
+                snowalbmin_val = _unwrap_value(snow_params.snow_albedo_min)
+                snowalbmax_val = _unwrap_value(snow_params.snow_albedo_max)
+                narp_emis_val = _unwrap_value(snow_params.narp_emissivity_snow)
+                precip_alb_val = _unwrap_value(
+                    snow_params.precipitation_threshold_albedo_reset
                 )
 
-            # Validate snow albedo range
-            if snowalbmin_val >= snowalbmax_val:
-                errors.append(
-                    f"{site_name}: snowalbmin ({snowalbmin_val}) must be less than snowalbmax ({snowalbmax_val})"
-                )
+                if is_finite_real_number(crwmin_val) and is_finite_real_number(
+                    crwmax_val
+                ):
+                    if crwmin_val >= crwmax_val:
+                        errors.append(
+                            f"{site_name}: crwmin ({crwmin_val}) must be less than crwmax ({crwmax_val})"
+                        )
+                if is_finite_real_number(crwmin_val) and not (0 <= crwmin_val <= 1):
+                    errors.append(
+                        f"{site_name}: crwmin ({crwmin_val}) must be in range [0, 1]"
+                    )
+                if is_finite_real_number(crwmax_val) and not (0 <= crwmax_val <= 1):
+                    errors.append(
+                        f"{site_name}: crwmax ({crwmax_val}) must be in range [0, 1]"
+                    )
+
+                if is_finite_real_number(snowalbmin_val) and not (
+                    0 <= snowalbmin_val <= 1
+                ):
+                    errors.append(
+                        f"{site_name}: snowalbmin ({snowalbmin_val}) must be in range [0, 1]"
+                    )
+                if is_finite_real_number(snowalbmax_val) and not (
+                    0 <= snowalbmax_val <= 1
+                ):
+                    errors.append(
+                        f"{site_name}: snowalbmax ({snowalbmax_val}) must be in range [0, 1]"
+                    )
+                if is_finite_real_number(snowalbmin_val) and is_finite_real_number(
+                    snowalbmax_val
+                ):
+                    if snowalbmin_val >= snowalbmax_val:
+                        errors.append(
+                            f"{site_name}: snowalbmin ({snowalbmin_val}) must be less than snowalbmax ({snowalbmax_val})"
+                        )
+
+                if is_finite_real_number(narp_emis_val) and not (
+                    0.0 <= float(narp_emis_val) <= 1.0
+                ):
+                    errors.append(
+                        f"{site_name}: narp_emissivity_snow ({narp_emis_val}) must be in range [0, 1]"
+                    )
+                if is_finite_real_number(precip_alb_val) and float(precip_alb_val) < 0.0:
+                    errors.append(
+                        f"{site_name}: precipitation_threshold_albedo_reset ({precip_alb_val}) "
+                        "must be greater than or equal to 0"
+                    )
+                if snow_params.snow_profile_24hr is None:
+                    errors.append(
+                        f"{site_name}: snow.snow_profile_24hr is missing when snow_use is enabled"
+                    )
+
+            init_states = getattr(site, "initial_states", None)
+            if init_states is not None:
+                snowalb_val = _unwrap_value(getattr(init_states, "snowalb", None))
+                if not is_finite_real_number(snowalb_val) or not (
+                    0.0 <= float(snowalb_val) <= 1.0
+                ):
+                    errors.append(
+                        f"{site_name}: initial_states.snowalb ({snowalb_val!r}) must be finite and in range [0, 1]"
+                    )
+                for surf_name in ground_surfaces:
+                    surf_state = getattr(init_states, surf_name, None)
+                    if surf_state is None:
+                        continue
+                    for frac_field in ("snowfrac", "icefrac"):
+                        raw = _unwrap_value(getattr(surf_state, frac_field, None))
+                        if not is_finite_real_number(raw) or not (
+                            0.0 <= float(raw) <= 1.0
+                        ):
+                            errors.append(
+                                f"{site_name}: initial_states.{surf_name}.{frac_field} "
+                                f"({raw!r}) must be finite and in range [0, 1] when snow_use is enabled"
+                            )
+                    for nonneg_field in ("snowpack", "snowwater", "snowdens"):
+                        raw = _unwrap_value(getattr(surf_state, nonneg_field, None))
+                        if not is_finite_real_number(raw) or float(raw) < 0.0:
+                            errors.append(
+                                f"{site_name}: initial_states.{surf_name}.{nonneg_field} "
+                                f"({raw!r}) must be finite and greater than or equal to 0 when snow_use is enabled"
+                            )
 
         if errors:
             raise ValueError("; ".join(errors))
@@ -4091,6 +4348,7 @@ class SUEWSConfig(DataModelBase):
 
     def validate_non_null_ref_values(self, _path: str = "") -> None:
         """Check non-optional values and consumed conditional inputs at handoff."""
+        self._rebind_irrigation_owner_refs()
         super().validate_non_null_ref_values(_path)
         bioco2_issues = self._iter_biogenic_co2_null_issues()
         if bioco2_issues:
@@ -4891,7 +5149,7 @@ class SUEWSConfig(DataModelBase):
         return errors
 
     def _rebind_irrigation_owner_refs(self) -> None:
-        """Rebind each site's ``IrrigationParams`` live owner reference to *self*."""
+        """Rebind scheme-gated child models' live owner references to *self*."""
         from ..validation.rules.hard_invariants import (
             is_modelled_irrigation_active,
             resolve_water_use_code,
@@ -4902,18 +5160,58 @@ class SUEWSConfig(DataModelBase):
         water_use = getattr(physics, "water_use", None) if physics is not None else None
         water_use_code = resolve_water_use_code(water_use)
         water_use_modelled = not (water_use_code is not None and water_use_code != 0)
+        snow_code = (
+            resolve_snow_use_code(getattr(physics, "snow_use", None))
+            if physics is not None
+            else None
+        )
+        snow_active = snow_code is None or snow_code != 0
+        sm_code = (
+            resolve_soil_moisture_code(getattr(physics, "soil_moisture", None))
+            if physics is not None
+            else None
+        )
+        soil_obs_active = sm_code is None or sm_code == 1
         sites = getattr(self, "sites", None)
         if not isinstance(sites, list):
             return
         for site in sites:
             props = getattr(site, "properties", None)
-            irr = getattr(props, "irrigation", None) if props is not None else None
+            if props is None:
+                continue
+            if hasattr(props, "_sync_snow_validation_state"):
+                props._sync_snow_validation_state(
+                    active=snow_active,
+                    soil_obs_active=soil_obs_active,
+                    config=self,
+                )
+            irr = getattr(props, "irrigation", None)
             if irr is not None and hasattr(irr, "_sync_doy_validation_state"):
                 irr._sync_doy_validation_state(
                     active=is_modelled_irrigation_active(water_use, irr),
                     water_use_modelled=water_use_modelled,
                     config=self,
                 )
+            snow_params = getattr(props, "snow", None)
+            if snow_params is not None and hasattr(
+                snow_params, "_sync_snow_validation_state"
+            ):
+                snow_params._sync_snow_validation_state(
+                    active=snow_active, config=self
+                )
+            soil_obs = getattr(props, "soil_observation", None)
+            if soil_obs is not None and hasattr(
+                soil_obs, "_sync_soil_obs_validation_state"
+            ):
+                soil_obs._sync_soil_obs_validation_state(
+                    active=soil_obs_active, config=self
+                )
+
+    @model_validator(mode="after")
+    def _bind_scheme_owner_refs(self) -> "SUEWSConfig":
+        """Bind child snow/soil/irrigation validators to live parent physics switches."""
+        self._rebind_irrigation_owner_refs()
+        return self
 
     def __deepcopy__(self, memo: dict[int, Any] | None = None) -> "SUEWSConfig":
         """Deep-copy the configuration and rebind child irrigation owner references."""
@@ -6108,12 +6406,15 @@ class SUEWSConfig(DataModelBase):
         if isinstance(raw_sites, Iterable) and not isinstance(
             raw_sites, (str, bytes, Mapping)
         ):
-            from .human_activity import _IRRIGATION_MODELLED_CONTEXT
-
-            token = _IRRIGATION_MODELLED_CONTEXT.set(
-                cls._resolve_water_use_modelled_for_context(prepared)
-            )
-            try:
+            with cls._scheme_validation_context(
+                water_use_modelled=cls._resolve_water_use_modelled_for_context(
+                    prepared
+                ),
+                snow_active=cls._resolve_snow_active_for_context(prepared),
+                soil_observed=cls._resolve_soil_moisture_observed_for_context(
+                    prepared
+                ),
+            ):
                 validated_sites = []
                 for index, raw_site in enumerate(raw_sites):
                     if isinstance(raw_site, Mapping):
@@ -6127,8 +6428,6 @@ class SUEWSConfig(DataModelBase):
                             )
                     validated_sites.append(raw_site)
                 prepared["sites"] = validated_sites
-            finally:
-                _IRRIGATION_MODELLED_CONTEXT.reset(token)
 
         if line_errors:
             raise ValidationError.from_exception_data("SUEWSConfig", line_errors)
@@ -6628,6 +6927,10 @@ class SUEWSConfig(DataModelBase):
             )
 
         # Proceed with DataFrame conversion
+        snow_code = resolve_snow_use_code(
+            getattr(getattr(self.model, "physics", None), "snow_use", None)
+        )
+        snow_token = _SNOW_ACTIVE_CONTEXT.set(snow_code is None or snow_code != 0)
         try:
             grid_ids = []
             site_col_dicts = []
@@ -6672,6 +6975,8 @@ class SUEWSConfig(DataModelBase):
                 raise
             else:
                 raise
+        finally:
+            _SNOW_ACTIVE_CONTEXT.reset(snow_token)
 
         # # Fix level=1 columns sorted alphabetically not numerically (i.e. 10 < 2)
         # # Filter columns based on level=0 criteria
@@ -6756,11 +7061,15 @@ class SUEWSConfig(DataModelBase):
         _assign_trusted(config, "model", model)
 
         from ..validation.rules.hard_invariants import resolve_water_use_code
-        from .human_activity import _IRRIGATION_MODELLED_CONTEXT
 
         water_use_code = resolve_water_use_code(model.physics.water_use)
-        ctx_token = _IRRIGATION_MODELLED_CONTEXT.set(water_use_code == 0)
-        try:
+        snow_code = resolve_snow_use_code(model.physics.snow_use)
+        soil_code = resolve_soil_moisture_code(model.physics.soil_moisture)
+        with cls._scheme_validation_context(
+            water_use_modelled=water_use_code == 0,
+            snow_active=snow_code is None or snow_code != 0,
+            soil_observed=soil_code is None or soil_code == 1,
+        ):
             # Create list of sites
             sites = []
             for grid_id in grid_ids:
@@ -6776,8 +7085,6 @@ class SUEWSConfig(DataModelBase):
                 _assign_trusted(site, "initial_states", initial_states)
 
                 sites.append(site)
-        finally:
-            _IRRIGATION_MODELLED_CONTEXT.reset(ctx_token)
 
         # Update config with reconstructed data
         _assign_trusted(config, "sites", sites)
@@ -6850,6 +7157,77 @@ class SUEWSConfig(DataModelBase):
                 .setdefault("forcing", {})
             )
             forcing_dict["file"] = None
+
+        # Preserve explicit scheme-gated nulls on inactive snow/soil fields so
+        # YAML round-tripping does not silently reinstate usable defaults (#2363).
+        sites_out = config_dict.get("sites")
+        if (
+            isinstance(self.sites, list)
+            and isinstance(sites_out, list)
+            and len(self.sites) == len(sites_out)
+        ):
+            for site_obj, site_dict in zip(self.sites, sites_out):
+                if not isinstance(site_obj, Site) or not isinstance(site_dict, dict):
+                    continue
+                props_obj = getattr(site_obj, "properties", None)
+                props_dict = site_dict.get("properties")
+                if props_obj is not None and isinstance(props_dict, dict):
+                    snow_obj = getattr(props_obj, "snow", None)
+                    if snow_obj is None:
+                        props_dict["snow"] = None
+                    elif isinstance(snow_obj, SnowParams):
+                        snow_dict = props_dict.setdefault("snow", {})
+                        for field_name in (
+                            *SnowParams._SNOW_NON_OPTIONAL_SCALAR_FIELDS,
+                            "snow_profile_24hr",
+                        ):
+                            raw = getattr(snow_obj, field_name, None)
+                            if raw is None:
+                                snow_dict[field_name] = None
+                            elif isinstance(raw, RefValue) and raw.value is None:
+                                snow_dict[field_name] = {"value": None}
+                    soil_obs_obj = getattr(props_obj, "soil_observation", None)
+                    if isinstance(soil_obs_obj, SoilObservationConfig):
+                        soil_obs_dict = props_dict.setdefault("soil_observation", {})
+                        for field_name in (
+                            "layer_depth",
+                            "layer_top",
+                            "soil_not_rocks",
+                        ):
+                            raw = getattr(soil_obs_obj, field_name, None)
+                            if raw is None:
+                                soil_obs_dict[field_name] = None
+                            elif isinstance(raw, RefValue) and raw.value is None:
+                                soil_obs_dict[field_name] = {"value": None}
+
+                init_obj = getattr(site_obj, "initial_states", None)
+                init_dict = site_dict.get("initial_states")
+                if init_obj is not None and isinstance(init_dict, dict):
+                    for surf_name in (
+                        "paved",
+                        "bldgs",
+                        "evetr",
+                        "dectr",
+                        "grass",
+                        "bsoil",
+                        "water",
+                    ):
+                        surf_obj = getattr(init_obj, surf_name, None)
+                        surf_dict = init_dict.get(surf_name)
+                        if surf_obj is None or not isinstance(surf_dict, dict):
+                            continue
+                        for state_field in (
+                            "snowfrac",
+                            "snowpack",
+                            "icefrac",
+                            "snowwater",
+                            "snowdens",
+                        ):
+                            raw = getattr(surf_obj, state_field, None)
+                            if raw is None:
+                                surf_dict[state_field] = None
+                            elif isinstance(raw, RefValue) and raw.value is None:
+                                surf_dict[state_field] = {"value": None}
 
         # Strip private implementation fields
         for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):

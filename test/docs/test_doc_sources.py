@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 ROOT = Path(__file__).resolve().parents[2]
 EXTENSIONS = ROOT / "docs/source/_ext"
 CLI = ROOT / "scripts/lint/check_doc_sources.py"
@@ -63,6 +63,7 @@ def test_accept_valid_provenance(tmp_path, header):
     assert rules.check_page(header + "\nBody\n", tmp_path) == []
 
 
+@pytest.mark.os_compat
 def test_generator_must_be_file_inside_repository(tmp_path):
     """Directories and links outside the repository cannot identify generators."""
     repo = tmp_path / "repo"

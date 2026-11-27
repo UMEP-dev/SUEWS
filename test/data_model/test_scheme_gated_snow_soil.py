@@ -34,7 +34,7 @@ from supy.data_model.core.surface import PavedProperties
 from supy.data_model.core.type import RefValue
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.core,
     pytest.mark.contract("C-VALID", "C-EMIT", "C-ROUNDTRIP", "C-RESPONSE"),

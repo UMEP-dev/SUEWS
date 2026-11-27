@@ -28,7 +28,7 @@ from supy.data_model.validation.pipeline.orchestrator import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.contract("C-VALID", "C-ROUNDTRIP", "C-STRICT"),
 ]
 

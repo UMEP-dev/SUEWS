@@ -10,7 +10,7 @@ import pytest
 import supy._env as env
 import supy._run_rust as run_rust
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.os_compat, pytest.mark.contract("C-API")]
 
 
 @pytest.fixture

@@ -15,7 +15,7 @@ from supy.suews_checkpoint import SUEWSCheckpoint
 from supy.suews_output import SUEWSOutput
 from supy.suews_sim import SUEWSSimulation
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-SAVE")]
 
 
 class TestSaveSuPy:

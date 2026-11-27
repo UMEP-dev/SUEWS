@@ -17,7 +17,7 @@ from supy import SUEWSOutput, SUEWSSimulation
 from supy.data_model.core.model import OutputControl, OutputFormat
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.contract("C-RESAMPLE", "C-CLOCK", "C-SAVE"),
 ]
 

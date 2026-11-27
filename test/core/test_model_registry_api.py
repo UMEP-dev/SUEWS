@@ -5,7 +5,7 @@ import pytest
 import supy as sp
 
 # gh#1300: every test file must carry a nature marker (api | physics).
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API")]
 
 
 def test_top_level_exports_present():

@@ -12,7 +12,7 @@ import sys
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 def _installed_suews_available() -> bool:
@@ -104,6 +104,7 @@ def test_executable_missing_returns_error_envelope(
     assert result["status"] == "error"
 
 
+@pytest.mark.e2e
 @_require_installed_cli
 def test_real_cli_validate_config_valid_struct_science_and_public_mode(
     tmp_path: Path,

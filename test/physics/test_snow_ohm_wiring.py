@@ -406,6 +406,7 @@ def _run_standalone_and_supy_pair(
     return engine_qm, engine_qh
 
 
+@pytest.mark.e2e
 @pytest.mark.core
 def test_snow_ohm_standalone_engine_parity_and_active_validation(
     tmp_path: Path,

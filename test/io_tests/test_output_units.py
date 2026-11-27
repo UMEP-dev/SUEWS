@@ -12,7 +12,10 @@ from supy.data_model.output.version import CURRENT_OUTPUT_VERSION
 from supy.suews_output import SUEWSOutput
 from supy.units import parse_unit
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT", "C-SAVE", "C-RESAMPLE")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.contract("C-OUTPUT", "C-SAVE", "C-RESAMPLE"),
+]
 
 
 @pytest.fixture

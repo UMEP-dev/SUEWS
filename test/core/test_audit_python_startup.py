@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "security" / "audit_python_startup.py"

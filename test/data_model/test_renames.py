@@ -30,7 +30,7 @@ import yaml
 
 from supy._env import trv_supy_module
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE", "C-ROUNDTRIP")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-MIGRATE", "C-ROUNDTRIP")]
 
 from supy.data_model.core.df_column_renames import (
     ALL_DF_COLUMN_RENAMES,

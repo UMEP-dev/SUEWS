@@ -23,7 +23,7 @@ import supy as sp
 _run_rust = import_module("supy._run_rust")
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.rust,
     pytest.mark.core,
     pytest.mark.contract("C-ISOLATION", "C-NATIVE-ERROR"),

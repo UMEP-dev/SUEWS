@@ -21,10 +21,7 @@ from supy._run_rust import (  # ruff: ignore[import-private-name]
 )
 from supy.suews_checkpoint import SUEWSCheckpoint
 
-pytestmark = [
-    pytest.mark.api,
-    pytest.mark.contract("C-API", "C-RESTART", "C-ERROR"),
-]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-API", "C-RESTART", "C-ERROR")]
 
 PUBLIC = [-(2**31), -19, 0, 1, 2, 2**31 - 1, -(2**31) - 1, 2**31, 2**53 + 1, 10**80 + 17]
 COMPACT = [-(2**31), -19, 0, 1, 2, 2**31 - 1, 3, 4, 5, 6]

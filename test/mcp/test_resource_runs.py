@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-ERROR")]
 
 
 def test_provenance_resource_returns_payload(tmp_path: Path) -> None:

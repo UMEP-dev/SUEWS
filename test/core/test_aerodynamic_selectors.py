@@ -24,7 +24,6 @@ _run_rust = import_module("supy._run_rust")
 
 pytestmark = [
     pytest.mark.physics,
-    pytest.mark.api,
     pytest.mark.contract("C-STRICT", "C-BIND", "C-EMIT", "C-PARITY", "C-RESPONSE"),
 ]
 
@@ -404,6 +403,7 @@ def test_native_python_callers_reject_invalid_selectors_before_output(
         )
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("selector", SELECTORS)
 @pytest.mark.parametrize(
     "raw_snippet",
@@ -586,6 +586,7 @@ def test_roughness_sublayer_and_level_remain_unconditionally_active(
     )
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     "case",
     [

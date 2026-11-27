@@ -12,7 +12,7 @@ import pytest
 
 from supy.cmd.diagnose_run import diagnose_run_cmd
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 def _build_minimal_run_dir(tmp_path: Path) -> Path:

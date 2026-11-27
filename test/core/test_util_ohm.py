@@ -6,7 +6,7 @@ import pytest
 
 from supy.util._ohm import derive_ohm_coef, sim_ohm
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESPONSE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-RESPONSE")]
 
 
 @pytest.fixture(scope="module")

@@ -5,7 +5,7 @@ import subprocess
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.os_compat, pytest.mark.contract("C-ERROR")]
 
 
 @pytest.fixture
@@ -196,6 +196,7 @@ def test_in_root_aliases_and_config_relative_forcing(project):
     ] == {"test": 1}
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("tool", ["diagnose_run", "summarise_run", "compare_runs"])
 def test_real_cli_accepts_in_root_output_alias(project, tool):
     """Exercise real loaders/writers, not an invented success envelope."""
@@ -223,6 +224,7 @@ def test_real_cli_accepts_in_root_output_alias(project, tool):
         assert (run / "diagnostics.json").is_file()
 
 
+@pytest.mark.e2e
 def test_real_inspect_config_relative_in_root_forcing(project):
     import shutil
     from importlib.resources import as_file

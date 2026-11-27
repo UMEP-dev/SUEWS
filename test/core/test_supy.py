@@ -86,7 +86,7 @@ test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-SAVE", "C-FORCING")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-API", "C-SAVE", "C-FORCING")]
 
 
 class TestSuPy(TestCase):
@@ -109,7 +109,6 @@ class TestSuPy(TestCase):
         request.cls._sample_run = staticmethod(sample_run_cached)
 
     # test if single-tstep mode can run
-    @pytest.mark.physics
     @pytest.mark.smoke
     @pytest.mark.smoke_bridge
     def test_is_supy_running_single_step(self):

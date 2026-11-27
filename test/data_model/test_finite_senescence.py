@@ -38,7 +38,7 @@ from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.type import Reference, RefValue
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.physics,
     pytest.mark.cfg,
     pytest.mark.contract(
         "C-VALID", "C-STRICT", "C-ERROR", "C-BIND", "C-ROUNDTRIP", "C-ISOLATION"

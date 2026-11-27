@@ -17,7 +17,7 @@ import pytest
 
 from supy.util import plot_comp
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-OUTPUT")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-OUTPUT")]
 
 
 @pytest.fixture(autouse=True)

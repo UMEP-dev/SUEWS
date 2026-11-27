@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-CLOCK", "C-OUTPUT")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-CLOCK", "C-OUTPUT")]
 
 START = "2012-01-01"
 END = "2012-03-02 01:15"

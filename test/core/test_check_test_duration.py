@@ -25,7 +25,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.lint import check_cost_markers as cost_markers  # noqa: E402
 from scripts.lint import check_test_duration as guard  # noqa: E402
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 def _record(

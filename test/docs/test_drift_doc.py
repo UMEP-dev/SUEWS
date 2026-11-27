@@ -7,7 +7,7 @@ import pytest
 DOC = Path(__file__).resolve().parents[2] / "docs/source/benchmark/drift.rst"
 
 # gh#1300: every test file must carry a nature marker (api | physics).
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 def test_drift_doc_exists():

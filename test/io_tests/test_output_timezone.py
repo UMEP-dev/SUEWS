@@ -16,7 +16,7 @@ from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.core.model import OutputTimestampReference
 from supy.suews_output import SUEWSOutput
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-CLOCK", "C-SAVE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-CLOCK", "C-SAVE")]
 
 
 def _state_for_grid(rows):

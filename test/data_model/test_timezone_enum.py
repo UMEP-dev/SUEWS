@@ -8,7 +8,7 @@ import yaml
 import supy as sp
 from supy.data_model.core.timezone_enum import TimezoneOffset
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ROUNDTRIP")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-VALID", "C-ROUNDTRIP")]
 
 
 def test_timezone_enum_support():

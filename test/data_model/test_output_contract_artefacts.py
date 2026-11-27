@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = PROJECT_ROOT / "scripts/lint/check_output_contract_artefacts.py"

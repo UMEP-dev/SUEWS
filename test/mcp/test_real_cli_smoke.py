@@ -16,7 +16,12 @@ import shutil
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.e2e,
+    pytest.mark.contract("C-API", "C-ERROR"),
+]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

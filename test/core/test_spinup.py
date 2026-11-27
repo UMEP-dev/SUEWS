@@ -14,7 +14,7 @@ from supy.suews_forcing import SUEWSForcing
 from supy.suews_sim import SUEWSSimulation
 from supy.util import get_spinup_state, read_forcing
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SPINUP")]
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-SPINUP")]
 
 
 def _extend_forcing(frame: pd.DataFrame, *, days: int, start: str) -> pd.DataFrame:

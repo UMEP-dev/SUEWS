@@ -22,7 +22,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.suews import coverage_summary as summary  # noqa: E402
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 def _file(statements: int, covered: int, branches: int, covered_branches: int) -> dict[str, Any]:

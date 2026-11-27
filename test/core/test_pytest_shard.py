@@ -11,7 +11,7 @@ import pytest
 
 from scripts.suews.pytest_shard import parse_shard, shard_of
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

@@ -56,7 +56,7 @@ from supy.data_model.core.model import ModelControl, OutputControl, OutputFormat
 import supy.suews_sim as suews_sim_module
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.contract("C-RESTART", "C-SAVE", "C-RESAMPLE", "C-CLOCK", "C-VALID"),
 ]
 
@@ -140,10 +140,19 @@ def _parametrize_cases(argnames, *axes, cases=None, cover_pairs=True):
         for case in cases:
             case_id = "-".join(case)
             marker = dict_marker.get(case_id)
+            marks = []
+            if marker == "medium":
+                marks.append(pytest.mark.medium)
+            elif marker == "slow":
+                marks.append(pytest.mark.slow)
+            elif marker:
+                raise ValueError(
+                    f"{func.__name__}: unsupported cost marker {marker!r}"
+                )
             list_param.append(
                 pytest.param(
                     *(axis[key] for key, axis in zip(case, axes)),
-                    marks=[getattr(pytest.mark, marker)] if marker else [],
+                    marks=marks,
                     id=case_id,
                 )
             )

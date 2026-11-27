@@ -8,7 +8,7 @@ from supy.data_model.forcing.version import (
 )
 from supy.data_model.output.version import CURRENT_OUTPUT_VERSION, OUTPUT_VERSIONS
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-SCHEMA")]
 
 
 def test_forcing_and_output_have_initial_releases() -> None:

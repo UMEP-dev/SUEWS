@@ -17,7 +17,7 @@ import pytest
 
 from supy.cmd.SUEWS import SUEWS
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 @pytest.fixture(autouse=True)

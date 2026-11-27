@@ -16,7 +16,7 @@ from scripts.suews.ci_phase_metrics import (
 )
 from scripts.suews.run_ci_tests import metrics_paths
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_PHASES = ("checkout", "toolchain_setup", "build", "repair", "install")

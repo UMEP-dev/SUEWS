@@ -6,7 +6,7 @@ import re
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-BIND", "C-SCHEMA")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-BIND", "C-SCHEMA")]
 
 ROOT = Path(__file__).resolve().parents[2]
 FAMILIES = (

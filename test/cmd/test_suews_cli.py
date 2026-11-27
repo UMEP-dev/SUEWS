@@ -24,7 +24,7 @@ import yaml
 
 from supy.cmd.suews_cli import cli as suews_cli_root
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 # ---------------------------------------------------------------------------

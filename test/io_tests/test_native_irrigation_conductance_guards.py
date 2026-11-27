@@ -22,7 +22,6 @@ _YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 _YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 pytestmark = [
-    pytest.mark.api,
     pytest.mark.physics,
     pytest.mark.contract("C-STRICT", "C-BIND", "C-ERROR", "C-RESPONSE"),
 ]
@@ -168,6 +167,7 @@ _WITNESS_CASES = [
 
 
 @pytest.mark.core
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("activate_irrigation", "mutate_site", "expected_needles", "public_needles"),
     _WITNESS_CASES,
@@ -319,6 +319,7 @@ def test_observed_water_use_gates_modelled_irrigation_but_requires_internalwater
         rust.run_suews(_dump_yaml(missing_iwu), forcing_flat, n_steps)
 
 
+@pytest.mark.e2e
 @pytest.mark.core
 def test_surface_conductance_selector_required_in_engine_and_cli(
     cli_runner,

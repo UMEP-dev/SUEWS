@@ -61,7 +61,7 @@ from supy.data_model.validation.rules.typed_view import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-SCHEMA", "C-PARITY"),
 ]
@@ -335,6 +335,7 @@ def test_validate_doy_parameters_catches_post_load_unpaired_irrigation() -> None
     cfg_inactive.validate_doy_parameters()
 
 
+@pytest.mark.e2e
 def test_scheme_gated_irrigation_predicate_and_cli_engine_boundaries(
     tmp_path: Path,
 ) -> None:
@@ -1120,6 +1121,7 @@ def test_water_use_scheme_transitions_update_direct_doy_assignment_immediately()
         rebuilt.sites[0].properties.irrigation.ie_start = True  # type: ignore[assignment]
 
 
+@pytest.mark.e2e
 def test_phase_b_cli_reports_malformed_sites_instead_of_silently_skipping(
     tmp_path: Path,
 ) -> None:

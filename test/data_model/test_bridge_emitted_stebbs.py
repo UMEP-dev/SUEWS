@@ -20,7 +20,7 @@ from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-EMIT", "C-ROUNDTRIP"),
 ]

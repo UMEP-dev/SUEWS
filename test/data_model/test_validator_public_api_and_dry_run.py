@@ -38,7 +38,8 @@ from supy.data_model.validation import (
 from supy.data_model.validation.pipeline.document import ConfigDocument, ConfigPatch
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
+    pytest.mark.os_compat,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ERROR", "C-API"),
 ]

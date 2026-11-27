@@ -46,7 +46,7 @@ from supy.data_model.validation.required_fields import (
 from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-STRICT", "C-MIGRATE"),
 ]

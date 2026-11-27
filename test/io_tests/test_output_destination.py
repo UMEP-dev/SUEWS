@@ -19,7 +19,7 @@ from supy.data_model import SUEWSConfig
 
 bridge = import_module("supy._run_rust")
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SAVE")]
+pytestmark = [pytest.mark.native, pytest.mark.os_compat, pytest.mark.contract("C-SAVE")]
 
 
 def _source(tmp_path, destination):
@@ -179,6 +179,7 @@ def test_direct_source_dump_library_calls_write_no_files(
     assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     "destination", [None, pytest.param("", id="empty-string"), ".", "specified", "absolute"]
 )
@@ -258,6 +259,7 @@ def test_source_output_block_takes_precedence_over_legacy_path(
     assert not (source.parent / "legacy_results").exists()
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     "bad", ["missing", None, {"value": None}, 7, True, [], {}, {"value": []}]
 )

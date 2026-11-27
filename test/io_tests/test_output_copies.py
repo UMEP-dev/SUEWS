@@ -28,7 +28,7 @@ import pytest
 from supy._save import save_df_output
 from supy.suews_output import SUEWSOutput, _copy_on_write_active
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ISOLATION")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-ISOLATION")]
 
 COW = _copy_on_write_active()
 

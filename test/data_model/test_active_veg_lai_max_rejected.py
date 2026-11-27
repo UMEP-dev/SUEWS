@@ -56,7 +56,7 @@ _run_grid_into = _run_rust_mod._run_grid_into
 config_to_engine_yaml = _run_rust_mod.config_to_engine_yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-STRICT", "C-BIND"),
 ]

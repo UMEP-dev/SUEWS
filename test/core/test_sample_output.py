@@ -772,6 +772,7 @@ class TestSampleOutput(TestCase):
     @pytest.mark.core
     @pytest.mark.rust
     @pytest.mark.smoke
+    @pytest.mark.e2e
     def test_sample_output_validation(self):
         """Validate the smoke window (one model day by default) against the reference."""
         self._validate_sample_output()
@@ -781,6 +782,7 @@ class TestSampleOutput(TestCase):
         reason="full-year comparison: 17 to 36 CPU-s on Linux across dispatches and over two minutes of wall time on Windows"
     )
     @pytest.mark.rust
+    @pytest.mark.e2e
     def test_sample_output_validation_full_year(self):
         """Validate the whole simulated year against the reference.
 

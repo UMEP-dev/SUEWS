@@ -8,7 +8,7 @@ import pytest
 from supy import SUEWSOutput
 from supy.data_model.output.suews_vars import SUEWS_VARIABLES
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT")]
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-OUTPUT")]
 
 # The owning registry supplies identities; the driver supplies activation:
 # suews_ctrl_driver.f95:SUEWS_cal_BiogenCO2 calculates these for emissions >= 11
@@ -115,7 +115,6 @@ def test_parquet_null_does_not_hide_missing_carbon(tmp_path):
         assert_complete_carbon(pd.read_parquet(path), expected_index)
 
 
-@pytest.mark.physics
 @pytest.mark.parametrize("emissions", [2, 12, 22, 32, 42])
 def test_native_carbon_complete_from_first_to_last_step(short_sample_sim, emissions):
     sim = short_sample_sim()

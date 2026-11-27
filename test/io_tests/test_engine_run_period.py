@@ -25,7 +25,6 @@ _run_rust = import_module("supy._run_rust")
 
 pytestmark = [
     pytest.mark.physics,
-    pytest.mark.api,
     pytest.mark.contract("C-CLOCK", "C-FORCING", "C-STRICT", "C-PARITY"),
 ]
 
@@ -187,6 +186,7 @@ def _run_engine_cli(binary: Path, resolved_path: Path) -> subprocess.CompletedPr
     )
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("resolution", ["60", "5"])
 @pytest.mark.parametrize(
     (
@@ -331,6 +331,7 @@ def _run_engine_frame(
     return source_path, _read_engine_arrow(out_dir / "suews_output.arrow")
 
 
+@pytest.mark.e2e
 def test_late_start_negative_controls_against_ignoring_period_and_post_run_cropping(
     tmp_path: Path,
     paired_48h_forcing: dict[str, Path],
@@ -392,6 +393,7 @@ def test_late_start_negative_controls_against_ignoring_period_and_post_run_cropp
         )
 
 
+@pytest.mark.e2e
 def test_leap_day_cross_route_parity_on_longer_forcing_span(tmp_path: Path):
     """Inclusive leap-day bounds select exact 2012-02-29 rows across both routes."""
     binary = _locate_suews_engine()
@@ -434,6 +436,7 @@ def test_leap_day_cross_route_parity_on_longer_forcing_span(tmp_path: Path):
         )
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("clock", "timezone"),
     [
@@ -507,6 +510,7 @@ def test_full_valid_source_regression_on_representative_clocks(
         )
 
 
+@pytest.mark.e2e
 def test_utc_nonzero_timezone_shifts_physics_without_shifting_forcing_clock_bounds(
     tmp_path: Path,
     paired_48h_forcing: dict[str, Path],
@@ -543,6 +547,7 @@ def test_utc_nonzero_timezone_shifts_physics_without_shifting_forcing_clock_boun
     assert max_qf_diff > 0.1 or max_qn_diff > 0.1
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("label", "start_time", "end_time", "expected_needles"),
     [

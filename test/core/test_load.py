@@ -20,7 +20,7 @@ from supy._env import trv_supy_module
 from supy.data_model import SUEWSConfig
 from supy.util.converter import convert_table, detect_table_version
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ROUNDTRIP")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-API", "C-ROUNDTRIP")]
 
 
 class TestSimulationLoading(TestCase):

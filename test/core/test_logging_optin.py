@@ -19,7 +19,12 @@ import sys
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.util, pytest.mark.contract("C-API")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.util,
+    pytest.mark.contract("C-API"),
+]
 
 LOG_FILE = "SuPy.log"
 

@@ -188,6 +188,17 @@ Former names are shown in brackets once.
 Defaults
 --------
 
+The asymmetric ``DayProfile`` default is ``working_day: 1.0`` and
+``holiday: 0.0``; similarly, ``heat.popdensnighttime`` defaults to ``10.0``
+people per hectare.
+These are backward-compatibility placeholders rather than calibrated site
+parameters: omitting an active ``AnthropogenicHeat`` field (or omitting
+``holiday`` inside a ``DayProfile``) applies those placeholder values and
+emits a ``UserWarning`` when loaded via ``SUEWSConfig.from_yaml`` or
+``SUEWSConfig.from_dict`` under a non-zero ``model.physics.emissions`` method.
+Specify site-specific working-day, holiday, and night-time population density
+values explicitly for active emissions runs.
+
 The uniform ``HourlyProfile`` default is 1/24 in both day types.
 It becomes a constant multiplier of 1 for mean-normalised profiles and equal
 hourly weights for irrigation.

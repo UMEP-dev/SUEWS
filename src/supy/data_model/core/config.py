@@ -447,6 +447,152 @@ def _raw_physics_has_kdown_direct_fraction(physics):
     )
 
 
+_ANTHRO_HEAT_COMMON_DAY_PROFILES: tuple[str, ...] = (
+    "popdensdaytime",
+    "qf0_beu",
+)
+
+# Active AnthropogenicHeat DayProfile fields keyed by emissions method % 10
+# (matching src/suews/src/suews_phys_anthro.f95 and suews_phys_dailystate.f95).
+_ANTHRO_HEAT_ACTIVE_DAY_PROFILES: dict[int, tuple[str, ...]] = {
+    1: (*_ANTHRO_HEAT_COMMON_DAY_PROFILES, "ah_min", "ah_slope_heating", "baset_heating"),
+    2: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "qf_a",
+        "qf_b",
+        "qf_c",
+        "baset_heating",
+        "baset_cooling",
+    ),
+    3: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "ah_min",
+        "ah_slope_heating",
+        "ah_slope_cooling",
+        "baset_heating",
+        "baset_cooling",
+    ),
+    4: (*_ANTHRO_HEAT_COMMON_DAY_PROFILES, "ah_min", "ah_slope_heating", "baset_heating"),
+    5: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "qf_a",
+        "qf_b",
+        "qf_c",
+        "baset_heating",
+        "baset_cooling",
+    ),
+    6: (
+        *_ANTHRO_HEAT_COMMON_DAY_PROFILES,
+        "ah_min",
+        "ah_slope_heating",
+        "ah_slope_cooling",
+        "baset_heating",
+        "baset_cooling",
+    ),
+}
+
+_DAY_PROFILE_KEY_DEFAULTS: tuple[tuple[str, float], ...] = (
+    ("working_day", 1.0),
+    ("holiday", 0.0),
+)
+
+
+def _warn_deprecated_strict_false(method_name: str, *, stacklevel: int) -> None:
+    """Emit a deprecation warning when ``strict=False`` is passed to a config loader."""
+    warnings.warn(
+        f"Passing strict=False to {method_name}() is deprecated and ignored; "
+        "strict Pydantic validation always applies and the strict parameter "
+        "will be removed in a future release. Omit strict (or pass strict=True) "
+        "for validated loading, or pass use_conditional_validation=False when "
+        "unchecked construction is explicitly required.",
+        DeprecationWarning,
+        stacklevel=stacklevel,
+    )
+
+
+def _warn_anthropogenic_heat_defaults(
+    config: "SUEWSConfig",
+    raw_config: object,
+    *,
+    stacklevel: int,
+) -> None:
+    """Warn when an active emissions config omits AnthropogenicHeat defaults.
+
+    Emits a single ``UserWarning`` when ``model.physics.emissions`` selects a
+    modelled emissions method (non-zero) and user-supplied YAML/dict input
+    relies on compatibility placeholder defaults (``popdensnighttime=10.0`` or
+    ``DayProfile(working_day=1.0, holiday=0.0)``) for active heat fields.
+    """
+    if not isinstance(raw_config, Mapping) or not getattr(config, "sites", None):
+        return
+
+    physics = getattr(getattr(config, "model", None), "physics", None)
+    method = getattr(physics, "emissions", None)
+    method = getattr(method, "value", method)
+    method = getattr(method, "value", method)
+    if not isinstance(method, int) or method == 0:
+        return
+
+    active_day_profiles = _ANTHRO_HEAT_ACTIVE_DAY_PROFILES.get(method % 10)
+    if active_day_profiles is None:
+        return
+
+    raw_sites = raw_config.get("sites")
+    if not isinstance(raw_sites, list):
+        raw_sites = []
+
+    site_notes: list[str] = []
+    for idx, site in enumerate(config.sites):
+        raw_site = raw_sites[idx] if idx < len(raw_sites) else None
+        raw_props = (
+            raw_site.get("properties") if isinstance(raw_site, Mapping) else None
+        )
+        raw_anthro = (
+            raw_props.get("anthropogenic_emissions")
+            if isinstance(raw_props, Mapping)
+            else None
+        )
+        raw_heat = (
+            raw_anthro.get("heat") if isinstance(raw_anthro, Mapping) else None
+        )
+        if not isinstance(raw_heat, Mapping):
+            raw_heat = {}
+
+        omitted: list[str] = []
+        if "popdensnighttime" not in raw_heat:
+            omitted.append("popdensnighttime (default 10.0 ha-1)")
+
+        for field_name in active_day_profiles:
+            if field_name not in raw_heat:
+                omitted.append(
+                    f"{field_name} (DayProfile default working_day=1.0, holiday=0.0)"
+                )
+                continue
+            raw_profile = raw_heat[field_name]
+            if isinstance(raw_profile, Mapping):
+                for key, default_val in _DAY_PROFILE_KEY_DEFAULTS:
+                    if key not in raw_profile:
+                        omitted.append(
+                            f"{field_name}.{key} (DayProfile default {default_val})"
+                        )
+
+        if omitted:
+            site_name = getattr(site, "name", f"site[{idx}]")
+            site_notes.append(f"sites[{idx}] ({site_name}): {', '.join(omitted)}")
+
+    if site_notes:
+        warnings.warn(
+            f"Active anthropogenic emissions method ({method}) is using "
+            "compatibility placeholder default(s) for omitted "
+            "anthropogenic_emissions.heat field(s): "
+            + "; ".join(site_notes)
+            + ". These defaults are not calibrated site values; specify "
+            "site-specific values explicitly in YAML.",
+            UserWarning,
+            stacklevel=stacklevel,
+        )
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -6210,26 +6356,47 @@ class SUEWSConfig(DataModelBase):
         strict: bool = True,
         auto_generate_annotated: bool = False,
     ) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from YAML file with conditional validation.
+        """Initialise SUEWSConfig from a YAML file with conditional validation.
 
-        Args:
-            path (str): Path to YAML configuration file
-            use_conditional_validation (bool): Whether to use conditional validation
-            strict (bool): If True, raise errors on validation failure
-            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+        .. deprecated:: 2026.6
+            Passing ``strict=False`` is deprecated and ignored; strict Pydantic
+            validation always applies and the ``strict`` parameter will be
+            removed in a future release. Omit ``strict`` (or pass
+            ``strict=True``) for validated loading, or pass
+            ``use_conditional_validation=False`` when unchecked construction is
+            explicitly required.
 
-        Returns:
-            SUEWSConfig: Instance of SUEWSConfig initialized from YAML
+        Parameters
+        ----------
+        path : str
+            Path to the YAML configuration file.
+        use_conditional_validation : bool, default True
+            Whether to run full Pydantic and conditional validation.
+        strict : bool, default True
+            Deprecated compatibility parameter. ``strict=False`` emits a
+            ``DeprecationWarning`` and is ignored; strict validation always
+            applies when ``use_conditional_validation=True``.
+        auto_generate_annotated : bool, default False
+            If True, automatically write an annotated YAML file when validation
+            issues are found.
+
+        Returns
+        -------
+        SUEWSConfig
+            Validated instance of SUEWSConfig initialised from YAML.
         """
+        if not strict:
+            _warn_deprecated_strict_false("SUEWSConfig.from_yaml", stacklevel=3)
+
         with open(path, "r", encoding="utf-8") as file:
             config_data = safe_load_yaml(file)
 
-        return cls.from_dict(
+        return cls._from_dict_impl(
             config_data,
             use_conditional_validation=use_conditional_validation,
-            strict=strict,
             auto_generate_annotated=auto_generate_annotated,
             yaml_path=path,
+            _caller_stacklevel=4,
         )
 
     @classmethod
@@ -6299,21 +6466,63 @@ class SUEWSConfig(DataModelBase):
         auto_generate_annotated: bool = False,
         yaml_path: Optional[str] = None,
     ) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from a configuration dict with validation.
+        """Initialise SUEWSConfig from a configuration dict with validation.
 
         This is the single validated construction path for dict input
-        (gh#1530); ``from_yaml`` delegates here after reading the file.
+        (gh#1530); ``from_yaml`` delegates to the same shared loader after
+        reading the file.
 
-        Args:
-            config_data (dict): Configuration data, YAML-shaped.
-            use_conditional_validation (bool): Whether to use conditional validation
-            strict (bool): If True, raise errors on validation failure
-            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
-            yaml_path (str, optional): Source YAML path, when loaded from a file.
+        .. deprecated:: 2026.6
+            Passing ``strict=False`` is deprecated and ignored; strict Pydantic
+            validation always applies and the ``strict`` parameter will be
+            removed in a future release. Omit ``strict`` (or pass
+            ``strict=True``) for validated loading, or pass
+            ``use_conditional_validation=False`` when unchecked construction is
+            explicitly required.
 
-        Returns:
-            SUEWSConfig: Validated instance of SUEWSConfig
+        Parameters
+        ----------
+        config_data : dict
+            Configuration data, YAML-shaped.
+        use_conditional_validation : bool, default True
+            Whether to run full Pydantic and conditional validation.
+        strict : bool, default True
+            Deprecated compatibility parameter. ``strict=False`` emits a
+            ``DeprecationWarning`` and is ignored; strict validation always
+            applies when ``use_conditional_validation=True``.
+        auto_generate_annotated : bool, default False
+            If True, automatically write an annotated YAML file when validation
+            issues are found.
+        yaml_path : str, optional
+            Source YAML path, when loaded from a file.
+
+        Returns
+        -------
+        SUEWSConfig
+            Validated instance of SUEWSConfig.
         """
+        if not strict:
+            _warn_deprecated_strict_false("SUEWSConfig.from_dict", stacklevel=3)
+
+        return cls._from_dict_impl(
+            config_data,
+            use_conditional_validation=use_conditional_validation,
+            auto_generate_annotated=auto_generate_annotated,
+            yaml_path=yaml_path,
+            _caller_stacklevel=4,
+        )
+
+    @classmethod
+    def _from_dict_impl(
+        cls,
+        config_data: dict,
+        *,
+        use_conditional_validation: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: str | None = None,
+        _caller_stacklevel: int = 3,
+    ) -> "SUEWSConfig":
+        """Shared validated dict loader backing ``from_dict`` and ``from_yaml``."""
         config_data, had_signature = cls._prepare_raw_input(
             config_data,
             yaml_path=yaml_path,
@@ -6327,7 +6536,7 @@ class SUEWSConfig(DataModelBase):
             try:
                 # Root ``extra="allow"`` is reserved for the bookkeeping keys
                 # above; the shared raw-mapping path enforces strictness below.
-                return cls._validate_raw_mapping(config_data)
+                config = cls._validate_raw_mapping(config_data)
             except ValidationError as e:
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
                 transformed_error = cls._transform_validation_error(
@@ -6342,6 +6551,12 @@ class SUEWSConfig(DataModelBase):
                 raise cls._build_drift_error(
                     e, config_data, had_signature=had_signature
                 ) from e
+            _warn_anthropogenic_heat_defaults(
+                config,
+                getattr(config, "_yaml_raw", None),
+                stacklevel=_caller_stacklevel,
+            )
+            return config
         else:
             # Optional checks may be bypassed, but observed soil geometry and
             # capacity remain mandatory. Parse only this scientific boundary;

@@ -599,6 +599,11 @@ class HourlyProfile(DataModelBase):
         for k, val in normalised.items():
             if val is None:
                 out[k] = None
+            elif isinstance(val, bool):
+                raise ValueError(
+                    f"Hourly profile value for hour {k!r} must be a number, "
+                    f"not bool ({val!r})."
+                )
             else:
                 out[k] = float(val)
         return out
@@ -750,6 +755,11 @@ class TenMinuteProfile(DataModelBase):
         for k, val in normalised.items():
             if val is None:
                 out[k] = None
+            elif isinstance(val, bool):
+                raise ValueError(
+                    f"Ten-minute profile value for step {k!r} must be a number, "
+                    f"not bool ({val!r})."
+                )
             else:
                 out[k] = float(val)
         return out

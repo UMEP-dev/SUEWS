@@ -7,7 +7,7 @@ This module provides a robust profile management system that:
 4. Maintains a registry of available profiles
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 import logging
 from pathlib import Path
 from typing import ClassVar
@@ -210,6 +210,60 @@ class ProfileManager:
             pd.to_numeric(profiles_df.iloc[:, col_idx], errors="raise")
 
         return profiles_df
+
+    def ensure_profile_codes(self, output_path: Path, codes: Iterable[int]) -> bool:
+        """Materialise specific uniform-1.0 profile codes if missing from SUEWS_Profiles.txt.
+
+        Unlike ``ensure_required_profiles``, this preserves existing rows verbatim
+        and inserts only the requested missing codes before any ``-9`` table
+        terminator, so conversion rules can rely on their default codes even when
+        ``validate_profiles=False``.
+        """
+        requested = sorted({int(code) for code in codes if int(code) > 0})
+        missing = [code for code in requested if code not in self.available_profiles]
+        if not missing:
+            return False
+
+        profiles_file = output_path / "SUEWS_Profiles.txt"
+        new_lines = [
+            f"{code:4d}    " + "    ".join(["1.000"] * 24) + "\n" for code in missing
+        ]
+
+        if profiles_file.exists():
+            existing_lines = profiles_file.read_text(encoding="utf-8").splitlines(
+                keepends=True
+            )
+            insert_at = len(existing_lines)
+            for idx, line in enumerate(existing_lines):
+                tokens = line.split()
+                if tokens and tokens[0] == "-9":
+                    insert_at = idx
+                    break
+            prefix = existing_lines[:insert_at]
+            suffix = existing_lines[insert_at:]
+            if prefix and not prefix[-1].endswith(("\n", "\r")):
+                prefix[-1] = prefix[-1] + "\n"
+            profiles_file.write_text(
+                "".join(prefix + new_lines + suffix), encoding="utf-8"
+            )
+        else:
+            header = (
+                "    ".join(str(i) for i in range(1, 26))
+                + "\n"
+                + "Code    "
+                + "    ".join(str(i) for i in range(24))
+                + "\n"
+            )
+            profiles_file.write_text(
+                header + "".join(new_lines) + "-9\n-9\n", encoding="utf-8"
+            )
+
+        self.profiles_path = profiles_file
+        self.load_profiles()
+        logger.info(
+            f"Materialised conversion default profile code(s) {missing} in {profiles_file}"
+        )
+        return True
 
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.

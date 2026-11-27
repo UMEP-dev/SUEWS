@@ -272,3 +272,149 @@ def test_dev23_to_dev24_migration_handles_valid_default_shipped_and_custom(
     ]["working_day"]["4"] = 0.5
     with pytest.raises(YamlUpgradeError, match=r"outside the kernel's \[1\.0, 2\.0\]"):
         migrator.migrate(cfg_custom, to_version="2026.6.dev24")
+
+
+@pytest.mark.parametrize("bad_bool", [True, False])
+def test_ordinary_construction_rejects_booleans(bad_bool: bool) -> None:
+    """Booleans are rejected at HourlyProfile construction before float coercion."""
+    bad = _uniform_profile(1.0)
+    bad["working_day"]["1"] = bad_bool
+
+    with pytest.raises(ValidationError, match="not bool"):
+        AnthropogenicHeat(popprof_24hr=bad)
+
+    with pytest.raises(ValidationError, match="not bool"):
+        CO2Params(profile_human_activity_24hr=bad)
+
+
+def test_migration_accepts_quoted_numeric_strings_and_rejects_colliding_keys() -> None:
+    """Migration accepts quoted in-range numeric strings and rejects colliding hour keys."""
+    migrator = SchemaMigrator()
+    base_dev23 = _load_sample_raw()
+    base_dev23["schema_version"] = "2026.6.dev23"
+
+    # Quoted numeric strings in [1.0, 2.0] match HourlyProfile's coercion contract.
+    cfg_quoted = deepcopy(base_dev23)
+    quoted_profile = {
+        "working_day": {str(h): "1.5" for h in range(1, 25)},
+        "holiday": {str(h): "1.25" for h in range(1, 25)},
+    }
+    anthro_q = cfg_quoted["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro_q["heat"]["popprof_24hr"] = deepcopy(quoted_profile)
+    anthro_q["co2"]["profile_human_activity_24hr"] = deepcopy(quoted_profile)
+    migrated_q = migrator.migrate(cfg_quoted, to_version="2026.6.dev24")
+    loaded_q = SUEWSConfig.from_dict(migrated_q)
+    assert loaded_q.sites[0].properties.anthropogenic_emissions.heat.popprof_24hr.working_day[
+        "1"
+    ] == pytest.approx(1.5)
+
+    # Colliding hour keys ("1" and "01") must fail loudly rather than overwriting.
+    cfg_collide = deepcopy(base_dev23)
+    colliding_day = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    colliding_day["1"] = 0.5
+    colliding_day["01"] = 1.0 / 24.0
+    cfg_collide["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"] = colliding_day
+    with pytest.raises(YamlUpgradeError, match="invalid or colliding hour keys"):
+        migrator.migrate(cfg_collide, to_version="2026.6.dev24")
+
+
+def test_schema_migrate_cli_validates_already_dev24_config(tmp_path: Path) -> None:
+    """Public ``suews schema migrate`` checks day/night bounds on already-dev24 files."""
+    from click.testing import CliRunner  # noqa: PLC0415
+
+    from supy.cmd.schema_cli import cli as schema_cli  # noqa: PLC0415
+
+    bad_dev24 = _load_sample_raw()
+    bad_dev24["schema_version"] = CURRENT_SCHEMA_VERSION
+    bad_dev24["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] = 0.5
+    bad_path = tmp_path / "bad_dev24.yml"
+    bad_path.write_text(yaml.safe_dump(bad_dev24, sort_keys=False), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        schema_cli,
+        [
+            "--quiet",
+            "migrate",
+            str(bad_path),
+            "--target-version",
+            CURRENT_SCHEMA_VERSION,
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "outside the kernel's [1.0, 2.0]" in result.output
+
+
+@pytest.mark.parametrize("var_name", ["popprof_24hr", "humactivity_24hr"])
+@pytest.mark.parametrize("bad_val", [-999.0, float("nan"), float("-inf"), float("inf"), 0.5, 2.5])
+def test_check_state_enforces_finite_day_night_bounds(
+    var_name: str, bad_val: float
+) -> None:
+    """check_state rejects missing/sentinel/non-finite/out-of-range values when active."""
+    import numpy as np  # noqa: PLC0415
+
+    from supy._check import check_state  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    df_state = cfg.to_df_state()
+    baseline_issues = check_state(df_state, fix=False) or []
+    assert not any(var_name in msg for msg in baseline_issues)
+
+    df_bad = df_state.copy()
+    df_bad[(var_name, "(0, 0)")] = bad_val
+    issues = check_state(df_bad, fix=False) or []
+    assert any(var_name in msg for msg in issues)
+
+    # When emissionsmethod == 0 (inactive), exact -999 and NaN are permitted,
+    # whereas +/-inf and finite out-of-range values remain rejected.
+    df_inactive = df_bad.copy()
+    df_inactive[("emissionsmethod", "0")] = 0
+    inactive_issues = check_state(df_inactive, fix=False) or []
+    if bad_val == -999.0 or np.isnan(bad_val):
+        assert not any(var_name in msg for msg in inactive_issues)
+    else:
+        assert any(var_name in msg for msg in inactive_issues)
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+def test_legacy_2016a_conversion_materialises_day_night_default_profile(
+    tmp_path: Path, validate_profiles: bool
+) -> None:
+    """Legacy 2016a->2025a conversion materialises finite 1.0 profile 99901 under both flags."""
+    import numpy as np  # noqa: PLC0415
+
+    from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_format" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a fixture not available")
+
+    dest = tmp_path / f"converted_vp_{validate_profiles}"
+    convert_table(
+        str(fixture_2016a),
+        str(dest),
+        "2016a",
+        "2025a",
+        validate_profiles=validate_profiles,
+    )
+
+    profiles_path = dest / "Input" / "SUEWS_Profiles.txt"
+    if not profiles_path.exists():
+        profiles_path = dest / "SUEWS_Profiles.txt"
+    profiles_text = profiles_path.read_text(encoding="utf-8")
+    assert "99901" in profiles_text
+    assert "nan" not in profiles_text.lower()
+
+    df_state = load_InitialCond_grid_df(dest / "RunControl.nml")
+    for var_name in ("popprof_24hr", "humactivity_24hr"):
+        vals = df_state[var_name].to_numpy(dtype=float)
+        assert np.all(np.isfinite(vals))
+        assert np.all((vals >= 1.0) & (vals <= 2.0))

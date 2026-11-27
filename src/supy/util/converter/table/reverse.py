@@ -579,6 +579,31 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             elif path.exists():
                 _rename_table_column(path, new, old)
 
+    # 4. Prune synthetic day/night default profile row (e.g. 99901) introduced
+    # by forward Add rules once no remaining table in ``d`` references it.
+    from .profile_manager import ProfileManager  # noqa: PLC0415
+
+    day_night_code = str(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+    added_day_night = (
+        (step["Action"] == "Add")
+        & (step["Value"].astype(str).str.strip() == day_night_code)
+    ).any()
+    profiles_path = d / "SUEWS_Profiles.txt"
+    if added_day_night and profiles_path.exists():
+        still_referenced = False
+        for tbl in d.glob("SUEWS_*.txt"):
+            if tbl.name == "SUEWS_Profiles.txt":
+                continue
+            _, tbl_rows = _read_table(tbl)
+            if any(day_night_code in row[1:] for row in tbl_rows):
+                still_referenced = True
+                break
+        if not still_referenced:
+            prof_header, prof_rows = _read_table(profiles_path)
+            pruned = [r for r in prof_rows if r and r[0] != day_night_code]
+            if len(pruned) != len(prof_rows):
+                _write_table(profiles_path, prof_header, pruned)
+
 
 def reverse_convert_table(
     src_dir,

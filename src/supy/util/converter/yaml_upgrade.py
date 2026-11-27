@@ -3316,29 +3316,39 @@ def _hourly_tuple_to_dict(values: tuple[float, ...]) -> dict[str, float]:
     return {str(hour): val for hour, val in enumerate(values, start=1)}
 
 
+def _parse_profile_number(raw_v: Any) -> float | None:
+    """Parse a finite numeric hourly-profile value (accepting numeric strings like HourlyProfile)."""
+    if isinstance(raw_v, bool):
+        return None
+    if isinstance(raw_v, (int, float)):
+        fval = float(raw_v)
+    elif isinstance(raw_v, str):
+        try:
+            fval = float(raw_v)
+        except ValueError:
+            return None
+    else:
+        return None
+    return fval if math.isfinite(fval) else None
+
+
 def _extract_complete_24hr_values(day_map: Mapping) -> list[float] | None:
     """Return 24 finite float values ordered hours 1..24 if all 24 slots are numeric."""
-    by_hour: dict[int, float] = {}
-    for raw_k, raw_v in day_map.items():
-        if isinstance(raw_k, bool):
-            return None
-        if isinstance(raw_k, int):
-            hour = raw_k
-        elif isinstance(raw_k, str) and raw_k.isdigit():
-            hour = int(raw_k)
-        else:
-            return None
-        if not (1 <= hour <= 24):
-            return None
-        if isinstance(raw_v, bool) or not isinstance(raw_v, (int, float)):
-            return None
-        fval = float(raw_v)
-        if not math.isfinite(fval):
-            return None
-        by_hour[hour] = fval
-    if len(by_hour) != 24:
+    from ...data_model.core.profile import normalise_hourly_profile_mapping  # noqa: PLC0415
+
+    try:
+        normalised = normalise_hourly_profile_mapping(dict(day_map))
+    except ValueError:
         return None
-    return [by_hour[h] for h in range(1, 25)]
+    if len(normalised) != 24:
+        return None
+    values: list[float] = []
+    for hour in range(1, 25):
+        fval = _parse_profile_number(normalised.get(str(hour)))
+        if fval is None:
+            return None
+        values.append(fval)
+    return values
 
 
 def _matches_profile_sequence(
@@ -3414,22 +3424,30 @@ def _migrate_day_night_hourly_profiles(cfg: dict) -> dict:
                 if not isinstance(day_map, dict) or not day_map:
                     continue
 
+                from ...data_model.core.profile import (  # noqa: PLC0415
+                    normalise_hourly_profile_mapping,
+                )
+
+                try:
+                    normalised_day_map = normalise_hourly_profile_mapping(dict(day_map))
+                except ValueError as exc:
+                    raise YamlUpgradeError(
+                        f"{site_label}: anthropogenic_emissions.{section_name}."
+                        f"{field_name}.{day_type} has invalid or colliding hour keys: {exc}"
+                    ) from exc
+
                 bad_entries: list[str] = []
-                for raw_k, raw_v in day_map.items():
+                for raw_k, raw_v in normalised_day_map.items():
                     if raw_v is None:
                         continue
-                    if (
-                        isinstance(raw_v, bool)
-                        or not isinstance(raw_v, (int, float))
-                        or not math.isfinite(float(raw_v))
-                        or not (1.0 <= float(raw_v) <= 2.0)
-                    ):
+                    fval = _parse_profile_number(raw_v)
+                    if fval is None or not (1.0 <= fval <= 2.0):
                         bad_entries.append(f"{raw_k}={raw_v!r}")
 
                 if not bad_entries:
                     continue
 
-                complete = _extract_complete_24hr_values(day_map)
+                complete = _extract_complete_24hr_values(normalised_day_map)
                 if complete is not None and all(
                     abs(v - (1.0 / 24.0)) <= 1e-5 for v in complete
                 ):

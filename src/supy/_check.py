@@ -650,6 +650,22 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
         if val["logic"] == "range":
             for ind in df_var.index:
                 ser_var = df_var.loc[ind].rename(var)
+                if var in ("popprof_24hr", "humactivity_24hr") and (
+                    "emissionsmethod" in col_df_state
+                ):
+                    em_row = df_state["emissionsmethod"].loc[ind]
+                    em_val = (
+                        em_row.iloc[0] if isinstance(em_row, pd.Series) else em_row
+                    )
+                    if pd.notna(em_val) and int(em_val) == 0:
+                        # When anthropogenic emissions are disabled (emissionsmethod=0),
+                        # permit NaN and exact -999 inactive sentinels while still
+                        # rejecting +/-inf and any finite value outside [1, 2].
+                        from .util._missing import SUEWS_MISSING  # noqa: PLC0415
+
+                        ser_var = ser_var.loc[
+                            ser_var.notna() & (ser_var != SUEWS_MISSING)
+                        ]
                 res_check = check_range(ser_var, dict_rules_indiv)
                 if not res_check[1]:
                     str_issue = res_check[2] + f" at index `{ind}`"

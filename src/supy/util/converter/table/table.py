@@ -1606,6 +1606,22 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     # Re-apply harvested cross-file moves over the Add defaults.
     _apply_step_moves(toDir, moved_values, fromVer, toVer)
 
+    # Materialise conversion-introduced day/night default profile codes (e.g.
+    # 99901, uniform 1.0 on [1.0, 2.0]) unconditionally in SUEWS_Profiles.txt
+    # so converted tables remain self-contained even when validate_profiles=False.
+    day_night_code = ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"]
+    step_actions = rules.iloc[posRules]
+    added_day_night = (
+        (step_actions["Action"] == "Add")
+        & (step_actions["Value"].astype(str).str.strip() == str(day_night_code))
+    ).any()
+    if added_day_night:
+        profiles_path = Path(toDir) / "SUEWS_Profiles.txt"
+        if profiles_path.exists():
+            ProfileManager(profiles_path).ensure_profile_codes(
+                Path(toDir), [day_night_code]
+            )
+
 
 def SUEWS_Converter_file(fileX, actionList):
     # actionList:[Action,File,Variable,Column,Value]

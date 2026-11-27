@@ -8,16 +8,16 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "6c9e422",
-    "source_ref": "da78796e4f5143a9c7c432c1effbb10aa1e04de3",
-    "source_tree": "598d5249d6517b1f171dad05f26958ea4f049b09",
-    "supy_version": "2026.11.24.dev18"
+    "git_commit": "5526161",
+    "source_ref": "df8f67ee306f16d075874b4982eb34ff9e85c9e9",
+    "source_tree": "f5ab16afad164b62d029e5c54a516ac9dd549ca2",
+    "supy_version": "2026.11.27.dev11"
   },
   "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",
   "columns": 113,
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-24T22:41:22Z",
+  "generated_utc": "2026-11-27T07:44:29Z",
   "platform": {
     "libc": "glibc 2.17",
     "machine": "x86_64",
@@ -29,63 +29,63 @@
   "shards": [
     {
       "name": "sample_output_2012-01.csv",
-      "sha256": "041335c8acf4637f1d15f1666da3c43d8d14bacfe6d7e027a99f0f24645acd48",
-      "size_bytes": 6845925
+      "sha256": "2a3fdb88eb549d5a17afab98f5e14a64a8b4d4f8415d2cd560be62eb2d2be0c9",
+      "size_bytes": 6783491
     },
     {
       "name": "sample_output_2012-02.csv",
-      "sha256": "09c8fcc76f721469dae1e874de2747d7df76f43929fe7c1edac870d4572c4f1b",
-      "size_bytes": 6374641
+      "sha256": "5c4c36b478170e6e3418ed12fc19dcaef1870d0d8d40d488e76df8129764a51d",
+      "size_bytes": 6315943
     },
     {
       "name": "sample_output_2012-03.csv",
-      "sha256": "edc2c8e31a517a85a4ff761407730c2705fcb32c483c8b205effd48fa120226e",
-      "size_bytes": 6729496
+      "sha256": "d9930789c5edfb9b3a3ef83981783b3cf6b01b783e042cd38440e8c7b2dbd001",
+      "size_bytes": 6671239
     },
     {
       "name": "sample_output_2012-04.csv",
-      "sha256": "cee48b10938b04d093f65157250d18df81f6316f8c0f67beab07a9de0f9467b4",
-      "size_bytes": 6752071
+      "sha256": "abdf3de962758425b4e00ae450e0825e3f81f1496152c21100f904772adbc878",
+      "size_bytes": 6758234
     },
     {
       "name": "sample_output_2012-05.csv",
-      "sha256": "fec7eb56bf50ddbd783c41daefdf620f1ec1dbc4629f79be9eced34da5ddad48",
-      "size_bytes": 6739929
+      "sha256": "dcb77292425f3205adee167f5b7a4e2f20115ac8dccd047853204abc6646955e",
+      "size_bytes": 6739616
     },
     {
       "name": "sample_output_2012-06.csv",
-      "sha256": "e6da92c0e7ecb46ff215ca199c54099787c1fcc9ad9c783da8ad402fb5ccbc17",
-      "size_bytes": 6619539
+      "sha256": "66fd46a55b4a01e82e702dc0692abaa14ca0d049b67c50032697315a797baff8",
+      "size_bytes": 6619530
     },
     {
       "name": "sample_output_2012-07.csv",
-      "sha256": "df1a97070e9f08bbf391e46f7bc60045fb0b66612767cb11619458618fba33ed",
-      "size_bytes": 6847299
+      "sha256": "e59e08b4d037c89137bf4d7449db9460f84c3a0c4a11870a3e7f8c40982c3abe",
+      "size_bytes": 6847417
     },
     {
       "name": "sample_output_2012-08.csv",
-      "sha256": "18ae24248edc6413080ee69314592618022ce36ec6e9b7e6e40e6cabb1956c3c",
-      "size_bytes": 6699042
+      "sha256": "404da4dbd14d3e0c81329c3ccc2cfcd322c931ebc54dedd0fd085e4c5f6d3ce4",
+      "size_bytes": 6698923
     },
     {
       "name": "sample_output_2012-09.csv",
-      "sha256": "0f872c45e1f6e7106246fbf56ad89b122ae2023e431f721fc24d47c5b1da9090",
-      "size_bytes": 6497374
+      "sha256": "4f3d5e42e89235e1d2c5638a9eadee35ee288ecc3064bc47c5dd74808d69feaf",
+      "size_bytes": 6495198
     },
     {
       "name": "sample_output_2012-10.csv",
-      "sha256": "954b340e2c4878fc46aec4d7117910e7a27edd5751accde16a7dd270ce55f12e",
-      "size_bytes": 6945004
+      "sha256": "d370b328cb9f54160c26fe22bf5a00841f76cc6993e9051f8637c6364c2192b8",
+      "size_bytes": 6951191
     },
     {
       "name": "sample_output_2012-11.csv",
-      "sha256": "0fb070245439f5d117fceb299cea38b2fa3f1c04001f914a007f368148a0bdc2",
-      "size_bytes": 6707407
+      "sha256": "48e6a19e15bd48a5df603c3fe23e4c856aacbf98480ac9f161cfff8946954c68",
+      "size_bytes": 6731728
     },
     {
       "name": "sample_output_2012-12.csv",
-      "sha256": "2edb065b0084e0a688a54860954890bb46afb13dd83320300c09ef8522781524",
-      "size_bytes": 6952371
+      "sha256": "3cb9d78cfa4656a2ac614490c46a5a56d53afb930de9b73f1a3e4310e6432335",
+      "size_bytes": 6963839
     }
   ]
 }

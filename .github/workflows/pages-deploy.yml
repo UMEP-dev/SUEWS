@@ -2,16 +2,19 @@ name: GitHub Pages Deploy
 
 # RELIABLE GITHUB PAGES DEPLOYMENT
 # =================================
-# Deploys static content from site/ and Sphinx docs to GitHub Pages.
-# - Push to master: Deploy production site
-# - Pull request: Add preview to /preview/pr-{NUMBER}/ (site + docs)
+# Deploys static content from site/ and versioned + latest forcing/output data
+# contracts under /contracts/ to GitHub Pages, preserving previously published
+# contract versions across deployments.
+# - Push to master: Build docs, assemble site/ + contracts/, validate, deploy
+# - Pull request: Validate static site/ packaging only (preserves the
+#   gh#1431/gh#1432 privilege boundary: no PR docs build, no PR Python
+#   execution in this privileged workflow, and no Pages deployment; PR contract
+#   publication validation runs unprivileged in data-interface-version-audit.yml)
 # - Manual dispatch: Force redeploy
 #
-# Previews are ephemeral - each deployment includes full site from repo.
-# No wget required; repo content is the single source of truth.
-#
-# NOTE: Schema hosting removed - validation handled by Pydantic at runtime
-# NOTE: Fork PRs cannot deploy (no OIDC tokens) but still build docs for validation
+# NOTE: YAML config validation is handled by Pydantic at runtime; versioned
+# forcing and output data contracts are published under /contracts/.
+# NOTE: Fork PRs cannot deploy (no OIDC tokens)
 
 on:
   push:
@@ -20,6 +23,7 @@ on:
       - 'site/**'
       - 'docs/**'
       - 'src/supy/data_model/**'
+      - 'scripts/suews/publish_contracts.py'
       - '.github/workflows/pages-deploy.yml'
 
   pull_request:
@@ -35,14 +39,16 @@ concurrency:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-  pull-requests: write
 
 jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      pull-requests: write
 
     # Use 'preview' environment for PRs (no branch restrictions)
     environment:
@@ -80,6 +86,9 @@ jobs:
           make docs
 
       - name: Build site
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUM: ${{ github.event.pull_request.number || '' }}
         run: |
           mkdir -p _site
 
@@ -87,8 +96,7 @@ jobs:
           cp -r site/* _site/
 
           # Add PR preview if applicable
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_NUM="${{ github.event.pull_request.number }}"
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
             PR_DIR="preview/pr-${PR_NUM}"
             mkdir -p "_site/${PR_DIR}"
             cp -r site/* "_site/${PR_DIR}/"
@@ -102,8 +110,8 @@ jobs:
             fi
 
             # Rewrite absolute paths for preview context
-            # /brand/ → /preview/pr-N/brand/ so links work within preview
-            # https://docs.suews.io → /preview/pr-N/docs/ so docs links use preview
+            # /brand/ -> /preview/pr-N/brand/ so links work within preview
+            # https://docs.suews.io -> /preview/pr-N/docs/ so docs links use preview
             echo "Rewriting absolute paths for preview..."
             find "_site/${PR_DIR}" -name "*.html" -type f -not -path "*/${PR_DIR}/docs/*" | while read -r f; do
               sed -i "s|href=\"/brand/|href=\"/${PR_DIR}/brand/|g" "$f"
@@ -127,26 +135,259 @@ jobs:
             # Inject preview banner into docs pages (Sphinx theme structure)
             DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://docs.suews.io/" style="color:#fff;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
 
-            find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
-              # Inject banner after <body> tag
-              sed -i "s|<body |<body>${DOCS_BANNER}<body-placeholder |g" "$f"
-              sed -i "s|<body-placeholder |<div |g" "$f"
-            done
-            echo "Injected preview banner into docs pages"
+            if [ -d "_site/${PR_DIR}/docs" ]; then
+              find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
+                # Inject banner after <body> tag
+                sed -i "s|<body |<body>${DOCS_BANNER}<body-placeholder |g" "$f"
+                sed -i "s|<body-placeholder |<div |g" "$f"
+              done
+              echo "Injected preview banner into docs pages"
+            fi
           fi
 
           touch _site/.nojekyll
           echo "Site ready: $(find _site -type f | wc -l) files"
+
+      - name: Fetch previous published contracts
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          CONTRACTS_BASE_URL: https://suews.io
+          PREV_CONTRACTS_DIR: _prev_contracts
+          CONTRACTS_FETCH_RETRIES: "3"
+          CONTRACTS_FETCH_RETRY_DELAY: "2"
+          CONTRACTS_FETCH_TIMEOUT: "30"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import sys
+          import tempfile
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          INTERFACES = ("forcing", "output")
+          BUNDLE_FILES = ("catalogue.json", "catalogue.schema.json", "manifest.json")
+          SEMVER_RE = re.compile(
+              r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z",
+              re.ASCII,
+          )
+          MAX_BYTES = 50 * 1024 * 1024
+
+          base_url = os.environ["CONTRACTS_BASE_URL"].strip().rstrip("/")
+          dest = Path(os.environ["PREV_CONTRACTS_DIR"])
+          max_retries = max(1, int(os.environ.get("CONTRACTS_FETCH_RETRIES", "3")))
+          retry_delay = max(0.0, float(os.environ.get("CONTRACTS_FETCH_RETRY_DELAY", "2")))
+          timeout_s = max(1.0, float(os.environ.get("CONTRACTS_FETCH_TIMEOUT", "30")))
+
+          origin = urllib.parse.urlsplit(base_url)
+          if (
+              origin.scheme not in ("https", "http")
+              or not origin.netloc
+              or origin.query
+              or origin.fragment
+              or origin.username is not None
+              or origin.password is not None
+          ):
+              print(f"[contracts] FAILED: invalid CONTRACTS_BASE_URL: {base_url!r}", file=sys.stderr)
+              raise SystemExit(1)
+
+          if dest.is_symlink():
+              print(f"[contracts] FAILED: refuses symlink destination: {dest}", file=sys.stderr)
+              raise SystemExit(1)
+          if dest.exists():
+              if dest.is_dir():
+                  shutil.rmtree(dest)
+              else:
+                  print(f"[contracts] FAILED: destination exists and is not a directory: {dest}", file=sys.stderr)
+                  raise SystemExit(1)
+
+          class _SameOriginRedirectHandler(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  target = urllib.parse.urljoin(req.full_url, newurl)
+                  parsed = urllib.parse.urlsplit(target)
+                  if (
+                      parsed.scheme.lower() != origin.scheme.lower()
+                      or parsed.netloc.lower() != origin.netloc.lower()
+                  ):
+                      raise urllib.error.HTTPError(
+                          target,
+                          code,
+                          f"Refused cross-origin or scheme-downgrade redirect to {target}",
+                          headers,
+                          fp,
+                      )
+                  return super().redirect_request(req, fp, code, msg, headers, target)
+
+          opener = urllib.request.build_opener(_SameOriginRedirectHandler)
+
+          def fetch_bytes(url: str, *, allow_not_found: bool = False) -> bytes | None:
+              for attempt in range(1, max_retries + 1):
+                  req = urllib.request.Request(
+                      url,
+                      headers={
+                          "User-Agent": "suews-pages-deploy/1.0",
+                          "Cache-Control": "no-cache",
+                      },
+                  )
+                  try:
+                      with opener.open(req, timeout=timeout_s) as resp:
+                          data = resp.read(MAX_BYTES + 1)
+                      if len(data) > MAX_BYTES:
+                          raise RuntimeError(f"{url}: response exceeds {MAX_BYTES} byte limit")
+                      return data
+                  except urllib.error.HTTPError as exc:
+                      if exc.code == 404 and allow_not_found:
+                          return None
+                      if exc.code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                          time.sleep(retry_delay * attempt)
+                          continue
+                      raise RuntimeError(f"HTTP {exc.code} fetching {url}: {exc.reason}") from exc
+                  except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                      if attempt < max_retries:
+                          time.sleep(retry_delay * attempt)
+                          continue
+                      raise RuntimeError(f"Network error fetching {url}: {exc}") from exc
+              raise RuntimeError(f"Exhausted retries fetching {url}")
+
+          def parse_json_object(raw: bytes, label: str) -> dict:
+              def _reject_const(token: str):
+                  raise ValueError(f"non-standard JSON constant {token!r}")
+
+              try:
+                  parsed = json.loads(raw.decode("utf-8"), parse_constant=_reject_const)
+              except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                  raise RuntimeError(f"{label}: invalid JSON: {exc}") from exc
+              if not isinstance(parsed, dict):
+                  raise RuntimeError(f"{label}: expected JSON object")
+              return parsed
+
+          root_url = f"{base_url}/contracts/index.json"
+          try:
+              root_raw = fetch_bytes(root_url, allow_not_found=True)
+          except RuntimeError as exc:
+              print(f"[contracts] FAILED: {exc}", file=sys.stderr)
+              raise SystemExit(1)
+
+          if root_raw is None:
+              print(
+                  f"[contracts] No prior published contracts at {root_url} (HTTP 404); "
+                  "proceeding with fresh first deployment."
+              )
+              raise SystemExit(0)
+
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          staging = Path(tempfile.mkdtemp(prefix=f".{dest.name}.staging-", dir=dest.parent))
+          try:
+              root_index = parse_json_object(root_raw, root_url)
+              ifaces = root_index.get("interfaces")
+              if not isinstance(ifaces, dict) or set(ifaces) != set(INTERFACES):
+                  raise RuntimeError(f"{root_url}: unexpected interfaces mapping")
+              (staging / "index.json").write_bytes(root_raw)
+
+              counts: dict[str, int] = {}
+              for iface in INTERFACES:
+                  iface_meta = ifaces[iface]
+                  if not isinstance(iface_meta, dict) or not isinstance(iface_meta.get("versions"), list):
+                      raise RuntimeError(f"{root_url}: missing versions list for {iface}")
+                  versions = iface_meta["versions"]
+                  if not versions:
+                      raise RuntimeError(f"{root_url}: empty versions list for {iface}")
+                  for ver in versions:
+                      if not isinstance(ver, str) or SEMVER_RE.fullmatch(ver) is None:
+                          raise RuntimeError(f"{root_url}: invalid version {ver!r} for {iface}")
+                  if len(set(versions)) != len(versions):
+                      raise RuntimeError(f"{root_url}: duplicate versions list for {iface}")
+
+                  iface_url = f"{base_url}/contracts/{iface}/index.json"
+                  iface_raw = fetch_bytes(iface_url)
+                  assert iface_raw is not None
+                  iface_index = parse_json_object(iface_raw, iface_url)
+                  raw_entries = iface_index.get("versions")
+                  if (
+                      iface_index.get("interface") != iface
+                      or not isinstance(raw_entries, list)
+                      or [
+                          e.get("version") if isinstance(e, dict) else None
+                          for e in raw_entries
+                      ] != versions
+                  ):
+                      raise RuntimeError(f"{iface_url}: version inventory disagrees with {root_url}")
+
+                  iface_dir = staging / iface
+                  iface_dir.mkdir(parents=True, exist_ok=True)
+                  (iface_dir / "index.json").write_bytes(iface_raw)
+
+                  for ver in versions:
+                      ver_dir = iface_dir / ver
+                      ver_dir.mkdir(parents=True, exist_ok=True)
+                      for fname in BUNDLE_FILES:
+                          file_url = f"{base_url}/contracts/{iface}/{ver}/{fname}"
+                          file_raw = fetch_bytes(file_url)
+                          assert file_raw is not None
+                          (ver_dir / fname).write_bytes(file_raw)
+
+                  counts[iface] = len(versions)
+
+              staging.rename(dest)
+              print(
+                  f"[OK] Fetched prior published contracts into {dest} "
+                  f"(forcing: {counts['forcing']}, output: {counts['output']})"
+              )
+          except RuntimeError as exc:
+              print(f"[contracts] FAILED: {exc}", file=sys.stderr)
+              raise SystemExit(1)
+          finally:
+              if staging.exists():
+                  shutil.rmtree(staging)
+          PY
+
+      - name: Build and validate data contracts
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          CONTRACTS_BASE_URL: https://suews.io
+          CONTRACTS_OUTPUT_DIR: _site/contracts
+          PREV_CONTRACTS_DIR: _prev_contracts
+        run: |
+          set -euo pipefail
+          if [ -n "${CONTRACTS_PYTHON:-}" ]; then
+            RUN_PY=("${CONTRACTS_PYTHON}")
+          elif [ -x .venv/bin/python ]; then
+            RUN_PY=(.venv/bin/python)
+          else
+            RUN_PY=(uv run --no-project --with 'jsonschema>=4.18' --with 'pydantic>=2.12' python)
+          fi
+          PUBLISH_ARGS=(
+            scripts/suews/publish_contracts.py
+            --output-dir "${CONTRACTS_OUTPUT_DIR}"
+            --base-url "${CONTRACTS_BASE_URL}"
+          )
+          if [ -d "${PREV_CONTRACTS_DIR}" ]; then
+            PUBLISH_ARGS+=(--preserve-from "${PREV_CONTRACTS_DIR}")
+          fi
+          "${RUN_PY[@]}" "${PUBLISH_ARGS[@]}"
+          "${RUN_PY[@]}" scripts/suews/publish_contracts.py \
+            --validate-only "${CONTRACTS_OUTPUT_DIR}" \
+            --base-url "${CONTRACTS_BASE_URL}"
+          rm -rf "${PREV_CONTRACTS_DIR}"
 
       # Fork PRs cannot deploy - they lack OIDC tokens required by deploy-pages
       # Detect fork: compare PR head repo with base repo
       - name: Check if fork PR
         id: fork-check
         env:
+          EVENT_NAME: ${{ github.event_name }}
           HEAD_REPO_FULL_NAME: ${{ github.event.pull_request.head.repo.full_name || '' }}
           BASE_REPO_FULL_NAME: ${{ github.repository }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
             HEAD_REPO="${HEAD_REPO_FULL_NAME}"
             BASE_REPO="${BASE_REPO_FULL_NAME}"
             if [ "$HEAD_REPO" != "$BASE_REPO" ]; then

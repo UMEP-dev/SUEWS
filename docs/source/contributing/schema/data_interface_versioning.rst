@@ -211,11 +211,12 @@ output contract release directly through the ``suews contracts`` CLI:
    suews contracts export output --artefact bundle -o ./output-contract
 
 Static site builds materialise deterministic, version-addressed directories
-alongside moving ``latest`` aliases for the target GitHub Pages layout under
-``https://suews.io/contracts/`` (workflow deployment to live GitHub Pages is
-pending the companion Pages workflow update; until that workflow change lands,
-build and inspect the same tree locally with ``make contracts-site`` or export
-directly through ``suews contracts``):
+alongside moving ``latest`` aliases and publish them to GitHub Pages under
+``https://suews.io/contracts/`` via ``.github/workflows/pages-deploy.yml``
+(preserving previously published versions across deployments and validating the
+published layout in CI on pull requests and before deployment; reproduce the
+same tree locally with ``make contracts-site`` or export directly through
+``suews contracts``):
 
 - ``https://suews.io/contracts/index.json`` and ``index.html``: top-level
   machine-readable and HTML discovery indices.

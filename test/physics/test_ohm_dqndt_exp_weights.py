@@ -1,4 +1,4 @@
-"""Regression tests for exact exponential weights and step-1 guard in ``OHM_dqndt_cal_X``.
+"""Regression tests for exact exponential weights and step-1 guard in ``OHM_dqndt_cal``.
 
 Verifies the GH#2194 ``c2_exp_cascaded_1h_2h`` formulation:
 
@@ -15,17 +15,13 @@ Verifies the GH#2194 ``c2_exp_cascaded_1h_2h`` formulation:
 from __future__ import annotations
 
 import copy
-import ctypes
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import as_file, files
 import json
 import math
-import os
 from pathlib import Path
-import subprocess
 
-from conftest import require_fortran_probe_toolchain
 import numpy as np
 import pandas as pd
 import pytest
@@ -413,101 +409,4 @@ def test_moment_matched_diurnal_phase_lag_matches_2016_centroid():
     assert 1.0 <= lag_hr <= 1.85, (
         f"Expected diurnal phase lag near 1.5 h (moment-matched to 2016 OHM), got {lag_hr:.2f} h "
         f"(Q* peak {peak_hr:.2f} h, dQ*/dt zero-crossing {zc_hr:.2f} h)"
-    )
-
-
-def _compile_ohm_dqndt_cal_probe(tmp_path: Path):
-    """Compile a minimal ``bind(C)`` wrapper around ``module_phys_ohm::OHM_dqndt_cal``."""
-    compiler, suews_dir = require_fortran_probe_toolchain(
-        "Native OHM_dqndt_cal probe",
-        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
-        modules=("module_phys_ohm.mod",),
-    )
-
-    wrapper = tmp_path / "ohm_dqndt_cal_probe.f90"
-    wrapper.write_text(
-        """subroutine call_ohm_dqndt_cal(nsh, qn, qn_store, qn_av_store, dqndt) bind(C)
-  use iso_c_binding, only: c_int, c_double
-  use module_phys_ohm, only: OHM_dqndt_cal
-  implicit none
-  integer(c_int), value :: nsh
-  real(c_double), value :: qn
-  real(c_double), intent(inout) :: qn_store(nsh)
-  real(c_double), intent(inout) :: qn_av_store(2 * nsh + 1)
-  real(c_double), intent(out) :: dqndt
-  call OHM_dqndt_cal(nsh, qn, qn_store, qn_av_store, dqndt)
-end subroutine call_ohm_dqndt_cal
-""",
-        encoding="ascii",
-    )
-    lib_path = tmp_path / (
-        "ohm_dqndt_cal_probe.dll" if os.name == "nt" else "ohm_dqndt_cal_probe.so"
-    )
-    result = subprocess.run(
-        [
-            compiler,
-            "-shared",
-            "-fPIC",
-            str(wrapper),
-            "-I",
-            str(suews_dir / "mod"),
-            "-L",
-            str(suews_dir / "lib"),
-            "-lsuewsphys",
-            "-lsuewsutil",
-            "-lspartacus",
-            "-o",
-            str(lib_path),
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, (
-        f"Failed to compile OHM_dqndt_cal probe:\n{result.stderr}"
-    )
-    if os.name == "nt":
-        with os.add_dll_directory(str(Path(compiler).resolve().parent)):
-            lib = ctypes.CDLL(str(lib_path))
-    else:
-        lib = ctypes.CDLL(str(lib_path))
-    arr_arg = np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS")
-    fn = lib.call_ohm_dqndt_cal
-    fn.argtypes = [
-        ctypes.c_int,
-        ctypes.c_double,
-        arr_arg,
-        arr_arg,
-        ctypes.POINTER(ctypes.c_double),
-    ]
-    fn.restype = None
-    return fn
-
-
-@pytest.mark.core
-def test_legacy_ohm_dqndt_cal_nsh1_hourly_shift(tmp_path: Path):
-    """Legacy ``OHM_dqndt_cal`` with ``nsh = 1`` must shift the 3-slot ring buffer."""
-    call_probe = _compile_ohm_dqndt_cal_probe(tmp_path)
-    qn_store = np.full(1, -999.0, dtype=np.float64)
-    qn_av_store = np.full(3, -999.0, dtype=np.float64)
-    dqndt_out = ctypes.c_double(-999.0)
-
-    hourly_qn = [100.0, 220.0, 340.0, 400.0]
-    expected_dqndt = [
-        0.0,
-        0.0,
-        0.5 * (hourly_qn[2] - hourly_qn[0]),
-        0.5 * (hourly_qn[3] - hourly_qn[1]),
-    ]
-
-    for step, (qn_val, expected) in enumerate(
-        zip(hourly_qn, expected_dqndt, strict=True), start=1
-    ):
-        call_probe(1, qn_val, qn_store, qn_av_store, ctypes.byref(dqndt_out))
-        assert dqndt_out.value == pytest.approx(expected, rel=1.0e-12, abs=1.0e-12), (
-            f"OHM_dqndt_cal(nsh=1) step {step}: got {dqndt_out.value}, expected {expected}"
-        )
-
-    np.testing.assert_allclose(
-        qn_av_store, [220.0, 340.0, 400.0], rtol=0.0, atol=1.0e-12
     )

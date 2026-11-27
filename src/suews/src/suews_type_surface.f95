@@ -90,7 +90,7 @@ module module_type_surface
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a1_surf = -999.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a2_surf = -999.0D0
       REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a3_surf = -999.0D0
-      ! flag for iteration safety - NO: OHM_dqndt_cal_X advances running-mean radiation
+      ! flag for iteration safety - NO: OHM_dqndt_cal advances running-mean radiation
       ! history and DyOHM/AnOHM update running averages once per timestep, not per inner pass.
       LOGICAL :: iter_safe = .FALSE.
    END TYPE OHM_STATE

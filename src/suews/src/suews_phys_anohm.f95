@@ -22,7 +22,7 @@
 MODULE module_phys_anohm
    USE module_ctrl_const_mathconst, ONLY: pi
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
-   USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
+   USE module_phys_ohm, ONLY: OHM_dqndt_cal, OHM_QS_cal
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
@@ -144,8 +144,8 @@ CONTAINS
 
          ! Store instantaneous qn1 values for previous hour (qn1_store) and average (qn1_av)
          ! CALL OHM_dqndt_cal(nsh,qn1,qn1_store,qn1_av_store,dqndt)
-         CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                              qn_av_next, dqndt_next)
+         CALL OHM_dqndt_cal(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                            qn_av_next, dqndt_next)
 
          ! Calculate net storage heat flux (use updated dqndt_next, matching OHM;
          ! previously relied on aliased dqndt_prev == dqndt_next)

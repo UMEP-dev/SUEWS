@@ -325,10 +325,8 @@ class TestFillGapAll:
     def test_fill_gap_all_x_recursive_split_with_and_without_residual(self):
         """Series > 4 days split recursively, preserving both exact and residual lengths.
 
-        Note: recursive calls at ``_gap_filler.py:160-161`` omit ``limit_fill`` and
-        default to ``limit_fill=1``, so each recursion level applies one linear
-        interpolation step before neighbouring-day matching. This test verifies the
-        complete filled series (including every missing timestep) under ``limit_fill=1``.
+        With ``limit_fill=1``, each recursion level applies one linear
+        interpolation step before neighbouring-day matching fills the remainder.
         """
         # Exact 6 days (1 split into 3 + 3 days, no residual): two interpolation
         # passes (top level + child chunk) fill the first 2 missing steps per gap,
@@ -368,6 +366,337 @@ class TestFillGapAll:
         assert len(filled_res) == len(base_res)
         assert not filled_res.isna().any()
         np.testing.assert_allclose(filled_res.values, expected_res.values, rtol=1e-12)
+
+    def test_fill_gap_all_x_propagates_limit_fill_through_recursion(self):
+        """Recursive calls honour caller's limit_fill (0 disables interpolation; >1 applies it)."""
+        # limit_fill=0 across 6 days (>4 chunks): no linear interpolation at any
+        # recursion depth, so identical neighbouring days recover the exact diurnal curve.
+        base = _make_diurnal_series(n_days=6)
+        ser_zero = base.copy()
+        ser_zero.iloc[24 + 4 : 24 + 10] = np.nan
+        ser_zero.iloc[96 + 8 : 96 + 14] = np.nan
+
+        filled_zero = fill_gap_all_x(ser_zero, freq="1D", limit_fill=0)
+        assert not filled_zero.isna().any()
+        np.testing.assert_allclose(filled_zero.values, base.values, rtol=1e-12)
+
+        # limit_fill=2 across 6 days with a 5-hour gap: top level interpolates 2 steps,
+        # child chunk interpolates 2 more steps, and day matching fills the 5th step.
+        ser_two = base.copy()
+        ser_two.iloc[24 + 4 : 24 + 9] = np.nan
+
+        expected_two = base.copy()
+        interp_two = ser_two.interpolate(limit=2).interpolate(limit=2)
+        expected_two.iloc[24 + 4 : 24 + 8] = interp_two.iloc[24 + 4 : 24 + 8]
+
+        filled_two = fill_gap_all_x(ser_two, freq="1D", limit_fill=2)
+        assert not filled_two.isna().any()
+        np.testing.assert_allclose(filled_two.values, expected_two.values, rtol=1e-12)
+
+    def test_fill_gap_all_x_and_fill_gap_all_propagate_custom_freq(self):
+        """Custom freq ('12h', '6h') propagates through split, ratio check, and fill."""
+        # 3 days at 1h resolution = 6 divisions of 12h (>4 triggers recursion).
+        idx_12h = pd.date_range("2023-07-01 00:00", periods=72, freq="1h")
+        base_12h = pd.Series(
+            15.0 + 10.0 * np.sin(2.0 * np.pi * (idx_12h.hour % 12) / 12.0),
+            index=idx_12h,
+            dtype=float,
+        )
+        ser_12h = base_12h.copy()
+        ser_12h.iloc[12 + 2 : 12 + 6] = np.nan  # chunk 1 of 6
+        ser_12h.iloc[48 + 3 : 48 + 7] = np.nan  # chunk 4 of 6
+
+        filled_12h_x = fill_gap_all_x(ser_12h, freq="12h", limit_fill=0)
+        assert not filled_12h_x.isna().any()
+        np.testing.assert_allclose(filled_12h_x.values, base_12h.values, rtol=1e-12)
+
+        # Public entry point fill_gap_all must also honour freq='12h' and limit_fill=0.
+        filled_12h_all = fill_gap_all(
+            ser_12h, freq="12h", limit_fill=0, thresh_ratio=0.5
+        )
+        assert not filled_12h_all.isna().any()
+        np.testing.assert_allclose(filled_12h_all.values, base_12h.values, rtol=1e-12)
+
+        # 2 days at 1h resolution = 8 divisions of 6h (>4 triggers recursion, and
+        # each 4-chunk child spans only 1 calendar day so daily ratio would wrongly fail).
+        idx_6h = pd.date_range("2023-07-01 00:00", periods=48, freq="1h")
+        base_6h = pd.Series(
+            20.0 + 5.0 * np.cos(2.0 * np.pi * (idx_6h.hour % 6) / 6.0),
+            index=idx_6h,
+            dtype=float,
+        )
+        ser_6h = base_6h.copy()
+        ser_6h.iloc[6 + 1 : 6 + 4] = np.nan  # chunk 1 of 8
+        ser_6h.iloc[30 + 2 : 30 + 5] = np.nan  # chunk 5 of 8
+
+        filled_6h = fill_gap_all_x(ser_6h, freq="6h", limit_fill=0)
+        assert not filled_6h.isna().any()
+        np.testing.assert_allclose(filled_6h.values, base_6h.values, rtol=1e-12)
+
+        filled_6h_all = fill_gap_all(ser_6h, freq="6h", limit_fill=0, thresh_ratio=0.5)
+        assert not filled_6h_all.isna().any()
+        np.testing.assert_allclose(filled_6h_all.values, base_6h.values, rtol=1e-12)
+
+    def test_fill_gap_all_x_rebalances_split_in_timestep_units(self):
+        """Rebalancing shifts n_sep by n_chunk timesteps so an all-gapped half gets valid data."""
+        # 7 days: days 0-2 valid, days 3-6 gapped ([0, 0, 0, 1, 1, 1, 1]).
+        # Without rebalancing (midpoint split 3 + 4), the right half [1, 1, 1, 1]
+        # has 0% valid days and leaves every gap untouched. Rebalancing shifts the
+        # split to 2 + 5 ([0, 0] + [0, 1, 1, 1, 1]), allowing day 3 to be filled
+        # from day 2 via recursive split [0, 1] + [1, 1, 1].
+        base = _make_diurnal_series(n_days=7)
+        ser = base.copy()
+        for day in range(3, 7):
+            ser.iloc[day * 24 + 4 : day * 24 + 8] = np.nan
+
+        filled = fill_gap_all_x(ser, freq="1D", limit_fill=0)
+
+        assert not filled.iloc[3 * 24 : 4 * 24].isna().any()
+        np.testing.assert_allclose(
+            filled.iloc[3 * 24 : 4 * 24].values,
+            base.iloc[3 * 24 : 4 * 24].values,
+            rtol=1e-12,
+        )
+        # Days 4-6 remain unfillable in a single pass without pre-interpolation.
+        assert filled.iloc[4 * 24 :].isna().sum() == 3 * 4
+
+    def test_fill_gap_all_x_and_fill_gap_all_terminate_on_unfillable_gaps(self):
+        """Unfillable gap layouts and edge shapes terminate without infinite loops or crashes."""
+        # 1. All 6 days gapped: both halves < rinfo_thresh (must not stall or loop).
+        ser_all_gapped = _make_diurnal_series(n_days=6)
+        for day in range(6):
+            ser_all_gapped.iloc[day * 24 + 2 : day * 24 + 5] = np.nan
+        res_all = fill_gap_all_x(ser_all_gapped, freq="1D", limit_fill=0)
+        assert res_all.isna().sum() == ser_all_gapped.isna().sum()
+
+        # 2. Oscillation pattern [1, 1, 1, 0, 1, 1]: only day 3 valid.
+        ser_osc = _make_diurnal_series(n_days=6)
+        for day in (0, 1, 2, 4, 5):
+            ser_osc.iloc[day * 24 + 2 : day * 24 + 5] = np.nan
+        res_osc = fill_gap_all_x(ser_osc, freq="1D", limit_fill=0)
+        assert res_osc.isna().sum() == ser_osc.isna().sum()
+
+        # 3. Boundary-exhaustion pattern [1, 1, 1, 1, 0]: only final day valid.
+        ser_edge = _make_diurnal_series(n_days=5)
+        for day in range(4):
+            ser_edge.iloc[day * 24 + 2 : day * 24 + 5] = np.nan
+        res_edge = fill_gap_all_x(ser_edge, freq="1D", limit_fill=0)
+        assert res_edge.isna().sum() == ser_edge.isna().sum()
+
+        # 4. Non-midnight-aligned 4-day series spanning 5 calendar days (resample
+        # yields 5 bins while full-chunk count is 4): must not raise UnboundLocalError.
+        idx_shifted = pd.date_range("2023-07-01 12:00", periods=96, freq="1h")
+        ser_shifted = pd.Series(
+            15.0 + 10.0 * np.sin(2.0 * np.pi * (idx_shifted.hour - 6.0) / 24.0),
+            index=idx_shifted,
+            dtype=float,
+        )
+        truth_shifted = ser_shifted.copy()
+        ser_shifted.iloc[24 + 2 : 24 + 6] = np.nan
+        res_shifted = fill_gap_all_x(ser_shifted, freq="1D", limit_fill=0)
+        assert len(res_shifted) == len(ser_shifted)
+        assert not res_shifted.isna().any()
+        np.testing.assert_allclose(res_shifted.values, truth_shifted.values, rtol=1e-12)
+
+        # 5. Outer fill_gap_all with limit_fill=0 on [1, 1, 0, 0, 0, 0]: passes
+        # thresh_ratio=0.6 but left 3-day chunk [1, 1, 0] has ratio 1/3 < 0.5, so
+        # fill_gap_all must break on zero progress instead of looping forever.
+        ser_stall = _make_diurnal_series(n_days=6)
+        ser_stall.iloc[2:5] = np.nan
+        ser_stall.iloc[26:29] = np.nan
+        res_stall = fill_gap_all(ser_stall, freq="1D", limit_fill=0, thresh_ratio=0.6)
+        assert list(res_stall.index) == list(ser_stall.index)
+        assert res_stall.isna().sum() == ser_stall.isna().sum()
+
+        # 6. Series whose DatetimeIndex has freq=None still infers regular cadence.
+        ser_no_freq = _make_diurnal_series(n_days=6)
+        ser_no_freq.index = pd.DatetimeIndex(ser_no_freq.index.to_numpy())
+        assert ser_no_freq.index.freq is None
+        truth_no_freq = ser_no_freq.copy()
+        ser_no_freq.iloc[24 + 4 : 24 + 8] = np.nan
+        res_no_freq = fill_gap_all_x(ser_no_freq, freq="1D", limit_fill=0)
+        assert not res_no_freq.isna().any()
+        np.testing.assert_allclose(res_no_freq.values, truth_no_freq.values, rtol=1e-12)
+
+        # 7. Empty series returns 0.0 valid-period ratio without division by zero.
+        empty_ser = pd.Series(dtype=float, index=pd.DatetimeIndex([], name="datetime"))
+        assert cal_ratio_info(empty_ser) == pytest.approx(0.0)
+
+    def test_fill_gap_all_preserves_civil_time_across_dst_transition(self):
+        """Daily filling aligns local civil hours across a timezone-aware DST transition."""
+        idx = pd.date_range(
+            "2024-03-31 00:00",
+            "2024-04-02 23:00",
+            freq="1h",
+            tz="Europe/London",
+        )
+        truth = pd.Series(idx.hour + 1.0, index=idx, dtype=float)
+        ser = truth.copy()
+        ser.loc["2024-04-01"] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0, thresh_ratio=0.6)
+
+        assert not filled.isna().any()
+        assert filled.loc["2024-04-01 12:00"] == pytest.approx(13.0, rel=1e-12)
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
+
+    def test_fill_gap_all_x_accepts_exact_twenty_percent_valid_split(self):
+        """Exact 1/5 valid-period ratio passes >= 0.2 without floating-point cancellation."""
+        # 10 days with pattern [0, 1, 1, 1, 1, 0, 0, 0, 0, 0]: left midpoint half
+        # has 1 valid day out of 5 (exact 0.2). Under 1 - 4/5 = 0.19999999999999996,
+        # midpoint was rejected and moved to 6 + 4, leaving every gap unfilled.
+        idx = pd.date_range("2023-07-01 00:00", periods=10 * 24, freq="1h")
+        truth = pd.Series(10.0, index=idx, dtype=float)
+        ser = truth.copy()
+        for day in range(1, 5):
+            ser.iloc[day * 24 + 6] = np.nan
+
+        assert cal_ratio_info(ser.iloc[: 5 * 24], freq="1D") >= 0.2
+
+        filled = fill_gap_all_x(ser, freq="1D", limit_fill=0)
+
+        assert not filled.iloc[24:48].isna().any()
+        np.testing.assert_allclose(
+            filled.iloc[24:48].values, truth.iloc[24:48].values, rtol=1e-12
+        )
+
+    def test_fill_gap_all_fills_gapped_residual_tail_from_preceding_context(self):
+        """A gapped partial-chunk residual tail is filled from its preceding division."""
+        # 72 hourly obs with freq='5h' -> 14 full chunks (70 obs) + 2-obs residual tail.
+        idx = pd.date_range("2023-07-01 00:00", periods=72, freq="1h")
+        truth = pd.Series(1.0, index=idx, dtype=float)
+        ser = truth.copy()
+        ser.iloc[-1] = np.nan
+
+        filled = fill_gap_all(ser, freq="5h", limit_fill=0)
+
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
+
+    def test_fill_gap_all_x_exhausts_all_candidates_before_stopping(self):
+        """An unfillable first pattern match does not block filling a later fillable match."""
+        # First '010' candidate (07-02 12:00) lacks a noon donor in midnight-only
+        # neighbours, while second '010' candidate (07-04 00:00) has exact donors.
+        idx = pd.DatetimeIndex([
+            "2023-07-01 00:00",
+            "2023-07-02 12:00",
+            "2023-07-03 00:00",
+            "2023-07-04 00:00",
+            "2023-07-05 00:00",
+        ])
+        ser = pd.Series([1.0, np.nan, 1.0, np.nan, 1.0], index=idx, dtype=float)
+
+        filled = fill_gap_all_x(ser, freq="1D", limit_fill=0)
+
+        assert filled.loc[pd.Timestamp("2023-07-04 00:00")] == pytest.approx(
+            1.0, rel=1e-12
+        )
+        assert pd.isna(filled.loc[pd.Timestamp("2023-07-02 12:00")])
+
+    def test_fill_gap_all_preserves_resampling_origin_for_non_divisor_freq(self):
+        """Recursive slices keep the top-level resampling origin for freq='5h'."""
+        # Non-divisor 5h divisions across 72h: missing division 40:45 lies between
+        # [1, 2, 3, 4, 5] (35:40) and [3, 6, 9, 12, 15] (45:50). With a consistent
+        # origin, the full missing period is filled as the unscaled median [2,4,6,8,10].
+        idx = pd.date_range("2023-07-01 00:00", periods=72, freq="1h")
+        ser = pd.Series(np.tile([1.0, 2.0, 3.0, 4.0, 5.0], 15)[:72], index=idx)
+        ser.iloc[45:50] *= 3.0
+        ser.iloc[40:45] = np.nan
+
+        filled = fill_gap_all(ser, freq="5h", limit_fill=0)
+
+        assert not filled.isna().any()
+        np.testing.assert_allclose(
+            filled.iloc[40:45].values,
+            np.array([2.0, 4.0, 6.0, 8.0, 10.0]),
+            rtol=1e-12,
+        )
+
+    def test_fill_gap_all_preserves_final_hour_on_autumn_dst_transition(self):
+        """norm_ser_dt and fill_gap_all retain the 25th hour when ending on autumn DST."""
+        idx = pd.date_range(
+            "2024-10-25 00:00",
+            "2024-10-27 23:00",
+            freq="1h",
+            tz="Europe/London",
+        )
+        truth = pd.Series(idx.hour + 1.0, index=idx, dtype=float)
+        ser = truth.copy()
+        ser.loc["2024-10-26 10:00":"2024-10-26 14:00"] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0, thresh_ratio=0.6)
+
+        assert list(filled.index) == list(idx)
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
+
+    def test_fill_gap_all_preserves_sub_hour_sampling_phase(self):
+        """norm_ser_dt and fill_gap_all preserve regular sampling grids offset from midnight."""
+        idx = pd.date_range("2023-07-01 00:30", periods=144, freq="1h")
+        truth = pd.Series(
+            15.0 + 10.0 * np.sin(2.0 * np.pi * (idx.hour + 0.5 - 6.0) / 24.0),
+            index=idx,
+            dtype=float,
+        )
+        ser = truth.copy()
+        ser.iloc[24 + 4 : 24 + 8] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0)
+
+        assert list(filled.index) == list(idx)
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
+
+    def test_fill_gap_all_recursive_split_respects_dst_calendar_day_boundaries(self):
+        """Recursive splits align to actual resampler bins across 23h/25h DST days."""
+        # 6 days starting on spring DST (143 hourly obs: 23h + 5*24h): positional
+        # 24-row chunking previously bisected 2 April across the midpoint split,
+        # filling 00:00 from 1 April (1.0) and 01:00..23:00 from 3 April (3.0).
+        idx = pd.date_range(
+            "2024-03-31 00:00",
+            "2024-04-05 23:00",
+            freq="1h",
+            tz="Europe/London",
+        )
+        ser = pd.Series(1.0, index=idx, dtype=float)
+        ser.loc["2024-04-03"] = 3.0
+        ser.loc["2024-04-02"] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0)
+
+        assert not filled.isna().any()
+        # All 24 hours of 2 April stay in the same left-child bin and are filled
+        # uniformly from 1 April (1.0) without an artificial midnight jump to 3.0.
+        np.testing.assert_allclose(
+            filled.loc["2024-04-02"].values,
+            np.ones(24, dtype=float),
+            rtol=1e-12,
+        )
+
+    def test_fill_gap_all_handles_midnight_dst_transition_without_nonexistent_error(
+        self,
+    ):
+        """norm_ser_dt and fill_gap_all handle timezones where DST skips 00:00."""
+        # In America/Sao_Paulo, 2018-11-04 00:00 does not exist (clocks jump
+        # 23:59:59 -> 01:00:00). Ending on 2018-11-03 23:00 must not raise
+        # NonExistentTimeError when computing the next civil-day boundary.
+        idx = pd.date_range(
+            "2018-11-01 00:00",
+            "2018-11-03 23:00",
+            freq="1h",
+            tz="America/Sao_Paulo",
+        )
+        truth = pd.Series(1.0, index=idx, dtype=float)
+        ser = truth.copy()
+        ser.iloc[14:17] = np.nan
+
+        ser_norm = norm_ser_dt(truth)
+        assert list(ser_norm.index) == list(idx)
+
+        filled = fill_gap_all(ser, freq="12h", limit_fill=0)
+        assert list(filled.index) == list(idx)
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
 
     def test_fill_gap_all_end_to_end_and_threshold_error(self):
         """fill_gap_all fills multi-day partial-boundary series and enforces thresh_ratio."""

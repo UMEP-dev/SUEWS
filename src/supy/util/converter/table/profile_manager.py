@@ -7,10 +7,12 @@ This module provides a robust profile management system that:
 4. Maintains a registry of available profiles
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-import pandas as pd
+from collections.abc import Sequence
 import logging
+from pathlib import Path
+from typing import ClassVar
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class ProfileManager:
     """Manages SUEWS profiles during conversion."""
 
     # Default profile codes for common cases
-    DEFAULT_PROFILES = {
+    DEFAULT_PROFILES: ClassVar[dict[str, int]] = {
         "DEFAULT": 999,  # Generic default
         "NO_ACTIVITY": 0,  # No activity profile
         "UNIFORM": 1,  # Uniform distribution
@@ -27,7 +29,7 @@ class ProfileManager:
     }
 
     # Profile types that need to exist in SUEWS_Profiles.txt
-    PROFILE_TYPES = [
+    PROFILE_TYPES: ClassVar[list[str]] = [
         "EnergyUseProfWD",
         "EnergyUseProfWE",
         "ActivityProfWD",
@@ -44,22 +46,24 @@ class ProfileManager:
         "SnowClearingProfWE",
     ]
 
-    def __init__(self, profiles_path: Optional[Path] = None):
+    def __init__(self, profiles_path: Path | None = None):
         """Initialize profile manager.
 
         Args:
             profiles_path: Path to SUEWS_Profiles.txt file
         """
         self.profiles_path = profiles_path
-        self.available_profiles: Set[int] = set()
-        self.profile_data: Optional[pd.DataFrame] = None
-        self.missing_profiles: Set[int] = set()
+        self.available_profiles: set[int] = set()
+        self.profile_data: pd.DataFrame | None = None
+        self.missing_profiles: set[int] = set()
+        self._load_error: Exception | None = None
 
         if profiles_path and profiles_path.exists():
             self.load_profiles()
 
     def load_profiles(self):
         """Load existing profiles from SUEWS_Profiles.txt."""
+        self._load_error = None
         try:
             # Try reading with first row as header
             self.profile_data = pd.read_csv(
@@ -86,16 +90,24 @@ class ProfileManager:
             # Convert index to integers to ensure type consistency
             self.profile_data.index = self.profile_data.index.astype(int)
 
+            # Drop legacy Fortran EOF footer rows (-9 sentinel with no hourly values)
+            footer_mask = (
+                self.profile_data.index == -9
+            ) & self.profile_data.isna().all(axis=1)
+            if footer_mask.any():
+                self.profile_data = self.profile_data.loc[~footer_mask]
+
             self.available_profiles = set(self.profile_data.index)
             logger.info(f"Loaded {len(self.available_profiles)} profiles")
         except Exception as e:
             logger.warning(f"Could not load profiles: {e}")
+            self._load_error = e
             self.profile_data = None
             self.available_profiles = set()
 
     def validate_profile_code(
         self, code: int, field_name: str = ""
-    ) -> Tuple[bool, Optional[int]]:
+    ) -> tuple[bool, int | None]:
         """Validate a profile code and return replacement if needed.
 
         Args:
@@ -130,19 +142,73 @@ class ProfileManager:
         # Return default replacement
         return False, replacement_code
 
-    def create_default_profile(self, code: int) -> pd.Series:
+    def create_default_profile(
+        self,
+        code: int,
+        columns: pd.Index | Sequence[object] | None = None,
+    ) -> pd.Series:
         """Create a default profile with uniform distribution.
 
-        Args:
-            code: Profile code to create
+        Parameters
+        ----------
+        code : int
+            Profile code to create.
+        columns : pd.Index | Sequence[object] | None, optional
+            Target DataFrame column labels to align the 24 hourly values with.
+            When ``None``, uses integer hour labels ``range(24)``.
 
-        Returns:
-            Profile data as pandas Series
+        Returns
+        -------
+        pd.Series
+            Profile data as a pandas Series with 24 uniform ``1.0`` entries.
         """
         # Create uniform distribution (same value for all 24 hours)
-        profile_data = pd.Series([1.0] * 24, name=code)
-        profile_data.index = range(24)
-        return profile_data
+        if columns is None:
+            index: pd.Index | range = range(24)
+        else:
+            target_cols = pd.Index(columns)
+            if len(target_cols) < 24:
+                raise ValueError(
+                    f"Expected at least 24 profile columns, got {len(target_cols)}"
+                )
+            index = target_cols[:24]
+        return pd.Series([1.0] * 24, index=index, name=code, dtype=float)
+
+    def _prepare_profiles_df(self, action_desc: str) -> pd.DataFrame:
+        """Return a validated working copy of profile data or an empty 24-hour frame."""
+        if self.profile_data is None:
+            if self._load_error is not None:
+                raise ValueError(
+                    f"Refusing to {action_desc} because loading "
+                    f"{self.profiles_path} failed: {self._load_error}"
+                ) from self._load_error
+            if self.profiles_path is not None:
+                raise FileNotFoundError(
+                    f"Profile table not found at {self.profiles_path}"
+                )
+            return pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
+
+        n_cols = len(self.profile_data.columns)
+        n_rows = len(self.profile_data.index)
+        if n_cols == 0 and n_rows == 0:
+            if self.profiles_path is not None and self.profiles_path.exists():
+                raise ValueError("Expected at least 24 profile columns, got 0")
+            return pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
+
+        if n_cols < 24:
+            raise ValueError(f"Expected at least 24 profile columns, got {n_cols}")
+
+        profiles_df = self.profile_data.copy()
+        footer_mask = (profiles_df.index == -9) & profiles_df.iloc[:, :24].isna().all(
+            axis=1
+        )
+        if footer_mask.any():
+            profiles_df = profiles_df.loc[~footer_mask]
+
+        for col_idx in range(24):
+            pd.to_numeric(profiles_df.iloc[:, col_idx], errors="raise")
+
+        return profiles_df
 
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.
@@ -152,39 +218,41 @@ class ProfileManager:
         """
         profiles_file = output_path / "SUEWS_Profiles.txt"
 
-        # Start with existing profiles or create new DataFrame
-        if self.profile_data is not None:
-            profiles_df = self.profile_data.copy()
-        else:
-            profiles_df = pd.DataFrame()
+        # Validate existing profile table or initialise a 24-hour DataFrame before writing
+        profiles_df = self._prepare_profiles_df(f"write {profiles_file}")
 
         # Add default profiles if they don't exist
         for name, code in self.DEFAULT_PROFILES.items():
             if code not in profiles_df.index and code > 0:
-                profiles_df.loc[code] = self.create_default_profile(code)
+                profiles_df.loc[code] = self.create_default_profile(
+                    code, columns=profiles_df.columns
+                )
                 logger.info(f"Created default profile {code} ({name})")
 
         # Add any other missing profiles that were referenced
-        for code in self.missing_profiles:
+        for code in sorted(self.missing_profiles):
             if code not in profiles_df.index and code > 0:
-                profiles_df.loc[code] = self.create_default_profile(code)
+                profiles_df.loc[code] = self.create_default_profile(
+                    code, columns=profiles_df.columns
+                )
                 logger.info(f"Created placeholder profile {code}")
 
         # Sort by index
         profiles_df = profiles_df.sort_index()
 
+        # Format output in memory before opening profiles_file so formatting errors
+        # never truncate an existing SUEWS_Profiles.txt.
+        lines = [
+            "    ".join([str(i) for i in range(1, 26)]),
+            "Code    " + "    ".join([str(i) for i in range(24)]),
+        ]
+        for code, row in profiles_df.iterrows():
+            values = "    ".join([f"{float(v):.3f}" for v in row.iloc[:24]])
+            lines.append(f"{code:4d}    {values}")
+
         # Write to file with proper header (matching legacy column naming 0-23)
         with open(profiles_file, "w", encoding="utf-8") as f:
-            # Write first line: column numbers (load_SUEWS_table skips this line)
-            f.write("    ".join([str(i) for i in range(1, 26)]) + "\n")
-
-            # Write second line: header with Code and hour columns
-            f.write("Code    " + "    ".join([str(i) for i in range(24)]) + "\n")
-
-            # Write profiles
-            for code, row in profiles_df.iterrows():
-                values = "    ".join([f"{v:.3f}" for v in row[:24]])
-                f.write(f"{code:4d}    {values}\n")
+            f.write("\n".join(lines) + "\n")
 
         logger.info(f"Wrote {len(profiles_df)} profiles to {profiles_file}")
 
@@ -192,7 +260,7 @@ class ProfileManager:
         self.available_profiles = set(profiles_df.index)
         self.profile_data = profiles_df
 
-    def get_profile_summary(self) -> Dict:
+    def get_profile_summary(self) -> dict:
         """Get summary of profile status.
 
         Returns:
@@ -201,7 +269,7 @@ class ProfileManager:
         return {
             "available_profiles": len(self.available_profiles),
             "missing_profiles": len(self.missing_profiles),
-            "missing_codes": sorted(list(self.missing_profiles)),
+            "missing_codes": sorted(self.missing_profiles),
             "default_profiles": self.DEFAULT_PROFILES,
         }
 
@@ -214,7 +282,7 @@ class ProfileManager:
         Returns:
             Updated rules DataFrame with validated profile codes
         """
-        profile_fields = [col for col in self.PROFILE_TYPES]
+        profile_fields = list(self.PROFILE_TYPES)
 
         for idx, row in rules_df.iterrows():
             # Check if this rule involves a profile field
@@ -256,6 +324,9 @@ def validate_and_fix_profiles(
     # Initialize profile manager
     profiles_path = conversion_dir / "SUEWS_Profiles.txt"
     manager = ProfileManager(profiles_path)
+
+    # Validate load status and column shape before modifying rules.csv or SUEWS_Profiles.txt
+    manager._prepare_profiles_df("update profiles or rules")
 
     # Load and process conversion rules
     if rules_path.exists():

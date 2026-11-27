@@ -63,6 +63,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Validate an already-built contracts directory without writing files.",
     )
     parser.add_argument(
+        "--write-forcing-snapshot",
+        metavar="VERSION",
+        default=None,
+        help=(
+            "Write overwrite-protected schema and manifest snapshots for forcing "
+            "VERSION under src/supy/data_model/contract_artefacts/forcing/<VERSION>/ "
+            "and print the pinned manifest digest."
+        ),
+    )
+    parser.add_argument(
         "--base-url",
         default=contracts.DEFAULT_BASE_URL,
         help=f"Base URL recorded in index.json (default: {contracts.DEFAULT_BASE_URL}).",
@@ -86,20 +96,41 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.validate_only is not None and args.output_dir is not None:
+    selected_modes = sum(
+        opt is not None
+        for opt in (args.output_dir, args.validate_only, args.write_forcing_snapshot)
+    )
+    if selected_modes != 1:
         print(
-            "[contracts] FAILED: specify either --output-dir or --validate-only, not both",
-            file=sys.stderr,
-        )
-        return 2
-    if args.validate_only is None and args.output_dir is None:
-        print(
-            "[contracts] FAILED: one of --output-dir or --validate-only is required",
+            "[contracts] FAILED: specify exactly one of --output-dir, "
+            "--validate-only, or --write-forcing-snapshot",
             file=sys.stderr,
         )
         return 2
 
     try:
+        if args.write_forcing_snapshot is not None:
+            digest = contracts.write_forcing_published_snapshot(
+                args.write_forcing_snapshot,
+                PROJECT_ROOT,
+            )
+            if args.as_json:
+                print(
+                    json.dumps(
+                        {
+                            "interface": "forcing",
+                            "version": args.write_forcing_snapshot,
+                            "manifest_digest": digest,
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+            else:
+                print(
+                    f"[OK] Wrote forcing snapshot {args.write_forcing_snapshot}: {digest}"
+                )
+            return 0
         if args.validate_only is not None:
             report = contracts.validate_published_contracts(
                 args.validate_only,

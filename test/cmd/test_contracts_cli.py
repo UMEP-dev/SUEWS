@@ -99,6 +99,9 @@ def test_contracts_info_single_interface_and_custom_base_url() -> None:
         "ftp://suews.io",
         "javascript:alert(1)",
         "https://suews.io/bad\npath",
+        "https://[::1",
+        "https://suews.io:abc",
+        "https://suews.io:",
         "   ",
     ],
 )

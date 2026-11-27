@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from typing import Any, Literal
@@ -61,6 +62,22 @@ _SEMVER_RE = re.compile(
     r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z",
     re.ASCII,
 )
+
+
+# Append-only trust anchor pinning the frozen manifest.json digest for every
+# published forcing release under src/supy/data_model/contract_artefacts/forcing/.
+# FORCING_VERSIONS continues to pin the canonical catalogue.json digest; this
+# map independently authenticates the paired schema and manifest bytes.
+FORCING_PUBLISHED_MANIFEST_DIGESTS: dict[str, str] = {
+    "1.0.0": "sha256:2166fced59163156a0ebdbe43d2dba9b455ee1d2219b0a66261b042999d30cc9",
+    "1.1.0": "sha256:2fb67f418895b136ffe40c139da1af427a47441bced2da3749fc805ec34bfb96",
+    "1.2.0": "sha256:5d789b097e716e8e74630dbc73aebfb5e4b0840bdcdcef16f5518871494f0625",
+    "2.0.0": "sha256:e8c7ad65314e00c38a4d278ac2b99648d2cbcc3f7ad8c1d602e1317dbb827974",
+    "2.1.0": "sha256:2c228de51b7d108f3a414f1f9c2faa9b626a40af5659da226c408c9ff2d37ba1",
+}
+
+_ROOT_ALLOWED_ENTRIES = frozenset({"index.json", "index.html", *CONTRACT_INTERFACES})
+_IFACE_ALLOWED_FILES = frozenset({"index.json", "index.html"})
 
 
 def _forbid_external_ref(uri: str) -> Any:
@@ -118,11 +135,19 @@ def _normalise_base_url(base_url: str) -> str:
         raise ContractError(
             f"base_url must contain only printable ASCII characters without spaces: {base_url!r}"
         )
-    parsed = urlsplit(stripped)
+    try:
+        parsed = urlsplit(stripped)
+        port = parsed.port
+    except ValueError as exc:
+        raise ContractError(f"invalid base_url {base_url!r}: {exc}") from exc
     if parsed.scheme not in ("http", "https"):
         raise ContractError(f"base_url must use http or https scheme: {base_url!r}")
     if not parsed.netloc or parsed.hostname is None:
         raise ContractError(f"base_url must include a valid host: {base_url!r}")
+    if parsed.netloc.endswith(":"):
+        raise ContractError(f"base_url has an empty port: {base_url!r}")
+    if port is not None and not (1 <= port <= 65535):
+        raise ContractError(f"base_url port out of range: {base_url!r}")
     if parsed.username is not None or parsed.password is not None:
         raise ContractError(f"base_url must not include credentials: {base_url!r}")
     if parsed.query or parsed.fragment:
@@ -236,16 +261,86 @@ def load_contract_bundle_bytes(
                 )
             bundle[filename] = resource.read_bytes()
 
+    expected_manifest_digest: str | None = None
+    if iface == "forcing":
+        expected_manifest_digest = FORCING_PUBLISHED_MANIFEST_DIGESTS.get(resolved)
+        if expected_manifest_digest is None:
+            raise ContractError(
+                f"forcing/{resolved}: missing pinned manifest digest in "
+                "FORCING_PUBLISHED_MANIFEST_DIGESTS"
+            )
     try:
         _validate_bundle_content(
             iface,
             resolved,
             bundle,
             expected_registry_digest=expected_digest,
+            expected_manifest_digest=expected_manifest_digest,
         )
     except ContractPublicationError as exc:
         raise ContractError(str(exc)) from exc
     return resolved, bundle
+
+
+def write_forcing_published_snapshot(
+    version: str,
+    project_root: Path,
+) -> str:
+    """Write overwrite-protected schema and manifest snapshots for a forcing release.
+
+    Reads the canonical catalogue at
+    ``src/supy/data_model/forcing/artefacts/<version>.json`` and writes
+    ``catalogue.schema.json`` and ``manifest.json`` under
+    ``src/supy/data_model/contract_artefacts/forcing/<version>/``. Refuses to
+    overwrite differing bytes in an existing snapshot directory. Returns the
+    pinned ``manifest.json`` SHA-256 digest.
+    """
+    if not _is_valid_semver(version):
+        raise ContractError(f"invalid SemVer version: {version!r}")
+    cat_path = project_root / f"src/supy/data_model/forcing/artefacts/{version}.json"
+    if not cat_path.is_file():
+        raise ContractPublicationError(
+            f"missing forcing catalogue artefact: {cat_path}"
+        )
+    cat_bytes = cat_path.read_bytes()
+    schema_bytes = canonical_json_bytes(forcing_contract_json_schema())
+    manifest_bytes = canonical_json_bytes({
+        "files": {
+            "catalogue.json": sha256_digest(cat_bytes),
+            "catalogue.schema.json": sha256_digest(schema_bytes),
+        },
+        "interface": "forcing",
+        "version": version,
+    })
+    bundle = {
+        "catalogue.json": cat_bytes,
+        "catalogue.schema.json": schema_bytes,
+        "manifest.json": manifest_bytes,
+    }
+    _validate_bundle_content("forcing", version, bundle)
+
+    target_dir = (
+        project_root / f"src/supy/data_model/contract_artefacts/forcing/{version}"
+    )
+    snapshot_files = {
+        "catalogue.schema.json": schema_bytes,
+        "manifest.json": manifest_bytes,
+    }
+    if target_dir.exists():
+        _reject_symlinks_in_tree(target_dir, f"forcing/{version} snapshot")
+        existing_names = {p.name for p in target_dir.iterdir()}
+        if existing_names != set(snapshot_files) or any(
+            (target_dir / name).read_bytes() != content
+            for name, content in snapshot_files.items()
+        ):
+            raise ContractPublicationError(
+                f"refusing to overwrite differing bytes in {target_dir}"
+            )
+    else:
+        target_dir.mkdir(parents=True)
+        for name, content in snapshot_files.items():
+            (target_dir / name).write_bytes(content)
+    return sha256_digest(manifest_bytes)
 
 
 def load_contract_artefact_bytes(
@@ -361,10 +456,17 @@ def export_contract(
     }
 
 
+def _reject_json_constant(token: str) -> Any:
+    raise ValueError(f"non-standard JSON constant {token!r} is not allowed")
+
+
 def _read_json_bytes(content: bytes, label: str) -> Any:
     try:
-        return json.loads(content.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return json.loads(
+            content.decode("utf-8"),
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise ContractPublicationError(f"{label}: invalid JSON: {exc}") from exc
 
 
@@ -374,6 +476,7 @@ def _validate_bundle_content(
     bundle: dict[str, bytes],
     *,
     expected_registry_digest: str | None = None,
+    expected_manifest_digest: str | None = None,
 ) -> dict[str, Any]:
     """Validate one release bundle's manifest, digests, and offline JSON Schema."""
     missing = [name for name in BUNDLE_FILENAMES if name not in bundle]
@@ -414,6 +517,14 @@ def _validate_bundle_content(
                     f"output/{version}/manifest.json: digest {actual_digest} "
                     f"does not match OUTPUT_VERSIONS ({expected_registry_digest})"
                 )
+
+    if expected_manifest_digest is not None:
+        actual_manifest_digest = sha256_digest(bundle["manifest.json"])
+        if actual_manifest_digest != expected_manifest_digest:
+            raise ContractPublicationError(
+                f"{interface}/{version}/manifest.json: digest {actual_manifest_digest} "
+                f"does not match pinned digest ({expected_manifest_digest})"
+            )
 
     schema = _read_json_bytes(
         bundle["catalogue.schema.json"],
@@ -508,6 +619,11 @@ def _collect_preserved_bundles(
                 ver,
                 bundle,
                 expected_registry_digest=packaged_versions.get(ver),
+                expected_manifest_digest=(
+                    FORCING_PUBLISHED_MANIFEST_DIGESTS.get(ver)
+                    if interface == "forcing"
+                    else None
+                ),
             )
             if ver in preserved and preserved[ver] != bundle:
                 raise ContractPublicationError(
@@ -845,6 +961,54 @@ def _write_interface_dir(
     }
 
 
+def _assert_owned_contracts_root(directory: Path, label: str) -> None:
+    """Verify a non-empty existing directory belongs exclusively to contract publication."""
+    entries = list(directory.iterdir())
+    if not entries:
+        return
+    names = {p.name for p in entries}
+    unexpected = sorted(names - _ROOT_ALLOWED_ENTRIES)
+    if unexpected:
+        raise ContractPublicationError(
+            f"{label}: refusing to replace directory containing unrecognised entries: "
+            f"{unexpected} (in {directory})"
+        )
+    has_marker = (directory / "index.json").is_file() or all(
+        (directory / iface).is_dir() for iface in CONTRACT_INTERFACES
+    )
+    if not has_marker:
+        raise ContractPublicationError(
+            f"{label}: existing non-empty directory does not look like a contracts root: "
+            f"{directory}"
+        )
+    if (directory / "index.json").is_file():
+        root_idx = _read_json_bytes(
+            (directory / "index.json").read_bytes(), f"{label}/index.json"
+        )
+        if not isinstance(root_idx, dict) or "contracts_url" not in root_idx:
+            raise ContractPublicationError(
+                f"{label}: existing index.json does not belong to SUEWS contracts"
+            )
+    for iface in CONTRACT_INTERFACES:
+        iface_dir = directory / iface
+        if not iface_dir.exists():
+            continue
+        if not iface_dir.is_dir():
+            raise ContractPublicationError(
+                f"{label}: expected directory at {iface_dir}"
+            )
+        for child in iface_dir.iterdir():
+            if child.is_dir():
+                if child.name != "latest" and not _is_valid_semver(child.name):
+                    raise ContractPublicationError(
+                        f"{label}: unrecognised subdirectory {iface}/{child.name} in {directory}"
+                    )
+            elif child.name not in _IFACE_ALLOWED_FILES:
+                raise ContractPublicationError(
+                    f"{label}: unrecognised file {iface}/{child.name} in {directory}"
+                )
+
+
 def _collect_preserve_sources(
     output_dir: Path, preserve_from: Path | None
 ) -> list[Path]:
@@ -875,17 +1039,39 @@ def _collect_preserve_sources(
             f"output_dir exists and is not a directory: {output_dir}"
         )
     if output_dir.is_dir():
+        _assert_owned_contracts_root(output_dir, "output_dir")
         resolved_out = output_dir.resolve()
         if all(src.resolve() != resolved_out for src in preserve_sources):
             preserve_sources.append(output_dir)
     return preserve_sources
 
 
-def _commit_staged_dir(staging_dir: Path, output_dir: Path) -> None:
-    """Replace ``output_dir`` with ``staging_dir`` atomically with rollback."""
+def _apply_published_dir_mode(staging_dir: Path, output_dir: Path) -> None:
+    """Replace ``mkdtemp``'s private ``0700`` mode with standard/existing directory mode."""
+    if os.name != "posix":
+        return
+    if output_dir.is_dir():
+        target_mode = stat.S_IMODE(output_dir.stat().st_mode)
+    else:
+        probe = staging_dir / ".mode-probe"
+        probe.mkdir()
+        target_mode = stat.S_IMODE(probe.stat().st_mode)
+        probe.rmdir()
+    staging_dir.chmod(target_mode)
+
+
+def _commit_staged_dir(
+    staging_dir: Path, output_dir: Path
+) -> tuple[Path | None, str | None]:
+    """Replace ``output_dir`` with ``staging_dir`` atomically with rollback.
+
+    Returns ``(retained_backup_path, cleanup_warning)`` when the commit
+    succeeded but post-commit deletion of the backup directory failed.
+    """
+    _apply_published_dir_mode(staging_dir, output_dir)
     if not output_dir.exists():
         staging_dir.rename(output_dir)
-        return
+        return None, None
     backup_dir = Path(
         tempfile.mkdtemp(prefix=f".{output_dir.name}.backup-", dir=output_dir.parent)
     )
@@ -897,7 +1083,15 @@ def _commit_staged_dir(staging_dir: Path, output_dir: Path) -> None:
         if backup_dir.exists() and not output_dir.exists():
             backup_dir.rename(output_dir)
         raise
-    shutil.rmtree(backup_dir)
+    try:
+        shutil.rmtree(backup_dir)
+    except OSError as exc:
+        warning = (
+            f"published successfully to {output_dir}, but failed to remove backup "
+            f"directory {backup_dir}: {exc}"
+        )
+        return backup_dir, warning
+    return None, None
 
 
 def publish_contracts_site(
@@ -911,7 +1105,9 @@ def publish_contracts_site(
 
     All preservation checks, bundle authentication, staging writes, and
     validation complete before ``output_dir`` is updated, so a failed run
-    leaves any existing destination tree unchanged.
+    leaves any existing destination tree unchanged. If post-commit cleanup of
+    the replaced backup directory fails, publication still succeeds and reports
+    the retained backup path in ``warnings`` and ``retained_backup``.
     """
     base = _normalise_base_url(base_url)
     output_dir = Path(output_dir)
@@ -929,6 +1125,8 @@ def publish_contracts_site(
     staging_dir = Path(
         tempfile.mkdtemp(prefix=f".{output_dir.name}.staging-", dir=output_dir.parent)
     )
+    retained_backup: Path | None = None
+    warnings: list[str] = []
     try:
         root_interfaces: dict[str, Any] = {}
         for iface in CONTRACT_INTERFACES:
@@ -956,12 +1154,14 @@ def publish_contracts_site(
             validation_report = validate_published_contracts(staging_dir, base_url=base)
             validation_report["contracts_dir"] = str(output_dir)
 
-        _commit_staged_dir(staging_dir, output_dir)
+        retained_backup, cleanup_warning = _commit_staged_dir(staging_dir, output_dir)
+        if cleanup_warning is not None:
+            warnings.append(cleanup_warning)
     finally:
         if staging_dir.exists():
             shutil.rmtree(staging_dir)
 
-    return {
+    report: dict[str, Any] = {
         "output_dir": str(output_dir),
         "base_url": base,
         "interfaces": {
@@ -975,6 +1175,11 @@ def publish_contracts_site(
         "validated": validate,
         "validation": validation_report,
     }
+    if warnings:
+        report["warnings"] = warnings
+    if retained_backup is not None:
+        report["retained_backup"] = str(retained_backup)
+    return report
 
 
 class _HrefCollector(HTMLParser):
@@ -1301,6 +1506,26 @@ def _validate_latest_section(
         )
 
 
+def _validate_root_html_coverage(root_html_path: Path, errors: list[str]) -> None:
+    if not root_html_path.is_file():
+        errors.append("missing top-level index.html")
+        return
+    hrefs = _read_html_hrefs(root_html_path, "index.html", errors)
+    if hrefs is None:
+        return
+    href_set = set(hrefs)
+    required = ["index.json"]
+    for iface in CONTRACT_INTERFACES:
+        required.extend([
+            f"{iface}/index.html",
+            f"{iface}/index.json",
+            *(f"{iface}/latest/{fname}" for fname in BUNDLE_FILENAMES),
+        ])
+    for link in required:
+        if link not in href_set:
+            errors.append(f"index.html: missing required discovery link {link!r}")
+
+
 def _validate_interface_html_coverage(
     iface_html_path: Path,
     iface: ContractInterface,
@@ -1314,12 +1539,17 @@ def _validate_interface_html_coverage(
     if hrefs is None:
         return
     href_set = set(hrefs)
-    for fname in BUNDLE_FILENAMES:
-        if f"latest/{fname}" not in href_set:
-            errors.append(f"{iface}/index.html: missing link to latest/{fname}")
+    for required in (
+        "../index.html",
+        "index.json",
+        *(f"latest/{fname}" for fname in BUNDLE_FILENAMES),
+    ):
+        if required not in href_set:
+            errors.append(f"{iface}/index.html: missing link to {required}")
     for ver in ordered_versions:
-        if f"{ver}/catalogue.json" not in href_set:
-            errors.append(f"{iface}/index.html: missing link to {ver}/catalogue.json")
+        for fname in BUNDLE_FILENAMES:
+            if f"{ver}/{fname}" not in href_set:
+                errors.append(f"{iface}/index.html: missing link to {ver}/{fname}")
 
 
 def _parse_indexed_versions(
@@ -1422,7 +1652,15 @@ def _validate_interface_dir(
         try:
             bundle = _load_bundle_from_dir(iface_dir / ver, iface, ver)
             _validate_bundle_content(
-                iface, ver, bundle, expected_registry_digest=packaged_versions.get(ver)
+                iface,
+                ver,
+                bundle,
+                expected_registry_digest=packaged_versions.get(ver),
+                expected_manifest_digest=(
+                    FORCING_PUBLISHED_MANIFEST_DIGESTS.get(ver)
+                    if iface == "forcing"
+                    else None
+                ),
             )
             checked.append(ver)
         except ContractPublicationError as exc:
@@ -1523,8 +1761,7 @@ def validate_published_contracts(
         raise ContractPublicationError(f"contracts directory does not exist: {root}")
 
     errors: list[str] = []
-    if not (root / "index.html").is_file():
-        errors.append("missing top-level index.html")
+    _validate_root_html_coverage(root / "index.html", errors)
     root_index = _load_json_object_file(root / "index.json", "index.json", errors)
     effective_base = _resolve_validation_base_url(root_index, base_url, errors)
 
@@ -1576,6 +1813,7 @@ __all__ = [
     "CONTRACTS_URL_PATH",
     "CONTRACT_INTERFACES",
     "DEFAULT_BASE_URL",
+    "FORCING_PUBLISHED_MANIFEST_DIGESTS",
     "ContractArtefact",
     "ContractError",
     "ContractExportArtefact",
@@ -1592,4 +1830,5 @@ __all__ = [
     "publish_contracts_site",
     "sha256_digest",
     "validate_published_contracts",
+    "write_forcing_published_snapshot",
 ]

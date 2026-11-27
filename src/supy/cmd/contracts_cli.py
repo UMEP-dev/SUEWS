@@ -398,8 +398,14 @@ def publish_cmd(
             started_at=started_at,
         )
 
+    warnings = report.get("warnings") or []
     if output_format.lower() == "json":
-        Envelope.success(data=report, command=command, started_at=started_at).emit()
+        Envelope.success(
+            data=report,
+            command=command,
+            warnings=warnings,
+            started_at=started_at,
+        ).emit()
     else:
         click.echo(f"[OK] Published contracts to {report['output_dir']}")
         for iface, details in report["interfaces"].items():
@@ -414,6 +420,8 @@ def publish_cmd(
                 f"[OK] Validated {val['html_files_checked']} HTML page(s) and "
                 f"{val['relative_links_checked']} relative link(s)"
             )
+        for warning in warnings:
+            click.echo(f"[WARN] {warning}")
     raise SystemExit(EXIT_OK)
 
 

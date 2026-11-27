@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import gzip
 import importlib.resources
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 from types import ModuleType
@@ -19,6 +22,7 @@ from supy.cmd.suews_cli import cli
 import supy.data_model.contracts as contracts_mod
 from supy.data_model.contracts import (
     BUNDLE_FILENAMES,
+    FORCING_PUBLISHED_MANIFEST_DIGESTS,
     ContractError,
     ContractPublicationError,
     canonical_json_bytes,
@@ -28,9 +32,11 @@ from supy.data_model.contracts import (
     publish_contracts_site,
     sha256_digest,
     validate_published_contracts,
+    write_forcing_published_snapshot,
 )
 from supy.data_model.forcing.version import CURRENT_FORCING_VERSION, FORCING_VERSIONS
 from supy.data_model.output.version import CURRENT_OUTPUT_VERSION, OUTPUT_VERSIONS
+from supy.knowledge.pack import EXCLUDED_GENERATED_ROOTS, build_pack
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
 
@@ -49,14 +55,30 @@ def _snapshot_tree(root: Path) -> dict[str, bytes]:
 def test_frozen_forcing_snapshots_are_packaged_immutable_and_current(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Forcing snapshots are frozen on disk and unaffected by live schema changes."""
+    """Forcing snapshots are pinned, historically accurate, and immune to live drift."""
     assert CURRENT_FORCING_VERSION is not None
+    assert set(FORCING_PUBLISHED_MANIFEST_DIGESTS) == set(FORCING_VERSIONS)
     for ver in FORCING_VERSIONS:
         for fname in ("catalogue.schema.json", "manifest.json"):
             res = importlib.resources.files("supy.data_model").joinpath(
                 f"contract_artefacts/forcing/{ver}/{fname}"
             )
             assert res.is_file(), f"missing packaged forcing snapshot {ver}/{fname}"
+
+    # Historical schemas match historical capabilities (no backwards capability leakage).
+    _, bundle_100 = load_contract_bundle_bytes("forcing", "1.0.0")
+    schema_100 = json.loads(bundle_100["catalogue.schema.json"].decode("utf-8"))
+    assert "supported_timestamp_references" not in schema_100["properties"]
+    assert (
+        "declared_rate_unit" not in schema_100["$defs"]["ForcingVariable"]["properties"]
+    )
+
+    _, bundle_110 = load_contract_bundle_bytes("forcing", "1.1.0")
+    schema_110 = json.loads(bundle_110["catalogue.schema.json"].decode("utf-8"))
+    assert "supported_timestamp_references" in schema_110["properties"]
+    assert (
+        "declared_rate_unit" not in schema_110["$defs"]["ForcingVariable"]["properties"]
+    )
 
     # Current version snapshot schema matches live forcing_contract_json_schema().
     _, current_bundle = load_contract_bundle_bytes("forcing", CURRENT_FORCING_VERSION)
@@ -65,14 +87,230 @@ def test_frozen_forcing_snapshots_are_packaged_immutable_and_current(
     )
 
     # Historical release bytes do not change even if forcing_contract_json_schema() changes.
-    _, before = load_contract_bundle_bytes("forcing", "1.0.0")
     monkeypatch.setattr(
         contracts_mod,
         "forcing_contract_json_schema",
         lambda: {"type": "object", "required": ["future_breaking_field"]},
     )
     _, after = load_contract_bundle_bytes("forcing", "1.0.0")
-    assert after == before
+    assert after == bundle_100
+
+
+def test_forcing_manifest_pin_rejects_coordinated_schema_and_manifest_tamper(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Changing forcing schema plus its manifest fails against the pinned manifest digest."""
+    base = tmp_path / "contracts"
+    publish_contracts_site(base, base_url="https://suews.io", validate=True)
+
+    # Coordinated tamper in a published site: replace 1.0.0 schema with {} and recompute manifest.
+    v100_dir = base / "forcing" / "1.0.0"
+    cat_bytes = (v100_dir / "catalogue.json").read_bytes()
+    fake_schema = canonical_json_bytes({})
+    fake_manifest = canonical_json_bytes({
+        "files": {
+            "catalogue.json": sha256_digest(cat_bytes),
+            "catalogue.schema.json": sha256_digest(fake_schema),
+        },
+        "interface": "forcing",
+        "version": "1.0.0",
+    })
+    (v100_dir / "catalogue.schema.json").write_bytes(fake_schema)
+    (v100_dir / "manifest.json").write_bytes(fake_manifest)
+    with pytest.raises(ContractPublicationError, match="pinned digest"):
+        validate_published_contracts(base, base_url="https://suews.io")
+
+    # Coordinated tamper in packaged snapshots also fails in load_contract_bundle_bytes.
+    fake_snap_root = tmp_path / "fake_contract_artefacts"
+    fake_v100 = fake_snap_root / "forcing" / "1.0.0"
+    fake_v100.mkdir(parents=True)
+    (fake_v100 / "catalogue.schema.json").write_bytes(fake_schema)
+    (fake_v100 / "manifest.json").write_bytes(fake_manifest)
+    monkeypatch.setattr(
+        contracts_mod, "_contract_artefacts_root", lambda: fake_snap_root
+    )
+    with pytest.raises(ContractError, match="pinned digest"):
+        load_contract_bundle_bytes("forcing", "1.0.0")
+
+
+def test_write_forcing_published_snapshot_workflow_and_overwrite_protection(
+    tmp_path: Path,
+) -> None:
+    """New forcing release snapshot writer creates valid bundles and refuses byte overwrites."""
+    fake_repo = tmp_path / "repo"
+    art_dir = fake_repo / "src/supy/data_model/forcing/artefacts"
+    art_dir.mkdir(parents=True)
+    src_cat = (
+        PROJECT_ROOT / "src/supy/data_model/forcing/artefacts/2.1.0.json"
+    ).read_bytes()
+    (art_dir / "2.2.0.json").write_bytes(src_cat)
+
+    digest = write_forcing_published_snapshot("2.2.0", fake_repo)
+    assert digest.startswith("sha256:")
+    snap_dir = fake_repo / "src/supy/data_model/contract_artefacts/forcing/2.2.0"
+    assert {p.name for p in snap_dir.iterdir()} == {
+        "catalogue.schema.json",
+        "manifest.json",
+    }
+    # Idempotent when bytes match.
+    assert write_forcing_published_snapshot("2.2.0", fake_repo) == digest
+
+    # Refuses to overwrite differing bytes.
+    (snap_dir / "catalogue.schema.json").write_bytes(b"{}\n")
+    with pytest.raises(ContractPublicationError, match="refusing to overwrite"):
+        write_forcing_published_snapshot("2.2.0", fake_repo)
+
+
+def test_publish_rejects_unrelated_destination_and_handles_permissions_and_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reject unrelated directories, use readable POSIX mode, and report backup cleanup failure."""
+    unrelated = tmp_path / "site"
+    unrelated.mkdir()
+    (unrelated / "CNAME").write_text("suews.io\n", encoding="ascii")
+    (unrelated / "index.html").write_text("<html>landing</html>\n", encoding="ascii")
+    before_unrelated = _snapshot_tree(unrelated)
+
+    with pytest.raises(ContractPublicationError, match="unrecognised entries"):
+        publish_contracts_site(unrelated)
+    assert _snapshot_tree(unrelated) == before_unrelated
+
+    # POSIX directory mode should not remain private 0700 from mkdtemp.
+    fresh = tmp_path / "published_contracts"
+    publish_contracts_site(fresh, base_url="https://suews.io", validate=True)
+    if os.name == "posix":
+        assert stat.S_IMODE(fresh.stat().st_mode) != 0o700
+        fresh.chmod(0o755)
+        publish_contracts_site(fresh, base_url="https://suews.io", validate=True)
+        assert stat.S_IMODE(fresh.stat().st_mode) == 0o755
+
+    # Post-commit backup cleanup failure still reports committed publication + warning.
+    real_rmtree = shutil.rmtree
+    retained_paths: list[Path] = []
+
+    def fail_on_backup(path, *args, **kwargs):
+        p = Path(path)
+        if ".backup-" in p.name:
+            retained_paths.append(p)
+            raise PermissionError("simulated cleanup failure")
+        return real_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(contracts_mod.shutil, "rmtree", fail_on_backup)
+    runner = CliRunner()
+    res = runner.invoke(
+        cli,
+        [
+            "contracts",
+            "publish",
+            "--output-dir",
+            str(fresh),
+            "--base-url",
+            "https://suews.io/preview/pr-9",
+            "--format",
+            "json",
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    env = json.loads(res.output)
+    assert env["status"] == "warning"
+    assert env["warnings"]
+    assert env["data"]["retained_backup"]
+    # Destination reflects the newly committed base URL.
+    committed_idx = json.loads((fresh / "index.json").read_text(encoding="ascii"))
+    assert committed_idx["base_url"] == "https://suews.io/preview/pr-9"
+    for p in retained_paths:
+        if p.exists():
+            real_rmtree(p)
+
+
+def test_validator_rejects_nan_json_blank_root_html_and_missing_hist_links(
+    tmp_path: Path,
+) -> None:
+    """Reject NaN JSON constants, blank root HTML, and missing schema/manifest links."""
+    base = tmp_path / "contracts"
+    publish_contracts_site(base, base_url="https://suews.io", validate=True)
+
+    # 1. Blank root index.html fails discovery-link check.
+    root_html = base / "index.html"
+    orig_root_html = root_html.read_text(encoding="ascii")
+    root_html.write_text("", encoding="ascii")
+    with pytest.raises(
+        ContractPublicationError, match="missing required discovery link"
+    ):
+        validate_published_contracts(base, base_url="https://suews.io")
+    root_html.write_text(orig_root_html, encoding="ascii")
+
+    # 2. Removing a historical manifest link from forcing/index.html fails validation.
+    forcing_html = base / "forcing" / "index.html"
+    orig_forcing_html = forcing_html.read_text(encoding="ascii")
+    forcing_html.write_text(
+        orig_forcing_html.replace(
+            'href="1.0.0/manifest.json"', 'href="1.0.0/catalogue.json"'
+        ),
+        encoding="ascii",
+    )
+    with pytest.raises(ContractPublicationError, match=r"1\.0\.0/manifest\.json"):
+        validate_published_contracts(base, base_url="https://suews.io")
+    forcing_html.write_text(orig_forcing_html, encoding="ascii")
+
+    # 3. Non-standard JSON constant (NaN) in a preserved catalogue fails strictly.
+    nan_dir = base / "forcing" / "0.6.0"
+    nan_dir.mkdir(parents=True)
+    nan_cat = b'{"value":NaN}\n'
+    schema_bytes = canonical_json_bytes({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {"value": {"type": "number"}},
+    })
+    manifest_bytes = canonical_json_bytes({
+        "files": {
+            "catalogue.json": sha256_digest(nan_cat),
+            "catalogue.schema.json": sha256_digest(schema_bytes),
+        },
+        "interface": "forcing",
+        "version": "0.6.0",
+    })
+    (nan_dir / "catalogue.json").write_bytes(nan_cat)
+    (nan_dir / "catalogue.schema.json").write_bytes(schema_bytes)
+    (nan_dir / "manifest.json").write_bytes(manifest_bytes)
+    with pytest.raises(ContractPublicationError, match="non-standard JSON constant"):
+        publish_contracts_site(tmp_path / "out_nan", preserve_from=base)
+
+
+def test_knowledge_pack_excludes_contract_artefacts(tmp_path: Path) -> None:
+    """Generated snapshots under ``contract_artefacts/`` are excluded from knowledge packs."""
+    assert "src/supy/data_model/contract_artefacts/" in EXCLUDED_GENERATED_ROOTS
+    fake_repo = tmp_path / "repo"
+    (fake_repo / "src/suews/src").mkdir(parents=True)
+    (fake_repo / "src/suews/src/mod.f95").write_text(
+        "MODULE m\nEND MODULE\n", encoding="utf-8"
+    )
+    (fake_repo / "src/suews_bridge/src").mkdir(parents=True)
+    (fake_repo / "src/suews_bridge/src/lib.rs").write_text(
+        "pub fn f() {}\n", encoding="utf-8"
+    )
+    (fake_repo / "src/supy/data_model/configuration").mkdir(parents=True)
+    (fake_repo / "src/supy/data_model/configuration/version.py").write_text(
+        'CURRENT_SCHEMA_VERSION = "2026.6"\n', encoding="utf-8"
+    )
+    (fake_repo / "src/supy/_version_scm.py").write_text(
+        '__version__ = version = "2026.6.0"\n', encoding="utf-8"
+    )
+    snap = (
+        fake_repo / "src/supy/data_model/contract_artefacts/forcing/1.0.0/manifest.json"
+    )
+    snap.parent.mkdir(parents=True)
+    snap.write_text('{"interface":"forcing"}\n', encoding="utf-8")
+
+    pack_dir = tmp_path / "pack"
+    manifest = build_pack(fake_repo, pack_dir, git_sha="abc123")
+    assert "src/supy/data_model/contract_artefacts/" in manifest["excluded_roots"]
+    with gzip.open(pack_dir / "chunks.jsonl.gz", "rt", encoding="utf-8") as fh:
+        paths = {json.loads(line)["repo_path"] for line in fh}
+    assert (
+        "src/supy/data_model/contract_artefacts/forcing/1.0.0/manifest.json"
+        not in paths
+    )
 
 
 def test_publish_materialises_versioned_and_latest_artefacts(tmp_path: Path) -> None:

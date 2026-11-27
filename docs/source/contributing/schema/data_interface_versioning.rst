@@ -147,7 +147,13 @@ For a new forcing release:
 
 3. Append the version and digest to ``FORCING_VERSIONS``, then move
    ``CURRENT_FORCING_VERSION`` to the new last entry.
-4. Run the forcing artefact, reference, and history audits::
+4. Generate the immutable schema and manifest snapshot for static publication
+   and append the printed manifest digest to
+   ``FORCING_PUBLISHED_MANIFEST_DIGESTS`` in ``src/supy/data_model/contracts.py``::
+
+      python scripts/suews/publish_contracts.py --write-forcing-snapshot <version>
+
+5. Run the forcing artefact, reference, and history audits::
 
       python scripts/lint/check_forcing_contract_artefacts.py
       python docs/generate_forcing_variable_rst.py --check

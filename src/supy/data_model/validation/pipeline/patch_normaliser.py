@@ -264,12 +264,49 @@ def collect_nullifiable_values(
     }
 
 
+def _find_existing_dict_key(mapping: Mapping[Any, Any], key: Any) -> tuple[bool, Any]:
+    """Return ``(True, existing_key)`` preserving exact key type when *key* matches."""
+    if key not in mapping:
+        return False, key
+    for existing_key in mapping:
+        if existing_key == key:
+            return True, existing_key
+    return False, key
+
+
+def _resolve_existing_tokens(
+    data: Any, tokens: tuple[PathToken, ...]
+) -> tuple[PathToken, ...]:
+    """Replace aliased mapping-key tokens with the exact existing key types in *data*."""
+    resolved: list[PathToken] = []
+    current: Any = data
+    for idx, token in enumerate(tokens):
+        if _is_list_index_token(token):
+            assert isinstance(token, int)
+            if isinstance(current, (list, tuple)) and 0 <= token < len(current):
+                resolved.append(token)
+                current = current[token]
+                continue
+            resolved.extend(tokens[idx:])
+            break
+        if isinstance(current, Mapping):
+            raw_key = _mapping_key_from_token(token)
+            found, existing_key = _find_existing_dict_key(current, raw_key)
+            if found:
+                resolved.append(make_key_token(existing_key))
+                current = current[existing_key]
+                continue
+        resolved.extend(tokens[idx:])
+        break
+    return tuple(resolved)
+
+
 def _apply_atomic_set(
     working: dict[str, Any],
     patch: ConfigPatch,
     tokens: tuple[PathToken, ...],
     canon_path: str,
-    style_ledger: StyleLedger,
+    style_ledger: StyleLedger | None,
 ) -> tuple[ConfigPatch, Any]:
     raw_before = read_raw_tokens(working, tokens, default=_MISSING)
     had_original, old_val, orig_style, orig_ref = _classify_raw_entry(raw_before)
@@ -371,7 +408,7 @@ def _apply_atomic_nullify(
     patch: ConfigPatch,
     tokens: tuple[PathToken, ...],
     canon_path: str,
-    style_ledger: StyleLedger,
+    style_ledger: StyleLedger | None,
     *,
     expand_nullify_tree: bool,
 ) -> list[tuple[ConfigPatch, Any]]:
@@ -482,6 +519,7 @@ def _writes_explicit_wrapper(patch: ConfigPatch) -> bool:
         patch.replace_raw
         or is_ref_wrapper(patch.new_value)
         or is_ref_only(patch.new_value)
+        or (isinstance(patch.new_value, Mapping) and "value" in patch.new_value)
     )
 
 
@@ -517,23 +555,21 @@ def _merge_with_delete(
 
 
 def _delete_then_set_preserves_style(
-    first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger
+    first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger | None
 ) -> bool:
-    eff_style = (
-        second.write_style
-        or second.original_style
-        or style_ledger.wrapper_style(second.path)
+    ledger_style = (
+        style_ledger.wrapper_style(second.path) if style_ledger is not None else None
     )
+    eff_style = second.write_style or second.original_style or ledger_style
     if eff_style is None:
         eff_style = "ref_value" if second.default_wrapped else "bare"
+    ledger_ref = (
+        style_ledger.ref_metadata(second.path) if style_ledger is not None else None
+    )
     eff_ref = (
         second.write_ref
         if second.write_ref is not None
-        else (
-            second.original_ref
-            if second.original_ref is not None
-            else style_ledger.ref_metadata(second.path)
-        )
+        else (second.original_ref if second.original_ref is not None else ledger_ref)
     )
     if eff_style != first.original_style or eff_ref != first.original_ref:
         return False
@@ -553,9 +589,18 @@ def _delete_then_set_preserves_style(
 
 
 def _merge_with_set(
-    first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger
+    first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger | None
 ) -> ConfigPatch | object | None:
     if _writes_explicit_wrapper(first) or _writes_explicit_wrapper(second):
+        return _CANNOT_MERGE
+    if (
+        first.action == "set"
+        and first.had_original is True
+        and (
+            first.write_style != first.original_style
+            or first.write_ref != first.original_ref
+        )
+    ):
         return _CANNOT_MERGE
     if first.action == "delete":
         if first.had_original is False:
@@ -590,7 +635,7 @@ def _merge_with_set(
 
 
 def _merge_same_path(
-    first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger
+    first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger | None
 ) -> ConfigPatch | object | None:
     """Coalesce two non-interfering patches on the exact same canonical path."""
     if second.action == "delete":
@@ -602,7 +647,7 @@ def _merge_same_path(
 
 def _coalesce_owned_patches(
     owned_patches: list[tuple[int | None, ConfigPatch, Any]],
-    style_ledger: StyleLedger,
+    style_ledger: StyleLedger | None,
 ) -> list[tuple[int | None, ConfigPatch, Any]]:
     """Coalesce sequential same-path patches without crossing ancestor/descendant barriers."""
     result: list[tuple[int | None, ConfigPatch, Any]] = []
@@ -659,10 +704,10 @@ def normalise_owned_patches(
     """Normalise ``(owner_id, patch)`` pairs while reconciling ownership across coalescing."""
     if isinstance(target, ConfigDocument):
         base_data: Mapping[str, Any] = target.data
-        style_ledger = target.style_ledger
+        style_ledger: StyleLedger | None = target.style_ledger
     else:
         base_data = target
-        style_ledger = StyleLedger.from_mapping(target)
+        style_ledger = None
 
     working = thaw_copy(base_data)
     recorded: list[tuple[int | None, ConfigPatch, Any]] = []
@@ -672,7 +717,7 @@ def normalise_owned_patches(
             raise ValueError(
                 f"Unsupported patch action {patch.action!r} at path {patch.path!r}"
             )
-        tokens = _resolve_patch_tokens(patch)
+        tokens = _resolve_existing_tokens(working, _resolve_patch_tokens(patch))
         canon_path = format_path_tokens(tokens)
         if patch.action == "set":
             rec_patch, raw_after = _apply_atomic_set(

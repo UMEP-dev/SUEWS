@@ -37,7 +37,10 @@ from pydantic_core import PydanticUndefinedType
 from ..pipeline.document import (
     _freeze_mapping_entries,
     _freeze_sequence_items,
+    _freeze_slice_value,
     _FrozenArraySpec,
+    _FrozenSliceSpec,
+    _is_immutable_enum,
     _materialise_frozen,
     _ReadOnlyMaterialisingMapping,
     _ReadOnlyMaterialisingTuple,
@@ -56,9 +59,7 @@ _IMMUTABLE_TYPES = (
     str,
     bytes,
     range,
-    slice,
     type,
-    Enum,
     Decimal,
     Fraction,
     UUID,
@@ -86,6 +87,19 @@ _IMMUTABLE_TYPES = (
     MethodDescriptorType,
 )
 
+_FIELD_INFO_ATTRS = (
+    "name",
+    "annotation",
+    "default",
+    "is_required",
+    "alias",
+    "title",
+    "description",
+    "deprecated",
+    "metadata",
+    "json_schema_extra",
+)
+
 
 @dataclass(frozen=True)
 class ReadOnlyFieldInfo:
@@ -101,6 +115,35 @@ class ReadOnlyFieldInfo:
     deprecated: Any
     metadata: tuple[Any, ...]
     json_schema_extra: Any
+
+    def __getattribute__(self, name: str) -> Any:
+        """Materialise lazy frozen specs into fresh views on every attribute read."""
+        return _materialise_readonly(super().__getattribute__(name))
+
+    def __eq__(self, other: object) -> bool:
+        """Compare stored field metadata without triggering ambiguous NumPy comparisons."""
+        if other is self:
+            return True
+        if not isinstance(other, ReadOnlyFieldInfo):
+            return NotImplemented
+        return all(
+            object.__getattribute__(self, attr) == object.__getattribute__(other, attr)
+            for attr in _FIELD_INFO_ATTRS
+        )
+
+    def __hash__(self) -> int:
+        """Hash stored field metadata consistently with :meth:`__eq__`."""
+        return hash(
+            tuple(object.__getattribute__(self, attr) for attr in _FIELD_INFO_ATTRS)
+        )
+
+    def __copy__(self) -> ReadOnlyFieldInfo:
+        """Return ``self`` because ``ReadOnlyFieldInfo`` is deeply immutable."""
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> ReadOnlyFieldInfo:
+        """Return ``self`` because ``ReadOnlyFieldInfo`` is deeply immutable."""
+        return self
 
 
 class ReadOnlyDataclassProxy:
@@ -185,6 +228,18 @@ class ReadOnlyDataclassProxy:
         """Delegate hashing to the underlying immutable dataclass snapshot when hashable."""
         return hash(_DATACLASS_STATE[id(self)][0])
 
+    def unwrap_copy(self) -> Any:
+        """Return an independent mutable deep copy of the underlying dataclass."""
+        return deepcopy(_DATACLASS_STATE[id(self)][0])
+
+    def __copy__(self) -> ReadOnlyDataclassProxy:
+        """Return ``self`` because ``ReadOnlyDataclassProxy`` is deeply immutable."""
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> ReadOnlyDataclassProxy:
+        """Return ``self`` because ``ReadOnlyDataclassProxy`` is deeply immutable."""
+        return self
+
     def __repr__(self) -> str:
         """Return a readable representation of the wrapped dataclass."""
         return f"ReadOnlyDataclassProxy({_DATACLASS_STATE[id(self)][0]!r})"
@@ -207,7 +262,7 @@ def _freeze_ndarray_spec(value: np.ndarray[Any, Any] | np.void) -> Any:
 
 
 def _materialise_readonly(value: Any) -> Any:
-    """Materialise any top-level :class:`_FrozenArraySpec` into a fresh read-only view."""
+    """Materialise any top-level lazy frozen spec into a fresh read-only view."""
     return _materialise_frozen(value)
 
 
@@ -230,12 +285,22 @@ def _wrap_container_or_object(value: Any) -> Any:
 
 def _wrap_readonly(value: Any) -> Any:
     """Recursively wrap a detached Pydantic/Python value as read-only."""
+    if isinstance(value, Enum):
+        if _is_immutable_enum(value):
+            return value
+        raise TypeError(
+            f"ReadOnlyModelProxy cannot safely freeze Enum member "
+            f"{type(value).__name__}.{value.name} with mutable payload"
+        )
+    if isinstance(value, slice):
+        return _freeze_slice_value(value, _wrap_readonly)
     if isinstance(
         value,
         (
             ReadOnlyModelProxy,
             ReadOnlyDataclassProxy,
             _FrozenArraySpec,
+            _FrozenSliceSpec,
             _ReadOnlyMaterialisingMapping,
             _ReadOnlyMaterialisingTuple,
             *_IMMUTABLE_TYPES,
@@ -251,14 +316,14 @@ def _wrap_readonly(value: Any) -> Any:
 
 def _freeze_field_metadata_value(value: Any) -> Any:
     """Safely snapshot and freeze arbitrary Pydantic field metadata values."""
-    if isinstance(value, _IMMUTABLE_TYPES):
+    if not isinstance(value, Enum) and isinstance(value, _IMMUTABLE_TYPES):
         return value
     try:
         copied = deepcopy(value)
     except (TypeError, ValueError):
         copied = value
     try:
-        return _materialise_readonly(_wrap_readonly(copied))
+        return _wrap_readonly(copied)
     except TypeError:
         return repr(value)
 
@@ -276,7 +341,9 @@ def _freeze_model_fields(model_cls: type[BaseModel]) -> Mapping[str, ReadOnlyFie
             title=info.title,
             description=info.description,
             deprecated=_freeze_field_metadata_value(info.deprecated),
-            metadata=tuple(_freeze_field_metadata_value(m) for m in info.metadata),
+            metadata=_freeze_sequence_items([
+                _freeze_field_metadata_value(m) for m in info.metadata
+            ]),
             json_schema_extra=_freeze_field_metadata_value(info.json_schema_extra),
         )
     return MappingProxyType(frozen)
@@ -343,7 +410,7 @@ class ReadOnlyModelProxy:
 
     def to_typed_view(self) -> Any:
         """Convert this read-only model into a deeply frozen :class:`TypedConfigView`."""
-        from .typed_view import TypedConfigView  # ruff: ignore[import-outside-top-level]
+        from .typed_view import TypedConfigView  # noqa: PLC0415
 
         return TypedConfigView.from_config(_PROXY_STATE[id(self)][0])
 
@@ -412,6 +479,14 @@ class ReadOnlyModelProxy:
     def __hash__(self) -> int:
         """Delegate hashing to the underlying immutable model snapshot when hashable."""
         return hash(_PROXY_STATE[id(self)][0])
+
+    def __copy__(self) -> ReadOnlyModelProxy:
+        """Return ``self`` because ``ReadOnlyModelProxy`` is deeply immutable."""
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> ReadOnlyModelProxy:
+        """Return ``self`` because ``ReadOnlyModelProxy`` is deeply immutable."""
+        return self
 
     def __repr__(self) -> str:
         """Return a readable representation of the wrapped model."""

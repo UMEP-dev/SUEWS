@@ -592,7 +592,7 @@ def _dump_suews_config(
 
 
 def _load_source_in_memory(
-    source: str | Path | Mapping[str, Any] | SUEWSConfig,
+    source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
     *,
     first_phase: str,
 ) -> tuple[Any, Path | None, PhaseReport | None]:
@@ -1057,7 +1057,7 @@ class ValidationEngine:
 
     def _validate_staged(
         self,
-        source: str | Path | Mapping[str, Any] | SUEWSConfig,
+        source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
         *,
         pipeline_norm: str,
         mode_norm: str,
@@ -1139,7 +1139,7 @@ class ValidationEngine:
 
     def validate(
         self,
-        source: str | Path | Mapping[str, Any] | SUEWSConfig,
+        source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
         *,
         pipeline: str = "ABC",
         mode: str = "public",
@@ -1264,7 +1264,7 @@ class ValidationEngine:
 
 
 def validate_config(
-    source: str | Path | Mapping[str, Any] | SUEWSConfig,
+    source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
     *,
     pipeline: str = "ABC",
     mode: str = "public",
@@ -1281,9 +1281,10 @@ def validate_config(
 
     Parameters
     ----------
-    source : str, pathlib.Path, Mapping, or SUEWSConfig
-        Path to a SUEWS YAML configuration, an in-memory config mapping, or an
-        already-loaded :class:`~supy.data_model.SUEWSConfig`.
+    source : str, pathlib.Path, Mapping, SUEWSConfig, or ReadOnlyModelProxy
+        Path to a SUEWS YAML configuration, an in-memory config mapping, an
+        already-loaded :class:`~supy.data_model.SUEWSConfig`, or a
+        :class:`~supy.data_model.validation.rules.readonly_model.ReadOnlyModelProxy`.
     pipeline : str, default "ABC"
         Phase combination to run: one of ``"A"``, ``"B"``, ``"C"``, ``"AB"``,
         ``"AC"``, ``"BC"``, or ``"ABC"``.

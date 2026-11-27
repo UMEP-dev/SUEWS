@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import deque
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, dataclass
+from enum import Enum, IntEnum, StrEnum
 from importlib.resources import files
 import math
 from pathlib import Path
@@ -17,6 +18,7 @@ import yaml
 
 import supy
 from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.validation.engine import ValidationEngine, validate_config
 from supy.data_model.validation.pipeline.document import (
     ConfigDocument,
     ConfigPatch,
@@ -32,6 +34,7 @@ from supy.data_model.validation.pipeline.document import (
     parse_path_tokens,
     path_exists,
     read_raw_path,
+    thaw_copy,
 )
 from supy.data_model.validation.pipeline.patch_normaliser import (
     collect_nullifiable_entries,
@@ -54,6 +57,7 @@ from supy.data_model.validation.pipeline.phase_b_rules import (
     RulesRegistry,
     ValidationContext,
 )
+from supy.data_model.validation.pipeline.style_ledger import dump_yaml_with_style
 from supy.data_model.validation.rules import (
     ControlView,
     LandCoverView,
@@ -935,7 +939,7 @@ def test_vertical_layers_nlayer_and_proxy_source_dir_validation(
     ro_cfg = freeze_model(cfg)
     monkeypatch.chdir(other_dir)
 
-    import supy.data_model.validation.engine as engine_mod  # ruff: ignore[import-outside-top-level]
+    import supy.data_model.validation.engine as engine_mod  # noqa: PLC0415
 
     captured_base_dirs: list[Path | None] = []
     orig_phase_b = engine_mod._run_phase_b_in_memory
@@ -1448,3 +1452,292 @@ def test_confirm_round_unsorted_profile_alias_barriers_and_representation_noops(
         assert replayed_rep == direct_rep == expected
         apply_patches_in_place(replayed_rep, invert_patches(norm_rep))
         assert replayed_rep == rep_base
+
+
+def test_confirm_r2_non_ref_value_coalesce_and_plain_dict_wrapping() -> None:
+    """Non-RefValue value-dict coalescing and plain-dict delete+set wrapping match direct apply."""
+    # Blocker 1: scalar -> non-RefValue mapping containing "value" -> scalar preserves sibling keys.
+    unit_base = {"a": 0}
+    unit_patches = [
+        ConfigPatch("a", "set", {"value": 1, "unit": "m"}, default_wrapped=False),
+        ConfigPatch("a", "set", 2, default_wrapped=False),
+    ]
+    direct_unit = deepcopy(unit_base)
+    apply_patches_in_place(direct_unit, unit_patches)
+    norm_unit = normalise_patches(unit_patches, unit_base)
+    replayed_unit = deepcopy(unit_base)
+    apply_patches_in_place(replayed_unit, norm_unit)
+    assert replayed_unit == direct_unit == {"a": {"value": 2, "unit": "m"}}
+    apply_patches_in_place(replayed_unit, invert_patches(norm_unit))
+    assert replayed_unit == unit_base
+
+    # Representation-changing set (bare -> ref_only -> ref_value) must not collapse and drop ref.
+    rep_chain_base = {"a": None}
+    rep_chain = [
+        ConfigPatch("a", "set", None, write_style="ref_only", write_ref={"ID": "r1"}),
+        ConfigPatch("a", "set", 5),
+    ]
+    direct_chain = deepcopy(rep_chain_base)
+    apply_patches_in_place(direct_chain, rep_chain)
+    norm_chain = normalise_patches(rep_chain, rep_chain_base)
+    replayed_chain = deepcopy(rep_chain_base)
+    apply_patches_in_place(replayed_chain, norm_chain)
+    assert replayed_chain == direct_chain == {"a": {"ref": {"ID": "r1"}, "value": 5}}
+    apply_patches_in_place(replayed_chain, invert_patches(norm_chain))
+    assert replayed_chain == rep_chain_base
+
+    # Major 1: plain dict target does not synthesise a StyleLedger that overrides default_wrapped=True.
+    plain_base = {"a": 1}
+    del_set_patches = [ConfigPatch("a", "delete"), ConfigPatch("a", "set", 2)]
+    direct_plain = deepcopy(plain_base)
+    apply_patches_in_place(direct_plain, del_set_patches)
+    norm_plain = normalise_patches(del_set_patches, plain_base)
+    replayed_plain = deepcopy(plain_base)
+    apply_patches_in_place(replayed_plain, norm_plain)
+    assert replayed_plain == direct_plain == {"a": {"value": 2}}
+    apply_patches_in_place(replayed_plain, invert_patches(norm_plain))
+    assert replayed_plain == plain_base
+
+    # ConfigDocument target still preserves bare style via its real StyleLedger.
+    bare_doc = ConfigDocument.from_dict(plain_base, normalise=False)
+    assert (
+        bare_doc.apply_patches(bare_doc.normalise_patches(del_set_patches)).data
+        == bare_doc.apply_patches(del_set_patches).data
+        == {"a": 2}
+    )
+
+
+def test_confirm_r2_aliased_delete_restores_original_key_type() -> None:
+    """Deleting int key 1 via aliased MappingKey(True) restores int key 1 on invert."""
+    alias_del_base = {"a": {1: "orig"}}
+    alias_del_patches = [
+        ConfigPatch("a[True]", "delete", path_tokens=("a", MappingKey(True)))
+    ]
+    norm_alias_del = normalise_patches(alias_del_patches, alias_del_base)
+    replayed_alias_del = deepcopy(alias_del_base)
+    apply_patches_in_place(replayed_alias_del, norm_alias_del)
+    assert replayed_alias_del == {"a": {}}
+    apply_patches_in_place(replayed_alias_del, invert_patches(norm_alias_del))
+    assert replayed_alias_del == {"a": {1: "orig"}}
+    restored_key = next(iter(replayed_alias_del["a"].keys()))
+    assert type(restored_key) is int
+    assert restored_key == 1
+
+    # Also verify aliased delete+set replaces int key 1 with bool True forward and restores int 1 on invert.
+    alias_replace = [
+        ConfigPatch("a[True]", "delete", path_tokens=("a", MappingKey(True))),
+        ConfigPatch(
+            "a[True]",
+            "set",
+            "orig",
+            path_tokens=("a", MappingKey(True)),
+            default_wrapped=False,
+        ),
+    ]
+    norm_replace = normalise_patches(alias_replace, alias_del_base)
+    replayed_replace = deepcopy(alias_del_base)
+    apply_patches_in_place(replayed_replace, norm_replace)
+    assert type(next(iter(replayed_replace["a"].keys()))) is bool
+    apply_patches_in_place(replayed_replace, invert_patches(norm_replace))
+    assert type(next(iter(replayed_replace["a"].keys()))) is int
+
+
+def test_confirm_r2_enum_and_slice_freezing() -> None:
+    """Mutable Enum payloads are rejected and slice bounds are deeply frozen on both surfaces."""
+
+    class _SafeEnum(Enum):
+        TUP = (1, "ok")
+
+    class _SafeIntEnum(IntEnum):
+        ONE = 1
+
+    class _SafeStrEnum(StrEnum):
+        ALPHA = "alpha"
+
+    class _MutableListEnum(Enum):
+        BAD = [1, 2]  # noqa: RUF012
+
+    class _MutableNestedEnum(Enum):
+        BAD = ([1, 2],)
+
+    class _MutableAttrEnum(IntEnum):
+        BAD = 1
+
+        def __init__(self, _val: int) -> None:
+            self.extra = [1, 2]
+
+    class _CustomMutable:
+        def __init__(self, x: int) -> None:
+            self.x = x
+
+    class _EnumSliceModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        safe_enum: _SafeEnum = _SafeEnum.TUP
+        safe_int_enum: _SafeIntEnum = _SafeIntEnum.ONE
+        safe_str_enum: _SafeStrEnum = _SafeStrEnum.ALPHA
+        bad_enum: object = _MutableListEnum.BAD
+        bad_attr_enum: object = _MutableAttrEnum.BAD
+        mut_slice: object = Field(
+            default_factory=lambda: slice([1, 2], {"k": [3]}, None)
+        )
+        arr_slice: object = Field(
+            default_factory=lambda: slice(np.array([1.0, 2.0]), None, None)
+        )
+
+    assert deep_freeze(_SafeEnum.TUP) is _SafeEnum.TUP
+    assert deep_freeze(_SafeIntEnum.ONE) is _SafeIntEnum.ONE
+    assert deep_freeze(_SafeStrEnum.ALPHA) is _SafeStrEnum.ALPHA
+    for bad_member in (
+        _MutableListEnum.BAD,
+        _MutableNestedEnum.BAD,
+        _MutableAttrEnum.BAD,
+    ):
+        with pytest.raises(TypeError, match="mutable payload"):
+            deep_freeze(bad_member)
+
+    frozen_mut_slice = deep_freeze(slice([1, 2], {"k": [3]}, None))
+    assert isinstance(frozen_mut_slice, slice)
+    assert frozen_mut_slice.start == (1, 2)
+    assert isinstance(frozen_mut_slice.stop, MappingProxyType)
+    assert frozen_mut_slice.stop["k"] == (3,)
+    with pytest.raises(TypeError):
+        frozen_mut_slice.stop["k"] = (9,)  # type: ignore[index]
+
+    frozen_slice_map = deep_freeze({"s": slice(np.array([1.0, 2.0]), None, None)})
+    s1 = frozen_slice_map["s"]
+    s1.start.shape = (2, 1)
+    s1.start.dtype = np.int64
+    s2 = frozen_slice_map["s"]
+    assert s2.start.shape == (2,)
+    assert s2.start.dtype == np.float64
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        deep_freeze(slice(_CustomMutable(1), None, None))
+
+    ro = freeze_model(_EnumSliceModel())
+    assert ro.safe_enum is _SafeEnum.TUP
+    assert ro.safe_int_enum is _SafeIntEnum.ONE
+    assert ro.safe_str_enum is _SafeStrEnum.ALPHA
+    with pytest.raises(TypeError, match="mutable payload"):
+        _ = ro.bad_enum
+    with pytest.raises(TypeError, match="mutable payload"):
+        _ = ro.bad_attr_enum
+    assert ro.mut_slice.start == (1, 2)
+    assert isinstance(ro.mut_slice.stop, MappingProxyType)
+    assert ro.mut_slice.stop["k"] == (3,)
+    ro_s1 = ro.arr_slice
+    ro_s1.start.shape = (2, 1)
+    ro_s1.start.dtype = np.int64
+    assert ro.arr_slice.start.shape == (2,)
+    assert ro.arr_slice.start.dtype == np.float64
+    assert isinstance(ro.model_fields["bad_enum"].default, str)
+
+
+def test_confirm_r2_proxy_copy_thaw_and_field_default_arrays() -> None:
+    """Proxies survive copy/deepcopy/thaw and cached ReadOnlyFieldInfo array defaults isolate views."""
+
+    @dataclass
+    class _NestedDC:
+        items: list[int]
+
+    class _NestedModel(BaseModel):
+        value: int
+
+    class _ProxyCopyModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        default_arr: np.ndarray = Field(
+            default=np.array([10.0, 20.0]),
+            json_schema_extra={"arr": np.array([30.0, 40.0])},
+        )
+        child_model: _NestedModel = Field(default_factory=lambda: _NestedModel(value=7))
+        child_dc: _NestedDC = Field(default_factory=lambda: _NestedDC(items=[1, 2]))
+
+    ro = freeze_model(_ProxyCopyModel())
+    # Major 3: copy/deepcopy on ReadOnlyModelProxy & ReadOnlyDataclassProxy and ConfigDocument.from_dict(frozen_data()).
+    assert copy(ro).child_model.value == 7
+    assert deepcopy(ro).child_model.value == 7
+    assert copy(ro.child_dc).items == (1, 2)
+    assert deepcopy(ro.child_dc).items == (1, 2)
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        deepcopy(ro).child_model.value = 99
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        deepcopy(ro.child_dc).items = [9]
+
+    doc_nested = ConfigDocument({
+        "model": _NestedModel(value=11),
+        "dc": _NestedDC(items=[3, 4]),
+        "sl": slice([5, 6], None, None),
+    })
+    rehydrated = ConfigDocument.from_dict(doc_nested.frozen_data(), normalise=False)
+    assert isinstance(rehydrated.data["model"], _NestedModel)
+    assert isinstance(rehydrated.data["dc"], _NestedDC)
+    assert rehydrated.data["model"].value == 11
+    assert rehydrated.data["dc"].items == [3, 4]
+    assert rehydrated.data["sl"] == slice([5, 6], None, None)
+    rehydrated.data["model"].value = 999
+    rehydrated.data["dc"].items.append(5)
+    assert doc_nested.data["model"].value == 11
+    assert doc_nested.data["dc"].items == [3, 4]
+    assert thaw_copy(ro.child_model) == _NestedModel(value=7)
+    assert thaw_copy(ro.child_dc) == _NestedDC(items=[1, 2])
+
+    # Major 4: ReadOnlyFieldInfo.default / json_schema_extra NumPy arrays isolate view metadata across reads.
+    field_info = ro.model_fields["default_arr"]
+    def_v1 = field_info.default
+    def_v1.shape = (2, 1)
+    def_v1.dtype = np.int64
+    def_v2 = ro.model_fields["default_arr"].default
+    assert def_v2.shape == (2,)
+    assert def_v2.dtype == np.float64
+    assert np.array_equal(def_v2, np.array([10.0, 20.0]))
+
+    extra_v1 = field_info.json_schema_extra["arr"]
+    extra_v1.shape = (2, 1)
+    extra_v1.dtype = np.int64
+    extra_v2 = ro.model_fields["default_arr"].json_schema_extra["arr"]
+    assert extra_v2.shape == (2,)
+    assert extra_v2.dtype == np.float64
+    assert field_info == ro.model_fields["default_arr"]
+    assert deepcopy(field_info) is field_info
+
+
+def test_confirm_r2_reversed_tuple_typed_key_order_and_engine_annotations() -> None:
+    """Materialising tuple supports reversed(), StyleLedger keeps typed key_order, and engine accepts ReadOnlyModelProxy."""
+    # Minor 1: reversed() on _ReadOnlyMaterialisingTuple works and isolates view metadata.
+    frozen_seq = deep_freeze([np.array([1.0, 2.0]), np.array([3.0, 4.0])])
+    rev_items = list(reversed(frozen_seq))
+    assert len(rev_items) == 2
+    assert np.array_equal(rev_items[0], np.array([3.0, 4.0]))
+    assert np.array_equal(rev_items[1], np.array([1.0, 2.0]))
+    rev_items[0].shape = (2, 1)
+    rev_items[0].dtype = np.int64
+    assert frozen_seq[1].shape == (2,)
+    assert frozen_seq[1].dtype == np.float64
+
+    # Minor 2: StyleLedger preserves typed keys (1 vs "1") in key_order and round-trip reordering.
+    yaml_mixed_keys = "'1': str-first\n1: int-second\n"
+    ledger_yaml = StyleLedger.from_yaml_text(yaml_mixed_keys)
+    root_order = ledger_yaml.get("")
+    assert root_order is not None
+    assert len(root_order.key_order) == 2
+    assert type(root_order.key_order[0]) is str and root_order.key_order[0] == "1"
+    assert type(root_order.key_order[1]) is int and root_order.key_order[1] == 1
+
+    dumped_mixed = dump_yaml_with_style(
+        {1: "int-second", "1": "str-first"}, ledger_yaml
+    )
+    reloaded_keys = list(yaml.safe_load(dumped_mixed).keys())
+    assert [type(k) for k in reloaded_keys] == [str, int]
+    assert reloaded_keys == ["1", 1]
+
+    ledger_map = StyleLedger.from_mapping({1: "int-first", "1": "str-second"})
+    map_order = ledger_map.get("")
+    assert map_order is not None
+    assert [type(k) for k in map_order.key_order] == [int, str]
+    dumped_map = dump_yaml_with_style({"1": "str-second", 1: "int-first"}, ledger_map)
+    reloaded_map_keys = list(yaml.safe_load(dumped_map).keys())
+    assert [type(k) for k in reloaded_map_keys] == [int, str]
+    assert reloaded_map_keys == [1, "1"]
+
+    # Minor 3: ValidationEngine.validate and validate_config type annotations include ReadOnlyModelProxy.
+    assert "ReadOnlyModelProxy" in ValidationEngine.validate.__annotations__["source"]
+    assert "ReadOnlyModelProxy" in validate_config.__annotations__["source"]

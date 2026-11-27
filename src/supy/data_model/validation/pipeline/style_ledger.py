@@ -85,16 +85,18 @@ def _extract_leading_comments(raw_text: str) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def _node_scalar_key(node: yaml.Node) -> str | None:
-    if isinstance(node, yaml.ScalarNode):
-        return str(node.value)
-    return None
+_NON_SCALAR_KEY = object()
+
+
+def _typed_key_id(key: Any) -> tuple[type[Any], Any]:
+    """Return a type-preserving hashable identity distinguishing ``1``, ``"1"``, and ``True``."""
+    return (type(key), key)
 
 
 def _node_typed_key(node: yaml.Node, loader: yaml.SafeLoader | None = None) -> Any:
     """Recover the typed Python key using PyYAML's SafeLoader scalar constructors."""
     if not isinstance(node, yaml.ScalarNode):
-        return None
+        return _NON_SCALAR_KEY
     if loader is not None:
         return loader.construct_object(node, deep=True)
     helper = yaml.SafeLoader("")
@@ -111,25 +113,27 @@ def _construct_node_value(loader: yaml.SafeLoader, node: yaml.Node) -> Any:
 
 def _classify_mapping_node(
     node: yaml.MappingNode,
-) -> tuple[WrapperStyle | None, yaml.Node | None, yaml.Node | None, tuple[str, ...]]:
+    loader: yaml.SafeLoader | None = None,
+) -> tuple[WrapperStyle | None, yaml.Node | None, yaml.Node | None, tuple[Any, ...]]:
     """Classify a PyYAML mapping node as ``ref_value``, ``ref_only``, or plain section."""
-    keys: list[str] = []
+    keys: list[Any] = []
     value_node: yaml.Node | None = None
     ref_node: yaml.Node | None = None
     for key_node, val_node in node.value:
-        key_str = _node_scalar_key(key_node)
-        if key_str is None:
+        typed_key = _node_typed_key(key_node, loader)
+        if typed_key is _NON_SCALAR_KEY:
             continue
-        keys.append(key_str)
-        if key_str == "value":
-            value_node = val_node
-        elif key_str == "ref":
-            ref_node = val_node
+        keys.append(typed_key)
+        if isinstance(typed_key, str):
+            if typed_key == "value":
+                value_node = val_node
+            elif typed_key == "ref":
+                ref_node = val_node
 
-    key_set = set(keys)
-    if value_node is not None and key_set <= {"value", "ref"}:
+    key_ids = {_typed_key_id(k) for k in keys}
+    if value_node is not None and key_ids <= {(str, "value"), (str, "ref")}:
         return "ref_value", value_node, ref_node, tuple(keys)
-    if value_node is None and keys and key_set == {"ref"}:
+    if value_node is None and keys and key_ids == {(str, "ref")}:
         return "ref_only", None, ref_node, tuple(keys)
     return None, None, None, tuple(keys)
 
@@ -159,7 +163,7 @@ def _walk_mapping_value(
             entries[prefix] = PathStyle(
                 wrapper_style="ref_only",
                 ref=_freeze_value(ref_val) if isinstance(ref_val, Mapping) else None,
-                key_order=tuple(str(k) for k in node),
+                key_order=tuple(_freeze_value(k) for k in node),
             )
         return
     if _is_ref_wrapper_mapping(node):
@@ -168,7 +172,7 @@ def _walk_mapping_value(
             entries[prefix] = PathStyle(
                 wrapper_style="ref_value",
                 ref=_freeze_value(ref_val) if isinstance(ref_val, Mapping) else None,
-                key_order=tuple(str(k) for k in node),
+                key_order=tuple(_freeze_value(k) for k in node),
             )
         inner = node["value"]
         inner_prefix = _join_key_path(prefix, "value")
@@ -179,10 +183,10 @@ def _walk_mapping_value(
             _walk_python_data(inner, inner_prefix, entries)
         return
 
-    keys = tuple(str(k) for k in node)
+    keys = tuple(_freeze_value(k) for k in node)
     entries[prefix] = PathStyle(key_order=keys)
     for key, val in node.items():
-        if key == "ref":
+        if isinstance(key, str) and key == "ref":
             continue
         child_path = _join_key_path(prefix, key)
         if isinstance(val, (Mapping, list, tuple)):
@@ -233,7 +237,7 @@ class PathStyle:
     scalar_style: str | None = None
     value_flow_style: bool | None = None
     value_scalar_style: str | None = None
-    key_order: tuple[str, ...] = ()
+    key_order: tuple[Any, ...] = ()
     source_line: int | None = None
 
     def __post_init__(self) -> None:
@@ -386,7 +390,13 @@ class StyleLedger:
             return self
         updated: dict[str, PathStyle] = {}
         for path, style in self.entries.items():
-            new_order = tuple(key_renames.get(k, k) for k in style.key_order)
+            new_order = tuple(
+                key_renames.get(k, k) if isinstance(k, str) else k
+                for k in style.key_order
+            )
+            order_changed = tuple(_typed_key_id(k) for k in new_order) != tuple(
+                _typed_key_id(k) for k in style.key_order
+            )
             remapped_style = (
                 PathStyle(
                     wrapper_style=style.wrapper_style,
@@ -398,7 +408,7 @@ class StyleLedger:
                     key_order=new_order,
                     source_line=style.source_line,
                 )
-                if new_order != style.key_order
+                if order_changed
                 else style
             )
             updated[path] = remapped_style
@@ -446,7 +456,7 @@ def _walk_yaml_ref_value(
     node: yaml.MappingNode,
     val_node: yaml.Node | None,
     ref_node: yaml.Node | None,
-    key_order: tuple[str, ...],
+    key_order: tuple[Any, ...],
     prefix: str,
     line: int | None,
     entries: dict[str, PathStyle],
@@ -477,7 +487,7 @@ def _walk_yaml_ref_value(
         )
     inner_prefix = _join_key_path(prefix, "value")
     if isinstance(val_node, yaml.MappingNode):
-        sub_kind, _, _, _ = _classify_mapping_node(val_node)
+        sub_kind, _, _, _ = _classify_mapping_node(val_node, val_loader)
         if sub_kind is None:
             _walk_yaml_node(val_node, inner_prefix, entries, val_loader)
     elif isinstance(val_node, yaml.SequenceNode):
@@ -517,7 +527,9 @@ def _walk_yaml_mapping(
     entries: dict[str, PathStyle],
     val_loader: yaml.SafeLoader,
 ) -> None:
-    wrapper_kind, val_node, ref_node, key_order = _classify_mapping_node(node)
+    wrapper_kind, val_node, ref_node, key_order = _classify_mapping_node(
+        node, val_loader
+    )
     if wrapper_kind == "ref_only":
         ref_val = (
             _construct_node_value(val_loader, ref_node)
@@ -547,7 +559,9 @@ def _walk_yaml_mapping(
     )
     for key_node, child_node in node.value:
         typed_key = _node_typed_key(key_node, val_loader)
-        if typed_key is None or typed_key == "ref":
+        if typed_key is _NON_SCALAR_KEY or (
+            isinstance(typed_key, str) and typed_key == "ref"
+        ):
             continue
         _walk_yaml_node(
             child_node, _join_key_path(prefix, typed_key), entries, val_loader
@@ -605,19 +619,35 @@ def _safe_scalar_style(node: yaml.ScalarNode, recorded: str | None) -> str | Non
     return recorded
 
 
-def _reorder_mapping_node(node: yaml.MappingNode, key_order: tuple[str, ...]) -> None:
+def _reorder_mapping_node(
+    node: yaml.MappingNode,
+    key_order: tuple[Any, ...],
+    loader: yaml.SafeLoader | None = None,
+) -> None:
     """Reorder a PyYAML MappingNode's pairs to match *key_order* where keys exist."""
     if not key_order or len(node.value) <= 1:
         return
-    rank = {key: idx for idx, key in enumerate(key_order)}
+    rank: dict[tuple[type[Any], Any], int] = {}
+    for idx, key in enumerate(key_order):
+        try:
+            rank.setdefault(_typed_key_id(key), idx)
+        except TypeError:
+            continue
     fallback_rank = len(key_order)
     indexed = list(enumerate(node.value))
-    indexed.sort(
-        key=lambda item: (
-            rank.get(_node_scalar_key(item[1][0]) or "", fallback_rank),
-            item[0],
-        )
-    )
+
+    def _sort_key(item: tuple[int, tuple[yaml.Node, yaml.Node]]) -> tuple[int, int]:
+        orig_idx, (key_node, _val_node) = item
+        typed_key = _node_typed_key(key_node, loader)
+        if typed_key is _NON_SCALAR_KEY:
+            return (fallback_rank, orig_idx)
+        try:
+            key_rank = rank.get(_typed_key_id(typed_key), fallback_rank)
+        except TypeError:
+            key_rank = fallback_rank
+        return (key_rank, orig_idx)
+
+    indexed.sort(key=_sort_key)
     node.value = [pair for _, pair in indexed]
 
 
@@ -626,13 +656,14 @@ def _apply_style_to_mapping_node(
     prefix: str,
     style: PathStyle | None,
     ledger: StyleLedger,
+    loader: yaml.SafeLoader | None = None,
 ) -> None:
-    wrapper_kind, val_node, _ref_node, _keys = _classify_mapping_node(node)
+    wrapper_kind, val_node, _ref_node, _keys = _classify_mapping_node(node, loader)
     if style is not None:
         if style.flow_style is not None:
             node.flow_style = style.flow_style
         if style.key_order:
-            _reorder_mapping_node(node, style.key_order)
+            _reorder_mapping_node(node, style.key_order, loader)
     if wrapper_kind == "ref_only":
         return
     if wrapper_kind == "ref_value":
@@ -646,38 +677,45 @@ def _apply_style_to_mapping_node(
                 val_node.style = _safe_scalar_style(val_node, style.value_scalar_style)
         inner_prefix = _join_key_path(prefix, "value")
         if isinstance(val_node, yaml.MappingNode):
-            sub_kind, _, _, _ = _classify_mapping_node(val_node)
+            sub_kind, _, _, _ = _classify_mapping_node(val_node, loader)
             if sub_kind is None:
-                _apply_style_to_yaml_node(val_node, inner_prefix, ledger)
+                _apply_style_to_yaml_node(val_node, inner_prefix, ledger, loader)
         elif isinstance(val_node, yaml.SequenceNode):
             for idx, child_node in enumerate(val_node.value):
                 _apply_style_to_yaml_node(
-                    child_node, _join_index_path(inner_prefix, idx), ledger
+                    child_node, _join_index_path(inner_prefix, idx), ledger, loader
                 )
         return
 
     for key_node, child_node in node.value:
-        typed_key = _node_typed_key(key_node)
-        if typed_key is None or typed_key == "ref":
+        typed_key = _node_typed_key(key_node, loader)
+        if typed_key is _NON_SCALAR_KEY or (
+            isinstance(typed_key, str) and typed_key == "ref"
+        ):
             continue
-        _apply_style_to_yaml_node(child_node, _join_key_path(prefix, typed_key), ledger)
+        _apply_style_to_yaml_node(
+            child_node, _join_key_path(prefix, typed_key), ledger, loader
+        )
 
 
 def _apply_style_to_yaml_node(
     node: yaml.Node,
     prefix: str,
     ledger: StyleLedger,
+    loader: yaml.SafeLoader | None = None,
 ) -> None:
     """Apply recorded flow, scalar, and key-order styles to a PyYAML node tree."""
     style = ledger.get(prefix)
     if isinstance(node, yaml.MappingNode):
-        _apply_style_to_mapping_node(node, prefix, style, ledger)
+        _apply_style_to_mapping_node(node, prefix, style, ledger, loader)
         return
     if isinstance(node, yaml.SequenceNode):
         if style is not None and style.flow_style is not None:
             node.flow_style = style.flow_style
         for idx, child_node in enumerate(node.value):
-            _apply_style_to_yaml_node(child_node, _join_index_path(prefix, idx), ledger)
+            _apply_style_to_yaml_node(
+                child_node, _join_index_path(prefix, idx), ledger, loader
+            )
         return
     if isinstance(node, yaml.ScalarNode) and style is not None:
         node.style = _safe_scalar_style(node, style.scalar_style)
@@ -717,7 +755,11 @@ def dump_yaml_with_style(
         allow_unicode=True,
     )
     root_node = representer.represent_data(data)
-    _apply_style_to_yaml_node(root_node, "", ledger)
+    key_loader = yaml.SafeLoader("")
+    try:
+        _apply_style_to_yaml_node(root_node, "", ledger, key_loader)
+    finally:
+        key_loader.dispose()
 
     yaml.serialize(
         root_node,

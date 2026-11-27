@@ -121,9 +121,7 @@ _FREEZE_IMMUTABLE_TYPES = (
     str,
     bytes,
     range,
-    slice,
     type,
-    Enum,
     Decimal,
     Fraction,
     UUID,
@@ -147,9 +145,76 @@ _FREEZE_IMMUTABLE_TYPES = (
     np.timedelta64,
 )
 
+_ENUM_INTERNAL_ATTRS = frozenset({
+    "_name_",
+    "_value_",
+    "__objclass__",
+    "_sort_order_",
+    "_inverted_",
+})
 
 _FROZEN_ARRAY_STATE: dict[int, tuple[bytes, np.dtype[Any], tuple[int, ...]]] = {}
+_FROZEN_SLICE_STATE: dict[int, tuple[Any, Any, Any]] = {}
 _FROZEN_MAP_STATE: dict[int, dict[Any, Any]] = {}
+
+
+def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
+    """Return True when all custom instance/slot attributes of *value* are immutable."""
+    if hasattr(value, "__dict__") and any(
+        not _is_deeply_immutable_payload(attr_val, seen)
+        for attr_name, attr_val in vars(value).items()
+        if attr_name not in _ENUM_INTERNAL_ATTRS
+    ):
+        return False
+    for cls in type(value).__mro__:
+        slots = cls.__dict__.get("__slots__")
+        if not slots:
+            continue
+        slot_names = (slots,) if isinstance(slots, str) else slots
+        for slot_name in slot_names:
+            if slot_name in _ENUM_INTERNAL_ATTRS or slot_name in {
+                "__dict__",
+                "__weakref__",
+            }:
+                continue
+            try:
+                slot_val = getattr(value, slot_name)
+            except AttributeError:
+                continue
+            if not _is_deeply_immutable_payload(slot_val, seen):
+                return False
+    return True
+
+
+def _is_deeply_immutable_payload(value: Any, seen: set[int]) -> bool:
+    """Return True when *value* contains no reachable mutable objects."""
+    if isinstance(value, Enum):
+        obj_id = id(value)
+        if obj_id in seen:
+            return True
+        seen.add(obj_id)
+        return _is_deeply_immutable_payload(
+            value.value, seen
+        ) and _enum_extra_attrs_immutable(value, seen)
+    if isinstance(value, _FREEZE_IMMUTABLE_TYPES):
+        return True
+    if isinstance(value, slice):
+        return all(
+            _is_deeply_immutable_payload(bound, seen)
+            for bound in (value.start, value.stop, value.step)
+        )
+    if isinstance(value, (tuple, frozenset)):
+        obj_id = id(value)
+        if obj_id in seen:
+            return True
+        seen.add(obj_id)
+        return all(_is_deeply_immutable_payload(item, seen) for item in value)
+    return False
+
+
+def _is_immutable_enum(member: Enum) -> bool:
+    """Return True when an ``Enum`` member carries only deeply immutable state."""
+    return _is_deeply_immutable_payload(member, set())
 
 
 class _FrozenArraySpec:
@@ -171,6 +236,20 @@ class _FrozenArraySpec:
         buf, dtype, shape = _FROZEN_ARRAY_STATE[id(self)]
         return np.frombuffer(buf, dtype=deepcopy(dtype)).reshape(shape)
 
+    def __copy__(self) -> _FrozenArraySpec:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _FrozenArraySpec:
+        return self
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _FrozenArraySpec):
+            return _FROZEN_ARRAY_STATE[id(self)] == _FROZEN_ARRAY_STATE[id(other)]
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(_FROZEN_ARRAY_STATE[id(self)])
+
     def __setattr__(self, name: str, value: Any) -> None:
         raise TypeError("Cannot mutate _FrozenArraySpec")
 
@@ -178,17 +257,73 @@ class _FrozenArraySpec:
         raise TypeError("Cannot mutate _FrozenArraySpec")
 
 
+class _FrozenSliceSpec:
+    """Immutable specification for a ``slice`` holding lazy array or slice specs."""
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, start: Any, stop: Any, step: Any) -> None:
+        key = id(self)
+        _FROZEN_SLICE_STATE[key] = (start, stop, step)
+        weakref.finalize(self, _FROZEN_SLICE_STATE.pop, key, None)
+
+    def materialise(self) -> slice:
+        """Return a fresh ``slice`` with materialised read-only bounds."""
+        start, stop, step = _FROZEN_SLICE_STATE[id(self)]
+        return slice(
+            _materialise_frozen(start),
+            _materialise_frozen(stop),
+            _materialise_frozen(step),
+        )
+
+    def __copy__(self) -> _FrozenSliceSpec:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _FrozenSliceSpec:
+        return self
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _FrozenSliceSpec):
+            return _FROZEN_SLICE_STATE[id(self)] == _FROZEN_SLICE_STATE[id(other)]
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(_FROZEN_SLICE_STATE[id(self)])
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise TypeError("Cannot mutate _FrozenSliceSpec")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError("Cannot mutate _FrozenSliceSpec")
+
+
+_LAZY_FROZEN_SPECS = (_FrozenArraySpec, _FrozenSliceSpec)
+
+
 def _materialise_frozen(value: Any) -> Any:
-    """Materialise a :class:`_FrozenArraySpec` into a fresh read-only NumPy view."""
-    if isinstance(value, _FrozenArraySpec):
+    """Materialise a lazy frozen spec into a fresh read-only view."""
+    if isinstance(value, _LAZY_FROZEN_SPECS):
         return value.materialise()
     return value
+
+
+def _freeze_slice_value(value: slice, freeze_fn: Any) -> slice | _FrozenSliceSpec:
+    """Recursively freeze the bounds of *value* using *freeze_fn*."""
+    start = freeze_fn(value.start)
+    stop = freeze_fn(value.stop)
+    step = freeze_fn(value.step)
+    if any(isinstance(bound, _LAZY_FROZEN_SPECS) for bound in (start, stop, step)):
+        return _FrozenSliceSpec(start, stop, step)
+    if start is value.start and stop is value.stop and step is value.step:
+        return value
+    return slice(start, stop, step)
 
 
 class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
     """Read-only mapping that materialises fresh NumPy views on every lookup."""
 
     __slots__ = ("__weakref__",)
+    __hash__ = None  # type: ignore[assignment]
 
     def __init__(self, entries: dict[Any, Any]) -> None:
         key = id(self)
@@ -212,6 +347,17 @@ class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
             k: _materialise_frozen(v) for k, v in _FROZEN_MAP_STATE[id(self)].items()
         })
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _ReadOnlyMaterialisingMapping):
+            return _FROZEN_MAP_STATE[id(self)] == _FROZEN_MAP_STATE[id(other)]
+        return super().__eq__(other)
+
+    def __copy__(self) -> _ReadOnlyMaterialisingMapping:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _ReadOnlyMaterialisingMapping:
+        return self
+
     def __setattr__(self, name: str, value: Any) -> None:
         raise TypeError(f"Cannot mutate read-only mapping attribute {name!r}")
 
@@ -228,7 +374,7 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
     def __getitem__(self, index: Any) -> Any:
         if isinstance(index, slice):
             sliced = super().__getitem__(index)
-            if any(isinstance(item, _FrozenArraySpec) for item in sliced):
+            if any(isinstance(item, _LAZY_FROZEN_SPECS) for item in sliced):
                 return _ReadOnlyMaterialisingTuple(sliced)
             return sliced
         return _materialise_frozen(super().__getitem__(index))
@@ -238,8 +384,14 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
             yield _materialise_frozen(item)
 
     def __reversed__(self) -> Any:
-        for item in super().__reversed__():
-            yield _materialise_frozen(item)
+        for idx in range(len(self) - 1, -1, -1):
+            yield _materialise_frozen(super().__getitem__(idx))
+
+    def __copy__(self) -> _ReadOnlyMaterialisingTuple:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _ReadOnlyMaterialisingTuple:
+        return self
 
     def __contains__(self, value: object) -> bool:
         return any(item == value for item in self)
@@ -248,6 +400,8 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
         return repr(tuple(self))
 
     def __eq__(self, other: object) -> bool:
+        if isinstance(other, _ReadOnlyMaterialisingTuple):
+            return super().__eq__(other)
         if not isinstance(other, tuple):
             return NotImplemented
         if len(self) != len(other):
@@ -312,13 +466,13 @@ def _copy_payload(value: Any) -> Any:
 
 
 def _freeze_mapping_entries(entries: dict[Any, Any]) -> Mapping[Any, Any]:
-    if any(isinstance(v, _FrozenArraySpec) for v in entries.values()):
+    if any(isinstance(v, _LAZY_FROZEN_SPECS) for v in entries.values()):
         return _ReadOnlyMaterialisingMapping(entries)
     return MappingProxyType(entries)
 
 
 def _freeze_sequence_items(items: list[Any]) -> tuple[Any, ...]:
-    if any(isinstance(item, _FrozenArraySpec) for item in items):
+    if any(isinstance(item, _LAZY_FROZEN_SPECS) for item in items):
         return _ReadOnlyMaterialisingTuple(items)
     return tuple(items)
 
@@ -358,18 +512,8 @@ def _freeze_model_or_object(value: Any) -> Any:
     )
 
 
-def _deep_freeze_internal(value: Any) -> Any:
-    """Recursively freeze values, keeping NumPy arrays as lazy :class:`_FrozenArraySpec`."""
-    if isinstance(
-        value,
-        (
-            _FrozenArraySpec,
-            _ReadOnlyMaterialisingMapping,
-            _ReadOnlyMaterialisingTuple,
-            *_FREEZE_IMMUTABLE_TYPES,
-        ),
-    ):
-        return value
+def _freeze_container_value(value: Any) -> Any:
+    """Freeze containers, NumPy values, models, dataclasses, or reject unsupported types."""
     if isinstance(value, Mapping):
         return _freeze_mapping_entries({
             k: _deep_freeze_internal(v) for k, v in value.items()
@@ -383,13 +527,59 @@ def _deep_freeze_internal(value: Any) -> Any:
     return _freeze_model_or_object(value)
 
 
+def _deep_freeze_internal(value: Any) -> Any:
+    """Recursively freeze values, keeping NumPy arrays as lazy :class:`_FrozenArraySpec`."""
+    if isinstance(value, Enum):
+        if _is_immutable_enum(value):
+            return value
+        raise TypeError(
+            f"deep_freeze cannot safely freeze Enum member "
+            f"{type(value).__name__}.{value.name} with mutable payload"
+        )
+    if isinstance(value, slice):
+        return _freeze_slice_value(value, _deep_freeze_internal)
+    if isinstance(
+        value,
+        (
+            *_LAZY_FROZEN_SPECS,
+            _ReadOnlyMaterialisingMapping,
+            _ReadOnlyMaterialisingTuple,
+            *_FREEZE_IMMUTABLE_TYPES,
+        ),
+    ):
+        return value
+    return _freeze_container_value(value)
+
+
 def deep_freeze(value: Any) -> Any:
     """Recursively freeze mappings, sequences, sets, arrays, and models into read-only objects."""
     return _materialise_frozen(_deep_freeze_internal(value))
 
 
+def _thaw_non_container(value: Any) -> Any:
+    """Thaw slices, lazy frozen specs, read-only proxies, or fall back to ``deepcopy``."""
+    if isinstance(value, _LAZY_FROZEN_SPECS):
+        return thaw_copy(value.materialise())
+    if isinstance(value, slice):
+        return slice(
+            thaw_copy(value.start),
+            thaw_copy(value.stop),
+            thaw_copy(value.step),
+        )
+    from ..rules.readonly_model import (  # noqa: PLC0415
+        ReadOnlyDataclassProxy,
+        ReadOnlyModelProxy,
+    )
+
+    if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
+        return value.unwrap_copy()
+    return deepcopy(value)
+
+
 def thaw_copy(value: Any) -> Any:
-    """Recursively copy *value*, thawing frozen mappings and tuple sequences."""
+    """Recursively copy *value*, thawing frozen mappings, sequences, and model/dataclass proxies."""
+    if value is None or type(value) in {bool, int, float, str, bytes}:
+        return value
     if isinstance(value, Mapping):
         return {k: thaw_copy(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -398,7 +588,7 @@ def thaw_copy(value: Any) -> Any:
         return {thaw_copy(item) for item in value}
     if isinstance(value, frozenset):
         return frozenset(thaw_copy(item) for item in value)
-    return deepcopy(value)
+    return _thaw_non_container(value)
 
 
 def is_ref_only(entry: Any) -> bool:

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>Input Options &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <title>Input Options &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
     <meta name="docbuild:last-update" content="2026-11-21"/>
   
     
@@ -107,7 +107,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -298,16 +298,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -1021,9 +1025,9 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a></p></td>
 <td><p>Example values [-]</p>
 <ul class="simple">
-<li><p>0.1 EveTr <span class="bibtex-citation" id="id2">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
-<li><p>0.18 DecTr <span class="bibtex-citation" id="id3">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
-<li><p>0.21 Grass <span class="bibtex-citation" id="id4">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.1 EveTr <span class="bibtex-citation" id="id2">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.18 DecTr <span class="bibtex-citation" id="id3">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.21 Grass <span class="bibtex-citation" id="id4">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -1031,7 +1035,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a></p></td>
 <td><p>Example values [-]</p>
 <ul class="simple">
-<li><p>0.1 Water <span class="bibtex-citation" id="id5">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.1 Water <span class="bibtex-citation" id="id5">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -1079,9 +1083,9 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a></p></td>
 <td><p>Example values [-]</p>
 <ul class="simple">
-<li><p>0.1 EveTr <span class="bibtex-citation" id="id7">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
-<li><p>0.18 DecTr <span class="bibtex-citation" id="id8">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
-<li><p>0.21 Grass <span class="bibtex-citation" id="id9">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.1 EveTr <span class="bibtex-citation" id="id7">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.18 DecTr <span class="bibtex-citation" id="id8">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.21 Grass <span class="bibtex-citation" id="id9">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -1131,12 +1135,12 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <td><p>Example values:
 <a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 11, 12, 13, 14, 15 or 16:</p>
 <ul class="simple">
-<li><p>0.044 <span class="bibtex-citation" id="id11">[<a class="reference internal" href="../../../references.html#id44" title="Ruimy, A., Jarvis, P.G., Baldocchi, D.D., and Saugier, B. CO2 fluxes over plant canopies and solar radiation: A review. In Advances in Ecological Research, pages 1-68. Elsevier, 1995. doi:10.1016/s0065-2504(08)60063-x.">Ruimy <em>et al.</em>, 1995</a>]</span></p></li>
-<li><p>0.0593  <span class="bibtex-citation" id="id12">[<a class="reference internal" href="../../../references.html#id45" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
-<li><p>0.0205 <span class="bibtex-citation" id="id13">[<a class="reference internal" href="../../../references.html#id41" title="Flanagan, Lawrence B., Wever, Linda A., and Carlson, Peter J. Seasonal and interannual variation in carbon dioxide exchange and carbon balance in a northern temperate grassland. Global Change Biol., 8(7):599-615, June 2002. doi:10.1046/j.1365-2486.2002.00491.x.">Flanagan <em>et al.</em>, 2002</a>]</span></p></li>
+<li><p>0.044 <span class="bibtex-citation" id="id11">[<a class="reference internal" href="../../../references.html#id45" title="Ruimy, A., Jarvis, P.G., Baldocchi, D.D., and Saugier, B. CO2 fluxes over plant canopies and solar radiation: A review. In Advances in Ecological Research, pages 1-68. Elsevier, 1995. doi:10.1016/s0065-2504(08)60063-x.">Ruimy <em>et al.</em>, 1995</a>]</span></p></li>
+<li><p>0.0593  <span class="bibtex-citation" id="id12">[<a class="reference internal" href="../../../references.html#id46" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
+<li><p>0.0205 <span class="bibtex-citation" id="id13">[<a class="reference internal" href="../../../references.html#id42" title="Flanagan, Lawrence B., Wever, Linda A., and Carlson, Peter J. Seasonal and interannual variation in carbon dioxide exchange and carbon balance in a northern temperate grassland. Global Change Biol., 8(7):599-615, June 2002. doi:10.1046/j.1365-2486.2002.00491.x.">Flanagan <em>et al.</em>, 2002</a>]</span></p></li>
 </ul>
-<p><a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 21, 22, 23, 24, 25, or 26: 0.031  <span class="bibtex-citation" id="id14">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span>
-<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 31, 32, 33, 34, 35, 36: 0.005  <span class="bibtex-citation" id="id15">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p>
+<p><a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 21, 22, 23, 24, 25, or 26: 0.031  <span class="bibtex-citation" id="id14">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span>
+<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 31, 32, 33, 34, 35, 36: 0.005  <span class="bibtex-citation" id="id15">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p>
 </td>
 </tr>
 </tbody>
@@ -1463,7 +1467,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_AnthropogenicEmission.html#suews-anthropogenicemission-txt"><span class="std std-ref">SUEWS_AnthropogenicEmission.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a></p></td>
-<td><p>Base temperature for heating degree days [°C] e.g. <span class="bibtex-citation" id="id21">Sailor and Vasireddy [<a class="reference internal" href="../../../references.html#id59" title="Sailor, David J. and Vasireddy, Chittaranjan. Correcting aggregate energy consumption data to account for variability in local weather. Environ. Modell. Softw., 21(5):733-738, May 2006. doi:10.1016/j.envsoft.2005.08.001.">2006</a>]</span></p></td>
+<td><p>Base temperature for heating degree days [°C] e.g. <span class="bibtex-citation" id="id21">Sailor and Vasireddy [<a class="reference internal" href="../../../references.html#id60" title="Sailor, David J. and Vasireddy, Chittaranjan. Correcting aggregate energy consumption data to account for variability in local weather. Environ. Modell. Softw., 21(5):733-738, May 2006. doi:10.1016/j.envsoft.2005.08.001.">2006</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -1503,12 +1507,12 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <p>Not recommended:
 <a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 11 - 16:</p>
 <ul class="simple">
-<li><p>43.35 <span class="bibtex-citation" id="id25">[<a class="reference internal" href="../../../references.html#id44" title="Ruimy, A., Jarvis, P.G., Baldocchi, D.D., and Saugier, B. CO2 fluxes over plant canopies and solar radiation: A review. In Advances in Ecological Research, pages 1-68. Elsevier, 1995. doi:10.1016/s0065-2504(08)60063-x.">Ruimy <em>et al.</em>, 1995</a>]</span></p></li>
-<li><p>35  <span class="bibtex-citation" id="id26">[<a class="reference internal" href="../../../references.html#id45" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
-<li><p>16.3 <span class="bibtex-citation" id="id27">[<a class="reference internal" href="../../../references.html#id41" title="Flanagan, Lawrence B., Wever, Linda A., and Carlson, Peter J. Seasonal and interannual variation in carbon dioxide exchange and carbon balance in a northern temperate grassland. Global Change Biol., 8(7):599-615, June 2002. doi:10.1046/j.1365-2486.2002.00491.x.">Flanagan <em>et al.</em>, 2002</a>]</span></p></li>
+<li><p>43.35 <span class="bibtex-citation" id="id25">[<a class="reference internal" href="../../../references.html#id45" title="Ruimy, A., Jarvis, P.G., Baldocchi, D.D., and Saugier, B. CO2 fluxes over plant canopies and solar radiation: A review. In Advances in Ecological Research, pages 1-68. Elsevier, 1995. doi:10.1016/s0065-2504(08)60063-x.">Ruimy <em>et al.</em>, 1995</a>]</span></p></li>
+<li><p>35  <span class="bibtex-citation" id="id26">[<a class="reference internal" href="../../../references.html#id46" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
+<li><p>16.3 <span class="bibtex-citation" id="id27">[<a class="reference internal" href="../../../references.html#id42" title="Flanagan, Lawrence B., Wever, Linda A., and Carlson, Peter J. Seasonal and interannual variation in carbon dioxide exchange and carbon balance in a northern temperate grassland. Global Change Biol., 8(7):599-615, June 2002. doi:10.1046/j.1365-2486.2002.00491.x.">Flanagan <em>et al.</em>, 2002</a>]</span></p></li>
 </ul>
-<p><a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> =  21 - 26: 17.793  <span class="bibtex-citation" id="id28">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span>
-<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 31 - 36: 8.474  <span class="bibtex-citation" id="id29">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p>
+<p><a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> =  21 - 26: 17.793  <span class="bibtex-citation" id="id28">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span>
+<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 31 - 36: 8.474  <span class="bibtex-citation" id="id29">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p>
 </td>
 </tr>
 </tbody>
@@ -1542,8 +1546,8 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_BiogenCO2.html#suews-biogenco2-txt"><span class="std std-ref">SUEWS_BiogenCO2.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a> <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a></p></td>
 <td><p>Example value:
-<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 21, 22, 23, 24, 25, 26: 0.723  <span class="bibtex-citation" id="id30">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span>
-<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 31, 32, 33, 34, 35, 36: 0.96  <span class="bibtex-citation" id="id31">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p></td>
+<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 21, 22, 23, 24, 25, 26: 0.723  <span class="bibtex-citation" id="id30">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span>
+<a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 31, 32, 33, 34, 35, 36: 0.96  <span class="bibtex-citation" id="id31">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -1575,7 +1579,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_BiogenCO2.html#suews-biogenco2-txt"><span class="std std-ref">SUEWS_BiogenCO2.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a> <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a></p></td>
-<td><p>Example value: 0.016  <span class="bibtex-citation" id="id32">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p></td>
+<td><p>Example value: 0.016  <span class="bibtex-citation" id="id32">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -1607,7 +1611,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_BiogenCO2.html#suews-biogenco2-txt"><span class="std std-ref">SUEWS_BiogenCO2.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a> <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a></p></td>
-<td><p>Example values: 33.454 <span class="bibtex-citation" id="id33">[<a class="reference internal" href="../../../references.html#id42" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p></td>
+<td><p>Example values: 33.454 <span class="bibtex-citation" id="id33">[<a class="reference internal" href="../../../references.html#id43" title="Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. Agr. Forest Meteorol., 236:113-122, April 2017. doi:10.1016/j.agrformet.2016.12.011.">Bellucco <em>et al.</em>, 2017</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -1641,7 +1645,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a> <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a></p></td>
 <td><p>Example values:</p>
 <ul class="simple">
-<li><p>1.08 (broadleaf forest, US) <span class="bibtex-citation" id="id34">[<a class="reference internal" href="../../../references.html#id45" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
+<li><p>1.08 (broadleaf forest, US) <span class="bibtex-citation" id="id34">[<a class="reference internal" href="../../../references.html#id46" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
 <li><p>2.1 (lawn, Helsinki) <span class="bibtex-citation" id="id35">[<a class="reference internal" href="../../../references.html#id28" title="Järvi, Leena, Havu, Minttu, Ward, Helen C., Bellucco, Veronica, McFadden, Joseph P., Toivonen, Tuuli, Heikinheimo, Vuokko, Kolari, Pasi, Riikonen, Anu, and Grimmond, C. Sue B. Spatial modeling of Local-Scale biogenic and anthropogenic carbon dioxide emissions in Helsinki. J. Geophys. Res. Atmos., 124(15):8363-8384, August 2019. doi:10.1029/2018jd029576.">Järvi <em>et al.</em>, 2019</a>]</span></p></li>
 </ul>
 </td>
@@ -1696,7 +1700,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a> <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a></p></td>
 <td><p>Example values:</p>
 <ul class="simple">
-<li><p>0.0064 (deciduous forest, US) <span class="bibtex-citation" id="id38">[<a class="reference internal" href="../../../references.html#id45" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
+<li><p>0.0064 (deciduous forest, US) <span class="bibtex-citation" id="id38">[<a class="reference internal" href="../../../references.html#id46" title="Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. Agr. Forest Meteorol., 103(4):357-374, July 2000. doi:10.1016/s0168-1923(00)00140-4.">Schmid, 2000</a>]</span></p></li>
 <li><p>0.06 (lawn, Helsinki) <span class="bibtex-citation" id="id39">[<a class="reference internal" href="../../../references.html#id28" title="Järvi, Leena, Havu, Minttu, Ward, Helen C., Bellucco, Veronica, McFadden, Joseph P., Toivonen, Tuuli, Heikinheimo, Vuokko, Kolari, Pasi, Riikonen, Anu, and Grimmond, C. Sue B. Spatial modeling of Local-Scale biogenic and anthropogenic carbon dioxide emissions in Helsinki. J. Geophys. Res. Atmos., 124(15):8363-8384, August 2019. doi:10.1029/2018jd029576.">Järvi <em>et al.</em>, 2019</a>]</span></p></li>
 </ul>
 </td>
@@ -2461,7 +2465,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_SiteSelect.html#suews-siteselect-txt"><span class="std std-ref">SUEWS_SiteSelect.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-L"><code class="xref any std std-option docutils literal notranslate"><span class="pre">L</span></code></a></p></td>
-<td><p>Code for surface conductance parameters Provides the link to column 1 of <a class="reference internal" href="SUEWS_Conductance.html#suews-conductance-txt"><span class="std std-ref">SUEWS_Conductance.txt</span></a>, which contains the parameters for the <span class="bibtex-citation" id="id42">Jarvis [<a class="reference internal" href="../../../references.html#id57" title="Jarvis, P. G. The interpretation of the variations in leaf water potential and stomatal conductance found in canopies in the field. Phil. Trans. R. Soc. Lond. B, 273(927):593-610, February 1976. doi:10.1098/rstb.1976.0035.">1976</a>]</span> parameterisation of surface conductance. Value of integer is arbitrary but must match code specified in column 1 of <a class="reference internal" href="SUEWS_Conductance.html#suews-conductance-txt"><span class="std std-ref">SUEWS_Conductance.txt</span></a>. e.g. 33 means use the characteristics specified in the row of input file <a class="reference internal" href="SUEWS_Conductance.html#suews-conductance-txt"><span class="std std-ref">SUEWS_Conductance.txt</span></a> which has 33 in column 1 (Code).</p></td>
+<td><p>Code for surface conductance parameters Provides the link to column 1 of <a class="reference internal" href="SUEWS_Conductance.html#suews-conductance-txt"><span class="std std-ref">SUEWS_Conductance.txt</span></a>, which contains the parameters for the <span class="bibtex-citation" id="id42">Jarvis [<a class="reference internal" href="../../../references.html#id58" title="Jarvis, P. G. The interpretation of the variations in leaf water potential and stomatal conductance found in canopies in the field. Phil. Trans. R. Soc. Lond. B, 273(927):593-610, February 1976. doi:10.1098/rstb.1976.0035.">1976</a>]</span> parameterisation of surface conductance. Value of integer is arbitrary but must match code specified in column 1 of <a class="reference internal" href="SUEWS_Conductance.html#suews-conductance-txt"><span class="std std-ref">SUEWS_Conductance.txt</span></a>. e.g. 33 means use the characteristics specified in the row of input file <a class="reference internal" href="SUEWS_Conductance.html#suews-conductance-txt"><span class="std std-ref">SUEWS_Conductance.txt</span></a> which has 33 in column 1 (Code).</p></td>
 </tr>
 </tbody>
 </table>
@@ -3120,9 +3124,9 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <td><ul class="simple">
 <li><p>Options:</p>
 <ul>
-<li><p>1: <span class="bibtex-citation" id="id43">Falk and Niemczynowicz [<a class="reference internal" href="../../../references.html#id99" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">1978</a>]</span></p></li>
-<li><p>2: <span class="bibtex-citation" id="id44">Halldin <em>et al.</em> [<a class="reference internal" href="../../../references.html#id53" title="Halldin, S., Grip, H., and Perttu, K. Model for energy exchange of a pine forest canopy. In Comparison of Forest Water and Energy Exchange Models, pages 59-75. Elsevier, 1979. doi:10.1016/b978-0-444-41844-9.50012-3.">1979</a>]</span> (Rutter eqn corrected for c=0, see <span class="bibtex-citation" id="id45">Calder and Wright [<a class="reference internal" href="../../../references.html#id54" title="Calder, I. R. and Wright, I. R. Gamma ray attenuation studies of interception from sitka spruce: Some evidence for an additional transport mechanism. Water Resour. Res., 22(3):409-417, March 1986. doi:10.1029/wr022i003p00409.">1986</a>]</span>)</p></li>
-<li><p>3: for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-BSoil"><code class="xref any std std-option docutils literal notranslate"><span class="pre">BSoil</span></code></a> <span class="bibtex-citation" id="id46">[<a class="reference internal" href="../../../references.html#id99" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">Falk and Niemczynowicz, 1978</a>]</span> ; for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-Paved"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Paved</span></code></a> and <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-Bldgs"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Bldgs</span></code></a> Coefficients are specified in the following two columns. <strong>Recommended in this version.</strong></p></li>
+<li><p>1: <span class="bibtex-citation" id="id43">Falk and Niemczynowicz [<a class="reference internal" href="../../../references.html#id100" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">1978</a>]</span></p></li>
+<li><p>2: <span class="bibtex-citation" id="id44">Halldin <em>et al.</em> [<a class="reference internal" href="../../../references.html#id54" title="Halldin, S., Grip, H., and Perttu, K. Model for energy exchange of a pine forest canopy. In Comparison of Forest Water and Energy Exchange Models, pages 59-75. Elsevier, 1979. doi:10.1016/b978-0-444-41844-9.50012-3.">1979</a>]</span> (Rutter eqn corrected for c=0, see <span class="bibtex-citation" id="id45">Calder and Wright [<a class="reference internal" href="../../../references.html#id55" title="Calder, I. R. and Wright, I. R. Gamma ray attenuation studies of interception from sitka spruce: Some evidence for an additional transport mechanism. Water Resour. Res., 22(3):409-417, March 1986. doi:10.1029/wr022i003p00409.">1986</a>]</span>)</p></li>
+<li><p>3: for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-BSoil"><code class="xref any std std-option docutils literal notranslate"><span class="pre">BSoil</span></code></a> <span class="bibtex-citation" id="id46">[<a class="reference internal" href="../../../references.html#id100" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">Falk and Niemczynowicz, 1978</a>]</span> ; for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-Paved"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Paved</span></code></a> and <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-Bldgs"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Bldgs</span></code></a> Coefficients are specified in the following two columns. <strong>Recommended in this version.</strong></p></li>
 </ul>
 </li>
 </ul>
@@ -3133,9 +3137,9 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <td><ul class="simple">
 <li><p>Options:</p>
 <ul>
-<li><p>1: <span class="bibtex-citation" id="id47">Falk and Niemczynowicz [<a class="reference internal" href="../../../references.html#id99" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">1978</a>]</span></p></li>
-<li><p>2: <span class="bibtex-citation" id="id48">Halldin <em>et al.</em> [<a class="reference internal" href="../../../references.html#id53" title="Halldin, S., Grip, H., and Perttu, K. Model for energy exchange of a pine forest canopy. In Comparison of Forest Water and Energy Exchange Models, pages 59-75. Elsevier, 1979. doi:10.1016/b978-0-444-41844-9.50012-3.">1979</a>]</span> (Rutter eqn corrected for c=0, see Calder &amp; Wright (1986) <span class="bibtex-citation" id="id49">[<a class="reference internal" href="../../../references.html#id54" title="Calder, I. R. and Wright, I. R. Gamma ray attenuation studies of interception from sitka spruce: Some evidence for an additional transport mechanism. Water Resour. Res., 22(3):409-417, March 1986. doi:10.1029/wr022i003p00409.">Calder and Wright, 1986</a>]</span> )</p></li>
-<li><p>3: for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a>, <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a>, <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a> (unirrigated) see <span class="bibtex-citation" id="id50">Falk and Niemczynowicz [<a class="reference internal" href="../../../references.html#id99" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">1978</a>]</span>. Coefficients are specified in the following two columns. <strong>Recommended in this version.</strong></p></li>
+<li><p>1: <span class="bibtex-citation" id="id47">Falk and Niemczynowicz [<a class="reference internal" href="../../../references.html#id100" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">1978</a>]</span></p></li>
+<li><p>2: <span class="bibtex-citation" id="id48">Halldin <em>et al.</em> [<a class="reference internal" href="../../../references.html#id54" title="Halldin, S., Grip, H., and Perttu, K. Model for energy exchange of a pine forest canopy. In Comparison of Forest Water and Energy Exchange Models, pages 59-75. Elsevier, 1979. doi:10.1016/b978-0-444-41844-9.50012-3.">1979</a>]</span> (Rutter eqn corrected for c=0, see Calder &amp; Wright (1986) <span class="bibtex-citation" id="id49">[<a class="reference internal" href="../../../references.html#id55" title="Calder, I. R. and Wright, I. R. Gamma ray attenuation studies of interception from sitka spruce: Some evidence for an additional transport mechanism. Water Resour. Res., 22(3):409-417, March 1986. doi:10.1029/wr022i003p00409.">Calder and Wright, 1986</a>]</span> )</p></li>
+<li><p>3: for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a>, <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a>, <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a> (unirrigated) see <span class="bibtex-citation" id="id50">Falk and Niemczynowicz [<a class="reference internal" href="../../../references.html#id100" title="Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In Proc. Internat. Conf. on Urban Storm Drainage, 159-171. John Wiley and Sons, New York, 1978.">1978</a>]</span>. Coefficients are specified in the following two columns. <strong>Recommended in this version.</strong></p></li>
 </ul>
 </li>
 </ul>
@@ -3213,9 +3217,9 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a></p></td>
 <td><p>Example values [-]</p>
 <ul class="simple">
-<li><p>0.98 EveTr <span class="bibtex-citation" id="id51">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
-<li><p>0.98 DecTr <span class="bibtex-citation" id="id52">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
-<li><p>0.93 Grass <span class="bibtex-citation" id="id53">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.98 EveTr <span class="bibtex-citation" id="id51">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.98 DecTr <span class="bibtex-citation" id="id52">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.93 Grass <span class="bibtex-citation" id="id53">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -3223,7 +3227,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MU"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MU</span></code></a></p></td>
 <td><p>Example values [-]</p>
 <ul class="simple">
-<li><p>0.95 Water <span class="bibtex-citation" id="id54">[<a class="reference internal" href="../../../references.html#id78" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
+<li><p>0.95 Water <span class="bibtex-citation" id="id54">[<a class="reference internal" href="../../../references.html#id79" title="Oke, T. R. Boundary Layer Climates. Routledge, September 2002. ISBN 9781134951345. doi:10.4324/9780203407219.">Oke, 2002</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -3297,7 +3301,7 @@ Example values: 10 EveTr <span class="bibtex-citation" id="id20">Järvi <em>et a
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_AnthropogenicEmission.html#suews-anthropogenicemission-txt"><span class="std std-ref">SUEWS_AnthropogenicEmission.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-O"><code class="xref any std std-option docutils literal notranslate"><span class="pre">O</span></code></a></p></td>
-<td><p>Emission factor for heat [J k m<sup>-1</sup>]. Example values: 3.97e6 Sailor and Lu (2004) <span class="bibtex-citation" id="id56">[<a class="reference internal" href="../../../references.html#id43" title="Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. Atmos. Environ., 38(17):2737-2748, June 2004. doi:10.1016/j.atmosenv.2004.01.034.">Sailor and Lu, 2004</a>]</span></p></td>
+<td><p>Emission factor for heat [J k m<sup>-1</sup>]. Example values: 3.97e6 Sailor and Lu (2004) <span class="bibtex-citation" id="id56">[<a class="reference internal" href="../../../references.html#id44" title="Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. Atmos. Environ., 38(17):2737-2748, June 2004. doi:10.1016/j.atmosenv.2004.01.034.">Sailor and Lu, 2004</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -6919,9 +6923,9 @@ The next 8 pairs of columns specify the water flow between grids. The first colu
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MD"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MD</span></code></a></p></td>
 <td><p>full leaf-on summertime value
 Example values:
-- 5.1 EveTr Breuer et al. (2003) <span class="bibtex-citation" id="id64">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span>
-- 5.5 DecTr Breuer et al. (2003) <span class="bibtex-citation" id="id65">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span>
-- 5.9 Grass Breuer et al. (2003) <span class="bibtex-citation" id="id66">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></td>
+- 5.1 EveTr Breuer et al. (2003) <span class="bibtex-citation" id="id64">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span>
+- 5.5 DecTr Breuer et al. (2003) <span class="bibtex-citation" id="id65">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span>
+- 5.9 Grass Breuer et al. (2003) <span class="bibtex-citation" id="id66">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -7312,7 +7316,7 @@ Example values:
 <dd><dl class="field-list">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Maximum value for human heat emission. [W m<sup>-2</sup>]</p>
-<p>Example values: 175 Sailor and Lu (2004) <span class="bibtex-citation" id="id81">[<a class="reference internal" href="../../../references.html#id43" title="Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. Atmos. Environ., 38(17):2737-2748, June 2004. doi:10.1016/j.atmosenv.2004.01.034.">Sailor and Lu, 2004</a>]</span></p>
+<p>Example values: 175 Sailor and Lu (2004) <span class="bibtex-citation" id="id81">[<a class="reference internal" href="../../../references.html#id44" title="Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. Atmos. Environ., 38(17):2737-2748, June 2004. doi:10.1016/j.atmosenv.2004.01.034.">Sailor and Lu, 2004</a>]</span></p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
 <dd class="field-even"><div class="pst-scrollable-table-container"><table class="longtable table">
@@ -7416,7 +7420,7 @@ Example values:
 <dd><dl class="field-list">
 <dt class="field-odd">Description<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Minimum value for human heat emission. [W m<sup>-2</sup>]</p>
-<p>Example values: 75 Sailor and Lu (2004) <span class="bibtex-citation" id="id86">[<a class="reference internal" href="../../../references.html#id43" title="Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. Atmos. Environ., 38(17):2737-2748, June 2004. doi:10.1016/j.atmosenv.2004.01.034.">Sailor and Lu, 2004</a>]</span></p>
+<p>Example values: 75 Sailor and Lu (2004) <span class="bibtex-citation" id="id86">[<a class="reference internal" href="../../../references.html#id44" title="Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. Atmos. Environ., 38(17):2737-2748, June 2004. doi:10.1016/j.atmosenv.2004.01.034.">Sailor and Lu, 2004</a>]</span></p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
 <dd class="field-even"><div class="pst-scrollable-table-container"><table class="longtable table">
@@ -8082,7 +8086,7 @@ Example values:
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="SUEWS_Snow.html#suews-snow-txt"><span class="std std-ref">SUEWS_Snow.txt</span></a></p></td>
 <td><p><a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-MD"><code class="xref any std std-option docutils literal notranslate"><span class="pre">MD</span></code></a></p></td>
-<td><p><span class="bibtex-citation" id="id87">Auer [<a class="reference internal" href="../../../references.html#id58" title="Auer, August H. The rain versus snow threshold temperatures. Weatherwise, 27(2):67-67, April 1974. doi:10.1080/00431672.1974.9931684.">1974</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id87">Auer [<a class="reference internal" href="../../../references.html#id59" title="Auer, August H. The rain versus snow threshold temperatures. Weatherwise, 27(2):67-67, April 1974. doi:10.1080/00431672.1974.9931684.">1974</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -9320,9 +9324,9 @@ Example values:
 <td><p>Maximum water storage capacity for upper surfaces (i.e. canopy) Min/max values are to account for seasonal variation (e.g. leaf-off/leaf-on differences for vegetated surfaces) Only used for <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a> surfaces - set <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a> and <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a> values the same as <a class="reference internal" href="#cmdoption-arg-StorageMin"><code class="xref any std std-option docutils literal notranslate"><span class="pre">StorageMin</span></code></a>.</p>
 <p>Example values:</p>
 <ul class="simple">
-<li><p>1.3: <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a>   <span class="bibtex-citation" id="id113">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
-<li><p>0.8: <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a>   <span class="bibtex-citation" id="id114">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
-<li><p>1.9: <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a>   <span class="bibtex-citation" id="id115">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
+<li><p>1.3: <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a>   <span class="bibtex-citation" id="id113">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
+<li><p>0.8: <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a>   <span class="bibtex-citation" id="id114">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
+<li><p>1.9: <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a>   <span class="bibtex-citation" id="id115">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -9374,9 +9378,9 @@ Example values:
 <td><p>Minimum water storage capacity for upper surfaces (i.e. canopy). Min/max values are to account for seasonal variation (e.g. leaf-off/leaf-on differences for vegetated surfaces).</p>
 <p>Example values:</p>
 <ul class="simple">
-<li><p>1.3 <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a>  <span class="bibtex-citation" id="id116">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
-<li><p>0.3 <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a>  <span class="bibtex-citation" id="id117">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
-<li><p>1.9 <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a>  <span class="bibtex-citation" id="id118">[<a class="reference internal" href="../../../references.html#id56" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
+<li><p>1.3 <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EveTr</span></code></a>  <span class="bibtex-citation" id="id116">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
+<li><p>0.3 <a class="reference internal" href="SUEWS_SiteInfo.html#cmdoption-arg-DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">DecTr</span></code></a>  <span class="bibtex-citation" id="id117">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
+<li><p>1.9 <a class="reference internal" href="../../yaml/config-reference/grassproperties.html#grass"><span class="std std-ref">Grass</span></a>  <span class="bibtex-citation" id="id118">[<a class="reference internal" href="../../../references.html#id57" title="Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. Ecol. Model., 169(2-3):237-293, November 2003. doi:10.1016/s0304-3800(03)00274-6.">Breuer <em>et al.</em>, 2003</a>]</span></p></li>
 </ul>
 </td>
 </tr>
@@ -12369,8 +12373,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

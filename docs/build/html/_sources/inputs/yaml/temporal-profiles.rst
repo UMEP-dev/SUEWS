@@ -17,14 +17,12 @@ Keys and timing
   and ``holiday``; it is not a day-of-year series.
 * :doc:`config-reference/weeklyprofile` has seven scalar keys: ``monday``,
   ``tuesday``, ``wednesday``, ``thursday``, ``friday``, ``saturday``, ``sunday``.
-  supy stores them in this order as indices 0--6 of the state DataFrame,
-  whereas the ``df_state`` reference and the legacy tables describe the same
-  indices Sunday first.
-  The irrigation reader currently looks these values up with a day number
-  that counts from Sunday, so the value given for ``monday`` is applied on
-  Sunday, ``tuesday`` on Monday, and so on to ``sunday`` on Saturday; see the
-  `weekly irrigation day-order report
-  <https://github.com/UMEP-dev/SUEWS/issues/2049>`_.
+  supy maps them Sunday first (``sunday`` at index 0 through ``saturday`` at
+  index 6) when converting to or from the legacy ``df_state`` array and
+  ``SUEWS_Irrigation.txt`` columns ``DayWat(1)``--``DayWat(7)`` /
+  ``DayWatPer(1)``--``DayWatPer(7)``.
+  The irrigation reader applies each named weekday on its own calendar day
+  (``sunday`` on Sunday through ``saturday`` on Saturday).
 * :doc:`config-reference/hourlyprofile` has ``working_day`` and ``holiday``
   mappings, each with all 24 keys ``"1"`` through ``"24"``.
   Key ``"1"`` starts at 00:00 and key ``"24"`` at 23:00; the corresponding
@@ -189,6 +187,17 @@ Former names are shown in brackets once.
 
 Defaults
 --------
+
+The asymmetric ``DayProfile`` default is ``working_day: 1.0`` and
+``holiday: 0.0``; similarly, ``heat.popdensnighttime`` defaults to ``10.0``
+people per hectare.
+These are backward-compatibility placeholders rather than calibrated site
+parameters: omitting an active ``AnthropogenicHeat`` field (or omitting
+``holiday`` inside a ``DayProfile``) applies those placeholder values and
+emits a ``UserWarning`` when loaded via ``SUEWSConfig.from_yaml`` or
+``SUEWSConfig.from_dict`` under a non-zero ``model.physics.emissions`` method.
+Specify site-specific working-day, holiday, and night-time population density
+values explicitly for active emissions runs.
 
 The uniform ``HourlyProfile`` default is 1/24 in both day types.
 It becomes a constant multiplier of 1 for mean-normalised profiles and equal

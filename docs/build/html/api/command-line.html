@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-23T11:33:30+00:00" />
-    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="6.3.7.9. supy.util.AttributionResult" href="_autosummary/supy.util.AttributionResult.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-23"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -633,7 +637,8 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.7. suews compare</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.8. suews diagnose</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.9. suews schema</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.10. suews knowledge</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts">6.4.1.10. suews contracts</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.11. suews knowledge</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.2. Related Documentation</a></li>
@@ -830,8 +835,22 @@ suews<span class="w"> </span>diagnose<span class="w"> </span>path/to/run_dir<spa
 </div>
 <p>See <a class="reference internal" href="../contributing/schema/schema_cli.html"><span class="doc">Schema Management CLI</span></a> for details.</p>
 </section>
+<section id="suews-contracts">
+<h3><span class="section-number">6.4.1.10. </span>suews contracts<a class="headerlink" href="#suews-contracts" title="Link to this heading">#</a></h3>
+<p>Discover, inspect, export, publish and validate the versioned SUEWS forcing and output data contracts (subcommands <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">show</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span></code>, <code class="docutils literal notranslate"><span class="pre">publish</span></code> and <code class="docutils literal notranslate"><span class="pre">validate</span></code>).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span>--help
+suews<span class="w"> </span>contracts<span class="w"> </span>info<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io<span class="w"> </span>--format<span class="w"> </span>json
+suews<span class="w"> </span>contracts<span class="w"> </span>show<span class="w"> </span>forcing<span class="w"> </span>--version<span class="w"> </span><span class="m">2</span>.1.0<span class="w"> </span>--artefact<span class="w"> </span>catalogue<span class="w"> </span>--format<span class="w"> </span>json
+suews<span class="w"> </span>contracts<span class="w"> </span><span class="nb">export</span><span class="w"> </span>output<span class="w"> </span>--version<span class="w"> </span><span class="m">2</span>.1.0<span class="w"> </span>--artefact<span class="w"> </span>bundle<span class="w"> </span>--output<span class="w"> </span>./output-contract<span class="w"> </span>--format<span class="w"> </span>json
+suews<span class="w"> </span>contracts<span class="w"> </span>publish<span class="w"> </span>--output-dir<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io<span class="w"> </span>--preserve-from<span class="w"> </span>./previous-contracts<span class="w"> </span>--validate<span class="w"> </span>--format<span class="w"> </span>json
+suews<span class="w"> </span>contracts<span class="w"> </span>publish<span class="w"> </span>--output-dir<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--no-validate
+suews<span class="w"> </span>contracts<span class="w"> </span>validate<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io<span class="w"> </span>--format<span class="w"> </span>json
+</pre></div>
+</div>
+<p>Omit <code class="docutils literal notranslate"><span class="pre">--output</span></code> (<code class="docutils literal notranslate"><span class="pre">-o</span></code>) on <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">contracts</span> <span class="pre">export</span></code> to stream a single canonical JSON artefact (<code class="docutils literal notranslate"><span class="pre">catalogue</span></code>, <code class="docutils literal notranslate"><span class="pre">schema</span></code> or <code class="docutils literal notranslate"><span class="pre">manifest</span></code>) directly to stdout. See <a class="reference internal" href="../contributing/schema/data_interface_versioning.html#data-interface-versioning"><span class="std std-ref">Data-interface versioning</span></a> for the published URL layout and contributor release workflow.</p>
+</section>
 <section id="suews-knowledge">
-<h3><span class="section-number">6.4.1.10. </span>suews knowledge<a class="headerlink" href="#suews-knowledge" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.4.1.11. </span>suews knowledge<a class="headerlink" href="#suews-knowledge" title="Link to this heading">#</a></h3>
 <p>Query the packaged source-evidence knowledge pack. The pack is generated from
 the Git checkout used to build the installed SuPy wheel and carries citations
 back to the exact repository paths and line spans.</p>
@@ -910,7 +929,8 @@ suews<span class="w"> </span>knowledge<span class="w"> </span>query<span class="
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.7. suews compare</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.8. suews diagnose</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.9. suews schema</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.10. suews knowledge</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts">6.4.1.10. suews contracts</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.11. suews knowledge</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.2. Related Documentation</a></li>
@@ -947,7 +967,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-23.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -955,8 +975,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

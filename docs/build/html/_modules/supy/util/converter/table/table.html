@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util.converter.table.table &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <title>supy.util.converter.table.table &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../../../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
   
     
     <script src="../../../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -297,16 +297,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -575,7 +579,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">heapq</span><span class="w"> </span><span class="kn">import</span> <span class="n">heappop</span><span class="p">,</span> <span class="n">heappush</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os.path</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePath</span><span class="p">,</span> <span class="n">PurePosixPath</span><span class="p">,</span> <span class="n">PureWindowsPath</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">shutil</span><span class="w"> </span><span class="kn">import</span> <span class="n">copyfile</span><span class="p">,</span> <span class="n">move</span><span class="p">,</span> <span class="n">rmtree</span>
@@ -593,6 +597,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span><span class="p">,</span> <span class="n">trv_supy_module</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_SUEWS_nml_simple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...._misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">path_insensitive</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.legacy</span><span class="w"> </span><span class="kn">import</span> <span class="n">LegacyTable</span><span class="p">,</span> <span class="n">read_legacy_table</span><span class="p">,</span> <span class="n">write_legacy_table</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.profile_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProfileManager</span>
 
@@ -1361,6 +1366,233 @@
     <span class="n">nml</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">toFile</span><span class="p">)</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_extract_leaf_name</span><span class="p">(</span><span class="n">raw_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Input"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the final meaningful folder component of ``raw_path``."""</span>
+    <span class="n">stripped</span> <span class="o">=</span> <span class="n">raw_path</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">pure_path</span><span class="p">:</span> <span class="n">PurePath</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">"</span><span class="se">\\</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">stripped</span> <span class="ow">or</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span><span class="o">.</span><span class="n">drive</span><span class="p">)</span>
+        <span class="k">else</span> <span class="n">PurePosixPath</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">pure_path</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">part</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"."</span><span class="p">,</span> <span class="n">pure_path</span><span class="o">.</span><span class="n">anchor</span><span class="p">,</span> <span class="n">pure_path</span><span class="o">.</span><span class="n">drive</span><span class="p">,</span> <span class="n">pure_path</span><span class="o">.</span><span class="n">root</span><span class="p">}:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">part</span> <span class="o">==</span> <span class="s2">".."</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">parts</span><span class="p">:</span>
+                <span class="n">parts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">continue</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">parts</span> <span class="k">else</span> <span class="n">default_name</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_absolute_path</span><span class="p">(</span><span class="n">raw_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return ``True`` when ``raw_path`` is absolute in POSIX or Windows syntax."""</span>
+    <span class="n">stripped</span> <span class="o">=</span> <span class="n">raw_path</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">stripped</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span> <span class="ow">or</span> <span class="n">PurePosixPath</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="n">win_path</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">win_path</span><span class="o">.</span><span class="n">drive</span><span class="p">)</span> <span class="ow">or</span> <span class="n">stripped</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"</span><span class="se">\\</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_within_dir</span><span class="p">(</span><span class="n">raw_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">base_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return ``True`` when ``raw_path`` resolves inside ``base_dir``."""</span>
+    <span class="n">stripped</span> <span class="o">=</span> <span class="n">raw_path</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s2">"nt"</span><span class="p">:</span>
+        <span class="n">win_path</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">stripped</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">win_path</span><span class="o">.</span><span class="n">drive</span> <span class="ow">or</span> <span class="n">stripped</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"</span><span class="se">\\</span><span class="s2">"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="s2">"</span><span class="se">\\</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">stripped</span><span class="p">:</span>
+            <span class="n">depth</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">win_path</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">part</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"."</span><span class="p">}:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">part</span> <span class="o">==</span> <span class="s2">".."</span><span class="p">:</span>
+                    <span class="n">depth</span> <span class="o">-=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">depth</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">depth</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">base_resolved</span> <span class="o">=</span> <span class="n">base_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">candidate</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_resolved</span> <span class="o">/</span> <span class="n">stripped</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_relative_to</span><span class="p">(</span><span class="n">base_resolved</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_relative_within_dir</span><span class="p">(</span><span class="n">raw_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">base_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return ``True`` when ``raw_path`` is relative and resolves inside ``base_dir``."""</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="n">_is_absolute_path</span><span class="p">(</span><span class="n">raw_path</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_is_within_dir</span><span class="p">(</span><span class="n">raw_path</span><span class="p">,</span> <span class="n">base_dir</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_choose_relative_input_dir</span><span class="p">(</span>
+    <span class="n">raw_input</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">base_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">raw_output</span><span class="p">:</span> <span class="nb">object</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">source_input_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Choose a safe relative ``./&lt;leaf&gt;/`` folder under ``base_dir``."""</span>
+    <span class="n">leaf</span> <span class="o">=</span> <span class="n">_extract_leaf_name</span><span class="p">(</span><span class="n">raw_input</span><span class="p">,</span> <span class="n">default_name</span><span class="o">=</span><span class="s2">"Input"</span><span class="p">)</span>
+    <span class="n">base_resolved</span> <span class="o">=</span> <span class="n">base_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">output_resolved</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_output</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_is_within_dir</span><span class="p">(</span><span class="n">raw_output</span><span class="p">,</span> <span class="n">base_resolved</span><span class="p">):</span>
+        <span class="n">output_resolved</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_resolved</span> <span class="o">/</span> <span class="n">raw_output</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">source_resolved</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">source_input_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="k">if</span> <span class="n">source_input_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_safe_candidate</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">candidate</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_resolved</span> <span class="o">/</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_relative_to</span><span class="p">(</span><span class="n">base_resolved</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">output_resolved</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">candidate</span> <span class="o">==</span> <span class="n">output_resolved</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">source_resolved</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">candidate</span> <span class="o">!=</span> <span class="n">source_resolved</span>
+
+    <span class="n">candidates</span> <span class="o">=</span> <span class="p">[</span><span class="n">leaf</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">"Input"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Input"</span><span class="p">)</span>
+    <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">leaf</span><span class="si">}</span><span class="s2">_input"</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_is_safe_candidate</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"./</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/"</span>
+
+    <span class="n">suffix</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">leaf</span><span class="si">}</span><span class="s2">_input_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">if</span> <span class="n">_is_safe_candidate</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"./</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/"</span>
+        <span class="n">suffix</span> <span class="o">+=</span> <span class="mi">1</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_rewrite_external_fileinputpath</span><span class="p">(</span>
+    <span class="n">path_runcontrol</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">base_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">source_input_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Rewrite ``FileInputPath`` in ``RunControl.nml`` when not safely inside ``base_dir``.</span>
+
+<span class="sd">    ``FileInputPath`` values that are absolute (POSIX, Windows drive, or UNC),</span>
+<span class="sd">    resolve outside ``base_dir`` (for example ``../shared/Input/`` or an</span>
+<span class="sd">    escaping symlink), or resolve to ``source_input_dir`` are patched to a</span>
+<span class="sd">    relative folder inside ``base_dir`` so converted tables are never written</span>
+<span class="sd">    outside ``toDir`` or over source tables. Relative paths already safely</span>
+<span class="sd">    inside ``base_dir`` and ``FileOutputPath`` are left untouched.</span>
+<span class="sd">    """</span>
+    <span class="n">resolved_rc</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_insensitive</span><span class="p">(</span><span class="n">path_runcontrol</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">resolved_rc</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">nml</span> <span class="o">=</span> <span class="n">f90nml</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">resolved_rc</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">nml</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="n">section_name</span> <span class="o">=</span> <span class="s2">"runcontrol"</span> <span class="k">if</span> <span class="s2">"runcontrol"</span> <span class="ow">in</span> <span class="n">nml</span> <span class="k">else</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">nml</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+    <span class="n">section</span> <span class="o">=</span> <span class="n">nml</span><span class="p">[</span><span class="n">section_name</span><span class="p">]</span>
+
+    <span class="n">value</span> <span class="o">=</span> <span class="n">section</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileinputpath"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">base_resolved</span> <span class="o">=</span> <span class="n">base_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">source_resolved</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">source_input_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="k">if</span> <span class="n">source_input_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">_is_relative_within_dir</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">base_resolved</span><span class="p">):</span>
+        <span class="n">candidate</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_resolved</span> <span class="o">/</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">source_resolved</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">candidate</span> <span class="o">!=</span> <span class="n">source_resolved</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">rewritten</span> <span class="o">=</span> <span class="n">_choose_relative_input_dir</span><span class="p">(</span>
+        <span class="n">value</span><span class="p">,</span>
+        <span class="n">base_resolved</span><span class="p">,</span>
+        <span class="n">section</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileoutputpath"</span><span class="p">),</span>
+        <span class="n">source_input_dir</span><span class="o">=</span><span class="n">source_resolved</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">resolved_rc</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="sa">f</span><span class="s2">".</span><span class="si">{</span><span class="n">resolved_rc</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.tmp"</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">f90nml</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">resolved_rc</span><span class="p">),</span>
+            <span class="p">{</span><span class="n">section_name</span><span class="p">:</span> <span class="p">{</span><span class="s2">"fileinputpath"</span><span class="p">:</span> <span class="n">rewritten</span><span class="p">}},</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span> <span class="n">resolved_rc</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">tmp_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">raise</span>
+
+    <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s2">"Rewrote FileInputPath </span><span class="si">%r</span><span class="s2"> -&gt; </span><span class="si">%r</span><span class="s2"> in </span><span class="si">%s</span><span class="s2"> so converted tables stay inside </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span>
+        <span class="n">value</span><span class="p">,</span>
+        <span class="n">rewritten</span><span class="p">,</span>
+        <span class="n">resolved_rc</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="n">base_dir</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_output_dir_not_source_input</span><span class="p">(</span>
+    <span class="n">path_from_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">path_to_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">source_input_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Reject ``toDir`` equal to ``source_input_dir`` when ``fromDir != toDir``."""</span>
+    <span class="n">from_resolved</span> <span class="o">=</span> <span class="n">path_from_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">to_resolved</span> <span class="o">=</span> <span class="n">path_to_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">source_resolved</span> <span class="o">=</span> <span class="n">source_input_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">from_resolved</span> <span class="o">!=</span> <span class="n">to_resolved</span> <span class="ow">and</span> <span class="n">to_resolved</span> <span class="o">==</span> <span class="n">source_resolved</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Output directory </span><span class="si">{</span><span class="n">to_resolved</span><span class="si">}</span><span class="s2"> resolves to source input directory "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source_resolved</span><span class="si">}</span><span class="s2">; choose a different toDir to avoid overwriting "</span>
+            <span class="s2">"source tables."</span>
+        <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_prepare_output_dirs</span><span class="p">(</span>
+    <span class="n">path_to_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">source_input_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">path_from_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">Path</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Ensure ``FileInputPath`` sits inside ``path_to_dir`` and create output folders.</span>
+
+<span class="sd">    ``FileOutputPath`` is left unchanged; its directory is created only when it</span>
+<span class="sd">    is relative and resolves inside ``path_to_dir``. When ``path_from_dir``</span>
+<span class="sd">    resolves to ``path_to_dir`` (in-place conversion), ``source_input_dir`` is</span>
+<span class="sd">    not treated as an overwrite collision.</span>
+<span class="sd">    """</span>
+    <span class="n">path_runcontrol</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_insensitive</span><span class="p">(</span><span class="n">path_to_dir</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span><span class="p">))</span>
+    <span class="n">base_resolved</span> <span class="o">=</span> <span class="n">path_to_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">source_resolved</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">source_input_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+        <span class="n">path_from_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">path_from_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="o">!=</span> <span class="n">base_resolved</span>
+    <span class="p">):</span>
+        <span class="n">source_resolved</span> <span class="o">=</span> <span class="n">source_input_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">_rewrite_external_fileinputpath</span><span class="p">(</span>
+        <span class="n">path_runcontrol</span><span class="p">,</span> <span class="n">path_to_dir</span><span class="p">,</span> <span class="n">source_input_dir</span><span class="o">=</span><span class="n">source_resolved</span>
+    <span class="p">)</span>
+
+    <span class="n">ser_nml</span> <span class="o">=</span> <span class="n">load_SUEWS_nml_simple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path_runcontrol</span><span class="p">))</span><span class="o">.</span><span class="n">runcontrol</span>
+    <span class="n">path_input</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_resolved</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileinputpath"</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path_input</span><span class="o">.</span><span class="n">is_relative_to</span><span class="p">(</span><span class="n">base_resolved</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Resolved FileInputPath </span><span class="si">{</span><span class="n">path_input</span><span class="si">}</span><span class="s2"> escapes output directory </span><span class="si">{</span><span class="n">base_resolved</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">source_resolved</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">path_input</span> <span class="o">==</span> <span class="n">source_resolved</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Resolved FileInputPath </span><span class="si">{</span><span class="n">path_input</span><span class="si">}</span><span class="s2"> would overwrite source input directory"</span>
+        <span class="p">)</span>
+    <span class="n">path_input</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">raw_output</span> <span class="o">=</span> <span class="n">ser_nml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileoutputpath"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_output</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_is_relative_within_dir</span><span class="p">(</span>
+        <span class="n">raw_output</span><span class="p">,</span> <span class="n">base_resolved</span>
+    <span class="p">):</span>
+        <span class="n">path_output</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_resolved</span> <span class="o">/</span> <span class="n">raw_output</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="n">path_output</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ser_nml</span><span class="p">,</span> <span class="n">path_input</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_copy_and_clean_files</span><span class="p">(</span><span class="n">fromDir</span><span class="p">,</span> <span class="n">toDir</span><span class="p">,</span> <span class="n">file_patterns</span><span class="p">,</span> <span class="n">clean_txt</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Copy files matching patterns and optionally clean text files."""</span>
     <span class="k">for</span> <span class="n">fileX</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)):</span>
@@ -1388,13 +1620,17 @@
     <span class="n">ser_nml</span> <span class="o">=</span> <span class="n">load_SUEWS_nml_simple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">runcontrol_path</span><span class="p">))</span><span class="o">.</span><span class="n">runcontrol</span>
 
     <span class="c1"># Resolve input path from RunControl</span>
-    <span class="n">fileinputpath</span> <span class="o">=</span> <span class="n">ser_nml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileinputpath"</span><span class="p">,</span> <span class="s2">"./input/"</span><span class="p">)</span>
+    <span class="n">fileinputpath</span> <span class="o">=</span> <span class="n">ser_nml</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fileinputpath"</span><span class="p">,</span> <span class="s2">"./input/"</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">fileinputpath</span><span class="p">):</span>
         <span class="c1"># Absolute path</span>
-        <span class="n">input_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fileinputpath</span><span class="p">)</span>
+        <span class="n">input_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fileinputpath</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># Relative path from fromDir</span>
         <span class="n">input_dir</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">fileinputpath</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+
+    <span class="n">_check_output_dir_not_source_input</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">),</span> <span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">),</span> <span class="n">input_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span>
 
     <span class="c1"># Copy files from the actual input directory</span>
     <span class="k">if</span> <span class="n">input_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
@@ -1406,11 +1642,9 @@
     <span class="n">_copy_and_clean_files</span><span class="p">(</span><span class="n">fromDir</span><span class="p">,</span> <span class="n">toDir</span><span class="p">,</span> <span class="p">[</span><span class="s2">"*.nml"</span><span class="p">],</span> <span class="n">clean_txt</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="c1"># Create the standard directory structure</span>
-    <span class="n">ser_nml</span> <span class="o">=</span> <span class="n">load_SUEWS_nml_simple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span><span class="p">))</span><span class="o">.</span><span class="n">runcontrol</span>
-    <span class="n">path_input</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileinputpath"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-    <span class="n">path_output</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileoutputpath"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-    <span class="n">path_input</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">path_output</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">path_input</span> <span class="o">=</span> <span class="n">_prepare_output_dirs</span><span class="p">(</span>
+        <span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">),</span> <span class="n">source_input_dir</span><span class="o">=</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">path_from_dir</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span>
+    <span class="p">)</span>
 
     <span class="c1"># Move table files to Input directory</span>
     <span class="n">list_table_input</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
@@ -1704,14 +1938,14 @@
 
 <span class="c1"># a single conversion between two versions</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">SUEWS_Converter_single</span><span class="p">(</span><span class="n">fromDir</span><span class="p">,</span> <span class="n">toDir</span><span class="p">,</span> <span class="n">fromVer</span><span class="p">,</span> <span class="n">toVer</span><span class="p">):</span>
-    <span class="c1"># copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt</span>
-    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span>
-
     <span class="c1"># Special case: if fromVer == toVer, just copy and clean without conversion</span>
     <span class="k">if</span> <span class="n">fromVer</span> <span class="o">==</span> <span class="n">toVer</span><span class="p">:</span>
         <span class="n">_handle_same_version_copy</span><span class="p">(</span><span class="n">fromDir</span><span class="p">,</span> <span class="n">toDir</span><span class="p">,</span> <span class="n">fromVer</span><span class="p">)</span>
         <span class="k">return</span>
+
+    <span class="c1"># copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span>
 
     <span class="c1"># Normal conversion process continues below</span>
     <span class="n">fileList</span> <span class="o">=</span> <span class="n">_build_file_list</span><span class="p">(</span><span class="n">fromDir</span><span class="p">,</span> <span class="n">fromVer</span><span class="p">)</span>
@@ -2112,7 +2346,16 @@
 <span class="sd">        The conversion process:</span>
 <span class="sd">        1. Reads input files from fromDir (using paths in RunControl.nml)</span>
 <span class="sd">        2. Performs chained conversion through intermediate versions if needed</span>
-<span class="sd">        3. Writes converted files to toDir in the target version format</span>
+<span class="sd">        3. Writes converted files to toDir in the target version format. If</span>
+<span class="sd">           ``FileInputPath`` in ``RunControl.nml`` is absolute, resolves</span>
+<span class="sd">           outside ``toDir`` (for example a ``../`` path or an escaping</span>
+<span class="sd">           symlink), or would overwrite the source input directory, it is</span>
+<span class="sd">           rewritten in the output ``RunControl.nml`` to a relative folder</span>
+<span class="sd">           inside ``toDir``. Passing a ``toDir`` (different from ``fromDir``)</span>
+<span class="sd">           that resolves to the source input directory raises ``ValueError``</span>
+<span class="sd">           before any files are written. ``FileOutputPath`` is left unchanged</span>
+<span class="sd">           and an external ``FileOutputPath`` directory is not created. Forcing</span>
+<span class="sd">           files are not copied.</span>
 
 <span class="sd">        With debug_dir specified, intermediate conversion steps are preserved for inspection.</span>
 
@@ -2150,6 +2393,11 @@
     <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"working on chained conversion </span><span class="si">{</span><span class="n">len_chain</span><span class="si">}</span><span class="s2"> actions to take"</span><span class="p">)</span>
     <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"chained list: </span><span class="si">{</span><span class="n">chain_ver</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
 
+    <span class="c1"># Locate source input folder and reject toDir == source_input_dir before writing</span>
+    <span class="n">ser_nml</span> <span class="o">=</span> <span class="n">load_SUEWS_nml_simple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span><span class="p">))</span><span class="o">.</span><span class="n">runcontrol</span>
+    <span class="n">source_input_dir</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileinputpath"</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="n">_check_output_dir_not_source_input</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">),</span> <span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">),</span> <span class="n">source_input_dir</span><span class="p">)</span>
+
     <span class="c1"># Create debug directory if specified</span>
     <span class="k">if</span> <span class="n">debug_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">debug_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">debug_dir</span><span class="p">)</span>
@@ -2177,11 +2425,7 @@
             <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">tempDir_2</span><span class="p">)</span>
 
         <span class="c1"># flatten all file structures in tempDir_1</span>
-        <span class="c1"># locate input folder</span>
-        <span class="n">ser_nml</span> <span class="o">=</span> <span class="n">load_SUEWS_nml_simple</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span><span class="p">)</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">runcontrol</span>
-        <span class="n">path_input</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileinputpath"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="n">path_input</span> <span class="o">=</span> <span class="n">source_input_dir</span>
         <span class="n">list_table_input</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
             <span class="nb">list</span><span class="p">(</span>
                 <span class="n">path_input</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"SUEWS_*.txt"</span><span class="p">)</span>
@@ -2203,6 +2447,10 @@
             <span class="k">if</span> <span class="n">path_dst</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".txt"</span><span class="p">:</span>
                 <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cleaning original file: </span><span class="si">{</span><span class="n">fileX</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
                 <span class="n">clean_legacy_table</span><span class="p">(</span><span class="n">path_dst</span><span class="p">)</span>
+
+        <span class="c1"># Rewrite any FileInputPath resolving outside tempDir_1 in the working</span>
+        <span class="c1"># copy before chained steps run so intermediate steps never re-scan fromDir.</span>
+        <span class="n">_rewrite_external_fileinputpath</span><span class="p">(</span><span class="n">tempDir_1</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span><span class="p">,</span> <span class="n">tempDir_1</span><span class="p">)</span>
 
         <span class="c1"># Indirect version conversion process</span>
         <span class="c1"># The alternation logic needs to account for starting position</span>
@@ -2358,12 +2606,9 @@
             <span class="n">rmtree</span><span class="p">(</span><span class="n">tempDir_2</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="c1"># cleaning and move input tables into the `input` folder</span>
-    <span class="n">ser_nml</span> <span class="o">=</span> <span class="n">load_SUEWS_nml_simple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"RunControl.nml"</span><span class="p">))</span><span class="o">.</span><span class="n">runcontrol</span>
-
-    <span class="n">path_input</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileinputpath"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-    <span class="n">path_output</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_nml</span><span class="p">[</span><span class="s2">"fileoutputpath"</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-    <span class="n">path_input</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">path_output</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">ser_nml</span><span class="p">,</span> <span class="n">path_input</span> <span class="o">=</span> <span class="n">_prepare_output_dirs</span><span class="p">(</span>
+        <span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">),</span> <span class="n">source_input_dir</span><span class="o">=</span><span class="n">source_input_dir</span><span class="p">,</span> <span class="n">path_from_dir</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">fromDir</span><span class="p">)</span>
+    <span class="p">)</span>
 
     <span class="n">list_table_input</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
         <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">toDir</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"SUEWS*.txt"</span><span class="p">))</span>
@@ -2521,8 +2766,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

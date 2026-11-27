@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for drainage parameters parameters" name="description" />
 <meta content="SUEWS, YAML, storagedrainparams, parameters, configuration" name="keywords" />
 
-    <title>4.6.49. Drainage Parameters &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <title>4.6.49. Drainage Parameters &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.6.48. STEBBS" href="stebbsproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -607,39 +611,39 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; paved; Paved</p></td>
-<td><p><span class="bibtex-citation" id="id1">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id1">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; buildings; Building</p></td>
-<td><p><span class="bibtex-citation" id="id2">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id2">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; paved; Paved</p></td>
-<td><p><span class="bibtex-citation" id="id3">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id3">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; buildings; Buildings</p></td>
-<td><p><span class="bibtex-citation" id="id4">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id4">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; bare soil; Bare Soil</p></td>
-<td><p><span class="bibtex-citation" id="id5">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id5">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.3</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree</p></td>
-<td><p><span class="bibtex-citation" id="id6">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id6">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.3</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree</p></td>
-<td><p><span class="bibtex-citation" id="id7">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id7">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.9</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; grass; Grass</p></td>
-<td><p><span class="bibtex-citation" id="id8">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id8">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; water; Water</p></td>
-<td><p><span class="bibtex-citation" id="id9">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id9">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -674,39 +678,39 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; paved; Paved</p></td>
-<td><p><span class="bibtex-citation" id="id10">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id10">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>Helsinki; buildings; Building</p></td>
-<td><p><span class="bibtex-citation" id="id11">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id11">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.48</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; paved; Paved</p></td>
-<td><p><span class="bibtex-citation" id="id12">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id12">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.25</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; buildings; Buildings</p></td>
-<td><p><span class="bibtex-citation" id="id13">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id13">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; bare soil; Bare Soil</p></td>
-<td><p><span class="bibtex-citation" id="id14">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id14">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.3</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree</p></td>
-<td><p><span class="bibtex-citation" id="id15">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id15">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.8</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree</p></td>
-<td><p><span class="bibtex-citation" id="id16">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id16">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.9</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; grass; Grass</p></td>
-<td><p><span class="bibtex-citation" id="id17">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id17">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code> kg m<sup>-2</sup></p></td>
 <td><p>SE England; water; Water</p></td>
-<td><p><span class="bibtex-citation" id="id18">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id18">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -739,91 +743,6 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p>
 </dd>
 </dl>
-<p class="rubric">Example values</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<colgroup>
-<col style="width: 15.0%" />
-<col style="width: 40.0%" />
-<col style="width: 45.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Value</p></th>
-<th class="head"><p>Context</p></th>
-<th class="head"><p>Source</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>London; paved; Paved [sample run]</p></td>
-<td><p><span class="bibtex-citation" id="id19">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>Swindon; paved; Paved</p></td>
-<td><p><span class="bibtex-citation" id="id20">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id110" title="Ward, H. C., Evans, J. G., and Grimmond, C. S. B. Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in swindon, UK. Atmospheric Chemistry and Physics, 13(9):4645–4666, May 2013. doi:10.5194/acp-13-4645-2013.">2013</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>London; evergreen tree; EvergreenTree [sample run]</p></td>
-<td><p><span class="bibtex-citation" id="id21">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>London; deciduous tree; Deciduous Tree [sample run]</p></td>
-<td><p><span class="bibtex-citation" id="id22">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>Helsinki; grass; Grass, irrigated</p></td>
-<td><p><span class="bibtex-citation" id="id23">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>Helsinki; grass; Grass, unirrigated</p></td>
-<td><p><span class="bibtex-citation" id="id24">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>London; grass; Grass [sample run]</p></td>
-<td><p><span class="bibtex-citation" id="id25">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>Helsinki; buildings; Building</p></td>
-<td><p><span class="bibtex-citation" id="id26">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing</p></td>
-<td><p><span class="bibtex-citation" id="id27">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing</p></td>
-<td><p><span class="bibtex-citation" id="id28">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>London; grass; Grass - Helsinki, Zurich, Beijing</p></td>
-<td><p><span class="bibtex-citation" id="id29">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>SE England; paved; Paved</p></td>
-<td><p><span class="bibtex-citation" id="id30">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>SE England; buildings; Buildings</p></td>
-<td><p><span class="bibtex-citation" id="id31">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code></p></td>
-<td><p>SE England; bare soil; Bare Soil</p></td>
-<td><p><span class="bibtex-citation" id="id32">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>SE England; evergreen tree; Evergreen Tree</p></td>
-<td><p><span class="bibtex-citation" id="id33">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>SE England; deciduous tree; Deciduous Tree</p></td>
-<td><p><span class="bibtex-citation" id="id34">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>SE England; grass; Grass</p></td>
-<td><p><span class="bibtex-citation" id="id35">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
-</tr>
-</tbody>
-</table>
-</div>
 </dd></dl>
 
 <dl class="input option" id="index-5">
@@ -861,71 +780,71 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>London; paved; Paved [sample run]; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id36">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id19">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>Swindon; paved; Paved; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id37">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id110" title="Ward, H. C., Evans, J. G., and Grimmond, C. S. B. Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in swindon, UK. Atmospheric Chemistry and Physics, 13(9):4645–4666, May 2013. doi:10.5194/acp-13-4645-2013.">2013</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id20">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>London; evergreen tree; EvergreenTree [sample run]; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id38">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id21">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>London; deciduous tree; Deciduous Tree [sample run]; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id39">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id22">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>Helsinki; grass; Grass, irrigated; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id40">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id23">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>Helsinki; grass; Grass, unirrigated; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id41">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id24">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>London; grass; Grass [sample run]; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id42">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id25">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>Helsinki; buildings; Building; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id43">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id26">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
-<td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id44">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
+<td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing; drain_eq=2</p></td>
+<td><p><span class="bibtex-citation" id="id27">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
-<td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id45">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
+<td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing; drain_eq=2</p></td>
+<td><p><span class="bibtex-citation" id="id28">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code></p></td>
-<td><p>London; grass; Grass - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id46">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
+<td><p>London; grass; Grass - Helsinki, Zurich, Beijing; drain_eq=2</p></td>
+<td><p><span class="bibtex-citation" id="id29">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>SE England; paved; Paved; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id47">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id30">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>SE England; buildings; Buildings; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id48">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id31">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">10</span></code></p></td>
 <td><p>SE England; bare soil; Bare Soil; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id49">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id32">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id50">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id33">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id51">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id34">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> kg m<sup>-2</sup> h<sup>-1</sup></p></td>
 <td><p>SE England; grass; Grass; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id52">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id35">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -967,71 +886,71 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>London; paved; Paved [sample run]; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id53">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id36">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>Swindon; paved; Paved; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id54">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id110" title="Ward, H. C., Evans, J. G., and Grimmond, C. S. B. Multi-season eddy covariance observations of energy, water and carbon fluxes over a suburban area in swindon, UK. Atmospheric Chemistry and Physics, 13(9):4645–4666, May 2013. doi:10.5194/acp-13-4645-2013.">2013</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id37">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>London; evergreen tree; EvergreenTree [sample run]; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id55">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id38">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>London; deciduous tree; Deciduous Tree [sample run]; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id56">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id39">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">0.013</span></code> (dimensionless)</p></td>
 <td><p>Helsinki; grass; Grass, irrigated; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id57">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id40">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>Helsinki; grass; Grass, unirrigated; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id58">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id5" title="Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. Geosci. Model Dev., 7(4):1691-1711, August 2014. doi:10.5194/gmd-7-1691-2014.">2014</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id41">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.17</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>London; grass; Grass [sample run]; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id59">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id42">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>Helsinki; buildings; Building; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id60">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id43">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
-<td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id61">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
+<td><p>London; evergreen tree; EvergreenTree - Helsinki, Zurich, Beijing; drain_eq=2</p></td>
+<td><p><span class="bibtex-citation" id="id44">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
-<td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id62">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
+<td><p>London; deciduous tree; Deciduous Tree - Helsinki, Zurich, Beijing; drain_eq=2</p></td>
+<td><p><span class="bibtex-citation" id="id45">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> (dimensionless)</p></td>
-<td><p>London; grass; Grass - Helsinki, Zurich, Beijing; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id63">Havu <em>et al.</em> [<a class="reference internal" href="../../../references.html#id36" title="Havu, Minttu, Kulmala, Liisa, Lee, Hei Shing, Saranko, Olli, Soininen, Jesse, Ahongshangbam, Joyson, and Järvi, Leena. CO$_2$ uptake of urban vegetation in a warming Nordic city. Urban Forestry &amp; Urban Greening, 94:128261, April 2024. doi:10.1016/j.ufug.2024.128261.">2024</a>]</span></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
+<td><p>London; grass; Grass - Helsinki, Zurich, Beijing; drain_eq=2</p></td>
+<td><p><span class="bibtex-citation" id="id46">Järvi <em>et al.</em> [<a class="reference internal" href="../../../references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">2011</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>SE England; paved; Paved; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id64">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id47">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>SE England; buildings; Buildings; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id65">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id48">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (dimensionless)</p></td>
 <td><p>SE England; bare soil; Bare Soil; drain_eq=3</p></td>
-<td><p><span class="bibtex-citation" id="id66">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id49">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>SE England; evergreen tree; Evergreen Tree; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id67">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id50">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>SE England; deciduous tree; Deciduous Tree; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id68">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id51">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">1.71</span></code> m<sup>2</sup> kg<sup>-1</sup></p></td>
 <td><p>SE England; grass; Grass; drain_eq=2</p></td>
-<td><p><span class="bibtex-citation" id="id69">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span></p></td>
+<td><p><span class="bibtex-citation" id="id52">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id37" title="Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. International Journal of Climatology, 38(2):649–662, February 2018. doi:10.1002/joc.5200.">2018</a>]</span></p></td>
 </tr>
 </tbody>
 </table>
@@ -1115,8 +1034,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

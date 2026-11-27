@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-11-23T02:40:37+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
     <meta name="docbuild:last-update" content="2026-11-23"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -1041,11 +1045,14 @@ without needing to understand the internal data layout.</p>
 <li><p><strong>var_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Variable name to extract (e.g., ‘QH’, ‘QE’, ‘Tair’).</p></li>
 <li><p><strong>group</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><em>optional</em>) – Output group name if variable appears in multiple groups.
 If None and variable is in multiple groups, raises ValueError.</p></li>
-<li><p><strong>site</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><em>optional</em>) – Site index or name. If None, returns all sites.</p></li>
+<li><p><strong>site</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><em>optional</em>) – Grid ID (<code class="docutils literal notranslate"><span class="pre">gridiv</span></code>), integer grid ID as text, or configured site
+name. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, returns all sites.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>DataFrame with selected variable(s), indexed by time.</p>
+<dd class="field-even"><p>Single-variable DataFrame indexed by <code class="docutils literal notranslate"><span class="pre">(grid,</span> <span class="pre">datetime)</span></code> when
+<code class="docutils literal notranslate"><span class="pre">site</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>, or by <code class="docutils literal notranslate"><span class="pre">datetime</span></code> when a single site is
+selected.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.1)">pandas.DataFrame</a></p>
@@ -1053,11 +1060,19 @@ If None and variable is in multiple groups, raises ValueError.</p></li>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – If simulation hasn’t been run yet.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If variable name not found in results, or if variable is ambiguous
-    (appears in multiple groups) and no group specified.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If variable name, group, or site is not found in results, or if a
+    variable or site name is ambiguous.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#TypeError" title="(in Python v3.15)"><strong>TypeError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">site</span></code> is neither an integer grid ID nor a string.</p></li>
 </ul>
 </dd>
 </dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.results" title="supy.SUEWSSimulation.results"><code class="xref py py-obj docutils literal notranslate"><span class="pre">results</span></code></a></dt><dd><p>Full simulation output DataFrame</p>
+</dd>
+</dl>
+</div>
 <p class="rubric">Examples</p>
 <p>Extract sensible heat flux:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
@@ -1070,13 +1085,6 @@ If None and variable is in multiple groups, raises ValueError.</p></li>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># If 'Tair' appears in both 'forcing' and 'output' groups:</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">tair</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s2">"Tair"</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s2">"output"</span><span class="p">)</span>
 </pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<dl class="simple">
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.results" title="supy.SUEWSSimulation.results"><code class="xref py py-obj docutils literal notranslate"><span class="pre">results</span></code></a></dt><dd><p>Full simulation output DataFrame</p>
-</dd>
-</dl>
 </div>
 </dd></dl>
 
@@ -1233,10 +1241,10 @@ at the path of the Parquet file a run saved whole writes
 it when the run ends. <code class="docutils literal notranslate"><span class="pre">pandas.read_parquet(folder)</span></code> reads the
 parts back as one frame. It holds only the groups in
 <code class="docutils literal notranslate"><span class="pre">output.groups</span></code> (Parquet saved after an unstreamed run holds every
-group), at full float64 precision. The groups other than DailyState
-are resampled exactly as <code class="docutils literal notranslate"><span class="pre">save(format=&quot;parquet&quot;)</span></code> resamples them;
-DailyState keeps its own rows, the last step of each day, as the text
-output does, instead of being resampled to the output frequency.
+group), at full float64 precision. Every group, DailyState included,
+is resampled using the same right-labelled rule as
+<code class="docutils literal notranslate"><span class="pre">save(format=&quot;parquet&quot;)</span></code>, so the folder matches a whole run saved
+as Parquet row for row for the chosen groups.
 See the outputs page of the documentation for how the frame compares
 with a run saved whole.</p>
 <p>A streamed run that stops part-way (an error, or the process being
@@ -1885,8 +1893,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

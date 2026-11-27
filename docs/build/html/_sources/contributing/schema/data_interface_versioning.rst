@@ -24,7 +24,7 @@ A change to one interface does not consume a version of either of the others.
 Current status
 --------------
 
-The forcing contract is published at ``2.1.0`` and the output contract at ``2.0.0``.
+The forcing contract is published at ``2.1.0`` and the output contract at ``2.1.0``.
 Forcing ``2.1.0`` adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
 Forcing ``1.1.0`` added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; ``1.2.0`` corrects snow-cover
@@ -55,6 +55,7 @@ Their model sums, including a partial first day, are written unchanged (a run en
 Amount units (``mm``, ``m``, ``kg m-2``) are accepted; rate units are rejected.
 Per-step water fluxes are written as ``kg m-2 s-1`` rates.
 Output ``2.0.0`` is frozen like every earlier version: its digest is immutable, and any later correction needs a new version.
+Output ``2.1.0`` appends seven EHC diagnostics to the end of the EHC group (``dUdt_EHC``, ``QBot_EHC``, ``QIndoor_EHC``, ``QF_Bldg``, ``QF_Air``, ``T_Indoor_EHC``, ``T_Deep_EHC``), leaving every existing column, ordinal, unit and description unchanged.
 Native in-memory amounts remain available, with their actual units exposed by the output accessor.
 :ref:`units_migration_guide` describes what these forcing and output versions change for users.
 Each forcing release is stored as an immutable canonical
@@ -146,7 +147,13 @@ For a new forcing release:
 
 3. Append the version and digest to ``FORCING_VERSIONS``, then move
    ``CURRENT_FORCING_VERSION`` to the new last entry.
-4. Run the forcing artefact, reference, and history audits::
+4. Generate the immutable schema and manifest snapshot for static publication
+   and append the printed manifest digest to
+   ``FORCING_PUBLISHED_MANIFEST_DIGESTS`` in ``src/supy/data_model/contracts.py``::
+
+      python scripts/suews/publish_contracts.py --write-forcing-snapshot <version>
+
+5. Run the forcing artefact, reference, and history audits::
 
       python scripts/lint/check_forcing_contract_artefacts.py
       python docs/generate_forcing_variable_rst.py --check
@@ -168,11 +175,81 @@ For a new output release:
       python scripts/lint/check_data_interface_version_history.py --base origin/master
 
 The writers refuse to replace different bytes in an existing release. Never
-edit or regenerate a released artefact in place. Public URLs,
-``latest`` aliases, and Pages publication are separate work tracked in #1657.
+edit or regenerate a released artefact in place. After updating the version
+registry and running the audits above, verify the static contract publication
+layout locally::
 
-Never rewrite a released entry. Shared mechanical helpers may be extracted only
-after the configuration, forcing, and output policies are concrete (#1664).
+   make contracts-site
+
+This builds both versioned and ``latest`` artefacts under
+``build/contracts-site/contracts/``, validates every catalogue against its
+JSON Schema, verifies SHA-256 digests and ``latest`` byte-for-byte parity, and
+checks every generated relative link. Pass
+``CONTRACTS_PRESERVE_FROM=<previous-contracts-dir>`` to verify preservation of
+historical releases across deployments without overwriting existing bytes.
+
+Never rewrite a released entry.
+
+CLI discovery and published URLs
+--------------------------------
+
+Users and automated clients can inspect and export any published forcing or
+output contract release directly through the ``suews contracts`` CLI:
+
+.. code-block:: bash
+
+   # List available interfaces, current versions, digests and published URLs
+   suews contracts info
+   suews contracts info --format json
+
+   # Inspect a contract catalogue, JSON Schema or manifest
+   suews contracts show forcing --format json
+   suews contracts show output --version 2.1.0 --artefact schema --format json
+
+   # Export raw canonical JSON to stdout or files, or write a full release bundle
+   suews contracts export forcing > forcing-catalogue.json
+   suews contracts export output --artefact bundle -o ./output-contract
+
+Static site builds materialise deterministic, version-addressed directories
+alongside moving ``latest`` aliases and publish them to GitHub Pages at
+`https://suews.io/contracts/ <https://suews.io/contracts/>`_ via
+``.github/workflows/pages-deploy.yml``. On each deployment, the workflow
+fetches the previously published ``/contracts/`` tree from ``https://suews.io``
+so historical versions remain retrievable (failing closed on HTTP 404 unless an
+initial bootstrap or verified recovery is explicitly authorised via
+``workflow_dispatch`` with ``allow_contracts_bootstrap=true`` and no partial
+interface indices remain). Pull-request and merge-queue CI validate the
+published layout offline in ``.github/workflows/data-interface-version-audit.yml``.
+Locally, ``make contracts-site`` builds and validates the packaged releases;
+pass ``CONTRACTS_PRESERVE_FROM=<previous-contracts-dir>`` pointing to a local
+snapshot of the prior ``/contracts/`` tree to reproduce CI's cross-deployment
+preservation, or inspect releases directly through ``suews contracts``:
+
+- `https://suews.io/contracts/index.json <https://suews.io/contracts/index.json>`_
+  and `https://suews.io/contracts/index.html <https://suews.io/contracts/index.html>`_:
+  top-level machine-readable and HTML discovery indices.
+- `https://suews.io/contracts/forcing/ <https://suews.io/contracts/forcing/>`_
+  (``<version>/``) and
+  `https://suews.io/contracts/output/ <https://suews.io/contracts/output/>`_
+  (``<version>/``): immutable release bundles containing ``catalogue.json``,
+  ``catalogue.schema.json`` and ``manifest.json``. Frozen forcing schema and
+  manifest snapshots live under
+  ``src/supy/data_model/contract_artefacts/forcing/<version>/`` alongside the
+  canonical forcing catalogues under ``src/supy/data_model/forcing/artefacts/``.
+  Previously published versions are preserved across deployments and never
+  modified in place.
+- `https://suews.io/contracts/forcing/latest/catalogue.json <https://suews.io/contracts/forcing/latest/catalogue.json>`_
+  and
+  `https://suews.io/contracts/output/latest/catalogue.json <https://suews.io/contracts/output/latest/catalogue.json>`_
+  (under ``forcing/latest/`` and ``output/latest/``): moving aliases that mirror
+  the current release bundle byte-for-byte.
+
+To reproduce publication and validation outside ``make``:
+
+.. code-block:: bash
+
+   python scripts/suews/publish_contracts.py --output-dir build/contracts-site/contracts
+   suews contracts validate build/contracts-site/contracts --base-url https://suews.io
 
 YAML audit boundary
 -------------------

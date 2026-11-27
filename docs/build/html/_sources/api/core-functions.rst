@@ -45,6 +45,16 @@ Version information
 
     show_version
 
+Configuration Validation
+------------------------
+
+.. autosummary::
+    :toctree: _autosummary
+
+    validate_config
+    ValidationEngine
+    ValidationReport
+
 Logging Controls
 ----------------
 

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-23T10:29:47+00:00" />
-    <title>2.2. YAML Configuration Schema Versioning &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>2.2. YAML Configuration Schema Versioning &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="2.1. Configuration Schema Development" href="schema-developer.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-23"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -683,7 +687,7 @@ migration handler that upgrades older YAMLs to the current shape.</p></li>
 compatibility matrix.</p></li>
 </ul>
 <p>Schema version is distinct from the SUEWS model version. A line such as
-<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.6.dev17&quot;</span></code> describes the shape of the configuration
+<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.6.dev23&quot;</span></code> describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 <code class="docutils literal notranslate"><span class="pre">2026.4.3</span></code>) describes the model code. One schema may validate many
 model releases.</p>
@@ -692,7 +696,7 @@ model releases.</p>
 <h2><span class="section-number">2.2.2. </span>Schema Version Field<a class="headerlink" href="#schema-version-field" title="Link to this heading">#</a></h2>
 <p>Add the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field to the top level of your configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_urban_config</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">"2026.6.dev17"</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">"2026.6.dev23"</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Urban climate simulation for central London</span>
 <span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="c1"># ... model configuration ...</span>
@@ -710,7 +714,12 @@ tell which shape the file targets.</p>
 <p>Schema labels use <strong>CalVer</strong> (<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>, with <code class="docutils literal notranslate"><span class="pre">.devN</span></code> labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number – <code class="docutils literal notranslate"><span class="pre">2026.6.dev17</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev16</span></code>,
+as a floating-point number – <code class="docutils literal notranslate"><span class="pre">2026.6.dev23</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev22</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev21</span></code>, which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev20</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev19</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev18</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev17</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev16</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev15</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev14</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev13</span></code>,
@@ -769,19 +778,19 @@ separate table to update.</p>
 <dl>
 <dt><strong>Current version</strong></dt><dd><p>Configuration loads with no warning.</p>
 </dd>
-<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.5, current is 2026.6.dev17 (compatible)
+<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.5, current is 2026.6.dev21 (compatible)
 </pre></div>
 </div>
 <p>A migration path is available. Upgrade the file with
 <a class="reference internal" href="../../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> before loading it if it uses retired selectors or
 field names; a compatibility message does not apply the migration itself.</p>
 </dd>
-<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev17.
+<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev21.
 Consider updating your configuration.
 </pre></div>
 </div>
 </dd>
-<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev17.
+<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev21.
 Please update SUEWS or use an older configuration.
 </pre></div>
 </div>
@@ -828,7 +837,89 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/configuration/version.py</span></code>. Each release tag maps to
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
-<p><strong>Schema 2026.6.dev17</strong> (current development version)</p>
+<p><strong>Schema 2026.6.dev23</strong> (current development version)</p>
+<blockquote>
+<div><p>Computes modelled LAI from daily GDD/SDD increments within fixed growth and
+senescence seasons (reset before accumulation on DOY 15 and DOY 196,
+swapped in the southern hemisphere), gating leaf growth and leaf off on
+<code class="docutils literal notranslate"><span class="pre">gdd_base</span></code> and <code class="docutils literal notranslate"><span class="pre">sdd_base</span></code> (#2346, #2066, #2078). Legacy compatibility
+fields <code class="docutils literal notranslate"><span class="pre">gdd_full</span></code>, <code class="docutils literal notranslate"><span class="pre">sdd_full</span></code>, and <code class="docutils literal notranslate"><span class="pre">lai_type</span></code> remain accepted prior
+to removal but are ignored by the kernel, and the sample configuration
+adopts retuned daily-increment rates and thresholds
+(<code class="docutils literal notranslate"><span class="pre">base_temperature:</span> <span class="pre">6.5</span></code>, <code class="docutils literal notranslate"><span class="pre">base_temperature_senescence:</span> <span class="pre">22.0</span></code>,
+<code class="docutils literal notranslate"><span class="pre">gdd_base:</span> <span class="pre">120.0</span></code>, <code class="docutils literal notranslate"><span class="pre">sdd_base:</span> <span class="pre">-240.0</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lai_power:</span> <span class="pre">(-0.02,</span> <span class="pre">0.04,</span> <span class="pre">-1.0,</span> <span class="pre">0.02)</span></code>, initial <code class="docutils literal notranslate"><span class="pre">sdd_id:</span> <span class="pre">0.0</span></code>) while
+preserving per-surface <code class="docutils literal notranslate"><span class="pre">lai_min</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_max</span></code> envelopes. Migration
+preserves existing user values unchanged and logs an advisory for sites
+using modelled LAI so users know to retune legacy <code class="docutils literal notranslate"><span class="pre">lai_power</span></code>
+coefficients and review initial <code class="docutils literal notranslate"><span class="pre">sdd_id</span></code>. See
+<a class="reference internal" href="../../inputs/transition_guide.html#schema-dev23-lai-daily-increment"><span class="std std-ref">Upgrading to Schema 2026.6.dev23</span></a>.</p>
+</div></blockquote>
+<p><strong>Schema 2026.6.dev22</strong> (development)</p>
+<blockquote>
+<div><p>Splits facet-specific SPARTACUS optical properties out of
+<code class="docutils literal notranslate"><span class="pre">BuildingLayer</span></code> so <code class="docutils literal notranslate"><span class="pre">roof_albedo_dir_mult_fact</span></code> lives exclusively on
+<code class="docutils literal notranslate"><span class="pre">RoofLayer</span></code> (<code class="docutils literal notranslate"><span class="pre">sites[*].properties.vertical_layers.roofs[*]</span></code>, default
+<code class="docutils literal notranslate"><span class="pre">1.0</span></code>) and <code class="docutils literal notranslate"><span class="pre">wall_specular_frac</span></code> lives exclusively on <code class="docutils literal notranslate"><span class="pre">WallLayer</span></code>
+(<code class="docutils literal notranslate"><span class="pre">sites[*].properties.vertical_layers.walls[*]</span></code>, default <code class="docutils literal notranslate"><span class="pre">0.0</span></code>),
+aligning Pydantic defaults with the Rust bridge, sample configuration, and
+legacy tables, with each owning field enforced as non-optional
+<code class="docutils literal notranslate"><span class="pre">FlexibleRefValue(float)</span></code>. Migration drops legacy cross-facet keys
+(<code class="docutils literal notranslate"><span class="pre">roofs[*].wall_specular_frac</span></code> and
+<code class="docutils literal notranslate"><span class="pre">walls[*].roof_albedo_dir_mult_fact</span></code>) with explicit log notices, rejects
+explicit <code class="docutils literal notranslate"><span class="pre">null</span></code> or <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">null}</span></code> on owning fields with
+<code class="docutils literal notranslate"><span class="pre">YamlUpgradeError</span></code> (while preserving pre-<code class="docutils literal notranslate"><span class="pre">2026.6.dev22</span></code> historical
+targets), and runtime loading strips cross-facet keys with a
+<code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code> while rejecting explicit owning nulls with Pydantic
+<code class="docutils literal notranslate"><span class="pre">ValidationError</span></code>. See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev22-building-layer-split"><span class="std std-ref">Upgrading to Schema 2026.6.dev22</span></a>.</p>
+</div></blockquote>
+<p><strong>Schema 2026.6.dev21</strong> (development)</p>
+<blockquote>
+<div><p>Centralises required physics options in <code class="docutils literal notranslate"><span class="pre">core.model</span></code>, enforces blocking
+Phase B validation for half-specified daylight saving (<code class="docutils literal notranslate"><span class="pre">startdls</span></code> /
+<code class="docutils literal notranslate"><span class="pre">enddls</span></code>), and shares one three-band land-cover surface fraction sum
+kernel across Phase B, Phase C, <code class="docutils literal notranslate"><span class="pre">SUEWSConfig.validate_for_engine()</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.run()</span></code>. Sums within <code class="docutils literal notranslate"><span class="pre">1e-6</span></code> pass, small drift between
+<code class="docutils literal notranslate"><span class="pre">1e-6</span></code> and <code class="docutils literal notranslate"><span class="pre">1e-4</span></code> is auto-normalisable under
+<code class="docutils literal notranslate"><span class="pre">--science-fixes</span> <span class="pre">apply</span></code> (or reported as a warning), and deviations
+exceeding <code class="docutils literal notranslate"><span class="pre">1e-4</span></code> (or all-zero/invalid fractions) are rejected while raw
+<code class="docutils literal notranslate"><span class="pre">SUEWSConfig</span></code> loading continues to accept off-sum configurations for
+inspection. Migration preserves existing values and logs advisories for
+affected sites. See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev21-land-cover-sum-and-dst"><span class="std std-ref">Upgrading to Schema 2026.6.dev21</span></a>.</p>
+</div></blockquote>
+<p><strong>Schema 2026.6.dev20</strong> (development)</p>
+<blockquote>
+<div><p>Aligns Python <code class="docutils literal notranslate"><span class="pre">TenMinuteProfile</span></code> (<code class="docutils literal notranslate"><span class="pre">HeatingSetpointProfile</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CoolingSetpointProfile</span></code>) and Rust <code class="docutils literal notranslate"><span class="pre">apply_day_profile_overrides</span></code> key
+validation for 10-minute STEBBS profiles. Step keys in
+<code class="docutils literal notranslate"><span class="pre">working_day</span></code> and <code class="docutils literal notranslate"><span class="pre">holiday</span></code> accept canonical strings <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code>..``”144”<code class="docutils literal notranslate"><span class="pre">,</span>
+<span class="pre">zero-padded</span> <span class="pre">ASCII-digit</span> <span class="pre">strings,</span> <span class="pre">and</span> <span class="pre">plain</span> <span class="pre">integers</span> <span class="pre">``1</span></code>..``144``,
+normalising to canonical <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code>..``”144”`` strings while strictly rejecting
+malformed keys and canonical collisions. Migration normalises valid
+non-canonical 10-minute profile keys and refuses malformed or colliding
+keys explicitly. See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev20-ten-minute-profile-keys"><span class="std std-ref">Upgrading to Schema 2026.6.dev20</span></a>.</p>
+</div></blockquote>
+<p><strong>Schema 2026.6.dev19</strong> (development)</p>
+<blockquote>
+<div><p>Aligns irrigation <code class="docutils literal notranslate"><span class="pre">WeeklyProfile</span></code> fields (<code class="docutils literal notranslate"><span class="pre">daywat</span></code> and <code class="docutils literal notranslate"><span class="pre">daywatper</span></code>)
+with the Sunday-first calendar convention used by legacy
+<code class="docutils literal notranslate"><span class="pre">SUEWS_Irrigation.txt</span></code> tables, <code class="docutils literal notranslate"><span class="pre">df_state</span></code> arrays (<code class="docutils literal notranslate"><span class="pre">0=sunday</span></code> ..
+<code class="docutils literal notranslate"><span class="pre">6=saturday</span></code>), and the Fortran kernel (#2049, #2324). Existing YAML files
+remain structurally valid and migration leaves weekday keys unchanged,
+logging an advisory when a site defines an asymmetric irrigation weekday
+schedule. See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev19-irrigation-weekdays"><span class="std std-ref">Upgrading to Schema 2026.6.dev19</span></a>.</p>
+</div></blockquote>
+<p><strong>Schema 2026.6.dev18</strong> (development)</p>
+<blockquote>
+<div><p>Defaults <code class="docutils literal notranslate"><span class="pre">model.physics.storage_heat:</span> <span class="pre">ehc</span></code> (method 5) to implicit surface
+coupling (<code class="docutils literal notranslate"><span class="pre">ehc_surface_coupling:</span> <span class="pre">implicit</span></code>) and adds optional implicit EHC
+controls (<code class="docutils literal notranslate"><span class="pre">control_ehc_stability</span></code>, <code class="docutils literal notranslate"><span class="pre">control_ehc_initial_profile</span></code>,
+<code class="docutils literal notranslate"><span class="pre">resistance_ehc_indoor_roof</span></code>, <code class="docutils literal notranslate"><span class="pre">resistance_ehc_indoor_wall</span></code>). Existing
+method-5 YAMLs that omit <code class="docutils literal notranslate"><span class="pre">ehc_surface_coupling</span></code> now use implicit coupling;
+set <code class="docutils literal notranslate"><span class="pre">ehc_surface_coupling:</span> <span class="pre">explicit</span></code> to retain legacy explicit coupling.
+See <a class="reference internal" href="../../inputs/transition_guide.html#schema-dev18-ehc-implicit"><span class="std std-ref">Upgrading to Schema 2026.6.dev18</span></a>.</p>
+</div></blockquote>
+<p><strong>Schema 2026.6.dev17</strong> (development)</p>
 <blockquote>
 <div><p>Irrigation day-of-year bounds (<code class="docutils literal notranslate"><span class="pre">ie_start</span></code>, <code class="docutils literal notranslate"><span class="pre">ie_end</span></code>) and daylight saving
 time day-of-year bounds (<code class="docutils literal notranslate"><span class="pre">startdls</span></code>, <code class="docutils literal notranslate"><span class="pre">enddls</span></code>) now require whole integers
@@ -1200,7 +1291,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-23.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -1208,8 +1299,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

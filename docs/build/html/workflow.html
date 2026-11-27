@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-23T01:39:31+00:00" />
-    <title>2. Getting Started &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>2. Getting Started &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=9949c35e"></script>
+    <script src="_static/documentation_options.js?v=cfd099a6"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="1. Installation" href="installation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-23"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -678,7 +682,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 <p>SUEWS is a powerful urban climate modelling tool delivered through <strong>SuPy</strong>, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem. This guide provides a clear learning path from your first simulation to advanced urban climate research.</p>
 <section id="what-is-suews">
 <h2><span class="section-number">2.1. </span>What is SUEWS?<a class="headerlink" href="#what-is-suews" title="Link to this heading">#</a></h2>
-<p>SUEWS (Surface Urban Energy and Water balance Scheme) is a physics-based model that simulates urban surface energy and water balance through Python. The model helps researchers understand:</p>
+<p>SUEWS (Surface Urban Energy and Water Balance Scheme) is a physics-based model that simulates urban surface energy and water balance through Python. The model helps researchers understand:</p>
 <ul class="simple">
 <li><p><strong>Urban heat islands</strong> and energy flux dynamics</p></li>
 <li><p><strong>Urban hydrology</strong> and surface water balance</p></li>
@@ -705,7 +709,7 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 
 <span class="c1"># Verify installation</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"SUEWS version: </span><span class="si">{</span><span class="n">sp</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"✅ SUEWS is ready to use!"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[OK] SUEWS is ready to use!"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -717,26 +721,26 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <span class="c1"># Create simulation with built-in sample data</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 
-<span class="c1"># Run simulation</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="c1"># Run simulation and capture the SUEWSOutput object</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">"🎉 Congratulations! You've run your first urban climate simulation."</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2"> time steps of urban climate data"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Congratulations! You have run your first urban climate simulation."</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">df</span><span class="p">)</span><span class="si">}</span><span class="s2"> time steps of urban climate data"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Step 2: Explore your results</strong></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Quick overview of results structure</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"📈 Results structure:"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Output groups: </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s1">'group'</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Results structure:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">df</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Output groups: </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">groups</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Extract key variables using get_variable() helper</span>
 <span class="c1"># (Results use MultiIndex columns with levels 'group' and 'var')</span>
 <span class="n">qn</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QN'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
 <span class="n">qh</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QH'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Sample energy flux statistics:"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Net radiation (QN): </span><span class="si">{</span><span class="n">qn</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> W/m²"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Sensible heat (QH): </span><span class="si">{</span><span class="n">qh</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> W/m²"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Net radiation (QN): </span><span class="si">{</span><span class="n">qn</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> W m-2"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Sensible heat (QH): </span><span class="si">{</span><span class="n">qh</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> W m-2"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Step 3: Create your first urban climate visualisation</strong></p>
@@ -761,13 +765,13 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <span class="n">daily_energy</span> <span class="o">=</span> <span class="n">df_energy</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">'datetime'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
 <span class="n">daily_energy</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Daily Mean Energy Fluxes'</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Energy Flux (W/m²)'</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Energy Flux (W m-2)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">1.05</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">loc</span><span class="o">=</span><span class="s1">'upper left'</span><span class="p">)</span>
 
 <span class="c1"># Monthly patterns</span>
 <span class="n">monthly_energy</span> <span class="o">=</span> <span class="n">df_energy</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">df_energy</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"datetime"</span><span class="p">)</span><span class="o">.</span><span class="n">month</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">monthly_energy</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s1">'bar'</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Monthly Energy Balance'</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Energy Flux (W/m²)'</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Energy Flux (W m-2)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'Month'</span><span class="p">)</span>
 
 <span class="c1"># Diurnal patterns (summer months)</span>
@@ -776,7 +780,7 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <span class="n">summer_temp</span> <span class="o">=</span> <span class="n">t2</span><span class="p">[</span><span class="n">summer_mask</span><span class="p">]</span>
 <span class="n">hourly_temp</span> <span class="o">=</span> <span class="n">summer_temp</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">summer_temp</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">"datetime"</span><span class="p">)</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <span class="n">hourly_temp</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Summer Diurnal Temperature Cycle'</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">'o'</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Air Temperature (°C)'</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">'Air Temperature (degC)'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">'Hour of Day'</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
 
@@ -800,8 +804,8 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <section id="understanding-your-results">
 <h3><span class="section-number">2.2.3. </span>Understanding Your Results<a class="headerlink" href="#understanding-your-results" title="Link to this heading">#</a></h3>
 <p>The simulation produces comprehensive urban climate data:</p>
-<div class="pst-scrollable-table-container"><table class="table" id="id40">
-<caption><span class="caption-number">Table 2.1 </span><span class="caption-text">Key SUEWS Output Variables</span><a class="headerlink" href="#id40" title="Link to this table">#</a></caption>
+<div class="pst-scrollable-table-container"><table class="table" id="id41">
+<caption><span class="caption-number">Table 2.1 </span><span class="caption-text">Key SUEWS Output Variables</span><a class="headerlink" href="#id41" title="Link to this table">#</a></caption>
 <colgroup>
 <col style="width: 15.0%" />
 <col style="width: 20.0%" />
@@ -815,23 +819,23 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 </thead>
 <tbody>
 <tr class="row-even"><td><p><strong>QN</strong></p></td>
-<td><p>W/m²</p></td>
+<td><p>W m<sup>-2</sup></p></td>
 <td><p>Net all-wave radiation (incoming - outgoing)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>QF</strong></p></td>
-<td><p>W/m²</p></td>
+<td><p>W m<sup>-2</sup></p></td>
 <td><p>Anthropogenic heat flux (human activities)</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>QS</strong></p></td>
-<td><p>W/m²</p></td>
+<td><p>W m<sup>-2</sup></p></td>
 <td><p>Net storage heat flux (thermal mass)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>QE</strong></p></td>
-<td><p>W/m²</p></td>
+<td><p>W m<sup>-2</sup></p></td>
 <td><p>Latent heat flux (evaporation/transpiration)</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>QH</strong></p></td>
-<td><p>W/m²</p></td>
+<td><p>W m<sup>-2</sup></p></td>
 <td><p>Sensible heat flux (air heating)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>RO</strong></p></td>
@@ -839,7 +843,7 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <td><p>Surface runoff from precipitation</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>T2</strong></p></td>
-<td><p>°C</p></td>
+<td><p>degC</p></td>
 <td><p>Air temperature at 2m height</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>RH2</strong></p></td>
@@ -855,8 +859,8 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <p>This shows how incoming energy (radiation + anthropogenic) is partitioned between storage in urban materials, evaporation, and heating the air.</p>
 </div>
 <p><strong>Working with Results (Important!)</strong></p>
-<p>Results are stored with MultiIndex columns with levels <code class="docutils literal notranslate"><span class="pre">group</span></code> and <code class="docutils literal notranslate"><span class="pre">var</span></code>. Always use <code class="docutils literal notranslate"><span class="pre">sim.get_variable()</span></code> to extract data:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># ✅ Correct way to access results</span>
+<p><code class="docutils literal notranslate"><span class="pre">output</span> <span class="pre">=</span> <span class="pre">sim.run()</span></code> returns a <code class="docutils literal notranslate"><span class="pre">SUEWSOutput</span></code> object (also accessible later as <code class="docutils literal notranslate"><span class="pre">sim.output</span></code>, with the full MultiIndex DataFrame at <code class="docutils literal notranslate"><span class="pre">output.df</span></code>). Results are stored with MultiIndex columns with levels <code class="docutils literal notranslate"><span class="pre">group</span></code> and <code class="docutils literal notranslate"><span class="pre">var</span></code>. Always use <code class="docutils literal notranslate"><span class="pre">sim.get_variable()</span></code> (or <code class="docutils literal notranslate"><span class="pre">output.get_variable()</span></code>) to extract variables:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Recommended way to access results</span>
 <span class="n">qh</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QH'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
 <span class="n">t2</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'T2'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span>
 
@@ -888,8 +892,8 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 <p>Now that you understand how SUEWS works, let’s configure it for your specific research site.</p>
 <section id="understanding-yaml-configuration">
 <h3><span class="section-number">2.3.1. </span>Understanding YAML Configuration<a class="headerlink" href="#understanding-yaml-configuration" title="Link to this heading">#</a></h3>
-<p>Modern SUEWS uses YAML configuration files that organise all model parameters in a clear, hierarchical structure. This replaces the legacy table-based approach with a more intuitive format:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Complete SUEWS configuration example</span>
+<p>Modern SUEWS uses YAML configuration files that organise all model parameters in a clear, hierarchical structure. This replaces the legacy table-based approach with a more intuitive format. The abbreviated excerpt below illustrates the layout (use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">init</span></code> in the next section to generate a complete starter file):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Illustrative SUEWS YAML configuration excerpt (abbreviated)</span>
 <span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">control</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">tstep</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300</span><span class="w">  </span><span class="c1"># 5-minute time steps</span>
@@ -945,17 +949,20 @@ pip<span class="w"> </span>install<span class="w"> </span>supy
 </section>
 <section id="validate-your-configuration">
 <h3><span class="section-number">2.3.2. </span>Validate Your Configuration<a class="headerlink" href="#validate-your-configuration" title="Link to this heading">#</a></h3>
-<p>Before running simulations, validate your configuration and review any issues:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate your configuration and report suggested updates</span>
-suews<span class="w"> </span>validate<span class="w"> </span>config.yml
+<p>Before running simulations, scaffold a starter case (or bring your own YAML configuration), validate it, and review any issues:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a starter case directory with sample_config.yml and its sample forcing file</span>
+suews<span class="w"> </span>init<span class="w"> </span>my_case
 
-<span class="c1"># Output files:</span>
-<span class="c1"># - updated_config.yml (updated configuration)</span>
-<span class="c1"># - report_config.txt (detailed validation report)</span>
-<span class="c1"># - report_config.json (machine-readable validation report)</span>
+<span class="c1"># Validate the starter configuration and report suggested updates</span>
+suews<span class="w"> </span>validate<span class="w"> </span>my_case/sample_config.yml
+
+<span class="c1"># Output files written in my_case/:</span>
+<span class="c1"># - my_case/updated_sample_config.yml (updated configuration)</span>
+<span class="c1"># - my_case/report_sample_config.txt (detailed validation report)</span>
+<span class="c1"># - my_case/report_sample_config.json (machine-readable validation report)</span>
 </pre></div>
 </div>
-<p>By default, the validator writes recognised parameter-name updates and may add null placeholders for missing parameters. It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.</p>
+<p>For any configuration <code class="docutils literal notranslate"><span class="pre">&lt;name&gt;.yml</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> writes <code class="docutils literal notranslate"><span class="pre">updated_&lt;name&gt;.yml</span></code>, <code class="docutils literal notranslate"><span class="pre">report_&lt;name&gt;.txt</span></code>, and <code class="docutils literal notranslate"><span class="pre">report_&lt;name&gt;.json</span></code> beside the input file. By default, the validator writes recognised parameter-name updates and may add <code class="docutils literal notranslate"><span class="pre">null</span></code> placeholders for missing critical parameters (omitted optional fields are not padded). It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.</p>
 <p>The command prints “Validation failed” and exits with status 1 if any validation check reports an error; suggestions alone exit with status 0. Before running simulations, address the report’s <strong>ACTION NEEDED</strong> section and replace any null placeholders listed there with real values.</p>
 <p>Scientific changes, such as initial temperatures and small surface-fraction corrections, are only suggested in the report, not written to the YAML. Use <code class="docutils literal notranslate"><span class="pre">--science-fixes</span> <span class="pre">apply</span></code> to write these changes, or <code class="docutils literal notranslate"><span class="pre">--science-fixes</span> <span class="pre">off</span></code> to suppress scientific suggestions while retaining validation checks.</p>
 <p>For the scientific fix policy, output files and report sections, see <a class="reference internal" href="inputs/yaml/validation.html"><span class="doc">Validation Tool Reference</span></a>.</p>
@@ -973,37 +980,38 @@ suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 </section>
 <section id="using-your-configuration">
 <h3><span class="section-number">2.3.4. </span>Using Your Configuration<a class="headerlink" href="#using-your-configuration" title="Link to this heading">#</a></h3>
-<p>Once you have a YAML configuration file, use the <a class="reference internal" href="api/simulation.html#supy.SUEWSSimulation" title="supy.SUEWSSimulation"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a> class:</p>
+<p>Once you have a YAML configuration file (for example, <code class="docutils literal notranslate"><span class="pre">my_case/sample_config.yml</span></code> created by <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">init</span> <span class="pre">my_case</span></code> above, or your own site configuration), load and run it with <a class="reference internal" href="api/simulation.html#supy.SUEWSSimulation" title="supy.SUEWSSimulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
-<span class="c1"># Create simulation from YAML configuration</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"path/to/your/config_suews.yml"</span><span class="p">)</span>
+<span class="c1"># Create simulation from the starter YAML configuration</span>
+<span class="c1"># (replace with the path to your own site YAML file)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"my_case/sample_config.yml"</span><span class="p">)</span>
 
 <span class="c1"># Run simulation (forcing data loaded from config)</span>
 <span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
-<span class="c1"># Access results</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
+<span class="c1"># Access results as a DataFrame</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
 
 <span class="c1"># Save outputs</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"output_directory/"</span><span class="p">)</span>
 
 <span class="c1"># Save the typed restart artefact explicitly</span>
 <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span>
-    <span class="s2">"output_directory/</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json"</span>
+    <span class="s2">"output_directory/KCL_SUEWS_checkpoint.json"</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>To continue a simulation, pair the same YAML configuration with the checkpoint
-from the previous run and the next forcing period:</p>
+<p>To continue a simulation into a subsequent period, pair the same YAML configuration with the saved checkpoint, your own forcing file for the next contiguous period, and matching date bounds (because <code class="docutils literal notranslate"><span class="pre">my_case/sample_config.yml</span></code> sets <code class="docutils literal notranslate"><span class="pre">start_time</span></code> and <code class="docutils literal notranslate"><span class="pre">end_time</span></code> to 2012, pass <code class="docutils literal notranslate"><span class="pre">start_date</span></code> and <code class="docutils literal notranslate"><span class="pre">end_date</span></code> to <code class="docutils literal notranslate"><span class="pre">run()</span></code> or update those fields in the configuration). The snippet below is a template; replace <code class="docutils literal notranslate"><span class="pre">forcing_next_period.txt</span></code> and the date bounds with your next-period forcing file and period:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
+<span class="c1"># Template: supply your own forcing file and matching date bounds for the next period</span>
 <span class="n">sim_next</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
-    <span class="s2">"path/to/your/config_suews.yml"</span><span class="p">,</span>
-    <span class="s2">"output_directory/</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json"</span><span class="p">,</span>
+    <span class="s2">"my_case/sample_config.yml"</span><span class="p">,</span>
+    <span class="s2">"output_directory/KCL_SUEWS_checkpoint.json"</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">sim_next</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">"forcing_next_period.txt"</span><span class="p">)</span>
-<span class="n">output_next</span> <span class="o">=</span> <span class="n">sim_next</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">output_next</span> <span class="o">=</span> <span class="n">sim_next</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">start_date</span><span class="o">=</span><span class="s2">"2013-01-01"</span><span class="p">,</span> <span class="n">end_date</span><span class="o">=</span><span class="s2">"2013-12-31"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The checkpoint is intentionally only the typed runtime state. To continue a
@@ -1077,6 +1085,7 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
 <section id="multi-site-and-comparative-studies">
 <h3><span class="section-number">2.4.1. </span>Multi-Site and Comparative Studies<a class="headerlink" href="#multi-site-and-comparative-studies" title="Link to this heading">#</a></h3>
 <p><strong>Parallel Processing for Multiple Sites:</strong></p>
+<p>The template below illustrates parallel execution across multiple site configurations; supply your own YAML files in place of the placeholder filenames:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
@@ -1087,7 +1096,7 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
     <span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">output</span>
 
-<span class="c1"># Configuration files for different sites</span>
+<span class="c1"># Placeholder paths: supply your own site configuration YAML files</span>
 <span class="n">site_configs</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">"config_london.yml"</span><span class="p">,</span>
     <span class="s2">"config_manchester.yml"</span><span class="p">,</span>
@@ -1118,9 +1127,11 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
 <section id="climate-change-impact-studies">
 <h3><span class="section-number">2.4.2. </span>Climate Change Impact Studies<a class="headerlink" href="#climate-change-impact-studies" title="Link to this heading">#</a></h3>
 <p><strong>Scenario-Based Analysis:</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
+<p>The template below compares climate scenarios; supply your own scenario YAML files (each pointing to its respective forcing data) in place of the placeholder filenames:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
-<span class="c1"># Define climate scenarios with different forcing files</span>
+<span class="c1"># Placeholder paths: supply your own scenario configuration YAML files</span>
 <span class="n">scenarios</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s1">'baseline'</span><span class="p">:</span> <span class="s1">'config_baseline.yml'</span><span class="p">,</span>
     <span class="s1">'rcp45_2050'</span><span class="p">:</span> <span class="s1">'config_rcp45.yml'</span><span class="p">,</span>
@@ -1150,7 +1161,7 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
 <span class="n">temp_baseline</span> <span class="o">=</span> <span class="n">baseline</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'T2'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
 <span class="n">temp_rcp85</span> <span class="o">=</span> <span class="n">rcp85</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'T2'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
 <span class="n">temp_change</span> <span class="o">=</span> <span class="n">temp_rcp85</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">-</span> <span class="n">temp_baseline</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Projected temperature increase: </span><span class="si">{</span><span class="n">temp_change</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">°C"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Projected temperature increase: </span><span class="si">{</span><span class="n">temp_change</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> degC"</span><span class="p">)</span>
 
 <span class="c1"># Energy flux changes</span>
 <span class="n">baseline_fluxes</span> <span class="o">=</span> <span class="n">get_variables</span><span class="p">(</span><span class="n">baseline</span><span class="p">,</span> <span class="p">[</span><span class="s1">'QH'</span><span class="p">,</span> <span class="s1">'QE'</span><span class="p">,</span> <span class="s1">'QS'</span><span class="p">])</span>
@@ -1183,13 +1194,13 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
     <span class="k">def</span><span class="w"> </span><span class="nf">get_var</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
 
-    <span class="c1"># Extract surface fluxes for WRF</span>
+    <span class="c1"># Extract surface fluxes and states for WRF</span>
     <span class="n">wrf_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
         <span class="s1">'sensible_heat'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'QH'</span><span class="p">),</span>
         <span class="s1">'latent_heat'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'QE'</span><span class="p">),</span>
         <span class="s1">'ground_heat'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'QS'</span><span class="p">),</span>
-        <span class="s1">'momentum_flux'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'Tau'</span><span class="p">),</span>
-        <span class="s1">'surface_temp'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'TSurf'</span><span class="p">)</span>
+        <span class="s1">'friction_velocity'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'UStar'</span><span class="p">),</span>
+        <span class="s1">'surface_temp'</span><span class="p">:</span> <span class="n">get_var</span><span class="p">(</span><span class="s1">'Tsurf'</span><span class="p">)</span>
     <span class="p">})</span>
 
     <span class="k">return</span> <span class="n">wrf_fluxes</span>
@@ -1285,22 +1296,24 @@ see <a class="reference internal" href="inputs/surface-data-preparation.html"><s
 <section id="migration-process">
 <h3><span class="section-number">2.5.1. </span>Migration Process<a class="headerlink" href="#migration-process" title="Link to this heading">#</a></h3>
 <p><strong>Automated Conversion:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert legacy table inputs to modern YAML</span>
-suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>legacy_input_dir/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>modern_config.yml
+<p>Supply the path to your own legacy <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> in place of <code class="docutils literal notranslate"><span class="pre">legacy_input_dir/RunControl.nml</span></code> below (see <a class="reference internal" href="inputs/transition_guide.html"><span class="doc">Transitioning to YAML-based Configuration</span></a> for full migration instructions):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert your legacy table inputs to modern YAML</span>
+suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>legacy_input_dir/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>migrated_config.yml
 </pre></div>
 </div>
 <p><strong>Testing Your Migration:</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
-<span class="c1"># Test migrated configuration</span>
+<span class="c1"># Test migrated configuration produced above</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">"migrated_config.yml"</span><span class="p">)</span>
 
-<span class="c1"># Short validation run: the whole of the first day (a date-only bound</span>
-<span class="c1"># runs through the end of that day)</span>
+<span class="c1"># Short validation run: the whole of the first day (adjust end_date to match</span>
+<span class="c1"># your forcing period; a date-only bound runs through the end of that day)</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">end_date</span><span class="o">=</span><span class="s2">"2012-01-01"</span><span class="p">)</span>
 
 <span class="c1"># Check energy balance using get_variable()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"✅ Migration validation:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"[OK] Migration validation:"</span><span class="p">)</span>
 <span class="n">energy_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
     <span class="s1">'QE'</span><span class="p">:</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QE'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
     <span class="s1">'QH'</span><span class="p">:</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">'QH'</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">'SUEWS'</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
@@ -1327,7 +1340,7 @@ suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> <
 <li id="id29"><p>Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. <em>Urban Clim.</em>, 18:1–32, December 2016. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2016.05.001">doi:10.1016/j.uclim.2016.05.001</a>.</p></li>
 </ul>
 <p><strong>Recent Applications:</strong></p>
-<p>See <a class="reference external" href="Recent_publications">Recent Publications</a> for the latest research using SUEWS and SuPy.</p>
+<p>See <a class="reference internal" href="related_publications.html#recent-publications"><span class="std std-ref">Recent Publications</span></a> for the latest research using SUEWS and SuPy.</p>
 <p><strong>Training and Workshops:</strong></p>
 <p>The SUEWS community regularly organises training workshops and webinars. Check the mailing list for announcements of upcoming events.</p>
 </section>
@@ -1443,7 +1456,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-23.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -1451,8 +1464,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

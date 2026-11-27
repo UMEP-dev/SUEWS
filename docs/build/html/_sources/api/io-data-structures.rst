@@ -189,7 +189,9 @@ The checkpoint does not contain the full YAML configuration or forcing data. To
 continue a run, load the same YAML configuration, attach the next forcing
 period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
 checkpoint schema version 1 lacks the elapsed timer metadata required for
-correct continuation and must be regenerated with schema version 2. Chunked
+correct continuation, schema version 2 used the legacy ``[D 00:00, D 23:55]``
+``DailyState`` accumulation window, and schema version 3 carried timer fields
+that DyOHM no longer uses; all three must be regenerated with schema version 4. Chunked
 and restarted outputs are expected to match uninterrupted outputs within
 relative and absolute tolerances of ``1e-12``.
 

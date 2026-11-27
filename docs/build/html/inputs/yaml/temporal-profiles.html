@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>4.1.4.1. Temporal Profiles &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>4.1.4.1. Temporal Profiles &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-21"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -659,13 +663,12 @@ whether values are weights, physical quantities or switches.</p>
 and <code class="docutils literal notranslate"><span class="pre">holiday</span></code>; it is not a day-of-year series.</p></li>
 <li><p><a class="reference internal" href="config-reference/weeklyprofile.html"><span class="doc">Weekly Profile</span></a> has seven scalar keys: <code class="docutils literal notranslate"><span class="pre">monday</span></code>,
 <code class="docutils literal notranslate"><span class="pre">tuesday</span></code>, <code class="docutils literal notranslate"><span class="pre">wednesday</span></code>, <code class="docutils literal notranslate"><span class="pre">thursday</span></code>, <code class="docutils literal notranslate"><span class="pre">friday</span></code>, <code class="docutils literal notranslate"><span class="pre">saturday</span></code>, <code class="docutils literal notranslate"><span class="pre">sunday</span></code>.
-supy stores them in this order as indices 0–6 of the state DataFrame,
-whereas the <code class="docutils literal notranslate"><span class="pre">df_state</span></code> reference and the legacy tables describe the same
-indices Sunday first.
-The irrigation reader currently looks these values up with a day number
-that counts from Sunday, so the value given for <code class="docutils literal notranslate"><span class="pre">monday</span></code> is applied on
-Sunday, <code class="docutils literal notranslate"><span class="pre">tuesday</span></code> on Monday, and so on to <code class="docutils literal notranslate"><span class="pre">sunday</span></code> on Saturday; see the
-<a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/2049">weekly irrigation day-order report</a>.</p></li>
+supy maps them Sunday first (<code class="docutils literal notranslate"><span class="pre">sunday</span></code> at index 0 through <code class="docutils literal notranslate"><span class="pre">saturday</span></code> at
+index 6) when converting to or from the legacy <code class="docutils literal notranslate"><span class="pre">df_state</span></code> array and
+<code class="docutils literal notranslate"><span class="pre">SUEWS_Irrigation.txt</span></code> columns <code class="docutils literal notranslate"><span class="pre">DayWat(1)</span></code>–<code class="docutils literal notranslate"><span class="pre">DayWat(7)</span></code> /
+<code class="docutils literal notranslate"><span class="pre">DayWatPer(1)</span></code>–<code class="docutils literal notranslate"><span class="pre">DayWatPer(7)</span></code>.
+The irrigation reader applies each named weekday on its own calendar day
+(<code class="docutils literal notranslate"><span class="pre">sunday</span></code> on Sunday through <code class="docutils literal notranslate"><span class="pre">saturday</span></code> on Saturday).</p></li>
 <li><p><a class="reference internal" href="config-reference/hourlyprofile.html"><span class="doc">Hourly Profile</span></a> has <code class="docutils literal notranslate"><span class="pre">working_day</span></code> and <code class="docutils literal notranslate"><span class="pre">holiday</span></code>
 mappings, each with all 24 keys <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code> through <code class="docutils literal notranslate"><span class="pre">&quot;24&quot;</span></code>.
 Key <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code> starts at 00:00 and key <code class="docutils literal notranslate"><span class="pre">&quot;24&quot;</span></code> at 23:00; the corresponding
@@ -864,6 +867,16 @@ surfaces at the reader’s end-of-hour timestep.</p></td>
 </section>
 <section id="defaults">
 <h2><span class="section-number">4.1.4.1.3. </span>Defaults<a class="headerlink" href="#defaults" title="Link to this heading">#</a></h2>
+<p>The asymmetric <code class="docutils literal notranslate"><span class="pre">DayProfile</span></code> default is <code class="docutils literal notranslate"><span class="pre">working_day:</span> <span class="pre">1.0</span></code> and
+<code class="docutils literal notranslate"><span class="pre">holiday:</span> <span class="pre">0.0</span></code>; similarly, <code class="docutils literal notranslate"><span class="pre">heat.popdensnighttime</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">10.0</span></code>
+people per hectare.
+These are backward-compatibility placeholders rather than calibrated site
+parameters: omitting an active <code class="docutils literal notranslate"><span class="pre">AnthropogenicHeat</span></code> field (or omitting
+<code class="docutils literal notranslate"><span class="pre">holiday</span></code> inside a <code class="docutils literal notranslate"><span class="pre">DayProfile</span></code>) applies those placeholder values and
+emits a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> when loaded via <code class="docutils literal notranslate"><span class="pre">SUEWSConfig.from_yaml</span></code> or
+<code class="docutils literal notranslate"><span class="pre">SUEWSConfig.from_dict</span></code> under a non-zero <code class="docutils literal notranslate"><span class="pre">model.physics.emissions</span></code> method.
+Specify site-specific working-day, holiday, and night-time population density
+values explicitly for active emissions runs.</p>
 <p>The uniform <code class="docutils literal notranslate"><span class="pre">HourlyProfile</span></code> default is 1/24 in both day types.
 It becomes a constant multiplier of 1 for mean-normalised profiles and equal
 hourly weights for irrigation.
@@ -960,7 +973,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-21.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -968,8 +981,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

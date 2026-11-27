@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>5.5. Legacy Text Column Reference &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <title>5.6. Legacy Text Column Reference &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,10 +57,10 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="6. Python API Reference" href="../api.html" />
-    <link rel="prev" title="5.4. Legacy Diagnostics" href="legacy_diagnostics.html" />
+    <link rel="prev" title="5.5. Legacy Diagnostics" href="legacy_diagnostics.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
     <meta name="docbuild:last-update" content="2026-11-21"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -623,23 +627,23 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.5.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.5.1.1. Error messages: problems.txt</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.5.1.2. Warning messages: warnings.txt</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-of-model-parameters-ss-filechoices-txt">5.5.1.3. Summary of model parameters: SS_FileChoices.txt</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.6.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.6.1.1. Error messages: problems.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.6.1.2. Warning messages: warnings.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-of-model-parameters-ss-filechoices-txt">5.6.1.3. Summary of model parameters: SS_FileChoices.txt</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-output-files">5.5.2. Model output files</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-format-options">5.5.2.1. Output Format Options</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-format-output-files">5.5.2.2. Text Format Output Files</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-suews-tt-txt">5.5.2.2.1. SSss_YYYY_SUEWS_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-dailystate-txt">5.5.2.2.2. SSss_DailyState.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#initialconditionsssss-yyyy-nml">5.5.2.2.3. InitialConditionsSSss_YYYY.nml</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-snow-tt-txt">5.5.2.2.4. SSss_YYYY_snow_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-rsl-tt-txt">5.5.2.2.5. SSss_YYYY_RSL_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-bl-tt-txt">5.5.2.2.6. SSss_YYYY_BL_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-estm-tt-txt">5.5.2.2.7. SSss_YYYY_ESTM_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-spartacus-tt-txt">5.5.2.2.8. SSss_YYYY_SPARTACUS_TT.txt</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-output-files">5.6.2. Model output files</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-format-options">5.6.2.1. Output Format Options</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-format-output-files">5.6.2.2. Text Format Output Files</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-suews-tt-txt">5.6.2.2.1. SSss_YYYY_SUEWS_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-dailystate-txt">5.6.2.2.2. SSss_DailyState.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#initialconditionsssss-yyyy-nml">5.6.2.2.3. InitialConditionsSSss_YYYY.nml</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-snow-tt-txt">5.6.2.2.4. SSss_YYYY_snow_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-rsl-tt-txt">5.6.2.2.5. SSss_YYYY_RSL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-bl-tt-txt">5.6.2.2.6. SSss_YYYY_BL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-estm-tt-txt">5.6.2.2.7. SSss_YYYY_ESTM_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-spartacus-tt-txt">5.6.2.2.8. SSss_YYYY_SPARTACUS_TT.txt</a></li>
 </ul>
 </li>
 </ul>
@@ -665,7 +669,7 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </ol>
 </div>
 <section id="legacy-text-column-reference">
-<span id="legacy-text-columns"></span><h1><span class="section-number">5.5. </span>Legacy Text Column Reference<a class="headerlink" href="#legacy-text-column-reference" title="Link to this heading">#</a></h1>
+<span id="legacy-text-columns"></span><h1><span class="section-number">5.6. </span>Legacy Text Column Reference<a class="headerlink" href="#legacy-text-column-reference" title="Link to this heading">#</a></h1>
 <div class="deprecated">
 <p><span class="versionmodified deprecated">Deprecated since version 2025.10.15: </span>This page is deprecated and retained for reference only.</p>
 <p><strong>Please use the new documentation:</strong></p>
@@ -680,7 +684,7 @@ for users working with older output files or migrating existing workflows.</p>
 </div>
 <hr class="docutils" />
 <section id="runtime-diagnostic-information">
-<h2><span class="section-number">5.5.1. </span>Runtime diagnostic information<a class="headerlink" href="#runtime-diagnostic-information" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.6.1. </span>Runtime diagnostic information<a class="headerlink" href="#runtime-diagnostic-information" title="Link to this heading">#</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><code class="docutils literal notranslate"><span class="pre">problems.txt</span></code> and <code class="docutils literal notranslate"><span class="pre">warnings.txt</span></code> are legacy outputs retained for reference.
@@ -688,7 +692,7 @@ Current versions emit diagnostic messages to stdout/stderr (and SuPy captures th
 via the Python logger when running through Python).</p>
 </div>
 <section id="error-messages-problems-txt">
-<span id="problems-txt"></span><h3><span class="section-number">5.5.1.1. </span>Error messages: problems.txt<a class="headerlink" href="#error-messages-problems-txt" title="Link to this heading">#</a></h3>
+<span id="problems-txt"></span><h3><span class="section-number">5.6.1.1. </span>Error messages: problems.txt<a class="headerlink" href="#error-messages-problems-txt" title="Link to this heading">#</a></h3>
 <p>In older versions, if there were problems running the program, serious error messages were written to problems.txt.</p>
 <ul>
 <li><p>Serious problems will usually cause the program to stop after writing the error message. If this is the case, the last line of <a class="reference internal" href="#problems-txt"><span class="std std-ref">Error messages: problems.txt</span></a> will contain a non-zero number (the error code).</p></li>
@@ -708,7 +712,7 @@ problems. If the file paths are not correct the program will return an
 error when run (see <a class="reference internal" href="../workflow.html#getting-started"><span class="std std-ref">Getting Started</span></a>).</p>
 </section>
 <section id="warning-messages-warnings-txt">
-<span id="warnings-txt"></span><h3><span class="section-number">5.5.1.2. </span>Warning messages: warnings.txt<a class="headerlink" href="#warning-messages-warnings-txt" title="Link to this heading">#</a></h3>
+<span id="warnings-txt"></span><h3><span class="section-number">5.6.1.2. </span>Warning messages: warnings.txt<a class="headerlink" href="#warning-messages-warnings-txt" title="Link to this heading">#</a></h3>
 <ul class="simple">
 <li><p>If the program encounters a more minor issue it will not stop but a
 warning may be written to warnings.txt. It is advisable to check the
@@ -729,19 +733,19 @@ before grid numbers and timestamps are assigned, these are printed as
 </ul>
 </section>
 <section id="summary-of-model-parameters-ss-filechoices-txt">
-<span id="file-choices"></span><h3><span class="section-number">5.5.1.3. </span>Summary of model parameters: SS_FileChoices.txt<a class="headerlink" href="#summary-of-model-parameters-ss-filechoices-txt" title="Link to this heading">#</a></h3>
+<span id="file-choices"></span><h3><span class="section-number">5.6.1.3. </span>Summary of model parameters: SS_FileChoices.txt<a class="headerlink" href="#summary-of-model-parameters-ss-filechoices-txt" title="Link to this heading">#</a></h3>
 <p>For each run, the model parameters specified in the input files are written out to the file SS_FileChoices.txt.</p>
 </section>
 </section>
 <section id="model-output-files">
-<h2><span class="section-number">5.5.2. </span>Model output files<a class="headerlink" href="#model-output-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">5.6.2. </span>Model output files<a class="headerlink" href="#model-output-files" title="Link to this heading">#</a></h2>
 <p>SUEWS will automatically output a df_state_SSss.csv file. This file contains information on the model configuration,
 initial and final states as well as some meta data related to the simulation such as the SUEWS version used
 to run the model.</p>
 <p>Note that the parameters and states included in this file may not match the current schema as are based on the legacy
 configuration.</p>
 <section id="output-format-options">
-<h3><span class="section-number">5.5.2.1. </span>Output Format Options<a class="headerlink" href="#output-format-options" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">5.6.2.1. </span>Output Format Options<a class="headerlink" href="#output-format-options" title="Link to this heading">#</a></h3>
 <p>SUEWS supports two output formats:</p>
 <ol class="arabic simple">
 <li><p><strong>Text format</strong> (default): Traditional tab-delimited text files</p>
@@ -775,10 +779,10 @@ forcing/main clock.</p>
 </div>
 </section>
 <section id="text-format-output-files">
-<h3><span class="section-number">5.5.2.2. </span>Text Format Output Files<a class="headerlink" href="#text-format-output-files" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">5.6.2.2. </span>Text Format Output Files<a class="headerlink" href="#text-format-output-files" title="Link to this heading">#</a></h3>
 <p>When using text format (default), SUEWS produces the following output files:</p>
 <section id="ssss-yyyy-suews-tt-txt">
-<h4><span class="section-number">5.5.2.2.1. </span>SSss_YYYY_SUEWS_TT.txt<a class="headerlink" href="#ssss-yyyy-suews-tt-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.1. </span>SSss_YYYY_SUEWS_TT.txt<a class="headerlink" href="#ssss-yyyy-suews-tt-txt" title="Link to this heading">#</a></h4>
 <p>SUEWS produces the main output file (SSss_YYYY_SUEWS_tt.txt) with time resolution (TT min) set by <a class="reference internal" href="../inputs/tables/RunControl/Time_related_options.html#cmdoption-arg-ResolutionFilesOut"><code class="xref std std-option docutils literal notranslate"><span class="pre">ResolutionFilesOut</span></code></a> in <a class="reference internal" href="../inputs/tables/SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>.</p>
 <p>Before these main data files are written out, SUEWS provides a summary of the column names, units and variables included in the file Ss_YYYY_TT_OutputFormat.txt (one file per run).</p>
 <p>The variables included in the main output file are determined according to <a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html#cmdoption-arg-WriteOutOption"><code class="xref std std-option docutils literal notranslate"><span class="pre">WriteOutOption</span></code></a> set in <a class="reference internal" href="../inputs/tables/SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>.</p>
@@ -1240,7 +1244,7 @@ forcing/main clock.</p>
 </div>
 </section>
 <section id="ssss-dailystate-txt">
-<h4><span class="section-number">5.5.2.2.2. </span>SSss_DailyState.txt<a class="headerlink" href="#ssss-dailystate-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.2. </span>SSss_DailyState.txt<a class="headerlink" href="#ssss-dailystate-txt" title="Link to this heading">#</a></h4>
 <p>Contains information about the state of the surface and soil and
 vegetation parameters at a time resolution of one day. One file is
 written for each grid so it may contain multiple years.</p>
@@ -1449,11 +1453,11 @@ written for each grid so it may contain multiple years.</p>
 </div>
 </section>
 <section id="initialconditionsssss-yyyy-nml">
-<h4><span class="section-number">5.5.2.2.3. </span>InitialConditionsSSss_YYYY.nml<a class="headerlink" href="#initialconditionsssss-yyyy-nml" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.3. </span>InitialConditionsSSss_YYYY.nml<a class="headerlink" href="#initialconditionsssss-yyyy-nml" title="Link to this heading">#</a></h4>
 <p>At the end of the model run (or the end of each year in the model run) a new InitialConditions file is written out (to the input folder) for each grid, see <a class="reference internal" href="../inputs/tables/Initial_Conditions/Initial_Conditions.html#initial-conditions"><span class="std std-ref">Initial Conditions file</span></a></p>
 </section>
 <section id="ssss-yyyy-snow-tt-txt">
-<h4><span class="section-number">5.5.2.2.4. </span>SSss_YYYY_snow_TT.txt<a class="headerlink" href="#ssss-yyyy-snow-tt-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.4. </span>SSss_YYYY_snow_TT.txt<a class="headerlink" href="#ssss-yyyy-snow-tt-txt" title="Link to this heading">#</a></h4>
 <p>SUEWS produces a separate output file for snow (when <a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html#cmdoption-arg-SnowUse"><code class="xref std std-option docutils literal notranslate"><span class="pre">SnowUse</span></code></a> = 1 in <a class="reference internal" href="../inputs/tables/SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>) with details for each surface type.</p>
 <p>File format of SSss_YYYY_snow_TT.txt</p>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -1877,7 +1881,7 @@ written for each grid so it may contain multiple years.</p>
 </div>
 </section>
 <section id="ssss-yyyy-rsl-tt-txt">
-<h4><span class="section-number">5.5.2.2.5. </span>SSss_YYYY_RSL_TT.txt<a class="headerlink" href="#ssss-yyyy-rsl-tt-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.5. </span>SSss_YYYY_RSL_TT.txt<a class="headerlink" href="#ssss-yyyy-rsl-tt-txt" title="Link to this heading">#</a></h4>
 <p>SUEWS produces a separate output file for wind, temperature and humidity profiles in the roughness sublayer at 30 levels (see <a class="reference internal" href="../parameterisations-and-sub-models.html#rsl-mod"><span class="std std-ref">Wind, Temperature and Humidity Profiles in the Roughness Sublayer</span></a> level details).</p>
 <p>File format of SSss_YYYY_RSL_TT.txt:</p>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -2393,7 +2397,7 @@ written for each grid so it may contain multiple years.</p>
 </div>
 </section>
 <section id="ssss-yyyy-bl-tt-txt">
-<h4><span class="section-number">5.5.2.2.6. </span>SSss_YYYY_BL_TT.txt<a class="headerlink" href="#ssss-yyyy-bl-tt-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.6. </span>SSss_YYYY_BL_TT.txt<a class="headerlink" href="#ssss-yyyy-bl-tt-txt" title="Link to this heading">#</a></h4>
 <p>Meteorological variables modelled by CBL portion of the model are output in to this file created for each day with time step (see <a class="reference internal" href="../inputs/tables/CBL_input/CBL_input.html#cbl-input-files"><span class="std std-ref">CBL input files</span></a>).</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -2519,7 +2523,7 @@ written for each grid so it may contain multiple years.</p>
 </div>
 </section>
 <section id="ssss-yyyy-estm-tt-txt">
-<h4><span class="section-number">5.5.2.2.7. </span>SSss_YYYY_ESTM_TT.txt<a class="headerlink" href="#ssss-yyyy-estm-tt-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.7. </span>SSss_YYYY_ESTM_TT.txt<a class="headerlink" href="#ssss-yyyy-estm-tt-txt" title="Link to this heading">#</a></h4>
 <p>The ESTM scheme is temporarily disabled in SUEWS, pending a per-grid redesign; selecting it is rejected. This section describes the file the option produced, for readers of old output only.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -2738,7 +2742,7 @@ written for each grid so it may contain multiple years.</p>
 </div>
 </section>
 <section id="ssss-yyyy-spartacus-tt-txt">
-<h4><span class="section-number">5.5.2.2.8. </span>SSss_YYYY_SPARTACUS_TT.txt<a class="headerlink" href="#ssss-yyyy-spartacus-tt-txt" title="Link to this heading">#</a></h4>
+<h4><span class="section-number">5.6.2.2.8. </span>SSss_YYYY_SPARTACUS_TT.txt<a class="headerlink" href="#ssss-yyyy-spartacus-tt-txt" title="Link to this heading">#</a></h4>
 <p>If the SPARTACUS model option is run, the following output file is created.</p>
 <p>SPARTACUS output file format</p>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -3465,7 +3469,7 @@ written for each grid so it may contain multiple years.</p>
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">5.4. </span>Legacy Diagnostics</p>
+        <p class="prev-next-title"><span class="section-number">5.5. </span>Legacy Diagnostics</p>
       </div>
     </a>
     <a class="right-next"
@@ -3495,23 +3499,23 @@ written for each grid so it may contain multiple years.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.5.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.5.1.1. Error messages: problems.txt</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.5.1.2. Warning messages: warnings.txt</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-of-model-parameters-ss-filechoices-txt">5.5.1.3. Summary of model parameters: SS_FileChoices.txt</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.6.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.6.1.1. Error messages: problems.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.6.1.2. Warning messages: warnings.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-of-model-parameters-ss-filechoices-txt">5.6.1.3. Summary of model parameters: SS_FileChoices.txt</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-output-files">5.5.2. Model output files</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-format-options">5.5.2.1. Output Format Options</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-format-output-files">5.5.2.2. Text Format Output Files</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-suews-tt-txt">5.5.2.2.1. SSss_YYYY_SUEWS_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-dailystate-txt">5.5.2.2.2. SSss_DailyState.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#initialconditionsssss-yyyy-nml">5.5.2.2.3. InitialConditionsSSss_YYYY.nml</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-snow-tt-txt">5.5.2.2.4. SSss_YYYY_snow_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-rsl-tt-txt">5.5.2.2.5. SSss_YYYY_RSL_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-bl-tt-txt">5.5.2.2.6. SSss_YYYY_BL_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-estm-tt-txt">5.5.2.2.7. SSss_YYYY_ESTM_TT.txt</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-spartacus-tt-txt">5.5.2.2.8. SSss_YYYY_SPARTACUS_TT.txt</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-output-files">5.6.2. Model output files</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-format-options">5.6.2.1. Output Format Options</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-format-output-files">5.6.2.2. Text Format Output Files</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-suews-tt-txt">5.6.2.2.1. SSss_YYYY_SUEWS_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-dailystate-txt">5.6.2.2.2. SSss_DailyState.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#initialconditionsssss-yyyy-nml">5.6.2.2.3. InitialConditionsSSss_YYYY.nml</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-snow-tt-txt">5.6.2.2.4. SSss_YYYY_snow_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-rsl-tt-txt">5.6.2.2.5. SSss_YYYY_RSL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-bl-tt-txt">5.6.2.2.6. SSss_YYYY_BL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-estm-tt-txt">5.6.2.2.7. SSss_YYYY_ESTM_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-spartacus-tt-txt">5.6.2.2.8. SSss_YYYY_SPARTACUS_TT.txt</a></li>
 </ul>
 </li>
 </ul>
@@ -3557,8 +3561,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

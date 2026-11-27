@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>2. SUEWS-related Publications &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>2. SUEWS-related Publications &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=9949c35e"></script>
+    <script src="_static/documentation_options.js?v=cfd099a6"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="1. Parameterisations and sub-models within SUEWS" href="parameterisations-and-sub-models.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-21"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -660,6 +664,7 @@ research area. Multi-select is supported; external links such as
 <li class="pub-entry pub-kw-radiation pub-kw-water-balance" id="id29"><p>Kokkonen, Tom V., Grimmond, Sue, Murto, Sonja, Liu, Huizhi, Sundström, Anu-Maija, and Järvi, Leena. Simulation of the radiative effect of haze on the urban hydrological cycle using reanalysis data in Beijing. <em>Atmos. Chem. Phys.</em>, 19(10):7001–7017, May 2019. <a class="reference external" href="https://doi.org/10.5194/acp-19-7001-2019">doi:10.5194/acp-19-7001-2019</a>.</p></li>
 <li class="pub-entry pub-kw-water-balance" id="id30"><p>Kokkonen, T. V., Grimmond, C. S. B., Christen, A., Oke, T. R., and Järvi, L. Changes to the water balance over a century of urban development in two neighborhoods: Vancouver, Canada. <em>Water Resour. Res.</em>, 54(9):6625–6642, September 2018. <a class="reference external" href="https://doi.org/10.1029/2017wr022445">doi:10.1029/2017wr022445</a>.</p></li>
 <li class="pub-entry pub-kw-model-infrastructure pub-kw-water-balance" id="id23"><p>Kokkonen, T.V., Grimmond, C.S.B., Räty, O., Ward, H.C., Christen, A., Oke, T.R., Kotthaus, S., and Järvi, L. Sensitivity of surface urban energy and water balance scheme (SUEWS) to downscaling of reanalysis forcing data. <em>Urban Clim.</em>, 23:36–52, March 2018. ICUC9: The 9th International Conference on Urban Climate. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2017.05.001">doi:10.1016/j.uclim.2017.05.001</a>.</p></li>
+<li class="pub-entry pub-kw-energy-balance pub-kw-water-balance" id="id37"><p>Ward, H. C., Tan, Y. S., Gabey, A. M., Kotthaus, S., and Grimmond, C. S. B. Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions. <em>International Journal of Climatology</em>, 38(2):649–662, February 2018. <a class="reference external" href="https://doi.org/10.1002/joc.5200">doi:10.1002/joc.5200</a>.</p></li>
 <li class="pub-entry pub-kw-anthropogenic-heat pub-kw-building-energy pub-kw-water-balance" id="id31"><p>Ao, Xiangyu, Grimmond, C. S. B., Ward, H. C., Gabey, A. M., Tan, Jianguo, Yang, Xiu-Qun, Liu, Dongwei, Zhi, Xing, Liu, Hongya, and Zhang, Ning. Evaluation of the surface urban energy and water balance scheme (SUEWS) at a dense urban site in shanghai: Sensitivity to anthropogenic heat and irrigation. <em>J. Hydrometeorol.</em>, 19(12):1983–2005, December 2018. <a class="reference external" href="https://doi.org/10.1175/jhm-d-18-0057.1">doi:10.1175/jhm-d-18-0057.1</a>.</p></li>
 <li class="pub-entry pub-kw-building-energy pub-kw-energy-balance" id="id24"><p>Ward, H.C. and Grimmond, C.S.B. Assessing the impact of changes in surface cover, human behaviour and climate on energy partitioning across greater London. <em>Landscape Urban Plan.</em>, 165:142–161, September 2017. <a class="reference external" href="https://doi.org/10.1016/j.landurbplan.2017.04.001">doi:10.1016/j.landurbplan.2017.04.001</a>.</p></li>
 <li class="pub-entry pub-kw-storage-heat" id="id13"><p>Sun, Ting, Wang, Zhi-Hua, Oechel, Walter C., and Grimmond, Sue. The analytical objective hysteresis model (AnOHM v1.0): Methodology to determine bulk storage heat flux coefficients. <em>Geosci. Model Dev.</em>, 10(7):2875–2890, July 2017. <a class="reference external" href="https://doi.org/10.5194/gmd-10-2875-2017">doi:10.5194/gmd-10-2875-2017</a>.</p></li>
@@ -750,7 +755,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-21.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -758,8 +763,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -1,0 +1,878 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>supy.data_model.validation.pipeline.report_schema &#8212; SUEWS 2026.11.27.dev32 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/brand.css?v=bab574ae" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/sphinx-design.min.css?v=6a604523" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/publications-filter.css?v=fa69f4f6" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../../../../../_static/documentation_options.js?v=cfd099a6"></script>
+    <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../../../../_static/design-tabs.js?v=fcb327ea"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/data_model/validation/pipeline/report_schema';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <script defer="defer" src="../../../../../_static/publications-filter.js?v=c5b02298"></script>
+    <link rel="icon" href="../../../../../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+  
+    
+    <script src="../../../../../_static/searchtools.js"></script>
+    <script src="../../../../../_static/language_data.js"></script>
+    <script src="../../../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../inputs/yaml/index.html">4.1. YAML Configuration Format</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/temporal-profiles.html">4.1.4.1. Temporal Profiles</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/yaml/layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/forcing-data.html">4.3. Meteorological Forcing Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/timestamp-convention.html">4.4. Timestamp Convention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/surface-data-preparation.html">4.5. Preparing Surface Characteristics Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/index.html">4.6. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/anthropogenicemissions.html">4.6.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/anthropogenicheat.html">4.6.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/archetypeproperties.html">4.6.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/bldgsproperties.html">4.6.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/bsoilproperties.html">4.6.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/buildinglayer.html">4.6.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/co2params.html">4.6.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/conductance.html">4.6.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/coolingsetpointprofile.html">4.6.9. Cooling Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/datamodelbase.html">4.6.10. Data Model Base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/dayprofile.html">4.6.11. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/dectrproperties.html">4.6.12. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/evetrproperties.html">4.6.13. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/forcingcontrol.html">4.6.14. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/grassproperties.html">4.6.15. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/heatingsetpointprofile.html">4.6.16. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/hourlyprofile.html">4.6.17. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstatebldgs.html">4.6.18. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstatebsoil.html">4.6.19. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstatedectr.html">4.6.20. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstateevetr.html">4.6.21. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstategrass.html">4.6.22. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstatepaved.html">4.6.23. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstateveg.html">4.6.24. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstatewater.html">4.6.25. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/initialstates.html">4.6.26. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/irrigationparams.html">4.6.27. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/laiparams.html">4.6.28. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/laipowercoefficients.html">4.6.29. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/lumpsparams.html">4.6.30. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/landcover.html">4.6.31. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/model.html">4.6.32. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/modelcontrol.html">4.6.33. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/modelphysics.html">4.6.34. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.6.35. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/ohmcoefficients.html">4.6.36. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.6.37. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/outputcontrol.html">4.6.38. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/pavedproperties.html">4.6.39. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/rooflayer.html">4.6.40. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/spartacusparams.html">4.6.41. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/suewsconfig.html">4.6.42. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/site.html">4.6.43. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/siteproperties.html">4.6.44. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/snowparams.html">4.6.45. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/soilobservationconfig.html">4.6.46. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/stebbsphysics.html">4.6.47. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/stebbsproperties.html">4.6.48. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/storagedrainparams.html">4.6.49. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/surfaceinitialstate.html">4.6.50. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/surfaceproperties.html">4.6.51. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/tenminuteprofile.html">4.6.52. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/thermallayers.html">4.6.53. Material Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.6.54. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/vegetationparams.html">4.6.55. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/verticallayers.html">4.6.56. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/walllayer.html">4.6.57. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/waterdistribution.html">4.6.58. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/waterproperties.html">4.6.59. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/yaml/config-reference/weeklyprofile.html">4.6.60. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/converter.html">4.7. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../inputs/yaml/validation.html">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../inputs/tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../../../inputs/tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/dailystate.html">5.3.6. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/beers.html">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/ehc.html">5.3.10. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.attribute.html">6.3.7.1. supy.util.attribute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.diagnose.html">6.3.7.2. supy.util.diagnose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.attribute_t2.html">6.3.7.3. supy.util.attribute_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.attribute_q2.html">6.3.7.4. supy.util.attribute_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.attribute_u10.html">6.3.7.5. supy.util.attribute_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.diagnose_t2.html">6.3.7.6. supy.util.diagnose_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.diagnose_q2.html">6.3.7.7. supy.util.diagnose_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.diagnose_u10.html">6.3.7.8. supy.util.diagnose_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../api/_autosummary/supy.util.AttributionResult.html">6.3.7.9. supy.util.AttributionResult</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../api/knowledge-pack.html">6.5. Knowledge Pack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../api/python-cli-equivalents.html">6.6. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../benchmark/drift.html">10. Cross-version drift</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../notation.html">11. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../version-history/version-history.html">12. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2026.6.5.html">12.1. Version 2026.6.5 (released on 5 June 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2026.4.3.html">12.2. Version 2026.4.3 (released on 3 April 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2026.1.28.html">12.3. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2025.11.20.html">12.4. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2025.10.15.html">12.5. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2020a.html">12.6. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2019a.html">12.7. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2018c.html">12.8. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2018b.html">12.9. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2018a.html">12.10. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2017b.html">12.11. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2017a.html">12.12. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2016a.html">12.13. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2014b.html">12.14. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2014a.1.html">12.15. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2014a.html">12.16. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2013a.html">12.17. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2012b.html">12.18. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2012a.html">12.19. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../version-history/v2011b.html">12.20. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../contributing/schema/index.html">2. Schema and Data-interface Development</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../contributing/schema/schema-developer.html">2.1. Configuration Schema Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../contributing/schema/schema_versioning.html">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../contributing/schema/data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../contributing/schema/schema_cli.html">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../acknowledgement.html">3. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new/choose" target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for supy.data_model.validation.pipeline.report_schema</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Canonical machine-readable schema for validator phase output.</span>
+
+<span class="sd">Every phase of the validation pipeline (A: structure, B: physics,</span>
+<span class="sd">C: Pydantic consistency) emits issues that conform to ``Issue``.</span>
+<span class="sd">The orchestrator aggregates per-phase ``PhaseReport`` objects into a</span>
+<span class="sd">single ``ValidationReport`` which is also what the CLI envelope's</span>
+<span class="sd">``data.phases`` field carries.</span>
+
+<span class="sd">Severity vocabulary matches the legacy ``ValidationResult`` used by</span>
+<span class="sd">Phase B (see ``phase_b_rules/rules_core.py``); both share the same</span>
+<span class="sd">``Issue.severity`` strings so consumers do not need to special-case</span>
+<span class="sd">which phase produced the issue.</span>
+
+<span class="sd">The text reports retain their existing action sections and add a stopping-stage</span>
+<span class="sd">line for blocking failures, derived from these structured phase results. This</span>
+<span class="sd">module also adds a JSON sidecar (``&lt;report&gt;.json``) next to every</span>
+<span class="sd">``&lt;report&gt;.txt`` so downstream tooling (MCP, agents, CI) can consume the</span>
+<span class="sd">validator output without parsing the human-readable form.</span>
+
+<span class="sd">Two sidecar shapes exist (gh#1467):</span>
+
+<span class="sd">- A direct ``run_phase_A/B/C`` library call writes a single</span>
+<span class="sd">  ``PhaseReport`` for that phase.</span>
+<span class="sd">- The full ``suews validate`` CLI run writes a consolidated</span>
+<span class="sd">  ``ValidationReport`` (``{overall_status, phases:[...]}``) at the final</span>
+<span class="sd">  report path, aggregating every phase's issues across all severities so</span>
+<span class="sd">  non-error informational messages are exposed, not only errors. This is</span>
+<span class="sd">  identical to the stdout ``--format json`` envelope's</span>
+<span class="sd">  ``data.validation_report``.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">asdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="n">PathLike</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span>
+
+<span class="n">SEVERITY_ERROR</span> <span class="o">=</span> <span class="s2">"ERROR"</span>
+<span class="n">SEVERITY_WARNING</span> <span class="o">=</span> <span class="s2">"WARNING"</span>
+<span class="n">SEVERITY_INFO</span> <span class="o">=</span> <span class="s2">"INFO"</span>
+<span class="n">SEVERITY_SUGGESTION</span> <span class="o">=</span> <span class="s2">"SUGGESTION"</span>
+<span class="n">SEVERITY_APPLIED_FIX</span> <span class="o">=</span> <span class="s2">"APPLIED_FIX"</span>
+<span class="n">SEVERITY_PASS</span> <span class="o">=</span> <span class="s2">"PASS"</span>
+
+<span class="n">VALID_SEVERITIES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+    <span class="n">SEVERITY_ERROR</span><span class="p">,</span>
+    <span class="n">SEVERITY_WARNING</span><span class="p">,</span>
+    <span class="n">SEVERITY_INFO</span><span class="p">,</span>
+    <span class="n">SEVERITY_SUGGESTION</span><span class="p">,</span>
+    <span class="n">SEVERITY_APPLIED_FIX</span><span class="p">,</span>
+    <span class="n">SEVERITY_PASS</span><span class="p">,</span>
+<span class="p">})</span>
+
+<span class="n">VALID_PHASES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">})</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Issue</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One discrete validator finding.</span>
+
+<span class="sd">    ``code`` is a stable dotted slug ``&lt;phase&gt;.&lt;category&gt;.&lt;parameter&gt;``</span>
+<span class="sd">    that downstream tooling can match on without reading ``message``.</span>
+<span class="sd">    """</span>
+
+    <span class="n">phase</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">severity</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">code</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">yaml_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">site_gridid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">site_index</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">category</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">suggested_value</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">applied_fix</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_PHASES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Invalid phase </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">VALID_PHASES</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">severity</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">severity</span> <span class="ow">or</span> <span class="n">SEVERITY_INFO</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">severity</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_SEVERITIES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Invalid severity </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">severity</span><span class="si">!r}</span><span class="s2">; expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">VALID_SEVERITIES</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PhaseReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Aggregate of issues produced by one phase of the validator."""</span>
+
+    <span class="n">phase</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">issues</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">yaml_in</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">yaml_out</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">text_report_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">json_report_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">extra</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_ERROR</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_warnings</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_WARNING</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_errors</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">"FAILED"</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_warnings</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">"WARNING"</span>
+        <span class="k">return</span> <span class="s2">"PASSED"</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"phase"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">,</span>
+            <span class="s2">"status"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+            <span class="s2">"issues"</span><span class="p">:</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span><span class="p">],</span>
+            <span class="s2">"yaml_in"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">yaml_in</span><span class="p">,</span>
+            <span class="s2">"yaml_out"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">yaml_out</span><span class="p">,</span>
+            <span class="s2">"text_report_path"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_report_path</span><span class="p">,</span>
+            <span class="s2">"json_report_path"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_report_path</span><span class="p">,</span>
+            <span class="s2">"extra"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span>
+        <span class="p">}</span>
+
+
+<div class="viewcode-block" id="ValidationReport">
+<a class="viewcode-back" href="../../../../../api/_autosummary/supy.ValidationReport.html#supy.ValidationReport">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ValidationReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Aggregate of every phase run for a single config."""</span>
+
+    <span class="n">phases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PhaseReport</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">_render_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">compare</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">_render_science_fixes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s2">"suggest"</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">compare</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">overall_status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">has_errors</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s2">"FAILED"</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">has_warnings</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s2">"WARNING"</span>
+        <span class="k">return</span> <span class="s2">"PASSED"</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return True when no phase recorded a blocking error."""</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">has_errors</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return True when any phase recorded a blocking error."""</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">has_errors</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_warnings</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return True when any phase recorded a warning."""</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">has_warnings</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">issues</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Flat list of every issue emitted across all executed phases."""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">issue</span> <span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span> <span class="k">for</span> <span class="n">issue</span> <span class="ow">in</span> <span class="n">phase</span><span class="o">.</span><span class="n">issues</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">errors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""All blocking ERROR issues across executed phases."""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span> <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_ERROR</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">warnings</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""All WARNING issues across executed phases."""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span> <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_WARNING</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">suggestions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""All Phase B SUGGESTION issues across executed phases."""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span> <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_SUGGESTION</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">applied_fixes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""All APPLIED_FIX issues across executed phases."""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span> <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_APPLIED_FIX</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Issue</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""All INFO issues across executed phases."""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">issues</span> <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">severity</span> <span class="o">==</span> <span class="n">SEVERITY_INFO</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_text</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">science_fixes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Render this report into the canonical ASCII text report format."""</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.renderers</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_text_report</span>
+
+        <span class="k">return</span> <span class="n">render_text_report</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_render_mode</span> <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">mode</span><span class="p">,</span>
+            <span class="n">science_fixes</span><span class="o">=</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_render_science_fixes</span> <span class="k">if</span> <span class="n">science_fixes</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">science_fixes</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"overall_status"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">overall_status</span><span class="p">,</span>
+            <span class="s2">"phases"</span><span class="p">:</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">],</span>
+        <span class="p">}</span></div>
+
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">JSONReportWriter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Writes a ``PhaseReport`` or ``ValidationReport`` to a JSON sidecar file."""</span>
+
+    <span class="n">encoding</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"utf-8"</span>
+    <span class="n">indent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">report</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PhaseReport</span><span class="p">,</span> <span class="n">ValidationReport</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">indent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">indent</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span> <span class="k">as</span> <span class="n">handle</span><span class="p">:</span>
+            <span class="n">handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+            <span class="n">handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="n">JSON_REPORT_WRITER</span> <span class="o">=</span> <span class="n">JSONReportWriter</span><span class="p">()</span>
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

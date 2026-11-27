@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>SUEWS-SPARTACUS input options &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <title>SUEWS-SPARTACUS input options &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
     <meta name="docbuild:last-update" content="2026-11-21"/>
   
     
@@ -107,7 +107,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -699,7 +703,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p>1 (default): heterogeneity of vegetation not considered. might be okay de pending on the level of accuracy needed. See <span class="bibtex-citation" id="id1">Hogan <em>et al.</em> [<a class="reference internal" href="../../../references.html#id101" title="Hogan, Robin J., Quaife, Tristan, and Braghiere, Renato. Fast matrix treatment of 3-D radiative transfer in vegetation canopies: SPARTACUS-Vegetation 1.1. Geosci. Model Dev., 11(1):339–350, Jan 2018. doi:10.5194/gmd-11-339-2018.">2018</a>]</span> – details of SPARTACUS-Vegetation for more information.</p></li>
+<li><p>1 (default): heterogeneity of vegetation not considered. might be okay de pending on the level of accuracy needed. See <span class="bibtex-citation" id="id1">Hogan <em>et al.</em> [<a class="reference internal" href="../../../references.html#id102" title="Hogan, Robin J., Quaife, Tristan, and Braghiere, Renato. Fast matrix treatment of 3-D radiative transfer in vegetation canopies: SPARTACUS-Vegetation 1.1. Geosci. Model Dev., 11(1):339–350, Jan 2018. doi:10.5194/gmd-11-339-2018.">2018</a>]</span> – details of SPARTACUS-Vegetation for more information.</p></li>
 <li><p>2: heterogeneity of vegetation considered</p></li>
 </ul>
 </dd>
@@ -720,7 +724,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <dd class="field-odd"><p>SW diffuse streams per hemisphere (note: this is the number of quadrature points so a value of 4 corresponds to an ‘8-stream scheme’)</p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
-<dd class="field-even"><p>4 is recommended. At large computational cost small improvements in accuracy can be made by increasing from 4 <span class="bibtex-citation" id="id2">[<a class="reference internal" href="../../../references.html#id103" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span>.</p>
+<dd class="field-even"><p>4 is recommended. At large computational cost small improvements in accuracy can be made by increasing from 4 <span class="bibtex-citation" id="id2">[<a class="reference internal" href="../../../references.html#id104" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span>.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -739,7 +743,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <dd class="field-odd"><p>LW streams per hemisphere (note: this is the number of quadrature points so a value of 4 corresponds to an ‘8-stream scheme’)</p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
-<dd class="field-even"><p>4 is recommended. At large computational cost small improvements in accuracy can be made by increasing from 4 <span class="bibtex-citation" id="id3">[<a class="reference internal" href="../../../references.html#id103" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span>.</p>
+<dd class="field-even"><p>4 is recommended. At large computational cost small improvements in accuracy can be made by increasing from 4 <span class="bibtex-citation" id="id3">[<a class="reference internal" href="../../../references.html#id104" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span>.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -758,7 +762,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <dd class="field-odd"><p>Fraction of down-welling shortwave radiation that is direct</p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
-<dd class="field-even"><p>0.45 is based on <span class="bibtex-citation" id="id4">Berrizbeitia <em>et al.</em> [<a class="reference internal" href="../../../references.html#id100" title="Berrizbeitia, Saioa Etxebarria, Jadraque Gago, Eulalia, and Muneer, Tariq. Empirical Models for the Estimation of Solar Sky-Diffuse Radiation. A Review and Experimental Analysis. Energies, 13(3):701, Feb 2020. doi:10.3390/en13030701.">2020</a>]</span> (Belgium and Berlin annual average), but could be improved.</p>
+<dd class="field-even"><p>0.45 is based on <span class="bibtex-citation" id="id4">Berrizbeitia <em>et al.</em> [<a class="reference internal" href="../../../references.html#id101" title="Berrizbeitia, Saioa Etxebarria, Jadraque Gago, Eulalia, and Muneer, Tariq. Empirical Models for the Estimation of Solar Sky-Diffuse Radiation. A Review and Experimental Analysis. Energies, 13(3):701, Feb 2020. doi:10.3390/en13030701.">2020</a>]</span> (Belgium and Berlin annual average), but could be improved.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -777,7 +781,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <dd class="field-odd"><p>Shortwave wavelength-independent air extinction coefficient (m<sup>-1</sup>) (i.e. number of radiance e-foldings per metre)</p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
-<dd class="field-even"><p>0.0 <span class="bibtex-citation" id="id5">[<a class="reference internal" href="../../../references.html#id103" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span>. Reasonable approximation (personal communication Robin Hogan).</p>
+<dd class="field-even"><p>0.0 <span class="bibtex-citation" id="id5">[<a class="reference internal" href="../../../references.html#id104" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span>. Reasonable approximation (personal communication Robin Hogan).</p>
 </dd>
 </dl>
 </dd></dl>
@@ -797,7 +801,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p>0.95 <span class="bibtex-citation" id="id6">[<a class="reference internal" href="../../../references.html#id103" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span></p></li>
+<li><p>0.95 <span class="bibtex-citation" id="id6">[<a class="reference internal" href="../../../references.html#id104" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span></p></li>
 <li><p><a class="reference internal" href="../../../data-structures/df_state.html#cmdoption-arg-air_ext_sw"><code class="xref any std std-option docutils literal notranslate"><span class="pre">air_ext_sw</span></code></a> is not used if <a class="reference internal" href="../../../data-structures/df_state.html#cmdoption-arg-air_ext_sw"><code class="xref any std std-option docutils literal notranslate"><span class="pre">air_ext_sw=0.0</span></code></a>.</p></li>
 </ul>
 </dd>
@@ -837,7 +841,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <dd class="field-odd"><p>Longwave wavelength-independent air extinction coefficient [m<sup>-1</sup>] (i.e. number of radiance e-foldings per metre)</p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
-<dd class="field-even"><p>0.0 is a bad approximation <span class="bibtex-citation" id="id7">[<a class="reference internal" href="../../../references.html#id103" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span> but better representation requires several band treatment which is not in SS yet.</p>
+<dd class="field-even"><p>0.0 is a bad approximation <span class="bibtex-citation" id="id7">[<a class="reference internal" href="../../../references.html#id104" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">Hogan, 2019</a>]</span> but better representation requires several band treatment which is not in SS yet.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -857,7 +861,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p>0.0 is from <span class="bibtex-citation" id="id8">Hogan [<a class="reference internal" href="../../../references.html#id103" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">2019</a>]</span>.</p></li>
+<li><p>0.0 is from <span class="bibtex-citation" id="id8">Hogan [<a class="reference internal" href="../../../references.html#id104" title="Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. Boundary-Layer Meteorol., 173(1):53–78, Oct 2019. doi:10.1007/s10546-019-00457-0.">2019</a>]</span>.</p></li>
 <li><p><a class="reference internal" href="../../../data-structures/df_state.html#cmdoption-arg-air_ssa_lw"><code class="xref any std std-option docutils literal notranslate"><span class="pre">air_ssa_lw</span></code></a> is not used when <a class="reference internal" href="../../../data-structures/df_state.html#cmdoption-arg-air_ext_lw"><code class="xref any std std-option docutils literal notranslate"><span class="pre">air_ext_lw=0.0</span></code></a>.</p></li>
 </ul>
 </dd>
@@ -1046,7 +1050,7 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 <dd class="field-odd"><p>Vegetation horizontal scale [m]</p>
 </dd>
 <dt class="field-even">Configuration<span class="colon">:</span></dt>
-<dd class="field-even"><p>Vegetation scale. Values can be estimated from inspecting vegetation using Google street view. It is used along with veg_fraction to calculate the average vegetation perimeter length following Eq. 2 of <span class="bibtex-citation" id="id9">Hogan <em>et al.</em> [<a class="reference internal" href="../../../references.html#id101" title="Hogan, Robin J., Quaife, Tristan, and Braghiere, Renato. Fast matrix treatment of 3-D radiative transfer in vegetation canopies: SPARTACUS-Vegetation 1.1. Geosci. Model Dev., 11(1):339–350, Jan 2018. doi:10.5194/gmd-11-339-2018.">2018</a>]</span>.</p>
+<dd class="field-even"><p>Vegetation scale. Values can be estimated from inspecting vegetation using Google street view. It is used along with veg_fraction to calculate the average vegetation perimeter length following Eq. 2 of <span class="bibtex-citation" id="id9">Hogan <em>et al.</em> [<a class="reference internal" href="../../../references.html#id102" title="Hogan, Robin J., Quaife, Tristan, and Braghiere, Renato. Fast matrix treatment of 3-D radiative transfer in vegetation canopies: SPARTACUS-Vegetation 1.1. Geosci. Model Dev., 11(1):339–350, Jan 2018. doi:10.5194/gmd-11-339-2018.">2018</a>]</span>.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1227,8 +1231,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

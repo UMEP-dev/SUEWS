@@ -14,7 +14,7 @@ SUEWS (Surface Urban Energy and Water Balance Scheme) bounds stability in ``cal_
 The core aerodynamic-resistance calculation has no upper limit on :math:`r_a`; its former cap of 120 s |m^-1| has been removed.
 The 0.001 m |s^-1| friction-velocity floor in ``cal_Stab`` is replaced by a numerical division guard of 1e-12 m |s^-1|.
 The lower limit of 10 s |m^-1| on core :math:`r_a` is unchanged.
-These changes do not remove the diagnostic MOST/RSL friction-velocity floors of 0.001 and 0.15 m |s^-1|, the RSL :math:`L_c/L` clip, or the experimental EHC resistance cap.
+These changes do not remove the diagnostic MOST/RSL friction-velocity floors of 0.001 and 0.15 m |s^-1| or the RSL :math:`L_c/L` clip.
 
 The inner stability calculation solves for :math:`(z-d)/L` consistent with the current sensible heat flux.
 The flux sign selects the stable or unstable branch, and residual samples are taken outwards from neutral.

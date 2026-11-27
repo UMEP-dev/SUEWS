@@ -227,6 +227,23 @@ Display, check, migrate and export the SUEWS configuration schema (subcommands `
 
 See :doc:`/contributing/schema/schema_cli` for details.
 
+suews contracts
+~~~~~~~~~~~~~~~
+
+Discover, inspect, export, publish and validate the versioned SUEWS forcing and output data contracts (subcommands ``info``, ``show``, ``export``, ``publish`` and ``validate``).
+
+.. code-block:: bash
+
+    suews contracts --help
+    suews contracts info --base-url https://suews.io --format json
+    suews contracts show forcing --version 2.1.0 --artefact catalogue --format json
+    suews contracts export output --version 2.1.0 --artefact bundle --output ./output-contract --format json
+    suews contracts publish --output-dir build/contracts-site/contracts --base-url https://suews.io --preserve-from ./previous-contracts --validate --format json
+    suews contracts publish --output-dir build/contracts-site/contracts --no-validate
+    suews contracts validate build/contracts-site/contracts --base-url https://suews.io --format json
+
+Omit ``--output`` (``-o``) on ``suews contracts export`` to stream a single canonical JSON artefact (``catalogue``, ``schema`` or ``manifest``) directly to stdout. See :ref:`data_interface_versioning` for the published URL layout and contributor release workflow.
+
 suews knowledge
 ~~~~~~~~~~~~~~~
 

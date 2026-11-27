@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>2.3. Data-interface versioning &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>2.3. Data-interface versioning &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="2.2. YAML Configuration Schema Versioning" href="schema_versioning.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-21"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -628,7 +632,8 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-time-and-temperature-metadata">2.3.3. Output time and temperature metadata</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-enforcement">2.3.4. CI enforcement</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contributor-workflow">2.3.5. Contributor workflow</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-audit-boundary">2.3.6. YAML audit boundary</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-discovery-and-published-urls">2.3.6. CLI discovery and published URLs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-audit-boundary">2.3.7. YAML audit boundary</a></li>
 </ul>
             </nav>
         </div>
@@ -666,7 +671,7 @@ migration chain remain under <a class="reference internal" href="schema_versioni
 <p>A change to one interface does not consume a version of either of the others.</p>
 <section id="current-status">
 <h2><span class="section-number">2.3.1. </span>Current status<a class="headerlink" href="#current-status" title="Link to this heading">#</a></h2>
-<p>The forcing contract is published at <code class="docutils literal notranslate"><span class="pre">2.1.0</span></code> and the output contract at <code class="docutils literal notranslate"><span class="pre">2.0.0</span></code>.
+<p>The forcing contract is published at <code class="docutils literal notranslate"><span class="pre">2.1.0</span></code> and the output contract at <code class="docutils literal notranslate"><span class="pre">2.1.0</span></code>.
 Forcing <code class="docutils literal notranslate"><span class="pre">2.1.0</span></code> adds a canonical declared water-rate unit while retaining legacy undeclared amounts.
 Forcing <code class="docutils literal notranslate"><span class="pre">1.1.0</span></code> added UTC as an opt-in timestamp reference while
 retaining local standard time as the default; <code class="docutils literal notranslate"><span class="pre">1.2.0</span></code> corrects snow-cover
@@ -697,6 +702,7 @@ Their model sums, including a partial first day, are written unchanged (a run en
 Amount units (<code class="docutils literal notranslate"><span class="pre">mm</span></code>, <code class="docutils literal notranslate"><span class="pre">m</span></code>, <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span></code>) are accepted; rate units are rejected.
 Per-step water fluxes are written as <code class="docutils literal notranslate"><span class="pre">kg</span> <span class="pre">m-2</span> <span class="pre">s-1</span></code> rates.
 Output <code class="docutils literal notranslate"><span class="pre">2.0.0</span></code> is frozen like every earlier version: its digest is immutable, and any later correction needs a new version.
+Output <code class="docutils literal notranslate"><span class="pre">2.1.0</span></code> appends seven EHC diagnostics to the end of the EHC group (<code class="docutils literal notranslate"><span class="pre">dUdt_EHC</span></code>, <code class="docutils literal notranslate"><span class="pre">QBot_EHC</span></code>, <code class="docutils literal notranslate"><span class="pre">QIndoor_EHC</span></code>, <code class="docutils literal notranslate"><span class="pre">QF_Bldg</span></code>, <code class="docutils literal notranslate"><span class="pre">QF_Air</span></code>, <code class="docutils literal notranslate"><span class="pre">T_Indoor_EHC</span></code>, <code class="docutils literal notranslate"><span class="pre">T_Deep_EHC</span></code>), leaving every existing column, ordinal, unit and description unchanged.
 Native in-memory amounts remain available, with their actual units exposed by the output accessor.
 <a class="reference internal" href="../../inputs/units_migration_guide.html#units-migration-guide"><span class="std std-ref">Upgrading Across the Units Change</span></a> describes what these forcing and output versions change for users.
 Each forcing release is stored as an immutable canonical
@@ -781,6 +787,13 @@ comparison with its immutable release.</p>
 </li>
 <li><p>Append the version and digest to <code class="docutils literal notranslate"><span class="pre">FORCING_VERSIONS</span></code>, then move
 <code class="docutils literal notranslate"><span class="pre">CURRENT_FORCING_VERSION</span></code> to the new last entry.</p></li>
+<li><p>Generate the immutable schema and manifest snapshot for static publication
+and append the printed manifest digest to
+<code class="docutils literal notranslate"><span class="pre">FORCING_PUBLISHED_MANIFEST_DIGESTS</span></code> in <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/contracts.py</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">scripts</span><span class="o">/</span><span class="n">suews</span><span class="o">/</span><span class="n">publish_contracts</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">write</span><span class="o">-</span><span class="n">forcing</span><span class="o">-</span><span class="n">snapshot</span> <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</li>
 <li><p>Run the forcing artefact, reference, and history audits:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">scripts</span><span class="o">/</span><span class="n">lint</span><span class="o">/</span><span class="n">check_forcing_contract_artefacts</span><span class="o">.</span><span class="n">py</span>
 <span class="n">python</span> <span class="n">docs</span><span class="o">/</span><span class="n">generate_forcing_variable_rst</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">check</span>
@@ -808,13 +821,79 @@ a maintainer decision; the audit does not infer compatibility.</p></li>
 </li>
 </ol>
 <p>The writers refuse to replace different bytes in an existing release. Never
-edit or regenerate a released artefact in place. Public URLs,
-<code class="docutils literal notranslate"><span class="pre">latest</span></code> aliases, and Pages publication are separate work tracked in #1657.</p>
-<p>Never rewrite a released entry. Shared mechanical helpers may be extracted only
-after the configuration, forcing, and output policies are concrete (#1664).</p>
+edit or regenerate a released artefact in place. After updating the version
+registry and running the audits above, verify the static contract publication
+layout locally:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">contracts</span><span class="o">-</span><span class="n">site</span>
+</pre></div>
+</div>
+<p>This builds both versioned and <code class="docutils literal notranslate"><span class="pre">latest</span></code> artefacts under
+<code class="docutils literal notranslate"><span class="pre">build/contracts-site/contracts/</span></code>, validates every catalogue against its
+JSON Schema, verifies SHA-256 digests and <code class="docutils literal notranslate"><span class="pre">latest</span></code> byte-for-byte parity, and
+checks every generated relative link. Pass
+<code class="docutils literal notranslate"><span class="pre">CONTRACTS_PRESERVE_FROM=&lt;previous-contracts-dir&gt;</span></code> to verify preservation of
+historical releases across deployments without overwriting existing bytes.</p>
+<p>Never rewrite a released entry.</p>
+</section>
+<section id="cli-discovery-and-published-urls">
+<h2><span class="section-number">2.3.6. </span>CLI discovery and published URLs<a class="headerlink" href="#cli-discovery-and-published-urls" title="Link to this heading">#</a></h2>
+<p>Users and automated clients can inspect and export any published forcing or
+output contract release directly through the <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">contracts</span></code> CLI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># List available interfaces, current versions, digests and published URLs</span>
+suews<span class="w"> </span>contracts<span class="w"> </span>info
+suews<span class="w"> </span>contracts<span class="w"> </span>info<span class="w"> </span>--format<span class="w"> </span>json
+
+<span class="c1"># Inspect a contract catalogue, JSON Schema or manifest</span>
+suews<span class="w"> </span>contracts<span class="w"> </span>show<span class="w"> </span>forcing<span class="w"> </span>--format<span class="w"> </span>json
+suews<span class="w"> </span>contracts<span class="w"> </span>show<span class="w"> </span>output<span class="w"> </span>--version<span class="w"> </span><span class="m">2</span>.1.0<span class="w"> </span>--artefact<span class="w"> </span>schema<span class="w"> </span>--format<span class="w"> </span>json
+
+<span class="c1"># Export raw canonical JSON to stdout or files, or write a full release bundle</span>
+suews<span class="w"> </span>contracts<span class="w"> </span><span class="nb">export</span><span class="w"> </span>forcing<span class="w"> </span>&gt;<span class="w"> </span>forcing-catalogue.json
+suews<span class="w"> </span>contracts<span class="w"> </span><span class="nb">export</span><span class="w"> </span>output<span class="w"> </span>--artefact<span class="w"> </span>bundle<span class="w"> </span>-o<span class="w"> </span>./output-contract
+</pre></div>
+</div>
+<p>Static site builds materialise deterministic, version-addressed directories
+alongside moving <code class="docutils literal notranslate"><span class="pre">latest</span></code> aliases and publish them to GitHub Pages at
+<a class="reference external" href="https://suews.io/contracts/">https://suews.io/contracts/</a> via
+<code class="docutils literal notranslate"><span class="pre">.github/workflows/pages-deploy.yml</span></code>. On each deployment, the workflow
+fetches the previously published <code class="docutils literal notranslate"><span class="pre">/contracts/</span></code> tree from <code class="docutils literal notranslate"><span class="pre">https://suews.io</span></code>
+so historical versions remain retrievable (failing closed on HTTP 404 unless an
+initial bootstrap or verified recovery is explicitly authorised via
+<code class="docutils literal notranslate"><span class="pre">workflow_dispatch</span></code> with <code class="docutils literal notranslate"><span class="pre">allow_contracts_bootstrap=true</span></code> and no partial
+interface indices remain). Pull-request and merge-queue CI validate the
+published layout offline in <code class="docutils literal notranslate"><span class="pre">.github/workflows/data-interface-version-audit.yml</span></code>.
+Locally, <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">contracts-site</span></code> builds and validates the packaged releases;
+pass <code class="docutils literal notranslate"><span class="pre">CONTRACTS_PRESERVE_FROM=&lt;previous-contracts-dir&gt;</span></code> pointing to a local
+snapshot of the prior <code class="docutils literal notranslate"><span class="pre">/contracts/</span></code> tree to reproduce CI’s cross-deployment
+preservation, or inspect releases directly through <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">contracts</span></code>:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://suews.io/contracts/index.json">https://suews.io/contracts/index.json</a>
+and <a class="reference external" href="https://suews.io/contracts/index.html">https://suews.io/contracts/index.html</a>:
+top-level machine-readable and HTML discovery indices.</p></li>
+<li><p><a class="reference external" href="https://suews.io/contracts/forcing/">https://suews.io/contracts/forcing/</a>
+(<code class="docutils literal notranslate"><span class="pre">&lt;version&gt;/</span></code>) and
+<a class="reference external" href="https://suews.io/contracts/output/">https://suews.io/contracts/output/</a>
+(<code class="docutils literal notranslate"><span class="pre">&lt;version&gt;/</span></code>): immutable release bundles containing <code class="docutils literal notranslate"><span class="pre">catalogue.json</span></code>,
+<code class="docutils literal notranslate"><span class="pre">catalogue.schema.json</span></code> and <code class="docutils literal notranslate"><span class="pre">manifest.json</span></code>. Frozen forcing schema and
+manifest snapshots live under
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/contract_artefacts/forcing/&lt;version&gt;/</span></code> alongside the
+canonical forcing catalogues under <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/forcing/artefacts/</span></code>.
+Previously published versions are preserved across deployments and never
+modified in place.</p></li>
+<li><p><a class="reference external" href="https://suews.io/contracts/forcing/latest/catalogue.json">https://suews.io/contracts/forcing/latest/catalogue.json</a>
+and
+<a class="reference external" href="https://suews.io/contracts/output/latest/catalogue.json">https://suews.io/contracts/output/latest/catalogue.json</a>
+(under <code class="docutils literal notranslate"><span class="pre">forcing/latest/</span></code> and <code class="docutils literal notranslate"><span class="pre">output/latest/</span></code>): moving aliases that mirror
+the current release bundle byte-for-byte.</p></li>
+</ul>
+<p>To reproduce publication and validation outside <code class="docutils literal notranslate"><span class="pre">make</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/suews/publish_contracts.py<span class="w"> </span>--output-dir<span class="w"> </span>build/contracts-site/contracts
+suews<span class="w"> </span>contracts<span class="w"> </span>validate<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io
+</pre></div>
+</div>
 </section>
 <section id="yaml-audit-boundary">
-<h2><span class="section-number">2.3.6. </span>YAML audit boundary<a class="headerlink" href="#yaml-audit-boundary" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">2.3.7. </span>YAML audit boundary<a class="headerlink" href="#yaml-audit-boundary" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">schema-version-audit</span></code> watches the Pydantic models that own the public YAML
 shape under <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/</span></code> and the shipped sample
 configuration. Contract definitions under <code class="docutils literal notranslate"><span class="pre">data_model/forcing/</span></code> and
@@ -876,7 +955,8 @@ therefore do not spuriously require a YAML configuration schema bump.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-time-and-temperature-metadata">2.3.3. Output time and temperature metadata</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-enforcement">2.3.4. CI enforcement</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contributor-workflow">2.3.5. Contributor workflow</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-audit-boundary">2.3.6. YAML audit boundary</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-discovery-and-published-urls">2.3.6. CLI discovery and published URLs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-audit-boundary">2.3.7. YAML audit boundary</a></li>
 </ul>
   </nav></div>
 
@@ -910,7 +990,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-21.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -918,8 +998,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

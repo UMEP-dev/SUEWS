@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-21T21:45:37+00:00" />
-    <title>6.6. Python API for CLI Users &#8212; SUEWS 2026.11.23.dev43 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
+    <title>6.6. Python API for CLI Users &#8212; SUEWS 2026.11.27.dev32 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9949c35e"></script>
+    <script src="../_static/documentation_options.js?v=cfd099a6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="6.5. Knowledge Pack" href="knowledge-pack.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.23.dev43" />
-    <meta name="docbuild:last-update" content="2026-11-21"/>
+  <meta name="docsearch:version" content="2026.11.27.dev32" />
+    <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.23.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a" style="color: #31708f;">4694ea7</a>).
+        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.23.dev43 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
   
   
 </a></div>
@@ -300,16 +300,20 @@
 <li class="toctree-l3"><a class="reference internal" href="../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
-<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -750,64 +754,24 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </section>
 <section id="python-equivalent-full-validation-pipeline">
 <h3><a class="toc-backref" href="#id6" role="doc-backlink"><span class="section-number">6.6.1.3. </span>Python Equivalent (Full Validation Pipeline)</a><a class="headerlink" href="#python-equivalent-full-validation-pipeline" title="Link to this heading">#</a></h3>
-<p>Complete validation including all phases (A→B→C) for thorough checking:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">importlib.resources</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">supy</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.validation.pipeline.orchestrator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">validate_input_file</span><span class="p">,</span>
-    <span class="n">setup_output_paths</span><span class="p">,</span>
-    <span class="n">run_phase_a</span><span class="p">,</span>
-    <span class="n">run_phase_b</span><span class="p">,</span>
-    <span class="n">run_phase_c</span>
-<span class="p">)</span>
+<p>Complete in-memory validation across all phases (A, B, and C) with zero disk
+writes using <a class="reference internal" href="_autosummary/supy.validate_config.html#supy.validate_config" title="supy.validate_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">supy.validate_config()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">supy</span>
 
-<span class="c1"># Validate and get standard config</span>
-<span class="n">user_yaml_file</span> <span class="o">=</span> <span class="n">validate_input_file</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
-<span class="n">sample_data</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">supy</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"sample_data"</span>
-<span class="k">with</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">as_file</span><span class="p">(</span><span class="n">sample_data</span> <span class="o">/</span> <span class="s2">"sample_config.yml"</span><span class="p">)</span> <span class="k">as</span> <span class="n">path</span><span class="p">:</span>
-    <span class="n">standard_yaml_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+<span class="c1"># Validate a YAML file, dict, or SUEWSConfig purely in memory</span>
+<span class="n">report</span> <span class="o">=</span> <span class="n">supy</span><span class="o">.</span><span class="n">validate_config</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">)</span>
 
-<span class="c1"># Setup output paths</span>
-<span class="p">(</span><span class="n">uptodate_file</span><span class="p">,</span> <span class="n">report_file</span><span class="p">,</span>
- <span class="n">science_yaml_file</span><span class="p">,</span> <span class="n">science_report_file</span><span class="p">,</span>
- <span class="n">pydantic_yaml_file</span><span class="p">,</span> <span class="n">pydantic_report_file</span><span class="p">,</span>
- <span class="n">dirname</span><span class="p">)</span> <span class="o">=</span> <span class="n">setup_output_paths</span><span class="p">(</span><span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">=</span><span class="s2">"ABC"</span><span class="p">)</span>
-
-<span class="c1"># Run phases A → B → C</span>
-<span class="n">a_ok</span> <span class="o">=</span> <span class="n">run_phase_a</span><span class="p">(</span>
-    <span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">standard_yaml_file</span><span class="p">,</span> <span class="n">uptodate_file</span><span class="p">,</span>
-    <span class="n">report_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s2">"ABC"</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">forcing</span><span class="o">=</span><span class="s2">"on"</span>
-<span class="p">)</span>
-
-<span class="k">if</span> <span class="ow">not</span> <span class="n">a_ok</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✗ Phase A failed"</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">uptodate_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">report</span><span class="o">.</span><span class="n">is_valid</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[</span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">code</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">yaml_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="n">b_ok</span> <span class="o">=</span> <span class="n">run_phase_b</span><span class="p">(</span>
-        <span class="n">user_yaml_file</span><span class="p">,</span> <span class="n">uptodate_file</span><span class="p">,</span> <span class="n">standard_yaml_file</span><span class="p">,</span>
-        <span class="n">science_yaml_file</span><span class="p">,</span> <span class="n">science_report_file</span><span class="p">,</span> <span class="n">report_file</span><span class="p">,</span>
-        <span class="n">phase_a_performed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s2">"ABC"</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span>
-    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Configuration is valid!"</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">b_ok</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✗ Phase B failed"</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">science_report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">uptodate_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">c_ok</span> <span class="o">=</span> <span class="n">run_phase_c</span><span class="p">(</span>
-            <span class="n">science_yaml_file</span><span class="p">,</span> <span class="n">pydantic_yaml_file</span><span class="p">,</span> <span class="n">pydantic_report_file</span><span class="p">,</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span> <span class="n">phases_run</span><span class="o">=</span><span class="p">[</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">],</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span>
-        <span class="p">)</span>
+<span class="c1"># Render the canonical text report</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">to_text</span><span class="p">())</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">c_ok</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✗ Phase C failed"</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">pydantic_report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">science_yaml_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"✓ All phases passed!"</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Report: </span><span class="si">{</span><span class="n">pydantic_report_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Updated YAML: </span><span class="si">{</span><span class="n">pydantic_yaml_file</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="c1"># Pass write_outputs=True to also publish updated_config.yml and reports</span>
+<span class="n">report</span> <span class="o">=</span> <span class="n">supy</span><span class="o">.</span><span class="n">validate_config</span><span class="p">(</span><span class="s2">"config.yml"</span><span class="p">,</span> <span class="n">write_outputs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -1253,7 +1217,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-11-21.
+  Last updated on 2026-11-27.
   <br/>
 </p>
   </div>
@@ -1261,8 +1225,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.23.dev43 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4694ea7873d523345c559c24ce1549eefca7f05a">4694ea7</a> |
+  <p>Version: 2026.11.27.dev32 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

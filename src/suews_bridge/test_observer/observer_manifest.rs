@@ -941,12 +941,6 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         detail: "ohm.f95::ohm_state_unpack",
     },
     ManifestTypeEntry {
-        name: "output_block",
-        source: "src/suews/src/suews_ctrl_type.f95",
-        coverage: ManifestCoverage::NonUnpacked,
-        detail: "Multi-timestep output matrix block written directly by kernel; no unpack entry point (gh#1849, gh#2096).",
-    },
-    ManifestTypeEntry {
         name: "output_line",
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::NonUnpacked,
@@ -1041,12 +1035,6 @@ pub const MANIFEST_TYPES: &[ManifestTypeEntry] = &[
         source: "src/suews/src/suews_ctrl_type.f95",
         coverage: ManifestCoverage::DriverPrivateUnpack,
         detail: "Live-observed via suews_obs_unpack_suews_state calling driver.f95::unpack_state_members across all 12 active state members (gh#2096).",
-    },
-    ManifestTypeEntry {
-        name: "SUEWS_STATE_BLOCK",
-        source: "src/suews/src/suews_ctrl_type.f95",
-        coverage: ManifestCoverage::NonUnpacked,
-        detail: "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no c_api unpack routine (gh#2096).",
     },
     ManifestTypeEntry {
         name: "SUEWS_TIMER",

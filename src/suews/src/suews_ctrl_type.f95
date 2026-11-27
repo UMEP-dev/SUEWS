@@ -276,25 +276,6 @@ MODULE module_ctrl_type
       LOGICAL :: is_fatal = .FALSE.        ! Stop execution?
    END TYPE error_entry
 
-   TYPE, PUBLIC :: output_block
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSUEWS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSnow
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockESTM
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockEHC
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockRSL
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockBEERS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDebug
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDailyState
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSTEBBS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockNHood
-   CONTAINS
-      ! Procedures
-      PROCEDURE :: init => output_block_init
-      ! PROCEDURE :: finalize => output_block_finalize
-      PROCEDURE :: cleanup => output_block_finalize
-   END TYPE output_block
-
    TYPE, PUBLIC :: output_line
       REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine = -999 !date & time
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS) :: dataOutLineSUEWS = -999
@@ -339,12 +320,6 @@ MODULE module_ctrl_type
    CONTAINS
       PROCEDURE :: init => init_suews_debug
    END TYPE SUEWS_DEBUG
-
-   TYPE, PUBLIC :: SUEWS_STATE_BLOCK
-      TYPE(SUEWS_STATE), DIMENSION(:), ALLOCATABLE :: BLOCK
-   CONTAINS
-      PROCEDURE :: init => init_suews_state_block
-   END TYPE SUEWS_STATE_BLOCK
 
 CONTAINS
 
@@ -486,22 +461,6 @@ CONTAINS
 
    !===========================================================================
 
-   SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)
-      CLASS(SUEWS_STATE_BLOCK), INTENT(inout) :: self
-      INTEGER, INTENT(in) :: nlayer, ndepth
-      INTEGER, INTENT(in) :: len_sim
-      INTEGER :: ir
-
-      ! allocate debug_state_block
-      ALLOCATE (self%BLOCK(len_sim))
-
-      ! initialise each element
-      DO ir = 1, len_sim
-         CALL self%BLOCK(ir)%ALLOCATE(nlayer, ndepth)
-      END DO
-   END SUBROUTINE init_suews_state_block
-
-
    SUBROUTINE init_suews_debug(self, nlayer, ndepth)
       CLASS(SUEWS_DEBUG), INTENT(inout) :: self
       INTEGER, INTENT(in) :: nlayer, ndepth
@@ -540,56 +499,6 @@ CONTAINS
       self%dataOutLineSTEBBS = -999.0
       self%dataOutLineNHood = -999.0
    END SUBROUTINE output_line_init
-
-   SUBROUTINE output_block_init(self, len)
-      CLASS(output_block), INTENT(inout) :: self
-      INTEGER, INTENT(in) :: len
-
-      ! Allocate memory for the arrays
-      ALLOCATE (self%dataOutBlockSUEWS(len, ncolumnsDataOutSUEWS))
-      ALLOCATE (self%dataOutBlockSnow(len, ncolumnsDataOutSnow))
-      ALLOCATE (self%dataOutBlockESTM(len, ncolumnsDataOutESTM))
-      ALLOCATE (self%dataOutBlockEHC(len, ncolumnsDataOutEHC))
-      ALLOCATE (self%dataOutBlockRSL(len, ncolumnsDataOutRSL))
-      ALLOCATE (self%dataOutBlockBEERS(len, ncolumnsDataOutBEERS))
-      ALLOCATE (self%dataOutBlockDebug(len, ncolumnsDataOutDebug))
-      ALLOCATE (self%dataOutBlockSPARTACUS(len, ncolumnsDataOutSPARTACUS))
-      ALLOCATE (self%dataOutBlockDailyState(len, ncolumnsDataOutDailyState))
-      ALLOCATE (self%dataOutBlockSTEBBS(len, ncolumnsDataOutSTEBBS))
-      ALLOCATE (self%dataOutBlockNHood(len, ncolumnsDataOutNHood))
-
-      ! Set default values
-      self%dataOutBlockSUEWS = -999.0
-      self%dataOutBlockSnow = -999.0
-      self%dataOutBlockESTM = -999.0
-      self%dataOutBlockEHC = -999.0
-      self%dataOutBlockRSL = -999.0
-      self%dataOutBlockBEERS = -999.0
-      self%dataOutBlockDebug = -999.0
-      self%dataOutBlockSPARTACUS = -999.0
-      self%dataOutBlockDailyState = -999.0
-      self%dataOutBlockSTEBBS = -999.0
-      self%dataOutBlockNHood = -999.0
-
-   END SUBROUTINE output_block_init
-
-   SUBROUTINE output_block_finalize(self)
-      CLASS(output_block), INTENT(inout) :: self
-
-      ! Deallocate memory for the arrays
-      IF (ALLOCATED(self%dataOutBlockSUEWS)) DEALLOCATE (self%dataOutBlockSUEWS)
-      IF (ALLOCATED(self%dataOutBlockSnow)) DEALLOCATE (self%dataOutBlockSnow)
-      IF (ALLOCATED(self%dataOutBlockESTM)) DEALLOCATE (self%dataOutBlockESTM)
-      IF (ALLOCATED(self%dataOutBlockEHC)) DEALLOCATE (self%dataOutBlockEHC)
-      IF (ALLOCATED(self%dataOutBlockRSL)) DEALLOCATE (self%dataOutBlockRSL)
-      IF (ALLOCATED(self%dataOutBlockBEERS)) DEALLOCATE (self%dataOutBlockBEERS)
-      IF (ALLOCATED(self%dataOutBlockDebug)) DEALLOCATE (self%dataOutBlockDebug)
-      IF (ALLOCATED(self%dataOutBlockSPARTACUS)) DEALLOCATE (self%dataOutBlockSPARTACUS)
-      IF (ALLOCATED(self%dataOutBlockDailyState)) DEALLOCATE (self%dataOutBlockDailyState)
-      IF (ALLOCATED(self%dataOutBlockSTEBBS)) DEALLOCATE (self%dataOutBlockSTEBBS)
-      IF (ALLOCATED(self%dataOutBlockNHood)) DEALLOCATE (self%dataOutBlockNHood)
-
-   END SUBROUTINE output_block_finalize
 
    SUBROUTINE allocSUEWSState_c(self, nlayer, ndepth)
       IMPLICIT NONE

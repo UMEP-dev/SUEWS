@@ -1,22 +1,9 @@
-//! Native typed output -> production writer -> named registry columns,
-//! plus native OUTPUT_BLOCK lifecycle and Rust OutputBlock codec proof.
+//! Native typed output -> production writer -> named registry columns.
 // contract: C-CAPI, C-OUTPUT
-use std::collections::BTreeMap;
-
-use suews_bridge::{
-    output_block_field_names, output_block_from_values_payload, output_block_schema_info,
-    output_block_to_rows_map, output_block_to_values_payload, BridgeError,
-    OutputBlockValuesPayload, OUTPUT_BLOCK_SCHEMA_VERSION, OUTPUT_DATA_COLS, OUTPUT_GROUP_LAYOUT,
-};
+use suews_bridge::{OUTPUT_DATA_COLS, OUTPUT_GROUP_LAYOUT};
 
 unsafe extern "C" {
     fn suews_obs_output_groups(data: *mut f64, dates: *mut f64, ld: i32, ncols: i32, err: *mut i32);
-    fn suews_obs_output_block(
-        nrows: i32,
-        widths_out: *mut i32,
-        corners_out: *mut f64,
-        err: *mut i32,
-    );
 }
 
 #[test]
@@ -166,96 +153,6 @@ fn native_output_groups_preserve_named_columns_and_strided_rows() {
         )
         .unwrap();
     }
-}
-
-#[test]
-fn native_output_block_init_asymmetric_2d_and_rust_codec_roundtrip() {
-    const NROWS: usize = 3;
-    let mut widths = [0_i32; 11];
-    let mut corners = [f64::NAN; 44];
-    let mut err = -1_i32;
-    // Reject invalid row counts before allocating anything.
-    unsafe {
-        suews_obs_output_block(1, widths.as_mut_ptr(), corners.as_mut_ptr(), &mut err);
-    }
-    assert_ne!(err, 0, "nrows < 2 must be rejected");
-
-    // SAFETY: disjoint owned fixed-size buffers match the BIND(C) contract.
-    unsafe {
-        suews_obs_output_block(
-            NROWS as i32,
-            widths.as_mut_ptr(),
-            corners.as_mut_ptr(),
-            &mut err,
-        );
-    }
-    assert_eq!(err, 0, "native TYPE(output_block) init/seed/cleanup failed");
-
-    let schema = output_block_schema_info().unwrap();
-    let field_names = output_block_field_names();
-    assert_eq!(field_names.len(), 11);
-
-    let mut payload_values = Vec::new();
-    let mut payload_dims = BTreeMap::new();
-    for (idx, field_name) in field_names.iter().enumerate() {
-        let gidx = idx + 1;
-        let schema_cols = schema.allocatable_dims[field_name][1];
-        let native_cols = usize::try_from(widths[idx]).unwrap();
-        assert_eq!(
-            native_cols, schema_cols,
-            "Fortran TYPE(output_block)%{field_name} width mismatch vs suews_output_block_columns"
-        );
-        let expected_corners = [
-            (gidx * 100000) as f64 + (1000 + 1) as f64 + 0.125,
-            (gidx * 100000) as f64 + (1000 + native_cols) as f64 + 0.125,
-            (gidx * 100000) as f64 + (NROWS * 1000 + 1) as f64 + 0.125 * NROWS as f64,
-            (gidx * 100000) as f64 + (NROWS * 1000 + native_cols) as f64 + 0.125 * NROWS as f64,
-        ];
-        assert_eq!(
-            &corners[4 * idx..4 * idx + 4],
-            &expected_corners,
-            "asymmetric 2D corners for native output_block%{field_name}"
-        );
-        payload_dims.insert(field_name.clone(), vec![NROWS, native_cols]);
-        for r in 1..=NROWS {
-            for c in 1..=native_cols {
-                payload_values
-                    .push((gidx * 100000) as f64 + (r * 1000 + c) as f64 + 0.125 * r as f64);
-            }
-        }
-    }
-
-    let payload = OutputBlockValuesPayload {
-        schema_version: OUTPUT_BLOCK_SCHEMA_VERSION,
-        values: payload_values,
-        dims: payload_dims,
-    };
-    let decoded = output_block_from_values_payload(&payload).unwrap();
-    let reencoded = output_block_to_values_payload(&decoded);
-    assert_eq!(reencoded, payload);
-
-    let rows_map = output_block_to_rows_map(&decoded).unwrap();
-    assert_eq!(rows_map.len(), 11);
-    for (idx, field_name) in field_names.iter().enumerate() {
-        let gidx = idx + 1;
-        let rows = &rows_map[field_name];
-        assert_eq!(rows.len(), NROWS);
-        let ncols = usize::try_from(widths[idx]).unwrap();
-        assert_eq!(rows[0].len(), ncols);
-        assert_eq!(rows[0][0], (gidx * 100000 + 1001) as f64 + 0.125);
-        assert_eq!(
-            rows[NROWS - 1][ncols - 1],
-            (gidx * 100000 + NROWS * 1000 + ncols) as f64 + 0.125 * NROWS as f64
-        );
-    }
-
-    // Negative bound: wrong column width on any group must be rejected.
-    let mut bad_payload = payload;
-    bad_payload.dims.get_mut("data_out_block_nhood").unwrap()[1] += 1;
-    assert_eq!(
-        output_block_from_values_payload(&bad_payload).unwrap_err(),
-        BridgeError::BadState
-    );
 }
 
 fn read_output_catalogue() -> serde_json::Value {

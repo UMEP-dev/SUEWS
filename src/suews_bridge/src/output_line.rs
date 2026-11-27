@@ -4,7 +4,7 @@
 //! Group widths (`OUTPUT_LINE_*_LEN`) are imported from `$OUT_DIR/output_cols.rs`,
 //! which `build.rs` generates from `ncolumnsDataOut*` in
 //! `src/suews/src/suews_ctrl_const.f95`, preventing drift between Rust and the
-//! Fortran kernel. Like [`crate::output_block`], this codec transports raw
+//! Fortran kernel. This codec transports raw
 //! arrays only; canonical variable names and units live in Python's output
 //! registry (`src/supy/data_model/output/`).
 

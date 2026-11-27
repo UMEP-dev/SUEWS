@@ -1,6 +1,6 @@
 //! Hand-maintained typed Fortran C-API field-binding observer tests (gh#2096).
 //!
-//! For every unpacked Fortran C-API type across all 49 `bridge-manifest.json`
+//! For every unpacked Fortran C-API type across all 47 `bridge-manifest.json`
 //! entries (30 direct `*_unpack` routines, all 8 nested derived types live
 //! inside their parents, and all 4 driver aggregate unpackers in `driver.f95`:
 //! `SUEWS_CONFIG`, `SUEWS_TIMER`, `SUEWS_SITE`, and `SUEWS_STATE`), each test:
@@ -30,10 +30,9 @@ use suews_bridge::{
     decode_state_members, encode_site_members_flat, encode_site_scalars_flat,
     encode_state_members_flat, error_entry_default_from_fortran, error_entry_schema_info,
     error_state_default_from_fortran, error_state_schema_info, heat_state_expected_flat_len,
-    output_block_schema_info, output_line_schema_info, stebbs_state_expected_flat_len,
+    output_line_schema_info, stebbs_state_expected_flat_len,
     suews_checkpoint_from_json, suews_checkpoint_to_json, suews_debug_default_from_fortran,
     suews_debug_schema_info, suews_forcing_schema_info, suews_site_schema_info,
-    suews_state_block_default_from_fortran, suews_state_block_schema_info,
     suews_state_default_from_fortran, suews_state_schema_info, AnthroEmisPrm, AnthroEmisState,
     AnthroHeatPrm, AtmState, BioCo2Prm, BridgeError, BuildingArchetypePrm, CheckpointTimer,
     ConductancePrm, EhcPrm, ErrorState, FlagState, HeatState, HydroState, IrrigDaywater,
@@ -2876,15 +2875,15 @@ fn observe_suews_state() {
 }
 
 // =============================================================================
-// 49-type manifest completeness, companion codec checks, and negative bounds
+// 47-type manifest completeness, companion codec checks, and negative bounds
 // =============================================================================
 
 #[test]
-fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
+fn manifest_covers_all_47_bridged_types_with_zero_gaps() {
     assert_eq!(
         MANIFEST_TYPES.len(),
-        49,
-        "bridge-manifest.json coverage table must track all 49 bridged types"
+        47,
+        "bridge-manifest.json coverage table must track all 47 bridged types"
     );
 
     let mut seen_names: BTreeSet<String> = BTreeSet::new();
@@ -2919,7 +2918,7 @@ fn manifest_covers_all_49_bridged_types_with_zero_gaps() {
     assert_eq!(direct_names.len(), 30);
     assert_eq!(nested_count, 8);
     assert_eq!(driver_names.len(), 4);
-    assert_eq!(non_unpacked_count, 7);
+    assert_eq!(non_unpacked_count, 5);
 
     let all_direct_tables: [(&str, &[ObsFieldDescriptor]); 30] = [
         ("anthroemis_prm", OBS_FIELDS_ANTHRO_EMIS_PRM),
@@ -3889,12 +3888,9 @@ fn non_unpacked_types_inventory_and_codecs() {
         .collect();
     let out_line = OutputLine::from_flat(&flat_out).unwrap();
     assert_eq!(out_line.to_flat(), flat_out);
-    let _ = output_block_schema_info().unwrap();
     let _ = suews_forcing_schema_info().unwrap();
     let _ = suews_debug_schema_info().unwrap();
     let _ = suews_debug_default_from_fortran().unwrap();
-    let _ = suews_state_block_schema_info().unwrap();
-    let _ = suews_state_block_default_from_fortran().unwrap();
 }
 
 #[test]

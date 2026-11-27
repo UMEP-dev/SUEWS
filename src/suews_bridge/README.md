@@ -58,10 +58,10 @@ Data crosses four layers during a simulation:
                                       | bind(c) static archive libsuews_bridge.a
                                       v
 +-----------------------------------------------------------------------------+
-| 3. Fortran C-API facades (src/suews_bridge/c_api/, 48 files)                |
+| 3. Fortran C-API facades (src/suews_bridge/c_api/, 47 files)                |
 |    driver.f95 (suews_cal_multitsteps_c) -> unpacks TOCs via c_api/*_unpack  |
-|    common.f95 + sunposition.f95 + 45 per-type facades                       |
-|      (30 with direct *_unpack + 15 schema/default-only)                     |
+|    common.f95 + sunposition.f95 + 44 per-type facades                       |
+|      (30 with direct *_unpack + 14 schema/default-only)                     |
 +-------------------------------------+---------------------------------------+
                                       | Fortran module USE + static archives
                                       v
@@ -178,8 +178,8 @@ side, [`_output_columns`](../supy/_run_rust.py) obtains the labels
 
 ## File-by-file role map
 
-Verified against the repository layout (`62` Rust modules under `src/`, `48`
-Fortran facades under `c_api/`, and `49` bridged derived types in
+Verified against the repository layout (`61` Rust modules under `src/`, `47`
+Fortran facades under `c_api/`, and `47` bridged derived types in
 `bridge-manifest.json`).
 
 ### Crate root, build and Python glue
@@ -189,7 +189,7 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 | `src/suews_bridge/Cargo.toml` | Crate manifest defining `suews_bridge` (`rlib`, `cdylib`), `suews-engine` binary, 5 optional features and `capi_field_observer` test target. |
 | `src/suews_bridge/pyproject.toml` | Separate standalone `maturin` crate build metadata (`python-extension` + `physics`, installing top-level `suews_bridge`); the root SuPy wheel instead uses `meson-python` (`pyproject.toml` -> `src/supy/meson.build` -> `src/supy/build_rust_bridge.py` -> `cargo`, installing `supy.suews_bridge`). |
 | `src/suews_bridge/build.rs` | Build script: embeds version metadata (`SUEWS_VERSION`/`SUEWS_COMMIT`, from env overrides, `git describe`, or `_version_scm.py`), compiles `c_api/*.f95` into `libsuews_bridge.a` (and optional `libsuews_capi_observer.a`), links SUEWS static libraries + `libgfortran`, and generates `$OUT_DIR/output_cols.rs` from `suews_ctrl_const.f95`. Supports `SUEWS_BRIDGE_LINT_ONLY=1` and `SUEWS_BUILD_PROFILE=release\|checked`. |
-| `src/suews_bridge/bridge-manifest.json` | Machine-checked inventory of all 49 `TYPE, PUBLIC` derived types in `src/suews/src/*.f95` and their bridge status (`bridged`, `planned`, `excluded`). |
+| `src/suews_bridge/bridge-manifest.json` | Machine-checked inventory of all 48 `TYPE, PUBLIC` derived types in `src/suews/src/*.f95` (47 bridged, 1 excluded) and their bridge status (`bridged`, `planned`, `excluded`). |
 | `src/supy/build_rust_bridge.py` | Meson build helper invoked by the root `meson-python` build (`pyproject.toml` -> `src/supy/meson.build`): runs `cargo build` for the PyO3 extension and `suews-engine` binary, copies them into package staging paths, and writes a Ninja depfile tracking Rust, C-API and driver sources. |
 | `src/supy/cmd/rust_bridge.py` | Thin Python wrapper locating and invoking the bundled `supy/bin/suews-engine` binary. |
 | `src/supy/_run_rust.py` | Primary Python-to-Rust integration layer: validates output column layout parity against Fortran, serialises `SUEWSConfig` (single-grid YAML via `config_to_engine_yaml`, one-site-per-grid JSON via `_grid_config_jsons`), prepares `(len_sim, 32)` forcing blocks, allocates Fortran-ordered output stores, dispatches single/multi-grid/chunked/streamed runs, and wraps results into pandas DataFrames. |
@@ -217,7 +217,6 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 | `src/codec.rs` | Shared `StateCodec` / `CompositeCodec` traits, `TypeSchema` / `ValuesPayload` / `ValuesPayloadWithDims` types, flat-length and dimension checks, and the `impl_state_module_fns!` macro generating per-type FFI helpers. |
 | `src/suews_site.rs` | Composite `SuewsSite` container aggregating all 18 site parameter members (`SUEWS_SITE_MEMBER_ORDER`) with nested and dotted-map codecs. |
 | `src/suews_state.rs` | Composite `SuewsState` container aggregating all 13 model state members (`SUEWS_STATE_MEMBER_ORDER`), enforcing full-member restart validation and `NaN` <-> JSON `null` checkpoint encoding. |
-| `src/suews_state_block.rs` | Dimension-bearing vector of `SuewsState` snapshots (`SUEWS_STATE_BLOCK`). |
 | `src/suews_debug.rs` | 15-stage intra-timestep `SuewsState` snapshot container (`SUEWS_DEBUG`). |
 | `src/checkpoint.rs` | Version-2 restart envelope (`CheckpointTimer` + `SuewsCheckpointData`) serialising/deserialising JSON with exact `float_roundtrip` parsing and strict version/timer checks. |
 | `src/forcing.rs` | Single-timestep `SuewsForcing` flat codec (`SUEWS_FORCING`). |
@@ -225,7 +224,6 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 | `src/forcing_time.rs` | Gregorian leap-year and signed-second calendar conversions (`to_seconds` / `from_seconds`, `days_in_month` / `ymd_to_doy` / `doy_to_ymd`) and `TimeColumns` indices used by `forcing_io.rs` and `run_period.rs`. |
 | `src/run_period.rs` | Standalone file-run simulation period parsing (`model.control.start_time` / `end_time`), row selection and forcing-coverage checks on the forcing clock before kernel evolution. |
 | `src/output_line.rs` | Single-timestep `OutputLine` flat codec across datetime and all 11 output groups using build-time `$OUT_DIR/output_cols.rs` widths. |
-| `src/output_block.rs` | Dimension-bearing `OutputBlock` / `OutputBlockMatrix` codec (11 per-group 2D matrices); distinct from the direct-output `OutputMatrix` view in `sim.rs`. |
 | `src/output_io.rs` | Optional Apache Arrow IPC file writer (`write_output_arrow` -> `suews_output.arrow`, gated by `physics` + `arrow-output`), encoding `SUEWS_OUTPUT_NAMES`, indexed non-SUEWS names and `group_layout` schema metadata, with a unit test pinning parity against `src/supy/data_model/output/`. |
 
 ### Per-type parameter and state codecs (40 modules under `src/suews_bridge/src/`)
@@ -245,21 +243,21 @@ field order with the module's own Fortran pack and unpack routines.
 | Subsystem parameters (13) | `anthro_emis_prm.rs`, `anthro_heat_prm.rs`, `building_archetype_prm.rs`, `conductance.rs`, `ehc_prm.rs`, `irrig_daywater.rs`, `irrigation_prm.rs`, `lumps.rs`, `snow_prm.rs`, `spartacus_layer_prm.rs`, `spartacus_prm.rs`, `stebbs_prm.rs` (annotated flat reference), `surf_store.rs` |
 | State and diagnostics (14) | `anthroemis.rs`, `atm.rs`, `core.rs` (`OhmState` v2 + `sunposition_calc` + legacy scalar OHM helpers -- documented BR-01 deviation mirrored in `c_api/ohm.f95`), `error_entry.rs`, `error_state.rs`, `flag.rs`, `heat_state.rs`, `hydro_state.rs`, `nhood.rs`, `phenology.rs`, `roughness.rs`, `snow.rs`, `solar.rs`, `stebbs_state.rs` |
 
-### Fortran C-API facades (`src/suews_bridge/c_api/`, 48 files)
+### Fortran C-API facades (`src/suews_bridge/c_api/`, 47 files)
 
 | File(s) | Role |
 |---|---|
 | `c_api/common.f95` | Shared `SUEWS_CAPI_*` error codes, error text lookup and null-terminated Fortran-to-C string copy (`copy_to_c_buffer`). |
 | `c_api/driver.f95` | Batch simulation C entry point `suews_cal_multitsteps_c` (`physics`-gated): validates lengths/TOCs, copies `intent(in)` `forcing_flat` into a local `metforcing_block`, unpacks timer/config/site scalars/18 site members/13 state members, calls `SUEWS_cal_multitsteps`, writes outputs/warnings and packs post-run state/timer. |
 | `c_api/sunposition.f95` | Thin `bind(c)` wrapper around `module_phys_narp::NARP_cal_SunPosition` (`physics`-gated). |
-| 45 per-type `c_api/<type>.f95` | Per-type Fortran C-API facades (`3` non-per-type files above + `45` per-type = `48` total): `30` provide direct `*_unpack` routines (including `c_api/stebbs_prm.f95` as the annotated reference facade and `c_api/ohm.f95`, which also carries the legacy scalar OHM helper routines recorded as a BR-01 duplication in `dev-ref/RUST_BRIDGE_AUDIT.md`), and `15` provide schema/default routines only (`8` nested parameter types unpacked inline by parent facades, `config.f95` and `timer.f95` unpacked inside `driver.f95`, plus `forcing.f95`, `output_line.f95`, `output_block.f95`, `error_entry.f95` and `error_state.f95`). |
+| 44 per-type `c_api/<type>.f95` | Per-type Fortran C-API facades (`3` non-per-type files above + `44` per-type = `47` total): `30` provide direct `*_unpack` routines (including `c_api/stebbs_prm.f95` as the annotated reference facade and `c_api/ohm.f95`, which also carries the legacy scalar OHM helper routines recorded as a BR-01 duplication in `dev-ref/RUST_BRIDGE_AUDIT.md`), and `14` provide schema/default routines only (`8` nested parameter types unpacked inline by parent facades, `config.f95` and `timer.f95` unpacked inside `driver.f95`, plus `forcing.f95`, `output_line.f95`, `error_entry.f95` and `error_state.f95`). |
 
 ### Verification harnesses, observers and repository scripts
 
 | Path | Role |
 |---|---|
 | `src/suews_bridge/tests/yaml_jacobian.rs` | Integration suite probing `EngineYAML -> RunConfig` discrete Jacobians, dead-key ratchets, slot ownership, named-receiver identity, delta fidelity and NaN-poison handling across resolved anchor configs (`--features physics`). |
-| `src/suews_bridge/tests/capi_field_observer.rs` | Opt-in integration suite (`--features physics,capi-observer`): live named-receiver checks for 42 types (30 direct, 8 nested in parents, 4 driver aggregates); inventory/schema/default/codec checks for the 7 non-unpacked types, not live receiver evidence. See the maintained [coverage and commands](../../.claude/rules/rust/conventions.md#c-api-field-binding-observer). |
+| `src/suews_bridge/tests/capi_field_observer.rs` | Opt-in integration suite (`--features physics,capi-observer`): live named-receiver checks for 42 types (30 direct, 8 nested in parents, 4 driver aggregates); inventory/schema/default/codec checks for the 5 non-unpacked types, not live receiver evidence. See the maintained [coverage and commands](../../.claude/rules/rust/conventions.md#c-api-field-binding-observer). |
 | `src/suews_bridge/test_observer/` | Generated test-only observer artefacts (`capi_field_observer.f95` and `observer_manifest.rs`), excluded from production wheels (`build.rs` panics if `capi-observer` is combined with `python-extension`). |
 | `scripts/suews/gen_capi_field_observer.py` | Deterministic stdlib-only generator and `--check` CI validator for `test_observer/`. |
 | `scripts/suews/check_bridge_manifest.py` | CI check ensuring every `TYPE, PUBLIC` in `src/suews/src/*.f95` is tracked in `bridge-manifest.json`. |
@@ -343,7 +341,7 @@ make bridge
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,arrow-output
 
-# C-API observer: 42 live-receiver types + 7 non-unpacked companion checks
+# C-API observer: 42 live-receiver types + 5 non-unpacked companion checks
 cargo test --manifest-path src/suews_bridge/Cargo.toml --features physics,capi-observer --test capi_field_observer
 
 # Lint-only Clippy and rustdoc checks (no Fortran libraries required)

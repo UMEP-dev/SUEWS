@@ -1178,8 +1178,11 @@ def _native_grid_ids(list_grid_ids: list[int]) -> dict[int, int]:
     return assigned
 
 
+# Fortran kernel fatal errors carry strictly positive codes (ErrorHint /
+# set_supy_error), whereas pre-kernel Rust bridge validation failures in
+# ``suews_bridge/src/sim.rs`` emit ``code -1``.
 _KERNEL_ERROR_RE = re.compile(
-    r"simulation failed \(code (-?\d+)\):\s*(.*)", re.DOTALL
+    r"simulation failed \(code (\d+)\):\s*(.*)", re.DOTALL
 )
 
 
@@ -1197,11 +1200,13 @@ def _translate_bridge_error(
     if isinstance(error, RuntimeError):
         match = _KERNEL_ERROR_RE.search(message)
         if match is not None:
-            return SUEWSKernelError(
-                code=int(match.group(1)),
-                message=match.group(2),
-                full_message=message,
-            )
+            code = int(match.group(1))
+            if code > 0:
+                return SUEWSKernelError(
+                    code=code,
+                    message=match.group(2),
+                    full_message=message,
+                )
     if ids is not None and payloads is not None:
         return type(error)(message)
     return error

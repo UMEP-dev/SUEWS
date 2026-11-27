@@ -445,17 +445,33 @@ def test_simulation_run_kernel_fatal_error_raises_suews_kernel_error(
 def test_non_kernel_bridge_runtime_error_stays_runtime_error(
     sample_config_loaded, sample_forcing_parsed
 ):
-    """Non-kernel bridge failures (e.g. malformed checkpoint JSON) stay plain ``RuntimeError``."""
+    """Non-kernel bridge failures stay plain ``RuntimeError``, including ``code -1`` validation errors."""
     cfg = sample_config_loaded.model_copy(deep=True)
-    _, df_forcing = sample_forcing_parsed(2)
+    _, df_forcing = sample_forcing_parsed(4)
 
-    with pytest.raises(RuntimeError) as exc_info:
+    # 1. Malformed checkpoint envelope JSON (BridgeError::InvalidCheckpointEnvelope)
+    with pytest.raises(RuntimeError) as exc_json:
         _run_rust.run_suews_rust_with_state(
-            cfg, df_forcing, grid_id=1, state_json="{not-valid-json"
+            cfg, df_forcing.iloc[:2], grid_id=1, state_json="{not-valid-json"
         )
+    assert type(exc_json.value) is RuntimeError
+    assert not isinstance(exc_json.value, SUEWSKernelError)
 
-    assert type(exc_info.value) is RuntimeError
-    assert not isinstance(exc_info.value, SUEWSKernelError)
+    # 2. Valid checkpoint with an incompatible timestep (pre-kernel bridge validation, code -1)
+    _, valid_state_json, _ = _run_rust.run_suews_rust(
+        cfg, df_forcing.iloc[:2], grid_id=1
+    )
+    cfg_mismatch = cfg.model_copy(deep=True)
+    cfg_mismatch.model.control.tstep = 600
+    with pytest.raises(RuntimeError, match=r"simulation failed \(code -1\)") as exc_tstep:
+        _run_rust.run_suews_rust_with_state(
+            cfg_mismatch,
+            df_forcing.iloc[2:4],
+            grid_id=1,
+            state_json=valid_state_json,
+        )
+    assert type(exc_tstep.value) is RuntimeError
+    assert not isinstance(exc_tstep.value, SUEWSKernelError)
 
 
 @pytest.mark.parametrize("retired_module", ["supy._run", "supy.cmd.to_yaml"])

@@ -844,7 +844,7 @@ class TestDailyStateOutput:
             sim.run(_validate_forcing=False)
 
     def test_dailystate_grass_albedo_falls_as_lai_rises(
-        self, sample_run_cached, sample_data_loaded
+        self, sample_dailystate_full_year, sample_data_loaded
     ):
         """Grass albedo moves against grass LAI; tree albedo moves with tree LAI.
 
@@ -864,8 +864,7 @@ class TestDailyStateOutput:
         and the full-leaf versus dormant comparison carry the grass check.
         """
         df_state_init, _ = sample_data_loaded
-        df_output, _ = sample_run_cached()
-        df_dailystate = df_output.loc[:, "DailyState"].dropna(how="all")
+        df_dailystate = sample_dailystate_full_year
 
         eps = 1e-9
 
@@ -965,45 +964,47 @@ class TestDailyStateOutput:
             return out.df.loc[:, "DailyState"].dropna(how="all")
 
         lai_span = 5.5 - 0.5
+        n_days = 4
+        expected_transitions = n_days - 1
+        checked_cols = ("LAI_Grass", "AlbGrass", "LAI_DecTr", "AlbDecTr")
 
-        # 1. Spring growth: rising LAI lowers grass albedo and raises deciduous albedo.
-        ds_grow = _run_window("2012-03-01", temp_c=20.0)
-        d_lai_g = ds_grow["LAI_Grass"].diff().dropna()
-        d_alb_g = ds_grow["AlbGrass"].diff().dropna()
-        d_lai_d = ds_grow["LAI_DecTr"].diff().dropna()
-        d_alb_d = ds_grow["AlbDecTr"].diff().dropna()
-        assert (d_lai_g > 0).all(), "expected positive grass LAI growth"
-        assert (d_alb_g < 0).all(), "grass albedo must fall during unclamped growth"
-        np.testing.assert_allclose(
-            d_alb_g.to_numpy(),
-            (0.18 - 0.24) * d_lai_g.to_numpy() / lai_span,
-            atol=1e-12,
-        )
-        assert (d_lai_d > 0).all(), "expected positive DecTr LAI growth"
-        assert (d_alb_d > 0).all(), "DecTr albedo must rise during unclamped growth"
-        np.testing.assert_allclose(
-            d_alb_d.to_numpy(),
-            (0.18 - 0.12) * d_lai_d.to_numpy() / lai_span,
-            atol=1e-12,
-        )
-
-        # 2. Autumn senescence: falling LAI raises grass albedo and lowers deciduous albedo.
-        ds_sen = _run_window("2012-10-01", temp_c=5.0)
-        d_lai_g = ds_sen["LAI_Grass"].diff().dropna()
-        d_alb_g = ds_sen["AlbGrass"].diff().dropna()
-        d_lai_d = ds_sen["LAI_DecTr"].diff().dropna()
-        d_alb_d = ds_sen["AlbDecTr"].diff().dropna()
-        assert (d_lai_g < 0).all(), "expected negative grass LAI senescence"
-        assert (d_alb_g > 0).all(), "grass albedo must rise during unclamped senescence"
-        np.testing.assert_allclose(
-            d_alb_g.to_numpy(),
-            (0.18 - 0.24) * d_lai_g.to_numpy() / lai_span,
-            atol=1e-12,
-        )
-        assert (d_lai_d < 0).all(), "expected negative DecTr LAI senescence"
-        assert (d_alb_d < 0).all(), "DecTr albedo must fall during unclamped senescence"
-        np.testing.assert_allclose(
-            d_alb_d.to_numpy(),
-            (0.18 - 0.12) * d_lai_d.to_numpy() / lai_span,
-            atol=1e-12,
-        )
+        for label, start_date, temp_c, lai_sign in (
+            ("growth", "2012-03-01", 20.0, 1.0),
+            ("senescence", "2012-10-01", 5.0, -1.0),
+        ):
+            ds = _run_window(start_date, temp_c=temp_c)
+            assert len(ds) == n_days, (
+                f"{label}: expected {n_days} daily records, got {len(ds)}"
+            )
+            for col in checked_cols:
+                assert np.isfinite(ds[col]).all(), (
+                    f"{label}: non-finite values in {col}"
+                )
+            d_lai_g = ds["LAI_Grass"].diff().dropna()
+            d_alb_g = ds["AlbGrass"].diff().dropna()
+            d_lai_d = ds["LAI_DecTr"].diff().dropna()
+            d_alb_d = ds["AlbDecTr"].diff().dropna()
+            for series in (d_lai_g, d_alb_g, d_lai_d, d_alb_d):
+                assert len(series) == expected_transitions
+            assert (lai_sign * d_lai_g > 0).all(), (
+                f"{label}: unexpected grass dLAI sign"
+            )
+            assert (lai_sign * d_alb_g < 0).all(), (
+                f"{label}: grass albedo must move opposite to LAI"
+            )
+            np.testing.assert_allclose(
+                d_alb_g.to_numpy(),
+                (0.18 - 0.24) * d_lai_g.to_numpy() / lai_span,
+                atol=1e-12,
+            )
+            assert (lai_sign * d_lai_d > 0).all(), (
+                f"{label}: unexpected DecTr dLAI sign"
+            )
+            assert (lai_sign * d_alb_d > 0).all(), (
+                f"{label}: DecTr albedo must move with LAI"
+            )
+            np.testing.assert_allclose(
+                d_alb_d.to_numpy(),
+                (0.18 - 0.12) * d_lai_d.to_numpy() / lai_span,
+                atol=1e-12,
+            )

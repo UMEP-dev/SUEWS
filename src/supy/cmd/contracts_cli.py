@@ -298,8 +298,13 @@ def export_cmd(
                 started_at=started_at,
             ).emit()
         else:
-            sys.stdout.write(raw_bytes.decode("utf-8"))
-            sys.stdout.flush()
+            stdout_buf = getattr(sys.stdout, "buffer", None)
+            if stdout_buf is not None:
+                stdout_buf.write(raw_bytes)
+                stdout_buf.flush()
+            else:
+                sys.stdout.write(raw_bytes.decode("utf-8"))
+                sys.stdout.flush()
         raise SystemExit(EXIT_OK)
 
     try:

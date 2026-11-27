@@ -205,15 +205,22 @@ output contract release directly through the ``suews contracts`` CLI:
    suews contracts export output --artefact bundle -o ./output-contract
 
 Static site builds materialise deterministic, version-addressed directories
-alongside moving ``latest`` aliases under ``https://suews.io/contracts/``:
+alongside moving ``latest`` aliases for the target GitHub Pages layout under
+``https://suews.io/contracts/`` (workflow deployment to live GitHub Pages is
+pending the companion Pages workflow update; until that workflow change lands,
+build and inspect the same tree locally with ``make contracts-site`` or export
+directly through ``suews contracts``):
 
 - ``https://suews.io/contracts/index.json`` and ``index.html``: top-level
   machine-readable and HTML discovery indices.
 - ``https://suews.io/contracts/forcing/<version>/`` and
   ``https://suews.io/contracts/output/<version>/``: immutable release bundles
   containing ``catalogue.json``, ``catalogue.schema.json`` and
-  ``manifest.json``. Previously published versions are preserved across
-  deployments and never modified in place.
+  ``manifest.json``. Frozen forcing schema and manifest snapshots live under
+  ``src/supy/data_model/contract_artefacts/forcing/<version>/`` alongside the
+  canonical forcing catalogues under ``src/supy/data_model/forcing/artefacts/``.
+  Previously published versions are preserved across deployments and never
+  modified in place.
 - ``https://suews.io/contracts/forcing/latest/`` and
   ``https://suews.io/contracts/output/latest/``: moving aliases that mirror the
   current release bundle byte-for-byte.

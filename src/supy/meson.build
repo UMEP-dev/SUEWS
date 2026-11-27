@@ -220,6 +220,11 @@ install_subdir(
   install_dir: py.get_install_dir() / 'supy/data_model/forcing',
 )
 
+install_subdir(
+  'data_model/contract_artefacts',
+  install_dir: py.get_install_dir() / 'supy/data_model',
+)
+
 knowledge_pack = custom_target(
   'suews_knowledge_pack',
   command: [

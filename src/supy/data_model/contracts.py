@@ -3,7 +3,8 @@
 This module owns the user-facing and site-publication projection of the
 independently versioned forcing and output contracts. Immutable release
 artefacts are loaded from packaged resources under
-``supy.data_model.forcing.artefacts`` and ``supy.data_model.output.artefacts``.
+``supy.data_model.forcing.artefacts``, ``supy.data_model.contract_artefacts``,
+and ``supy.data_model.output.artefacts``.
 """
 
 from __future__ import annotations
@@ -13,14 +14,19 @@ from html import escape as html_escape
 from html.parser import HTMLParser
 import importlib.resources
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import sys
+import tempfile
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
+from referencing import Registry
+from referencing.exceptions import NoSuchResource, Unresolvable
 
 from .forcing.registry import ForcingRegistry
 from .forcing.version import CURRENT_FORCING_VERSION, FORCING_VERSIONS
@@ -49,7 +55,19 @@ ARTEFACT_FILENAMES: dict[ContractArtefact, str] = {
 DEFAULT_BASE_URL = "https://suews.io"
 CONTRACTS_URL_PATH = "contracts"
 JSON_SCHEMA_DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
-_SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+# ASCII, no-leading-zero MAJOR.MINOR.PATCH grammar matching
+# scripts/lint/check_data_interface_version_history.py.
+_SEMVER_RE = re.compile(
+    r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z",
+    re.ASCII,
+)
+
+
+def _forbid_external_ref(uri: str) -> Any:
+    raise NoSuchResource(ref=uri)
+
+
+_OFFLINE_REGISTRY: Registry[Any] = Registry(retrieve=_forbid_external_ref)
 
 
 class ContractError(ValueError):
@@ -79,18 +97,42 @@ def sha256_digest(content: bytes) -> str:
     return f"sha256:{sha256(content).hexdigest()}"
 
 
+def _is_valid_semver(version: str) -> bool:
+    return _SEMVER_RE.fullmatch(version) is not None
+
+
 def _semver_key(version: str) -> tuple[int, int, int]:
-    match = _SEMVER_RE.match(version)
+    match = _SEMVER_RE.fullmatch(version)
     if match is None:
         raise ContractError(f"invalid SemVer version: {version!r}")
     return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
 
 
 def _normalise_base_url(base_url: str) -> str:
-    stripped = base_url.strip().rstrip("/")
+    if not isinstance(base_url, str):
+        raise ContractError("base_url must be a string")
+    stripped = base_url.strip()
     if not stripped:
         raise ContractError("base_url must be a non-empty URL")
-    return stripped
+    if any(ord(ch) < 0x21 or ord(ch) > 0x7E for ch in stripped):
+        raise ContractError(
+            f"base_url must contain only printable ASCII characters without spaces: {base_url!r}"
+        )
+    parsed = urlsplit(stripped)
+    if parsed.scheme not in ("http", "https"):
+        raise ContractError(f"base_url must use http or https scheme: {base_url!r}")
+    if not parsed.netloc or parsed.hostname is None:
+        raise ContractError(f"base_url must include a valid host: {base_url!r}")
+    if parsed.username is not None or parsed.password is not None:
+        raise ContractError(f"base_url must not include credentials: {base_url!r}")
+    if parsed.query or parsed.fragment:
+        raise ContractError(
+            f"base_url must not include a query string or fragment: {base_url!r}"
+        )
+    if "?" in stripped or "#" in stripped:
+        raise ContractError(f"base_url must not include '?' or '#': {base_url!r}")
+    clean_path = parsed.path.rstrip("/")
+    return f"{parsed.scheme}://{parsed.netloc}{clean_path}"
 
 
 def _validate_interface(interface: str) -> ContractInterface:
@@ -103,7 +145,7 @@ def _validate_interface(interface: str) -> ContractInterface:
 
 
 def forcing_contract_json_schema() -> dict[str, Any]:
-    """Return the Draft 2020-12 JSON Schema for the forcing contract catalogue."""
+    """Return the Draft 2020-12 JSON Schema for the current forcing contract."""
     schema = ForcingRegistry.model_json_schema()
     schema["$schema"] = JSON_SCHEMA_DRAFT_2020_12
     schema["title"] = "SUEWS forcing contract catalogue"
@@ -127,8 +169,7 @@ def get_current_contract_version(interface: ContractInterface) -> str:
     return version
 
 
-def _resource_root(interface: ContractInterface):
-    package_name = f"{__package__}.{interface}"
+def _package_resource_root(package_name: str):
     pkg = sys.modules.get(package_name)
     if pkg is not None and getattr(pkg, "__spec__", None) is None:
         paths = list(getattr(pkg, "__path__", ()))
@@ -137,16 +178,25 @@ def _resource_root(interface: ContractInterface):
     return importlib.resources.files(package_name)
 
 
+def _resource_root(interface: ContractInterface):
+    return _package_resource_root(f"{__package__}.{interface}")
+
+
+def _contract_artefacts_root():
+    if not __package__:
+        raise ContractError("contracts module must be loaded within a package")
+    return _package_resource_root(__package__).joinpath("contract_artefacts")
+
+
 def load_contract_bundle_bytes(
     interface: ContractInterface,
     version: str | None = None,
 ) -> tuple[str, dict[str, bytes]]:
-    """Load the canonical three-file bundle for one interface release.
+    """Load and authenticate the canonical three-file bundle for one release.
 
-    Returns
-    -------
-    tuple[str, dict[str, bytes]]
-        ``(resolved_version, {"catalogue.json": ..., "catalogue.schema.json": ..., "manifest.json": ...})``
+    Every returned bundle is verified against its registered digest, its
+    manifest file digests, and its bundled JSON Schema before bytes are
+    returned.
     """
     iface = _validate_interface(interface)
     versions = get_contract_versions(iface)
@@ -159,47 +209,42 @@ def load_contract_bundle_bytes(
 
     expected_digest = versions[resolved]
     root = _resource_root(iface)
+    bundle: dict[str, bytes] = {}
 
     if iface == "forcing":
-        resource = root.joinpath(f"artefacts/{resolved}.json")
-        if not resource.is_file():
+        cat_resource = root.joinpath(f"artefacts/{resolved}.json")
+        if not cat_resource.is_file():
             raise ContractError(
                 f"packaged forcing artefact is missing for version {resolved}"
             )
-        catalogue_bytes = resource.read_bytes()
-        if sha256_digest(catalogue_bytes) != expected_digest:
-            raise ContractError(
-                f"packaged forcing artefact digest mismatch for version {resolved}"
-            )
-        schema_bytes = canonical_json_bytes(forcing_contract_json_schema())
-        manifest_obj = {
-            "files": {
-                "catalogue.json": sha256_digest(catalogue_bytes),
-                "catalogue.schema.json": sha256_digest(schema_bytes),
-            },
-            "interface": "forcing",
-            "version": resolved,
-        }
-        manifest_bytes = canonical_json_bytes(manifest_obj)
-        return resolved, {
-            "catalogue.json": catalogue_bytes,
-            "catalogue.schema.json": schema_bytes,
-            "manifest.json": manifest_bytes,
-        }
+        bundle["catalogue.json"] = cat_resource.read_bytes()
 
-    bundle: dict[str, bytes] = {}
-    for filename in BUNDLE_FILENAMES:
-        resource = root.joinpath(f"artefacts/{resolved}/{filename}")
-        if not resource.is_file():
-            raise ContractError(
-                f"packaged output artefact is missing: {resolved}/{filename}"
-            )
-        bundle[filename] = resource.read_bytes()
+        published_root = _contract_artefacts_root().joinpath(f"forcing/{resolved}")
+        for filename in ("catalogue.schema.json", "manifest.json"):
+            resource = published_root.joinpath(filename)
+            if not resource.is_file():
+                raise ContractError(
+                    f"packaged forcing contract snapshot is missing: {resolved}/{filename}"
+                )
+            bundle[filename] = resource.read_bytes()
+    else:
+        for filename in BUNDLE_FILENAMES:
+            resource = root.joinpath(f"artefacts/{resolved}/{filename}")
+            if not resource.is_file():
+                raise ContractError(
+                    f"packaged output artefact is missing: {resolved}/{filename}"
+                )
+            bundle[filename] = resource.read_bytes()
 
-    if sha256_digest(bundle["manifest.json"]) != expected_digest:
-        raise ContractError(
-            f"packaged output manifest digest mismatch for version {resolved}"
+    try:
+        _validate_bundle_content(
+            iface,
+            resolved,
+            bundle,
+            expected_registry_digest=expected_digest,
         )
+    except ContractPublicationError as exc:
+        raise ContractError(str(exc)) from exc
     return resolved, bundle
 
 
@@ -235,9 +280,8 @@ def get_contract_info(
     for iface in selected:
         versions = get_contract_versions(iface)
         current = get_current_contract_version(iface)
-        entries = []
-        for ver, digest in versions.items():
-            entries.append({
+        entries = [
+            {
                 "version": ver,
                 "digest": digest,
                 "is_current": ver == current,
@@ -245,7 +289,9 @@ def get_contract_info(
                     art: f"{base}/{CONTRACTS_URL_PATH}/{iface}/{ver}/{fname}"
                     for art, fname in ARTEFACT_FILENAMES.items()
                 },
-            })
+            }
+            for ver, digest in versions.items()
+        ]
         interfaces_info[iface] = {
             "interface": iface,
             "current_version": current,
@@ -329,13 +375,12 @@ def _validate_bundle_content(
     *,
     expected_registry_digest: str | None = None,
 ) -> dict[str, Any]:
-    """Validate one release bundle's manifest, digests, and JSON Schema conformance."""
-    errors: list[str] = []
-    for filename in BUNDLE_FILENAMES:
-        if filename not in bundle:
-            errors.append(f"{interface}/{version}: missing {filename}")
-    if errors:
-        raise ContractPublicationError("; ".join(errors))
+    """Validate one release bundle's manifest, digests, and offline JSON Schema."""
+    missing = [name for name in BUNDLE_FILENAMES if name not in bundle]
+    if missing:
+        raise ContractPublicationError(
+            f"{interface}/{version}: missing bundle file(s): {missing}"
+        )
 
     manifest = _read_json_bytes(
         bundle["manifest.json"], f"{interface}/{version}/manifest.json"
@@ -378,23 +423,54 @@ def _validate_bundle_content(
         bundle["catalogue.json"],
         f"{interface}/{version}/catalogue.json",
     )
+    if not isinstance(schema, dict):
+        raise ContractPublicationError(
+            f"{interface}/{version}/catalogue.schema.json: schema must be a JSON object"
+        )
     try:
         Draft202012Validator.check_schema(schema)
-        Draft202012Validator(schema).validate(catalogue)
-    except (SchemaError, ValidationError) as exc:
+        Draft202012Validator(schema, registry=_OFFLINE_REGISTRY).validate(catalogue)
+    except (SchemaError, ValidationError, Unresolvable, NoSuchResource) as exc:
+        detail = getattr(exc, "message", str(exc))
         raise ContractPublicationError(
-            f"{interface}/{version}: catalogue fails schema validation: {exc.message}"
+            f"{interface}/{version}: catalogue fails schema validation: {detail}"
         ) from exc
 
     return manifest
 
 
+def _reject_symlinks_in_tree(directory: Path, label: str) -> None:
+    """Reject a symlink root or any descendant symlink without following links."""
+    if directory.is_symlink():
+        raise ContractPublicationError(f"{label}: refuses symlink target: {directory}")
+    if not directory.is_dir():
+        return
+    for root_str, dirs, files in os.walk(directory, followlinks=False):
+        root_path = Path(root_str)
+        for name in (*dirs, *files):
+            candidate = root_path / name
+            if candidate.is_symlink():
+                raise ContractPublicationError(
+                    f"{label}: refuses symlink inside tree: {candidate}"
+                )
+
+
 def _load_bundle_from_dir(
     release_dir: Path, interface: ContractInterface, version: str
 ) -> dict[str, bytes]:
-    found = {p.name for p in release_dir.iterdir() if p.is_file()}
+    if release_dir.is_symlink():
+        raise ContractPublicationError(
+            f"{interface}/{version}: release directory must not be a symlink"
+        )
+    entries = list(release_dir.iterdir())
+    symlinks = [p.name for p in entries if p.is_symlink()]
+    if symlinks:
+        raise ContractPublicationError(
+            f"{interface}/{version}: release directory contains symlinks: {sorted(symlinks)}"
+        )
+    found = {p.name for p in entries if p.is_file()}
     expected = set(BUNDLE_FILENAMES)
-    extra_dirs = [p.name for p in release_dir.iterdir() if not p.is_file()]
+    extra_dirs = [p.name for p in entries if not p.is_file()]
     if found != expected or extra_dirs:
         raise ContractPublicationError(
             f"{interface}/{version}: directory must contain exactly "
@@ -415,10 +491,16 @@ def _collect_preserved_bundles(
         if not iface_dir.is_dir():
             continue
         for child in sorted(iface_dir.iterdir()):
+            if child.is_symlink():
+                raise ContractPublicationError(
+                    f"{interface}/{child.name}: refuses symlink in preserved source"
+                )
             if not child.is_dir() or child.name == "latest":
                 continue
-            if _SEMVER_RE.match(child.name) is None:
-                continue
+            if not _is_valid_semver(child.name):
+                raise ContractPublicationError(
+                    f"{interface}/{child.name}: invalid release directory name in preserved source"
+                )
             ver = child.name
             bundle = _load_bundle_from_dir(child, interface, ver)
             _validate_bundle_content(
@@ -641,7 +723,7 @@ def _resolve_interface_bundles(
     iface: ContractInterface,
     preserve_sources: list[Path],
 ) -> tuple[dict[str, dict[str, bytes]], list[str]]:
-    """Merge packaged and preserved release bundles while enforcing immutability."""
+    """Merge packaged and preserved release bundles while enforcing strict immutability."""
     packaged_versions = get_contract_versions(iface)
     preserved_bundles = _collect_preserved_bundles(
         iface, preserve_sources, packaged_versions
@@ -652,23 +734,11 @@ def _resolve_interface_bundles(
     for ver in packaged_versions:
         _, packaged_bundle = load_contract_bundle_bytes(iface, version=ver)
         existing = preserved_bundles.get(ver)
-        if existing is None:
-            final_bundles[ver] = packaged_bundle
-            continue
-        if iface == "output":
-            if existing != packaged_bundle:
-                raise ContractPublicationError(
-                    f"output/{ver}: refusing to overwrite differing published bundle"
-                )
-            final_bundles[ver] = packaged_bundle
-        else:
-            if existing["catalogue.json"] != packaged_bundle["catalogue.json"]:
-                raise ContractPublicationError(
-                    f"forcing/{ver}: refusing to overwrite differing catalogue.json"
-                )
-            # Keep already-published schema and manifest bytes intact so
-            # previously deployed versioned URLs never drift.
-            final_bundles[ver] = existing
+        if existing is not None and existing != packaged_bundle:
+            raise ContractPublicationError(
+                f"{iface}/{ver}: refusing to overwrite differing published bundle"
+            )
+        final_bundles[ver] = packaged_bundle
 
     for ver, bundle in preserved_bundles.items():
         if ver not in final_bundles:
@@ -678,19 +748,19 @@ def _resolve_interface_bundles(
     return final_bundles, sorted(preserved_only, key=_semver_key)
 
 
-def _publish_interface_dir(
+def _write_interface_dir(
     iface: ContractInterface,
-    output_dir: Path,
+    staging_dir: Path,
     base: str,
-    preserve_sources: list[Path],
-) -> tuple[dict[str, Any], list[str]]:
-    """Materialise one interface's versioned bundles, ``latest`` mirror, and indices."""
+    final_bundles: dict[str, dict[str, bytes]],
+    preserved_only: list[str],
+) -> dict[str, Any]:
+    """Write one interface's versioned bundles, ``latest`` mirror, and indices."""
     current_version = get_current_contract_version(iface)
-    final_bundles, preserved_only = _resolve_interface_bundles(iface, preserve_sources)
     preserved_set = set(preserved_only)
     ordered_versions = sorted(final_bundles, key=_semver_key)
 
-    iface_dir = output_dir / iface
+    iface_dir = staging_dir / iface
     iface_dir.mkdir(parents=True, exist_ok=True)
 
     version_entries: list[dict[str, Any]] = []
@@ -724,8 +794,6 @@ def _publish_interface_dir(
         })
 
     latest_dir = iface_dir / "latest"
-    if latest_dir.exists():
-        shutil.rmtree(latest_dir)
     latest_dir.mkdir(parents=True, exist_ok=True)
     current_bundle = final_bundles[current_version]
     for filename in BUNDLE_FILENAMES:
@@ -758,7 +826,7 @@ def _publish_interface_dir(
         encoding="ascii",
     )
 
-    root_entry = {
+    return {
         "interface": iface,
         "current_version": current_version,
         "version_count": len(version_entries),
@@ -775,7 +843,61 @@ def _publish_interface_dir(
         },
         "versions": [entry["version"] for entry in version_entries],
     }
-    return root_entry, preserved_only
+
+
+def _collect_preserve_sources(
+    output_dir: Path, preserve_from: Path | None
+) -> list[Path]:
+    preserve_sources: list[Path] = []
+    if preserve_from is not None:
+        preserve_path = Path(preserve_from)
+        _reject_symlinks_in_tree(preserve_path, "preserve_from")
+        if not preserve_path.is_dir():
+            raise ContractPublicationError(
+                f"preserve_from directory does not exist: {preserve_path}"
+            )
+        missing_ifaces = [
+            iface
+            for iface in CONTRACT_INTERFACES
+            if not (preserve_path / iface).is_dir()
+        ]
+        if missing_ifaces:
+            raise ContractPublicationError(
+                "preserve_from must be a contracts root containing "
+                f"{', '.join(CONTRACT_INTERFACES)} directories "
+                f"(missing {missing_ifaces} in {preserve_path})"
+            )
+        preserve_sources.append(preserve_path)
+
+    _reject_symlinks_in_tree(output_dir, "output_dir")
+    if output_dir.exists() and not output_dir.is_dir():
+        raise ContractPublicationError(
+            f"output_dir exists and is not a directory: {output_dir}"
+        )
+    if output_dir.is_dir():
+        resolved_out = output_dir.resolve()
+        if all(src.resolve() != resolved_out for src in preserve_sources):
+            preserve_sources.append(output_dir)
+    return preserve_sources
+
+
+def _commit_staged_dir(staging_dir: Path, output_dir: Path) -> None:
+    """Replace ``output_dir`` with ``staging_dir`` atomically with rollback."""
+    if not output_dir.exists():
+        staging_dir.rename(output_dir)
+        return
+    backup_dir = Path(
+        tempfile.mkdtemp(prefix=f".{output_dir.name}.backup-", dir=output_dir.parent)
+    )
+    backup_dir.rmdir()
+    output_dir.rename(backup_dir)
+    try:
+        staging_dir.rename(output_dir)
+    except Exception:
+        if backup_dir.exists() and not output_dir.exists():
+            backup_dir.rename(output_dir)
+        raise
+    shutil.rmtree(backup_dir)
 
 
 def publish_contracts_site(
@@ -787,49 +909,57 @@ def publish_contracts_site(
 ) -> dict[str, Any]:
     """Materialise versioned and ``latest`` forcing and output contract artefacts.
 
-    Existing version-addressed bundles found in ``preserve_from`` or ``output_dir``
-    are checked for byte-level immutability and carried forward so previously
-    published versions remain retrievable after new releases.
+    All preservation checks, bundle authentication, staging writes, and
+    validation complete before ``output_dir`` is updated, so a failed run
+    leaves any existing destination tree unchanged.
     """
     base = _normalise_base_url(base_url)
     output_dir = Path(output_dir)
+    preserve_sources = _collect_preserve_sources(output_dir, preserve_from)
 
-    preserve_sources: list[Path] = []
-    if preserve_from is not None:
-        preserve_path = Path(preserve_from)
-        if not preserve_path.is_dir():
-            raise ContractPublicationError(
-                f"preserve_from directory does not exist: {preserve_path}"
-            )
-        preserve_sources.append(preserve_path)
-    if output_dir.is_dir():
-        resolved_out = output_dir.resolve()
-        if all(src.resolve() != resolved_out for src in preserve_sources):
-            preserve_sources.append(output_dir)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    root_interfaces: dict[str, Any] = {}
-    preserved_summary: dict[str, list[str]] = {}
-
+    # Resolve and authenticate BOTH interfaces before mutating anything on disk.
+    resolved_bundles: dict[ContractInterface, dict[str, dict[str, bytes]]] = {}
+    preserved_summary: dict[ContractInterface, list[str]] = {}
     for iface in CONTRACT_INTERFACES:
-        root_interfaces[iface], preserved_summary[iface] = _publish_interface_dir(
-            iface, output_dir, base, preserve_sources
+        resolved_bundles[iface], preserved_summary[iface] = _resolve_interface_bundles(
+            iface, preserve_sources
         )
 
-    root_index = {
-        "base_url": base,
-        "contracts_url": f"{base}/{CONTRACTS_URL_PATH}/",
-        "interfaces": root_interfaces,
-    }
-    (output_dir / "index.json").write_bytes(canonical_json_bytes(root_index))
-    (output_dir / "index.html").write_text(
-        _render_root_index_html(root_index),
-        encoding="ascii",
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging_dir = Path(
+        tempfile.mkdtemp(prefix=f".{output_dir.name}.staging-", dir=output_dir.parent)
     )
+    try:
+        root_interfaces: dict[str, Any] = {}
+        for iface in CONTRACT_INTERFACES:
+            root_interfaces[iface] = _write_interface_dir(
+                iface,
+                staging_dir,
+                base,
+                resolved_bundles[iface],
+                preserved_summary[iface],
+            )
 
-    validation_report: dict[str, Any] | None = None
-    if validate:
-        validation_report = validate_published_contracts(output_dir, base_url=base)
+        root_index = {
+            "base_url": base,
+            "contracts_url": f"{base}/{CONTRACTS_URL_PATH}/",
+            "interfaces": root_interfaces,
+        }
+        (staging_dir / "index.json").write_bytes(canonical_json_bytes(root_index))
+        (staging_dir / "index.html").write_text(
+            _render_root_index_html(root_index),
+            encoding="ascii",
+        )
+
+        validation_report: dict[str, Any] | None = None
+        if validate:
+            validation_report = validate_published_contracts(staging_dir, base_url=base)
+            validation_report["contracts_dir"] = str(output_dir)
+
+        _commit_staged_dir(staging_dir, output_dir)
+    finally:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
 
     return {
         "output_dir": str(output_dir),
@@ -916,69 +1046,198 @@ def _load_json_object_file(path: Path, label: str, errors: list[str]) -> dict[st
     return parsed
 
 
+def _read_html_hrefs(path: Path, label: str, errors: list[str]) -> list[str] | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        errors.append(f"{label}: cannot decode HTML as UTF-8: {exc}")
+        return None
+    collector = _HrefCollector()
+    collector.feed(text)
+    return collector.hrefs
+
+
+def _validate_mapping_exact(
+    actual: Any,
+    expected: dict[str, str],
+    context: str,
+    errors: list[str],
+) -> None:
+    if not isinstance(actual, dict):
+        errors.append(f"{context}: expected object, got {type(actual).__name__}")
+        return
+    if actual != expected:
+        errors.append(f"{context}: expected {expected!r}, got {actual!r}")
+
+
 def _validate_root_interface_entry(
     root: Path,
     iface: ContractInterface,
     root_ifaces: dict[str, Any],
+    effective_base: str | None,
+    expected_versions: list[str],
+    current_version: str,
     errors: list[str],
 ) -> None:
-    if iface not in root_ifaces:
-        errors.append(f"index.json: missing interface entry for {iface!r}")
+    entry = root_ifaces.get(iface)
+    if not isinstance(entry, dict):
+        errors.append(f"index.json: missing or invalid interface entry for {iface!r}")
         return
-    entry = root_ifaces[iface]
-    for key in ("index_path", "html_path"):
-        if isinstance(entry, dict) and isinstance(entry.get(key), str):
-            _check_relative_path(
-                root, entry[key], root, f"index.json[{iface}].{key}", errors
+
+    if entry.get("interface") != iface:
+        errors.append(
+            f"index.json[{iface}]: interface expected {iface!r}, got {entry.get('interface')!r}"
+        )
+    if entry.get("current_version") != current_version:
+        errors.append(
+            f"index.json[{iface}]: current_version expected {current_version!r}, "
+            f"got {entry.get('current_version')!r}"
+        )
+    if entry.get("version_count") != len(expected_versions):
+        errors.append(
+            f"index.json[{iface}]: version_count expected {len(expected_versions)}, "
+            f"got {entry.get('version_count')!r}"
+        )
+    if entry.get("versions") != expected_versions:
+        errors.append(
+            f"index.json[{iface}]: versions expected {expected_versions!r}, "
+            f"got {entry.get('versions')!r}"
+        )
+
+    expected_paths = {
+        "index_path": f"{iface}/index.json",
+        "html_path": f"{iface}/index.html",
+    }
+    for key, expected_rel in expected_paths.items():
+        actual_rel = entry.get(key)
+        if actual_rel != expected_rel:
+            errors.append(
+                f"index.json[{iface}].{key}: expected {expected_rel!r}, got {actual_rel!r}"
             )
         else:
-            errors.append(f"index.json[{iface}]: missing {key}")
-    latest_paths = entry.get("latest_paths", {}) if isinstance(entry, dict) else {}
-    for art in ARTEFACT_FILENAMES:
-        rel = latest_paths.get(art)
-        if isinstance(rel, str):
             _check_relative_path(
-                root, rel, root, f"index.json[{iface}].latest_paths.{art}", errors
+                root, actual_rel, root, f"index.json[{iface}].{key}", errors
             )
-        else:
-            errors.append(f"index.json[{iface}]: missing latest_paths.{art}")
+
+    expected_latest_paths = {
+        art: f"{iface}/latest/{fname}" for art, fname in ARTEFACT_FILENAMES.items()
+    }
+    _validate_mapping_exact(
+        entry.get("latest_paths"),
+        expected_latest_paths,
+        f"index.json[{iface}].latest_paths",
+        errors,
+    )
+    if isinstance(entry.get("latest_paths"), dict):
+        for art, rel in entry["latest_paths"].items():
+            if isinstance(rel, str):
+                _check_relative_path(
+                    root, rel, root, f"index.json[{iface}].latest_paths.{art}", errors
+                )
+
+    if effective_base is not None:
+        if (
+            entry.get("index_url")
+            != f"{effective_base}/{CONTRACTS_URL_PATH}/{iface}/index.json"
+        ):
+            errors.append(
+                f"index.json[{iface}].index_url mismatch: {entry.get('index_url')!r}"
+            )
+        if (
+            entry.get("html_url")
+            != f"{effective_base}/{CONTRACTS_URL_PATH}/{iface}/index.html"
+        ):
+            errors.append(
+                f"index.json[{iface}].html_url mismatch: {entry.get('html_url')!r}"
+            )
+        expected_latest_urls = {
+            art: f"{effective_base}/{CONTRACTS_URL_PATH}/{iface}/latest/{fname}"
+            for art, fname in ARTEFACT_FILENAMES.items()
+        }
+        _validate_mapping_exact(
+            entry.get("latest_urls"),
+            expected_latest_urls,
+            f"index.json[{iface}].latest_urls",
+            errors,
+        )
 
 
-def _validate_version_entry_links(
+def _validate_version_entry(
     root: Path,
     iface_dir: Path,
     iface: ContractInterface,
     ver: str,
+    current_version: str,
+    bundle: dict[str, bytes],
     idx_entry: dict[str, Any],
-    expected_base: str | None,
+    effective_base: str | None,
     errors: list[str],
 ) -> None:
-    paths = idx_entry.get("paths", {})
-    urls = idx_entry.get("urls", {})
-    for art, fname in ARTEFACT_FILENAMES.items():
-        rel = paths.get(art)
-        if rel != f"{ver}/{fname}":
-            errors.append(
-                f"{iface}/index.json[{ver}]: paths.{art} expected "
-                f"{ver}/{fname!r}, got {rel!r}"
-            )
-        else:
-            _check_relative_path(
-                iface_dir, rel, root, f"{iface}/index.json[{ver}].{art}", errors
-            )
-        if expected_base is not None:
-            expected_url = f"{expected_base}/{CONTRACTS_URL_PATH}/{iface}/{ver}/{fname}"
-            if urls.get(art) != expected_url:
-                errors.append(
-                    f"{iface}/index.json[{ver}]: urls.{art} expected "
-                    f"{expected_url!r}, got {urls.get(art)!r}"
+    expected_digests = {name: sha256_digest(bundle[name]) for name in BUNDLE_FILENAMES}
+    expected_contract_digest = (
+        expected_digests["catalogue.json"]
+        if iface == "forcing"
+        else expected_digests["manifest.json"]
+    )
+    if idx_entry.get("is_current") is not (ver == current_version):
+        errors.append(
+            f"{iface}/index.json[{ver}]: is_current expected {ver == current_version!r}, "
+            f"got {idx_entry.get('is_current')!r}"
+        )
+    if not isinstance(idx_entry.get("preserved"), bool):
+        errors.append(f"{iface}/index.json[{ver}]: preserved must be a boolean")
+    if idx_entry.get("contract_digest") != expected_contract_digest:
+        errors.append(
+            f"{iface}/index.json[{ver}]: contract_digest mismatch "
+            f"(expected {expected_contract_digest!r}, got {idx_entry.get('contract_digest')!r})"
+        )
+    if idx_entry.get("manifest_digest") != expected_digests["manifest.json"]:
+        errors.append(
+            f"{iface}/index.json[{ver}]: manifest_digest mismatch "
+            f"(expected {expected_digests['manifest.json']!r}, got {idx_entry.get('manifest_digest')!r})"
+        )
+    _validate_mapping_exact(
+        idx_entry.get("digests"),
+        expected_digests,
+        f"{iface}/index.json[{ver}].digests",
+        errors,
+    )
+
+    expected_paths = {
+        art: f"{ver}/{fname}" for art, fname in ARTEFACT_FILENAMES.items()
+    }
+    _validate_mapping_exact(
+        idx_entry.get("paths"),
+        expected_paths,
+        f"{iface}/index.json[{ver}].paths",
+        errors,
+    )
+    if isinstance(idx_entry.get("paths"), dict):
+        for art, rel in idx_entry["paths"].items():
+            if isinstance(rel, str):
+                _check_relative_path(
+                    iface_dir, rel, root, f"{iface}/index.json[{ver}].{art}", errors
                 )
 
+    if effective_base is not None:
+        expected_urls = {
+            art: f"{effective_base}/{CONTRACTS_URL_PATH}/{iface}/{ver}/{fname}"
+            for art, fname in ARTEFACT_FILENAMES.items()
+        }
+        _validate_mapping_exact(
+            idx_entry.get("urls"),
+            expected_urls,
+            f"{iface}/index.json[{ver}].urls",
+            errors,
+        )
 
-def _validate_latest_parity(
+
+def _validate_latest_section(
     iface_dir: Path,
     iface: ContractInterface,
     current_version: str,
+    iface_index: dict[str, Any],
+    effective_base: str | None,
     errors: list[str],
 ) -> None:
     latest_dir = iface_dir / "latest"
@@ -994,6 +1253,7 @@ def _validate_latest_parity(
     except ContractPublicationError as exc:
         errors.append(str(exc))
         return
+
     for filename in BUNDLE_FILENAMES:
         if latest_bundle[filename] != current_bundle[filename]:
             errors.append(
@@ -1001,31 +1261,103 @@ def _validate_latest_parity(
                 f"{iface}/{current_version}/{filename}"
             )
 
+    latest_meta = iface_index.get("latest")
+    if not isinstance(latest_meta, dict):
+        errors.append(f"{iface}/index.json: missing or invalid 'latest' object")
+        return
+    if latest_meta.get("version") != current_version:
+        errors.append(
+            f"{iface}/index.json: latest.version expected {current_version!r}, "
+            f"got {latest_meta.get('version')!r}"
+        )
+    expected_digests = {
+        name: sha256_digest(latest_bundle[name]) for name in BUNDLE_FILENAMES
+    }
+    _validate_mapping_exact(
+        latest_meta.get("digests"),
+        expected_digests,
+        f"{iface}/index.json.latest.digests",
+        errors,
+    )
+    expected_paths = {
+        art: f"latest/{fname}" for art, fname in ARTEFACT_FILENAMES.items()
+    }
+    _validate_mapping_exact(
+        latest_meta.get("paths"),
+        expected_paths,
+        f"{iface}/index.json.latest.paths",
+        errors,
+    )
+    if effective_base is not None:
+        expected_urls = {
+            art: f"{effective_base}/{CONTRACTS_URL_PATH}/{iface}/latest/{fname}"
+            for art, fname in ARTEFACT_FILENAMES.items()
+        }
+        _validate_mapping_exact(
+            latest_meta.get("urls"),
+            expected_urls,
+            f"{iface}/index.json.latest.urls",
+            errors,
+        )
+
 
 def _validate_interface_html_coverage(
     iface_html_path: Path,
     iface: ContractInterface,
-    valid_dir_versions: set[str],
+    ordered_versions: list[str],
     errors: list[str],
 ) -> None:
     if not iface_html_path.is_file():
         errors.append(f"{iface}/index.html: missing")
         return
-    collector = _HrefCollector()
-    collector.feed(iface_html_path.read_text(encoding="utf-8"))
-    href_set = set(collector.hrefs)
+    hrefs = _read_html_hrefs(iface_html_path, f"{iface}/index.html", errors)
+    if hrefs is None:
+        return
+    href_set = set(hrefs)
     for fname in BUNDLE_FILENAMES:
         if f"latest/{fname}" not in href_set:
             errors.append(f"{iface}/index.html: missing link to latest/{fname}")
-    for ver in sorted(valid_dir_versions, key=_semver_key):
+    for ver in ordered_versions:
         if f"{ver}/catalogue.json" not in href_set:
             errors.append(f"{iface}/index.html: missing link to {ver}/catalogue.json")
+
+
+def _parse_indexed_versions(
+    iface: ContractInterface,
+    iface_index: dict[str, Any],
+    ordered_versions: list[str],
+    errors: list[str],
+) -> dict[str, dict[str, Any]]:
+    raw_versions = iface_index.get("versions")
+    if not isinstance(raw_versions, list):
+        errors.append(f"{iface}/index.json: 'versions' must be a list")
+        return {}
+    indexed: dict[str, dict[str, Any]] = {}
+    seen_order: list[str] = []
+    for pos, item in enumerate(raw_versions):
+        if not isinstance(item, dict) or not isinstance(item.get("version"), str):
+            errors.append(
+                f"{iface}/index.json: versions[{pos}] must be an object with string 'version'"
+            )
+            continue
+        ver = item["version"]
+        if ver in indexed:
+            errors.append(f"{iface}/index.json: duplicate version entry {ver!r}")
+            continue
+        indexed[ver] = item
+        seen_order.append(ver)
+    if seen_order != ordered_versions:
+        errors.append(
+            f"{iface}/index.json: versions list {seen_order!r} does not match "
+            f"version directories {ordered_versions!r}"
+        )
+    return indexed
 
 
 def _validate_interface_dir(
     root: Path,
     iface: ContractInterface,
-    expected_base: str | None,
+    effective_base: str | None,
     errors: list[str],
 ) -> list[str]:
     """Validate one interface directory, its index, bundles, latest mirror, and links."""
@@ -1039,44 +1371,54 @@ def _validate_interface_dir(
     iface_index = _load_json_object_file(
         iface_dir / "index.json", f"{iface}/index.json", errors
     )
-    if iface_index and iface_index.get("current_version") != current_version:
-        errors.append(
-            f"{iface}/index.json: current_version {iface_index.get('current_version')!r} "
-            f"does not match {current_version!r}"
-        )
+    if iface_index:
+        if iface_index.get("interface") != iface:
+            errors.append(
+                f"{iface}/index.json: interface expected {iface!r}, "
+                f"got {iface_index.get('interface')!r}"
+            )
+        if effective_base is not None and iface_index.get("base_url") != effective_base:
+            errors.append(
+                f"{iface}/index.json: base_url expected {effective_base!r}, "
+                f"got {iface_index.get('base_url')!r}"
+            )
+        if iface_index.get("current_version") != current_version:
+            errors.append(
+                f"{iface}/index.json: current_version {iface_index.get('current_version')!r} "
+                f"does not match {current_version!r}"
+            )
 
     dir_versions = {
         child.name
         for child in iface_dir.iterdir()
         if child.is_dir() and child.name != "latest"
     }
-    invalid_names = sorted(n for n in dir_versions if _SEMVER_RE.match(n) is None)
+    invalid_names = sorted(n for n in dir_versions if not _is_valid_semver(n))
     if invalid_names:
         errors.append(
             f"{iface}/: unexpected non-SemVer subdirectories: {invalid_names}"
         )
 
-    valid_versions = {n for n in dir_versions if _SEMVER_RE.match(n) is not None}
+    valid_versions = {n for n in dir_versions if _is_valid_semver(n)}
+    ordered_versions = sorted(valid_versions, key=_semver_key)
     missing = sorted(set(packaged_versions) - valid_versions)
     if missing:
         errors.append(f"{iface}/: missing registered version directories: {missing}")
 
-    indexed: dict[str, dict[str, Any]] = {}
-    for item in (
-        iface_index.get("versions", [])
-        if isinstance(iface_index.get("versions"), list)
-        else []
-    ):
-        if isinstance(item, dict) and isinstance(item.get("version"), str):
-            indexed[item["version"]] = item
-    if set(indexed) != valid_versions:
+    if iface_index and iface_index.get("version_count") != len(ordered_versions):
         errors.append(
-            f"{iface}/index.json: indexed versions {sorted(indexed)} "
-            f"do not match version directories {sorted(valid_versions)}"
+            f"{iface}/index.json: version_count expected {len(ordered_versions)}, "
+            f"got {iface_index.get('version_count')!r}"
         )
 
+    indexed = (
+        _parse_indexed_versions(iface, iface_index, ordered_versions, errors)
+        if iface_index
+        else {}
+    )
+
     checked: list[str] = []
-    for ver in sorted(valid_versions, key=_semver_key):
+    for ver in ordered_versions:
         try:
             bundle = _load_bundle_from_dir(iface_dir / ver, iface, ver)
             _validate_bundle_content(
@@ -1085,14 +1427,25 @@ def _validate_interface_dir(
             checked.append(ver)
         except ContractPublicationError as exc:
             errors.append(str(exc))
+            continue
         if ver in indexed:
-            _validate_version_entry_links(
-                root, iface_dir, iface, ver, indexed[ver], expected_base, errors
+            _validate_version_entry(
+                root,
+                iface_dir,
+                iface,
+                ver,
+                current_version,
+                bundle,
+                indexed[ver],
+                effective_base,
+                errors,
             )
 
-    _validate_latest_parity(iface_dir, iface, current_version, errors)
+    _validate_latest_section(
+        iface_dir, iface, current_version, iface_index, effective_base, errors
+    )
     _validate_interface_html_coverage(
-        iface_dir / "index.html", iface, valid_versions, errors
+        iface_dir / "index.html", iface, ordered_versions, errors
     )
     return checked
 
@@ -1103,9 +1456,10 @@ def _validate_all_html_links(root: Path, errors: list[str]) -> tuple[int, int]:
     for html_path in html_files:
         rel_html = html_path.relative_to(root).as_posix()
         _check_ascii_file(html_path, rel_html, errors)
-        collector = _HrefCollector()
-        collector.feed(html_path.read_text(encoding="utf-8"))
-        for href in collector.hrefs:
+        hrefs = _read_html_hrefs(html_path, rel_html, errors)
+        if hrefs is None:
+            continue
+        for href in hrefs:
             if href.startswith(("http://", "https://", "mailto:", "#")):
                 continue
             target_rel = href.split("#", 1)[0].split("?", 1)[0]
@@ -1118,38 +1472,86 @@ def _validate_all_html_links(root: Path, errors: list[str]) -> tuple[int, int]:
     return len(html_files), checked_links
 
 
-def validate_published_contracts(
-    contracts_dir: Path,
-    *,
-    base_url: str | None = None,
-) -> dict[str, Any]:
-    """Validate a built contracts directory for schema, digest, and link integrity."""
-    root = Path(contracts_dir)
-    if not root.is_dir():
-        raise ContractPublicationError(f"contracts directory does not exist: {root}")
-
+def _resolve_validation_base_url(
+    root_index: dict[str, Any],
+    base_url: str | None,
+    errors: list[str],
+) -> str | None:
     expected_base = _normalise_base_url(base_url) if base_url is not None else None
-    errors: list[str] = []
-
-    if not (root / "index.html").is_file():
-        errors.append("missing top-level index.html")
-    root_index = _load_json_object_file(root / "index.json", "index.json", errors)
-    if expected_base is not None and root_index:
-        expected_contracts_url = f"{expected_base}/{CONTRACTS_URL_PATH}/"
+    recorded = root_index.get("base_url") if root_index else None
+    effective_base = expected_base
+    if root_index:
+        if not isinstance(recorded, str):
+            errors.append("index.json: missing or non-string base_url")
+        else:
+            try:
+                normalised_recorded = _normalise_base_url(recorded)
+            except ContractError as exc:
+                errors.append(f"index.json: invalid base_url: {exc}")
+                normalised_recorded = None
+            if normalised_recorded is not None:
+                if recorded != normalised_recorded:
+                    errors.append(
+                        f"index.json: base_url {recorded!r} is not normalised "
+                        f"({normalised_recorded!r})"
+                    )
+                if expected_base is not None and normalised_recorded != expected_base:
+                    errors.append(
+                        f"index.json: base_url {recorded!r} does not match {expected_base!r}"
+                    )
+                if effective_base is None:
+                    effective_base = normalised_recorded
+    if effective_base is not None and root_index:
+        expected_contracts_url = f"{effective_base}/{CONTRACTS_URL_PATH}/"
         if root_index.get("contracts_url") != expected_contracts_url:
             errors.append(
                 f"index.json: contracts_url {root_index.get('contracts_url')!r} "
                 f"does not match {expected_contracts_url!r}"
             )
+    return effective_base
 
-    root_ifaces = (
-        root_index.get("interfaces", {}) if isinstance(root_index, dict) else {}
-    )
+
+def validate_published_contracts(
+    contracts_dir: Path,
+    *,
+    base_url: str | None = None,
+) -> dict[str, Any]:
+    """Validate a built contracts directory for schema, digest, metadata, and link integrity."""
+    root = Path(contracts_dir)
+    _reject_symlinks_in_tree(root, "contracts_dir")
+    if not root.is_dir():
+        raise ContractPublicationError(f"contracts directory does not exist: {root}")
+
+    errors: list[str] = []
+    if not (root / "index.html").is_file():
+        errors.append("missing top-level index.html")
+    root_index = _load_json_object_file(root / "index.json", "index.json", errors)
+    effective_base = _resolve_validation_base_url(root_index, base_url, errors)
+
+    raw_root_ifaces = root_index.get("interfaces") if root_index else None
+    if isinstance(raw_root_ifaces, dict):
+        root_ifaces = raw_root_ifaces
+        extra_ifaces = sorted(set(root_ifaces) - set(CONTRACT_INTERFACES))
+        if extra_ifaces:
+            errors.append(f"index.json: unexpected interface entries: {extra_ifaces}")
+    else:
+        if root_index:
+            errors.append("index.json: 'interfaces' must be a JSON object")
+        root_ifaces = {}
+
     checked_versions: dict[str, list[str]] = {}
     for iface in CONTRACT_INTERFACES:
-        _validate_root_interface_entry(root, iface, root_ifaces, errors)
         checked_versions[iface] = _validate_interface_dir(
-            root, iface, expected_base, errors
+            root, iface, effective_base, errors
+        )
+        _validate_root_interface_entry(
+            root,
+            iface,
+            root_ifaces,
+            effective_base,
+            checked_versions[iface],
+            get_current_contract_version(iface),
+            errors,
         )
 
     html_count, checked_links = _validate_all_html_links(root, errors)

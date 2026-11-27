@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Build and validate the static SUEWS data-contracts site tree.
 
-Delegates to ``supy.data_model.contracts`` as the single source of truth.
-When run from a source checkout without a compiled ``supy`` installation (for
-example in lightweight CI jobs), loads the pure-Python contract package
-directly from ``src/supy/data_model``.
+Always loads ``src/supy/data_model/contracts.py`` directly from this checkout
+so local and CI publication cannot silently pick up an older installed ``supy``
+package.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from types import ModuleType
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_MODEL_ROOT = PROJECT_ROOT / "src/supy/data_model"
-_STANDALONE_PACKAGE = "_suews_contracts_standalone"
+_CHECKOUT_PACKAGE = "_suews_contracts_checkout"
 
 
 def _register_namespace_package(name: str, directory: Path) -> ModuleType:
@@ -32,21 +31,16 @@ def _register_namespace_package(name: str, directory: Path) -> ModuleType:
     return module
 
 
-def _load_contracts_module(*, force_standalone: bool = False) -> ModuleType:
-    if not force_standalone:
-        try:
-            return importlib.import_module("supy.data_model.contracts")
-        except ImportError:
-            pass
-
-    _register_namespace_package(_STANDALONE_PACKAGE, _DATA_MODEL_ROOT)
+def _load_contracts_module() -> ModuleType:
+    """Load the checkout-local ``contracts`` module deterministically."""
+    _register_namespace_package(_CHECKOUT_PACKAGE, _DATA_MODEL_ROOT)
     _register_namespace_package(
-        f"{_STANDALONE_PACKAGE}.forcing", _DATA_MODEL_ROOT / "forcing"
+        f"{_CHECKOUT_PACKAGE}.forcing", _DATA_MODEL_ROOT / "forcing"
     )
     _register_namespace_package(
-        f"{_STANDALONE_PACKAGE}.output", _DATA_MODEL_ROOT / "output"
+        f"{_CHECKOUT_PACKAGE}.output", _DATA_MODEL_ROOT / "output"
     )
-    return importlib.import_module(f"{_STANDALONE_PACKAGE}.contracts")
+    return importlib.import_module(f"{_CHECKOUT_PACKAGE}.contracts")
 
 
 def main(argv: list[str] | None = None) -> int:

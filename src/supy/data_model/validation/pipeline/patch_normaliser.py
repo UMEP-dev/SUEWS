@@ -83,10 +83,12 @@ def _complex_strict_equal(left: Any, right: Any) -> bool:
     )
 
 
-def _float_arrays_sign_equal(
+def _real_float_arrays_strict_equal(
     left: np.ndarray[Any, Any], right: np.ndarray[Any, Any]
 ) -> bool:
-    """Compare sign bits for all non-NaN elements of two real floating arrays."""
+    """Compare two real floating arrays strictly by NaN positions, values, and zero sign."""
+    if not bool(np.array_equal(left, right, equal_nan=True)):
+        return False
     non_nan = ~np.isnan(left)
     return bool(np.array_equal(np.signbit(left)[non_nan], np.signbit(right)[non_nan]))
 
@@ -104,15 +106,11 @@ def _arrays_strict_equal(
             _arrays_strict_equal(left[name], right[name]) for name in left.dtype.names
         )
     if np.issubdtype(left.dtype, np.floating):
-        return bool(np.array_equal(left, right, equal_nan=True)) and (
-            _float_arrays_sign_equal(left, right)
-        )
+        return _real_float_arrays_strict_equal(left, right)
     if np.issubdtype(left.dtype, np.complexfloating):
-        return (
-            bool(np.array_equal(left, right, equal_nan=True))
-            and _float_arrays_sign_equal(left.real, right.real)
-            and _float_arrays_sign_equal(left.imag, right.imag)
-        )
+        return _real_float_arrays_strict_equal(
+            left.real, right.real
+        ) and _real_float_arrays_strict_equal(left.imag, right.imag)
     return bool(np.array_equal(left, right))
 
 

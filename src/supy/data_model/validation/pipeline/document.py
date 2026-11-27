@@ -466,6 +466,28 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
         raise TypeError(f"Cannot delete read-only sequence attribute {name!r}")
 
 
+def _copy_numpy_payload(value: np.ndarray[Any, Any] | np.void) -> Any:
+    """Copy a NumPy array or structured scalar while detaching its mutable ``dtype``."""
+    detached_dtype = deepcopy(value.dtype)
+    if isinstance(value, np.ndarray):
+        if value.dtype.hasobject:
+            out_arr: np.ndarray[Any, Any] = np.empty(value.shape, dtype=detached_dtype)
+            for idx, item in enumerate(value.flat):
+                out_arr.flat[idx] = _copy_payload(item)
+            return out_arr
+        out_arr = np.empty(value.shape, dtype=detached_dtype)
+        np.copyto(out_arr, value, casting="unsafe")
+        return out_arr
+    if value.dtype.names and value.dtype.hasobject:
+        detached_fields = tuple(
+            _copy_payload(value[name]) for name in value.dtype.names
+        )
+        return np.array([detached_fields], dtype=detached_dtype)[0]
+    arr_tmp: np.ndarray[Any, Any] = np.empty((), dtype=detached_dtype)
+    arr_tmp[()] = value
+    return arr_tmp[()]
+
+
 def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
     if value is None or type(value) in {bool, int, float, str, bytes}:
@@ -480,6 +502,8 @@ def _copy_payload(value: Any) -> Any:
         return {_copy_payload(item) for item in value}
     if isinstance(value, frozenset):
         return frozenset(_copy_payload(item) for item in value)
+    if isinstance(value, (np.ndarray, np.void)):
+        return _copy_numpy_payload(value)
     return deepcopy(value)
 
 
@@ -595,6 +619,8 @@ def _thaw_non_container(value: Any) -> Any:
         return value
     if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
         return value.unwrap_copy()
+    if isinstance(value, (np.ndarray, np.void)):
+        return _copy_numpy_payload(value)
     return deepcopy(value)
 
 
@@ -1632,11 +1658,83 @@ def _collect_stebbs_physics_relocations(
     return relocations
 
 
+def _sync_normalised_container_style(
+    ledger: StyleLedger, path: str, entry: Any, existing: PathStyle | None
+) -> StyleLedger:
+    """Refresh *path* when normalisation turned a scalar/wrapper into a bare container or scalar."""
+    if isinstance(entry, Mapping):
+        if (
+            existing is not None
+            and existing.is_container
+            and existing.wrapper_style == "bare"
+            and existing.ref is None
+            and not existing.has_ref
+        ):
+            return ledger
+        return ledger.with_entry(
+            path,
+            PathStyle(
+                wrapper_style="bare",
+                flow_style=(
+                    existing.flow_style
+                    if existing is not None and existing.is_container
+                    else None
+                ),
+                key_order=tuple(entry.keys()),
+                source_line=existing.source_line if existing is not None else None,
+                is_container=True,
+            ),
+        )
+    if isinstance(entry, (list, tuple)):
+        if existing is None or (
+            existing.wrapper_style == "bare"
+            and existing.ref is None
+            and not existing.has_ref
+        ):
+            return ledger
+        return ledger.with_entry(
+            path,
+            PathStyle(
+                wrapper_style="bare",
+                flow_style=existing.flow_style if existing.is_container else None,
+                source_line=existing.source_line,
+                is_container=any(
+                    isinstance(item, (Mapping, list, tuple)) for item in entry
+                ),
+            ),
+        )
+    if existing is not None and (
+        existing.is_container
+        or existing.wrapper_style != "bare"
+        or existing.ref is not None
+        or existing.has_ref
+    ):
+        return ledger.with_entry(
+            path,
+            PathStyle(
+                wrapper_style="bare",
+                scalar_style=(
+                    existing.scalar_style if existing.wrapper_style == "bare" else None
+                ),
+                source_line=existing.source_line,
+                is_container=False,
+            ),
+        )
+    return ledger
+
+
 def _sync_normalised_entry_style(
-    ledger: StyleLedger, path: str, entry: Any
+    ledger: StyleLedger,
+    path: str,
+    entry: Any,
+    *,
+    fallback_source_line: int | None = None,
 ) -> StyleLedger:
     """Refresh *path* in *ledger* when physics normalisation rewrote its representation."""
     existing = ledger.get(path)
+    eff_source_line = (
+        existing.source_line if existing is not None else fallback_source_line
+    )
     if is_ref_wrapper(entry):
         raw_ref = entry.get("ref")
         ref_map = raw_ref if isinstance(raw_ref, Mapping) else None
@@ -1667,7 +1765,7 @@ def _sync_normalised_entry_style(
                     else None
                 ),
                 key_order=tuple(entry.keys()),
-                source_line=existing.source_line if existing is not None else None,
+                source_line=eff_source_line,
                 has_ref=has_ref,
                 is_container=False,
             ),
@@ -1691,25 +1789,12 @@ def _sync_normalised_entry_style(
                 ref=ref_map,
                 flow_style=existing.flow_style if existing is not None else None,
                 key_order=tuple(entry.keys()),
-                source_line=existing.source_line if existing is not None else None,
+                source_line=eff_source_line,
                 has_ref=True,
                 is_container=False,
             ),
         )
-    if (
-        not isinstance(entry, (Mapping, list, tuple))
-        and existing is not None
-        and existing.is_container
-    ):
-        return ledger.with_entry(
-            path,
-            PathStyle(
-                wrapper_style="bare",
-                source_line=existing.source_line,
-                is_container=False,
-            ),
-        )
-    return ledger
+    return _sync_normalised_container_style(ledger, path, entry, existing)
 
 
 def _refresh_normalised_physics_ledger(
@@ -1722,6 +1807,12 @@ def _refresh_normalised_physics_ledger(
     physics = model.get("physics")
     if not isinstance(physics, Mapping):
         return ledger
+    prev_stebbs = ledger.get("model.physics.stebbs")
+    stebbs_master_line = (
+        prev_stebbs.source_line
+        if prev_stebbs is not None and not prev_stebbs.is_container
+        else None
+    )
     for key, val in physics.items():
         if isinstance(key, str) and key == "ref":
             continue
@@ -1737,9 +1828,26 @@ def _refresh_normalised_physics_ledger(
         for key, val in stebbs.items():
             if isinstance(key, str) and key == "ref":
                 continue
+            leaf_path = _join_key_path("model.physics.stebbs", key)
+            fallback_line = stebbs_master_line if key == "enabled" else None
             ledger = _sync_normalised_entry_style(
-                ledger, _join_key_path("model.physics.stebbs", key), val
+                ledger, leaf_path, val, fallback_source_line=fallback_line
             )
+            if (
+                key == "enabled"
+                and not isinstance(val, Mapping)
+                and leaf_path not in ledger
+                and prev_stebbs is not None
+                and not prev_stebbs.is_container
+            ):
+                ledger = ledger.with_entry(
+                    leaf_path,
+                    PathStyle(
+                        wrapper_style="bare",
+                        source_line=stebbs_master_line,
+                        is_container=False,
+                    ),
+                )
     return ledger
 
 

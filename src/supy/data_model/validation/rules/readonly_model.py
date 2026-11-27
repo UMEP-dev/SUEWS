@@ -23,6 +23,7 @@ from types import (
     ModuleType,
 )
 from typing import Any
+import warnings
 import weakref
 
 import numpy as np
@@ -278,18 +279,19 @@ def _detach_numpy_or_buffer(
     result: Any = None
     handled = True
     if isinstance(value, np.ndarray):
+        detached_dtype = deepcopy(value.dtype)
+        out_arr: np.ndarray[Any, Any] = np.empty(value.shape, dtype=detached_dtype)
+        memo[obj_id] = out_arr
         if value.dtype.hasobject:
-            out_arr: np.ndarray[Any, Any] = np.empty(
-                value.shape, dtype=deepcopy(value.dtype)
-            )
-            memo[obj_id] = out_arr
             for idx, item in enumerate(value.flat):
                 out_arr.flat[idx] = _detach_snapshot_tree(
                     item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
                 )
-            return True, out_arr
-        result = value.copy()
-    elif isinstance(value, np.void):
+        else:
+            np.copyto(out_arr, value, casting="unsafe")
+        return True, out_arr
+    if isinstance(value, np.void):
+        detached_dtype = deepcopy(value.dtype)
         if value.dtype.names and value.dtype.hasobject:
             detached_fields = tuple(
                 _detach_snapshot_tree(
@@ -297,9 +299,11 @@ def _detach_numpy_or_buffer(
                 )
                 for name in value.dtype.names
             )
-            result = np.array([detached_fields], dtype=deepcopy(value.dtype))[0]
+            result = np.array([detached_fields], dtype=detached_dtype)[0]
         else:
-            result = deepcopy(value)
+            arr_tmp: np.ndarray[Any, Any] = np.empty((), dtype=detached_dtype)
+            arr_tmp[()] = value
+            result = arr_tmp[()]
     elif type(value) is bytearray:
         result = bytearray(value)
     elif type(value) is memoryview:
@@ -912,8 +916,11 @@ class ReadOnlyDataclassProxy:
         for cls_in_mro in dc_type.__mro__:
             if name in cls_in_mro.__dict__:
                 if isinstance(cls_in_mro.__dict__[name], property):
+                    working_copy = _safe_snapshot_copy(
+                        target, wrap_enums=enum_snapshots
+                    )
                     wrapped = _wrap_readonly(
-                        getattr(_safe_snapshot_copy(target), name),
+                        getattr(working_copy, name),
                         enum_snapshots,
                         field_snapshots,
                     )
@@ -1202,8 +1209,40 @@ class ReadOnlyModelProxy:
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return a fresh detached dictionary serialisation of a working model copy."""
         target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
-        working_copy = _safe_snapshot_copy(target)
-        dumped = working_copy.model_dump(*args, **kwargs)
+        working_copy = _safe_snapshot_copy(target, wrap_enums=enum_snapshots)
+        dump_kwargs = dict(kwargs)
+        user_fallback = dump_kwargs.get("fallback")
+        is_json_mode = dump_kwargs.get("mode") == "json" or (
+            bool(args) and args[0] == "json"
+        )
+        if is_json_mode:
+
+            def _json_enum_fallback(obj: Any) -> Any:
+                if isinstance(obj, ReadOnlyEnumProxy):
+                    return obj.value
+                if user_fallback is not None:
+                    return user_fallback(obj)
+                raise TypeError(f"Unable to serialize unknown type: {type(obj)}")
+
+            dump_kwargs["fallback"] = _json_enum_fallback
+        elif user_fallback is not None:
+
+            def _py_enum_fallback(obj: Any) -> Any:
+                if isinstance(obj, ReadOnlyEnumProxy):
+                    return obj
+                return user_fallback(obj)
+
+            dump_kwargs["fallback"] = _py_enum_fallback
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            dumped = working_copy.model_dump(*args, **dump_kwargs)
+        for rec in caught:
+            if issubclass(rec.category, UserWarning) and "ReadOnlyEnumProxy" in str(
+                rec.message
+            ):
+                continue
+            warnings.warn(rec.message, rec.category, stacklevel=2)
         return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
     def unwrap_copy(self) -> BaseModel:
@@ -1214,9 +1253,7 @@ class ReadOnlyModelProxy:
         """Convert this read-only model into a deeply frozen :class:`TypedConfigView`."""
         from .typed_view import TypedConfigView  # noqa: PLC0415
 
-        return TypedConfigView.from_config(
-            _safe_snapshot_copy(_PROXY_STATE[id(self)][0])
-        )
+        return TypedConfigView.from_config(self)
 
     def __getattr__(self, name: str) -> Any:
         """Resolve declared fields, computed fields, and read-only properties."""
@@ -1238,8 +1275,9 @@ class ReadOnlyModelProxy:
             return _materialise_readonly(wrapped)
 
         if name in model_cls.model_computed_fields:
+            working_copy = _safe_snapshot_copy(target, wrap_enums=enum_snapshots)
             wrapped = _wrap_readonly(
-                getattr(_safe_snapshot_copy(target), name),
+                getattr(working_copy, name),
                 enum_snapshots,
                 field_snapshots,
             )
@@ -1250,8 +1288,11 @@ class ReadOnlyModelProxy:
             if name in cls_in_mro.__dict__:
                 descriptor = cls_in_mro.__dict__[name]
                 if isinstance(descriptor, property):
+                    working_copy = _safe_snapshot_copy(
+                        target, wrap_enums=enum_snapshots
+                    )
                     wrapped = _wrap_readonly(
-                        getattr(_safe_snapshot_copy(target), name),
+                        getattr(working_copy, name),
                         enum_snapshots,
                         field_snapshots,
                     )

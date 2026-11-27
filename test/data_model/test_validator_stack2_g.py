@@ -14,7 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_serializer
 import pytest
 import yaml
 
@@ -2422,3 +2422,117 @@ def test_r10_r1_mapping_proxy_private_attr_and_cycle_snapshot() -> None:
     assert unwrapped_pm.model_extra == {"extra_val": 42}
     unwrapped_pm._secret.append(100)
     assert ro_pm.secret_sum == 7
+
+
+def test_r10_r2_stebbs_master_ledger_complex_nan_arrays_property_enum_and_numpy_dtype_isolation() -> (
+    None
+):
+    """STEBBS master->section refreshes ledger, complex-NaN arrays are not no-ops, properties/serializers isolate enums, and NumPy dtypes detach."""
+    # Major 1: STEBBS master toggle decomposition refreshes model.physics.stebbs to a bare container
+    # while keeping provenance on model.physics.stebbs.enabled.
+    stebbs_master_doc = ConfigDocument.from_dict(
+        {"model": {"physics": {"stebbs": {"value": 1, "ref": {"ID": "src"}}}}},
+        normalise=True,
+    )
+    assert (
+        stebbs_master_doc.style_ledger.wrapper_style("model.physics.stebbs") == "bare"
+    )
+    assert (
+        stebbs_master_doc.style_ledger.get("model.physics.stebbs").is_container is True
+    )  # type: ignore[union-attr]
+    assert stebbs_master_doc.style_ledger.ref_metadata("model.physics.stebbs") is None
+    assert stebbs_master_doc.style_ledger.ref_metadata(
+        "model.physics.stebbs.enabled"
+    ) == {"ID": "src"}
+    saved_block = stebbs_master_doc.read("model.physics.stebbs")
+    rebuilt_stebbs = stebbs_master_doc.apply_patches([
+        ConfigPatch("model.physics.stebbs", "delete"),
+        ConfigPatch("model.physics.stebbs", "set", saved_block, default_wrapped=False),
+    ])
+    assert rebuilt_stebbs.data["model"]["physics"]["stebbs"] == saved_block
+    assert "enabled" in rebuilt_stebbs.data["model"]["physics"]["stebbs"]
+    assert "value" not in rebuilt_stebbs.data["model"]["physics"]["stebbs"]
+
+    # Major 2: complex NumPy arrays with NaN in one component and differing other component are NOT no-ops.
+    c_base = {
+        "a": np.array([complex(np.nan, 1.0)]),
+        "b": np.array([complex(np.nan, 0.0)]),
+    }
+    c_patches = [
+        ConfigPatch(
+            "a", "set", np.array([complex(np.nan, 2.0)]), default_wrapped=False
+        ),
+        ConfigPatch(
+            "b", "set", np.array([complex(np.nan, -0.0)]), default_wrapped=False
+        ),
+    ]
+    c_norm = normalise_patches(c_patches, c_base)
+    assert [p.path for p in c_norm] == ["a", "b"]
+    c_replayed = deepcopy(c_base)
+    apply_patches_in_place(c_replayed, c_norm)
+    assert c_replayed["a"][0].imag == pytest.approx(2.0)
+    assert bool(np.signbit(c_replayed["b"][0].imag)) is True
+    # Identical complex NaN + same imag stays a no-op.
+    assert (
+        normalise_patches(
+            [
+                ConfigPatch(
+                    "a", "set", np.array([complex(np.nan, 1.0)]), default_wrapped=False
+                )
+            ],
+            c_base,
+        )
+        == []
+    )
+
+    # Major 3: @property and @field_serializer see snapshotted ReadOnlyEnumProxy and cannot mutate live Enum.
+    class _PropEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "before"
+
+    class _PropEnumModel(BaseModel):
+        member: _PropEnum = _PropEnum.ITEM
+
+        @property
+        def read_label(self) -> str:
+            return self.member.label
+
+        @property
+        def mutate_label(self) -> str:
+            self.member.label = "hacked"  # type: ignore[misc]
+            return "bad"
+
+        @field_serializer("member")
+        def _ser_member(self, val: _PropEnum) -> str:
+            return val.label
+
+    ro_pe = freeze_model(_PropEnumModel())
+    _PropEnum.ITEM.label = "after"
+    try:
+        assert ro_pe.read_label == "before"
+        assert ro_pe.model_dump()["member"] == "before"
+        assert ro_pe.model_dump(mode="json")["member"] == "before"
+        with pytest.raises(TypeError, match="Cannot mutate attribute"):
+            _ = ro_pe.mutate_label
+        assert _PropEnum.ITEM.label == "after"
+    finally:
+        _PropEnum.ITEM.label = "before"
+
+    # Major 4: NumPy structured array and np.void snapshot copies detach mutable dtype.names.
+    class _StructArrModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        arr: np.ndarray
+        scalar: object
+
+    orig_arr = np.array([(1,)], dtype=[("x", "i4")])
+    orig_void = np.array([(2,)], dtype=[("y", "i4")])[0]
+    ro_sa = freeze_model(_StructArrModel(arr=orig_arr, scalar=orig_void))
+    orig_arr.dtype.names = ("renamed_x",)
+    orig_void.dtype.names = ("renamed_y",)
+    assert ro_sa.arr.dtype.names == ("x",)
+    assert "y" in ro_sa.scalar
+    unwrapped_sa = ro_sa.unwrap_copy()
+    unwrapped_sa.arr.dtype.names = ("unwrapped_x",)
+    assert ro_sa.arr.dtype.names == ("x",)

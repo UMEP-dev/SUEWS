@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
-    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.27.dev32 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T16:29:13+00:00" />
+    <title>6.4. Command-Line Tools &#8212; SUEWS 2026.11.27.dev33 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=cfd099a6"></script>
+    <script src="../_static/documentation_options.js?v=742c1bbb"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="6.3.7.9. supy.util.AttributionResult" href="_autosummary/supy.util.AttributionResult.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.27.dev32" />
+  <meta name="docsearch:version" content="2026.11.27.dev33" />
     <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.27.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179" style="color: #31708f;">4575df4</a>).
+        (2026.11.27.dev33, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cdb8c0f07b6794933cb249954060a01c536bfba2" style="color: #31708f;">cdb8c0f</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -156,8 +156,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev32 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev33 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev33 documentation - Home"/>
   
   
 </a></div>
@@ -627,21 +627,44 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">6.4.1. Available Commands</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-init">6.4.1.1. suews init</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.2. suews run</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.3. suews convert</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.4. suews validate</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-inspect">6.4.1.5. suews inspect</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-summarise">6.4.1.6. suews summarise</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.7. suews compare</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.8. suews diagnose</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.9. suews schema</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts">6.4.1.10. suews contracts</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.11. suews knowledge</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-reference">6.4.1. CLI Reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews">6.4.1.1. suews</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.1.1. compare</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts">6.4.1.1.2. contracts</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-export">6.4.1.1.2.1. export</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-info">6.4.1.1.2.2. info</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-publish">6.4.1.1.2.3. publish</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-show">6.4.1.1.2.4. show</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-validate">6.4.1.1.2.5. validate</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.2. Related Documentation</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.1.3. convert</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.1.4. diagnose</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-init">6.4.1.1.5. init</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-inspect">6.4.1.1.6. inspect</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.1.7. knowledge</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge-build">6.4.1.1.7.1. build</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge-manifest">6.4.1.1.7.2. manifest</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge-query">6.4.1.1.7.3. query</a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.1.8. run</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.1.9. schema</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-convert-soil">6.4.1.1.9.1. convert-soil</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-export">6.4.1.1.9.2. export</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-info">6.4.1.1.9.3. info</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-migrate">6.4.1.1.9.4. migrate</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-version">6.4.1.1.9.5. version</a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-summarise">6.4.1.1.10. summarise</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.1.11. validate</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-validation-and-engine-contract-for-suews-run">6.4.2. YAML Validation and Engine Contract for <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.3. Related Documentation</a></li>
 </ul>
             </nav>
         </div>
@@ -664,59 +687,1257 @@ Opening issues is limited to existing contributors, so if GitHub says you cannot
 </div>
 <section id="command-line-tools">
 <span id="api-command-line"></span><h1><span class="section-number">6.4. </span>Command-Line Tools<a class="headerlink" href="#command-line-tools" title="Link to this heading">#</a></h1>
-<p>SUEWS provides command-line tools for common operations without requiring Python scripting.</p>
+<p>SUEWS (Surface Urban Energy and Water Balance Scheme) provides command-line tools for common operations without requiring Python scripting.</p>
 <p>All tools are subcommands of a single <code class="docutils literal notranslate"><span class="pre">suews</span></code> command. Run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">--help</span></code> for the list, and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">&lt;subcommand&gt;</span> <span class="pre">--help</span></code> for the options of each one. Most subcommands accept <code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code>, which writes the standard SUEWS JSON envelope to stdout (see <a class="reference internal" href="../contributing/json-output-integration.html"><span class="doc">JSON Output Format</span></a>).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The hyphenated commands <code class="docutils literal notranslate"><span class="pre">suews-run</span></code>, <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code>, <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code>, <code class="docutils literal notranslate"><span class="pre">suews-schema</span></code> and <code class="docutils literal notranslate"><span class="pre">suews-inspect</span></code> are deprecated aliases of <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">convert</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code>, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">inspect</span></code>. They still work but print a <code class="docutils literal notranslate"><span class="pre">DEPRECATED:</span></code> notice to stderr and will be removed in a future release.</p>
 </div>
-<section id="available-commands">
-<h2><span class="section-number">6.4.1. </span>Available Commands<a class="headerlink" href="#available-commands" title="Link to this heading">#</a></h2>
-<section id="suews-init">
-<h3><span class="section-number">6.4.1.1. </span>suews init<a class="headerlink" href="#suews-init" title="Link to this heading">#</a></h3>
-<p>Create a new case directory from a packaged template. The directory is created if missing; existing config files are not overwritten.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>init<span class="w"> </span>my_case
-suews<span class="w"> </span>init<span class="w"> </span>my_case<span class="w"> </span>--template<span class="w"> </span>simple-urban
+<section id="cli-reference">
+<h2><span class="section-number">6.4.1. </span>CLI Reference<a class="headerlink" href="#cli-reference" title="Link to this heading">#</a></h2>
+<p>The command, argument, option and default listings below are generated directly from the <code class="docutils literal notranslate"><span class="pre">suews</span></code> Click definitions using <code class="docutils literal notranslate"><span class="pre">sphinx_click.ext</span></code>.</p>
+<section id="suews">
+<h3><span class="section-number">6.4.1.1. </span>suews<a class="headerlink" href="#suews" title="Link to this heading">#</a></h3>
+<p>SUEWS unified command-line interface.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">&lt;subcommand&gt;</span> <span class="pre">--help</span></code> to see options for each subcommand.
+All subcommands emit a standard JSON envelope when invoked with <code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code> (where supported).</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
 </pre></div>
 </div>
-<p>Only the <code class="docutils literal notranslate"><span class="pre">simple-urban</span></code> template is shipped at present; the other template names (<code class="docutils literal notranslate"><span class="pre">multi-site</span></code>, <code class="docutils literal notranslate"><span class="pre">teaching-demo</span></code>, <code class="docutils literal notranslate"><span class="pre">spartacus</span></code>) are reserved and rejected with an error.</p>
+<section id="suews-compare">
+<h4><span class="section-number">6.4.1.1.1. </span>compare<a class="headerlink" href="#suews-compare" title="Link to this heading">#</a></h4>
+<p>Compare two SUEWS run directories, canonical Parquet outputs (monolithic files or streamed dataset directories), or a run and an observations CSV by computing per-variable RMSE / bias / Pearson r over the timestamps they share. Time-axis overlap and the grid used on each side are reported alongside; n counts finite paired samples.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>compare<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>RUN_A<span class="w"> </span>RUN_B_OR_OBS
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-metrics">
+<span class="sig-name descname"><span class="pre">--metrics</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;metrics&gt;</span></span><a class="headerlink" href="#cmdoption-suews-compare-metrics" title="Link to this definition">#</a></dt>
+<dd><p>Comma-separated metric names. Subset of {rmse,bias,r}.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'rmse,bias,r'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-variables">
+<span class="sig-name descname"><span class="pre">--variables</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;variables&gt;</span></span><a class="headerlink" href="#cmdoption-suews-compare-variables" title="Link to this definition">#</a></dt>
+<dd><p>Comma-separated variable names to compare.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'QH,QE,QN'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-grid">
+<span class="sig-name descname"><span class="pre">--grid</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;grid&gt;</span></span><a class="headerlink" href="#cmdoption-suews-compare-grid" title="Link to this definition">#</a></dt>
+<dd><p>Grid identity to compare when an input holds several grids (required in that case). Applied to both inputs.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-align">
+<span class="sig-name descname"><span class="pre">--align</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;alignment&gt;</span></span><a class="headerlink" href="#cmdoption-suews-compare-align" title="Link to this definition">#</a></dt>
+<dd><p>‘time’ aligns on shared timestamps and rejects inputs without a recoverable time axis; ‘positional’ compares rows by order and is labelled as such in the output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'time'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>time | positional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-compare-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-arg-RUN_A">
+<span class="sig-name descname"><span class="pre">RUN_A</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-compare-arg-RUN_A" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-compare-arg-RUN_B_OR_OBS">
+<span class="sig-name descname"><span class="pre">RUN_B_OR_OBS</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-compare-arg-RUN_B_OR_OBS" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-contracts">
+<h4><span class="section-number">6.4.1.1.2. </span>contracts<a class="headerlink" href="#suews-contracts" title="Link to this heading">#</a></h4>
+<p>Inspect, export, publish, and validate versioned SUEWS forcing and output data contracts.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<section id="suews-contracts-export">
+<h5><span class="section-number">6.4.1.1.2.1. </span>export<a class="headerlink" href="#suews-contracts-export" title="Link to this heading">#</a></h5>
+<p>Export a forcing or output contract artefact or release bundle.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">{</span>forcing<span class="p">|</span>output<span class="o">}</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-export-version">
+<span class="sig-name descname"><span class="pre">--version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;contract_version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-export-version" title="Link to this definition">#</a></dt>
+<dd><p>Contract version to export.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'current</span> <span class="pre">version'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-export-artefact">
+<span class="sig-name descname"><span class="pre">--artefact</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;artefact&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-export-artefact" title="Link to this definition">#</a></dt>
+<dd><p>Artefact to export. Choices: catalogue, schema, manifest, bundle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'catalogue'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>catalogue | schema | manifest | bundle</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-export-o">
+<span id="cmdoption-suews-contracts-export-output"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_path&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-export-o" title="Link to this definition">#</a></dt>
+<dd><p>Destination file path, or destination directory for bundle exports. Omit to write a single artefact to stdout.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-export-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-export-format" title="Link to this definition">#</a></dt>
+<dd><p>Status output format when writing to –output, or envelope mode on stdout. Choices: text, json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-export-arg-INTERFACE">
+<span class="sig-name descname"><span class="pre">INTERFACE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-contracts-export-arg-INTERFACE" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-contracts-info">
+<h5><span class="section-number">6.4.1.1.2.2. </span>info<a class="headerlink" href="#suews-contracts-info" title="Link to this heading">#</a></h5>
+<p>List published forcing and output contract versions and URLs.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span>info<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>forcing<span class="p">|</span>output<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-info-base-url">
+<span class="sig-name descname"><span class="pre">--base-url</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;base_url&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-info-base-url" title="Link to this definition">#</a></dt>
+<dd><p>Base URL used to build published contract links.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'https://suews.io'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-info-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-info-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. Choices: text, json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-info-arg-INTERFACE">
+<span class="sig-name descname"><span class="pre">INTERFACE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-contracts-info-arg-INTERFACE" title="Link to this definition">#</a></dt>
+<dd><p>Optional argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-contracts-publish">
+<h5><span class="section-number">6.4.1.1.2.3. </span>publish<a class="headerlink" href="#suews-contracts-publish" title="Link to this heading">#</a></h5>
+<p>Materialise versioned and latest forcing/output contracts for static hosting.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span>publish<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-publish-o">
+<span id="cmdoption-suews-contracts-publish-output-dir"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--output-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;DIRECTORY&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-publish-o" title="Link to this definition">#</a></dt>
+<dd><p><strong>Required</strong> Target contracts directory (for example _site/contracts).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-publish-base-url">
+<span class="sig-name descname"><span class="pre">--base-url</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;base_url&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-publish-base-url" title="Link to this definition">#</a></dt>
+<dd><p>Base URL recorded in generated index.json files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'https://suews.io'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-publish-preserve-from">
+<span class="sig-name descname"><span class="pre">--preserve-from</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;DIRECTORY&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-publish-preserve-from" title="Link to this definition">#</a></dt>
+<dd><p>Existing contracts directory whose historical releases are preserved.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-publish-validate">
+<span id="cmdoption-suews-contracts-publish-no-validate"></span><span class="sig-name descname"><span class="pre">--validate</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-validate</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-contracts-publish-validate" title="Link to this definition">#</a></dt>
+<dd><p>Validate schemas, digests, latest aliases, and links after publishing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-publish-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-publish-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. Choices: text, json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="suews-contracts-show">
+<h5><span class="section-number">6.4.1.1.2.4. </span>show<a class="headerlink" href="#suews-contracts-show" title="Link to this heading">#</a></h5>
+<p>Inspect a forcing or output contract catalogue, schema, or manifest.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span>show<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">{</span>forcing<span class="p">|</span>output<span class="o">}</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-show-version">
+<span class="sig-name descname"><span class="pre">--version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;contract_version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-show-version" title="Link to this definition">#</a></dt>
+<dd><p>Contract version to inspect.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'current</span> <span class="pre">version'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-show-artefact">
+<span class="sig-name descname"><span class="pre">--artefact</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;artefact&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-show-artefact" title="Link to this definition">#</a></dt>
+<dd><p>Contract artefact to inspect. Choices: catalogue, schema, manifest.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'catalogue'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>catalogue | schema | manifest</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-show-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-show-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. Choices: text, json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-show-arg-INTERFACE">
+<span class="sig-name descname"><span class="pre">INTERFACE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-contracts-show-arg-INTERFACE" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-contracts-validate">
+<h5><span class="section-number">6.4.1.1.2.5. </span>validate<a class="headerlink" href="#suews-contracts-validate" title="Link to this heading">#</a></h5>
+<p>Validate a built contracts directory for schemas, digests, and links.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>CONTRACTS_DIR
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-validate-base-url">
+<span class="sig-name descname"><span class="pre">--base-url</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;base_url&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-validate-base-url" title="Link to this definition">#</a></dt>
+<dd><p>Optional base URL that published index.json URLs must match.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-validate-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-contracts-validate-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. Choices: text, json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-contracts-validate-arg-CONTRACTS_DIR">
+<span class="sig-name descname"><span class="pre">CONTRACTS_DIR</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-contracts-validate-arg-CONTRACTS_DIR" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="suews-convert">
+<h4><span class="section-number">6.4.1.1.3. </span>convert<a class="headerlink" href="#suews-convert" title="Link to this heading">#</a></h4>
+<p>Convert any supported SUEWS input into a current-schema YAML.</p>
+<p>Input type is auto-detected from the file:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> / <code class="docutils literal notranslate"><span class="pre">.nml</span></code>: legacy SUEWS table set</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.csv</span></code> / <code class="docutils literal notranslate"><span class="pre">.pkl</span></code>: df_state snapshot</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.yml</span></code> / <code class="docutils literal notranslate"><span class="pre">.yaml</span></code>: older-release YAML (cross-release upgrade)</p></li>
+</ul>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">-f</span></code>/<code class="docutils literal notranslate"><span class="pre">--from</span></code> to disambiguate the source version when auto-detection is ambiguous (table releases for .nml inputs; release tag or schema version for .yml inputs).</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-f">
+<span id="cmdoption-suews-convert-from"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--from</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fromVer&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-f" title="Link to this definition">#</a></dt>
+<dd><p>Source version. For .nml inputs pick a table release (e.g. 2024a); for .yml inputs pass a supy release tag (e.g. 2026.1.28) or a schema version. Auto-detected when omitted.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-i">
+<span id="cmdoption-suews-convert-input"></span><span class="sig-name descname"><span class="pre">-i</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--input</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;input_file&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-i" title="Link to this definition">#</a></dt>
+<dd><p>Input file: RunControl.nml for tables, .csv/.pkl for df_state, or .yml/.yaml for an older YAML config.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-o">
+<span id="cmdoption-suews-convert-output"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_file&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-o" title="Link to this definition">#</a></dt>
+<dd><p>Output YAML file path</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-d">
+<span id="cmdoption-suews-convert-debug-dir"></span><span class="sig-name descname"><span class="pre">-d</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--debug-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;debug_dir&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-d" title="Link to this definition">#</a></dt>
+<dd><p>Optional directory to keep intermediate conversion files for debugging table/df_state runs. Ignored for YAML upgrades.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-no-profile-validation">
+<span class="sig-name descname"><span class="pre">--no-profile-validation</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-convert-no-profile-validation" title="Link to this definition">#</a></dt>
+<dd><p>Disable automatic profile validation and creation of missing profiles (table/df_state paths only).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-forcing">
+<span class="sig-name descname"><span class="pre">--forcing</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;forcing&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-forcing" title="Link to this definition">#</a></dt>
+<dd><p>Legacy forcing table for coordinated soil conversion.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-forcing-output">
+<span class="sig-name descname"><span class="pre">--forcing-output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;forcing_output&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-forcing-output" title="Link to this definition">#</a></dt>
+<dd><p>New canonical forcing table.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-manifest">
+<span class="sig-name descname"><span class="pre">--manifest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;manifest&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-manifest" title="Link to this definition">#</a></dt>
+<dd><p>New JSON conversion manifest.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-source-contract">
+<span class="sig-name descname"><span class="pre">--source-contract</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;source_contract&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-source-contract" title="Link to this definition">#</a></dt>
+<dd><p>Forcing contract of a positional (headerless) forcing file; 1.0.0-1.2.0 carry legacy xsmd, 2.0.0 carries sm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><p>1.0.0 | 1.1.0 | 1.2.0 | 2.0.0</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-source-unit">
+<span class="sig-name descname"><span class="pre">--source-unit</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;source_unit&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-source-unit" title="Link to this definition">#</a></dt>
+<dd><p>Confirmed unit of the forcing soil column. Legacy xsmd with the ambiguous ‘observed’ selector: ‘m3 m-3’ (volumetric) or ‘kg kg-1’ (gravimetric). Legacy xsmd with modelled soil moisture: ‘m3 m-3’, ‘kg kg-1’ or ‘mm’. Canonical sm: ‘kg m-2’ only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><p>m3 m-3 | kg kg-1 | mm | kg m-2</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-layer-top">
+<span class="sig-name descname"><span class="pre">--layer-top</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;layer_top&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-layer-top" title="Link to this definition">#</a></dt>
+<dd><p>Confirmed represented layer top in m (explicit 0 for the whole store).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-layer-depth">
+<span class="sig-name descname"><span class="pre">--layer-depth</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;layer_depth&gt;</span></span><a class="headerlink" href="#cmdoption-suews-convert-layer-depth" title="Link to this definition">#</a></dt>
+<dd><p>Confirmed represented layer thickness in m.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-legacy-depth-is-thickness">
+<span class="sig-name descname"><span class="pre">--legacy-depth-is-thickness</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-convert-legacy-depth-is-thickness" title="Link to this definition">#</a></dt>
+<dd><p>Confirm old depth describes layer thickness.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-drop-legacy">
+<span class="sig-name descname"><span class="pre">--drop-legacy</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-convert-drop-legacy" title="Link to this definition">#</a></dt>
+<dd><p>Archive and drop unused method-0 xsmd values with a recorded reason.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-convert-dry-run">
+<span class="sig-name descname"><span class="pre">--dry-run</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-convert-dry-run" title="Link to this definition">#</a></dt>
+<dd><p>Report conversion and missing decisions without writing files.</p>
+</dd></dl>
+
+</section>
+<section id="suews-diagnose">
+<h4><span class="section-number">6.4.1.1.4. </span>diagnose<a class="headerlink" href="#suews-diagnose" title="Link to this heading">#</a></h4>
+<p>Read a SUEWS run directory (or a canonical output file / streamed Parquet dataset directory) and run a battery of Phase-1 checks (provenance present, output files present, NaN proportion in QH/QE/QN, energy-balance closure). When given a run directory, writes a diagnostics.json sidecar inside it; when given a direct output file or streamed Parquet dataset directory, resolves provenance.json beside the target and intentionally omits diagnostics.json to keep the Parquet dataset clean and avoid overwriting a sibling or enclosing run sidecar. Use –format json for structured output consumable by MCP tooling.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>diagnose<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>RUN_DIR
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-diagnose-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-diagnose-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-diagnose-arg-RUN_DIR">
+<span class="sig-name descname"><span class="pre">RUN_DIR</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-diagnose-arg-RUN_DIR" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-init">
+<h4><span class="section-number">6.4.1.1.5. </span>init<a class="headerlink" href="#suews-init" title="Link to this heading">#</a></h4>
+<p>Initialise a new SUEWS case directory by copying a packaged template into TARGET_DIR. The directory is created if missing; existing config files are not overwritten. Currently only the ‘simple-urban’ template is shipped; the other names are reserved and rejected with a structured error envelope.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>init<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>TARGET_DIR
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-init-template">
+<span class="sig-name descname"><span class="pre">--template</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;template&gt;</span></span><a class="headerlink" href="#cmdoption-suews-init-template" title="Link to this definition">#</a></dt>
+<dd><p>Template to scaffold from.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'simple-urban'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>multi-site | simple-urban | spartacus | teaching-demo</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-init-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-init-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-init-arg-TARGET_DIR">
+<span class="sig-name descname"><span class="pre">TARGET_DIR</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-init-arg-TARGET_DIR" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-inspect">
+<h4><span class="section-number">6.4.1.1.6. </span>inspect<a class="headerlink" href="#suews-inspect" title="Link to this heading">#</a></h4>
+<p>Show a compact overview of a SUEWS YAML config: per-site coordinates, surface-cover fractions, forcing file summary. Read-only — never modifies the config. Use –format json for structured output.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>inspect<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>CONFIG_PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-inspect-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-inspect-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-inspect-arg-CONFIG_PATH">
+<span class="sig-name descname"><span class="pre">CONFIG_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-inspect-arg-CONFIG_PATH" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-knowledge">
+<h4><span class="section-number">6.4.1.1.7. </span>knowledge<a class="headerlink" href="#suews-knowledge" title="Link to this heading">#</a></h4>
+<p>Build and query the versioned SUEWS source-evidence pack.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>knowledge<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<section id="suews-knowledge-build">
+<h5><span class="section-number">6.4.1.1.7.1. </span>build<a class="headerlink" href="#suews-knowledge-build" title="Link to this heading">#</a></h5>
+<p>Build a source-evidence knowledge pack from the current checkout.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>knowledge<span class="w"> </span>build<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-build-output">
+<span class="sig-name descname"><span class="pre">--output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_dir&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-build-output" title="Link to this definition">#</a></dt>
+<dd><p><strong>Required</strong> Directory where manifest.json and chunks.jsonl.gz will be written.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-build-repo-root">
+<span class="sig-name descname"><span class="pre">--repo-root</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;repo_root&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-build-repo-root" title="Link to this definition">#</a></dt>
+<dd><p>Repository checkout to package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">PosixPath('.')</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-build-git-sha">
+<span class="sig-name descname"><span class="pre">--git-sha</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;git_sha&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-build-git-sha" title="Link to this definition">#</a></dt>
+<dd><p>Explicit Git SHA when building outside a Git checkout.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-build-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-build-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="suews-knowledge-manifest">
+<h5><span class="section-number">6.4.1.1.7.2. </span>manifest<a class="headerlink" href="#suews-knowledge-manifest" title="Link to this heading">#</a></h5>
+<p>Show the knowledge-pack manifest.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>knowledge<span class="w"> </span>manifest<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-manifest-pack">
+<span class="sig-name descname"><span class="pre">--pack</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;pack_dir&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-manifest-pack" title="Link to this definition">#</a></dt>
+<dd><p>Knowledge-pack directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'installed</span> <span class="pre">pack'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-manifest-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-manifest-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="suews-knowledge-query">
+<h5><span class="section-number">6.4.1.1.7.3. </span>query<a class="headerlink" href="#suews-knowledge-query" title="Link to this heading">#</a></h5>
+<p>Retrieve cited source evidence from the knowledge pack.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>knowledge<span class="w"> </span>query<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>QUESTION
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-query-pack">
+<span class="sig-name descname"><span class="pre">--pack</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;pack_dir&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-query-pack" title="Link to this definition">#</a></dt>
+<dd><p>Knowledge-pack directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'installed</span> <span class="pre">pack'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-query-limit">
+<span class="sig-name descname"><span class="pre">--limit</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;limit&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-query-limit" title="Link to this definition">#</a></dt>
+<dd><p>Maximum number of matches to return.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">5</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-query-scope">
+<span class="sig-name descname"><span class="pre">--scope</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;scope&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-query-scope" title="Link to this definition">#</a></dt>
+<dd><p>Restrict to a content_type such as fortran, rust, python_api, schema.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-query-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-knowledge-query-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-knowledge-query-arg-QUESTION">
+<span class="sig-name descname"><span class="pre">QUESTION</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-knowledge-query-arg-QUESTION" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
 </section>
 <section id="suews-run">
-<h3><span class="section-number">6.4.1.2. </span>suews run<a class="headerlink" href="#suews-run" title="Link to this heading">#</a></h3>
-<p>Execute SUEWS simulations from the command line with YAML or namelist configuration files.</p>
-<p><strong>YAML Configuration (Recommended)</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run with YAML configuration file</span>
-suews<span class="w"> </span>run<span class="w"> </span>config.yml
-
-<span class="c1"># Or specify full path</span>
-suews<span class="w"> </span>run<span class="w"> </span>/path/to/config.yml
-
-<span class="c1"># Use default config.yml in current directory</span>
-suews<span class="w"> </span>run
+<h4><span class="section-number">6.4.1.1.8. </span>run<a class="headerlink" href="#suews-run" title="Link to this heading">#</a></h4>
+<p>Run SUEWS simulation using YAML (recommended) or namelist configuration.</p>
+<p>YAML Configuration (Recommended):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ suews run config.yml
+$ suews run /path/to/config.yml
 </pre></div>
 </div>
-<p><strong>Namelist Configuration (Deprecated)</strong></p>
-<p>Legacy namelist format is still supported but deprecated:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Legacy format with deprecation warning</span>
-suews<span class="w"> </span>run<span class="w"> </span>RunControl.nml
+<p>Set model.control.output.dir to choose where results are written. If the
+output block is absent, source YAML can use the legacy model.control.output_file.path.
+If the selected directory is missing, null or an empty string, results go to
+the directory where you invoke this command. A non-empty relative path starts
+from the source YAML file’s directory. Use . to write beside that file.</p>
+<p>Namelist Configuration (Deprecated):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ suews run -p RunControl.nml
+$ suews run -p /path/to/RunControl.nml
 </pre></div>
 </div>
-<p><strong>Migration from Namelist to YAML</strong></p>
-<p>To migrate from the deprecated namelist format to modern YAML:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Step 1: Convert namelist to YAML</span>
-suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
-
-<span class="c1"># Step 2: Run with YAML configuration</span>
-suews<span class="w"> </span>run<span class="w"> </span>config.yml
-</pre></div>
-</div>
-<p><strong>Format Auto-Detection</strong></p>
-<p>The tool automatically detects the configuration format based on file extension:</p>
+<p>The format is auto-detected based on file extension:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">.yml</span></code>, <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> -&gt; YAML format (modern, recommended)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">.nml</span></code> -&gt; Namelist format (legacy, shows deprecation warning)</p></li>
+<li><p>.yml, .yaml: YAML format (modern, recommended)</p></li>
+<li><p>.nml: Namelist format (legacy, deprecated)</p></li>
 </ul>
-<p><strong>How the YAML is validated and resolved</strong></p>
+<p>To migrate from namelist to YAML:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ suews convert -i RunControl.nml -o config.yml
+$ suews run config.yml
+</pre></div>
+</div>
+<p>For more information, see: <a class="reference external" href="https://docs.suews.io/">https://docs.suews.io/</a></p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>CONFIG_FILE<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-run-p">
+<span id="cmdoption-suews-run-path_runcontrol"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--path_runcontrol</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;path_runcontrol&gt;</span></span><a class="headerlink" href="#cmdoption-suews-run-p" title="Link to this definition">#</a></dt>
+<dd><p>[DEPRECATED] Path to RunControl namelist file. Use positional argument instead.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-run-arg-CONFIG_FILE">
+<span class="sig-name descname"><span class="pre">CONFIG_FILE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-run-arg-CONFIG_FILE" title="Link to this definition">#</a></dt>
+<dd><p>Optional argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-schema">
+<h4><span class="section-number">6.4.1.1.9. </span>schema<a class="headerlink" href="#suews-schema" title="Link to this heading">#</a></h4>
+<p>SUEWS Schema Management - Manage YAML configuration schemas.</p>
+<p>This tool provides utilities for managing SUEWS YAML configuration schemas,
+including version checking, migration between versions, and schema export.</p>
+<p>When invoked without a subcommand (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">[--version</span> <span class="pre">V]</span>
+<span class="pre">[--format</span> <span class="pre">json|text]</span></code>), it returns a single envelope wrapping the
+JSON Schema for the requested (or current) version.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>COMMAND<span class="o">]</span><span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-v">
+<span id="cmdoption-suews-schema-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-v" title="Link to this definition">#</a></dt>
+<dd><p>Enable verbose output</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-q">
+<span id="cmdoption-suews-schema-quiet"></span><span class="sig-name descname"><span class="pre">-q</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-q" title="Link to this definition">#</a></dt>
+<dd><p>Suppress non-essential output</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-version">
+<span class="sig-name descname"><span class="pre">--version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;schema_version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-version" title="Link to this definition">#</a></dt>
+<dd><p>Schema version to expose. Defaults to the current schema version. Only consulted when no subcommand is given.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format when <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> is called without a subcommand. ‘json’ emits the canonical SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<section id="suews-schema-convert-soil">
+<h5><span class="section-number">6.4.1.1.9.1. </span>convert-soil<a class="headerlink" href="#suews-schema-convert-soil" title="Link to this heading">#</a></h5>
+<p>Convert any supported SUEWS input into a current-schema YAML.</p>
+<p>Input type is auto-detected from the file:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code> / <code class="docutils literal notranslate"><span class="pre">.nml</span></code>: legacy SUEWS table set</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.csv</span></code> / <code class="docutils literal notranslate"><span class="pre">.pkl</span></code>: df_state snapshot</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.yml</span></code> / <code class="docutils literal notranslate"><span class="pre">.yaml</span></code>: older-release YAML (cross-release upgrade)</p></li>
+</ul>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">-f</span></code>/<code class="docutils literal notranslate"><span class="pre">--from</span></code> to disambiguate the source version when auto-detection is ambiguous (table releases for .nml inputs; release tag or schema version for .yml inputs).</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>convert-soil<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-f">
+<span id="cmdoption-suews-schema-convert-soil-from"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--from</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fromVer&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-f" title="Link to this definition">#</a></dt>
+<dd><p>Source version. For .nml inputs pick a table release (e.g. 2024a); for .yml inputs pass a supy release tag (e.g. 2026.1.28) or a schema version. Auto-detected when omitted.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-i">
+<span id="cmdoption-suews-schema-convert-soil-input"></span><span class="sig-name descname"><span class="pre">-i</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--input</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;input_file&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-i" title="Link to this definition">#</a></dt>
+<dd><p>Input file: RunControl.nml for tables, .csv/.pkl for df_state, or .yml/.yaml for an older YAML config.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-o">
+<span id="cmdoption-suews-schema-convert-soil-output"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_file&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-o" title="Link to this definition">#</a></dt>
+<dd><p>Output YAML file path</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-d">
+<span id="cmdoption-suews-schema-convert-soil-debug-dir"></span><span class="sig-name descname"><span class="pre">-d</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--debug-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;debug_dir&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-d" title="Link to this definition">#</a></dt>
+<dd><p>Optional directory to keep intermediate conversion files for debugging table/df_state runs. Ignored for YAML upgrades.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-no-profile-validation">
+<span class="sig-name descname"><span class="pre">--no-profile-validation</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-no-profile-validation" title="Link to this definition">#</a></dt>
+<dd><p>Disable automatic profile validation and creation of missing profiles (table/df_state paths only).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-forcing">
+<span class="sig-name descname"><span class="pre">--forcing</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;forcing&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-forcing" title="Link to this definition">#</a></dt>
+<dd><p>Legacy forcing table for coordinated soil conversion.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-forcing-output">
+<span class="sig-name descname"><span class="pre">--forcing-output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;forcing_output&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-forcing-output" title="Link to this definition">#</a></dt>
+<dd><p>New canonical forcing table.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-manifest">
+<span class="sig-name descname"><span class="pre">--manifest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;manifest&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-manifest" title="Link to this definition">#</a></dt>
+<dd><p>New JSON conversion manifest.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-source-contract">
+<span class="sig-name descname"><span class="pre">--source-contract</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;source_contract&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-source-contract" title="Link to this definition">#</a></dt>
+<dd><p>Forcing contract of a positional (headerless) forcing file; 1.0.0-1.2.0 carry legacy xsmd, 2.0.0 carries sm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><p>1.0.0 | 1.1.0 | 1.2.0 | 2.0.0</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-source-unit">
+<span class="sig-name descname"><span class="pre">--source-unit</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;source_unit&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-source-unit" title="Link to this definition">#</a></dt>
+<dd><p>Confirmed unit of the forcing soil column. Legacy xsmd with the ambiguous ‘observed’ selector: ‘m3 m-3’ (volumetric) or ‘kg kg-1’ (gravimetric). Legacy xsmd with modelled soil moisture: ‘m3 m-3’, ‘kg kg-1’ or ‘mm’. Canonical sm: ‘kg m-2’ only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><p>m3 m-3 | kg kg-1 | mm | kg m-2</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-layer-top">
+<span class="sig-name descname"><span class="pre">--layer-top</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;layer_top&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-layer-top" title="Link to this definition">#</a></dt>
+<dd><p>Confirmed represented layer top in m (explicit 0 for the whole store).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-layer-depth">
+<span class="sig-name descname"><span class="pre">--layer-depth</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;layer_depth&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-layer-depth" title="Link to this definition">#</a></dt>
+<dd><p>Confirmed represented layer thickness in m.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-legacy-depth-is-thickness">
+<span class="sig-name descname"><span class="pre">--legacy-depth-is-thickness</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-legacy-depth-is-thickness" title="Link to this definition">#</a></dt>
+<dd><p>Confirm old depth describes layer thickness.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-drop-legacy">
+<span class="sig-name descname"><span class="pre">--drop-legacy</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-drop-legacy" title="Link to this definition">#</a></dt>
+<dd><p>Archive and drop unused method-0 xsmd values with a recorded reason.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-convert-soil-dry-run">
+<span class="sig-name descname"><span class="pre">--dry-run</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-convert-soil-dry-run" title="Link to this definition">#</a></dt>
+<dd><p>Report conversion and missing decisions without writing files.</p>
+</dd></dl>
+
+</section>
+<section id="suews-schema-export">
+<h5><span class="section-number">6.4.1.1.9.2. </span>export<a class="headerlink" href="#suews-schema-export" title="Link to this heading">#</a></h5>
+<p>Export the JSON Schema for SUEWS configurations.</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">suews</span> <span class="n">schema</span> <span class="n">export</span> <span class="o">-</span><span class="n">o</span> <span class="n">schema</span><span class="o">.</span><span class="n">json</span>
+<span class="n">suews</span> <span class="n">schema</span> <span class="n">export</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.0</span> <span class="o">--</span><span class="nb">format</span> <span class="n">yaml</span>
+</pre></div>
+</div>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-export-o">
+<span id="cmdoption-suews-schema-export-output"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--output</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-export-o" title="Link to this definition">#</a></dt>
+<dd><p>Output file for schema</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-export-version">
+<span class="sig-name descname"><span class="pre">--version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-export-version" title="Link to this definition">#</a></dt>
+<dd><p>Schema version to export</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-export-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-export-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'json'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>json | yaml</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="suews-schema-info">
+<h5><span class="section-number">6.4.1.1.9.3. </span>info<a class="headerlink" href="#suews-schema-info" title="Link to this heading">#</a></h5>
+<p>Display information about available schema versions.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>info<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="suews-schema-migrate">
+<h5><span class="section-number">6.4.1.1.9.4. </span>migrate<a class="headerlink" href="#suews-schema-migrate" title="Link to this heading">#</a></h5>
+<p>Migrate configuration files between schema versions.</p>
+<p>The input files are left unchanged; migrated copies are written next to
+them as &lt;name&gt;.migrated.yml, or into –output-dir. For schema 2026.6.dev16,
+replace invalid vegetation sdd_id values with finite site or restart data.
+An omitted field initialises that vegetation type at zero.</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">suews</span> <span class="n">schema</span> <span class="n">migrate</span> <span class="n">old_config</span><span class="o">.</span><span class="n">yml</span>
+<span class="n">suews</span> <span class="n">schema</span> <span class="n">migrate</span> <span class="n">configs</span><span class="o">/*.</span><span class="n">yml</span> <span class="o">--</span><span class="n">output</span><span class="o">-</span><span class="nb">dir</span> <span class="n">migrated</span><span class="o">/</span>
+</pre></div>
+</div>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>FILES...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-migrate-target-version">
+<span class="sig-name descname"><span class="pre">--target-version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;target_version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-migrate-target-version" title="Link to this definition">#</a></dt>
+<dd><p>Target schema version for migration</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-migrate-o">
+<span id="cmdoption-suews-schema-migrate-output-dir"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--output-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_dir&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-migrate-o" title="Link to this definition">#</a></dt>
+<dd><p>Output directory for migrated files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-migrate-n">
+<span id="cmdoption-suews-schema-migrate-dry-run"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--dry-run</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-migrate-n" title="Link to this definition">#</a></dt>
+<dd><p>Show what would be done without doing it</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-migrate-arg-FILES">
+<span class="sig-name descname"><span class="pre">FILES</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-migrate-arg-FILES" title="Link to this definition">#</a></dt>
+<dd><p>Required argument(s)</p>
+</dd></dl>
+
+</section>
+<section id="suews-schema-version">
+<h5><span class="section-number">6.4.1.1.9.5. </span>version<a class="headerlink" href="#suews-schema-version" title="Link to this heading">#</a></h5>
+<p>Check or update schema versions in configuration files.</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">suews</span> <span class="n">schema</span> <span class="n">version</span> <span class="n">config</span><span class="o">.</span><span class="n">yml</span>
+<span class="n">suews</span> <span class="n">schema</span> <span class="n">version</span> <span class="o">*.</span><span class="n">yml</span> <span class="o">--</span><span class="n">update</span> <span class="o">--</span><span class="n">target</span><span class="o">-</span><span class="n">version</span> <span class="mf">1.0</span>
+</pre></div>
+</div>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>FILES...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-version-u">
+<span id="cmdoption-suews-schema-version-update"></span><span class="sig-name descname"><span class="pre">-u</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--update</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-version-u" title="Link to this definition">#</a></dt>
+<dd><p>Update schema version in files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-version-target-version">
+<span class="sig-name descname"><span class="pre">--target-version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;target_version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-schema-version-target-version" title="Link to this definition">#</a></dt>
+<dd><p>Target version for update</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-version-b">
+<span id="cmdoption-suews-schema-version-backup"></span><span id="cmdoption-suews-schema-version-no-backup"></span><span class="sig-name descname"><span class="pre">-b</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--backup</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-backup</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-version-b" title="Link to this definition">#</a></dt>
+<dd><p>Keep a timestamped copy of each file before updating it</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-schema-version-arg-FILES">
+<span class="sig-name descname"><span class="pre">FILES</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-schema-version-arg-FILES" title="Link to this definition">#</a></dt>
+<dd><p>Required argument(s)</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="suews-summarise">
+<h4><span class="section-number">6.4.1.1.10. </span>summarise<a class="headerlink" href="#suews-summarise" title="Link to this heading">#</a></h4>
+<p>Print a per-variable summary (mean / min / max / NaN-percentage) of a SUEWS run directory, streamed Parquet dataset directory or standalone output file. Multi-group Parquet outputs preserve each (group, variable) series independently. Pass –variables to restrict the columns using bare names (e.g. QH,QE,QN) or group-qualified names (e.g. SUEWS.QS,ESTM.QS); the default is every numeric column.</p>
+<p>Examples:</p>
+<div class="line-block">
+<div class="line">suews summarise path/to/run_dir</div>
+<div class="line">suews summarise path/to/run_dir –variables QH,QE,QN</div>
+<div class="line">suews summarise path/to/run_dir –variables SUEWS.QS,ESTM.QS</div>
+</div>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>summarise<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>RUN_DIR
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-summarise-variables">
+<span class="sig-name descname"><span class="pre">--variables</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;variables&gt;</span></span><a class="headerlink" href="#cmdoption-suews-summarise-variables" title="Link to this definition">#</a></dt>
+<dd><p>Comma-separated variable names (e.g. QH,QE,QN) or group-qualified names (e.g. SUEWS.QS,ESTM.QS). A bare name that appears in multiple groups summarises all matching groups with a note.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'every</span> <span class="pre">numeric</span> <span class="pre">column'</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-summarise-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;output_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-summarise-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format. ‘json’ emits the standard SUEWS envelope on stdout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'text'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>text | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-summarise-arg-RUN_DIR">
+<span class="sig-name descname"><span class="pre">RUN_DIR</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-summarise-arg-RUN_DIR" title="Link to this definition">#</a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="suews-validate">
+<h4><span class="section-number">6.4.1.1.11. </span>validate<a class="headerlink" href="#suews-validate" title="Link to this heading">#</a></h4>
+<p>SUEWS Configuration Validator.</p>
+<p>Default behaviour: run the complete validation pipeline on one FILE. Use
+<code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">C</span> <span class="pre">--dry-run</span> <span class="pre">FILES...</span></code> for read-only schema checks on one or more files;
+use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> for schema lifecycle operations.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>FILES<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-p">
+<span id="cmdoption-suews-validate-pipeline"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--pipeline</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;pipeline&gt;</span></span><a class="headerlink" href="#cmdoption-suews-validate-p" title="Link to this definition">#</a></dt>
+<dd><p>Phase pipeline to run</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'ABC'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>A | B | C | AB | AC | BC | ABC</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-m">
+<span id="cmdoption-suews-validate-mode"></span><span class="sig-name descname"><span class="pre">-m</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mode</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;mode&gt;</span></span><a class="headerlink" href="#cmdoption-suews-validate-m" title="Link to this definition">#</a></dt>
+<dd><p>Validation mode for phase pipeline</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'public'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>public | dev</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-dry-run">
+<span class="sig-name descname"><span class="pre">--dry-run</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-validate-dry-run" title="Link to this definition">#</a></dt>
+<dd><p>Do not write files; validate only (supports pipeline C and ABC)</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-format">
+<span class="sig-name descname"><span class="pre">--format</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_format&gt;</span></span><a class="headerlink" href="#cmdoption-suews-validate-format" title="Link to this definition">#</a></dt>
+<dd><p>Output format for <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> results</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'table'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>table | json</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-schema-version">
+<span class="sig-name descname"><span class="pre">--schema-version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;schema_version&gt;</span></span><a class="headerlink" href="#cmdoption-suews-validate-schema-version" title="Link to this definition">#</a></dt>
+<dd><p>Schema version to validate against in <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code></p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-f">
+<span id="cmdoption-suews-validate-forcing"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--forcing</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;forcing&gt;</span></span><a class="headerlink" href="#cmdoption-suews-validate-f" title="Link to this definition">#</a></dt>
+<dd><p>Enable/disable forcing data validation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'on'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>on | off</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-science-fixes">
+<span class="sig-name descname"><span class="pre">--science-fixes</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;science_fixes&gt;</span></span><a class="headerlink" href="#cmdoption-suews-validate-science-fixes" title="Link to this definition">#</a></dt>
+<dd><p>Handle Phase B scientific transformations: suggest, apply, or off</p>
+<dl class="field-list simple">
+<dt class="field-odd">Default<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">'suggest'</span></code></p>
+</dd>
+<dt class="field-even">Options<span class="colon">:</span></dt>
+<dd class="field-even"><p>suggest | apply | off</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-continue-on-error">
+<span class="sig-name descname"><span class="pre">--continue-on-error</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-validate-continue-on-error" title="Link to this definition">#</a></dt>
+<dd><p>Continue running downstream read-only phases after an earlier phase reports errors</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-suews-validate-arg-FILES">
+<span class="sig-name descname"><span class="pre">FILES</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-suews-validate-arg-FILES" title="Link to this definition">#</a></dt>
+<dd><p>Optional argument(s)</p>
+</dd></dl>
+
+</section>
+</section>
+</section>
+<section id="yaml-validation-and-engine-contract-for-suews-run">
+<h2><span class="section-number">6.4.2. </span>YAML Validation and Engine Contract for <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code><a class="headerlink" href="#yaml-validation-and-engine-contract-for-suews-run" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> does not hand your YAML file to the physics engine as written. It first loads it through the SUEWS data model, the same path as <a class="reference internal" href="simulation.html#supy.SUEWSSimulation" title="supy.SUEWSSimulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a>: the configuration is validated, any parameter you leave out takes its documented data-model default, and the result is passed to the engine as a complete, resolved configuration. Errors in the YAML are therefore reported by the data model, naming the field concerned, before any simulation starts.</p>
 <p>Set <code class="docutils literal notranslate"><span class="pre">model.control.output.dir</span></code> in source YAML to choose where <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code> writes results. The command uses the legacy <code class="docutils literal notranslate"><span class="pre">model.control.output_file.path</span></code> only when the <code class="docutils literal notranslate"><span class="pre">model.control.output</span></code> block is absent. If the selected directory is missing, null or an empty string, the command writes to the directory where you invoked it. A non-empty relative path starts from the source YAML file’s directory. Use <code class="docutils literal notranslate"><span class="pre">.</span></code> to write beside the source file.</p>
 <p>Resolved input is the caller contract: defaults belong in the data model, and callers must pass the engine a complete, resolved configuration. Enforcement of this contract at the engine boundary is still being completed; some omitted values can still retain legacy bridge fallbacks. Acceptance by the engine does not establish that an incomplete configuration is valid.</p>
@@ -770,103 +1991,17 @@ beside the source so supplied relative paths still resolve correctly:</p>
 the block or a field, SuPy supplies the documented defaults during export.
 Regenerate an incomplete engine input from its source configuration.</p>
 </div>
-<p>For detailed usage and examples, see the <a class="reference internal" href="../workflow.html"><span class="doc">Getting Started</span></a> guide.</p>
-</section>
-<section id="suews-convert">
-<h3><span class="section-number">6.4.1.3. </span>suews convert<a class="headerlink" href="#suews-convert" title="Link to this heading">#</a></h3>
-<p>Convert a legacy table set (<code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>), a df_state snapshot (<code class="docutils literal notranslate"><span class="pre">.csv</span></code>/<code class="docutils literal notranslate"><span class="pre">.pkl</span></code>) or an older YAML configuration into a current-schema YAML file.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
-</pre></div>
-</div>
-<p><strong>Documentation</strong>:</p>
-<ul class="simple">
-<li><p><strong>CLI usage</strong>: See <a class="reference internal" href="../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> for command-line options</p></li>
-<li><p><strong>Python API</strong>: See <a class="reference internal" href="converter.html"><span class="doc">Configuration Converter API</span></a> for programmatic usage</p></li>
-</ul>
-</section>
-<section id="suews-validate">
-<h3><span class="section-number">6.4.1.4. </span>suews validate<a class="headerlink" href="#suews-validate" title="Link to this heading">#</a></h3>
-<p>Validate SUEWS YAML configuration files against the schema and run the validation pipeline.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>validate<span class="w"> </span>config.yml
-</pre></div>
-</div>
-<p>See <a class="reference internal" href="../inputs/yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> for the pipeline phases and options.</p>
-</section>
-<section id="suews-inspect">
-<h3><span class="section-number">6.4.1.5. </span>suews inspect<a class="headerlink" href="#suews-inspect" title="Link to this heading">#</a></h3>
-<p>Show a compact, read-only overview of a YAML configuration: per-site coordinates, surface-cover fractions and a forcing file summary.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>inspect<span class="w"> </span>config.yml
-suews<span class="w"> </span>inspect<span class="w"> </span>config.yml<span class="w"> </span>--format<span class="w"> </span>json
-</pre></div>
-</div>
-</section>
-<section id="suews-summarise">
-<h3><span class="section-number">6.4.1.6. </span>suews summarise<a class="headerlink" href="#suews-summarise" title="Link to this heading">#</a></h3>
-<p>Print a per-variable summary (mean, minimum, maximum and percentage of missing values) of the output in a run directory. For multi-group Parquet outputs, each <code class="docutils literal notranslate"><span class="pre">(group,</span> <span class="pre">variable)</span></code> series is preserved independently and labelled with its group in both text and JSON output.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir
-suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir<span class="w"> </span>--variables<span class="w"> </span>QH,QE,QN
-suews<span class="w"> </span>summarise<span class="w"> </span>path/to/run_dir<span class="w"> </span>--variables<span class="w"> </span>SUEWS.QS,ESTM.QS
-</pre></div>
-</div>
-<p>Use bare variable names (such as <code class="docutils literal notranslate"><span class="pre">QH</span></code> or <code class="docutils literal notranslate"><span class="pre">Kdown</span></code>) for unambiguous selections, or <code class="docutils literal notranslate"><span class="pre">&lt;group&gt;.&lt;variable&gt;</span></code> (such as <code class="docutils literal notranslate"><span class="pre">SUEWS.QS</span></code> or <code class="docutils literal notranslate"><span class="pre">ESTM.QS</span></code>) to request a specific group when a name recurs across groups. Passing a bare colliding name summarises every matching group and records an advisory note showing the qualified names.</p>
-</section>
-<section id="suews-compare">
-<h3><span class="section-number">6.4.1.7. </span>suews compare<a class="headerlink" href="#suews-compare" title="Link to this heading">#</a></h3>
-<p>Compare two run directories, or a run directory and an observations CSV file, by computing per-variable RMSE, bias and Pearson correlation over their shared timestamps.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>compare<span class="w"> </span>run_a<span class="w"> </span>run_b
-suews<span class="w"> </span>compare<span class="w"> </span>run_a<span class="w"> </span>observations.csv<span class="w"> </span>--variables<span class="w"> </span>QH,QE<span class="w"> </span>--metrics<span class="w"> </span>rmse,bias
-</pre></div>
-</div>
-<p>Use <code class="docutils literal notranslate"><span class="pre">--grid</span></code> to choose a grid when an input holds several, and <code class="docutils literal notranslate"><span class="pre">--align</span> <span class="pre">positional</span></code> for inputs without a recoverable time axis.</p>
-</section>
-<section id="suews-diagnose">
-<h3><span class="section-number">6.4.1.8. </span>suews diagnose<a class="headerlink" href="#suews-diagnose" title="Link to this heading">#</a></h3>
-<p>Run a battery of checks on a run directory: provenance present, output files present, proportion of missing values in QH, QE and QN, and energy-balance closure.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>diagnose<span class="w"> </span>path/to/run_dir
-suews<span class="w"> </span>diagnose<span class="w"> </span>path/to/run_dir<span class="w"> </span>--format<span class="w"> </span>json
-</pre></div>
-</div>
-</section>
-<section id="suews-schema">
-<h3><span class="section-number">6.4.1.9. </span>suews schema<a class="headerlink" href="#suews-schema" title="Link to this heading">#</a></h3>
-<p>Display, check, migrate and export the SUEWS configuration schema (subcommands <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">migrate</span></code> and <code class="docutils literal notranslate"><span class="pre">export</span></code>).</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>--help
-</pre></div>
-</div>
-<p>See <a class="reference internal" href="../contributing/schema/schema_cli.html"><span class="doc">Schema Management CLI</span></a> for details.</p>
-</section>
-<section id="suews-contracts">
-<h3><span class="section-number">6.4.1.10. </span>suews contracts<a class="headerlink" href="#suews-contracts" title="Link to this heading">#</a></h3>
-<p>Discover, inspect, export, publish and validate the versioned SUEWS forcing and output data contracts (subcommands <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">show</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span></code>, <code class="docutils literal notranslate"><span class="pre">publish</span></code> and <code class="docutils literal notranslate"><span class="pre">validate</span></code>).</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>contracts<span class="w"> </span>--help
-suews<span class="w"> </span>contracts<span class="w"> </span>info<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io<span class="w"> </span>--format<span class="w"> </span>json
-suews<span class="w"> </span>contracts<span class="w"> </span>show<span class="w"> </span>forcing<span class="w"> </span>--version<span class="w"> </span><span class="m">2</span>.1.0<span class="w"> </span>--artefact<span class="w"> </span>catalogue<span class="w"> </span>--format<span class="w"> </span>json
-suews<span class="w"> </span>contracts<span class="w"> </span><span class="nb">export</span><span class="w"> </span>output<span class="w"> </span>--version<span class="w"> </span><span class="m">2</span>.1.0<span class="w"> </span>--artefact<span class="w"> </span>bundle<span class="w"> </span>--output<span class="w"> </span>./output-contract<span class="w"> </span>--format<span class="w"> </span>json
-suews<span class="w"> </span>contracts<span class="w"> </span>publish<span class="w"> </span>--output-dir<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io<span class="w"> </span>--preserve-from<span class="w"> </span>./previous-contracts<span class="w"> </span>--validate<span class="w"> </span>--format<span class="w"> </span>json
-suews<span class="w"> </span>contracts<span class="w"> </span>publish<span class="w"> </span>--output-dir<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--no-validate
-suews<span class="w"> </span>contracts<span class="w"> </span>validate<span class="w"> </span>build/contracts-site/contracts<span class="w"> </span>--base-url<span class="w"> </span>https://suews.io<span class="w"> </span>--format<span class="w"> </span>json
-</pre></div>
-</div>
-<p>Omit <code class="docutils literal notranslate"><span class="pre">--output</span></code> (<code class="docutils literal notranslate"><span class="pre">-o</span></code>) on <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">contracts</span> <span class="pre">export</span></code> to stream a single canonical JSON artefact (<code class="docutils literal notranslate"><span class="pre">catalogue</span></code>, <code class="docutils literal notranslate"><span class="pre">schema</span></code> or <code class="docutils literal notranslate"><span class="pre">manifest</span></code>) directly to stdout. See <a class="reference internal" href="../contributing/schema/data_interface_versioning.html#data-interface-versioning"><span class="std std-ref">Data-interface versioning</span></a> for the published URL layout and contributor release workflow.</p>
-</section>
-<section id="suews-knowledge">
-<h3><span class="section-number">6.4.1.11. </span>suews knowledge<a class="headerlink" href="#suews-knowledge" title="Link to this heading">#</a></h3>
-<p>Query the packaged source-evidence knowledge pack. The pack is generated from
-the Git checkout used to build the installed SuPy wheel and carries citations
-back to the exact repository paths and line spans.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>knowledge<span class="w"> </span>manifest<span class="w"> </span>--format<span class="w"> </span>json
-suews<span class="w"> </span>knowledge<span class="w"> </span>query<span class="w"> </span><span class="s2">"How is runoff routed?"</span><span class="w"> </span>--format<span class="w"> </span>json
-</pre></div>
-</div>
-<p>See <a class="reference internal" href="knowledge-pack.html"><span class="doc">Knowledge Pack</span></a> for the pack format and source policy.</p>
-</section>
 </section>
 <section id="related-documentation">
-<h2><span class="section-number">6.4.2. </span>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">6.4.3. </span>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="python-cli-equivalents.html"><span class="doc">Python API for CLI Users</span></a> - Python API equivalents for all CLI commands</p></li>
 <li><p><a class="reference internal" href="../workflow.html"><span class="doc">Getting Started</span></a> - Complete workflow guide</p></li>
-<li><p><a class="reference internal" href="../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> - Configuration converter guide</p></li>
+<li><p><a class="reference internal" href="../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> - Configuration converter CLI guide (see <a class="reference internal" href="converter.html"><span class="doc">Configuration Converter API</span></a> for the Python API)</p></li>
+<li><p><a class="reference internal" href="../inputs/yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> - Configuration validation pipeline phases and options</p></li>
+<li><p><a class="reference internal" href="../contributing/schema/schema_cli.html"><span class="doc">Schema Management CLI</span></a> - Schema management CLI guide</p></li>
+<li><p><a class="reference internal" href="../contributing/schema/data_interface_versioning.html#data-interface-versioning"><span class="std std-ref">Data-interface versioning</span></a> - Versioned forcing and output data contracts</p></li>
+<li><p><a class="reference internal" href="knowledge-pack.html"><span class="doc">Knowledge Pack</span></a> - Source-evidence knowledge pack format and source policy</p></li>
 <li><p><a class="reference internal" href="../inputs/yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration reference</p></li>
 </ul>
 </section>
@@ -919,21 +2054,44 @@ suews<span class="w"> </span>knowledge<span class="w"> </span>query<span class="
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#available-commands">6.4.1. Available Commands</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-init">6.4.1.1. suews init</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.2. suews run</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.3. suews convert</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.4. suews validate</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-inspect">6.4.1.5. suews inspect</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-summarise">6.4.1.6. suews summarise</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.7. suews compare</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.8. suews diagnose</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.9. suews schema</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts">6.4.1.10. suews contracts</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.11. suews knowledge</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-reference">6.4.1. CLI Reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suews">6.4.1.1. suews</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-compare">6.4.1.1.1. compare</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts">6.4.1.1.2. contracts</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-export">6.4.1.1.2.1. export</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-info">6.4.1.1.2.2. info</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-publish">6.4.1.1.2.3. publish</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-show">6.4.1.1.2.4. show</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-contracts-validate">6.4.1.1.2.5. validate</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.2. Related Documentation</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-convert">6.4.1.1.3. convert</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-diagnose">6.4.1.1.4. diagnose</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-init">6.4.1.1.5. init</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-inspect">6.4.1.1.6. inspect</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge">6.4.1.1.7. knowledge</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge-build">6.4.1.1.7.1. build</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge-manifest">6.4.1.1.7.2. manifest</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-knowledge-query">6.4.1.1.7.3. query</a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-run">6.4.1.1.8. run</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema">6.4.1.1.9. schema</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-convert-soil">6.4.1.1.9.1. convert-soil</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-export">6.4.1.1.9.2. export</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-info">6.4.1.1.9.3. info</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-migrate">6.4.1.1.9.4. migrate</a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-schema-version">6.4.1.1.9.5. version</a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-summarise">6.4.1.1.10. summarise</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#suews-validate">6.4.1.1.11. validate</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-validation-and-engine-contract-for-suews-run">6.4.2. YAML Validation and Engine Contract for <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.4.3. Related Documentation</a></li>
 </ul>
   </nav></div>
 
@@ -975,8 +2133,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.27.dev32 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4575df476d5fcbfe4306224211626437ce55c179">4575df4</a> |
+  <p>Version: 2026.11.27.dev33 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cdb8c0f07b6794933cb249954060a01c536bfba2">cdb8c0f</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

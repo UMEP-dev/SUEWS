@@ -7,6 +7,9 @@ plotting, and flux-performance error handling.
 
 from __future__ import annotations
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -404,6 +407,68 @@ class TestQ2Attribution:
         np.testing.assert_allclose(
             sum_diff, res_diff.contributions["delta_total"], rtol=1e-10, atol=1e-12
         )
+
+    def test_attribute_q2_isolated_and_mixed_factor_attribution(self):
+        """Isolated QE, isolated resistance, and mixed changes match analytical Shapley values."""
+        idx = pd.date_range("2023-07-01", periods=6, freq="h")
+        tair = np.full(6, 22.0)
+        rh = np.full(6, 55.0)
+        pres = np.full(6, 1013.25)
+        gamma = np.asarray(cal_gamma_humidity(tair, rh, pres), dtype=float)
+        scale = 1000.0  # kg/kg -> g/kg
+
+        qe_a = np.full(6, 100.0)
+        r_a = np.full(6, 50.0)
+        df_base, df_fc = _make_q2_scenario(
+            idx, tair=tair, rh=rh, pres=pres, qe=qe_a, r_eff=r_a
+        )
+
+        # 1. QE-only change: all attribution belongs to flux_total.
+        qe_b = np.full(6, 160.0)
+        df_qe_only, _ = _make_q2_scenario(
+            idx, tair=tair, rh=rh, pres=pres, qe=qe_b, r_eff=r_a
+        )
+        res_qe = attribute_q2(df_base, df_qe_only, df_fc, df_fc)
+        expected_flux_only = r_a * (qe_b - qe_a) * gamma * scale
+        np.testing.assert_allclose(
+            res_qe.contributions["flux_total"], expected_flux_only, rtol=1e-12
+        )
+        np.testing.assert_allclose(res_qe.contributions["resistance"], 0.0, atol=1e-14)
+        np.testing.assert_allclose(res_qe.contributions["q_ref"], 0.0, atol=1e-14)
+        np.testing.assert_allclose(res_qe.contributions["air_props"], 0.0, atol=1e-14)
+
+        # 2. Resistance-only change: all attribution belongs to resistance.
+        r_b = np.full(6, 70.0)
+        df_r_only, _ = _make_q2_scenario(
+            idx, tair=tair, rh=rh, pres=pres, qe=qe_a, r_eff=r_b
+        )
+        res_r = attribute_q2(df_base, df_r_only, df_fc, df_fc)
+        expected_r_only = (r_b - r_a) * qe_a * gamma * scale
+        np.testing.assert_allclose(
+            res_r.contributions["resistance"], expected_r_only, rtol=1e-12
+        )
+        np.testing.assert_allclose(res_r.contributions["flux_total"], 0.0, atol=1e-14)
+        np.testing.assert_allclose(res_r.contributions["q_ref"], 0.0, atol=1e-14)
+        np.testing.assert_allclose(res_r.contributions["air_props"], 0.0, atol=1e-14)
+
+        # 3. Mixed QE + resistance change with distinct magnitudes to prevent column swaps.
+        df_mixed, _ = _make_q2_scenario(
+            idx, tair=tair, rh=rh, pres=pres, qe=qe_b, r_eff=r_b
+        )
+        res_mix = attribute_q2(df_base, df_mixed, df_fc, df_fc)
+        # With gamma unchanged, triple Shapley reduces to binary Shapley scaled by gamma:
+        # Phi_QE = dQE * (r_A + r_B) / 2 * gamma; Phi_r = dr * (QE_A + QE_B) / 2 * gamma.
+        expected_phi_qe = (qe_b - qe_a) * 0.5 * (r_a + r_b) * gamma * scale
+        expected_phi_r = (r_b - r_a) * 0.5 * (qe_a + qe_b) * gamma * scale
+        assert not np.allclose(expected_phi_qe, expected_phi_r)
+        np.testing.assert_allclose(
+            res_mix.contributions["flux_total"], expected_phi_qe, rtol=1e-12
+        )
+        np.testing.assert_allclose(
+            res_mix.contributions["resistance"], expected_phi_r, rtol=1e-12
+        )
+        np.testing.assert_allclose(res_mix.contributions["q_ref"], 0.0, atol=1e-14)
+        np.testing.assert_allclose(res_mix.contributions["air_props"], 0.0, atol=1e-14)
 
     def test_attribute_q2_low_flux_flag_and_oop_wrappers(self):
         """Low QE timesteps are flagged and SUEWSForcing/SUEWSOutput wrappers unwrap."""

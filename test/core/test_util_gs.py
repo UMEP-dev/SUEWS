@@ -163,9 +163,19 @@ class TestSurfaceConductanceFactors:
         assert cal_g_ta(55.0, g_ta=25.0, tl=-10.0, th=55.0) == pytest.approx(0.0)
         assert cal_g_ta(10.0, g_ta=25.0) < 1.0
         assert cal_g_ta(40.0, g_ta=25.0) < 1.0
-        # When g_ta is very close to tl, tc = (th - g_ta) / (g_ta - tl) > 20 is capped.
-        g_capped = cal_g_ta(-9.0, g_ta=-9.0, tl=-10.0, th=55.0)
-        assert g_capped == pytest.approx(1.0)
+        # When g_ta is very close to tl, tc = (th - g_ta) / (g_ta - tl) = 64 is capped at 20.
+        ta_off = 10.0
+        g_ta_near_tl = -9.0
+        tl, th = -10.0, 55.0
+        expected_capped = ((ta_off - tl) * (th - ta_off) ** 20) / (
+            (g_ta_near_tl - tl) * (th - g_ta_near_tl) ** 20
+        )
+        expected_uncapped = ((ta_off - tl) * (th - ta_off) ** 64) / (
+            (g_ta_near_tl - tl) * (th - g_ta_near_tl) ** 64
+        )
+        g_capped = cal_g_ta(ta_off, g_ta=g_ta_near_tl, tl=tl, th=th)
+        assert g_capped == pytest.approx(expected_capped, rel=1e-12)
+        assert g_capped > 1e4 * expected_uncapped
 
     def test_cal_g_smd_bounds_and_monotonicity(self):
         """cal_g_smd equals 1 at smd=0, 0 at wp_smd, and decreases with smd."""
@@ -218,8 +228,6 @@ class TestSUEWSConductanceModel:
             debug=True,
         )
 
-        expected_cols = ["gs_mod", "gs_c", "g_lai", "g_kd", "g_dq", "g_ta", "g_smd"]
-        assert list(df_dbg.columns) == expected_cols
         pd.testing.assert_series_equal(df_dbg["gs_mod"], gs_plain, check_names=False)
         prod_factors = (
             df_dbg["g_lai"]

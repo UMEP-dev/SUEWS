@@ -1,5 +1,6 @@
 """Test gen_epw with resampling functionality (GitHub issue #150)."""
 
+from importlib import import_module
 import sys
 import types
 
@@ -10,6 +11,8 @@ import pandas as pd
 import pytest
 
 import supy as sp
+
+_umep2epw = import_module("supy.util._UMEP2epw")
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE", "C-SAVE")]
 
@@ -232,3 +235,47 @@ class TestGenEpwMultiIndexInput:
             path_epw=tmp_path / "test_extracted_freq.epw",
         )
         assert isinstance(df_epw, pd.DataFrame)
+
+
+def test_umep_patchup_epw_writes_valid_lf_epw_without_metpy(tmp_path):
+    """``patchup_epw`` uses pandas ``lineterminator`` and portable dates without requiring metpy (#2111)."""
+    idx = pd.date_range("2013-01-01 01:00:00", periods=3, freq="h")
+    cols = [f"c{i}" for i in range(35)]
+    data = np.ones((len(idx), 35), dtype=float)
+    data[:, 0] = 2013
+    data[:, 1] = 1
+    data[:, 2] = 1
+    data[:, 3] = [1, 2, 3]
+    data[:, 4] = 0
+    data[:, 6] = [12.34, 13.45, 14.56]
+    data[:, 7] = [8.12, 8.23, 8.34]
+    data[:, 21] = [2.34, 3.45, 4.56]
+    # Include NaN values in columns patchup_epw replaces before integer rounding.
+    data[:, 16:19] = np.nan
+    data[:, 26] = np.nan
+    data[:, 27] = np.nan
+    data[:, 29] = np.nan
+    data[:, 34] = np.nan
+
+    df_epw = pd.DataFrame(data, index=idx, columns=cols)
+    df_epw["c5"] = "?9?9?9?9E0"
+    header = ["placeholder"] * 8
+    out_epw = tmp_path / "repaired.epw"
+
+    df_fixed, header_fixed, path_fixed = _umep2epw.patchup_epw(
+        df_epw, header, out_epw, lat=47.5, lon=19.12, tz=1.0, alt=163.0
+    )
+
+    assert path_fixed == out_epw
+    assert out_epw.is_file()
+    raw_bytes = out_epw.read_bytes()
+    assert b"\r\n" not in raw_bytes
+    lines = raw_bytes.decode("utf-8").splitlines()
+    assert len(lines) == 8 + len(idx)
+    assert header_fixed[0] == "LOCATION,NA,NA,NA,UMEP/SuPy,NA,47.5,19.12,1.0,163.0"
+    assert header_fixed[7] == "DATA PERIODS,1,1,Year_2013,Tuesday,1/1,1/1"
+    assert (df_fixed.iloc[:, 16:19] == 999999).all().all()
+    assert (df_fixed.iloc[:, 26] == 9).all()
+    assert (df_fixed.iloc[:, 27] == 999999999).all()
+    assert np.allclose(df_fixed.iloc[:, 29], 0.999)
+    assert (df_fixed.iloc[:, 34] == 99).all()

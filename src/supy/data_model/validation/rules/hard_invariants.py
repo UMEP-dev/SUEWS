@@ -21,6 +21,8 @@ from dataclasses import dataclass
 import math
 from typing import Any
 
+import numpy as np
+
 from ..required_fields import (
     BUILDING_PRESENT_SFR_TOL,
     SPARTACUS_BUILDING_STORAGE_METHODS,
@@ -44,6 +46,8 @@ _WATER_USE_STRING_CODES: dict[str, int] = {
     "modeled": 0,
     "observed": 1,
 }
+LAND_COVER_SUM_PASS_TOL: float = 1e-6
+LAND_COVER_SUM_AUTO_FIX_TOL: float = 1e-4
 
 _SHADING_MISSING_SUGGESTIONS: dict[str, str] = {
     "reduction_factor_shading": "Provide a value between 0 and 1",
@@ -77,11 +81,16 @@ def _default_coerce_doy(value: Any, name: str) -> int:
     return coerce_integer_doy_scalar(value, name)
 
 
+def _is_bool_like(value: Any) -> bool:
+    """Return True for Python ``bool`` and NumPy ``bool_`` scalars."""
+    return isinstance(value, (bool, np.bool_))
+
+
 def _is_finite_real_number(value: Any) -> bool:
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
+    if not isinstance(value, (int, float, np.number)) or _is_bool_like(value):
         return False
     try:
-        return math.isfinite(value)
+        return math.isfinite(float(value))
     except (TypeError, ValueError, OverflowError):
         return False
 
@@ -216,7 +225,7 @@ def check_spartacus_storage_heat(
 
 
 def _coerce_finite_float(raw: Any) -> float | None:
-    if isinstance(raw, bool):
+    if _is_bool_like(raw):
         return None
     try:
         val = float(raw)
@@ -718,8 +727,10 @@ def check_dls_doy_pair(
 
     Returns ``(violations, half_configured, startdls_int, enddls_int)``.
     ``SUEWSConfig.validate_dls_parameters`` treats ``half_configured`` as a
-    hard error, whereas Phase B's geographic rule emits a warning because
-    ``--science-fixes apply`` can still compute DLS from site coordinates.
+    hard error, and Phase B's geographic rule also emits a blocking ``ERROR``
+    under ``off``/``suggest`` or when DST cannot be computed for the site,
+    emitting ``INFO`` only under ``--science-fixes apply`` when seasonal
+    adjustment can fill the missing bound.
     """
     coerce = coerce_doy or _default_coerce_doy
     is_leap = calendar.isleap(model_year) if model_year is not None else True
@@ -783,3 +794,192 @@ def check_dls_doy_pair(
 
     half_configured = (startdls is None) != (enddls is None)
     return violations, half_configured, parsed["startdls"], parsed["enddls"]
+
+
+@dataclass(frozen=True)
+class LandCoverSumResult:
+    """Outcome of checking land-cover surface fractions against tolerance bands."""
+
+    band: str
+    severity: str
+    total: float
+    difference: float
+    max_surface: str | None = None
+    correction: float | None = None
+    violation: InvariantViolation | None = None
+
+
+def coerce_land_cover_fraction(raw: Any) -> float | None:
+    """Coerce a raw or unwrapped land-cover surface fraction to a finite float.
+
+    Shared by Phase B rules, scientific patch planners, and the land-cover sum
+    kernel so numeric strings (such as ``"0.6"``) are admitted identically
+    everywhere while booleans, ``None``, and non-finite or non-numeric values
+    return ``None``.
+    """
+    return _coerce_finite_float(raw)
+
+
+def check_land_cover_fraction_sum(
+    fractions: Mapping[str, Any],
+) -> LandCoverSumResult:
+    """Validate land-cover fraction sum using the shared three-band policy.
+
+    Bands evaluated on finite per-surface fractions in ``[0.0, 1.0]``:
+
+    - ``abs(sum - 1.0) <= LAND_COVER_SUM_PASS_TOL`` (``1e-6``): ``pass``.
+    - ``1e-6 < abs(sum - 1.0) <= LAND_COVER_SUM_AUTO_FIX_TOL`` (``1e-4``):
+      ``auto_fix`` (``WARNING``, non-blocking; auto-normalisable under
+      ``--science-fixes apply``).
+    - ``abs(sum - 1.0) > LAND_COVER_SUM_AUTO_FIX_TOL`` or zero/invalid input:
+      ``error`` (``ERROR``, blocking).
+    """
+    if not isinstance(fractions, Mapping) or not fractions:
+        return LandCoverSumResult(
+            band="error",
+            severity="ERROR",
+            total=0.0,
+            difference=1.0,
+            violation=InvariantViolation(
+                code="LAND_COVER.SURFACE_FRACTIONS.ALL_ZERO",
+                category="LAND_COVER",
+                parameter="land_cover.surface_fractions",
+                message="All surface fractions are zero or missing",
+                suggested_value=(
+                    "Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, "
+                    "dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0"
+                ),
+            ),
+        )
+
+    clean: dict[str, float] = {}
+    for surf_name, raw_val in fractions.items():
+        val = coerce_land_cover_fraction(raw_val)
+        if val is None:
+            return LandCoverSumResult(
+                band="error",
+                severity="ERROR",
+                total=0.0,
+                difference=1.0,
+                violation=InvariantViolation(
+                    code="LAND_COVER.SFR.NON_FINITE",
+                    category="LAND_COVER",
+                    parameter=f"{surf_name}.sfr",
+                    message=(
+                        f"Surface fraction '{surf_name}.sfr' ({raw_val!r}) "
+                        "is not a finite number"
+                    ),
+                    suggested_value=(
+                        "Set surface fraction to a finite number between 0.0 and 1.0"
+                    ),
+                ),
+            )
+        if not 0.0 <= val <= 1.0:
+            return LandCoverSumResult(
+                band="error",
+                severity="ERROR",
+                total=0.0,
+                difference=1.0,
+                violation=InvariantViolation(
+                    code="LAND_COVER.SFR.OUT_OF_RANGE",
+                    category="LAND_COVER",
+                    parameter=f"{surf_name}.sfr",
+                    message=(
+                        f"Surface fraction '{surf_name}.sfr' ({val:g}) "
+                        "must be between 0.0 and 1.0"
+                    ),
+                    suggested_value="Set surface fraction between 0.0 and 1.0",
+                ),
+            )
+        clean[surf_name] = val
+
+    canonical_order = {
+        name: idx
+        for idx, name in enumerate(
+            ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+        )
+    }
+    ordered_clean = sorted(
+        clean.items(),
+        key=lambda item: (canonical_order.get(item[0], len(canonical_order)), item[0]),
+    )
+    total = sum(val for _, val in ordered_clean)
+    difference = abs(total - 1.0)
+    max_surface = max(ordered_clean, key=lambda item: item[1])[0]
+
+    if total == 0.0:
+        return LandCoverSumResult(
+            band="error",
+            severity="ERROR",
+            total=0.0,
+            difference=1.0,
+            max_surface=max_surface,
+            violation=InvariantViolation(
+                code="LAND_COVER.SURFACE_FRACTIONS.ALL_ZERO",
+                category="LAND_COVER",
+                parameter="land_cover.surface_fractions",
+                message="All surface fractions are zero or missing",
+                suggested_value=(
+                    "Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, "
+                    "dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0"
+                ),
+            ),
+        )
+
+    if difference <= LAND_COVER_SUM_PASS_TOL:
+        return LandCoverSumResult(
+            band="pass",
+            severity="PASS",
+            total=total,
+            difference=difference,
+            max_surface=max_surface,
+        )
+
+    surface_list = ", ".join(f"{surf}={val:.4f}" for surf, val in ordered_clean)
+    if difference <= LAND_COVER_SUM_AUTO_FIX_TOL:
+        return LandCoverSumResult(
+            band="auto_fix",
+            severity="WARNING",
+            total=total,
+            difference=difference,
+            max_surface=max_surface,
+            correction=1.0 - total,
+            violation=InvariantViolation(
+                code="LAND_COVER.SURFACE_FRACTIONS.SMALL_DRIFT",
+                category="LAND_COVER",
+                parameter=f"{max_surface}.sfr",
+                message=(
+                    f"Surface fractions sum to {total:.6f} (difference "
+                    f"{difference:.2e} within auto-normalisation tolerance "
+                    f"{LAND_COVER_SUM_AUTO_FIX_TOL:.1e}: {surface_list}). "
+                    f"Re-run with --science-fixes apply to auto-normalise "
+                    f"{max_surface}.sfr."
+                ),
+                suggested_value=(
+                    f"Normalise {max_surface}.sfr (or adjust surface fractions) "
+                    "so they sum to 1.0"
+                ),
+            ),
+        )
+
+    return LandCoverSumResult(
+        band="error",
+        severity="ERROR",
+        total=total,
+        difference=difference,
+        max_surface=max_surface,
+        violation=InvariantViolation(
+            code="LAND_COVER.SURFACE_FRACTIONS.SUM_ERROR",
+            category="LAND_COVER",
+            parameter=f"{max_surface}.sfr",
+            message=(
+                f"Surface fractions sum to {total:.4f}, should equal 1.0 "
+                f"(auto-normalisation range: 1.0 +/- "
+                f"{LAND_COVER_SUM_AUTO_FIX_TOL:.1e}, current: {surface_list})"
+            ),
+            suggested_value=(
+                f"Adjust {max_surface}.sfr or other surface fractions so they "
+                f"sum to 1.0 (within {LAND_COVER_SUM_AUTO_FIX_TOL:.1e})"
+            ),
+        ),
+    )

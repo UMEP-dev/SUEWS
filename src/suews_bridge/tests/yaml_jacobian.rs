@@ -1326,20 +1326,21 @@ fn probe_waterdist_simplex_group(
                         .into_iter()
                         .map(|(idx, bv, pv)| (layout.names[idx].clone(), bv, pv))
                         .collect();
-                    let isolated = if named_diffs.len() == 2 {
-                        let d0 = named_diffs[0].2 - named_diffs[0].1;
-                        let d1 = named_diffs[1].2 - named_diffs[1].1;
-                        if (d0 - signed_delta).abs() <= DELTA_TOL
-                            && (d1 + signed_delta).abs() <= DELTA_TOL
-                        {
-                            vec![named_diffs[0].clone()]
-                        } else if (d1 - signed_delta).abs() <= DELTA_TOL
-                            && (d0 + signed_delta).abs() <= DELTA_TOL
-                        {
-                            vec![named_diffs[1].clone()]
-                        } else {
-                            named_diffs
-                        }
+                    let pos_diffs: Vec<(String, f64, f64)> = named_diffs
+                        .iter()
+                        .filter(|(_, bv, pv)| ((pv - bv) - signed_delta).abs() <= DELTA_TOL)
+                        .cloned()
+                        .collect();
+                    let neg_diffs: Vec<(String, f64, f64)> = named_diffs
+                        .iter()
+                        .filter(|(_, bv, pv)| ((pv - bv) + signed_delta).abs() <= DELTA_TOL)
+                        .cloned()
+                        .collect();
+                    let isolated = if !pos_diffs.is_empty()
+                        && pos_diffs.len() == neg_diffs.len()
+                        && pos_diffs.len() + neg_diffs.len() == named_diffs.len()
+                    {
+                        pos_diffs
                     } else {
                         named_diffs
                     };
@@ -1366,12 +1367,19 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     let mut dead_floats: Vec<&NumericLeaf> = Vec::new();
     let mut profile_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
     let mut waterdist_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
+    let mut sfr_groups: BTreeMap<&str, Vec<&NumericLeaf>> = BTreeMap::new();
     let mut scalar_floats: Vec<&NumericLeaf> = Vec::new();
 
     for leaf in leaves {
         if let Some((surf_prefix, _)) = leaf.display.rsplit_once(".waterdist.") {
             waterdist_groups.entry(surf_prefix).or_default().push(leaf);
             continue;
+        }
+        if leaf.display.ends_with(".sfr") {
+            if let Some((site_prefix, _)) = leaf.display.split_once(".properties.land_cover.") {
+                sfr_groups.entry(site_prefix).or_default().push(leaf);
+                continue;
+            }
         }
         let is_known_dead = known_dead.contains(leaf.display.as_str());
         if is_known_dead && !leaf.is_int {
@@ -1382,7 +1390,6 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
             || is_known_dead
             || known_non_unit.contains(leaf.display.as_str())
             || leaf.display.contains(".vertical_layers.building_frac[")
-            || leaf.display.ends_with(".sfr")
             || leaf.display.ends_with(".reduction_factor_shading")
             || leaf.display.ends_with(".fraction_convective_heating");
         if force_single {
@@ -1395,6 +1402,9 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     }
 
     for (_, group_leaves) in waterdist_groups {
+        jobs.push(ProbeJob::WaterdistSimplex(group_leaves));
+    }
+    for (_, group_leaves) in sfr_groups {
         jobs.push(ProbeJob::WaterdistSimplex(group_leaves));
     }
 

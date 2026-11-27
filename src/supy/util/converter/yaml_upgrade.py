@@ -2975,6 +2975,122 @@ _HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = (
     )
 )
 
+
+def _is_present_doy_entry(entry: object) -> bool:
+    """Return True when a raw YAML DOY entry carries a non-null scalar value."""
+    if entry is None:
+        return False
+    if isinstance(entry, Mapping):
+        if "value" in entry:
+            return entry["value"] is not None
+        return False
+    return True
+
+
+def _advise_land_cover_and_dst_policy(cfg: dict) -> dict:
+    """Log non-mutating advisories for dev21 land-cover sum and half-DST policies."""
+    from ...data_model.validation.rules.hard_invariants import (  # noqa: PLC0415
+        check_land_cover_fraction_sum,
+    )
+
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    for index, site in enumerate(sites):
+        props = site.get("properties") if isinstance(site, Mapping) else None
+        if not isinstance(props, Mapping):
+            continue
+
+        land_cover = props.get("land_cover")
+        if isinstance(land_cover, Mapping) and land_cover:
+            fractions: dict[str, object] = {}
+            for surface_name, raw_surface in land_cover.items():
+                surface_props = raw_surface
+                if (
+                    isinstance(surface_props, Mapping)
+                    and "value" in surface_props
+                    and isinstance(surface_props["value"], Mapping)
+                ):
+                    surface_props = surface_props["value"]
+                if not isinstance(surface_props, Mapping) or "sfr" not in surface_props:
+                    continue
+                sfr_entry = surface_props["sfr"]
+                if isinstance(sfr_entry, Mapping) and "value" in sfr_entry:
+                    sfr_val = sfr_entry["value"]
+                elif isinstance(sfr_entry, Mapping):
+                    sfr_val = None
+                else:
+                    sfr_val = sfr_entry
+                if sfr_val is not None:
+                    fractions[str(surface_name)] = sfr_val
+            if fractions:
+                sum_check = check_land_cover_fraction_sum(fractions)
+                if sum_check.band == "error" and sum_check.violation is not None:
+                    _log(
+                        f"[yaml-upgrade] sites[{index}].properties.land_cover: "
+                        f"{sum_check.violation.message}. Schema 2026.6.dev21 rejects "
+                        "land-cover surface fraction sum deviations exceeding 1e-4 "
+                        "in Phase B, Phase C, SUEWSConfig.validate_for_engine(), "
+                        "and SUEWSSimulation.run()."
+                    )
+                elif sum_check.band == "auto_fix" and sum_check.violation is not None:
+                    _log(
+                        f"[yaml-upgrade] sites[{index}].properties.land_cover: "
+                        f"{sum_check.violation.message}"
+                    )
+
+        anthro = props.get("anthropogenic_emissions")
+        if isinstance(anthro, Mapping):
+            start_present = _is_present_doy_entry(anthro.get("startdls"))
+            end_present = _is_present_doy_entry(anthro.get("enddls"))
+            if start_present != end_present:
+                _log(
+                    f"[yaml-upgrade] sites[{index}].properties.anthropogenic_emissions: "
+                    "only one of startdls/enddls is specified. Schema 2026.6.dev21 "
+                    "treats half-specified daylight saving as a blocking Phase B error "
+                    "unless both bounds are set, both are omitted/null, or the file "
+                    "is validated with --science-fixes apply."
+                )
+
+    return cfg
+
+
+def _with_land_cover_and_dst_advisory_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _advise_land_cover_and_dst_policy(cfg)
+
+    return migrate
+
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[(_source, "2026.6.dev20")] = _handler
+        _HANDLERS[(_source, _target)] = _with_land_cover_and_dst_advisory_delta(
+            _handler
+        )
+_HANDLERS[("2026.6.dev20", "2026.6.dev20")] = _with_ten_minute_profile_key_delta(
+    _with_integer_doy_delta(_with_senescence_check(_identity))
+)
+_HANDLERS[("2026.6.dev20", CURRENT_SCHEMA_VERSION)] = (
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+_HANDLERS[(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)] = (
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

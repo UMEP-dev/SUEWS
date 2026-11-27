@@ -31,6 +31,7 @@ from pathlib import Path
 from .report_writer import REPORT_WRITER, sync_text_report_stopping_phase
 from .report_schema import Issue, PhaseReport
 from ...core._yaml_io import safe_load_yaml
+from ...core.model import REQUIRED_PHYSICS_OPTIONS, REQUIRED_STEBBS_SWITCHES
 from ...core.physics_families import flatten_physics_in_config
 from ...core.profile import (
     normalise_hourly_profile_keys_in_raw_config,
@@ -59,34 +60,10 @@ except ImportError as e:
 # check on the raw YAML is required to surface them — runtime expects
 # the user to make explicit physics choices rather than inheriting
 # silently from defaults (gh#1409).
-CRITICAL_PHYSICS_PARAMS = (
-    "net_radiation",
-    "emissions",
-    "storage_heat",
-    "ohm_inc_qf",
-    "roughness_length_momentum",
-    "roughness_length_heat",
-    "stability",
-    "soil_moisture",
-    "water_use",
-    "roughness_sublayer",
-    "frontal_area_index",
-    "roughness_sublayer_level",
-    "surface_conductance",
-    "snow_use",
-    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*.
-    # detect_pydantic_defaults recurses into nested dicts and keys the
-    # critical-null check on the bare leaf name, so the nested leaves are
-    # listed here. `enabled`/`parameters` are intentionally omitted -- the
-    # master toggle defaults sensibly (off / default-params) and must not be
-    # flagged as a "missing critical" when a user simply leaves STEBBS off.
-    "capacitance",
-    "setpoint",
-    "same_albedo_wall",
-    "same_albedo_roof",
-    "same_emissivity_wall",
-    "same_emissivity_roof",
-)
+# ``model.physics.stebbs.*``: `detect_pydantic_defaults` recurses into nested
+# dicts and keys the critical-null check on the bare leaf name, while
+# `enabled`/`parameters` are omitted so leaving STEBBS off is never flagged.
+CRITICAL_PHYSICS_PARAMS = REQUIRED_PHYSICS_OPTIONS + REQUIRED_STEBBS_SWITCHES
 
 
 def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:

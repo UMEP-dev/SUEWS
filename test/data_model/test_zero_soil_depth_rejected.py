@@ -917,7 +917,9 @@ def test_cross_field_live_mutations_to_active_or_positive_capacity_rejected(
     lc["evetr"]["soil_store_capacity"] = {"value": 150.0}
     lc["evetr"]["soil_depth"] = {"value": 0.0}
     cfg2 = SUEWSConfig.from_dict(inactive_data)
-    cfg2.sites[0].properties.land_cover.evetr.sfr.value = 0.05
+    lc2 = cfg2.sites[0].properties.land_cover
+    lc2.paved.sfr.value = round(lc2.paved.sfr.value - 0.05, 6)
+    lc2.evetr.sfr.value = 0.05
     for call in (
         cfg2.to_df_state,
         lambda: config_to_engine_yaml(cfg2),

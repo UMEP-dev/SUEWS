@@ -231,6 +231,44 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev21_land_cover_sum_and_dst:
+
+Upgrading to Schema 2026.6.dev21
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev21`` unifies three validation contracts across the configuration
+pipeline and runtime engine handoff:
+
+- **Land-cover surface fraction sum policy**: Phase B, Phase C (including
+  ``suews validate -p C --dry-run``), ``SUEWSConfig.validate_for_engine()``,
+  and ``SUEWSSimulation.run()`` now share one three-band sum kernel.
+  Per-site ``sfr`` sums within ``1e-6`` of ``1.0`` pass, drift between
+  ``1e-6`` and ``1e-4`` is reported as a warning and can be auto-normalised on
+  the dominant surface via ``suews validate --science-fixes apply``, and
+  deviations exceeding ``1e-4`` (or all-zero/non-finite/out-of-range
+  fractions) are rejected. Raw ``SUEWSConfig`` loading continues to accept
+  off-sum configurations so callers can inspect or repair them before engine
+  handoff.
+- **Blocking half-specified daylight saving**: setting only one of
+  ``anthropogenic_emissions.startdls`` or ``enddls`` is now a blocking Phase B
+  error under ``--science-fixes suggest`` and ``--science-fixes off``. Under
+  ``--science-fixes apply``, SUEWS fills only the missing bound when daylight
+  saving applies to the site coordinates while preserving the supplied bound;
+  sites without daylight saving remain a blocking error until the lone bound
+  is removed.
+- **Centralised required physics list**: all validation phases derive the
+  required top-level and STEBBS physics switches from a single definition in
+  ``supy.data_model.core.model``.
+
+Existing YAML files remain structurally loadable. Upgrading to
+``2026.6.dev21`` preserves surface fractions and daylight-saving values
+unchanged and logs an advisory for any site with off-sum land-cover fractions
+or a half-specified daylight-saving window:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev21
+
 .. _schema_dev20_ten_minute_profile_keys:
 
 Upgrading to Schema 2026.6.dev20

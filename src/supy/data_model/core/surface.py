@@ -228,6 +228,25 @@ class SurfaceProperties(DataModelBase):
             )
         return values
 
+    @field_validator("sfr", mode="before")
+    @classmethod
+    def _reject_bool_sfr(cls, value):
+        return reject_bool_input(value, "sfr")
+
+    @field_validator("sfr")
+    @classmethod
+    def _bind_sfr_bool_guard(cls, value):
+        if isinstance(value, RefValue):
+            value._bind_reject_bool("sfr")
+        return value
+
+    def __setattr__(self, name: str, value) -> None:
+        if name == "sfr":
+            reject_bool_input(value, "sfr")
+            if isinstance(value, RefValue):
+                value._bind_reject_bool("sfr")
+        super().__setattr__(name, value)
+
     sfr: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,

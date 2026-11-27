@@ -14013,7 +14013,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev20. Align Python TenMinuteProfile (HeatingSetpointProfile, CoolingSetpointProfile) and Rust apply_day_profile_overrides key validation for 10-minute STEBBS profiles (#2342). Step keys in working_day and holiday accept canonical strings '1'..'144', zero-padded ASCII-digit strings, and plain integers 1..144, normalising to canonical '1'..'144' strings while strictly rejecting malformed keys and canonical collisions. The (2026.6.dev19 -> 2026.6.dev20) migration normalises valid non-canonical 10-minute profile keys and rejects malformed or colliding keys explicitly.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev21. Unify required physics options in core.model, enforce blocking Phase B validation for half-specified daylight saving (startdls/enddls), and apply the shared three-band land-cover surface fraction sum kernel across Phase B, Phase C, SUEWSConfig.validate_for_engine(), and SUEWSSimulation.run() (#2347). Sums within 1e-6 pass, drift between 1e-6 and 1e-4 is auto-normalisable under --science-fixes apply (or reported as a warning), and deviations exceeding 1e-4 (or all-zero/invalid fractions) are rejected while raw SUEWSConfig loading continues to accept off-sum configurations for inspection. The (2026.6.dev20 -> 2026.6.dev21) migration preserves values unchanged and logs advisories for off-sum land-cover fractions or half-specified daylight saving windows.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -14066,20 +14066,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev20",
+  "title": "SUEWS Configuration Schema v2026.6.dev21",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev20.json",
-  "version": "2026.6.dev20",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev21.json",
+  "version": "2026.6.dev21",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev20"
+    "schema_version": "2026.6.dev21"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev20",
+      "schema_version": "2026.6.dev21",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

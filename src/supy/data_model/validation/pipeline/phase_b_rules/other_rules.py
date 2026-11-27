@@ -3,15 +3,23 @@ from .rules_core import (
     ValidationResult,
 )
 from ..document import is_ref_only, is_ref_wrapper, unwrap_entry
-from ...core.yaml_helpers import get_value_safe
+from ...core.yaml_helpers import (
+    DLSCheck,
+    DSTSchedule,
+    get_value_safe,
+    resolve_dst_schedule,
+)
 from ...rules.advisory import (
     check_irrigation_season_advisory,
     check_spartacus_lowest_layer_advisories,
 )
 from ...rules.hard_invariants import (
+    LAND_COVER_SUM_AUTO_FIX_TOL,
     SPARTACUS_METHODS,
     check_dls_doy_pair,
     check_irrigation_doy_pair,
+    check_land_cover_fraction_sum,
+    coerce_land_cover_fraction,
     is_modelled_irrigation_active,
 )
 from ...rules.typed_view import (
@@ -19,13 +27,13 @@ from ...rules.typed_view import (
     as_float as _as_float,
     is_absent_doy_mapping as _is_absent_doy_mapping,
 )
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 import math
 from typing import List, Optional, Union
 
 
-# Constants
-SFR_FRACTION_TOL = 1e-4
+# Alias retained for callers importing SFR_FRACTION_TOL from phase_b_rules.
+SFR_FRACTION_TOL = LAND_COVER_SUM_AUTO_FIX_TOL
 
 
 def _is_spartacus_enabled(yaml_data: Mapping) -> bool:
@@ -121,14 +129,8 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         surface_types = []
         has_invalid_sfr = False
         for surf_name, raw_sfr in raw_surface_types:
-            if isinstance(raw_sfr, bool):
-                num_sfr = None
-            else:
-                try:
-                    num_sfr = float(raw_sfr)
-                except (TypeError, ValueError, OverflowError):
-                    num_sfr = None
-            if num_sfr is None or not math.isfinite(num_sfr):
+            num_sfr = coerce_land_cover_fraction(raw_sfr)
+            if num_sfr is None:
                 has_invalid_sfr = True
                 results.append(
                     ValidationResult(
@@ -146,40 +148,53 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
             else:
                 surface_types.append((surf_name, num_sfr))
 
-        sfr_sum = sum(sfr_value for _, sfr_value in surface_types)
-
-        if not has_invalid_sfr and abs(sfr_sum - 1.0) > SFR_FRACTION_TOL:
-            if sfr_sum == 0.0:
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="LAND_COVER",
-                        parameter="land_cover.surface_fractions",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message="All surface fractions are zero or missing",
-                        suggested_value="Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0",
+        if not has_invalid_sfr:
+            sum_check = check_land_cover_fraction_sum(dict(surface_types))
+            if sum_check.band == "auto_fix" and sum_check.violation is not None:
+                effective_fixes = str(
+                    getattr(context, "effective_fixes", "suggest") or "suggest"
+                ).lower()
+                if effective_fixes == "apply":
+                    results.append(
+                        ValidationResult(
+                            status="INFO",
+                            category="LAND_COVER",
+                            parameter=sum_check.violation.parameter,
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                f"Surface fractions sum to {sum_check.total:.6f}; "
+                                f"small drift within "
+                                f"{LAND_COVER_SUM_AUTO_FIX_TOL:.1e} will be "
+                                f"auto-normalised on {sum_check.max_surface}.sfr"
+                            ),
+                            code=sum_check.violation.code,
+                        )
                     )
-                )
-            else:
-                surface_list = ", ".join(
-                    f"{surf}={val:.4f}" for surf, val in surface_types
-                )
-                surface_dict = dict(surface_types)
-                max_surface = (
-                    max(surface_dict.keys(), key=lambda k: surface_dict[k])
-                    if surface_dict
-                    else "surface"
-                )
+                else:
+                    results.append(
+                        ValidationResult(
+                            status=sum_check.severity,
+                            category=sum_check.violation.category,
+                            parameter=sum_check.violation.parameter,
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=sum_check.violation.message,
+                            suggested_value=sum_check.violation.suggested_value,
+                            code=sum_check.violation.code,
+                        )
+                    )
+            elif sum_check.band == "error" and sum_check.violation is not None:
                 results.append(
                     ValidationResult(
-                        status="ERROR",
-                        category="LAND_COVER",
-                        parameter=f"{max_surface}.sfr",
+                        status=sum_check.severity,
+                        category=sum_check.violation.category,
+                        parameter=sum_check.violation.parameter,
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Surface fractions sum to {sfr_sum:.4f}, should equal 1.0 (auto-correction range: 1.0 +/- {SFR_FRACTION_TOL:.1e}, current: {surface_list}. Validator will auto-correct small deviations in this range.)",
-                        suggested_value=f"Adjust the max surface {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
+                        message=sum_check.violation.message,
+                        suggested_value=sum_check.violation.suggested_value,
+                        code=sum_check.violation.code,
                     )
                 )
 
@@ -295,6 +310,152 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
     return results
 
 
+def _has_valid_coordinates(lat: object, lng: object) -> bool:
+    """Return True when both coordinates are finite real numbers in valid ranges."""
+    return (
+        not isinstance(lat, bool)
+        and isinstance(lat, (int, float))
+        and math.isfinite(lat)
+        and -90 <= lat <= 90
+        and not isinstance(lng, bool)
+        and isinstance(lng, (int, float))
+        and math.isfinite(lng)
+        and -180 <= lng <= 180
+    )
+
+
+def _half_configured_dls_result(
+    *,
+    site_idx: int,
+    site_gridid: object,
+    startdls: object,
+    enddls: object,
+    lat: object,
+    lng: object,
+    dls_year: Optional[int],
+    dls_violations: Sequence[object],
+    effective_fixes: str,
+) -> ValidationResult:
+    """Build the Phase B finding when only one of ``startdls`` / ``enddls`` is set."""
+    present_key = "startdls" if startdls is not None else "enddls"
+    missing_key = "enddls" if startdls is not None else "startdls"
+
+    if not dls_violations and dls_year is not None and _has_valid_coordinates(lat, lng):
+        try:
+            schedule = resolve_dst_schedule(
+                DLSCheck(lat=float(lat), lng=float(lng), year=dls_year)
+            )
+        except Exception:
+            schedule = DSTSchedule(scan_complete=False)
+        if schedule.has_multiple_periods:
+            return ValidationResult(
+                status="ERROR",
+                category="GEOGRAPHY",
+                parameter="anthropogenic_emissions.startdls,enddls",
+                site_index=site_idx,
+                site_gridid=site_gridid,
+                message=(
+                    f"Only {present_key} is set while {missing_key} is missing or null, "
+                    f"and {schedule.describe_multiple_periods(dls_year)} which cannot be "
+                    "represented by a single startdls/enddls pair - provide an explicit "
+                    f"startdls/enddls pair, or remove {present_key} / set both to null "
+                    "to disable daylight saving"
+                ),
+                suggested_value=(
+                    "Provide an explicit startdls/enddls pair for the period of interest, "
+                    f"or remove {present_key} / set both to null to disable daylight saving"
+                ),
+            )
+
+        if schedule.has_non_hourly_dst:
+            return ValidationResult(
+                status="ERROR",
+                category="GEOGRAPHY",
+                parameter="anthropogenic_emissions.startdls,enddls",
+                site_index=site_idx,
+                site_gridid=site_gridid,
+                message=(
+                    f"Only {present_key} is set while {missing_key} is missing or null, "
+                    f"and {schedule.describe_non_hourly_dst(dls_year)} which cannot be "
+                    "represented by SUEWS's +1 h daylight saving shift - provide an "
+                    f"explicit startdls/enddls pair, or remove {present_key} / set both "
+                    "to null to disable daylight saving"
+                ),
+                suggested_value=(
+                    "Provide an explicit startdls/enddls pair, or remove "
+                    f"{present_key} / set both to null to disable daylight saving"
+                ),
+            )
+
+        computed_val = schedule.end if missing_key == "enddls" else schedule.start
+        if computed_val is not None:
+            if effective_fixes == "apply":
+                return ValidationResult(
+                    status="INFO",
+                    category="GEOGRAPHY",
+                    parameter="anthropogenic_emissions.startdls,enddls",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"Only {present_key} is set (missing {missing_key}); "
+                        f"{missing_key}={computed_val} will be calculated from "
+                        "site coordinates"
+                    ),
+                    suggested_value=computed_val,
+                )
+            return ValidationResult(
+                status="ERROR",
+                category="GEOGRAPHY",
+                parameter="anthropogenic_emissions.startdls,enddls",
+                site_index=site_idx,
+                site_gridid=site_gridid,
+                message=(
+                    f"Only {present_key} is set while {missing_key} is missing or null "
+                    "- provide both integer days of year (1-366), or set both to null "
+                    "/ omit both to disable daylight saving"
+                ),
+                suggested_value=computed_val,
+            )
+
+        if schedule.has_no_dst:
+            return ValidationResult(
+                status="ERROR",
+                category="GEOGRAPHY",
+                parameter="anthropogenic_emissions.startdls,enddls",
+                site_index=site_idx,
+                site_gridid=site_gridid,
+                message=(
+                    f"Only {present_key} is set while {missing_key} is missing or null, "
+                    f"and coordinates ({lat:.2f}, {lng:.2f}) have no daylight saving "
+                    f"transition - remove {present_key} or set both to null to disable "
+                    "daylight saving"
+                ),
+                suggested_value=(
+                    f"Remove {present_key} (or set it to null) because this site has "
+                    "no daylight saving transition"
+                ),
+            )
+
+    return ValidationResult(
+        status="ERROR",
+        category="GEOGRAPHY",
+        parameter="anthropogenic_emissions.startdls,enddls",
+        site_index=site_idx,
+        site_gridid=site_gridid,
+        message=(
+            f"Only {present_key} is set while {missing_key} is missing or null and "
+            "daylight saving lookup is unavailable for this site - provide both "
+            f"integer days of year (1-366), restore timezone lookup support, or "
+            f"remove {present_key} / set both to null to disable daylight saving"
+        ),
+        suggested_value=(
+            f"Set both startdls and enddls (1-366), restore timezone lookup "
+            f"support, or remove {present_key} / set both to null to disable "
+            "daylight saving"
+        ),
+    )
+
+
 @RulesRegistry.add_rule("geographic")
 def validate_geographic_parameters(context) -> List[ValidationResult]:
     """
@@ -326,6 +487,7 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
     """
     view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
+    effective_fixes = str(getattr(context, "effective_fixes", "suggest") or "suggest").lower()
 
     # Prefer the run year resolved on context (which already falls back to the
     # forcing when start_time is unset); fall back to raw start_time for direct
@@ -455,24 +617,87 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
 
             if half_configured:
                 results.append(
-                    ValidationResult(
-                        status="WARNING",
-                        category="GEOGRAPHY",
-                        parameter="anthropogenic_emissions.startdls,enddls",
-                        site_index=site_idx,
+                    _half_configured_dls_result(
+                        site_idx=site_idx,
                         site_gridid=site_gridid,
-                        message=(
-                            "Only one daylight saving parameter (startdls or enddls) "
-                            "is set - provide both integer days of year (1-366), or "
-                            "set both to null / omit both to disable daylight saving"
-                        ),
-                        suggested_value=(
-                            "Set both startdls and enddls (or let --science-fixes apply "
-                            "fill them from your coordinates), or disable daylight saving "
-                            "by setting both to null / omitting both"
-                        ),
+                        startdls=startdls,
+                        enddls=enddls,
+                        lat=lat,
+                        lng=lng,
+                        dls_year=dls_year,
+                        dls_violations=dls_violations,
+                        effective_fixes=effective_fixes,
                     )
                 )
+            elif (
+                not dls_violations
+                and startdls is not None
+                and enddls is not None
+                and dls_year is not None
+                and _has_valid_coordinates(lat, lng)
+            ):
+                try:
+                    schedule = resolve_dst_schedule(
+                        DLSCheck(lat=float(lat), lng=float(lng), year=dls_year)
+                    )
+                except Exception:
+                    schedule = DSTSchedule(scan_complete=False)
+                if schedule.has_multiple_periods:
+                    results.append(
+                        ValidationResult(
+                            status="WARNING",
+                            category="GEOGRAPHY",
+                            parameter="anthropogenic_emissions.startdls,enddls",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                "Unsupported multi-period daylight saving schedule: "
+                                f"{schedule.describe_multiple_periods(dls_year)}, "
+                                "which cannot be represented by a single startdls/enddls "
+                                "pair - preserving existing startdls/enddls bounds "
+                                "without automatic DST adjustment"
+                            ),
+                            suggested_value=(
+                                "Keep your explicit startdls/enddls pair for the period "
+                                "of interest, or set both to null to disable daylight saving"
+                            ),
+                        )
+                    )
+                elif schedule.has_non_hourly_dst:
+                    results.append(
+                        ValidationResult(
+                            status="WARNING",
+                            category="GEOGRAPHY",
+                            parameter="anthropogenic_emissions.startdls,enddls",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                "Unsupported non-hourly daylight saving schedule: "
+                                f"{schedule.describe_non_hourly_dst(dls_year)}, which "
+                                "cannot be represented by SUEWS's +1 h daylight saving "
+                                "shift - preserving existing startdls/enddls bounds "
+                                "without automatic DST adjustment"
+                            ),
+                            suggested_value=(
+                                "Keep your explicit startdls/enddls pair, or set both "
+                                "to null to disable daylight saving"
+                            ),
+                        )
+                    )
+                elif not schedule.scan_complete:
+                    results.append(
+                        ValidationResult(
+                            status="INFO",
+                            category="GEOGRAPHY",
+                            parameter="anthropogenic_emissions.startdls,enddls",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                "Daylight saving schedule lookup is unavailable for this "
+                                "site - preserving configured startdls/enddls bounds"
+                            ),
+                        )
+                    )
 
     error_count = sum(1 for r in results if r.status == "ERROR")
     if error_count == 0:
@@ -570,8 +795,8 @@ def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
             if not isinstance(surf_state, Mapping) or not surf_state:
                 continue
 
-            sfr_val = site.exact_scalar(surf_props, "sfr")
-            if not sfr_val or sfr_val <= 0:
+            sfr_val = coerce_land_cover_fraction(site.exact_scalar(surf_props, "sfr"))
+            if sfr_val is None or sfr_val <= 0:
                 continue
 
             alb_val = site.exact_scalar(surf_state, "alb_id")

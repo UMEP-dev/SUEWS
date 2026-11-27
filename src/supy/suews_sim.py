@@ -209,13 +209,14 @@ class SUEWSSimulation:
             if not config_path.exists():
                 raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-            # Load YAML
-            self._config = SUEWSConfig.from_yaml(str(config_path))
+            # Validate and build initial state before replacing live simulation state
+            # so a rejected YAML never leaves self._config / path half-updated.
+            candidate = SUEWSConfig.from_yaml(str(config_path))
+            candidate_state = candidate.to_df_state()
+            self._config = candidate
             self._config_path = config_path
             self._config_identity = file_identity(config_path)
-
-            # Convert to initial state DataFrame
-            self._df_state_init = self._config.to_df_state()
+            self._df_state_init = candidate_state
 
             # Optionally try to load forcing from config
             if auto_load_forcing:
@@ -235,7 +236,9 @@ class SUEWSSimulation:
                         "YAML file / SUEWSConfig first and then apply "
                         "partial updates via update_config()."
                     )
+                candidate_state = candidate.to_df_state()
                 self._config = candidate
+                self._df_state_init = candidate_state
 
                 # Parity with the YAML branch: auto-load forcing declared
                 # in the config. Relative paths resolve against the CWD
@@ -251,23 +254,24 @@ class SUEWSSimulation:
                 # default raw snapshot of it is the correct record for
                 # raw-gated completeness checks.
                 merged = self._merge_config_updates(self._config, config)
-                self._config = SUEWSConfig.from_dict(
+                candidate = SUEWSConfig.from_dict(
                     merged,
                     yaml_path=str(self._config_path) if self._config_path else None,
                 )
+                candidate_state = candidate.to_df_state()
+                self._config = candidate
+                self._df_state_init = candidate_state
 
                 if auto_load_forcing and units is not None:
                     self._try_load_forcing_from_config(units=units)
 
-            # Regenerate state DataFrame
-            self._df_state_init = self._config.to_df_state()
-
         else:
             # Assume it's a SUEWSConfig object
             config.validate_for_engine(require_drainage=False)
+            candidate_state = config.to_df_state()
             self._config = config
             self._config_identity = None
-            self._df_state_init = self._config.to_df_state()
+            self._df_state_init = candidate_state
             if auto_load_forcing and units is not None:
                 self._try_load_forcing_from_config(units=units)
 

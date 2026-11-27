@@ -163,6 +163,7 @@ class ValidationContext:
     yaml_data: dict
     start_date: Optional[str] = None
     model_year: Optional[int] = None
+    effective_fixes: str = "suggest"
 
 
     def __post_init__(self):

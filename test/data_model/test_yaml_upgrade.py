@@ -1868,3 +1868,68 @@ def test_dev20_migration_and_cli_cover_legacy_ten_minute_profile_aliases(
         migrator.migrate(
             deepcopy(dev8), to_version="2026.6.dev20", migration_context=ctx
         )
+
+
+def test_dev20_to_dev21_land_cover_and_dst_advisories_and_same_version(capsys) -> None:
+    """2026.6.dev20 -> 2026.6.dev21 logs non-mutating advisories for off-sum sfr and half-DST."""
+    from importlib.resources import as_file, files  # ruff: ignore[import-outside-top-level]
+
+    with as_file(files("supy") / "sample_data" / "sample_config.yml") as path_cfg:
+        base_cfg = yaml.safe_load(path_cfg.read_text(encoding="utf-8"))
+
+    migrator = SchemaMigrator()
+
+    # 1. Clean dev20 config upgrades silently to dev21.
+    clean = deepcopy(base_cfg)
+    clean["schema_version"] = "2026.6.dev20"
+    capsys.readouterr()
+    upgraded = migrator.migrate(clean, to_version="2026.6.dev21")
+    clean_err = capsys.readouterr().err
+    assert upgraded["schema_version"] == "2026.6.dev21"
+    assert "2026.6.dev21" not in clean_err
+
+    # 2. Off-sum land cover (> 1e-4) and half-specified DST log advisories without mutating values.
+    affected = deepcopy(base_cfg)
+    affected["schema_version"] = "2026.6.dev20"
+    affected["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] += 2e-4
+    orig_paved = affected["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"]
+    affected["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = {
+        "value": 85
+    }
+    affected["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+
+    capsys.readouterr()
+    migrated_affected = migrator.migrate(affected, to_version="2026.6.dev21")
+    messages = capsys.readouterr().err
+    assert migrated_affected["schema_version"] == "2026.6.dev21"
+    assert (
+        migrated_affected["sites"][0]["properties"]["land_cover"]["paved"]["sfr"][
+            "value"
+        ]
+        == orig_paved
+    )
+    assert (
+        migrated_affected["sites"][0]["properties"]["anthropogenic_emissions"][
+            "enddls"
+        ]
+        is None
+    )
+    assert "Surface fractions sum to" in messages
+    assert "only one of startdls/enddls is specified" in messages
+
+    # 3. Same-version dev21 -> dev21 runs the advisory non-mutating check too,
+    #    while historical target dev19 -> dev20 stays silent on dev21 policies.
+    capsys.readouterr()
+    same_ver = migrator.migrate(migrated_affected, to_version="2026.6.dev21")
+    same_msgs = capsys.readouterr().err
+    assert same_ver["schema_version"] == "2026.6.dev21"
+    assert "Surface fractions sum to" in same_msgs
+    assert "only one of startdls/enddls is specified" in same_msgs
+
+    hist = deepcopy(affected)
+    hist["schema_version"] = "2026.6.dev19"
+    capsys.readouterr()
+    to_dev20 = migrator.migrate(hist, to_version="2026.6.dev20")
+    hist_msgs = capsys.readouterr().err
+    assert to_dev20["schema_version"] == "2026.6.dev20"
+    assert "2026.6.dev21" not in hist_msgs

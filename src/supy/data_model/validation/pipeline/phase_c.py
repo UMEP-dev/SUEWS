@@ -20,14 +20,16 @@ from ...core.field_renames import (
     normalise_yaml_renames,
     read_physics_key,
 )
+from ...core.model import REQUIRED_PHYSICS_OPTIONS, REQUIRED_STEBBS_SWITCHES
 from ...core.physics_families import flatten_physics_in_config
+from ..rules.hard_invariants import check_land_cover_fraction_sum
 from .document import (
     format_pydantic_loc,
     is_ref_only,
     site_gridid_map,
     unwrap_entry,
 )
-from .report_schema import SEVERITY_ERROR, SEVERITY_INFO, Issue
+from .report_schema import SEVERITY_ERROR, SEVERITY_INFO, SEVERITY_WARNING, Issue
 from .report_writer import REPORT_WRITER
 
 # Use unified report title for all validation phases
@@ -41,28 +43,7 @@ _INTERNAL_DEFAULT_SKIP = frozenset({
     "comments",
 })
 
-_CRITICAL_PHYSICS_PARAMS = (
-    "net_radiation",
-    "emissions",
-    "storage_heat",
-    "ohm_inc_qf",
-    "roughness_length_momentum",
-    "roughness_length_heat",
-    "stability",
-    "soil_moisture",
-    "water_use",
-    "roughness_sublayer",
-    "frontal_area_index",
-    "roughness_sublayer_level",
-    "surface_conductance",
-    "snow_use",
-    "capacitance",
-    "setpoint",
-    "same_albedo_wall",
-    "same_albedo_roof",
-    "same_emissivity_wall",
-    "same_emissivity_roof",
-)
+_CRITICAL_PHYSICS_PARAMS = REQUIRED_PHYSICS_OPTIONS + REQUIRED_STEBBS_SWITCHES
 _STEBBS_LEAF_NAMES = frozenset(STEBBS_PHYSICS_LEAF_RENAMES.values())
 
 
@@ -314,6 +295,53 @@ def _collect_model_defaults(
     return issues
 
 
+def _collect_land_cover_sum_issues(
+    config: Any,
+    gridid_map: Mapping[int, Any],
+) -> list[Issue]:
+    """Validate per-site land-cover fraction sums using the shared three-band kernel.
+
+    Raw ``SUEWSConfig`` loading intentionally admits off-sum ``sfr`` values so
+    callers can inspect or normalise configurations before engine handoff.
+    Phase C enforces the shared kernel here so C-only CLI/API validation and
+    Phase C ``--dry-run`` reject ``|sum(sfr) - 1.0| > 1e-4`` consistently with
+    Phase B and ``SUEWSConfig.validate_for_engine()``.
+    """
+    issues: list[Issue] = []
+    sites = getattr(config, "sites", None) or ()
+    for site_idx, site in enumerate(sites):
+        props = getattr(site, "properties", None)
+        land_cover = getattr(props, "land_cover", None) if props is not None else None
+        if land_cover is None:
+            continue
+        fractions = config._extract_land_cover_fractions(land_cover)
+        sum_check = check_land_cover_fraction_sum(fractions)
+        if sum_check.band == "pass" or sum_check.violation is None:
+            continue
+        site_gridid = gridid_map.get(site_idx, getattr(site, "gridiv", None))
+        site_label = site_gridid if site_gridid is not None else site_idx
+        param = sum_check.violation.parameter
+        if param.startswith("land_cover."):
+            yaml_path = f"sites.{site_label}.properties.{param}"
+        else:
+            yaml_path = f"sites.{site_label}.properties.land_cover.{param}"
+        severity = SEVERITY_ERROR if sum_check.band == "error" else SEVERITY_WARNING
+        issues.append(
+            Issue(
+                phase="C",
+                severity=severity,
+                code=f"C.{sum_check.violation.code}",
+                message=sum_check.violation.message,
+                yaml_path=yaml_path,
+                category=sum_check.violation.category,
+                site_index=site_idx,
+                site_gridid=site_gridid,
+                suggested_value=sum_check.violation.suggested_value,
+            )
+        )
+    return issues
+
+
 def validate_phase_c(
     input_yaml_file: str | None = None,
     *,
@@ -481,8 +509,10 @@ def validate_phase_c(
         loaded, check_missing=check_missing_critical_physics
     )
     issues.extend(critical_physics_issues)
+    land_cover_sum_issues = _collect_land_cover_sum_issues(config, gridid_map)
+    issues.extend(land_cover_sum_issues)
 
-    if not critical_physics_issues:
+    if not any(issue.severity == SEVERITY_ERROR for issue in issues):
         if hasattr(config, "_validation_summary"):
             for msg in config._validation_summary.get("info_messages", []):
                 issues.append(

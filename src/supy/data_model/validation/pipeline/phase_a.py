@@ -15,6 +15,7 @@ from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
 )
+from ...core.model import REQUIRED_PHYSICS_OPTIONS, REQUIRED_STEBBS_SWITCHES
 from ...core.type import NULL_REJECTED_FIELDS
 from ...core.physics_families import (
     STEBBS_PUBLIC_KEY_ALIASES,
@@ -37,31 +38,13 @@ RENAMED_PARAMS = {
     **RAW_YAML_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
-    "net_radiation",
-    "emissions",
-    "storage_heat",
-    "ohm_inc_qf",
-    "roughness_length_momentum",
-    "roughness_length_heat",
-    "stability",
-    "soil_moisture",
-    "water_use",
-    "roughness_sublayer",
-    "frontal_area_index",
-    "roughness_sublayer_level",
-    "surface_conductance",
-    "snow_use",
+    *REQUIRED_PHYSICS_OPTIONS,
     # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
     # nested leaf names are listed so is_physics_option() matches the new paths.
     "stebbs",
     "enabled",
     "parameters",
-    "capacitance",
-    "same_albedo_wall",
-    "same_albedo_roof",
-    "same_emissivity_wall",
-    "same_emissivity_roof",
-    "setpoint",
+    *REQUIRED_STEBBS_SWITCHES,
 }
 
 _PUBLIC_PHYSICS_DISPLAY_NAMES = {

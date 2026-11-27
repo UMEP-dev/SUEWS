@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import (
     Any,
     List,
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 from collections.abc import Mapping
 import pandas as pd
 import yaml
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
@@ -530,6 +531,94 @@ def unwrap_nested_value(x: Any) -> Any:
     return cur
 
 
+@dataclass(frozen=True)
+class DSTSchedule:
+    """Resolved yearly daylight saving transition schedule for one site."""
+
+    timezone: str | None = None
+    utc_offset_hours: int | float | None = None
+    starts: tuple[int, ...] = ()
+    ends: tuple[int, ...] = ()
+    scan_complete: bool = True
+    offset_step_hours: float | None = None
+    distinct_offset_count: int = 0
+
+    @property
+    def has_multiple_periods(self) -> bool:
+        """Return True when the year has more than one DST start or end transition."""
+        return self.scan_complete and (
+            len(self.starts) > 1 or len(self.ends) > 1 or self.distinct_offset_count > 2
+        )
+
+    @property
+    def has_non_hourly_dst(self) -> bool:
+        """Return True when the yearly offset step is non-zero and not +1 hour."""
+        return (
+            self.scan_complete
+            and self.offset_step_hours is not None
+            and abs(self.offset_step_hours - 1.0) > 1e-9
+        )
+
+    @property
+    def has_no_dst(self) -> bool:
+        """Return True when the timezone resolved cleanly with zero DST transitions."""
+        return (
+            self.scan_complete
+            and self.timezone is not None
+            and not self.starts
+            and not self.ends
+        )
+
+    @property
+    def start(self) -> int | None:
+        """Single forward-transition DOY when representable, else ``None``."""
+        if not self.scan_complete or self.has_multiple_periods or self.has_non_hourly_dst:
+            return None
+        return self.starts[0] if len(self.starts) == 1 else None
+
+    @property
+    def end(self) -> int | None:
+        """Single backward-transition DOY when representable, else ``None``."""
+        if not self.scan_complete or self.has_multiple_periods or self.has_non_hourly_dst:
+            return None
+        return self.ends[0] if len(self.ends) == 1 else None
+
+    def describe_multiple_periods(self, year: int) -> str:
+        """Return an ASCII diagnostic phrase listing all transitions found."""
+        tz_label = f"timezone '{self.timezone}'" if self.timezone else "this site"
+        parts: list[str] = []
+        if self.starts:
+            parts.append(f"starts on DOY {', '.join(str(d) for d in self.starts)}")
+        if self.ends:
+            parts.append(f"ends on DOY {', '.join(str(d) for d in self.ends)}")
+        detail = f" ({'; '.join(parts)})" if parts else ""
+        return f"{tz_label} has multiple daylight saving periods in {year}{detail}"
+
+    def describe_non_hourly_dst(self, year: int) -> str:
+        """Return an ASCII diagnostic phrase for a non-1-hour DST offset shift."""
+        tz_label = f"timezone '{self.timezone}'" if self.timezone else "this site"
+        step = self.offset_step_hours
+        step_label = f"{step:g} h" if step is not None else "non-1 h"
+        return (
+            f"{tz_label} uses a non-hourly daylight saving shift ({step_label}) in {year}"
+        )
+
+
+def resolve_dst_schedule(dls_obj: Any) -> DSTSchedule:
+    """Return a :class:`DSTSchedule` from a ``DLSCheck`` or compatible stub."""
+    inspect_fn = getattr(dls_obj, "inspect_dst_schedule", None)
+    if callable(inspect_fn):
+        return inspect_fn()
+    start, end, utc_offset = dls_obj.compute_dst_transitions()
+    return DSTSchedule(
+        timezone="<resolved>" if utc_offset is not None else None,
+        utc_offset_hours=utc_offset,
+        starts=(start,) if start is not None else (),
+        ends=(end,) if end is not None else (),
+        scan_complete=utc_offset is not None or start is not None or end is not None,
+    )
+
+
 class DLSCheck(BaseModel):
     lat: float
     lng: float
@@ -537,72 +626,140 @@ class DLSCheck(BaseModel):
     startdls: Optional[int] = None
     enddls: Optional[int] = None
 
-    def compute_dst_transitions(self):
-        if not HAS_TIMEZONE_FINDER:
+    def inspect_dst_schedule(self) -> DSTSchedule:
+        """Collect all DST transitions for ``self.year`` and derive base UTC offset together."""
+        try:
+            if not HAS_TIMEZONE_FINDER:
+                logger_supy.debug(
+                    "[DLS] No timezone finder available, using limited fallback."
+                )
+                tz_name = _fallback_timezone_name(self.lat, self.lng)
+            else:
+                tf = TimezoneFinder()
+                tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
+        except Exception as e:
             logger_supy.debug(
-                "[DLS] No timezone finder available, using limited fallback."
+                f"[DLS] Timezone finder failed for lat={self.lat}, lng={self.lng}: {e}"
             )
-            tz_name = _fallback_timezone_name(self.lat, self.lng)
-        else:
-            tf = TimezoneFinder()
-            tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
-
+            return DSTSchedule(
+                timezone=None,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
 
         if not tz_name:
             logger_supy.debug(
                 f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
             )
-            return None, None, None
+            return DSTSchedule(
+                timezone=None,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
 
         logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
-        tz = pytz.timezone(tz_name)
-
-        def find_transition(month: int) -> Optional[int]:
-            try:
-                prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
-                prev_offset = prev_dt.utcoffset()
-                for day in range(2, 32):
-                    try:
-                        curr_dt = tz.localize(
-                            datetime(self.year, month, day, 12), is_dst=None
-                        )
-                        curr_offset = curr_dt.utcoffset()
-                        if curr_offset != prev_offset:
-                            return curr_dt.timetuple().tm_yday
-                        prev_offset = curr_offset
-                    except Exception:
-                        continue
-                return None
-            except Exception:
-                return None
-
-        # Standard (non-DST) UTC offset: the smaller of the mid-January and
-        # mid-July offsets, so southern-hemisphere summer time (Sydney in
-        # January) is not taken as standard. Comparing offsets avoids
-        # ``dst()``, which pytz reports as negative in Irish winter. Fractional
-        # offsets (India +5.5, Nepal +5.75) are kept, not truncated.
         try:
-            std_offset = min(
-                tz.localize(datetime(self.year, month, 15), is_dst=False).utcoffset()
-                for month in (1, 7)
-            )
-            utc_offset_hours = std_offset.total_seconds() / 3600
-            if utc_offset_hours.is_integer():
-                utc_offset_hours = int(utc_offset_hours)
-            logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
+            tz = pytz.timezone(tz_name)
         except Exception as e:
-            logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
-            utc_offset_hours = None
+            logger_supy.debug(f"[DLS] Failed to load timezone '{tz_name}': {e}")
+            return DSTSchedule(
+                timezone=None,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
 
-        # Determine DST start and end days
-        if self.lat >= 0:  # Northern Hemisphere
-            start = find_transition(3) or find_transition(4)
-            end = find_transition(10) or find_transition(11)
-        else:  # Southern Hemisphere
-            start = find_transition(9) or find_transition(10)
-            end = find_transition(3) or find_transition(4)
+        # Scan every day of the target year (comparing against Dec 31 of the
+        # preceding year so 1st-of-month transitions such as April 1 in
+        # Australia/Sydney 2012, mid-year Ramadan windows such as
+        # Africa/Casablanca 2019, and multi-period years such as
+        # Africa/Casablanca 2012 are all captured consistently). Any daily
+        # localisation failure marks the scan incomplete so callers never act
+        # on partial or shifted transition observations.
+        starts: list[int] = []
+        ends: list[int] = []
+        transition_steps: list[float] = []
+        daily_offsets: list[timedelta] = []
+        try:
+            prev_offset = tz.localize(
+                datetime(self.year - 1, 12, 31, 12), is_dst=None
+            ).utcoffset()
+            if prev_offset is None:
+                raise ValueError("Preceding year-end UTC offset is None")
 
-        return start, end, utc_offset_hours
+            curr_date = datetime(self.year, 1, 1, 12)
+            year_end = datetime(self.year, 12, 31, 12)
+            while curr_date <= year_end:
+                curr_offset = tz.localize(curr_date, is_dst=None).utcoffset()
+                if curr_offset is None:
+                    raise ValueError(f"UTC offset is None on {curr_date.date()}")
+                daily_offsets.append(curr_offset)
+                if curr_offset != prev_offset:
+                    doy = curr_date.timetuple().tm_yday
+                    transition_steps.append(
+                        abs((curr_offset - prev_offset).total_seconds()) / 3600
+                    )
+                    if curr_offset > prev_offset:
+                        starts.append(doy)
+                    elif curr_offset < prev_offset:
+                        ends.append(doy)
+                prev_offset = curr_offset
+                curr_date += timedelta(days=1)
+        except Exception as e:
+            logger_supy.debug(f"[DLS] Failed to scan DST transitions: {e}")
+            return DSTSchedule(
+                timezone=tz_name,
+                utc_offset_hours=None,
+                starts=(),
+                ends=(),
+                scan_complete=False,
+            )
+
+        # Derive standard (base) UTC offset from the complete yearly scan
+        # rather than only Jan/Jul samples: SUEWS adds +1 h during DST, so the
+        # minimum yearly offset is always the consistent base offset (covering
+        # northern hemisphere, southern hemisphere, Irish winter, fractional
+        # offsets, and mid-year drop windows such as Africa/Casablanca 2019).
+        # Record transition magnitudes separately (including any Jan 1 boundary
+        # shift such as Asia/Kathmandu 1986 +15 min) so non-hourly shifts can
+        # never bypass the +1 h DST safety check.
+        distinct_offsets = sorted(set(daily_offsets))
+        std_offset = distinct_offsets[0]
+        utc_offset_hours: int | float = std_offset.total_seconds() / 3600
+        if utc_offset_hours.is_integer():
+            utc_offset_hours = int(utc_offset_hours)
+        non_hourly_steps = [
+            step for step in transition_steps if abs(step - 1.0) > 1e-9
+        ]
+        offset_step_hours: float | None = None
+        if non_hourly_steps:
+            offset_step_hours = non_hourly_steps[0]
+        elif transition_steps:
+            offset_step_hours = transition_steps[0]
+        elif len(distinct_offsets) == 2:
+            offset_step_hours = (
+                distinct_offsets[1] - distinct_offsets[0]
+            ).total_seconds() / 3600
+        logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
+
+        return DSTSchedule(
+            timezone=tz_name,
+            utc_offset_hours=utc_offset_hours,
+            starts=tuple(starts),
+            ends=tuple(ends),
+            scan_complete=True,
+            offset_step_hours=offset_step_hours,
+            distinct_offset_count=len(distinct_offsets),
+        )
+
+    def compute_dst_transitions(self):
+        schedule = self.inspect_dst_schedule()
+        return schedule.start, schedule.end, schedule.utc_offset_hours
 
 
 def nullify_co2_block_recursive(block: Any) -> None:

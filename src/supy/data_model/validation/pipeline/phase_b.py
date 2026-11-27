@@ -489,23 +489,34 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
     return _rules_check_surface_parameters(surface_props, surface_type)
 
 
-def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
+def validate_geographic_parameters(
+    yaml_data: dict,
+    *,
+    effective_fixes: str = "suggest",
+    model_year: Optional[int] = None,
+) -> List[ValidationResult]:
     """Delegate to the canonical geographic rule in ``phase_b_rules.other_rules``."""
-    model_year: Optional[int] = None
-    model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
-    control_cfg = model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
-    start_time = (
-        get_value_safe(control_cfg, "start_time")
-        if isinstance(control_cfg, Mapping)
-        else None
-    )
-    if start_time is not None:
-        try:
-            model_year = int(str(start_time)[:4])
-        except (TypeError, ValueError):
-            model_year = None
+    if model_year is None:
+        model_cfg = yaml_data.get("model") if isinstance(yaml_data, Mapping) else None
+        control_cfg = (
+            model_cfg.get("control") if isinstance(model_cfg, Mapping) else None
+        )
+        start_time = (
+            get_value_safe(control_cfg, "start_time")
+            if isinstance(control_cfg, Mapping)
+            else None
+        )
+        if start_time is not None:
+            try:
+                model_year = int(str(start_time)[:4])
+            except (TypeError, ValueError):
+                model_year = None
     return _rules_validate_geographic_parameters(
-        ValidationContext(yaml_data=yaml_data, model_year=model_year)
+        ValidationContext(
+            yaml_data=yaml_data,
+            model_year=model_year,
+            effective_fixes=effective_fixes,
+        )
     )
 
 
@@ -1543,6 +1554,7 @@ def run_science_check(
             yaml_data=uptodate_data,
             start_date=start_date,
             model_year=model_year,
+            effective_fixes=science_fixes,
         )
 
         validation_results = bound_notes + RulesRegistry(

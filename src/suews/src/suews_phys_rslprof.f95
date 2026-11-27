@@ -13,6 +13,7 @@ MODULE module_phys_rslprof
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
+   REAL(KIND(1D0)), PARAMETER :: ZH_MIN = 2.0D0 ! minimum effective canopy height used in RSL module [m]
 
 CONTAINS
 
@@ -334,7 +335,7 @@ CONTAINS
                   ! FAI > 0.25*(1 - PAI) .AND. FAI < 0.45 .AND. & ! FAI
                   ! PAI > 0.1 .AND. PAI < 0.61 .AND. & ! PAI
                   PAI > 0.1 .AND. PAI < 0.68 .AND. & ! PAI
-                  zH > 2 ! effective canopy height
+                  zH > ZH_MIN ! effective canopy height
                ! LB Oct2021 - FAI and PAI can be larger than 0.45 and 0.61 respectively -> remove (1.-PAI)/FAI > .021 constraint
                !(note: it seems wrong anyway - should be 0.87 not 0.021 based on G&O1991 numbers)
             ELSE
@@ -351,7 +352,13 @@ CONTAINS
             IF (flag_RSL) THEN
                ! ========== RSL APPROACH ==========
                ! First generate RSL height array
-               zH_RSL = MAX(Zh, 2.) ! minimum canyon height
+               zH_RSL = MAX(Zh, ZH_MIN) ! minimum canyon height
+               IF (ieee_is_finite(Zh) .AND. (.NOT. ieee_is_finite(zMeas) .OR. zMeas <= zH_RSL)) THEN
+                  CALL set_supy_error(119, &
+                     'RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL')
+                  dataoutLineRSL = -999.0D0
+                  RETURN
+               END IF
                CALL setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)
 
                ! Initialize RSL correction arrays
@@ -367,6 +374,12 @@ CONTAINS
                   zH_RSL, L_MOD_RSL, & ! output
                   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
                IF (supy_error_flag()) THEN
+                  dataoutLineRSL = -999.0D0
+                  RETURN
+               END IF
+               IF (.NOT. ieee_is_finite(zd_RSL) .OR. zMeas <= zd_RSL .OR. ANY(zarray(nz_can:nz) <= zd_RSL)) THEN
+                  CALL set_supy_error(119, &
+                     'RSLProfile: forcing height and above-canopy levels must exceed RSL displacement height zd_RSL')
                   dataoutLineRSL = -999.0D0
                   RETURN
                END IF
@@ -985,7 +998,6 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40 ! von karman constant
       REAL(KIND(1D0)), PARAMETER :: r = 0.1
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
-      REAL(KIND(1D0)), PARAMETER :: Zh_min = 0.4 ! limit for minimum canyon height used in RSL module
       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
       ! Reject non-finite inputs before MAX/MIN clamps can erase NaN into finite defaults.
@@ -999,7 +1011,7 @@ CONTAINS
       END IF
 
       ! zH_RSL
-      zH_RSL = MAX(zh, Zh_min)
+      zH_RSL = MAX(zh, ZH_MIN)
 
       ! land cover fraction of trees
       sfr_tr = SUM(sfr_surf([ConifSurf, DecidSurf]))

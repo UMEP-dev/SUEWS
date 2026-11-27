@@ -24,6 +24,7 @@
 !   116: EHC - Invalid implicit coupling arrays, thermal layers, coefficients, indoor resistance or stability control (GH#2108)
 !   117: DailyState - Non-finite or singular calculated LAI in update_gddlai (GH#2066, PR#2346)
 !   118: DailyState - Unsupported intra-day or midnight-skipping timestep change (tstep /= tstep_prev) in SUEWS_cal_DailyState (GH#2382, PR#2388)
+!   119: RSL - Invalid or non-finite forcing height relative to effective RSL canopy or displacement height in RSLProfile (GH#1883, PR#2415)
 !
 ! Thread Safety:
 !   Fatal errors live in thread-local storage provided by suews_ctrl_error_tls.c

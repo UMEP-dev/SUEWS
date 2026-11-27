@@ -9,6 +9,7 @@ This module addresses GitHub issues #612 and #613, providing a single entry poin
 for all schema-related operations that will integrate with the future suews-wizard (#544).
 """
 
+from copy import copy as _copy
 from datetime import datetime
 import json
 import logging
@@ -137,7 +138,7 @@ def validate_file_against_schema(
         return (False, [str(e)])
 
 
-@click.group(invoke_without_command=True)
+@click.group(name="schema", invoke_without_command=True)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.option("--quiet", "-q", is_flag=True, help="Suppress non-essential output")
 @click.option(
@@ -251,7 +252,8 @@ def version(ctx, files, update, target_version, backup):
     """
     Check or update schema versions in configuration files.
 
-    Examples:
+    Examples::
+
         suews schema version config.yml
         suews schema version *.yml --update --target-version 1.0
     """
@@ -374,7 +376,8 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     replace invalid vegetation sdd_id values with finite site or restart data.
     An omitted field initialises that vegetation type at zero.
 
-    Examples:
+    Examples::
+
         suews schema migrate old_config.yml
         suews schema migrate configs/*.yml --output-dir migrated/
     """
@@ -488,6 +491,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     "--format",
     type=click.Choice(["json", "yaml"]),
     default="json",
+    show_default=True,
     help="Output format",
 )
 @click.pass_context
@@ -495,7 +499,8 @@ def export(ctx, output, version, format):
     """
     Export the JSON Schema for SUEWS configurations.
 
-    Examples:
+    Examples::
+
         suews schema export -o schema.json
         suews schema export --version 1.0 --format yaml
     """
@@ -590,7 +595,9 @@ def info(ctx):
 # One coordinated operation, shared with the existing converter CLI.
 from .table_converter import convert_table_cmd
 
-cli.add_command(convert_table_cmd, name="convert-soil")
+_convert_soil_cmd = _copy(convert_table_cmd)
+_convert_soil_cmd.name = "convert-soil"
+cli.add_command(_convert_soil_cmd, name="convert-soil")
 
 
 def main():

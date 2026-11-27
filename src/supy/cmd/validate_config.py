@@ -763,13 +763,14 @@ def _append_dry_run_engine_errors(
             errors.append(f"{prefix}{issue.message}")
 
 
-@click.command()
+@click.command(name="validate")
 @click.argument("files", nargs=-1, type=click.Path(exists=True))
 @click.option(
     "--pipeline",
     "-p",
     type=click.Choice(["A", "B", "C", "AB", "AC", "BC", "ABC"]),
     default="ABC",
+    show_default=True,
     help="Phase pipeline to run",
 )
 @click.option(
@@ -777,6 +778,7 @@ def _append_dry_run_engine_errors(
     "-m",
     type=click.Choice(["public", "dev"]),
     default="public",
+    show_default=True,
     help="Validation mode for phase pipeline",
 )
 @click.option(
@@ -789,18 +791,20 @@ def _append_dry_run_engine_errors(
     "out_format",
     type=click.Choice(["table", "json"]),
     default="table",
-    help="Output format for --dry-run results",
+    show_default=True,
+    help="Output format for ``--dry-run`` results",
 )
 @click.option(
     "--schema-version",
-    help="Schema version to validate against in --dry-run",
+    help="Schema version to validate against in ``--dry-run``",
 )
 @click.option(
     "--forcing",
     "-f",
     type=click.Choice(["on", "off"]),
     default="on",
-    help="Enable/disable forcing data validation (default: on)",
+    show_default=True,
+    help="Enable/disable forcing data validation",
 )
 @click.option(
     "--science-fixes",
@@ -831,8 +835,8 @@ def cli(
     """SUEWS Configuration Validator.
 
     Default behaviour: run the complete validation pipeline on one FILE. Use
-    `-p C --dry-run FILES...` for read-only schema checks on one or more files;
-    use `suews schema` for schema lifecycle operations.
+    ``-p C --dry-run FILES...`` for read-only schema checks on one or more files;
+    use ``suews schema`` for schema lifecycle operations.
     """
     # Dry-run handler (read-only validation)
     if dry_run:

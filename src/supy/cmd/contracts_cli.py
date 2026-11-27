@@ -125,7 +125,8 @@ def info_cmd(
     "--version",
     "contract_version",
     default=None,
-    help="Contract version to inspect. Defaults to the current version.",
+    show_default="current version",
+    help="Contract version to inspect.",
 )
 @click.option(
     "--artefact",
@@ -216,7 +217,8 @@ def show_cmd(
     "--version",
     "contract_version",
     default=None,
-    help="Contract version to export. Defaults to the current version.",
+    show_default="current version",
+    help="Contract version to export.",
 )
 @click.option(
     "--artefact",

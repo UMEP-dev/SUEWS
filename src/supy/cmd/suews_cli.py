@@ -42,11 +42,12 @@ from .validate_config import cli as _validate_cli
 
 
 @click.group(
+    name="suews",
     help=(
         "SUEWS unified command-line interface.\n\n"
-        "Use `suews <subcommand> --help` to see options for each subcommand.\n"
+        "Use ``suews <subcommand> --help`` to see options for each subcommand.\n"
         "All subcommands emit a standard JSON envelope when invoked with "
-        "`--format json` (where supported)."
+        "``--format json`` (where supported)."
     ),
     context_settings={"help_option_names": ["-h", "--help"]},
 )

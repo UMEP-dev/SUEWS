@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import sys
 
+import click
 from click.testing import CliRunner
 import pytest
 import yaml
@@ -876,3 +877,89 @@ def test_validate_cli_waterdist_rules(tmp_path: Path) -> None:
     assert any(
         "to_soilstore" in str(err.get("message", "")) for err in val_env["errors"]
     ), val_env["errors"]
+
+
+# ---------------------------------------------------------------------------
+# CLI documentation & show_default contracts (gh#2165)
+# ---------------------------------------------------------------------------
+
+
+def _walk_click_tree(command, path: tuple[str, ...] = ()):
+    """Yield ``(path, command)`` for every registered Click command and group."""
+    yield path, command
+    if isinstance(command, click.Group):
+        with click.Context(command) as ctx:
+            for name in command.list_commands(ctx):
+                sub = command.get_command(ctx, name)
+                if sub is not None:
+                    yield from _walk_click_tree(sub, (*path, name))
+
+
+def test_registered_command_names_match_click_name() -> None:
+    """Every registered command exposes its CLI name so sphinx-click renders true headings."""
+    assert suews_cli_root.name == "suews"
+    mismatches = [
+        (path, cmd.name)
+        for path, cmd in _walk_click_tree(suews_cli_root)
+        if path and cmd.name != path[-1]
+    ]
+    assert not mismatches, f"Command .name differs from registered CLI name: {mismatches}"
+
+
+def test_cli_options_use_show_default_instead_of_handwritten_default_prose() -> None:
+    """Non-flag options with defaults enable Click show_default and avoid '(default: ...)' prose."""
+    unset = getattr(click.core, "UNSET", None)
+    handwritten_default = re.compile(r"\(\s*default\s*:", re.IGNORECASE)
+    missing_show_default: list[str] = []
+    duplicated_prose: list[str] = []
+
+    for path, cmd in _walk_click_tree(suews_cli_root):
+        cmd_label = " ".join(("suews", *path))
+        cmd_show_default = bool((cmd.context_settings or {}).get("show_default"))
+        for param in cmd.params:
+            if not isinstance(param, click.Option) or param.hidden:
+                continue
+            help_text = param.help or ""
+            if handwritten_default.search(help_text):
+                duplicated_prose.append(f"{cmd_label} {param.opts[0]}: {help_text!r}")
+            has_default = param.default is not None and param.default is not unset
+            if not param.is_flag and has_default:
+                effective_show = (
+                    param.show_default
+                    if param.show_default is not None
+                    else cmd_show_default
+                )
+                if not effective_show:
+                    missing_show_default.append(
+                        f"{cmd_label} {param.opts[0]} (default={param.default!r})"
+                    )
+
+    assert not duplicated_prose, f"Hand-written default prose in help=: {duplicated_prose}"
+    assert not missing_show_default, (
+        f"Options with defaults missing show_default: {missing_show_default}"
+    )
+
+
+def test_validate_help_renders_click_defaults_from_code() -> None:
+    """``suews validate --help`` renders defaults via Click ``show_default``."""
+    runner = CliRunner()
+    result = runner.invoke(suews_cli_root, ["validate", "--help"], terminal_width=240)
+    assert result.exit_code == 0, result.output
+    assert "(default: on)" not in result.output
+    for expected in (
+        "[default: ABC]",
+        "[default: public]",
+        "[default: table]",
+        "[default: on]",
+        "[default: suggest]",
+    ):
+        assert expected in result.output, result.output
+
+
+def test_command_line_rst_uses_sphinx_click() -> None:
+    """``docs/source/api/command-line.rst`` generates CLI reference via ``sphinx_click.ext``."""
+    text = _read_repo_file("docs/source/api/command-line.rst")
+    assert text.startswith(":doc-source: hand-written\n")
+    assert ".. click:: supy.cmd.suews_cli:cli" in text
+    assert ":prog: suews" in text
+    assert ":nested: full" in text

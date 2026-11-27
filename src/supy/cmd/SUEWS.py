@@ -293,6 +293,7 @@ def _run_with_namelist(path_runcontrol):
 
 # run the whole supy workflow mimicking SUEWS binary
 @click.command(
+    name="run",
     short_help="Run SUEWS simulation using YAML or namelist configuration",
     help="""
 Run SUEWS simulation using YAML (recommended) or namelist configuration.
@@ -316,6 +317,7 @@ Namelist Configuration (Deprecated):
     $ suews run -p /path/to/RunControl.nml
 
 The format is auto-detected based on file extension:
+
 - .yml, .yaml: YAML format (modern, recommended)
 - .nml: Namelist format (legacy, deprecated)
 

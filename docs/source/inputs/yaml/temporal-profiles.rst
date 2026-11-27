@@ -23,8 +23,9 @@ Keys and timing
   ``DayWatPer(1)``--``DayWatPer(7)``.
   The irrigation reader applies each named weekday on its own calendar day
   (``sunday`` on Sunday through ``saturday`` on Saturday).
-* :doc:`config-reference/hourlyprofile` has ``working_day`` and ``holiday``
-  mappings, each with all 24 keys ``"1"`` through ``"24"``.
+* :doc:`config-reference/hourlyprofile` and
+  :doc:`config-reference/daynighthourlyprofile` have ``working_day`` and
+  ``holiday`` mappings, each with all 24 keys ``"1"`` through ``"24"``.
   Key ``"1"`` starts at 00:00 and key ``"24"`` at 23:00; the corresponding
   kernel indices are 0--23.
 * :doc:`config-reference/tenminuteprofile`,
@@ -139,13 +140,13 @@ Former names are shown in brackets once.
      - Traffic heat and carbon dioxide multiplier; normalised to daily mean 1.
      - 1/24
    * - ``heat.popprof_24hr``
-     - HourlyProfile
+     - DayNightHourlyProfile
      - Raw population transition in metabolic emissions and, for the
        detailed emission methods, building heat: 1=night, 2=day, validated in
        ``[1.0, 2.0]``.
      - 1
    * - ``co2.profile_human_activity_24hr`` (``humactivity_24hr``)
-     - HourlyProfile
+     - DayNightHourlyProfile
      - Raw activity transition in metabolic emissions: 1=night, 2=day,
        validated in ``[1.0, 2.0]``.
      - 1

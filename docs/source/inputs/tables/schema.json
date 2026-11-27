@@ -2885,7 +2885,7 @@
       "type": "object"
     },
     "DayNightHourlyProfile": {
-      "description": "24-hour day/night transition profile bounded to ``[1.0, 2.0]``.\n\nUsed by ``popprof_24hr`` and ``profile_human_activity_24hr``, which the\nanthropogenic emissions kernel consumes raw without normalisation\n(``1.0`` = night, ``2.0`` = day, values in between = transition).",
+      "description": "24-hour day/night transition profile bounded to ``[1.0, 2.0]``.\n\nUsed by ``popprof_24hr`` and ``profile_human_activity_24hr``, which the\nanthropogenic emissions kernel consumes raw without normalisation\n(``1.0`` = night, ``2.0`` = day, values in between = transition).\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.",
       "properties": {
         "working_day": {
           "anyOf": [

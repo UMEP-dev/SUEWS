@@ -676,6 +676,8 @@ class DayNightHourlyProfile(HourlyProfile):
     Used by ``popprof_24hr`` and ``profile_human_activity_24hr``, which the
     anthropogenic emissions kernel consumes raw without normalisation
     (``1.0`` = night, ``2.0`` = day, values in between = transition).
+
+    See :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.
     """
 
     model_config = ConfigDict(title="Day/Night Hourly Profile")

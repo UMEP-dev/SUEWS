@@ -484,8 +484,8 @@ def test_legacy_conversion_preserves_user_99901_and_allocates_unused_code(
     import numpy as np  # noqa: PLC0415
 
     from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
-    import supy.util.converter.table.reverse as R  # noqa: PLC0415
     from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
 
     fixture_2016a = (
         Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
@@ -551,8 +551,8 @@ def test_legacy_conversion_zero_padded_owner_and_sub_bound_99901(
     import numpy as np  # noqa: PLC0415
 
     from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
-    import supy.util.converter.table.reverse as R  # noqa: PLC0415
     from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
 
     fixture_2016a = (
         Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"

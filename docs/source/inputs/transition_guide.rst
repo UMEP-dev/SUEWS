@@ -273,7 +273,7 @@ for custom out-of-range profiles so they can be rescaled explicitly:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev24
+   suews schema migrate site.yml
 
 .. _schema_dev23_lai_daily_increment:
 

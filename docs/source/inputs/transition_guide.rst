@@ -1390,3 +1390,11 @@ expects resolved current input and rejects these fields regardless of any
 version label.
 
 Numerical initialisation and the checkpoint payload format are unchanged.
+
+
+.. _validator_optional_null_omission:
+
+Omitted Optional Fields in Validator-Updated YAML
+-------------------------------------------------
+
+When ``suews validate`` writes an updated YAML configuration (such as ``updated_<name>.yml`` or ``updatedA_<name>.yml``), omitted optional parameters are now left omitted instead of being padded with speculative ``null`` placeholders. Omitted optional parameters continue to be listed in the validation report under ``REVIEW ADVISED``, and missing critical ``model.physics`` selectors still receive explicit ``{value: null}`` placeholders so required fixes remain visible in the updated file. Existing configurations that already carry explicit ``null`` values keep them unchanged, and downstream tools or scripts that previously expected validator output to insert ``null`` keys for every unused optional field should rely on the validation report or schema defaults instead.

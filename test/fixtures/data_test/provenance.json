@@ -1,6 +1,11 @@
 {
   "build": {
     "compilers": {
+      "c": {
+        "full_version": "cc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
+        "id": "gcc",
+        "version": "10.2.1"
+      },
       "fortran": {
         "full_version": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
         "id": "gcc",
@@ -8,16 +13,16 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "5526161",
-    "source_ref": "df8f67ee306f16d075874b4982eb34ff9e85c9e9",
-    "source_tree": "f5ab16afad164b62d029e5c54a516ac9dd549ca2",
-    "supy_version": "2026.11.27.dev11"
+    "git_commit": "bf800ef",
+    "source_ref": "bf800ef7daa1303146a90907e21022f97cedc3a2",
+    "source_tree": "ea24ee0237b2679cdc07bdae7e2b690b868c76fa",
+    "supy_version": "2026.11.27.dev8"
   },
   "column_names_sha256": "1f6b28f98506b531b5c6531dd353feb033ee62d67e879e6dd941b7a63b26bc31",
   "columns": 113,
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-27T07:44:29Z",
+  "generated_utc": "2026-11-27T11:31:57Z",
   "platform": {
     "libc": "glibc 2.17",
     "machine": "x86_64",
@@ -29,63 +34,63 @@
   "shards": [
     {
       "name": "sample_output_2012-01.csv",
-      "sha256": "2a3fdb88eb549d5a17afab98f5e14a64a8b4d4f8415d2cd560be62eb2d2be0c9",
-      "size_bytes": 6783491
+      "sha256": "51ea6f0fef6beff1bbccab012dfea169ecd08f39734b6711c555792dcd29b35c",
+      "size_bytes": 6782687
     },
     {
       "name": "sample_output_2012-02.csv",
-      "sha256": "5c4c36b478170e6e3418ed12fc19dcaef1870d0d8d40d488e76df8129764a51d",
-      "size_bytes": 6315943
+      "sha256": "7fd0541e4461a0060c7dcf80a305e60d5bab606d152e3a06a3c0fb1fc9bec34e",
+      "size_bytes": 6316670
     },
     {
       "name": "sample_output_2012-03.csv",
-      "sha256": "d9930789c5edfb9b3a3ef83981783b3cf6b01b783e042cd38440e8c7b2dbd001",
-      "size_bytes": 6671239
+      "sha256": "5a27675d3a4291f55a94b78823ee8073a0c5e7faea910bc139a3e018defe4058",
+      "size_bytes": 6671135
     },
     {
       "name": "sample_output_2012-04.csv",
-      "sha256": "abdf3de962758425b4e00ae450e0825e3f81f1496152c21100f904772adbc878",
-      "size_bytes": 6758234
+      "sha256": "c53b1b7783a15896cce249a44a27e8e652550cf8046a9cd1ba6dbbdc19bb71d1",
+      "size_bytes": 6759969
     },
     {
       "name": "sample_output_2012-05.csv",
-      "sha256": "dcb77292425f3205adee167f5b7a4e2f20115ac8dccd047853204abc6646955e",
-      "size_bytes": 6739616
+      "sha256": "2cd740b41e777ae2f32eee138503cc1a4b3555bb9f4757e8959c09361f694ca0",
+      "size_bytes": 6739052
     },
     {
       "name": "sample_output_2012-06.csv",
-      "sha256": "66fd46a55b4a01e82e702dc0692abaa14ca0d049b67c50032697315a797baff8",
-      "size_bytes": 6619530
+      "sha256": "2e0a848d3100c70fefa607853e55f8d53586e5db5bca1a22fe90f654d5fe9221",
+      "size_bytes": 6619251
     },
     {
       "name": "sample_output_2012-07.csv",
-      "sha256": "e59e08b4d037c89137bf4d7449db9460f84c3a0c4a11870a3e7f8c40982c3abe",
-      "size_bytes": 6847417
+      "sha256": "a8796fb6d300fdc159144400fa75f424445aa1c328bb3cf65ffb6c7a22eff44e",
+      "size_bytes": 6847375
     },
     {
       "name": "sample_output_2012-08.csv",
-      "sha256": "404da4dbd14d3e0c81329c3ccc2cfcd322c931ebc54dedd0fd085e4c5f6d3ce4",
-      "size_bytes": 6698923
+      "sha256": "26b6f78c77e8fe62ba402d4a744b448f3157d7c81614b8f2f8947c6fbce87a58",
+      "size_bytes": 6699223
     },
     {
       "name": "sample_output_2012-09.csv",
-      "sha256": "4f3d5e42e89235e1d2c5638a9eadee35ee288ecc3064bc47c5dd74808d69feaf",
-      "size_bytes": 6495198
+      "sha256": "33e7a1a2aa68dc80a7da4102df99cb2faee5deb64eaa679bcad50fa460e83cdc",
+      "size_bytes": 6494703
     },
     {
       "name": "sample_output_2012-10.csv",
-      "sha256": "d370b328cb9f54160c26fe22bf5a00841f76cc6993e9051f8637c6364c2192b8",
-      "size_bytes": 6951191
+      "sha256": "6a53924bc36a2cf13877a59603d8f5b9e5472439e23bbd559368e9a51d158074",
+      "size_bytes": 6948379
     },
     {
       "name": "sample_output_2012-11.csv",
-      "sha256": "48e6a19e15bd48a5df603c3fe23e4c856aacbf98480ac9f161cfff8946954c68",
-      "size_bytes": 6731728
+      "sha256": "5e91e37a42f05267b74160b0e491dad39a25bc5e34ed15984163155c07033b22",
+      "size_bytes": 6733599
     },
     {
       "name": "sample_output_2012-12.csv",
-      "sha256": "3cb9d78cfa4656a2ac614490c46a5a56d53afb930de9b73f1a3e4310e6432335",
-      "size_bytes": 6963839
+      "sha256": "a461917c52634990fb9ef72d721080956824458e0b98e5791d41cf52a67f2b78",
+      "size_bytes": 6963207
     }
   ]
 }

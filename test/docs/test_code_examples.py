@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import ctypes
 import importlib.util
 import json
 import os
@@ -317,9 +318,15 @@ def ellipsis_and_skip_example():
     >>> list(range(5))  # doctest: +ELLIPSIS
     [0, ..., 4]
 
-    Skipped example:
+    Skipped example (never executed):
 
     >>> 1 + 1  # doctest: +SKIP
+    99
+
+    Partially executed block before SKIP:
+
+    >>> x = 10
+    >>> x + 1  # doctest: +SKIP
     99
     """
 
@@ -327,10 +334,19 @@ def ellipsis_and_skip_example():
 def fd_stdout_example():
     """Native or direct fd 1 stdout must be captured and compared, never ignored.
 
+    Direct fd 1 write:
+
     >>> import os
     >>> _ = os.write(1, b"unexpected")
     >>> 1 + 1
     2
+
+    Buffered C stdio output is flushed while capture is active:
+
+    >>> import ctypes, os
+    >>> libc = ctypes.CDLL("ucrtbase") if os.name == "nt" else ctypes.CDLL(None)
+    >>> _ = libc.printf(b"native-buffered%c", 10)
+    native-buffered
     """
 
 
@@ -397,10 +413,22 @@ class ExternalModel(BaseModel):
     skip_unsup = by_key["supy.ellipsis_and_skip_example", "docstring-example:2"]
     assert skip_unsup["status"] == "unsupported"
     assert skip_unsup["detail"]["reason"] == "doctest SKIP directive"
+    assert skip_unsup["detail"]["executed"] == 0
+    assert skip_unsup["detail"]["partial"] is False
+
+    partial_skip = by_key["supy.ellipsis_and_skip_example", "docstring-example:3"]
+    assert partial_skip["status"] == "unsupported"
+    assert partial_skip["detail"]["executed"] == 1
+    assert partial_skip["detail"]["partial"] is True
+    assert report["summary"]["blocks_partially_executed"] == 1
+    assert report["summary"]["blocks_executed"] >= 8
 
     fd_mismatch = by_key["supy.fd_stdout_example", "docstring-example:1"]
     assert fd_mismatch["status"] == "mismatch"
     assert "unexpected" in fd_mismatch["detail"]["got"]
+
+    native_ok = by_key["supy.fd_stdout_example", "docstring-example:2"]
+    assert native_ok["status"] == "ok"
 
     parse_unsup = by_key["supy.malformed_doctest_example", "docstring-example:parse"]
     assert parse_unsup["status"] == "unsupported"
@@ -416,11 +444,42 @@ class ExternalModel(BaseModel):
     assert not any("model_post_init" in r["object"] for r in report["results"])
 
 
-def test_timeout_terminates_spawned_descendant_processes(tmp_path: Path):
-    """Timing out an example must terminate and reap child processes it spawned."""
-    pid_file = tmp_path / "child.pid"
+def _assert_pid_exited(pid: int) -> None:
+    """Assert that a previously spawned child process is no longer alive."""
+    if os.name == "nt":
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        kernel32.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        kernel32.GetExitCodeProcess.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        kernel32.GetExitCodeProcess.restype = ctypes.c_int
+        kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        kernel32.CloseHandle.restype = ctypes.c_int
+        # PROCESS_QUERY_LIMITED_INFORMATION = 0x1000, STILL_ACTIVE = 259
+        handle = kernel32.OpenProcess(0x1000, 0, pid)
+        if not handle:
+            return
+        try:
+            code = ctypes.c_uint32(0)
+            assert kernel32.GetExitCodeProcess(
+                ctypes.c_void_p(handle), ctypes.byref(code)
+            )
+            assert code.value != 259
+        finally:
+            kernel32.CloseHandle(ctypes.c_void_p(handle))
+    else:
+        with pytest.raises(ProcessLookupError):
+            os.kill(pid, 0)
+
+
+def test_timeout_and_normal_exit_terminate_spawned_descendant_processes(tmp_path: Path):
+    """Both timeout and normal completion must terminate and reap spawned descendants."""
+    timeout_pid_file = tmp_path / "timeout_child.pid"
+    normal_pid_file = tmp_path / "normal_child.pid"
     source = f'''\
-__all__ = ["hanging_example"]
+__all__ = ["hanging_example", "background_descendant_example"]
 
 
 def hanging_example():
@@ -429,9 +488,21 @@ def hanging_example():
     >>> from pathlib import Path
     >>> import subprocess, sys
     >>> p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
-    >>> _ = Path({str(pid_file)!r}).write_text(str(p.pid), encoding="utf-8")
+    >>> _ = Path({str(timeout_pid_file)!r}).write_text(str(p.pid), encoding="utf-8")
     >>> p.wait()
     0
+    """
+
+
+def background_descendant_example():
+    """Spawn a detached long-lived child and finish normally.
+
+    >>> from pathlib import Path
+    >>> import subprocess, sys
+    >>> p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    >>> _ = Path({str(normal_pid_file)!r}).write_text(str(p.pid), encoding="utf-8")
+    >>> 1 + 1
+    2
     """
 '''
     sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
@@ -440,15 +511,18 @@ def hanging_example():
 
     revision = checks.Revision(tmp_path, sha)
     report = checks.build_report(revision=revision, module=module, timeout=0.6)
-    finding = report["results"][0]
-    assert finding["status"] == "error"
-    assert "timed out" in finding["detail"]["reason"]
+    by_obj = {r["object"]: r for r in report["results"]}
 
-    assert pid_file.is_file()
-    child_pid = int(pid_file.read_text(encoding="utf-8").strip())
-    if os.name != "nt":
-        with pytest.raises(ProcessLookupError):
-            os.kill(child_pid, 0)
+    hanging = by_obj["supy.hanging_example"]
+    assert hanging["status"] == "error"
+    assert "timed out" in hanging["detail"]["reason"]
+    assert timeout_pid_file.is_file()
+    _assert_pid_exited(int(timeout_pid_file.read_text(encoding="utf-8").strip()))
+
+    normal = by_obj["supy.background_descendant_example"]
+    assert normal["status"] == "ok"
+    assert normal_pid_file.is_file()
+    _assert_pid_exited(int(normal_pid_file.read_text(encoding="utf-8").strip()))
 
 
 def test_cli_worked_case_help_examples_and_exclusions(tmp_path: Path):
@@ -490,9 +564,14 @@ def root_cli():
     >>> open("missing_config.yml", encoding="utf-8")
     <_io.TextIOWrapper>
 
-    Shell example:
+    Shell example without stated output:
 
         $ suews demo config.yml
+
+    Shell example with stated output:
+
+        $ suews demo --format json
+        {"ok": true}
     """
 )
 def demo():
@@ -558,6 +637,15 @@ def dynamic():
     dynamic_unsup = by_key["suews dynamic", "cli-help-example"]
     assert dynamic_unsup["status"] == "unsupported"
     assert dynamic_unsup["detail"]["reason"] == "dynamic command help"
+
+    shell_stated = by_key["suews demo", "cli-help-example:shell:2"]
+    assert shell_stated["status"] == "unsupported"
+    assert (
+        shell_stated["detail"]["reason"]
+        == "cli shell example with stated output is not executed"
+    )
+    assert '{"ok": true}' in shell_stated["source"]
+    assert shell_stated["lines"][0] < shell_stated["lines"][1]
 
     reasons = report["excluded_out_of_scope"]["reasons"]
     assert reasons["example has no stated output"] == 1
@@ -762,3 +850,42 @@ def test_installed_revision_prefix_matches():
     """Both abbreviated and full commit hashes match the target revision."""
     assert checks.installed_matches_revision("abcdef012345", "abcdef") is True
     assert checks.installed_matches_revision("abcdef012345", "abcdef012345") is True
+
+
+def test_cli_entrypoint_writes_json_and_text_reports_and_fails_on_bad_revision(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    """Exercise main() argument parsing, report file output and operational failure."""
+    json_out = tmp_path / "report.json"
+    text_out = tmp_path / "report.txt"
+    rc = checks.main([
+        "--revision",
+        "HEAD",
+        "--repo",
+        str(ROOT),
+        "--no-python",
+        "--output",
+        str(json_out),
+        "--text-output",
+        str(text_out),
+    ])
+    assert rc == 0
+    assert json_out.is_file()
+    assert text_out.is_file()
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    text = text_out.read_text(encoding="utf-8")
+    stdout = capsys.readouterr().out
+    assert text == stdout
+    assert text.isascii()
+    assert payload["summary"]["objects_scanned"]["cli"] >= 10
+    assert payload["summary"]["objects_scanned"]["python"] == 0
+
+    with pytest.raises(subprocess.CalledProcessError):
+        checks.main([
+            "--revision",
+            "0000000000000000000000000000000000000000",
+            "--repo",
+            str(ROOT),
+            "--no-python",
+            "--no-cli",
+        ])

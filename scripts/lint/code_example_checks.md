@@ -50,10 +50,12 @@ an expected traceback) runs in a fresh Python subprocess (`python -P`) with:
   that empty directory and stripping `PYTHONPATH`,
 - an empty execution namespace containing only Python builtins and whatever the
   example itself imports,
-- OS file-descriptor capture (`fd 1` and `fd 2`) so both Python and
-  native/subprocess stdout are compared against stated output,
-- a managed process group/tree terminated and reaped on timeout or block exit
-  before temporary directory cleanup (`--timeout`, default `30.0` seconds).
+- OS file-descriptor capture (`fd 1` and `fd 2`) with C stdio flushing
+  (`fflush(NULL)`) so Python, buffered C/native and subprocess stdout are all
+  compared against stated output,
+- a managed process group (POSIX) or Windows Job Object terminated and reaped
+  on both normal block completion and timeout before temporary directory cleanup
+  (`--timeout`, default `30.0` seconds).
 
 Outputs are compared with `doctest.OutputChecker`. Missing prerequisites
 (undefined names, missing imports, missing input files or configs, or
@@ -73,8 +75,11 @@ Every executed or unsupported item receives one of five statuses:
   permission/directory error, or network error, including chained causes).
 - `error`: another unexpected runtime exception, `SyntaxError`, abnormal exit,
   or timeout.
-- `unsupported`: malformed doctest syntax, `# doctest: +SKIP`, dynamic CLI help
-  text, failed `--help`, or unresolved source declaration.
+- `unsupported`: malformed doctest syntax, `# doctest: +SKIP` (including blocks
+  that partially executed earlier statements before hitting `SKIP`, counted in
+  both `blocks_executed` and `blocks_partially_executed`), non-doctest CLI shell
+  examples that carry stated output (preserved with their full output span),
+  dynamic CLI help text, failed `--help`, or unresolved source declaration.
 
 Per #2168 ("Out of scope"), the following are excluded without execution and
 recorded under `excluded_out_of_scope`:

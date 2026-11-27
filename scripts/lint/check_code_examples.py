@@ -20,6 +20,7 @@ import argparse
 import ast
 from collections import Counter
 from collections.abc import Iterator
+import ctypes
 from dataclasses import dataclass
 import doctest
 import importlib
@@ -57,6 +58,7 @@ _EXAMPLES_HEADER_RE = re.compile(r"^\s*Examples\s*:?\s*$", re.IGNORECASE)
 # both Python and OS-level fd 1/fd 2 output, and writes its structured outcome
 # to a dedicated result file.
 _SUBPROCESS_RUNNER = r"""
+import ctypes
 import doctest
 import errno
 import json
@@ -151,6 +153,17 @@ def _strip_exception_details(msg: str) -> str:
     return msg[start:end]
 
 
+def _flush_c_stdio() -> None:
+    try:
+        libc = ctypes.CDLL("ucrtbase") if os.name == "nt" else ctypes.CDLL(None)
+        fflush = libc.fflush
+        fflush.argtypes = [ctypes.c_void_p]
+        fflush.restype = ctypes.c_int
+        fflush(None)
+    except Exception:
+        pass
+
+
 def _execute_capturing_fds(
     source: str,
     filename: str,
@@ -167,6 +180,7 @@ def _execute_capturing_fds(
 
     sys.stdout.flush()
     sys.stderr.flush()
+    _flush_c_stdio()
     saved_fd1 = os.dup(1)
     saved_fd2 = os.dup(2)
     tmp_out = tempfile.TemporaryFile(mode="w+b")
@@ -191,6 +205,7 @@ def _execute_capturing_fds(
             sys.stderr.flush()
         except Exception:
             pass
+        _flush_c_stdio()
         os.dup2(saved_fd1, 1)
         os.dup2(saved_fd2, 2)
         os.close(saved_fd1)
@@ -230,12 +245,18 @@ def main() -> None:
         options = {int(k): bool(v) for k, v in item["options"].items()}
 
         if options.get(doctest.SKIP, False):
+            partial = (idx - 1) > 0
             outcome.update({
                 "status": "unsupported",
                 "executed": idx - 1,
+                "partial": partial,
                 "failed_statement_index": idx,
                 "failed_source": source,
-                "reason": "doctest SKIP directive",
+                "reason": (
+                    "doctest SKIP directive after partial execution"
+                    if partial
+                    else "doctest SKIP directive"
+                ),
             })
             break
 
@@ -611,19 +632,79 @@ def extract_doctest_blocks(text_block: TextBlock) -> list[ExampleBlock]:
     return blocks
 
 
-def extract_cli_shell_examples(text_block: TextBlock) -> list[tuple[int, int]]:
-    """Locate non-doctest shell ``suews`` command lines in CLI help text."""
+def _line_offset_to_file_line(
+    text_block: TextBlock,
+    file_lines: list[str],
+    offset: int,
+    token: str,
+    cursor: int,
+) -> tuple[int, int]:
+    """Map one text-block line onto its 1-based file line number."""
+    cand = text_block.node_start + offset
+    if (
+        text_block.node_start <= cand <= text_block.node_end
+        and cand <= len(file_lines)
+        and token in file_lines[cand - 1]
+    ):
+        return cand, cand + 1
+    upper = min(text_block.node_end, len(file_lines))
+    for line_no in range(max(cursor, text_block.node_start), upper + 1):
+        if token in file_lines[line_no - 1]:
+            return line_no, line_no + 1
+    return text_block.node_start, text_block.node_end + 1
+
+
+def _scan_shell_output_lines(
+    text_block: TextBlock,
+    lines: list[str],
+    file_lines: list[str],
+    start_idx: int,
+    cmd_indent: int,
+    in_examples_section: bool,
+    cursor: int,
+) -> tuple[int, int | None, int]:
+    """Scan lines following a shell command to detect stated output lines."""
+    end_line: int | None = None
+    next_idx = start_idx + 1
+    while next_idx < len(lines):
+        nxt = lines[next_idx]
+        stripped = nxt.strip()
+        if not stripped or stripped == "\b":
+            break
+        nxt_indent = len(nxt) - len(nxt.lstrip())
+        if (
+            nxt_indent < cmd_indent
+            or stripped.startswith(("#", ">>>"))
+            or _SHELL_PROMPT_RE.match(nxt)
+            or (in_examples_section and _SHELL_CMD_RE.match(nxt))
+        ):
+            break
+        end_line, cursor = _line_offset_to_file_line(
+            text_block, file_lines, next_idx, stripped, cursor
+        )
+        next_idx += 1
+    return next_idx, end_line, cursor
+
+
+def extract_cli_shell_examples(
+    text_block: TextBlock,
+) -> list[tuple[tuple[int, int], bool]]:
+    """Locate non-doctest shell ``suews`` lines and flag any stated output."""
     lines = text_block.text.splitlines()
     file_lines = text_block.source.text.splitlines()
-    spans: list[tuple[int, int]] = []
+    found: list[tuple[tuple[int, int], bool]] = []
     in_examples_section = False
     cursor = text_block.node_start
+    idx = 0
 
-    for offset, line in enumerate(lines):
+    while idx < len(lines):
+        line = lines[idx]
         if line.strip() == "\b":
+            idx += 1
             continue
         if _EXAMPLES_HEADER_RE.match(line):
             in_examples_section = True
+            idx += 1
             continue
         is_shell = bool(_SHELL_PROMPT_RE.match(line)) or (
             in_examples_section and bool(_SHELL_CMD_RE.match(line))
@@ -631,29 +712,30 @@ def extract_cli_shell_examples(text_block: TextBlock) -> list[tuple[int, int]]:
         if not is_shell:
             if in_examples_section and line.strip() and not line[0].isspace():
                 in_examples_section = False
+            idx += 1
             continue
-        token = line.strip()
-        cand = text_block.node_start + offset
-        if (
-            text_block.node_start <= cand <= text_block.node_end
-            and cand <= len(file_lines)
-            and token in file_lines[cand - 1]
-        ):
-            spans.append((cand, cand))
-            cursor = cand + 1
-            continue
-        upper = min(text_block.node_end, len(file_lines))
-        found = None
-        for line_no in range(max(cursor, text_block.node_start), upper + 1):
-            if token in file_lines[line_no - 1]:
-                found = line_no
-                break
-        if found is not None:
-            spans.append((found, found))
-            cursor = found + 1
-        else:
-            spans.append((text_block.node_start, text_block.node_end))
-    return spans
+
+        start_line, cursor = _line_offset_to_file_line(
+            text_block, file_lines, idx, line.strip(), cursor
+        )
+        idx, end_line, cursor = _scan_shell_output_lines(
+            text_block,
+            lines,
+            file_lines,
+            idx,
+            len(line) - len(line.lstrip()),
+            in_examples_section,
+            cursor,
+        )
+        has_output = end_line is not None
+        final_end = start_line if end_line is None else end_line
+        span = (
+            (text_block.node_start, text_block.node_end)
+            if final_end < start_line
+            else (start_line, final_end)
+        )
+        found.append((span, has_output))
+    return found
 
 
 def _isolated_env(temp_dir: Path) -> dict[str, str]:
@@ -687,17 +769,131 @@ def _isolated_env(temp_dir: Path) -> dict[str, str]:
     return env
 
 
-def _terminate_process_tree(proc: subprocess.Popen[str]) -> None:
-    """Terminate the isolated runner and every descendant in its process group."""
+class _WinIoCounters(ctypes.Structure):
+    _fields_ = [
+        ("ReadOperationCount", ctypes.c_uint64),
+        ("WriteOperationCount", ctypes.c_uint64),
+        ("OtherOperationCount", ctypes.c_uint64),
+        ("ReadTransferCount", ctypes.c_uint64),
+        ("WriteTransferCount", ctypes.c_uint64),
+        ("OtherTransferCount", ctypes.c_uint64),
+    ]
+
+
+class _WinBasicLimitInfo(ctypes.Structure):
+    _fields_ = [
+        ("PerProcessUserTimeLimit", ctypes.c_int64),
+        ("PerJobUserTimeLimit", ctypes.c_int64),
+        ("LimitFlags", ctypes.c_uint32),
+        ("MinimumWorkingSetSize", ctypes.c_size_t),
+        ("MaximumWorkingSetSize", ctypes.c_size_t),
+        ("ActiveProcessLimit", ctypes.c_uint32),
+        ("Affinity", ctypes.c_size_t),
+        ("PriorityClass", ctypes.c_uint32),
+        ("SchedulingClass", ctypes.c_uint32),
+    ]
+
+
+class _WinExtendedLimitInfo(ctypes.Structure):
+    _fields_ = [
+        ("BasicLimitInformation", _WinBasicLimitInfo),
+        ("IoInfo", _WinIoCounters),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
+    ]
+
+
+def _win32_create_kill_on_close_job() -> int | None:
+    """Create a Windows Job Object configured with KILL_ON_JOB_CLOSE."""
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+    kernel32.CreateJobObjectW.restype = ctypes.c_void_p
+    kernel32.SetInformationJobObject.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+    ]
+    kernel32.SetInformationJobObject.restype = ctypes.c_int
+    kernel32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    kernel32.AssignProcessToJobObject.restype = ctypes.c_int
+    kernel32.TerminateJobObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    kernel32.TerminateJobObject.restype = ctypes.c_int
+    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel32.CloseHandle.restype = ctypes.c_int
+
+    handle = kernel32.CreateJobObjectW(None, None)
+    if not handle:
+        return None
+    info = _WinExtendedLimitInfo()
+    # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (0x2000), JobObjectExtendedLimitInformation (9)
+    info.BasicLimitInformation.LimitFlags = 0x2000
+    ok = kernel32.SetInformationJobObject(
+        ctypes.c_void_p(handle), 9, ctypes.byref(info), ctypes.sizeof(info)
+    )
+    if not ok:
+        kernel32.CloseHandle(ctypes.c_void_p(handle))
+        return None
+    return int(handle)
+
+
+class _WindowsJobObject:
+    """Manage a Windows Job Object so every descendant terminates on cleanup."""
+
+    def __init__(self) -> None:
+        self.handle: int | None = None
+        if os.name != "nt":
+            return
+        try:
+            self.handle = _win32_create_kill_on_close_job()
+        except Exception:
+            self.handle = None
+
+    def assign(self, proc: subprocess.Popen[str]) -> bool:
+        """Assign ``proc`` (and all future descendants) to this Job Object."""
+        if not self.handle or os.name != "nt":
+            return False
+        try:
+            kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+            return bool(
+                kernel32.AssignProcessToJobObject(
+                    ctypes.c_void_p(self.handle), ctypes.c_void_p(int(proc._handle))
+                )
+            )
+        except Exception:
+            return False
+
+    def terminate_and_close(self) -> None:
+        """Terminate every process in the job (even after runner exit) and close."""
+        if not self.handle or os.name != "nt":
+            return
+        try:
+            kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+            kernel32.TerminateJobObject(ctypes.c_void_p(self.handle), 1)
+            kernel32.CloseHandle(ctypes.c_void_p(self.handle))
+        finally:
+            self.handle = None
+
+
+def _terminate_process_tree(
+    proc: subprocess.Popen[str],
+    win_job: _WindowsJobObject | None = None,
+) -> None:
+    """Terminate the isolated runner and every descendant independently of runner exit."""
     if os.name == "nt":
-        subprocess.run(
-            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-            capture_output=True,
-            check=False,
-            timeout=5,
-        )
+        if win_job is not None and win_job.handle:
+            win_job.terminate_and_close()
         if proc.poll() is None:
-            proc.kill()
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True,
+                check=False,
+                timeout=5,
+            )
+            if proc.poll() is None:
+                proc.kill()
         proc.wait(timeout=5)
         return
 
@@ -734,12 +930,13 @@ def _spawn_isolated_runner(
     path_proc_err: Path,
     timeout: float,
 ) -> tuple[bool, int]:
-    """Execute the isolated runner in its own process group and reap descendants."""
+    """Execute the isolated runner in its own process group/job and reap descendants."""
     popen_kwargs: dict[str, object] = (
         {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
         if os.name == "nt"
         else {"start_new_session": True}
     )
+    win_job = _WindowsJobObject() if os.name == "nt" else None
     timed_out = False
     returncode = 0
     with (
@@ -764,14 +961,16 @@ def _spawn_isolated_runner(
             errors="replace",
             **popen_kwargs,
         )
+        if win_job is not None:
+            win_job.assign(proc)
         try:
             returncode = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            _terminate_process_tree(proc)
+            _terminate_process_tree(proc, win_job)
         finally:
             if not timed_out:
-                _terminate_process_tree(proc)
+                _terminate_process_tree(proc, win_job)
     return timed_out, returncode
 
 
@@ -915,19 +1114,33 @@ def evaluate_text_block(
             )
 
     if surface == "cli":
-        for span in extract_cli_shell_examples(text_block):
-            reason = "cli shell example has no stated output"
-            excluded_counts[reason] += 1
-            excluded_items.append(
-                make_excluded_item(
+        for shell_idx, (span, has_output) in enumerate(
+            extract_cli_shell_examples(text_block), start=1
+        ):
+            if has_output:
+                yield make_result(
                     revision_sha,
                     surface,
                     text_block.source,
                     public,
-                    reason,
+                    f"{text_block.origin}:shell:{shell_idx}",
+                    "unsupported",
+                    {"reason": "cli shell example with stated output is not executed"},
                     lines=span,
                 )
-            )
+            else:
+                reason = "cli shell example has no stated output"
+                excluded_counts[reason] += 1
+                excluded_items.append(
+                    make_excluded_item(
+                        revision_sha,
+                        surface,
+                        text_block.source,
+                        public,
+                        reason,
+                        lines=span,
+                    )
+                )
 
 
 def exported_names(tree: ast.Module) -> list[str]:
@@ -1331,13 +1544,25 @@ def _summarise(
         counts[finding["status"]] += 1
 
     executed_statuses = {"ok", "mismatch", "prerequisite-missing", "error"}
+    blocks_executed = sum(
+        1
+        for f in findings
+        if f["detail"].get("executed", 0) > 0
+        or (f["status"] in executed_statuses and "block_index" in f["detail"])
+    )
+    blocks_partially_executed = sum(
+        1
+        for f in findings
+        if f["status"] == "unsupported" and f["detail"].get("executed", 0) > 0
+    )
     return {
         "counts_by_surface": by_surface,
         "objects_scanned": {
             "python": scanned["python"],
             "cli": scanned["cli"],
         },
-        "blocks_executed": sum(1 for f in findings if f["status"] in executed_statuses),
+        "blocks_executed": blocks_executed,
+        "blocks_partially_executed": blocks_partially_executed,
         "blocks_excluded": len(excluded_items),
         "unique_definitions_with_examples": len({
             (f["file"], f["definition"])

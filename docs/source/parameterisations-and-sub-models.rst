@@ -373,6 +373,7 @@ Where the levels sit depends on the scheme selected by :ref:`roughness_sublayer 
 
 - With RST, levels 1 to 19 lie within the canopy, level 20 at its top and the other 10 above it, whatever the mean height of roughness elements (buildings and trees, weighted by their plan area with trees counted by their non-porous fraction).
   The levels are placed on an effective canopy height :math:`z_H = \max(\text{mean height}, 2\ \text{m})`, so over a canopy lower than 2 m they do not follow the actual height.
+  Because level 20 sits at :math:`z_H`, RST requires a finite forcing height strictly above :math:`z_H` (and therefore strictly above 2 m even over lower canopies) and above :math:`z_d`; configurations that do not meet this raise a fatal error.
   Level 1 is at 1% of :math:`z_H`, capped just below 2 m, levels 1 to 9 lie in the lower third of the canopy, level 10 is at :math:`z_H/2`, and levels 11 to 20 close in on the canopy top.
   Levels 21 to 30 run from just above :math:`z_H` to the forcing height and are also concentrated towards the canopy top.
 - With MOST, the 30 levels are spaced logarithmically from just above :math:`z_d + z_0` (and at least 0.1 m) to the forcing height, where :math:`z_d` is the zero-plane displacement height and :math:`z_0` the roughness length for momentum.

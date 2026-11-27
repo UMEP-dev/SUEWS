@@ -57,7 +57,7 @@ implicit none
 integer, parameter :: nz = 30, nz_can = 20, nz_above = nz - nz_can + 1
 character(len=24) :: mode, target_field, input_kind
 integer :: method, do_reset, code, status, flag_i, all_sentinel_i, all_finite_i
-real(kind(1d0)) :: zh_in, fai_in, pai_in, l_mod_in, injected
+real(kind(1d0)) :: zh_in, fai_in, pai_in, l_mod_in, zmeas_in, injected
 real(kind(1d0)) :: z_full(nz), z_above(nz_above)
 real(kind(1d0)) :: psihatm(nz_above), psihath(nz_above)
 real(kind(1d0)) :: sfr_surf(nsurf)
@@ -89,6 +89,7 @@ do
     injected = l_mod_in
   end select
 
+  zmeas_in = 40.0d0
   select case (trim(target_field))
   case ('l_mod')
     l_mod_in = injected
@@ -98,6 +99,8 @@ do
     fai_in = injected
   case ('pai')
     pai_in = injected
+  case ('zmeas')
+    zmeas_in = injected
   end select
 
   if (do_reset /= 0) call reset_supy_error()
@@ -138,7 +141,7 @@ do
     forcing%RH = 60.0d0
     forcing%pres = 1013.25d0
     forcing%xsmd = 0.0d0
-    siteInfo%z = 40.0d0
+    siteInfo%z = zmeas_in
     siteInfo%z0m_in = 1.0d0
     siteInfo%zdm_in = 6.0d0
     siteInfo%h_std = 2.0d0
@@ -419,6 +422,21 @@ def test_rsl_profile_propagates_code_114_without_overwrite(
     assert res["flag"] == 1
     assert res["code"] == 114
     assert res["message"] == "RSL_cal_prms: non-finite Obukhov length L_MOD"
+    assert res["all_sentinel"] is True
+
+
+@pytest.mark.parametrize("input_kind", NONFINITE_KINDS)
+def test_rsl_profile_rejects_non_finite_zmeas_with_code_119(
+    rsl_nonfinite_probe, input_kind
+):
+    """Non-finite forcing height zMeas in RSLProfile raises fatal code 119 with sentinels."""
+    res = rsl_nonfinite_probe(mode="profile", field="zmeas", kind=input_kind, method=3)
+    assert res["flag"] == 1
+    assert res["code"] == 119
+    assert (
+        res["message"]
+        == "RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL"
+    )
     assert res["all_sentinel"] is True
 
 

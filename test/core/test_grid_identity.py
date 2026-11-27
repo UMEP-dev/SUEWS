@@ -36,7 +36,7 @@ def _simulation(ids):
     for index, grid in enumerate(ids):
         site = template.model_copy(deep=True)
         site.gridiv = grid
-        site.properties.z.value = 18 + index * 3
+        site.properties.z.value = 40 + index * 3
         site.properties.surfacearea.value = 10000 + index * 900
         sites.append(site)
     config.sites = sites

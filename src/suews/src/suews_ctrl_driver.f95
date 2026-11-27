@@ -3520,6 +3520,7 @@ CONTAINS
       REAL(KIND(1D0)) :: capStore_builing ! aggregated storage capacity of building facets[mm]
       REAL(KIND(1D0)) :: runoff_building !aggregated Runoff of building facets [mm]
       REAL(KIND(1D0)) :: qe_building !aggregated qe of building facets[W m-2]
+      REAL(KIND(1D0)) :: ev_building !aggregated evaporation of building facets [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: drain
       REAL(KIND(1D0)), DIMENSION(7) :: capStore_surf ! current storage capacity [mm]
       LOGICAL :: use_building_facets_for_ehc
@@ -3540,6 +3541,7 @@ CONTAINS
       capStore_builing = 0.0D0
       runoff_building = 0.0D0
       qe_building = 0.0D0
+      ev_building = 0.0D0
 
       ALLOCATE (rss_roof(nlayer))
       ALLOCATE (runoff_roof(nlayer))
@@ -3746,9 +3748,11 @@ CONTAINS
                   qe_wall = tlv*ev_wall
 
                   IF (sfr_surf(BldgSurf) < 1.0E-8) THEN
-                     qe_building = 0.0
+                     qe_building = 0.0D0
+                     ev_building = 0.0D0
                   ELSE
                      qe_building = (DOT_PRODUCT(qe_roof, sfr_roof) + DOT_PRODUCT(qe_wall, sfr_wall))/sfr_surf(BldgSurf)
+                     ev_building = (DOT_PRODUCT(ev_roof, sfr_roof) + DOT_PRODUCT(ev_wall, sfr_wall))/sfr_surf(BldgSurf)
                   END IF
                END IF
                ! --- general suews surfaces ---
@@ -3770,6 +3774,7 @@ CONTAINS
                IF (storageheatmethod == SHM_EHC .AND. use_building_facets_for_ehc) THEN
                   ! update building specific values
                   qe_surf(BldgSurf) = qe_building
+                  ev_surf(BldgSurf) = ev_building
                   state_surf(BldgSurf) = state_building
                   IF (capStore_builing > 0.0D0) THEN
                      soilstore_surf(BldgSurf) = soilstore_building/capStore_builing*capStore_surf(BldgSurf)

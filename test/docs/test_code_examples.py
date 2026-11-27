@@ -332,7 +332,7 @@ def ellipsis_and_skip_example():
 
 
 def fd_stdout_example():
-    """Native or direct fd 1 stdout must be captured and compared, never ignored.
+    """Native, direct fd 1, mixed subprocess and interactive _ semantics.
 
     Direct fd 1 write:
 
@@ -347,6 +347,25 @@ def fd_stdout_example():
     >>> libc = ctypes.CDLL("ucrtbase") if os.name == "nt" else ctypes.CDLL(None)
     >>> _ = libc.printf(b"native-buffered%c", 10)
     native-buffered
+
+    Mixed Python print and subprocess stdout preserve chronological order:
+
+    >>> import subprocess, sys
+    >>> print("before"); _ = subprocess.run([sys.executable, "-c", "print('after')"], check=True)
+    before
+    after
+
+    Interactive displayhook preserves builtins._ across statements:
+
+    >>> 2 + 2
+    4
+    >>> _ + 1
+    5
+
+    Interactive stdin is closed (DEVNULL) so input() fails as prerequisite-missing:
+
+    >>> input("prompt: ")
+    'user'
     """
 
 
@@ -427,8 +446,12 @@ class ExternalModel(BaseModel):
     assert fd_mismatch["status"] == "mismatch"
     assert "unexpected" in fd_mismatch["detail"]["got"]
 
-    native_ok = by_key["supy.fd_stdout_example", "docstring-example:2"]
-    assert native_ok["status"] == "ok"
+    assert by_key["supy.fd_stdout_example", "docstring-example:2"]["status"] == "ok"
+    assert by_key["supy.fd_stdout_example", "docstring-example:3"]["status"] == "ok"
+    assert by_key["supy.fd_stdout_example", "docstring-example:4"]["status"] == "ok"
+    stdin_missing = by_key["supy.fd_stdout_example", "docstring-example:5"]
+    assert stdin_missing["status"] == "prerequisite-missing"
+    assert stdin_missing["detail"]["prerequisite_type"] == "EOFError"
 
     parse_unsup = by_key["supy.malformed_doctest_example", "docstring-example:parse"]
     assert parse_unsup["status"] == "unsupported"
@@ -495,7 +518,7 @@ def hanging_example():
 
 
 def background_descendant_example():
-    """Spawn a detached long-lived child and finish normally.
+    """Spawn a background child in the runner's process group and finish normally.
 
     >>> from pathlib import Path
     >>> import subprocess, sys
@@ -591,6 +614,17 @@ def fallback():
     """
 
 
+@root_cli.command(
+    help=(
+        ">>> print('abc')\\n"
+        "a"
+        "bc\\n"
+    )
+)
+def concat_help():
+    """Verify adjacent literal spans preserve all output lines."""
+
+
 @root_cli.command(help=_dynamic_help())
 def dynamic():
     """Dynamic command help must abstain as unsupported."""
@@ -633,6 +667,11 @@ def dynamic():
     fallback_ok = by_key["suews fallback", "cli-help-example:1"]
     assert fallback_ok["status"] == "ok"
     assert ">>> 2 + 3" in fallback_ok["source"]
+
+    # Adjacent string literals must not omit the trailing output fragment.
+    concat_ok = by_key["suews concat-help", "cli-help-example:1"]
+    assert concat_ok["status"] == "ok"
+    assert '"bc\\n"' in concat_ok["source"]
 
     dynamic_unsup = by_key["suews dynamic", "cli-help-example"]
     assert dynamic_unsup["status"] == "unsupported"
@@ -889,3 +928,12 @@ def test_cli_entrypoint_writes_json_and_text_reports_and_fails_on_bad_revision(
             "--no-python",
             "--no-cli",
         ])
+
+    for bad_timeout in ("nan", "inf", "-inf", "0", "-1"):
+        with pytest.raises(SystemExit) as exc_info:
+            checks.main(["--timeout", bad_timeout, "--no-python", "--no-cli"])
+        assert exc_info.value.code != 0
+        with pytest.raises(ValueError, match="finite positive"):
+            checks.build_report(
+                revision=checks.Revision(ROOT, "HEAD"), timeout=float(bad_timeout)
+            )

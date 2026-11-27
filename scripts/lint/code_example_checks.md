@@ -46,16 +46,23 @@ Each contiguous `>>>` block that states expected output (either stdout/repr or
 an expected traceback) runs in a fresh Python subprocess (`python -P`) with:
 
 - an empty temporary working directory (no repository files present),
+- `stdin` redirected to `DEVNULL` so interactive `input()` fails immediately
+  with `EOFError` as a missing prerequisite rather than inheriting caller input,
 - a scrubbed environment pointing `HOME` / `XDG_CONFIG_HOME` / temp dirs to
   that empty directory and stripping `PYTHONPATH`,
-- an empty execution namespace containing only Python builtins and whatever the
-  example itself imports,
-- OS file-descriptor capture (`fd 1` and `fd 2`) with C stdio flushing
-  (`fflush(NULL)`) so Python, buffered C/native and subprocess stdout are all
-  compared against stated output,
-- a managed process group (POSIX) or Windows Job Object terminated and reaped
-  on both normal block completion and timeout before temporary directory cleanup
-  (`--timeout`, default `30.0` seconds).
+- an empty execution namespace containing only Python builtins (preserving
+  interactive `_` via `sys.displayhook`) and whatever the example itself
+  imports,
+- unbuffered Python I/O (`-u`) plus OS file-descriptor capture (`fd 1` and
+  `fd 2`) with C stdio flushing (`fflush(NULL)`) and CRLF normalisation so
+  Python, buffered C/native and subprocess stdout are captured in order across
+  platforms,
+- a managed process group (POSIX, terminating and reaping descendants remaining
+  in the runner's process group; processes that explicitly start a new session
+  with `setsid` / `start_new_session=True` escape POSIX process-group
+  signalling) or a startup-gated Windows Job Object (awaiting process exit
+  before handle close and temporary directory cleanup), bounded by a finite
+  positive `--timeout` (default `30.0` seconds).
 
 Outputs are compared with `doctest.OutputChecker`. Missing prerequisites
 (undefined names, missing imports, missing input files or configs, or

@@ -26,6 +26,7 @@ import doctest
 import importlib
 import inspect
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -58,6 +59,7 @@ _EXAMPLES_HEADER_RE = re.compile(r"^\s*Examples\s*:?\s*$", re.IGNORECASE)
 # both Python and OS-level fd 1/fd 2 output, and writes its structured outcome
 # to a dedicated result file.
 _SUBPROCESS_RUNNER = r"""
+import builtins
 import ctypes
 import doctest
 import errno
@@ -66,6 +68,7 @@ import os
 import socket
 import sys
 import tempfile
+import time
 import traceback
 import urllib.error
 
@@ -78,6 +81,7 @@ PREREQUISITE_TYPES = (
     NotADirectoryError,
     IsADirectoryError,
     PermissionError,
+    EOFError,
     ConnectionError,
     socket.gaierror,
     urllib.error.URLError,
@@ -175,6 +179,7 @@ def _execute_capturing_fds(
 
     def _displayhook(value: object) -> None:
         if value is not None:
+            builtins._ = value
             sys.stdout.write(repr(value) + "\n")
             sys.stdout.flush()
 
@@ -212,8 +217,12 @@ def _execute_capturing_fds(
         os.close(saved_fd2)
         tmp_out.seek(0)
         tmp_err.seek(0)
-        got_out = tmp_out.read().decode("utf-8", errors="replace")
-        got_err = tmp_err.read().decode("utf-8", errors="replace")
+        got_out = (
+            tmp_out.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
+        )
+        got_err = (
+            tmp_err.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
+        )
         tmp_out.close()
         tmp_err.close()
 
@@ -223,6 +232,13 @@ def _execute_capturing_fds(
 def main() -> None:
     payload_path = sys.argv[1]
     result_path = sys.argv[2]
+    gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    if gate_path:
+        deadline = time.monotonic() + 5.0
+        while not os.path.exists(gate_path):
+            if time.monotonic() >= deadline:
+                sys.exit(2)
+            time.sleep(0.005)
     with open(payload_path, encoding="utf-8") as fh:
         payload = json.load(fh)
 
@@ -544,6 +560,22 @@ def _docstring_node(node: ast.AST) -> ast.Constant | None:
     return None
 
 
+def _span_matches_tokens(
+    file_lines: list[str],
+    start: int,
+    end: int,
+    first_prompt: str,
+    tail_token: str,
+) -> bool:
+    """Return True when the physical slice matches the expected start and tail lines."""
+    head_line = file_lines[start - 1]
+    if ">>>" not in head_line:
+        return False
+    if first_prompt and first_prompt not in head_line:
+        return False
+    return not tail_token or tail_token in file_lines[end - 1]
+
+
 def _example_span(
     text_block: TextBlock,
     examples: list[doctest.Example],
@@ -551,8 +583,7 @@ def _example_span(
 ) -> tuple[tuple[int, int], int]:
     """Map parsed doctest examples onto exact 1-based file line numbers."""
     file_lines = text_block.source.text.splitlines()
-    first = examples[0]
-    last = examples[-1]
+    first, last = examples[0], examples[-1]
     last_src_lines = max(len(last.source.splitlines()), 1)
     last_want_lines = len(last.want.splitlines())
     if last.exc_msg:
@@ -563,29 +594,33 @@ def _example_span(
         text_block.node_start + last.lineno + last_src_lines + last_want_lines - 1
     )
     first_prompt = first.source.splitlines()[0].strip() if first.source.strip() else ""
+    tail_lines = [
+        ln.strip()
+        for ln in (last.exc_msg or last.want or last.source).splitlines()
+        if ln.strip()
+    ]
+    tail_token = tail_lines[-1] if tail_lines else ""
 
     if (
         text_block.node_start <= cand_start <= cand_end <= text_block.node_end
-        and cand_start <= len(file_lines)
-        and ">>>" in file_lines[cand_start - 1]
-        and (not first_prompt or first_prompt in file_lines[cand_start - 1])
+        and cand_end <= len(file_lines)
+        and _span_matches_tokens(
+            file_lines, cand_start, cand_end, first_prompt, tail_token
+        )
     ):
         return (cand_start, cand_end), cand_end + 1
 
-    # Fallback for string literals with implicit concatenation or escaped \n.
+    # Fallback: match start line and verify tail token fits the computed span;
+    # otherwise conservatively return the entire literal span so no output is omitted.
     upper = min(text_block.node_end, len(file_lines))
+    span_len = (last.lineno - first.lineno) + last_src_lines + last_want_lines - 1
     for line_no in range(max(search_start, text_block.node_start), upper + 1):
         line_text = file_lines[line_no - 1]
         if ">>>" in line_text and (not first_prompt or first_prompt in line_text):
-            end_no = min(
-                upper,
-                line_no
-                + (last.lineno - first.lineno)
-                + last_src_lines
-                + last_want_lines
-                - 1,
-            )
-            return (line_no, max(line_no, end_no)), max(line_no, end_no) + 1
+            end_no = min(upper, line_no + span_len)
+            if not tail_token or tail_token in file_lines[max(line_no, end_no) - 1]:
+                return (line_no, max(line_no, end_no)), max(line_no, end_no) + 1
+            break
 
     return (text_block.node_start, text_block.node_end), text_block.node_end + 1
 
@@ -805,6 +840,14 @@ class _WinExtendedLimitInfo(ctypes.Structure):
     ]
 
 
+class _WinJobProcessIdList(ctypes.Structure):
+    _fields_ = [
+        ("NumberOfAssignedProcesses", ctypes.c_uint32),
+        ("NumberOfProcessIdsInList", ctypes.c_uint32),
+        ("ProcessIdList", ctypes.c_size_t * 1),
+    ]
+
+
 def _win32_create_kill_on_close_job() -> int | None:
     """Create a Windows Job Object configured with KILL_ON_JOB_CLOSE."""
     kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
@@ -817,6 +860,14 @@ def _win32_create_kill_on_close_job() -> int | None:
         ctypes.c_uint32,
     ]
     kernel32.SetInformationJobObject.restype = ctypes.c_int
+    kernel32.QueryInformationJobObject.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint32),
+    ]
+    kernel32.QueryInformationJobObject.restype = ctypes.c_int
     kernel32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     kernel32.AssignProcessToJobObject.restype = ctypes.c_int
     kernel32.TerminateJobObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
@@ -865,16 +916,47 @@ class _WindowsJobObject:
         except Exception:
             return False
 
+    def _wait_all_exited(self, timeout: float = 5.0) -> None:
+        if not self.handle or os.name != "nt":
+            return
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        buf = _WinJobProcessIdList()
+        ret_len = ctypes.c_uint32(0)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            # JobObjectBasicProcessIdList = 3
+            kernel32.QueryInformationJobObject(
+                ctypes.c_void_p(self.handle),
+                3,
+                ctypes.byref(buf),
+                ctypes.sizeof(buf),
+                ctypes.byref(ret_len),
+            )
+            if buf.NumberOfAssignedProcesses == 0:
+                return
+            time.sleep(0.02)
+
     def terminate_and_close(self) -> None:
-        """Terminate every process in the job (even after runner exit) and close."""
+        """Terminate every process in the job, await exit, then close the handle."""
         if not self.handle or os.name != "nt":
             return
         try:
             kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
             kernel32.TerminateJobObject(ctypes.c_void_p(self.handle), 1)
+            self._wait_all_exited()
             kernel32.CloseHandle(ctypes.c_void_p(self.handle))
         finally:
             self.handle = None
+
+
+def _validate_timeout(timeout: float) -> float:
+    """Require a finite positive timeout value."""
+    if not isinstance(timeout, int | float) or isinstance(timeout, bool):
+        raise ValueError(f"timeout must be a finite positive number, got {timeout!r}")
+    value = float(timeout)
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(f"timeout must be a finite positive number, got {timeout!r}")
+    return value
 
 
 def _terminate_process_tree(
@@ -924,12 +1006,9 @@ def _terminate_process_tree(
 def _spawn_isolated_runner(
     exe: str,
     path_cwd: Path,
-    path_payload: Path,
-    path_result: Path,
-    path_proc_out: Path,
-    path_proc_err: Path,
+    path_ipc: Path,
     timeout: float,
-) -> tuple[bool, int]:
+) -> tuple[bool, int, str | None]:
     """Execute the isolated runner in its own process group/job and reap descendants."""
     popen_kwargs: dict[str, object] = (
         {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
@@ -937,23 +1016,29 @@ def _spawn_isolated_runner(
         else {"start_new_session": True}
     )
     win_job = _WindowsJobObject() if os.name == "nt" else None
+    gate_path = path_ipc / "containment.ready" if os.name == "nt" else None
+    cmd = [
+        exe,
+        "-P",
+        "-u",
+        "-c",
+        _SUBPROCESS_RUNNER,
+        str(path_ipc / "payload.json"),
+        str(path_ipc / "result.json"),
+        str(gate_path) if gate_path is not None else "",
+    ]
     timed_out = False
     returncode = 0
+    containment_error: str | None = None
     with (
-        path_proc_out.open("w", encoding="utf-8") as fh_out,
-        path_proc_err.open("w", encoding="utf-8") as fh_err,
+        (path_ipc / "proc_stdout.txt").open("w", encoding="utf-8") as fh_out,
+        (path_ipc / "proc_stderr.txt").open("w", encoding="utf-8") as fh_err,
     ):
         proc = subprocess.Popen(
-            [
-                exe,
-                "-P",
-                "-c",
-                _SUBPROCESS_RUNNER,
-                str(path_payload),
-                str(path_result),
-            ],
+            cmd,
             cwd=path_cwd,
             env=_isolated_env(path_cwd),
+            stdin=subprocess.DEVNULL,
             stdout=fh_out,
             stderr=fh_err,
             text=True,
@@ -962,16 +1047,21 @@ def _spawn_isolated_runner(
             **popen_kwargs,
         )
         if win_job is not None:
-            win_job.assign(proc)
+            if not win_job.assign(proc):
+                containment_error = "failed to assign Windows Job Object containment"
+                _terminate_process_tree(proc, win_job)
+                return False, proc.returncode or 1, containment_error
+            assert gate_path is not None
+            gate_path.write_text("ready\n", encoding="utf-8")
         try:
             returncode = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
             _terminate_process_tree(proc, win_job)
         finally:
-            if not timed_out:
+            if not timed_out and containment_error is None:
                 _terminate_process_tree(proc, win_job)
-    return timed_out, returncode
+    return timed_out, returncode, containment_error
 
 
 def run_example_block(
@@ -981,6 +1071,7 @@ def run_example_block(
     python_executable: str | None = None,
 ) -> tuple[str, dict]:
     """Run one ``>>>`` block in a fresh isolated subprocess with empty cwd."""
+    timeout = _validate_timeout(timeout)
     payload = {
         "name": name,
         "examples": [
@@ -1001,22 +1092,22 @@ def run_example_block(
         tempfile.TemporaryDirectory(prefix="suews-doctest-ipc-") as ipc_dir,
     ):
         path_ipc = Path(ipc_dir)
-        path_payload = path_ipc / "payload.json"
         path_result = path_ipc / "result.json"
-        path_proc_out = path_ipc / "proc_stdout.txt"
-        path_proc_err = path_ipc / "proc_stderr.txt"
-        path_payload.write_text(
+        (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
-        timed_out, returncode = _spawn_isolated_runner(
+        timed_out, returncode, containment_error = _spawn_isolated_runner(
             exe=python_executable or sys.executable,
             path_cwd=Path(cwd_dir),
-            path_payload=path_payload,
-            path_result=path_result,
-            path_proc_out=path_proc_out,
-            path_proc_err=path_proc_err,
+            path_ipc=path_ipc,
             timeout=timeout,
         )
+        if containment_error is not None:
+            return "error", {
+                "block_index": block.block_index,
+                "statements": len(block.examples),
+                "reason": containment_error,
+            }
         if timed_out:
             return "error", {
                 "block_index": block.block_index,
@@ -1024,8 +1115,16 @@ def run_example_block(
                 "reason": f"timed out after {timeout:.1f}s",
             }
 
-        proc_stdout = path_proc_out.read_text(encoding="utf-8", errors="replace")
-        proc_stderr = path_proc_err.read_text(encoding="utf-8", errors="replace")
+        proc_stdout = (
+            (path_ipc / "proc_stdout.txt")
+            .read_text(encoding="utf-8", errors="replace")
+            .replace("\r\n", "\n")
+        )
+        proc_stderr = (
+            (path_ipc / "proc_stderr.txt")
+            .read_text(encoding="utf-8", errors="replace")
+            .replace("\r\n", "\n")
+        )
 
         if not path_result.is_file():
             return "error", {
@@ -1583,6 +1682,7 @@ def build_report(
     prog_name: str = "suews",
 ) -> dict:
     """Collect executable-example findings across Python and/or CLI surfaces."""
+    timeout = _validate_timeout(timeout)
     excluded_counts: Counter = Counter()
     excluded_items: list[dict] = []
     scanned: Counter = Counter()
@@ -1725,6 +1825,14 @@ def _finding_note(status: str, detail: dict) -> str:
     return str(detail.get("reason", status))
 
 
+def _positive_finite_timeout(raw: str) -> float:
+    """Parse a finite positive timeout value for argparse."""
+    try:
+        return _validate_timeout(float(raw))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     """Write machine-readable JSON and readable ASCII text reports; exit 0 on findings."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1741,7 +1849,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--timeout",
-        type=float,
+        type=_positive_finite_timeout,
         default=DEFAULT_TIMEOUT_SECONDS,
         help=f"per-block timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS})",
     )

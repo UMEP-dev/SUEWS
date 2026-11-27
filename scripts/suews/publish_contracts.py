@@ -170,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
                     f"[OK] Validated {val['html_files_checked']} HTML page(s) and "
                     f"{val['relative_links_checked']} relative link(s)"
                 )
+            for warning in report.get("warnings") or []:
+                print(f"[WARN] {warning}")
+            if report.get("retained_backup"):
+                print(f"[WARN] Retained backup directory: {report['retained_backup']}")
         return 0
     except (
         OSError,

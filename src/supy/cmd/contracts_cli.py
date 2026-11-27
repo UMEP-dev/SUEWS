@@ -342,7 +342,8 @@ def export_cmd(
     "--output-dir",
     "-o",
     "output_dir",
-    type=click.Path(file_okay=False, path_type=Path),
+    type=click.Path(path_type=Path),
+    metavar="DIRECTORY",
     required=True,
     help="Target contracts directory (for example _site/contracts).",
 )
@@ -354,7 +355,8 @@ def export_cmd(
 )
 @click.option(
     "--preserve-from",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    type=click.Path(path_type=Path),
+    metavar="DIRECTORY",
     default=None,
     help="Existing contracts directory whose historical releases are preserved.",
 )
@@ -428,7 +430,7 @@ def publish_cmd(
 @contracts_group.command(name="validate")
 @click.argument(
     "contracts_dir",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    type=click.Path(path_type=Path),
 )
 @click.option(
     "--base-url",

@@ -52,6 +52,76 @@ def _snapshot_tree(root: Path) -> dict[str, bytes]:
     }
 
 
+def _add_indexed_historical_release(
+    site_root: Path,
+    interface: str,
+    version: str,
+    cat_bytes: bytes,
+    schema_bytes: bytes,
+) -> bytes:
+    """Write a release bundle into ``site_root`` and record it in its prior indexes."""
+    ver_dir = site_root / interface / version
+    ver_dir.mkdir(parents=True, exist_ok=True)
+    manifest_bytes = canonical_json_bytes({
+        "files": {
+            "catalogue.json": sha256_digest(cat_bytes),
+            "catalogue.schema.json": sha256_digest(schema_bytes),
+        },
+        "interface": interface,
+        "version": version,
+    })
+    (ver_dir / "catalogue.json").write_bytes(cat_bytes)
+    (ver_dir / "catalogue.schema.json").write_bytes(schema_bytes)
+    (ver_dir / "manifest.json").write_bytes(manifest_bytes)
+
+    digests = {
+        "catalogue.json": sha256_digest(cat_bytes),
+        "catalogue.schema.json": sha256_digest(schema_bytes),
+        "manifest.json": sha256_digest(manifest_bytes),
+    }
+    contract_digest = (
+        digests["catalogue.json"]
+        if interface == "forcing"
+        else digests["manifest.json"]
+    )
+    iface_idx_path = site_root / interface / "index.json"
+    iface_idx = json.loads(iface_idx_path.read_text(encoding="ascii"))
+    base = iface_idx["base_url"]
+    entry = {
+        "version": version,
+        "is_current": False,
+        "preserved": False,
+        "contract_digest": contract_digest,
+        "manifest_digest": digests["manifest.json"],
+        "digests": digests,
+        "paths": {
+            "catalogue": f"{version}/catalogue.json",
+            "schema": f"{version}/catalogue.schema.json",
+            "manifest": f"{version}/manifest.json",
+        },
+        "urls": {
+            "catalogue": f"{base}/contracts/{interface}/{version}/catalogue.json",
+            "schema": f"{base}/contracts/{interface}/{version}/catalogue.schema.json",
+            "manifest": f"{base}/contracts/{interface}/{version}/manifest.json",
+        },
+    }
+    versions_list = [e for e in iface_idx["versions"] if e["version"] != version]
+    versions_list.append(entry)
+    versions_list.sort(key=lambda e: tuple(int(x) for x in e["version"].split(".")))
+    iface_idx["versions"] = versions_list
+    iface_idx["version_count"] = len(versions_list)
+    iface_idx_path.write_bytes(canonical_json_bytes(iface_idx))
+
+    root_idx_path = site_root / "index.json"
+    root_idx = json.loads(root_idx_path.read_text(encoding="ascii"))
+    root_idx["interfaces"][interface]["versions"] = [
+        e["version"] for e in versions_list
+    ]
+    root_idx["interfaces"][interface]["version_count"] = len(versions_list)
+    root_idx_path.write_bytes(canonical_json_bytes(root_idx))
+    return manifest_bytes
+
+
 def test_frozen_forcing_snapshots_are_packaged_immutable_and_current(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -175,11 +245,16 @@ def test_publish_rejects_unrelated_destination_and_handles_permissions_and_clean
         publish_contracts_site(unrelated)
     assert _snapshot_tree(unrelated) == before_unrelated
 
-    # POSIX directory mode should not remain private 0700 from mkdtemp.
+    # POSIX directory mode should match normal umask-derived creation rather than
+    # mkdtemp's private 0700, and preserve an existing destination's mode.
     fresh = tmp_path / "published_contracts"
     publish_contracts_site(fresh, base_url="https://suews.io", validate=True)
     if os.name == "posix":
-        assert stat.S_IMODE(fresh.stat().st_mode) != 0o700
+        control = tmp_path / "umask_control_dir"
+        control.mkdir()
+        assert stat.S_IMODE(fresh.stat().st_mode) == stat.S_IMODE(
+            control.stat().st_mode
+        )
         fresh.chmod(0o755)
         publish_contracts_site(fresh, base_url="https://suews.io", validate=True)
         assert stat.S_IMODE(fresh.stat().st_mode) == 0o755
@@ -253,26 +328,14 @@ def test_validator_rejects_nan_json_blank_root_html_and_missing_hist_links(
         validate_published_contracts(base, base_url="https://suews.io")
     forcing_html.write_text(orig_forcing_html, encoding="ascii")
 
-    # 3. Non-standard JSON constant (NaN) in a preserved catalogue fails strictly.
-    nan_dir = base / "forcing" / "0.6.0"
-    nan_dir.mkdir(parents=True)
+    # 3. Non-standard JSON constant (NaN) in an indexed preserved catalogue fails strictly.
     nan_cat = b'{"value":NaN}\n'
     schema_bytes = canonical_json_bytes({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "properties": {"value": {"type": "number"}},
     })
-    manifest_bytes = canonical_json_bytes({
-        "files": {
-            "catalogue.json": sha256_digest(nan_cat),
-            "catalogue.schema.json": sha256_digest(schema_bytes),
-        },
-        "interface": "forcing",
-        "version": "0.6.0",
-    })
-    (nan_dir / "catalogue.json").write_bytes(nan_cat)
-    (nan_dir / "catalogue.schema.json").write_bytes(schema_bytes)
-    (nan_dir / "manifest.json").write_bytes(manifest_bytes)
+    _add_indexed_historical_release(base, "forcing", "0.6.0", nan_cat, schema_bytes)
     with pytest.raises(ContractPublicationError, match="non-standard JSON constant"):
         publish_contracts_site(tmp_path / "out_nan", preserve_from=base)
 
@@ -374,23 +437,13 @@ def test_publish_preserves_historical_releases_and_keeps_destination_atomic(
 
     # Synthesise a previously published older forcing release (0.9.0) in the prior site.
     hist_ver = "0.9.0"
-    hist_dir = previous / "forcing" / hist_ver
-    hist_dir.mkdir(parents=True)
     cat_bytes = (previous / "forcing" / "1.0.0" / "catalogue.json").read_bytes()
     schema_bytes = (
         previous / "forcing" / "1.0.0" / "catalogue.schema.json"
     ).read_bytes()
-    manifest_bytes = canonical_json_bytes({
-        "files": {
-            "catalogue.json": sha256_digest(cat_bytes),
-            "catalogue.schema.json": sha256_digest(schema_bytes),
-        },
-        "interface": "forcing",
-        "version": hist_ver,
-    })
-    (hist_dir / "catalogue.json").write_bytes(cat_bytes)
-    (hist_dir / "catalogue.schema.json").write_bytes(schema_bytes)
-    (hist_dir / "manifest.json").write_bytes(manifest_bytes)
+    _add_indexed_historical_release(
+        previous, "forcing", hist_ver, cat_bytes, schema_bytes
+    )
 
     next_site = tmp_path / "next"
     report = publish_contracts_site(
@@ -683,3 +736,197 @@ def test_standalone_script_builds_validates_and_ignores_stale_installed_supy(
     assert report["validated"] is True
     assert report["interfaces"]["forcing"]["current_version"] == CURRENT_FORCING_VERSION
     assert report["interfaces"]["output"]["current_version"] == CURRENT_OUTPUT_VERSION
+
+
+def test_publish_dotdot_destination_alias_normalises_and_rolls_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A destination containing ``..`` normalises cleanly and rolls back intact on rename error."""
+    dest = tmp_path / "contracts"
+    publish_contracts_site(dest, base_url="https://suews.io", validate=True)
+    alias = dest / ".." / "contracts"
+
+    # Successful overwrite through a ``contracts/../contracts`` alias.
+    report = publish_contracts_site(
+        alias, base_url="https://suews.io/preview/pr-7", validate=True
+    )
+    assert report["output_dir"] == str(dest.resolve())
+    before_fail = _snapshot_tree(dest)
+
+    # Simulated failure when moving staging into place rolls back to the original tree.
+    orig_rename = Path.rename
+
+    def fail_staging_install(self: Path, target: Path) -> Path:
+        if ".staging-" in self.name and target == dest.resolve():
+            raise OSError("simulated staging install failure")
+        return orig_rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", fail_staging_install)
+    with pytest.raises(OSError, match="simulated staging install failure"):
+        publish_contracts_site(alias, base_url="https://suews.io", validate=True)
+    assert dest.is_dir()
+    assert _snapshot_tree(dest) == before_fail
+    assert not list(tmp_path.glob(".contracts.backup-*"))
+    assert not list(tmp_path.glob(".contracts.staging-*"))
+
+
+def test_preservation_validates_prior_index_inventory_and_digests(
+    tmp_path: Path,
+) -> None:
+    """Preservation fails on missing indexed releases or coordinated unpackaged tampering."""
+    previous = tmp_path / "previous"
+    publish_contracts_site(previous, base_url="https://suews.io", validate=True)
+    cat_bytes = (previous / "forcing" / "1.0.0" / "catalogue.json").read_bytes()
+    schema_bytes = (
+        previous / "forcing" / "1.0.0" / "catalogue.schema.json"
+    ).read_bytes()
+    _add_indexed_historical_release(
+        previous, "forcing", "2.2.0", cat_bytes, schema_bytes
+    )
+
+    # 1. Incomplete download: index records 2.2.0, but its directory is missing.
+    incomplete = tmp_path / "incomplete"
+    shutil.copytree(previous, incomplete)
+    shutil.rmtree(incomplete / "forcing" / "2.2.0")
+    with pytest.raises(ContractPublicationError, match="missing indexed release"):
+        publish_contracts_site(tmp_path / "out_incomplete", preserve_from=incomplete)
+
+    # 2. Coordinated tamper: unpackaged 2.2.0 catalogue + manifest are both rewritten,
+    #    so the bundle self-verifies but disagrees with prior forcing/index.json digests.
+    tampered = tmp_path / "tampered"
+    shutil.copytree(previous, tampered)
+    alt_cat = (
+        cat_bytes.replace(b"1.0.0", b"2.2.0")
+        if b"1.0.0" in cat_bytes
+        else (cat_bytes[:-1] + b" \n")
+    )
+    alt_manifest = canonical_json_bytes({
+        "files": {
+            "catalogue.json": sha256_digest(alt_cat),
+            "catalogue.schema.json": sha256_digest(schema_bytes),
+        },
+        "interface": "forcing",
+        "version": "2.2.0",
+    })
+    (tampered / "forcing" / "2.2.0" / "catalogue.json").write_bytes(alt_cat)
+    (tampered / "forcing" / "2.2.0" / "manifest.json").write_bytes(alt_manifest)
+    with pytest.raises(ContractPublicationError, match="disagree with prior"):
+        publish_contracts_site(tmp_path / "out_tampered", preserve_from=tampered)
+
+
+def test_ownership_check_protects_nested_unrecognised_content(
+    tmp_path: Path,
+) -> None:
+    """Refuse replacement when unrelated files hide under index.html or latest/."""
+    # Case 1: root index.html replaced by a directory containing an unrelated file.
+    dest_html_dir = tmp_path / "dest_html_dir"
+    publish_contracts_site(dest_html_dir, base_url="https://suews.io", validate=True)
+    (dest_html_dir / "index.html").unlink()
+    (dest_html_dir / "index.html").mkdir()
+    keep_html = dest_html_dir / "index.html" / "keep.txt"
+    keep_html.write_text("preserve-me\n", encoding="ascii")
+    with pytest.raises(ContractPublicationError, match="expected regular file"):
+        publish_contracts_site(dest_html_dir, base_url="https://suews.io")
+    assert keep_html.read_text(encoding="ascii") == "preserve-me\n"
+
+    # Case 2: unrelated file placed inside forcing/latest/.
+    dest_latest = tmp_path / "dest_latest"
+    publish_contracts_site(dest_latest, base_url="https://suews.io", validate=True)
+    keep_latest = dest_latest / "forcing" / "latest" / "notes.txt"
+    keep_latest.write_text("do-not-delete\n", encoding="ascii")
+    with pytest.raises(
+        ContractPublicationError, match=r"unrecognised entries inside forcing/latest"
+    ):
+        publish_contracts_site(dest_latest, base_url="https://suews.io")
+    assert keep_latest.read_text(encoding="ascii") == "do-not-delete\n"
+
+    # Case 3: unrelated file placed inside a version directory.
+    dest_ver = tmp_path / "dest_ver"
+    publish_contracts_site(dest_ver, base_url="https://suews.io", validate=True)
+    keep_ver = dest_ver / "output" / "1.0.0" / "extra.txt"
+    keep_ver.write_text("stay-put\n", encoding="ascii")
+    with pytest.raises(
+        ContractPublicationError, match=r"unrecognised entries inside output/1\.0\.0"
+    ):
+        publish_contracts_site(dest_ver, base_url="https://suews.io")
+    assert keep_ver.read_text(encoding="ascii") == "stay-put\n"
+
+
+def test_write_forcing_snapshot_atomic_on_interrupted_second_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An interrupted second write leaves no partial snapshot directory and retries cleanly."""
+    fake_repo = tmp_path / "repo_atomic"
+    art_dir = fake_repo / "src/supy/data_model/forcing/artefacts"
+    art_dir.mkdir(parents=True)
+    src_cat = (
+        PROJECT_ROOT / "src/supy/data_model/forcing/artefacts/2.1.0.json"
+    ).read_bytes()
+    (art_dir / "2.3.0.json").write_bytes(src_cat)
+
+    orig_write_bytes = Path.write_bytes
+    failed_once = {"done": False}
+
+    def fail_manifest_write(self: Path, data: bytes) -> int:
+        if self.name == "manifest.json" and not failed_once["done"]:
+            failed_once["done"] = True
+            raise OSError("simulated disk full on second write")
+        return orig_write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_manifest_write)
+    with pytest.raises(OSError, match="simulated disk full"):
+        write_forcing_published_snapshot("2.3.0", fake_repo)
+
+    snap_parent = fake_repo / "src/supy/data_model/contract_artefacts/forcing"
+    snap_dir = snap_parent / "2.3.0"
+    assert not snap_dir.exists()
+    assert not list(snap_parent.glob(".2.3.0.staging-*"))
+
+    # Retry succeeds cleanly after the transient failure clears.
+    digest = write_forcing_published_snapshot("2.3.0", fake_repo)
+    assert digest.startswith("sha256:")
+    assert {p.name for p in snap_dir.iterdir()} == {
+        "catalogue.schema.json",
+        "manifest.json",
+    }
+
+
+def test_standalone_script_text_mode_surfaces_backup_cleanup_warnings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Standalone text output displays retained backup path and cleanup warnings."""
+    spec = importlib.util.spec_from_file_location(
+        "publish_contracts_warn_test", SCRIPT_PATH
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    loaded = mod._load_contracts_module()
+    out_dir = tmp_path / "script_warn_site"
+    loaded.publish_contracts_site(out_dir, base_url="https://suews.io", validate=True)
+
+    real_rmtree = shutil.rmtree
+    retained_paths: list[Path] = []
+
+    def fail_on_backup(path, *args, **kwargs):
+        p = Path(path)
+        if ".backup-" in p.name:
+            retained_paths.append(p)
+            raise PermissionError("simulated cleanup failure")
+        return real_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(loaded.shutil, "rmtree", fail_on_backup)
+    try:
+        rc = mod.main(["--output-dir", str(out_dir), "--base-url", "https://suews.io"])
+        captured = capsys.readouterr()
+        assert rc == 0
+        assert "[WARN]" in captured.out
+        assert "Retained backup directory:" in captured.out
+        assert retained_paths and str(retained_paths[0]) in captured.out
+    finally:
+        for p in retained_paths:
+            if p.exists():
+                real_rmtree(p)

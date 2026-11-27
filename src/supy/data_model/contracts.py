@@ -326,20 +326,34 @@ def write_forcing_published_snapshot(
         "catalogue.schema.json": schema_bytes,
         "manifest.json": manifest_bytes,
     }
-    if target_dir.exists():
+    if target_dir.exists() or target_dir.is_symlink():
         _reject_symlinks_in_tree(target_dir, f"forcing/{version} snapshot")
+        if not target_dir.is_dir():
+            raise ContractPublicationError(
+                f"forcing/{version} snapshot path is not a directory: {target_dir}"
+            )
         existing_names = {p.name for p in target_dir.iterdir()}
         if existing_names != set(snapshot_files) or any(
-            (target_dir / name).read_bytes() != content
+            not (target_dir / name).is_file()
+            or (target_dir / name).read_bytes() != content
             for name, content in snapshot_files.items()
         ):
             raise ContractPublicationError(
                 f"refusing to overwrite differing bytes in {target_dir}"
             )
     else:
-        target_dir.mkdir(parents=True)
-        for name, content in snapshot_files.items():
-            (target_dir / name).write_bytes(content)
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(
+            tempfile.mkdtemp(prefix=f".{version}.staging-", dir=target_dir.parent)
+        )
+        try:
+            for name, content in snapshot_files.items():
+                (staging_dir / name).write_bytes(content)
+            _apply_published_dir_mode(staging_dir, target_dir)
+            staging_dir.rename(target_dir)
+        finally:
+            if staging_dir.exists():
+                shutil.rmtree(staging_dir)
     return sha256_digest(manifest_bytes)
 
 
@@ -590,6 +604,119 @@ def _load_bundle_from_dir(
     return {name: (release_dir / name).read_bytes() for name in BUNDLE_FILENAMES}
 
 
+def _extract_preserved_index_inventory(
+    source_root: Path,
+    interface: ContractInterface,
+) -> dict[str, dict[str, Any]]:
+    """Parse and cross-check root and interface index inventories in a preserved source."""
+    root_idx_path = source_root / "index.json"
+    iface_idx_path = source_root / interface / "index.json"
+    if not root_idx_path.is_file():
+        raise ContractPublicationError(
+            f"{interface}: preserved source missing root index.json: {source_root}"
+        )
+    if not iface_idx_path.is_file():
+        raise ContractPublicationError(
+            f"{interface}: preserved source missing {interface}/index.json: {source_root}"
+        )
+
+    root_idx = _read_json_bytes(
+        root_idx_path.read_bytes(), f"preserved {source_root.name}/index.json"
+    )
+    if not isinstance(root_idx, dict) or not isinstance(
+        root_idx.get("interfaces"), dict
+    ):
+        raise ContractPublicationError(
+            f"{interface}: preserved root index.json has invalid structure in {source_root}"
+        )
+    root_iface = root_idx["interfaces"].get(interface)
+    if not isinstance(root_iface, dict) or not isinstance(
+        root_iface.get("versions"), list
+    ):
+        raise ContractPublicationError(
+            f"{interface}: preserved root index.json missing versions list in {source_root}"
+        )
+    root_versions = root_iface["versions"]
+    if any(not isinstance(v, str) or not _is_valid_semver(v) for v in root_versions):
+        raise ContractPublicationError(
+            f"{interface}: preserved root index.json contains invalid version name in {source_root}"
+        )
+    if len(set(root_versions)) != len(root_versions):
+        raise ContractPublicationError(
+            f"{interface}: preserved root index.json contains duplicate versions in {source_root}"
+        )
+
+    iface_idx = _read_json_bytes(
+        iface_idx_path.read_bytes(),
+        f"preserved {source_root.name}/{interface}/index.json",
+    )
+    if (
+        not isinstance(iface_idx, dict)
+        or iface_idx.get("interface") != interface
+        or not isinstance(iface_idx.get("versions"), list)
+    ):
+        raise ContractPublicationError(
+            f"{interface}: preserved {interface}/index.json has invalid structure in {source_root}"
+        )
+
+    indexed: dict[str, dict[str, Any]] = {}
+    iface_versions: list[str] = []
+    for entry in iface_idx["versions"]:
+        if not isinstance(entry, dict) or not isinstance(entry.get("version"), str):
+            raise ContractPublicationError(
+                f"{interface}: preserved {interface}/index.json has invalid version entry"
+            )
+        ver = entry["version"]
+        if not _is_valid_semver(ver) or ver in indexed:
+            raise ContractPublicationError(
+                f"{interface}: preserved {interface}/index.json has invalid or duplicate version {ver!r}"
+            )
+        digests = entry.get("digests")
+        if (
+            not isinstance(digests, dict)
+            or set(digests) != set(BUNDLE_FILENAMES)
+            or any(not isinstance(v, str) for v in digests.values())
+            or not isinstance(entry.get("manifest_digest"), str)
+            or not isinstance(entry.get("contract_digest"), str)
+        ):
+            raise ContractPublicationError(
+                f"{interface}/{ver}: preserved {interface}/index.json has incomplete digest metadata"
+            )
+        indexed[ver] = entry
+        iface_versions.append(ver)
+
+    if iface_versions != root_versions:
+        raise ContractPublicationError(
+            f"{interface}: preserved root index.json versions {root_versions!r} "
+            f"disagree with {interface}/index.json versions {iface_versions!r}"
+        )
+    return indexed
+
+
+def _verify_bundle_against_preserved_index(
+    interface: ContractInterface,
+    version: str,
+    bundle: dict[str, bytes],
+    index_entry: dict[str, Any],
+) -> None:
+    """Ensure a preserved release bundle matches the digests recorded in its prior index."""
+    actual_digests = {name: sha256_digest(bundle[name]) for name in BUNDLE_FILENAMES}
+    actual_contract = (
+        actual_digests["catalogue.json"]
+        if interface == "forcing"
+        else actual_digests["manifest.json"]
+    )
+    if (
+        index_entry["digests"] != actual_digests
+        or index_entry["manifest_digest"] != actual_digests["manifest.json"]
+        or index_entry["contract_digest"] != actual_contract
+    ):
+        raise ContractPublicationError(
+            f"{interface}/{version}: preserved bundle digests disagree with prior "
+            f"{interface}/index.json"
+        )
+
+
 def _collect_preserved_bundles(
     interface: ContractInterface,
     sources: list[Path],
@@ -598,9 +725,13 @@ def _collect_preserved_bundles(
     """Collect and verify historical version bundles from existing deployments."""
     preserved: dict[str, dict[str, bytes]] = {}
     for source_root in sources:
+        indexed_entries = _extract_preserved_index_inventory(source_root, interface)
         iface_dir = source_root / interface
         if not iface_dir.is_dir():
-            continue
+            raise ContractPublicationError(
+                f"{interface}: preserved source missing {interface}/ directory: {source_root}"
+            )
+        disk_versions: set[str] = set()
         for child in sorted(iface_dir.iterdir()):
             if child.is_symlink():
                 raise ContractPublicationError(
@@ -612,8 +743,23 @@ def _collect_preserved_bundles(
                 raise ContractPublicationError(
                     f"{interface}/{child.name}: invalid release directory name in preserved source"
                 )
-            ver = child.name
-            bundle = _load_bundle_from_dir(child, interface, ver)
+            disk_versions.add(child.name)
+
+        missing_on_disk = sorted(set(indexed_entries) - disk_versions)
+        if missing_on_disk:
+            raise ContractPublicationError(
+                f"{interface}: preserved source {source_root} is missing indexed "
+                f"release directory(ies): {missing_on_disk}"
+            )
+        unindexed_on_disk = sorted(disk_versions - set(indexed_entries))
+        if unindexed_on_disk:
+            raise ContractPublicationError(
+                f"{interface}: preserved source {source_root} contains unindexed "
+                f"release directory(ies): {unindexed_on_disk}"
+            )
+
+        for ver in sorted(disk_versions, key=_semver_key):
+            bundle = _load_bundle_from_dir(iface_dir / ver, interface, ver)
             _validate_bundle_content(
                 interface,
                 ver,
@@ -624,6 +770,9 @@ def _collect_preserved_bundles(
                     if interface == "forcing"
                     else None
                 ),
+            )
+            _verify_bundle_against_preserved_index(
+                interface, ver, bundle, indexed_entries[ver]
             )
             if ver in preserved and preserved[ver] != bundle:
                 raise ContractPublicationError(
@@ -961,6 +1110,49 @@ def _write_interface_dir(
     }
 
 
+def _assert_owned_bundle_dir(bundle_dir: Path, rel_label: str, label: str) -> None:
+    """Verify a replaceable bundle directory contains only permitted contract files."""
+    unexpected = [
+        child.name
+        for child in bundle_dir.iterdir()
+        if child.is_symlink()
+        or not child.is_file()
+        or child.name not in BUNDLE_FILENAMES
+    ]
+    if unexpected:
+        raise ContractPublicationError(
+            f"{label}: unrecognised entries inside {rel_label}: {sorted(unexpected)}"
+        )
+
+
+def _assert_owned_interface_dir(
+    iface_dir: Path, iface: ContractInterface, directory: Path, label: str
+) -> None:
+    """Verify one interface directory under ``directory`` contains only owned entries."""
+    if iface_dir.is_symlink() or not iface_dir.is_dir():
+        raise ContractPublicationError(f"{label}: expected directory at {iface_dir}")
+    for child in iface_dir.iterdir():
+        if child.is_symlink():
+            raise ContractPublicationError(
+                f"{label}: refuses symlink inside tree: {child}"
+            )
+        if child.name in _IFACE_ALLOWED_FILES:
+            if not child.is_file():
+                raise ContractPublicationError(
+                    f"{label}: expected regular file at {child}"
+                )
+        elif child.name == "latest" or _is_valid_semver(child.name):
+            if not child.is_dir():
+                raise ContractPublicationError(
+                    f"{label}: expected directory at {child}"
+                )
+            _assert_owned_bundle_dir(child, f"{iface}/{child.name}", label)
+        else:
+            raise ContractPublicationError(
+                f"{label}: unrecognised entry {iface}/{child.name} in {directory}"
+            )
+
+
 def _assert_owned_contracts_root(directory: Path, label: str) -> None:
     """Verify a non-empty existing directory belongs exclusively to contract publication."""
     entries = list(directory.iterdir())
@@ -973,40 +1165,46 @@ def _assert_owned_contracts_root(directory: Path, label: str) -> None:
             f"{label}: refusing to replace directory containing unrecognised entries: "
             f"{unexpected} (in {directory})"
         )
-    has_marker = (directory / "index.json").is_file() or all(
-        (directory / iface).is_dir() for iface in CONTRACT_INTERFACES
-    )
-    if not has_marker:
-        raise ContractPublicationError(
-            f"{label}: existing non-empty directory does not look like a contracts root: "
-            f"{directory}"
-        )
-    if (directory / "index.json").is_file():
-        root_idx = _read_json_bytes(
-            (directory / "index.json").read_bytes(), f"{label}/index.json"
-        )
-        if not isinstance(root_idx, dict) or "contracts_url" not in root_idx:
+    for root_file in _IFACE_ALLOWED_FILES:
+        candidate = directory / root_file
+        if candidate.exists() and (candidate.is_symlink() or not candidate.is_file()):
             raise ContractPublicationError(
-                f"{label}: existing index.json does not belong to SUEWS contracts"
+                f"{label}: expected regular file at {candidate}"
             )
+    root_idx_path = directory / "index.json"
+    if not root_idx_path.is_file():
+        raise ContractPublicationError(
+            f"{label}: existing non-empty directory does not look like a contracts root "
+            f"(missing index.json): {directory}"
+        )
+    root_idx = _read_json_bytes(root_idx_path.read_bytes(), f"{label}/index.json")
+    if (
+        not isinstance(root_idx, dict)
+        or "contracts_url" not in root_idx
+        or not isinstance(root_idx.get("interfaces"), dict)
+    ):
+        raise ContractPublicationError(
+            f"{label}: existing index.json does not belong to SUEWS contracts"
+        )
     for iface in CONTRACT_INTERFACES:
         iface_dir = directory / iface
-        if not iface_dir.exists():
-            continue
-        if not iface_dir.is_dir():
-            raise ContractPublicationError(
-                f"{label}: expected directory at {iface_dir}"
-            )
-        for child in iface_dir.iterdir():
-            if child.is_dir():
-                if child.name != "latest" and not _is_valid_semver(child.name):
-                    raise ContractPublicationError(
-                        f"{label}: unrecognised subdirectory {iface}/{child.name} in {directory}"
-                    )
-            elif child.name not in _IFACE_ALLOWED_FILES:
-                raise ContractPublicationError(
-                    f"{label}: unrecognised file {iface}/{child.name} in {directory}"
-                )
+        if iface_dir.exists():
+            _assert_owned_interface_dir(iface_dir, iface, directory, label)
+
+
+def _normalise_output_dir(output_dir: Path) -> Path:
+    """Reject symlink roots and normalise destination to a stable absolute path."""
+    raw = Path(output_dir)
+    if raw.is_symlink():
+        raise ContractPublicationError(f"output_dir: refuses symlink target: {raw}")
+    resolved = raw.resolve(strict=False)
+    if resolved.is_symlink():
+        raise ContractPublicationError(f"output_dir: refuses symlink target: {raw}")
+    if resolved == resolved.parent:
+        raise ContractPublicationError(
+            f"output_dir: refuses filesystem root as destination: {raw}"
+        )
+    return resolved
 
 
 def _collect_preserve_sources(
@@ -1016,9 +1214,13 @@ def _collect_preserve_sources(
     if preserve_from is not None:
         preserve_path = Path(preserve_from)
         _reject_symlinks_in_tree(preserve_path, "preserve_from")
-        if not preserve_path.is_dir():
+        if not preserve_path.exists():
             raise ContractPublicationError(
                 f"preserve_from directory does not exist: {preserve_path}"
+            )
+        if not preserve_path.is_dir():
+            raise ContractPublicationError(
+                f"preserve_from path is not a directory: {preserve_path}"
             )
         missing_ifaces = [
             iface
@@ -1040,9 +1242,10 @@ def _collect_preserve_sources(
         )
     if output_dir.is_dir():
         _assert_owned_contracts_root(output_dir, "output_dir")
-        resolved_out = output_dir.resolve()
-        if all(src.resolve() != resolved_out for src in preserve_sources):
-            preserve_sources.append(output_dir)
+        if any(output_dir.iterdir()):
+            resolved_out = output_dir.resolve()
+            if all(src.resolve() != resolved_out for src in preserve_sources):
+                preserve_sources.append(output_dir)
     return preserve_sources
 
 
@@ -1110,7 +1313,7 @@ def publish_contracts_site(
     the retained backup path in ``warnings`` and ``retained_backup``.
     """
     base = _normalise_base_url(base_url)
-    output_dir = Path(output_dir)
+    output_dir = _normalise_output_dir(output_dir)
     preserve_sources = _collect_preserve_sources(output_dir, preserve_from)
 
     # Resolve and authenticate BOTH interfaces before mutating anything on disk.
@@ -1199,7 +1402,7 @@ class _HrefCollector(HTMLParser):
 def _is_within_root(path: Path, root: Path) -> bool:
     try:
         path.resolve().relative_to(root.resolve())
-    except ValueError:
+    except (ValueError, OSError):
         return False
     return True
 
@@ -1211,20 +1414,28 @@ def _check_relative_path(
     context: str,
     errors: list[str],
 ) -> None:
-    if not rel_path or rel_path.startswith("/"):
-        errors.append(f"{context}: expected relative path, got {rel_path!r}")
+    if not rel_path or rel_path.startswith("/") or "\x00" in rel_path:
+        errors.append(f"{context}: expected valid relative path, got {rel_path!r}")
         return
-    target = (base_dir / rel_path).resolve()
-    if not _is_within_root(target, root_dir):
-        errors.append(f"{context}: path escapes contracts root: {rel_path!r}")
+    try:
+        target = (base_dir / rel_path).resolve()
+        within = _is_within_root(target, root_dir)
+        if not within:
+            errors.append(f"{context}: path escapes contracts root: {rel_path!r}")
+            return
+        is_dir = target.is_dir()
+        has_index = is_dir and (target / "index.html").is_file()
+        is_file = not is_dir and target.is_file()
+    except (ValueError, OSError) as exc:
+        errors.append(f"{context}: invalid path {rel_path!r}: {exc}")
         return
-    if target.is_dir():
-        if not (target / "index.html").is_file():
+    if is_dir:
+        if not has_index:
             errors.append(
                 f"{context}: linked directory missing index.html: {rel_path!r}"
             )
         return
-    if not target.is_file():
+    if not is_file:
         errors.append(f"{context}: target file does not exist: {rel_path!r}")
 
 
@@ -1757,8 +1968,10 @@ def validate_published_contracts(
     """Validate a built contracts directory for schema, digest, metadata, and link integrity."""
     root = Path(contracts_dir)
     _reject_symlinks_in_tree(root, "contracts_dir")
-    if not root.is_dir():
+    if not root.exists():
         raise ContractPublicationError(f"contracts directory does not exist: {root}")
+    if not root.is_dir():
+        raise ContractPublicationError(f"contracts path is not a directory: {root}")
 
     errors: list[str] = []
     _validate_root_html_coverage(root / "index.html", errors)

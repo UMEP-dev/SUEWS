@@ -278,7 +278,9 @@ def test_contracts_publish_and_validate_cli(tmp_path: Path) -> None:
     pub_env = json.loads(pub_res.output)
     assert pub_env["status"] == "success"
     assert pub_env["data"]["validated"] is True
-    assert pub_env["data"]["validation"]["contracts_dir"] == str(site_contracts)
+    assert pub_env["data"]["validation"]["contracts_dir"] == str(
+        site_contracts.resolve()
+    )
     assert (site_contracts / "index.html").is_file()
     assert (site_contracts / "forcing" / "latest" / "catalogue.json").is_file()
     assert (site_contracts / "output" / "latest" / "manifest.json").is_file()
@@ -368,3 +370,57 @@ def test_contracts_validate_cli_handles_malformed_index_and_bad_utf8(
     assert res_utf8.exit_code == 1
     assert json.loads(res_utf8.output)["status"] == "error"
     root_html.write_bytes(orig_html)
+
+
+def test_contracts_cli_reports_nul_paths_and_missing_dirs_as_json_envelopes(
+    tmp_path: Path,
+) -> None:
+    """Embedded NUL paths and missing directory arguments emit JSON error envelopes."""
+    runner = CliRunner()
+    site_contracts = tmp_path / "contracts"
+    pub_res = runner.invoke(
+        cli, ["contracts", "publish", "--output-dir", str(site_contracts)]
+    )
+    assert pub_res.exit_code == 0, pub_res.output
+
+    # Embedded NUL byte in indexed path produces a JSON error envelope, not ValueError.
+    root_idx = site_contracts / "index.json"
+    orig_root = root_idx.read_bytes()
+    nul_root = json.loads(orig_root.decode("ascii"))
+    nul_root["interfaces"]["forcing"]["latest_paths"]["catalogue"] = (
+        "forcing/latest/catalogue.json\x00bad"
+    )
+    root_idx.write_text(json.dumps(nul_root) + "\n", encoding="ascii")
+    res_nul = runner.invoke(
+        cli, ["contracts", "validate", str(site_contracts), "--format", "json"]
+    )
+    assert res_nul.exit_code == 1
+    env_nul = json.loads(res_nul.output)
+    assert env_nul["status"] == "error"
+    root_idx.write_bytes(orig_root)
+
+    # Missing directories for validate and --preserve-from emit JSON error envelopes.
+    missing_dir = tmp_path / "does-not-exist"
+    res_missing_val = runner.invoke(
+        cli, ["contracts", "validate", str(missing_dir), "--format", "json"]
+    )
+    assert res_missing_val.exit_code == 1
+    env_missing_val = json.loads(res_missing_val.output)
+    assert env_missing_val["status"] == "error"
+
+    res_missing_pres = runner.invoke(
+        cli,
+        [
+            "contracts",
+            "publish",
+            "--output-dir",
+            str(tmp_path / "out-missing-pres"),
+            "--preserve-from",
+            str(missing_dir),
+            "--format",
+            "json",
+        ],
+    )
+    assert res_missing_pres.exit_code == 1
+    env_missing_pres = json.loads(res_missing_pres.output)
+    assert env_missing_pres["status"] == "error"

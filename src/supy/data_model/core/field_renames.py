@@ -1903,7 +1903,7 @@ def reverse_field_renames(data: dict) -> dict:
 
 # -- BuildingLayer facet split (gh#2085) -------------------------------------
 #
-# Prior to Schema 2026.6.dev21, ``RoofLayer`` and ``WallLayer`` inherited both
+# Prior to Schema 2026.6.dev22, ``RoofLayer`` and ``WallLayer`` inherited both
 # SPARTACUS optical fields from ``BuildingLayer``. Each property now lives only
 # on its owning facet subclass, while legacy cross-facet keys are stripped on
 # load with a ``DeprecationWarning``.

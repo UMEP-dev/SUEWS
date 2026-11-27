@@ -17,6 +17,7 @@ import math
 from pathlib import Path
 import sys
 from typing import List, Optional, Tuple
+import warnings
 
 import click
 import jsonschema
@@ -29,8 +30,11 @@ import yaml
 
 # Import from supy modules
 try:
-    from ..data_model.core.config import SUEWSConfig
-    from ..data_model.configuration.migration import SchemaMigrator, check_migration_needed
+    from ..data_model.configuration.migration import (
+        SchemaMigrator,
+        check_migration_needed,
+        get_older_target_warning,
+    )
     from ..data_model.configuration.publisher import generate_json_schema, save_schema
     from ..data_model.configuration.version import (
         CURRENT_SCHEMA_VERSION,
@@ -38,13 +42,17 @@ try:
         get_schema_compatibility_message,
         is_schema_compatible,
     )
+    from ..data_model.core.config import SUEWSConfig
 except ImportError:
     # Fallback for direct script execution
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
-    from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.configuration.migration import SchemaMigrator, check_migration_needed
+    from supy.data_model.configuration.migration import (
+        SchemaMigrator,
+        check_migration_needed,
+        get_older_target_warning,
+    )
     from supy.data_model.configuration.publisher import generate_json_schema, save_schema
     from supy.data_model.configuration.version import (
         CURRENT_SCHEMA_VERSION,
@@ -52,6 +60,7 @@ except ImportError:
         get_schema_compatibility_message,
         is_schema_compatible,
     )
+    from supy.data_model.core.config import SUEWSConfig
 
 # Canonical SUEWS CLI JSON envelope (gh#1360 / gh#1368).
 try:
@@ -354,9 +363,54 @@ def _yaml_values_identical(left: object, right: object) -> bool:
     )
 
 
+def _migrate_capturing_older_target_warning(
+    migrator: SchemaMigrator,
+    config: dict,
+    *,
+    from_version: str,
+    to_version: str,
+    expected_warning: str | None,
+) -> tuple[dict, bool]:
+    """Run ``migrator.migrate`` and capture an expected older-target warning once."""
+    if expected_warning is None:
+        return (
+            migrator.migrate(
+                config, from_version=from_version, to_version=to_version
+            ),
+            False,
+        )
+
+    saw_expected_warning = False
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always", UserWarning)
+        migrated = migrator.migrate(
+            config, from_version=from_version, to_version=to_version
+        )
+    for caught in caught_warnings:
+        if (
+            issubclass(caught.category, UserWarning)
+            and str(caught.message) == expected_warning
+        ):
+            saw_expected_warning = True
+        else:
+            warnings.warn_explicit(
+                caught.message,
+                caught.category,
+                caught.filename,
+                caught.lineno,
+            )
+    return migrated, saw_expected_warning
+
+
 @cli.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
-@click.option("--target-version", help="Target schema version for migration")
+@click.option(
+    "--target-version",
+    help=(
+        "Target schema version for migration "
+        "(omit to migrate to the current installed schema)"
+    ),
+)
 @click.option(
     "--output-dir", "-o", type=click.Path(), help="Output directory for migrated files"
 )
@@ -385,6 +439,8 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     quiet = ctx.obj.get("quiet", False)
 
     target = target_version or CURRENT_SCHEMA_VERSION
+    older_target_warning = get_older_target_warning(target)
+    surfaced_older_target_warning: str | None = None
     output_path = Path(output_dir) if output_dir else None
 
     if output_path and not dry_run:
@@ -408,9 +464,15 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
             # Check the current contract even for an already-stamped file.
             # The migrator preserves the rules of explicitly requested old targets.
-            migrated = migrator.migrate(
-                config, from_version=current_version, to_version=target
+            migrated, saw_older_warning = _migrate_capturing_older_target_warning(
+                migrator,
+                config,
+                from_version=current_version,
+                to_version=target,
+                expected_warning=older_target_warning,
             )
+            if saw_older_warning:
+                surfaced_older_target_warning = older_target_warning
             same_version = current_version == target
             if same_version and _yaml_values_identical(config, migrated):
                 results.append((
@@ -476,6 +538,9 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
             table.add_row(name, migration, status)
 
         console.print(table)
+
+    if surfaced_older_target_warning and not quiet:
+        click.echo(f"Warning: {surfaced_older_target_warning}", err=True)
 
     if failures:
         if quiet:
@@ -577,9 +642,7 @@ def info(ctx):
     console.print("\n[bold]CLI Commands:[/bold]")
     console.print("  • Check version: [cyan]suews schema version config.yml[/cyan]")
     console.print("  • Validate configs: [cyan]suews validate config.yml[/cyan]")
-    console.print(
-        f"  • Migrate: [cyan]suews schema migrate old.yml --target-version {CURRENT_SCHEMA_VERSION}[/cyan]"
-    )
+    console.print("  • Migrate: [cyan]suews schema migrate old.yml[/cyan]")
     console.print("  • Export schema: [cyan]suews schema export -o schema.json[/cyan]")
 
     console.print("\n[bold]Integration:[/bold]")

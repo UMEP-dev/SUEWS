@@ -440,6 +440,108 @@ def test_schema_migrate_batch_exits_nonzero_when_any_file_fails(
         assert "good.yml" not in result.output
 
 
+def test_schema_migrate_warns_once_for_older_target_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CLI surfaces the older-target warning once on stderr without raw UserWarning spam."""
+    from supy.cmd import schema_cli
+    from supy.cmd.suews_cli import cli
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
+
+    # ARRANGE
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
+    first = tmp_path / "site_a.yml"
+    second = tmp_path / "site_b.yml"
+    for path in (first, second):
+        path.write_text("name: test\nschema_version: '2026.6.dev17'\n", encoding="utf-8")
+
+    # ACT: multi-file migration to an older historical schema
+    result = CliRunner().invoke(
+        cli,
+        [
+            "schema",
+            "migrate",
+            "--target-version",
+            "2026.6.dev18",
+            str(first),
+            str(second),
+        ],
+    )
+
+    # ASSERT: warning appears once cleanly on stderr (no double-spam or raw traceback)
+    assert result.exit_code == 0, result.output
+    err = _stderr_or_output(result)
+    assert err.count("older than the current installed schema") == 1
+    assert "Warning:" in err
+    assert "2026.6.dev18" in err
+    assert CURRENT_SCHEMA_VERSION in err
+    assert "UserWarning:" not in result.output
+
+    # ACT: --dry-run also surfaces the older-target warning cleanly once
+    dry_result = CliRunner().invoke(
+        cli,
+        [
+            "schema",
+            "migrate",
+            "--dry-run",
+            "--target-version",
+            "2026.6.dev18",
+            str(first),
+        ],
+    )
+    assert dry_result.exit_code == 0, dry_result.output
+    dry_err = _stderr_or_output(dry_result)
+    assert dry_err.count("older than the current installed schema") == 1
+    assert "UserWarning:" not in dry_result.output
+
+    # ACT: --quiet suppresses non-error warning output without leaking raw UserWarning
+    quiet_result = CliRunner().invoke(
+        cli,
+        [
+            "schema",
+            "--quiet",
+            "migrate",
+            "--dry-run",
+            "--target-version",
+            "2026.6.dev18",
+            str(first),
+        ],
+    )
+    assert quiet_result.exit_code == 0, quiet_result.output
+    assert not quiet_result.output
+
+
+@pytest.mark.parametrize("pass_current", [False, True])
+def test_schema_migrate_no_older_target_warning_for_default_or_current(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pass_current: bool
+) -> None:
+    """Omitting --target-version or passing CURRENT_SCHEMA_VERSION emits no historical warning."""
+    from supy.cmd import schema_cli
+    from supy.cmd.suews_cli import cli
+    from supy.data_model.configuration.version import CURRENT_SCHEMA_VERSION
+
+    # ARRANGE
+    monkeypatch.setattr(
+        schema_cli, "validate_file_against_schema", lambda *a, **kw: (True, [])
+    )
+    config = tmp_path / "site.yml"
+    config.write_text("name: test\nschema_version: '2026.6.dev18'\n", encoding="utf-8")
+    args = ["schema", "migrate"]
+    if pass_current:
+        args.extend(["--target-version", CURRENT_SCHEMA_VERSION])
+    args.append(str(config))
+
+    # ACT
+    result = CliRunner().invoke(cli, args)
+
+    # ASSERT
+    assert result.exit_code == 0, result.output
+    assert "older than the current installed schema" not in result.output
+    assert "UserWarning:" not in result.output
+
+
 # ---------------------------------------------------------------------------
 # Back-compat aliases
 # ---------------------------------------------------------------------------

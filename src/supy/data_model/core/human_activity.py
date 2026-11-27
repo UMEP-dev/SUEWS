@@ -599,7 +599,16 @@ class IrrigationParams(
 class AnthropogenicHeat(
     DataModelBase
 ):  # TODO: May need to add the RefValue to the profiles here
-    """Anthropogenic heat flux parameters and profiles."""
+    """Anthropogenic heat flux parameters and profiles.
+
+    Compatibility defaults (``popdensnighttime=10.0`` ha-1 and
+    ``DayProfile(working_day=1.0, holiday=0.0)``) are retained so sparse
+    configurations continue to round-trip without schema breaks, but they are
+    uncalibrated placeholders rather than recommended site values. When loaded
+    via ``SUEWSConfig.from_yaml`` or ``SUEWSConfig.from_dict`` under an active
+    modelled emissions method (``model.physics.emissions != 0``), omitting an
+    active parameter emits a ``UserWarning``.
+    """
 
     model_config = ConfigDict(title="Anthropogenic Heat")
 
@@ -618,6 +627,11 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "1",
             "display_name": "Building Fraction of Base QF",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
+            "range_description": "Physical fraction in 0.0-1.0; calibrate by site.",
         },
     )
     qf_a: DayProfile = Field(
@@ -630,6 +644,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 ha",
             "display_name": "QF Coefficient A",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
             "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
         },
     )
@@ -643,6 +661,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1 ha",
             "display_name": "QF Coefficient B",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
             "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
         },
     )
@@ -656,6 +678,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1 ha",
             "display_name": "QF Coefficient C",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0) "
+                "(not a calibrated site value); calibrate by site."
+            ),
             "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
         },
     )
@@ -670,7 +696,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "degC",
             "display_name": "Base Temperature Cooling",
-            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     baset_heating: DayProfile = Field(
@@ -683,7 +712,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "degC",
             "display_name": "Base Temperature Heating",
-            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ah_min: DayProfile = Field(
@@ -701,7 +733,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2",
             "display_name": "Base Anthropogenic Heat",
-            "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ah_slope_cooling: DayProfile = Field(
@@ -715,7 +750,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1",
             "display_name": "Anthropogenic Heat Slope (Cooling)",
-            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ah_slope_heating: DayProfile = Field(
@@ -730,7 +768,10 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m-2 K-1",
             "display_name": "Anthropogenic Heat Slope (Heating)",
-            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
         },
     )
     ahprof_24hr: HourlyProfile = Field(
@@ -742,19 +783,47 @@ class AnthropogenicHeat(
         },
     )
     popdensdaytime: DayProfile = Field(
-        description="Daytime population density",
+        description=(
+            "Daytime population density (people per hectare). The DayProfile "
+            "default (working_day=1.0, holiday=0.0) is a compatibility "
+            "placeholder, not a calibrated site value; specify site-specific "
+            "values when modelled anthropogenic emissions are active."
+        ),
         default_factory=DayProfile,
         json_schema_extra={
             "unit": "ha-1",
             "display_name": "Daytime Population Density",
+            "default_description": (
+                "Compatibility placeholder default: DayProfile(working_day=1.0, holiday=0.0). "
+                "Sample benchmark value: 204.58 ha^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
+            "range_description": (
+                "Non-negative (>= 0.0 ha^-1); sample benchmark value is 204.58 ha^-1 "
+                "for central London (Ward et al. 2016); calibrate by site."
+            ),
         },
     )
     popdensnighttime: float = Field(
         default=10.0,
-        description="Nighttime population density",
+        description=(
+            "Nighttime population density (people per hectare). The default "
+            "10.0 ha-1 is a compatibility placeholder, not a calibrated site "
+            "value; omitting it under active modelled emissions "
+            "(model.physics.emissions != 0) substitutes 10.0 ha-1 and can "
+            "materially alter simulated QF and metabolic CO2, so specify the "
+            "site value explicitly."
+        ),
         json_schema_extra={
             "unit": "ha-1",
             "display_name": "Nighttime Population Density",
+            "default_description": (
+                "Compatibility placeholder default: 10.0 ha^-1 (not a calibrated site value). "
+                "Sample benchmark value: 204.58 ha^-1 (Ward et al. 2016, central London); calibrate by site."
+            ),
+            "range_description": (
+                "Non-negative (>= 0.0 ha^-1); sample benchmark value is 204.58 ha^-1 "
+                "for central London (Ward et al. 2016); calibrate by site."
+            ),
         },
         ge=0.0,
     )

@@ -351,16 +351,47 @@ def normalise_ten_minute_profile_keys_in_raw_config(
 class DayProfile(DataModelBase):
     """Scalar values keyed by ``working_day`` and ``holiday``.
 
+    The field defaults (``working_day=1.0``, ``holiday=0.0``) are asymmetric
+    compatibility placeholders, not calibrated site parameters. Omitting a
+    ``DayProfile`` field or omitting either key falls back to these values;
+    under active modelled emissions (``model.physics.emissions != 0``),
+    ``SUEWSConfig.from_yaml`` and ``SUEWSConfig.from_dict`` emit a
+    ``UserWarning`` when active ``AnthropogenicHeat`` fields rely on them.
+
     See :doc:`/inputs/yaml/temporal-profiles` for day selection and field uses.
     """
 
     model_config = ConfigDict(title="Daily Profile")
 
     working_day: Optional[float] = Field(
-        default=1.0, json_schema_extra={"display_name": "Working Day"}
+        default=1.0,
+        description=(
+            "Scalar value applied on working days (Monday to Friday). "
+            "The default 1.0 is a compatibility placeholder, not a calibrated "
+            "site parameter."
+        ),
+        json_schema_extra={
+            "display_name": "Working Day",
+            "default_description": (
+                "Compatibility placeholder default: 1.0 (not a calibrated site value); "
+                "specify explicitly for active parameters."
+            ),
+        },
     )
     holiday: Optional[float] = Field(
-        default=0.0, json_schema_extra={"display_name": "Holiday"}
+        default=0.0,
+        description=(
+            "Scalar value applied on holidays/weekends (Saturday and Sunday). "
+            "The default 0.0 is an asymmetric compatibility placeholder, not a "
+            "calibrated site parameter."
+        ),
+        json_schema_extra={
+            "display_name": "Holiday",
+            "default_description": (
+                "Compatibility placeholder default: 0.0 (asymmetric with working_day=1.0; "
+                "not a calibrated site value); specify explicitly for active parameters."
+            ),
+        },
     )
 
     ref: Optional[Reference] = None

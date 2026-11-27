@@ -2038,3 +2038,39 @@ def test_determine_matrix_schema2_draft_tag_dispatch_and_ci_tiers_parity(
         check=False,
     )
     assert gate_312_skip.returncode == 1, gate_312_skip.stdout + gate_312_skip.stderr
+
+
+def test_check_test_markers_wires_python_literals_ratchet() -> None:
+    """check_test_markers runs check_python_literals.py as a PR/queue gate."""
+    wf = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    jobs = wf["jobs"]
+    lint_job = jobs["check_test_markers"]
+    assert not lint_job.get("continue-on-error", False)
+    assert "pull_request" in lint_job["if"]
+    assert "merge_group" in lint_job["if"]
+    assert "check_test_markers" in jobs["pr-gate"]["needs"]
+
+    steps = lint_job["steps"]
+    py_steps = [
+        s
+        for s in steps
+        if str(s.get("run", "")).strip()
+        == "python scripts/lint/check_python_literals.py"
+    ]
+    assert len(py_steps) == 1
+    py_step = py_steps[0]
+    assert py_step.get("if") == "always()"
+    assert py_step.get("shell") == "bash"
+    assert not py_step.get("continue-on-error", False)
+
+    filters = yaml.safe_load(
+        (REPO_ROOT / ".github/path-filters.yml").read_text(encoding="utf-8")
+    )
+    assert _matches_category(filters, "ci", "scripts/lint/check_python_literals.py")
+    assert _matches_category(
+        filters, "ci", "scripts/lint/python_literals_baseline.json"
+    )

@@ -520,7 +520,28 @@ def test_replacing_child_snow_and_soil_models_preserves_scheme_ownership(
     cfg.sites[0].properties.soil_observation.layer_depth = None
     cfg.validate_for_engine()
 
-    # Activating either scheme catches the null on the replaced child.
+    # Dictionary replacements inherit the parent's inactive scheme context.
+    cfg.sites[0].properties.soil_observation = {}
+    assert cfg.sites[0].properties.soil_observation.layer_depth is None
+    cfg.sites[0].properties.snow = {"narp_emissivity_snow": -999.0}
+    assert cfg.sites[0].properties.snow.narp_emissivity_snow == -999.0
+    cfg.sites[0].properties.snow.water_holding_capacity_max = None
+    cfg.validate_for_engine()
+
+    # Dictionary replacements are strictly rejected when the owning scheme is active.
+    active_snow_data = copy.deepcopy(sample_dict)
+    _set_snow_use(active_snow_data, 1)
+    active_snow_cfg = SUEWSConfig.from_dict(active_snow_data)
+    with pytest.raises(ValidationError):
+        active_snow_cfg.sites[0].properties.snow = {"narp_emissivity_snow": -999.0}
+
+    active_soil_cfg = SUEWSConfig.from_dict(
+        _make_active_observed_soil_dict(sample_dict)
+    )
+    with pytest.raises(ValidationError):
+        active_soil_cfg.sites[0].properties.soil_observation = {}
+
+    # Activating either scheme catches the relaxed/null values on the replaced child.
     cfg_snow_on = copy.deepcopy(cfg)
     cfg_snow_on.model.physics.snow_use = SnowUse.ENABLED
     with pytest.raises(ValueError, match="water_holding_capacity_max"):
@@ -530,6 +551,88 @@ def test_replacing_child_snow_and_soil_models_preserves_scheme_ownership(
     cfg_soil_on.model.physics.soil_moisture = SMDMethod.OBSERVED
     with pytest.raises(ValueError, match="layer_depth"):
         cfg_soil_on.validate_for_engine()
+
+
+def test_df_state_roundtrip_preserves_snow_absence_and_rejects_on_activation(
+    sample_dict: dict,
+) -> None:
+    """DataFrame export never fabricates snow numbers for explicit nulls."""
+    # Active snow with wrapped null snow_density_min preserves None (never 100.0).
+    active_data = copy.deepcopy(sample_dict)
+    _set_snow_use(active_data, 1)
+    active_data["sites"][0]["properties"]["snow"]["snow_density_min"] = {"value": None}
+    active_cfg = SUEWSConfig.from_dict(active_data)
+    active_df = active_cfg.to_df_state()
+    grid_id = active_cfg.sites[0].gridiv
+    assert pd.isna(active_df.loc[grid_id, ("snowdensmin", "0")])
+    rebuilt_active = SUEWSConfig.from_df_state(active_df)
+    assert isinstance(
+        rebuilt_active.sites[0].properties.snow.snow_density_min, RefValue
+    )
+    assert rebuilt_active.sites[0].properties.snow.snow_density_min.value is None
+
+    # Inactive snow with null scalar, null profile, and null surface state preserves
+    # absence across df_state round-trip and fails if snow is later enabled.
+    inactive_data = copy.deepcopy(sample_dict)
+    _set_snow_use(inactive_data, 0)
+    inactive_data["sites"][0]["properties"]["snow"]["tau_cold_snow"] = None
+    inactive_data["sites"][0]["properties"]["snow"]["water_holding_capacity_max"] = {
+        "value": None
+    }
+    inactive_data["sites"][0]["properties"]["snow"]["snow_profile_24hr"] = None
+    inactive_data["sites"][0]["initial_states"]["paved"]["snowfrac"] = None
+    inactive_cfg = SUEWSConfig.from_dict(inactive_data)
+    inactive_df = inactive_cfg.to_df_state()
+    assert pd.isna(inactive_df.loc[grid_id, ("tau_a", "0")])
+    assert pd.isna(inactive_df.loc[grid_id, ("crwmax", "0")])
+    assert pd.isna(inactive_df.loc[grid_id, ("snowprof_24hr", "(0, 0)")])
+    assert pd.isna(inactive_df.loc[grid_id, ("snowfrac", "(0,)")])
+
+    rebuilt_inactive = SUEWSConfig.from_df_state(inactive_df)
+    assert rebuilt_inactive.sites[0].properties.snow.tau_cold_snow is None
+    assert rebuilt_inactive.sites[0].properties.snow.water_holding_capacity_max is None
+    assert rebuilt_inactive.sites[0].properties.snow.snow_profile_24hr is None
+    assert rebuilt_inactive.sites[0].initial_states.paved.snowfrac is None
+    rebuilt_inactive.validate_for_engine()
+
+    rebuilt_inactive.model.physics.snow_use = SnowUse.ENABLED
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        rebuilt_inactive.validate_for_engine()
+    rebuilt_inactive.sites[0].properties.snow.water_holding_capacity_max = 0.1
+    with pytest.raises(ValueError, match="tau_cold_snow"):
+        rebuilt_inactive.validate_for_engine()
+    rebuilt_inactive.sites[0].properties.snow.tau_cold_snow = 0.018
+    with pytest.raises(ValueError, match="snow_profile_24hr"):
+        rebuilt_inactive.validate_for_engine()
+
+    # Inactive snow with properties.snow = None also avoids fabricating usable defaults.
+    null_block_data = copy.deepcopy(sample_dict)
+    _set_snow_use(null_block_data, 0)
+    null_block_data["sites"][0]["properties"]["snow"] = None
+    null_block_cfg = SUEWSConfig.from_dict(null_block_data)
+    null_block_df = null_block_cfg.to_df_state()
+    assert pd.isna(null_block_df.loc[grid_id, ("tau_a", "0")])
+    rebuilt_null_block = SUEWSConfig.from_df_state(null_block_df)
+    rebuilt_null_block.validate_for_engine()
+    rebuilt_null_block.model.physics.snow_use = SnowUse.ENABLED
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        rebuilt_null_block.validate_for_engine()
+
+
+def test_snowalb_relaxed_construction_retains_unconditional_non_null_guard(
+    sample_dict: dict,
+) -> None:
+    """Wrapped ``snowalb`` still rejects ``.value = None`` after snow-disabled construction."""
+    for raw_snowalb in ({"value": 0.5}, {"value": -999.0}):
+        data = copy.deepcopy(sample_dict)
+        _set_snow_use(data, 0)
+        data["sites"][0]["initial_states"]["snowalb"] = raw_snowalb
+        cfg = SUEWSConfig.from_dict(data)
+        with pytest.raises(ValueError, match="snowalb"):
+            cfg.sites[0].initial_states.snowalb.value = None
+        cfg.model.physics.snow_use = SnowUse.ENABLED
+        with pytest.raises(ValueError, match="snowalb"):
+            cfg.sites[0].initial_states.snowalb.value = None
 
 
 # =============================================================================

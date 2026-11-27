@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 import math
+import numbers
 from typing import Any, Optional
 from pydantic import (
     ConfigDict,
@@ -1550,34 +1551,46 @@ class SnowParams(DataModelBase):
         super().validate_non_null_ref_values(_path)
 
     def _to_df_state_cols(self, grid_id: int) -> dict:
-        scalar_params = {
-            "crwmax": self.water_holding_capacity_max,
-            "crwmin": self.water_holding_capacity_min,
-            "narp_emis_snow": self.narp_emissivity_snow,
-            "preciplimit": self.temperature_rain_snow_threshold,
-            "preciplimitalb": self.precipitation_threshold_albedo_reset,
-            "snowalbmax": self.snow_albedo_max,
-            "snowalbmin": self.snow_albedo_min,
-            "snowdensmin": self.snow_density_min,
-            "snowdensmax": self.snow_density_max,
-            "snowlimbldg": self.snow_depth_limit_building,
-            "snowlimpaved": self.snow_depth_limit_paved,
-            "tau_a": self.tau_cold_snow,
-            "tau_f": self.tau_melting_snow,
-            "tau_r": self.tau_refreezing_snow,
-            "tempmeltfact": self.temperature_melt_factor,
-            "radmeltfact": self.radiation_melt_factor,
-        }
+        scalar_fields = (
+            ("crwmax", "water_holding_capacity_max"),
+            ("crwmin", "water_holding_capacity_min"),
+            ("narp_emis_snow", "narp_emissivity_snow"),
+            ("preciplimit", "temperature_rain_snow_threshold"),
+            ("preciplimitalb", "precipitation_threshold_albedo_reset"),
+            ("snowalbmax", "snow_albedo_max"),
+            ("snowalbmin", "snow_albedo_min"),
+            ("snowdensmin", "snow_density_min"),
+            ("snowdensmax", "snow_density_max"),
+            ("snowlimbldg", "snow_depth_limit_building"),
+            ("snowlimpaved", "snow_depth_limit_paved"),
+            ("tau_a", "tau_cold_snow"),
+            ("tau_f", "tau_melting_snow"),
+            ("tau_r", "tau_refreezing_snow"),
+            ("tempmeltfact", "temperature_melt_factor"),
+            ("radmeltfact", "radiation_melt_factor"),
+        )
         cols = {("gridiv", "0"): grid_id}
         defaults = {
             "preciplimit": 2.2,
             "snowdensmin": 100.0,
             "snowdensmax": 400.0,
         }
-        for param_name, value in scalar_params.items():
-            val = value.value if isinstance(value, RefValue) else value
-            if val is None:
-                val = defaults.get(param_name, 0.0)
+        for param_name, field_name in scalar_fields:
+            value = getattr(self, field_name)
+            if isinstance(value, RefValue):
+                # Preserve wrapped values verbatim, including explicit RefValue(None),
+                # so active or inactive nulls are never silently replaced with numbers.
+                val = value.value
+            elif (
+                value is None
+                and param_name in defaults
+                and field_name not in self.model_fields_set
+            ):
+                # Preserve legacy DataFrame defaults for the three Optional SnowParams
+                # fields only when omitted (known_df_yaml_parity_gaps #2101).
+                val = defaults[param_name]
+            else:
+                val = value
             cols[(param_name, "0")] = val
 
         for col, value in (
@@ -1594,16 +1607,16 @@ class SnowParams(DataModelBase):
             self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
         )
         merge_df_state_cols(cols, ohm_coef._to_df_state_cols(grid_id, 7), fill_na=True)
-        snow_profile = (
-            self.snow_profile_24hr
-            if self.snow_profile_24hr is not None
-            else HourlyProfile()
-        )
-        merge_df_state_cols(
-            cols,
-            snow_profile._to_df_state_cols(grid_id, "snowprof_24hr"),
-            fill_na=True,
-        )
+        if self.snow_profile_24hr is not None:
+            merge_df_state_cols(
+                cols,
+                self.snow_profile_24hr._to_df_state_cols(grid_id, "snowprof_24hr"),
+                fill_na=True,
+            )
+        else:
+            for hour in range(24):
+                for day_idx in (0, 1):
+                    cols[("snowprof_24hr", f"({hour}, {day_idx})")] = None
         return dict(sorted(cols.items()))
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -1636,33 +1649,63 @@ class SnowParams(DataModelBase):
         # DataFrame columns keep the legacy fused spellings; the keys are the
         # canonical field names so the constructor does not trip its own
         # deprecation shim.
-        scalar_params = {
-            "water_holding_capacity_max": df.loc[grid_id, ("crwmax", "0")],
-            "water_holding_capacity_min": df.loc[grid_id, ("crwmin", "0")],
-            "narp_emissivity_snow": df.loc[grid_id, ("narp_emis_snow", "0")],
-            "temperature_rain_snow_threshold": df.loc[grid_id, ("preciplimit", "0")],
-            "precipitation_threshold_albedo_reset": df.loc[
-                grid_id, ("preciplimitalb", "0")
-            ],
-            "snow_albedo_max": df.loc[grid_id, ("snowalbmax", "0")],
-            "snow_albedo_min": df.loc[grid_id, ("snowalbmin", "0")],
-            "snow_density_min": df.loc[grid_id, ("snowdensmin", "0")],
-            "snow_density_max": df.loc[grid_id, ("snowdensmax", "0")],
-            "snow_depth_limit_building": df.loc[grid_id, ("snowlimbldg", "0")],
-            "snow_depth_limit_paved": df.loc[grid_id, ("snowlimpaved", "0")],
-            "tau_cold_snow": df.loc[grid_id, ("tau_a", "0")],
-            "tau_melting_snow": df.loc[grid_id, ("tau_f", "0")],
-            "tau_refreezing_snow": df.loc[grid_id, ("tau_r", "0")],
-            "temperature_melt_factor": df.loc[grid_id, ("tempmeltfact", "0")],
-            "radiation_melt_factor": df.loc[grid_id, ("radmeltfact", "0")],
+        snow_inactive = _SNOW_ACTIVE_CONTEXT.get() is False
+
+        def _is_missing_scalar(val: Any) -> bool:
+            return val is None or (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and math.isnan(float(val))
+            )
+
+        scalar_columns = {
+            "water_holding_capacity_max": ("crwmax", "0"),
+            "water_holding_capacity_min": ("crwmin", "0"),
+            "narp_emissivity_snow": ("narp_emis_snow", "0"),
+            "temperature_rain_snow_threshold": ("preciplimit", "0"),
+            "precipitation_threshold_albedo_reset": ("preciplimitalb", "0"),
+            "snow_albedo_max": ("snowalbmax", "0"),
+            "snow_albedo_min": ("snowalbmin", "0"),
+            "snow_density_min": ("snowdensmin", "0"),
+            "snow_density_max": ("snowdensmax", "0"),
+            "snow_depth_limit_building": ("snowlimbldg", "0"),
+            "snow_depth_limit_paved": ("snowlimpaved", "0"),
+            "tau_cold_snow": ("tau_a", "0"),
+            "tau_melting_snow": ("tau_f", "0"),
+            "tau_refreezing_snow": ("tau_r", "0"),
+            "temperature_melt_factor": ("tempmeltfact", "0"),
+            "radiation_melt_factor": ("radmeltfact", "0"),
         }
 
-        # Convert scalar parameters to RefValue
-        scalar_params = {key: RefValue(value) for key, value in scalar_params.items()}
+        scalar_params: dict[str, Any] = {}
+        for key, col in scalar_columns.items():
+            raw = df.loc[grid_id, col]
+            if _is_missing_scalar(raw):
+                scalar_params[key] = (
+                    None if snow_inactive else RefValue(None if raw is None else raw)
+                )
+            else:
+                scalar_params[key] = RefValue(raw)
 
         # Extract HourlyProfile (DF column stays "snowprof_24hr" for the Fortran
         # bridge; the constructor takes the canonical `snow_profile_24hr`).
-        snow_profile_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
+        snow_prof_cols = [
+            ("snowprof_24hr", f"({hour}, {day_idx})")
+            for hour in range(24)
+            for day_idx in (0, 1)
+        ]
+        if (
+            snow_inactive
+            and all(col in df.columns for col in snow_prof_cols)
+            and all(
+                _is_missing_scalar(df.loc[grid_id, col]) for col in snow_prof_cols
+            )
+        ):
+            snow_profile_24hr = None
+        else:
+            snow_profile_24hr = HourlyProfile.from_df_state(
+                df, grid_id, "snowprof_24hr"
+            )
 
         # Snow's OHM parameters live at surface index 7 (df_state convention).
         ohm_params = {}
@@ -3989,7 +4032,19 @@ class SiteProperties(DataModelBase):
             object.__setattr__(self, "snow", None)
             self.model_fields_set.add("snow")
             return
-        super().__setattr__(name, value)
+        snow_token = None
+        soil_token = None
+        if name in ("snow", "land_cover"):
+            snow_token = _SNOW_ACTIVE_CONTEXT.set(self._is_snow_validation_active())
+        if name in ("soil_observation", "land_cover"):
+            soil_token = _SOIL_OBSERVED_CONTEXT.set(self._is_soil_observation_active())
+        try:
+            super().__setattr__(name, value)
+        finally:
+            if snow_token is not None:
+                _SNOW_ACTIVE_CONTEXT.reset(snow_token)
+            if soil_token is not None:
+                _SOIL_OBSERVED_CONTEXT.reset(soil_token)
         parent_ref = getattr(self, "_parent_config_ref", None)
         parent_cfg = parent_ref.get() if parent_ref is not None else None
         if name == "snow":
@@ -4068,7 +4123,22 @@ class SiteProperties(DataModelBase):
                 val = val.value
             items.append(((var, "0"), val))
 
-        snow_obj = self.snow if self.snow is not None else SnowParams()
+        if self.snow is not None:
+            snow_obj = self.snow
+        else:
+            snow_obj = SnowParams.model_construct(
+                **{
+                    field_name: None
+                    for field_name in SnowParams._SNOW_NON_OPTIONAL_SCALAR_FIELDS
+                },
+                temperature_rain_snow_threshold=RefValue(None),
+                snow_density_min=RefValue(None),
+                snow_density_max=RefValue(None),
+                snow_profile_24hr=None,
+                ohm_coef=_default_snow_ohm_coef(),
+                ohm_threshold_summer_winter=None,
+                ohm_threshold_wet_dry=None,
+            )
         for sub in (
             self.lumps,
             self.spartacus,

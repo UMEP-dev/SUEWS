@@ -221,9 +221,9 @@ class SurfaceInitialState(DataModelBase):
                 if val is not None:
                     cols[(snow_field, f"({surf_idx},)")] = val
                 elif vert_idx is None and inactive_snow_export:
-                    cols[(snow_field, f"({surf_idx},)")] = 0.0
+                    cols[(snow_field, f"({surf_idx},)")] = None
             elif vert_idx is None and inactive_snow_export:
-                cols[(snow_field, f"({surf_idx},)")] = 0.0
+                cols[(snow_field, f"({surf_idx},)")] = None
         temp_values = (
             self.temperature.value
             if isinstance(self.temperature, RefValue)
@@ -314,11 +314,23 @@ class SurfaceInitialState(DataModelBase):
 
         # Snow/ice parameters
         if str_type not in ["roof", "wall"]:
-            snowfrac = RefValue(safe_get_value("snowfrac", surf_idx))
-            snowpack = RefValue(safe_get_value("snowpack", surf_idx))
-            icefrac = RefValue(safe_get_value("icefrac", surf_idx))
-            snowwater = RefValue(safe_get_value("snowwater", surf_idx))
-            snowdens = RefValue(safe_get_value("snowdens", surf_idx))
+            snow_inactive = _SNOW_ACTIVE_CONTEXT.get() is False
+
+            def _read_snow_state(field_name: str):
+                raw = safe_get_value(field_name, surf_idx)
+                if raw is None or (
+                    isinstance(raw, numbers.Real)
+                    and not isinstance(raw, bool)
+                    and math.isnan(float(raw))
+                ):
+                    return None if snow_inactive else RefValue(raw)
+                return RefValue(raw)
+
+            snowfrac = _read_snow_state("snowfrac")
+            snowpack = _read_snow_state("snowpack")
+            icefrac = _read_snow_state("icefrac")
+            snowwater = _read_snow_state("snowwater")
+            snowdens = _read_snow_state("snowdens")
         else:
             snowfrac = None
             snowpack = None
@@ -1101,6 +1113,8 @@ class InitialStates(DataModelBase):
             return handler(data)
         stripped = {k: v for k, v in data.items() if k != "snowalb"}
         inst = handler(stripped)
+        if isinstance(normalised, RefValue):
+            normalised._bind_non_optional("snowalb", "number")
         object.__setattr__(inst, "snowalb", normalised)
         inst.model_fields_set.add("snowalb")
         return inst

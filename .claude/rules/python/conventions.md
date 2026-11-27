@@ -174,3 +174,53 @@ def calculate_flux(
     >>> df_flux = calculate_flux(df_forcing, "London")
     """
 ```
+
+---
+
+## No New Physical-Constant Literals
+
+Physical, mathematical, and unit-conversion constants in `src/supy/` belong in
+`src/supy/constants.py` (`supy.constants`), aligned to double precision with
+`src/suews/src/suews_ctrl_const.f95` (`module_ctrl_const_mathconst` and
+`module_ctrl_const_physconst`), not in inline literals (`#1971`). [decision: software maintainer, 2026-11-27]
+Cross-layer agreement between `supy.constants`,
+`src/suews/src/suews_ctrl_const.f95`, and `supy.units` is checked by
+`test/core/test_supy_constants.py`. [fact: git ls-files --error-unmatch src/supy/constants.py test/core/test_supy_constants.py]
+
+`scripts/lint/check_python_literals.py` parses every `*.py` file under
+`src/supy/` -- excluding `src/supy/constants.py` (whose literals are the
+canonical definitions) and generated files `src/supy/_version.py` and
+`src/supy/_suews_driver.py` -- and counts gated numeric literal and
+multiplicative/divisive expression kinds (`273.15`/`273.16`, Stefan-Boltzmann,
+`pi`, degree-radian factors and `pi / 180` / `180 / pi`, `3600`, `86400` and
+`24 * 3600` / `24 * 60 * 60`, `1440`, reference pressure, `cp_air` values, and
+`Lv` values) per file. Because it scans the Python AST, comments, docstrings,
+string literals, booleans, identifiers, and bare integer `Enum` member codes are
+ignored, while float `Enum` members, `Enum` expressions, and `Enum` methods are
+still checked. [fact: git grep -n "GATED_KINDS\|CONSTANT_MODULES\|EXCLUDED_FILES\|_is_bare_int_member" scripts/lint/check_python_literals.py]
+
+Run `make lint-python-constants` (also a prerequisite of `make test`) or
+`python scripts/lint/check_python_literals.py`; the check exits non-zero
+whenever any per-file count differs from
+`scripts/lint/python_literals_baseline.json` (also enforced against the live
+tree by `test/core/test_check_python_literals.py`). [fact: git grep -n "lint-python-constants" Makefile && git ls-files --error-unmatch scripts/lint/python_literals_baseline.json test/core/test_check_python_literals.py]
+`scripts/lint/python_literals_baseline.json` holds the per-file ratchet
+baseline (being zeroed in PR #2418 and wired into CI alongside
+`scripts/lint/check_fortran_literals.py` in `#1971` Part 3b). [decision: software maintainer, 2026-11-27]
+
+- **Count went up**: import the named constant from `supy.constants` (for
+  example `C2K` for `273.15`, `SEC_PER_HOUR` for `3600`, `SEC_PER_DAY` for
+  `86400`, `DEG2RAD` for `pi / 180`); if none exists yet, add one to
+  `src/supy/constants.py` aligned with `src/suews/src/suews_ctrl_const.f95` and
+  update `FORTRAN_TO_PYTHON` in `test/core/test_supy_constants.py`. [decision: software maintainer, 2026-11-27]
+- **Count went down**: lower the baseline in the same diff with
+  `python scripts/lint/check_python_literals.py --write-baseline`. [fact: git grep -n -- "--write-baseline" scripts/lint/check_python_literals.py]
+- **Replacing a literal with a name** must preserve the existing value so
+  outputs do not move; changing a constant's value or precision goes in its own
+  PR classified under `.claude/rules/physics-change-evidence.md`
+  (`0-numerics:change` when only constant precision or representation changes
+  within the numerical threshold, or `0-physics:change` otherwise). [decision: software maintainer, 2026-11-27]
+- **`--report`** (`python scripts/lint/check_python_literals.py --report`)
+  prints both gated counts and report-only `factor_1000` (`1000.0`, `1e-3`) and
+  `factor_1e6` (`1e6`, `1e-6`) counts and exits `0`; those scale factors are not
+  gated because most occurrences are not unit conversions. [fact: git grep -n "REPORTED_KINDS\|--report" scripts/lint/check_python_literals.py]

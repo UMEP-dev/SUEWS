@@ -695,7 +695,7 @@ def test_extractor_inherits_legacy_names_and_parameter_examples() -> None:
 
     # ASSERT
     assert paved_fields["soil_depth"]["legacy_name"] == "soildepth"
-    assert len(paved_fields["soil_depth"]["examples"]) == 9
+    assert len(paved_fields["soil_depth"]["examples"]) == 7
     assert evetr_fields["max_conductance"]["legacy_name"] == "maxconductance"
     assert evetr_fields["max_conductance"]["examples"]
 
@@ -766,19 +766,21 @@ def test_parameter_example_internal_citations_exist_in_docs_bibliography() -> No
     )
     assert citation_keys == {
         "A16",
+        "B03",
         "D23",
-        "F02",
         "H24",
+        "H24data",
         "J11",
         "J14",
         "Kotthaus2014Aug",
+        "O02",
         "R95",
         "S00",
         "S25",
         "S88",
         "V13",
-        "W13",
         "W16",
+        "W18",
         "X24",
         "Z23",
     }
@@ -796,8 +798,8 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
     sheets = {example["source"]["sheet"] for example in examples}
 
     # ASSERT
-    assert len(index) == 101
-    assert len(examples) == 546
+    assert len(index) == 87
+    assert len(examples) == 481
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -808,18 +810,18 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "Leaf Growth Power",
         "Max Vegetation Conductance",
         "OHM",
-        "Porosity",
-        "Snow",
         "SnowLimPatch",
         "Soil",
         "Vegetation Growth",
         "Water Storage",
     }
     assert len(get_parameter_examples("Conductance", "g_max")) == 3
-    assert len(get_parameter_examples("SnowParams", "radiation_melt_factor")) == 1
-    assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 9
+    assert get_parameter_examples("StorageDrainParams", "drain_eq") == []
+    assert get_parameter_examples("SnowParams", "radiation_melt_factor") == []
+    assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 7
     assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
     assert get_parameter_examples("WaterProperties", "state_limit") == []
+    assert get_parameter_examples("DectrProperties", "porosity_min_deciduous") == []
     assert len(get_parameter_examples("EvetrProperties", "alpha_bio_co2")) == 8
 
 
@@ -881,6 +883,186 @@ def test_parameter_example_catalogue_excludes_uncited_state_limits() -> None:
         42240046,
         42240057,
     }
+
+
+def test_parameter_example_catalogue_excludes_unreferenced_database_records() -> None:
+    """Database-unreferenced, unreviewed, and input-table-only rows stay unpublished."""
+    # ACT
+    index = get_all_parameter_examples()
+    record_ids = {
+        record_id
+        for field_examples in index.values()
+        for example in field_examples
+        for record_id in example["source"]["record_ids"]
+    }
+
+    # ASSERT
+    assert not record_ids & {
+        22240064,
+        22240065,
+        23240006,
+        30240009,
+        31240021,
+        31240025,
+        31240026,
+        34240002,
+        40241247,
+        40241248,
+        50240002,
+        50240044,
+        50240045,
+    }
+
+    def _by_record_id(model_name: str, field_name: str, rid: int) -> dict:
+        return next(
+            example
+            for example in get_parameter_examples(model_name, field_name)
+            if rid in example["source"]["record_ids"]
+        )
+
+    assert _by_record_id("PavedProperties", "emis", 40240001)["value"] == pytest.approx(
+        0.91
+    )
+    assert (
+        _by_record_id("PavedProperties", "emis", 40240001)["reference"][
+            "docs_citation_key"
+        ]
+        == "J11"
+    )
+    assert _by_record_id("BldgsProperties", "emis", 40240005)["value"] == pytest.approx(
+        0.95
+    )
+    assert (
+        _by_record_id("BldgsProperties", "emis", 40240005)["reference"][
+            "docs_citation_key"
+        ]
+        == "J11"
+    )
+    assert (
+        _by_record_id("PavedProperties", "emis", 40241259)["reference"][
+            "docs_citation_key"
+        ]
+        == "O02"
+    )
+    assert _by_record_id("WaterProperties", "alb", 41240013)["value"] == pytest.approx(
+        0.08
+    )
+    assert (
+        _by_record_id("WaterProperties", "alb", 41240013)["reference"][
+            "docs_citation_key"
+        ]
+        == "V13"
+    )
+    assert (
+        _by_record_id("StorageDrainParams", "store_max", 43240041)["reference"][
+            "docs_citation_key"
+        ]
+        == "W18"
+    )
+    assert _by_record_id("StorageDrainParams", "drain_coef_1", 45240004)["value"] == 10
+    assert _by_record_id("StorageDrainParams", "drain_coef_2", 45240004)["value"] == 3
+    assert (
+        _by_record_id("StorageDrainParams", "drain_coef_1", 45240004)["reference"][
+            "docs_citation_key"
+        ]
+        == "W18"
+    )
+    assert _by_record_id("StorageDrainParams", "drain_coef_2", 45240015)[
+        "value"
+    ] == pytest.approx(0.013)
+    assert (
+        _by_record_id("StorageDrainParams", "drain_coef_2", 45240015)["reference"][
+            "docs_citation_key"
+        ]
+        == "J11"
+    )
+    assert _by_record_id("StorageDrainParams", "drain_coef_2", 45240015)[
+        "selector"
+    ] == {"name": "drain_eq", "value": 3}
+    assert (
+        _by_record_id("StorageDrainParams", "drain_coef_2", 45240012)["reference"][
+            "docs_citation_key"
+        ]
+        == "J11"
+    )
+    assert _by_record_id("StorageDrainParams", "drain_coef_2", 45240012)[
+        "selector"
+    ] == {"name": "drain_eq", "value": 2}
+    assert get_parameter_examples("StorageDrainParams", "drain_eq") == []
+    assert _by_record_id("GrassProperties", "wet_threshold", 45240063)[
+        "value"
+    ] == pytest.approx(1.9)
+    assert (
+        _by_record_id("GrassProperties", "wet_threshold", 45240063)["reference"][
+            "docs_citation_key"
+        ]
+        == "J11"
+    )
+    for rid in (45240061, 45240062, 45240063):
+        coef1 = _by_record_id("StorageDrainParams", "drain_coef_1", rid)
+        coef2 = _by_record_id("StorageDrainParams", "drain_coef_2", rid)
+        assert coef1["reference"]["docs_citation_key"] == "J11"
+        assert coef2["reference"]["docs_citation_key"] == "J11"
+        assert coef1["selector"] == {"name": "drain_eq", "value": 2}
+        assert coef2["selector"] == {"name": "drain_eq", "value": 2}
+
+    module = _load_generator_module()
+    drain_fields = {
+        field["name"]: field
+        for field in module.ModelDocExtractor().extract_all_models()["models"][
+            "StorageDrainParams"
+        ]["fields"]
+    }
+    drain_coef_2_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(drain_fields["drain_coef_2"])
+    )
+    for surface, desc in (
+        ("evergreen tree", "EvergreenTree - Helsinki, Zurich, Beijing"),
+        ("deciduous tree", "Deciduous Tree - Helsinki, Zurich, Beijing"),
+        ("grass", "Grass - Helsinki, Zurich, Beijing"),
+    ):
+        expected_row = (
+            "      * - ``1.71`` |m^2| |kg^-1|\n"
+            f"        - London; {surface}; {desc}; drain_eq=2\n"
+            "        - :cite:t:`J11`"
+        )
+        assert expected_row in drain_coef_2_rendered
+        assert f"{desc}; drain_eq=3" not in drain_coef_2_rendered
+
+    lai_type_rids = {
+        rid
+        for example in get_parameter_examples("LAIParams", "lai_type")
+        for rid in example["source"]["record_ids"]
+    }
+    assert not lai_type_rids & {31240044, 31240045}
+    for rid, expected_min, expected_max in (
+        (31240044, 4, 5.1),
+        (31240045, 1, 5.5),
+    ):
+        lai_min = _by_record_id("LAIParams", "lai_min", rid)
+        lai_max = _by_record_id("LAIParams", "lai_max", rid)
+        assert lai_min["value"] == pytest.approx(expected_min)
+        assert lai_max["value"] == pytest.approx(expected_max)
+        assert lai_min["reference"]["docs_citation_key"] == "J11"
+        assert lai_max["reference"]["docs_citation_key"] == "J11"
+    assert (
+        _by_record_id("GrassProperties", "max_conductance", 33240002)["reference"][
+            "docs_citation_key"
+        ]
+        == "B03"
+    )
+    assert (
+        _by_record_id("SurfaceProperties", "soil_depth", 22240059)["reference"][
+            "docs_citation_key"
+        ]
+        == "H24data"
+    )
+    assert (
+        _by_record_id("LAIPowerCoefficients", "growth_gdd", 32240035)["reference"][
+            "docs_citation_key"
+        ]
+        == "H24data"
+    )
 
 
 def test_parameter_example_catalogue_invalidates_generated_rst_stamp() -> None:
@@ -986,15 +1168,23 @@ def test_parameter_example_rejects_source_outside_docs_bibliography() -> None:
 
 
 def test_parameter_examples_limit_display_precision_without_changing_raw_data() -> None:
-    """Workbook averages remain exact in data but concise in the public table."""
+    """High-precision floats remain exact in data but concise in the public table."""
     # ARRANGE
     module = _load_generator_module()
-    examples = get_parameter_examples("PavedProperties", "emis")
-    raw_value = next(
-        example["value"]
-        for example in examples
-        if example["source"]["record_ids"] == [40241247]
-    )
+    raw_value = 0.9366666666666666
+    examples = [
+        {
+            "value": raw_value,
+            "origin": "Example site",
+            "surfaces": ["paved"],
+            "description": "Repeating-decimal test value",
+            "reference": {
+                "citation": "Kotthaus et al. (2014)",
+                "doi": "https://doi.org/10.1016/j.isprsjprs.2014.05.005",
+                "docs_citation_key": "Kotthaus2014Aug",
+            },
+        }
+    ]
 
     # ACT
     rendered = "\n".join(
@@ -1005,7 +1195,7 @@ def test_parameter_examples_limit_display_precision_without_changing_raw_data() 
     )
 
     # ASSERT
-    assert raw_value == pytest.approx(0.9366666666666666)
+    assert examples[0]["value"] == pytest.approx(0.9366666666666666)
     assert "``0.9366667`` dimensionless" in rendered
     assert "0.9366666666666666" not in rendered
 

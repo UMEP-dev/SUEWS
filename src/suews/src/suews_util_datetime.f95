@@ -108,6 +108,7 @@ MODULE module_util_datetime_const
 !=======================================================================
 
    USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY: REAL32, REAL64
+   USE module_ctrl_const_physconst, ONLY: sec_per_day, sec_per_hour
 
    IMPLICIT NONE
 
@@ -126,8 +127,8 @@ MODULE module_util_datetime_const
    REAL(kind=REAL64), PARAMETER :: m2d = one/d2m !! minute -> day
    REAL(kind=REAL64), PARAMETER :: m2h = one/60_REAL64 !! minute -> hour
    REAL(kind=REAL64), PARAMETER :: s2d = m2d/60_REAL64 !! second -> day
-   REAL(kind=REAL64), PARAMETER :: d2s = 86400_REAL64 !! day    -> second
-   REAL(kind=REAL64), PARAMETER :: h2s = 3600_REAL64 !! hour   -> second
+   REAL(kind=REAL64), PARAMETER :: d2s = REAL(sec_per_day, kind=REAL64) !! day    -> second
+   REAL(kind=REAL64), PARAMETER :: h2s = REAL(sec_per_hour, kind=REAL64) !! hour   -> second
    REAL(kind=REAL64), PARAMETER :: s2h = one/h2s !! second -> hour
    REAL(kind=REAL64), PARAMETER :: m2s = 60_REAL64 !! minute -> second
    REAL(kind=REAL64), PARAMETER :: s2m = one/m2s !! second -> minute
@@ -155,6 +156,7 @@ MODULE module_util_datetime_timedelta
 !=======================================================================
 
    USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY: REAL32, REAL64
+   USE module_util_datetime_const, ONLY: d2s, h2s
 
    IMPLICIT NONE
 
@@ -300,8 +302,8 @@ CONTAINS
 
       CLASS(timedelta), INTENT(in) :: self !! `timedelta` instance
 
-      total_seconds = self%days*86400._REAL64 &
-                      + self%hours*3600._REAL64 &
+      total_seconds = self%days*d2s &
+                      + self%hours*h2s &
                       + self%minutes*60._REAL64 &
                       + self%seconds &
                       + self%milliseconds*1E-3_REAL64

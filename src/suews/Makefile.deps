@@ -56,6 +56,7 @@ src/suews_type_snow.o: src/suews_ctrl_const.o src/suews_type_surface.o
 src/suews_type_spartacus.o: src/suews_ctrl_const.o
 src/suews_type_surface.o: src/suews_ctrl_const.o
 src/suews_type_vegetation.o: src/suews_ctrl_const.o
+src/suews_util_datetime.o: src/suews_ctrl_const.o
 src/suews_util_meteo.o: src/suews_ctrl_const.o src/suews_ctrl_error.o src/suews_ctrl_type.o
 src/suews_util_profile.o: src/suews_ctrl_const.o
 src/suews_util_time.o: src/suews_ctrl_const.o src/suews_ctrl_type.o src/suews_util_datetime.o

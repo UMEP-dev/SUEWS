@@ -2,6 +2,7 @@
 MODULE module_phys_snow
    USE module_phys_evap, ONLY: cal_evap
    USE module_ctrl_const_allocate, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
+   USE module_ctrl_const_mathconst, ONLY: pi
    USE module_ctrl_const_physconst, ONLY: sec_per_day
    IMPLICIT NONE
 
@@ -1358,7 +1359,7 @@ CONTAINS
       ELSE
          IF (swe <= sweD) THEN
 
-            asc = 1 - ((1/3.1416)*ACOS(2*(swe/sweD) - 1))**1.7
+            asc = 1 - ((1/pi)*ACOS(2*(swe/sweD) - 1))**1.7
          ELSE
             asc = 1
          END IF

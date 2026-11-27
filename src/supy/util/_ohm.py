@@ -82,9 +82,9 @@ def replace_ohm_coeffs(df_state, coefs, land_cover_type):
     coefs : tuple
         new a1, a2, a3 coefficients to replace those in `df_state`;
         note:
-        1. the format should be (a1, a3, a3);
+        1. the format should be (a1, a2, a3);
         2. any of a1/a2/a3 can be either one numeric value or a list-like structure of four values for SW/SD/WW/WD conditions indicated by `ohm_threshsw` and `ohm_threshwd`.
-    land_cover_type : str
+    land_cover_type : str or int
         one of seven SUEWS land cover types, can be any of
         1. {"Paved","Bldgs","EveTr","DecTr","Grass","BSoil","Water"} (string case does NOT matter); or
         2. an integer between 0 to 6.
@@ -93,6 +93,12 @@ def replace_ohm_coeffs(df_state, coefs, land_cover_type):
     -------
     pandas.DataFrame
         a DataFrame with updated OHM coefficients.
+
+    Raises
+    ------
+    ValueError
+        If ``land_cover_type`` is not one of the seven SUEWS land cover names
+        or an integer between 0 and 6.
     """
 
     land_cover_type_dict = {
@@ -105,38 +111,46 @@ def replace_ohm_coeffs(df_state, coefs, land_cover_type):
         "water": 6,
     }
 
-    try:
-        lc_index = (
-            land_cover_type_dict.get(land_cover_type.lower())
-            if isinstance(land_cover_type, str)
-            else land_cover_type
-        )
-    except:
+    lc_index: int | None = None
+    if isinstance(land_cover_type, str):
+        lc_index = land_cover_type_dict.get(land_cover_type.lower())
+    elif isinstance(land_cover_type, (int, np.integer)) and not isinstance(
+        land_cover_type, (bool, np.bool_)
+    ):
+        candidate = int(land_cover_type)
+        if 0 <= candidate < len(land_cover_type_dict):
+            lc_index = candidate
+
+    if lc_index is None:
         list_lc = list(land_cover_type_dict.keys())
-        logger_supy.error(
-            f"land_cover_type must be one of {list_lc}, instead of {land_cover_type}"
+        max_lc_index = len(land_cover_type_dict) - 1
+        msg = (
+            f"Invalid land_cover_type {land_cover_type!r}: "
+            f"must be one of {list_lc} or an integer between 0 and {max_lc_index}."
         )
-    else:
-        # Instantiate 4x3 matrix of zeros to put old coeffs
-        coef_matrix = np.zeros((4, 3))
-        coef_matrix[:, 0] = coefs[0]
-        coef_matrix[:, 1] = coefs[1]
-        coef_matrix[:, 2] = coefs[2]
+        logger_supy.error("%s", msg)
+        raise ValueError(msg)
 
-        # Copy ohm_coef part of df_state_init
-        df_ohm = df_state.loc[:, "ohm_coef"].copy()
-        # Reshape values into matrix form
-        values_ohm = df_ohm.values.reshape((-1, 8, 4, 3))
-        # Get ohm values corresponding to user specified land cover and assign to matrix
-        values_ohm[:, lc_index] = coef_matrix
-        # Place new ohm values into df_ohm
-        df_ohm.loc[:, :] = values_ohm.reshape(df_ohm.shape)
-        # Make copy of df_state_init
-        df_state_init_copy = df_state.copy()
-        # Replace  ohm_coef part of df_state_init with new values
-        df_state_init_copy.loc[:, "ohm_coef"] = df_ohm.values
+    # Instantiate 4x3 matrix of zeros to put old coeffs
+    coef_matrix = np.zeros((4, 3))
+    coef_matrix[:, 0] = coefs[0]
+    coef_matrix[:, 1] = coefs[1]
+    coef_matrix[:, 2] = coefs[2]
 
-        return df_state_init_copy
+    # Copy ohm_coef part of df_state_init
+    df_ohm = df_state.loc[:, "ohm_coef"].copy()
+    # Reshape values into matrix form
+    values_ohm = df_ohm.values.reshape((-1, 8, 4, 3))
+    # Get ohm values corresponding to user specified land cover and assign to matrix
+    values_ohm[:, lc_index] = coef_matrix
+    # Place new ohm values into df_ohm
+    df_ohm.loc[:, :] = values_ohm.reshape(df_ohm.shape)
+    # Make copy of df_state_init
+    df_state_init_copy = df_state.copy()
+    # Replace  ohm_coef part of df_state_init with new values
+    df_state_init_copy.loc[:, "ohm_coef"] = df_ohm.values
+
+    return df_state_init_copy
 
 
 def sim_ohm(ser_qn: pd.Series, a1: float, a2: float, a3: float) -> pd.Series:

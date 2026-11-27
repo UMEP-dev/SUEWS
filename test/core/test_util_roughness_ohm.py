@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from supy.util import replace_ohm_coeffs as public_replace_ohm_coeffs
 from supy.util._ohm import (
     compare_heat_storage,
     derive_ohm_coef,
@@ -340,6 +341,79 @@ class TestOhmUtilities:
         np.testing.assert_allclose(ohm_after[0, 1, :, 0], a1_seq)
         np.testing.assert_allclose(ohm_after[0, 1, :, 1], a2_seq)
         np.testing.assert_allclose(ohm_after[0, 1, :, 2], a3_seq)
+
+    @pytest.mark.parametrize(
+        ("lc_input", "expected_idx"),
+        [
+            (0, 0),
+            (6, 6),
+            (np.int64(2), 2),
+        ],
+    )
+    def test_replace_ohm_coeffs_accepts_boundary_and_numpy_integer_indices(
+        self, lc_input, expected_idx
+    ):
+        """Boundary integer indices (0, 6) and numpy integer scalars update cleanly."""
+        df_orig = _make_state_with_ohm(n_grids=1)
+        new_coefs = (0.31, 0.22, -9.5)
+
+        df_updated = public_replace_ohm_coeffs(df_orig, new_coefs, lc_input)
+
+        ohm_before = df_orig.loc[:, "ohm_coef"].values.reshape((1, 8, 4, 3))
+        ohm_after = df_updated.loc[:, "ohm_coef"].values.reshape((1, 8, 4, 3))
+        expected_block = np.broadcast_to(np.array(new_coefs), (1, 4, 3))
+        np.testing.assert_allclose(ohm_after[:, expected_idx], expected_block)
+        for lc in range(8):
+            if lc != expected_idx:
+                np.testing.assert_allclose(ohm_after[:, lc], ohm_before[:, lc])
+
+    @pytest.mark.parametrize(
+        "bad_lc",
+        [
+            "Unknown",
+            "",
+            "snow",
+            " paved ",
+            -1,
+            -999,
+            7,
+            8,
+            np.int64(-1),
+            np.int64(7),
+            True,
+            False,
+            np.bool_(True),
+            None,
+            float("nan"),
+            1.5,
+        ],
+    )
+    def test_replace_ohm_coeffs_rejects_invalid_land_cover_type(
+        self, bad_lc, supy_caplog
+    ):
+        """Invalid land-cover names, out-of-range indices, booleans, and missing values raise ValueError."""
+        df_orig = _make_state_with_ohm(n_grids=2)
+        orig_snapshot = df_orig.copy(deep=True)
+        expected_names = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+
+        with (
+            supy_caplog.at_level(logging.ERROR, logger="SuPy"),
+            pytest.raises(ValueError, match="Invalid land_cover_type") as exc_info,
+        ):
+            public_replace_ohm_coeffs(df_orig, (0.4, 0.2, -10.0), bad_lc)
+
+        msg = str(exc_info.value)
+        assert repr(bad_lc) in msg
+        for valid_name in expected_names:
+            assert valid_name in msg
+        assert "0 and 6" in msg
+
+        # Error is also recorded on the SuPy logger and input DataFrame is never mutated.
+        assert any(
+            rec.levelno == logging.ERROR and msg in rec.getMessage()
+            for rec in supy_caplog.records
+        )
+        pd.testing.assert_frame_equal(df_orig, orig_snapshot)
 
     def test_compare_heat_storage_returns_diurnal_and_scatter_figures(self):
         """compare_heat_storage returns diurnal climatology and 1:1 comparison plots."""

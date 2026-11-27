@@ -234,6 +234,12 @@
       "status": "bridged"
     },
     {
+      "name": "SUEWS_CLOCK",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "excluded",
+      "rationale": "Kernel-internal per-step view of time derived from SUEWS_TIMER by SUEWS_cal_clock (gh#2333); recomputed every step, passed INTENT(IN) to the physics, and never crosses the Rust bridge or a checkpoint."
+    },
+    {
       "name": "SUEWS_TIMER",
       "source": "src/suews/src/suews_ctrl_type.f95",
       "status": "bridged"

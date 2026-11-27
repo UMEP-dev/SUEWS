@@ -21,23 +21,27 @@ use serde_json::{json, Map, Value};
 /// Current JSON envelope schema version carrying both elapsed timer metadata
 /// and the complete nested `SuewsState` payload under the right-closed
 /// `(D 00:00, D+1 00:00]` DailyState accumulation boundary.
-pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 3;
+///
+/// Version 4 (gh#2333) dropped `new_day` and `dt_since_start_prev` from the
+/// envelope timer (version 3 still carried those four timer fields alongside
+/// the right-closed DailyState boundary from gh#2382): DyOHM now derives its
+/// day boundary from the elapsed timer instead of carrying a latch. Legacy
+/// version-2 and version-3 envelopes are rejected rather than read with extra
+/// keys ignored, so that a version mismatch stays visible.
+pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 4;
 
 /// Elapsed timing metadata carried alongside model state across restart
 /// boundaries.
 ///
 /// Mirrors the continuation fields of [`SuewsTimer`] needed to resume a
-/// multi-segment run without resetting rolling averages or day-boundary flags.
+/// multi-segment run. Rolling averages are model state and travel in
+/// `state.ohm_state`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CheckpointTimer {
     /// Elapsed simulation seconds since the original run started (`>= 0`).
     pub dt_since_start: i32,
-    /// Elapsed seconds at the previous timestep (`0 <= dt_since_start_prev <= dt_since_start`).
-    pub dt_since_start_prev: i32,
     /// Model timestep duration in seconds (`> 0`).
     pub tstep: i32,
-    /// Day-boundary flag carried into the next segment (`0` or `1`).
-    pub new_day: i32,
 }
 
 /// Decoded restart checkpoint containing the validated model state and timer.
@@ -74,26 +78,13 @@ fn validate_timer(timer: CheckpointTimer) -> Result<CheckpointTimer, BridgeError
             "timer.dt_since_start must be non-negative",
         ));
     }
-    if timer.dt_since_start_prev < 0 {
-        return Err(invalid_envelope(
-            "timer.dt_since_start_prev must be non-negative",
-        ));
-    }
-    if timer.dt_since_start_prev > timer.dt_since_start {
-        return Err(invalid_envelope(
-            "timer.dt_since_start_prev cannot exceed timer.dt_since_start",
-        ));
-    }
     if timer.tstep <= 0 {
         return Err(invalid_envelope("timer.tstep must be positive"));
-    }
-    if !matches!(timer.new_day, 0 | 1) {
-        return Err(invalid_envelope("timer.new_day must be 0 or 1"));
     }
     Ok(timer)
 }
 
-/// Serialise a post-run model `state` and `timer` into a schema-version-3 JSON
+/// Serialise a post-run model `state` and `timer` into a schema-version-4 JSON
 /// checkpoint envelope.
 ///
 /// Inactive `NaN` state entries are encoded as JSON `null`; `+/-Inf` values
@@ -104,18 +95,14 @@ pub fn suews_checkpoint_to_json(
 ) -> Result<String, BridgeError> {
     let checkpoint_timer = validate_timer(CheckpointTimer {
         dt_since_start: timer.dt_since_start,
-        dt_since_start_prev: timer.dt_since_start_prev,
         tstep: timer.tstep,
-        new_day: timer.new_day,
     })?;
     let state_value = suews_state_to_checkpoint_value(state)?;
     let checkpoint = json!({
         "checkpoint_schema_version": SUEWS_CHECKPOINT_SCHEMA_VERSION,
         "timer": {
             "dt_since_start": checkpoint_timer.dt_since_start,
-            "dt_since_start_prev": checkpoint_timer.dt_since_start_prev,
             "tstep": checkpoint_timer.tstep,
-            "new_day": checkpoint_timer.new_day,
         },
         "state": state_value,
     });
@@ -125,7 +112,7 @@ pub fn suews_checkpoint_to_json(
     })
 }
 
-/// Deserialise and validate a schema-version-3 JSON checkpoint envelope.
+/// Deserialise and validate a schema-version-4 JSON checkpoint envelope.
 ///
 /// Rejects legacy version-1 state-only payloads with
 /// [`BridgeError::LegacyCheckpointMissingTimer`], unknown schema versions with
@@ -162,9 +149,7 @@ pub fn suews_checkpoint_from_json(json_text: &str) -> Result<SuewsCheckpointData
         .ok_or_else(|| invalid_envelope("timer must be an object"))?;
     let timer = validate_timer(CheckpointTimer {
         dt_since_start: parse_i32_field(timer_object, "dt_since_start")?,
-        dt_since_start_prev: parse_i32_field(timer_object, "dt_since_start_prev")?,
         tstep: parse_i32_field(timer_object, "tstep")?,
-        new_day: parse_i32_field(timer_object, "new_day")?,
     })?;
 
     let state_value = object
@@ -186,9 +171,7 @@ mod tests {
         let state = suews_state_default_from_fortran().expect("default state should be available");
         let timer = SuewsTimer {
             dt_since_start: 90_300,
-            dt_since_start_prev: 90_000,
             tstep: 300,
-            new_day: 1,
             ..SuewsTimer::default()
         };
 
@@ -202,9 +185,7 @@ mod tests {
             restored.timer,
             CheckpointTimer {
                 dt_since_start: 90_300,
-                dt_since_start_prev: 90_000,
                 tstep: 300,
-                new_day: 1,
             }
         );
     }
@@ -241,6 +222,12 @@ mod tests {
         let error = suews_checkpoint_from_json(&legacy_json)
             .expect_err("legacy checkpoints should require timer metadata");
         assert_eq!(error, BridgeError::LegacyCheckpointMissingTimer);
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("checkpoint schema version {SUEWS_CHECKPOINT_SCHEMA_VERSION}")),
+            "legacy v1 error must point callers to current schema version {SUEWS_CHECKPOINT_SCHEMA_VERSION}: {error}"
+        );
     }
 
     #[test]
@@ -255,12 +242,22 @@ mod tests {
             }
         );
 
-        let future = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":4}"#)
+        let legacy_v3 = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":3}"#)
+            .expect_err("legacy v3 checkpoints predating gh#2333 should be rejected");
+        assert_eq!(
+            legacy_v3,
+            BridgeError::UnsupportedCheckpointVersion {
+                found: 3,
+                expected: SUEWS_CHECKPOINT_SCHEMA_VERSION,
+            }
+        );
+
+        let future = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":5}"#)
             .expect_err("future checkpoint versions should be rejected");
         assert_eq!(
             future,
             BridgeError::UnsupportedCheckpointVersion {
-                found: 4,
+                found: 5,
                 expected: SUEWS_CHECKPOINT_SCHEMA_VERSION,
             }
         );

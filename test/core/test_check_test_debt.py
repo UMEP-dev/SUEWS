@@ -45,7 +45,7 @@ def test_tree_has_complete_valid_debt_links(tmp_path):
         counters["totals"].values()
     )
     observer_ids = [r["id"] for r in records if r["ledger"] == "O"]
-    assert observer_ids.count("suews_timer.iy_st") == 1
+    assert observer_ids.count("suews_site.vegfraction") == 1
     assert not any("heatstate%" in key.lower() for key in observer_ids)
     active_issues = set(report["active_issues"])
     rationale_issues = set(report["rationale_issues"])

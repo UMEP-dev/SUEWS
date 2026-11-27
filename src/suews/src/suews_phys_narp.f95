@@ -623,25 +623,25 @@ CONTAINS
    END SUBROUTINE NARP_cal_SunPosition
 
    SUBROUTINE NARP_update_SunPosition( &
-      timer, siteInfo, & ! input
+      clock, siteInfo, & ! input
       modState) ! input/output
 
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_STATE
+      USE module_ctrl_type, ONLY: SUEWS_CLOCK, SUEWS_SITE, SUEWS_STATE
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
       REAL(KIND(1D0)) :: year
       REAL(KIND(1D0)) :: idectime
 
-      year = REAL(timer%iy, KIND(1D0))
-      idectime = timer%dectime - timer%tstep/2/INT(sec_per_day)
+      year = REAL(clock%timer%iy, KIND(1D0))
+      idectime = clock%dectime - clock%timer%tstep/2/INT(sec_per_day)
 
       CALL NARP_cal_SunPosition( &
-         year, idectime, timer%tz_solar, &
+         year, idectime, clock%tz_solar, &
          siteInfo%lat, siteInfo%lon, siteInfo%alt, &
          modState%solarState%azimuth_deg, modState%solarState%zenith_deg)
 

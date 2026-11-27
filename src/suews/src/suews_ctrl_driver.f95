@@ -23,7 +23,7 @@ MODULE module_ctrl_driver
                             IRRIGATION_PRM, anthroEMIS_PRM, SNOW_PRM, SPARTACUS_PRM, SPARTACUS_LAYER_PRM, &
                             SUEWS_SITE, LUMPS_PRM, EHC_PRM, LC_PAVED_PRM, LC_BLDG_PRM, LC_DECTR_PRM, LC_EVETR_PRM, &
                             LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, anthroEmis_STATE, &
-                            OHM_STATE, PHENOLOGY_STATE, SNOW_STATE, SUEWS_FORCING, SUEWS_TIMER, &
+                            OHM_STATE, PHENOLOGY_STATE, SNOW_STATE, SUEWS_FORCING, SUEWS_TIMER, SUEWS_CLOCK, &
                             HYDRO_STATE, HEAT_STATE, &
                             ROUGHNESS_STATE, solar_State, atm_state, flag_STATE, &
                             SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, STEBBS_BLDG, &
@@ -68,7 +68,7 @@ MODULE module_ctrl_driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
-                          SUEWS_cal_DLS, SUEWS_cal_timer, cal_weekday_index
+                          SUEWS_cal_DLS, SUEWS_cal_clock, cal_weekday_index
    ! Re-export error state accessors from module_ctrl_error_state
    USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
                                        reset_supy_error, set_supy_error
@@ -134,33 +134,31 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
-      TYPE(SUEWS_FORCING), INTENT(INOUT) :: forcing
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
       TYPE(output_line), INTENT(OUT) :: outputLine
       TYPE(SUEWS_DEBUG), INTENT(OUT), OPTIONAL :: debugState
 
-      TYPE(SUEWS_TIMER) :: timer_internal
+      TYPE(SUEWS_CLOCK) :: clock
 
-      ! Coupled callers provide only the established public timer fields.
-      ! Derive the internal clock view without changing the public timer ABI.
-      timer_internal = timer
-      CALL SUEWS_cal_timer( &
-         timer_internal, siteInfo, siteInfo%anthroemis, &
-         config%ForcingTimestampReference)
+      ! The caller's timer is input only; derive this step's clock from it.
+      CALL SUEWS_cal_clock( &
+         timer, siteInfo, siteInfo%anthroemis, &
+         config%ForcingTimestampReference, clock)
 
       IF (PRESENT(debugState)) THEN
          CALL SUEWS_cal_Main_impl( &
-            timer_internal, forcing, config, siteInfo, modState, outputLine, debugState)
+            clock, forcing, config, siteInfo, modState, outputLine, debugState)
       ELSE
          CALL SUEWS_cal_Main_impl( &
-            timer_internal, forcing, config, siteInfo, modState, outputLine)
+            clock, forcing, config, siteInfo, modState, outputLine)
       END IF
    END SUBROUTINE SUEWS_cal_Main
 
    SUBROUTINE SUEWS_cal_Main_impl( &
-      timer, forcing, config, siteInfo, &
+      clock, forcing, config, siteInfo, &
       modState, &
       outputLine, &
       debugState) ! output
@@ -171,8 +169,8 @@ CONTAINS
 
       ! ####################################################################################
       !  declaration for DTS variables
-      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
-      TYPE(SUEWS_FORCING), INTENT(INOUT) :: forcing
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
 
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -212,15 +210,12 @@ CONTAINS
       TYPE(dts_ehc_stability_iteration) :: ehc_stability
       INTEGER, PARAMETER :: ehc_stability_first_pass = 16
       LOGICAL :: use_ehc_stability, verify_ehc_stability, relax_ehc_stability
-      ! DyOHM guards its daily running averages and midnight coefficient updates via
-      ! timer%dt_since_start_prev and timer%new_day; save/restore them alongside ohmState.
-      INTEGER :: timer_dt_since_start_prev_start, timer_new_day_start
 
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
       CALL validate_outputline_layout(outputLine)
       IF (supy_error_flag()) THEN
-         CALL sync_error_to_state(modState, timer)
+         CALL sync_error_to_state(modState, clock%timer)
          RETURN
       END IF
 
@@ -231,7 +226,7 @@ CONTAINS
       IF (config%StorageHeatMethod == SHM_EHC .AND. &
           (config%control_ehc_stability < 0 .OR. config%control_ehc_stability > 2)) THEN
          CALL set_supy_error(116, 'SUEWS_cal_Main: control_ehc_stability must be 0, 1 or 2')
-         CALL sync_error_to_state(modState, timer)
+         CALL sync_error_to_state(modState, clock%timer)
          RETURN
       END IF
       ehcDiag%ehc_dudt = -999.0D0
@@ -310,18 +305,16 @@ CONTAINS
             ! elapsed time also prevents reinitialisation on later timesteps.
             IF (config%StorageHeatMethod == SHM_EHC .AND. config%EHCSurfaceCoupling == 1 &
                 .AND. config%control_ehc_initial_profile .AND. config%NetRadiationMethod > 1000 &
-                .AND. timer%dt_since_start == timer%tstep) THEN
-               CALL ehc_init_envelope(config, timer, forcing, siteInfo, modState)
+                .AND. clock%timer%dt_since_start == clock%timer%tstep) THEN
+               CALL ehc_init_envelope(config, clock, forcing, siteInfo, modState)
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
             END IF
 
             ! save initial values of model states
             modState_tstepstart = modState
-            timer_dt_since_start_prev_start = timer%dt_since_start_prev
-            timer_new_day_start = timer%new_day
 
             ! ########################################3
             ! set initial values for output arrays
@@ -375,10 +368,10 @@ CONTAINS
             !==============surface roughness calculation=======================
             IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_RoughnessParameters...'
             CALL SUEWS_cal_RoughnessParameters( &
-               timer, config, forcing, siteInfo, & !input
+               clock, config, forcing, siteInfo, & !input
                modState) ! input/output:
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
 
@@ -386,18 +379,18 @@ CONTAINS
             IF (Diagnose == 1) WRITE (*, *) 'Calling NARP_update_SunPosition...'
             ! print *, 'timer: azimuth, zenith_deg', timer%azimuth, timer%zenith_deg
             CALL NARP_update_SunPosition( &
-               timer, siteInfo, & !input
+               clock, siteInfo, & !input
                modState) ! input/output:
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
 
             !=================Calculation of density and other water related parameters=================
             IF (Diagnose == 1) WRITE (*, *) 'Calling LUMPS_cal_AtmMoist...'
-            CALL SUEWS_update_atmState(timer, forcing, modState)
+            CALL SUEWS_update_atmState(clock, forcing, modState)
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
 
@@ -418,10 +411,6 @@ CONTAINS
                ! IMPORTANT: restore some initial states as they SHOULD NOT be changed during iterations
                IF (((.NOT. flag_converge) .AND. i_iter > 1) .OR. (flag_converge .AND. i_iter == 2)) THEN
                   CALL modState%check_and_reset_states(modState_tstepstart)
-                  IF (.NOT. modState%ohmState%iter_safe) THEN
-                     timer%dt_since_start_prev = timer_dt_since_start_prev_start
-                     timer%new_day = timer_new_day_start
-                  END IF
                   IF (config%StorageHeatMethod == SHM_EHC) THEN
                      CALL reset_ehc_heat_state_for_tsurf_iteration( &
                         modState%heatState, modState_tstepstart%heatState)
@@ -468,10 +457,10 @@ CONTAINS
                !=================Call the SUEWS_cal_DailyState routine to get surface characteristics ready=================
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_DailyState...'
                CALL SUEWS_cal_DailyState( &
-                  timer, config, forcing, siteInfo, & !input
+                  clock, config, forcing, siteInfo, & !input
                   modState) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -480,10 +469,10 @@ CONTAINS
                !======== Calculate soil moisture =========
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_SoilMoist...'
                CALL SUEWS_update_SoilMoist( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -497,10 +486,10 @@ CONTAINS
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_WaterUse...'
                !=================Gives the external and internal water uses per timestep=================
                CALL SUEWS_cal_WaterUse( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -509,10 +498,10 @@ CONTAINS
 
                ! ===================ANTHROPOGENIC HEAT AND CO2 FLUX======================
                CALL SUEWS_cal_AnthropogenicEmission( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState, ehcDiag) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -526,11 +515,11 @@ CONTAINS
                   PRINT *, 'Tsfc_surf before QN', heatState%tsfc_surf
                END IF
                CALL SUEWS_cal_Qn( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState, & ! input/output:
                   dataOutLineSPARTACUS) ! output
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -539,11 +528,11 @@ CONTAINS
 
                IF (diagnose == 1) PRINT *, 'Tsfc_surf before QS', heatState%tsfc_surf
                CALL SUEWS_cal_Qs( &
-                  timer, config, forcing, siteInfo, datetimeLine, & !input
+                  clock, config, forcing, siteInfo, datetimeLine, & !input
                   modState, ehcDiag, & ! input/output:
                   dataOutLineESTM, dataOutLineSTEBBS)
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -556,10 +545,10 @@ CONTAINS
                !==========================Turbulent Fluxes================================
                IF (Diagnose == 1) WRITE (*, *) 'Calling LUMPS_cal_QHQE...'
                CALL LUMPS_cal_QHQE( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -569,10 +558,10 @@ CONTAINS
                !============= calculate water balance =============
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Water...'
                CALL SUEWS_cal_Water( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -588,15 +577,15 @@ CONTAINS
                   IF (i_iter == ehc_stability_first_pass) &
                      CALL ehc_stability_start(ehc_stability, heatState%qh_init)
                   CALL SUEWS_cal_Resistance( &
-                     timer, config, forcing, siteInfo, & ! input
+                     clock, config, forcing, siteInfo, & ! input
                      modState, w_f_pass_prev, qh_stability=ehc_stability%qh) ! input/output:
                ELSE
                   CALL SUEWS_cal_Resistance( &
-                     timer, config, forcing, siteInfo, & ! input
+                     clock, config, forcing, siteInfo, & ! input
                      modState, w_f_pass_prev) ! input/output:
                END IF
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -618,11 +607,11 @@ CONTAINS
                   ! #234 the snow parts needs more work to be done
                   ! TS 18 Oct 2023: snow is temporarily turned off for easier implementation of other functionalities
                   CALL SUEWS_cal_snow( &
-                     timer, config, forcing, siteInfo, & ! input
+                     clock, config, forcing, siteInfo, & ! input
                      modState, & ! input/output
                      dataOutLineSnow)
                   IF (supy_error_flag()) THEN
-                     CALL sync_error_to_state(modState, timer)
+                     CALL sync_error_to_state(modState, clock%timer)
                      RETURN
                   END IF
                   ! N.B.: snow-related calculations end here.
@@ -631,10 +620,10 @@ CONTAINS
                   IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_QE...'
                   !======== Evaporation and surface state_id for snow-free conditions ========
                   CALL SUEWS_cal_QE( &
-                     timer, config, forcing, siteInfo, & ! input
+                     clock, config, forcing, siteInfo, & ! input
                      modState) ! input/output:
                   IF (supy_error_flag()) THEN
-                     CALL sync_error_to_state(modState, timer)
+                     CALL sync_error_to_state(modState, clock%timer)
                      RETURN
                   END IF
                   IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -646,10 +635,10 @@ CONTAINS
                !============ Sensible heat flux ===============
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_QH...'
                CALL SUEWS_cal_QH( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState, ehcDiag) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -667,25 +656,25 @@ CONTAINS
                   IF (relax_ehc_stability) THEN
                      CALL ehc_stability_update(config%control_ehc_stability, ehc_stability, heatState%qh_init)
                      CALL SUEWS_cal_Resistance( &
-                        timer, config, forcing, siteInfo, & ! input
+                        clock, config, forcing, siteInfo, & ! input
                         modState, w_f_pass_prev, qh_stability=ehc_stability%qh) ! input/output:
                   ELSE
                      CALL SUEWS_cal_Resistance( &
-                        timer, config, forcing, siteInfo, & ! input
+                        clock, config, forcing, siteInfo, & ! input
                         modState, w_f_pass_prev) ! input/output:
                   END IF
                   IF (supy_error_flag()) THEN
-                     CALL sync_error_to_state(modState, timer)
+                     CALL sync_error_to_state(modState, clock%timer)
                      RETURN
                   END IF
                END IF
 
                ! ============ update surface temperature of this iteration ===============
                CALL suews_update_tsurf( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState, ehcDiag) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
                ! The surface-temperature test alone can pass while the relaxed (z-d)/L
@@ -728,10 +717,10 @@ CONTAINS
             IF (modState%heatState%QH*modState%atmState%z_l > 0) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
                CALL SUEWS_cal_Resistance( &
-                  timer, config, forcing, siteInfo, & ! input
+                  clock, config, forcing, siteInfo, & ! input
                   modState, w_f_pass_prev, skip_relaxation=.TRUE.) ! input/output:
                IF (supy_error_flag()) THEN
-                  CALL sync_error_to_state(modState, timer)
+                  CALL sync_error_to_state(modState, clock%timer)
                   RETURN
                END IF
             END IF
@@ -742,11 +731,11 @@ CONTAINS
             !============ roughness sub-layer diagonostics ===============
             IF (Diagnose == 1) WRITE (*, *) 'Calling RSLProfile...'
             CALL RSLProfile( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataoutLineRSL) ! output
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -758,10 +747,10 @@ CONTAINS
             ! N.B.: Called after SUEWS_cal_Resistance and RSLProfile to use current local climate diagnostics
             ! ========================================================================
             CALL SUEWS_cal_BiogenCO2( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState) ! input/output:
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -780,11 +769,11 @@ CONTAINS
             ! TS 14 Jan 2021: BEERS is a modified version of SOLWEIG
             IF (Diagnose == 1) WRITE (*, *) 'Calling BEERS_cal_main...'
             CALL BEERS_cal_main( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataOutLineBEERS) ! output
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -792,10 +781,10 @@ CONTAINS
             END IF
             !==============Use dyOHM storage heat flux to convert surface temperature
             CALL suews_update_tsurf_dyohm( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState) ! input/output:
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
 
@@ -803,18 +792,18 @@ CONTAINS
             !==============translation of  output variables into output array===========
             IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_outputLine...'
             CALL SUEWS_update_outputLine( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                datetimeLine, dataOutLineSUEWS) !output
             IF (supy_error_flag()) THEN
-               CALL sync_error_to_state(modState, timer)
+               CALL sync_error_to_state(modState, clock%timer)
                RETURN
             END IF
 
             IF (config%StorageHeatMethod == SHM_EHC) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling EHC_update_outputLine...'
                CALL EHC_update_outputLine( &
-                  timer, & !input
+                  clock, & !input
                   modState, ehcDiag, & ! input/output:
                   datetimeLine, dataOutLineEHC) !output
             END IF
@@ -822,7 +811,7 @@ CONTAINS
             ! daily state_id:
             IF (Diagnose == 1) WRITE (*, *) 'Calling update_DailyStateLine...'
             CALL update_DailyStateLine( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataOutLineDailyState) !out
 
@@ -831,7 +820,7 @@ CONTAINS
             ! TODO: #233 debugging info will be collected into a derived type for model output when the debugging flag is on
             ! here we may still use the original output array but another derived type can be used for enriched debugging info
             CALL update_debug_info( &
-               timer, config, forcing, siteInfo, & ! input
+               clock, config, forcing, siteInfo, & ! input
                modState_tstepstart, & ! input
                modState, & ! inout
                dataoutlineDebug) ! output
@@ -855,7 +844,7 @@ CONTAINS
 
             ! Sync module-level error state to modState for thread-safe access
             ! This enables Python to read errors from modState%errorState
-            CALL sync_error_to_state(modState, timer)
+            CALL sync_error_to_state(modState, clock%timer)
 
          END ASSOCIATE
       END ASSOCIATE
@@ -886,12 +875,15 @@ CONTAINS
       modState, &
       dataOutBlockData, datetimeBlock)
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_CLOCK, SUEWS_SITE, &
                                   SUEWS_STATE, output_line
 
       IMPLICIT NONE
 
       ! Input/Output arguments
+      ! The loop owns the run's timer: it fills the clock fields from the
+      ! forcing rows and advances dt_since_start. The physics see only the
+      ! per-step clock derived from it.
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       INTEGER, INTENT(IN) :: len_sim
       REAL(KIND(1D0)), DIMENSION(len_sim, 32), INTENT(IN) :: MetForcingBlock
@@ -904,6 +896,7 @@ CONTAINS
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing
       TYPE(output_line) :: output_line_local
+      TYPE(SUEWS_CLOCK) :: clock
       INTEGER :: ir
 
       ! Loop over timesteps
@@ -915,15 +908,15 @@ CONTAINS
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0
 
-         CALL SUEWS_cal_timer( &
+         CALL SUEWS_cal_clock( &
             timer, siteInfo, siteInfo%anthroemis, &
-            config%ForcingTimestampReference)
+            config%ForcingTimestampReference, clock)
 
          CALL SUEWS_load_forcing_row(forcing, MetForcingBlock, ir)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main_impl( &
-            timer, forcing, config, siteInfo, &
+            clock, forcing, config, siteInfo, &
             modState, &
             output_line_local)
 
@@ -946,16 +939,16 @@ CONTAINS
 ! ================================================================================
 
    SUBROUTINE update_debug_info( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState_init, & ! input
       modState, & ! inout
       dataoutlineDebug) ! output
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_CLOCK, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, flag_STATE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -1039,15 +1032,15 @@ CONTAINS
    ! ================================================================================
 
    SUBROUTINE suews_update_tsurf( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, ehcDiag) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_CLOCK, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, flag_STATE, &
                                SUEWS_STATE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -1354,15 +1347,15 @@ CONTAINS
    END SUBROUTINE suews_update_tsurf
 
    SUBROUTINE suews_update_tsurf_dyohm( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_CLOCK, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, flag_STATE, &
                                SUEWS_STATE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -1373,7 +1366,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(5) :: z
       REAL(KIND(1D0)), ALLOCATABLE :: prev_profile(:), next_profile(:)
       ASSOCIATE ( &
-         timestep => timer%tstep, &
+         timestep => clock%timer%tstep, &
          flagState => modState%flagState, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
@@ -1432,14 +1425,14 @@ CONTAINS
 
 ! ===================ANTHROPOGENIC HEAT + CO2 FLUX================================
    SUBROUTINE SUEWS_cal_AnthropogenicEmission( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, ehcDiag) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                anthroEmis_STATE, atm_state, SUEWS_STATE
 
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -1491,8 +1484,8 @@ CONTAINS
          )
 
          ASSOCIATE ( &
-            dayofWeek_id => timer%dayofWeek_id_st, &
-            DLS => timer%DLS, &
+            dayofWeek_id => clock%dayofWeek_id_st, &
+            DLS => clock%DLS, &
             ahemisPrm => siteInfo%anthroemis &
          &)
 
@@ -1512,8 +1505,8 @@ CONTAINS
                CO2PointSource => siteInfo%CO2PointSource, &
                SurfaceArea => siteInfo%SurfaceArea, &
                HDD_id => anthroEmisState%HDD_id, &
-               imin => timer%imin_st, &
-               it => timer%it_st, &
+               imin => clock%imin_st, &
+               it => clock%it_st, &
                Fc_anthro => anthroEmisState%Fc_anthro, &
                Fc_build => anthroEmisState%Fc_build, &
                Fc_metab => anthroEmisState%Fc_metab, &
@@ -1616,12 +1609,12 @@ CONTAINS
 
 !==============BIOGENIC CO2 flux==================================================
    SUBROUTINE SUEWS_cal_BiogenCO2( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
       USE module_ctrl_type, ONLY: SUEWS_SITE, LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
-                               SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
+                               SUEWS_CLOCK, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
                                anthroEmis_STATE, HYDRO_STATE, SUEWS_STATE
       USE module_ctrl_const_allocate, ONLY: nsurf, NVegSurf, &
                                ivConif, ivDecid, ivGrass, &
@@ -1633,7 +1626,7 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -1690,9 +1683,9 @@ CONTAINS
             LAI_id => phenState%LAI_id, &
             gfunc => phenState%g_func, &
             vsmd => hydroState%vsmd, &
-            id => timer%id, &
-            it => timer%it, &
-            dectime => timer%dectime, &
+            id => clock%timer%id, &
+            it => clock%timer%it, &
+            dectime => clock%dectime, &
             Fc_anthro => anthroEmisState%Fc_anthro, &
             Fc => anthroEmisState%Fc, &
             Fc_biogen => anthroEmisState%Fc_biogen, &
@@ -1828,13 +1821,13 @@ CONTAINS
 !=============net all-wave radiation=====================================
 
    SUBROUTINE SUEWS_cal_Qn( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
       USE module_phys_narp, ONLY: RadMethod, NARP
       USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_perez, split_shortwave_forcing, split_shortwave_reindl
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
@@ -1842,7 +1835,7 @@ CONTAINS
                                SPARTACUS_LAYER_PRM, HEAT_STATE, SUEWS_STATE
 
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -1932,8 +1925,8 @@ CONTAINS
             SnowUse => config%SnowUse, &
             Diagnose => config%Diagnose, &
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
-            id => timer%id, &
-            tstep => timer%tstep, &
+            id => clock%timer%id, &
+            tstep => clock%timer%tstep, &
             ldown_obs => forcing%l_down, &
             fcld_obs => forcing%f_cloud, &
             kdown => forcing%kdown, &
@@ -1949,7 +1942,7 @@ CONTAINS
             qn_ind_snow => snowState%qn_ind_snow, &
             kup_ind_snow => snowState%kup_ind_snow, &
             Tsurf_ind_snow => snowState%Tsurf_ind_snow, &
-            dectime => timer%dectime, &
+            dectime => clock%dectime, &
             ZENITH_deg => solarState%zenith_deg, &
             ea_hPa => atmState%ea_hPa, &
             fcld => atmState%f_cloud, &
@@ -2188,11 +2181,11 @@ CONTAINS
 !=============storage heat flux=========================================
 
    SUBROUTINE SUEWS_cal_Qs( &
-      timer, config, forcing, siteInfo, datetimeLine, & ! input
+      clock, config, forcing, siteInfo, datetimeLine, & ! input
       modState, ehcDiag, & ! input/output:
       dataOutLineESTM, dataOutLineSTEBBS)
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_TIMER, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_CLOCK, &
                                SNOW_STATE, EHC_PRM, &
                                anthroEmis_STATE, PHENOLOGY_STATE, OHM_STATE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
@@ -2201,7 +2194,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(in) :: config
       TYPE(SUEWS_FORCING), INTENT(in) :: forcing
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
@@ -2322,9 +2315,9 @@ CONTAINS
             qn_rav => ohmState%qn_rav, &
             alb => phenState%alb, &
             StoreDrainPrm => phenState%storage_drain_params, &
-            id => timer%id, &
-            tstep => timer%tstep, &
-            dt_since_start => timer%dt_since_start &
+            id => clock%timer%id, &
+            tstep => clock%timer%tstep, &
+            dt_since_start => clock%timer%dt_since_start &
             )
             ASSOCIATE ( &
                tin_roof => ehcPrm%tin_roof, &
@@ -2553,7 +2546,7 @@ CONTAINS
                IF (config%stebbsmethod == STEBBS_DEFAULT .OR. config%stebbsmethod == STEBBS_PROVIDED) THEN
                   IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
                   CALL stebbsonlinecouple( &
-                     timer, config, forcing, siteInfo, & ! input
+                     clock, config, forcing, siteInfo, & ! input
                      modState, & ! input/output:
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
@@ -2563,7 +2556,7 @@ CONTAINS
                   ! Promote any completed calendar-day buffer before AnOHM dispatch so
                   ! day-rollover steps diagnose the new day's coefficients consistently
                   ! on every pass and leave live coefficients in checkpoints.
-                  CALL anohm_rollover_if_needed(timer, ohmState)
+                  CALL anohm_rollover_if_needed(clock, ohmState)
                END IF
 
                IF (StorageHeatMethod == SHM_OBSERVED) THEN !Use observed QS
@@ -2598,7 +2591,7 @@ CONTAINS
                            ws_rav, qn_rav, &
                            dz_surf, cp_surf, k_surf, &
                            lambda_c, &
-                           StorageHeatMethod, DiagQS, timer, &
+                           StorageHeatMethod, DiagQS, clock, &
                            a1_bldg, a2_bldg, a3_bldg, &
                            a1_paved, a2_paved, a3_paved, &
                            a1_evetr, a2_evetr, a3_evetr, &
@@ -2680,7 +2673,7 @@ CONTAINS
                         config, forcing, siteInfo, modState, & ! input
                         ehc_seb) ! inout: a, b
                      CALL ehc_implicit_boundaries( &
-                        config, timer, siteInfo, modState, & ! input
+                        config, clock, siteInfo, modState, & ! input
                         ehc_seb) ! inout: t_deep_surf, t_indoor
                      CALL EHC( &
                         tstep, & !input
@@ -2748,18 +2741,18 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_Qs
 !=======================================================================
 
-   SUBROUTINE anohm_rollover_if_needed(timer, ohmState)
+   SUBROUTINE anohm_rollover_if_needed(clock, ohmState)
       ! AnOHM (StorageHeatMethod=3): at a day change, promote the just-completed
       ! working buffer into the coeff buffer and flag readiness once enough
       ! samples are present. Replaces the legacy future-data forcing dependency.
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(OHM_STATE), INTENT(INOUT) :: ohmState
 
       IF (ohmState%anohm_working_day == -999) THEN
-         ohmState%anohm_working_day = timer%id
+         ohmState%anohm_working_day = clock%timer%id
       END IF
 
-      IF (timer%id /= ohmState%anohm_working_day) THEN
+      IF (clock%timer%id /= ohmState%anohm_working_day) THEN
          ! Coefficients belong to the previous coeff buffer. Invalidate them
          ! before promoting a different completed calendar day.
          ohmState%anohm_a1_surf = -999.0D0
@@ -2791,7 +2784,7 @@ CONTAINS
             ohmState%anohm_coeff_ah = -999.0D0
          END IF
 
-         ohmState%anohm_working_day = timer%id
+         ohmState%anohm_working_day = clock%timer%id
          ohmState%anohm_working_count = 0
          ohmState%anohm_working_tHr = -999.0D0
          ohmState%anohm_working_sd = -999.0D0
@@ -2805,10 +2798,10 @@ CONTAINS
    END SUBROUTINE anohm_rollover_if_needed
 !=======================================================================
 
-   SUBROUTINE anohm_append_sample(timer, forcing, qf, ohmState)
+   SUBROUTINE anohm_append_sample(clock, forcing, qf, ohmState)
       ! AnOHM (StorageHeatMethod=3): append one on-the-hour forcing sample to the
       ! working buffer for the day in progress.
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       REAL(KIND(1D0)), INTENT(IN) :: qf
       TYPE(OHM_STATE), INTENT(INOUT) :: ohmState
@@ -2816,15 +2809,15 @@ CONTAINS
       INTEGER :: idx
 
       IF (ohmState%anohm_working_day == -999) THEN
-         ohmState%anohm_working_day = timer%id
+         ohmState%anohm_working_day = clock%timer%id
       END IF
 
-      IF (timer%id /= ohmState%anohm_working_day) THEN
-         CALL anohm_rollover_if_needed(timer, ohmState)
+      IF (clock%timer%id /= ohmState%anohm_working_day) THEN
+         CALL anohm_rollover_if_needed(clock, ohmState)
       END IF
 
       ! only retain one sample per hour, on the hour
-      IF (timer%imin /= 0 .OR. timer%isec /= 0) RETURN
+      IF (clock%timer%imin /= 0 .OR. clock%timer%isec /= 0) RETURN
 
       ! SUEWS_cal_Water can run repeatedly during the surface-temperature
       ! iteration. Overwrite the current hour in that case; otherwise append
@@ -2832,13 +2825,13 @@ CONTAINS
       ! than the highest hour-of-day slot that happened to be populated.
       idx = ohmState%anohm_working_count + 1
       IF (ohmState%anohm_working_count > 0) THEN
-         IF (NINT(ohmState%anohm_working_tHr(ohmState%anohm_working_count)) == timer%it) THEN
+         IF (NINT(ohmState%anohm_working_tHr(ohmState%anohm_working_count)) == clock%timer%it) THEN
             idx = ohmState%anohm_working_count
          END IF
       END IF
       IF (idx > ANOHM_MAX_SAMPLES) RETURN
 
-      ohmState%anohm_working_tHr(idx) = REAL(timer%it, KIND(1D0))
+      ohmState%anohm_working_tHr(idx) = REAL(clock%timer%it, KIND(1D0))
       ohmState%anohm_working_sd(idx) = forcing%kdown
       ohmState%anohm_working_ta(idx) = forcing%temp_c
       ohmState%anohm_working_rh(idx) = forcing%RH
@@ -2853,7 +2846,7 @@ CONTAINS
 
 !==========================drainage and runoff================================
    SUBROUTINE SUEWS_cal_Water( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, PHENOLOGY_STATE, &
@@ -2862,7 +2855,7 @@ CONTAINS
                                SUEWS_STATE
 
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER), INTENT(in) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(in) :: clock
       TYPE(SUEWS_CONFIG), INTENT(in) :: config
       TYPE(SUEWS_FORCING), INTENT(in) :: forcing
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
@@ -2890,7 +2883,7 @@ CONTAINS
             waterPrm => siteInfo%lc_water, &
             sfr_surf => siteInfo%sfr_surf, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
-            nsh_real => timer%nsh_real, &
+            nsh_real => clock%nsh_real, &
             Diagnose => config%Diagnose, &
             addPipes => hydroState%add_pipes, &
             addImpervious => hydroState%add_impervious, &
@@ -2916,8 +2909,8 @@ CONTAINS
             StoreDrainPrm = phenState%storage_drain_params
             IF (config%StorageHeatMethod == SHM_ANOHM) THEN
                ! AnOHM: accumulate the current calendar-day forcing buffer
-               CALL anohm_rollover_if_needed(timer, modState%ohmState)
-               CALL anohm_append_sample(timer, forcing, modState%heatState%qf, modState%ohmState)
+               CALL anohm_rollover_if_needed(clock, modState%ohmState)
+               CALL anohm_append_sample(clock, forcing, modState%heatState%qf, modState%ohmState)
             END IF
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -3037,11 +3030,11 @@ CONTAINS
 !========================================================================
 
    SUBROUTINE SUEWS_cal_snow( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, &
       dataOutLineSnow)
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SNOW_PRM, &
                                SUEWS_FORCING, PHENOLOGY_STATE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, &
                                LC_DECTR_PRM, LC_GRASS_PRM, LC_BSOIL_PRM, &
@@ -3050,7 +3043,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -3157,12 +3150,12 @@ CONTAINS
          Press_hPa => forcing%Pres, &
          Temp_C => forcing%Temp_C, &
          precip => forcing%rain, &
-         imin => timer%imin_st, &
-         it => timer%it_st, &
-         dectime => timer%dectime, &
-         tstep => timer%tstep, &
-         dayofWeek_id => timer%dayofWeek_id_st, &
-         nsh_real => timer%nsh_real, &
+         imin => clock%imin_st, &
+         it => clock%it_st, &
+         dectime => clock%dectime, &
+         tstep => clock%timer%tstep, &
+         dayofWeek_id => clock%dayofWeek_id_st, &
+         nsh_real => clock%nsh_real, &
          atmState => modState%atmState, &
          heatState => modState%heatState, &
          hydroState => modState%hydroState, &
@@ -3480,10 +3473,10 @@ CONTAINS
 ! TODO: optimise the structure of this function
 
    SUBROUTINE SUEWS_cal_QE( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, &
                                SUEWS_SITE, EHC_PRM, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -3494,7 +3487,7 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -3590,13 +3583,13 @@ CONTAINS
             Temp_C => forcing%Temp_C, &
             precip => forcing%rain, &
             xsmd => forcing%xsmd, &
-            imin => timer%imin, &
-            it => timer%it, &
-            dectime => timer%dectime, &
-            tstep => timer%tstep, &
-            tstep_real => timer%tstep_real, &
-            dayofWeek_id => timer%dayofWeek_id, &
-            nsh_real => timer%nsh_real, &
+            imin => clock%timer%imin, &
+            it => clock%timer%it, &
+            dectime => clock%dectime, &
+            tstep => clock%timer%tstep, &
+            tstep_real => clock%tstep_real, &
+            dayofWeek_id => clock%dayofWeek_id, &
+            nsh_real => clock%nsh_real, &
             avdens => atmState%av_density, &
             avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
@@ -3852,9 +3845,9 @@ CONTAINS
 !===============sensible heat flux======================================
 
    SUBROUTINE SUEWS_cal_QH( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, ehcDiag) ! input/output:
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_CLOCK, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, &
                                SUEWS_STATE
@@ -3862,7 +3855,7 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -3900,7 +3893,7 @@ CONTAINS
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
-            tstep_real => timer%tstep_real, &
+            tstep_real => clock%tstep_real, &
             tsfc_surf => heatState%tsfc_surf, &
             tsfc_roof => heatState%tsfc_roof, &
             tsfc_wall => heatState%tsfc_wall, &
@@ -4087,10 +4080,10 @@ CONTAINS
    END SUBROUTINE ehc_stability_update
 
    SUBROUTINE SUEWS_cal_Resistance( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, w_f_pass_prev, skip_relaxation, qh_stability) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, CONDUCTANCE_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, CONDUCTANCE_PRM, &
                                SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -4100,7 +4093,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -4149,9 +4142,9 @@ CONTAINS
             conductancePrm => siteInfo%conductance, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
             VegFraction => siteInfo%VegFraction, &
-            nsh_real => timer%nsh_real, &
-            id => timer%id, &
-            it => timer%it, &
+            nsh_real => clock%nsh_real, &
+            id => clock%timer%id, &
+            it => clock%timer%it, &
             avU1 => forcing%U, &
             Temp_C => forcing%Temp_C, &
             avkdn => forcing%kdown, &
@@ -4326,18 +4319,18 @@ CONTAINS
 
 !==============Update output arrays=========================
    SUBROUTINE SUEWS_update_outputLine( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       datetimeLine, dataOutLineSUEWS) !output
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HYDRO_STATE, SUEWS_STATE
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -4381,16 +4374,16 @@ CONTAINS
             LAI_id => phenState%LAI_id, &
             FlowChange => siteInfo%flow_change, &
             sfr_surf => siteInfo%sfr_surf, &
-            id => timer%id, &
-            imin => timer%imin, &
-            it => timer%it, &
-            iy => timer%iy, &
+            id => clock%timer%id, &
+            imin => clock%timer%imin, &
+            it => clock%timer%it, &
+            iy => clock%timer%iy, &
             AdditionalWater => hydroState%additional_water, &
             avU10_ms => atmState%U10_ms, &
             azimuth => solarState%azimuth_deg, &
             SnowAlb => snowState%snow_albedo, &
             chSnow_per_interval => snowState%chSnow_per_interval, &
-            dectime => timer%dectime, &
+            dectime => clock%dectime, &
             drain_per_tstep => hydroState%drain_per_tstep, &
             QE_LUMPS => heatState%QE_LUMPS, &
             ev_per_tstep => hydroState%ev_per_tstep, &
@@ -4411,7 +4404,7 @@ CONTAINS
             lup => heatState%l_up, &
             mwh => snowState%mwh, &
             MwStore => snowState%melt_water_store, &
-            nsh_real => timer%nsh_real, &
+            nsh_real => clock%nsh_real, &
             NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             q2_gkg => atmState%q2_gkg, &
             qe => heatState%qe, &
@@ -4490,7 +4483,7 @@ CONTAINS
             ! date & time:
             datetimeLine = [ &
                            REAL(iy, KIND(1D0)), REAL(id, KIND(1D0)), &
-                           REAL(it, KIND(1D0)), REAL(imin, KIND(1D0)), timer%dectime]
+                           REAL(it, KIND(1D0)), REAL(imin, KIND(1D0)), clock%dectime]
             ! Define output values with explicit bounds checks so column
             ! mismatches raise a controlled error instead of memory corruption.
             dataOutLineSUEWS = NAN
@@ -4642,15 +4635,15 @@ CONTAINS
 
 !==============Update output arrays=========================
    SUBROUTINE EHC_update_outputLine( &
-      timer, & !input
+      clock, & !input
       modState, ehcDiag, & ! input/output:
       datetimeLine, dataOutLineEHC) !output
 
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, HEAT_STATE, HYDRO_STATE, SUEWS_STATE
+      USE module_ctrl_type, ONLY: SUEWS_CLOCK, HEAT_STATE, HYDRO_STATE, SUEWS_STATE
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
       TYPE(dts_ehc_diagnostics), INTENT(IN) :: ehcDiag
 
@@ -4668,11 +4661,11 @@ CONTAINS
          hydroState => modState%hydroState &
          )
          ASSOCIATE ( &
-            iy => timer%iy, &
-            id => timer%id, &
-            it => timer%it, &
-            imin => timer%imin, &
-            dectime => timer%dectime, &
+            iy => clock%timer%iy, &
+            id => clock%timer%id, &
+            it => clock%timer%it, &
+            imin => clock%timer%imin, &
+            dectime => clock%dectime, &
             tsfc_out_surf => heatState%tsfc_surf, &
             qs_surf => heatState%qs_surf, &
             tsfc_out_roof => heatState%tsfc_roof, &
@@ -4878,21 +4871,21 @@ CONTAINS
       END ASSOCIATE
    END SUBROUTINE ehc_seb_linearisation
 
-   SUBROUTINE ehc_init_envelope(config, timer, forcing, siteInfo, modState)
+   SUBROUTINE ehc_init_envelope(config, clock, forcing, siteInfo, modState)
       ! EHC roof/wall outer faces contact outdoor air; no ground-floor
       ! envelope column exists on this route. Deep-soil ground columns and
       ! the shared slab retain their configured initial temperatures.
       ! This optional initial approximation balances conduction, not the full
       ! radiative/convective SEB; subsequent timesteps solve that SEB normally.
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
       TYPE(dts_ehc_implicit) :: seb
       INTEGER :: i
 
-      CALL ehc_implicit_boundaries(config, timer, siteInfo, modState, seb)
+      CALL ehc_implicit_boundaries(config, clock, siteInfo, modState, seb)
       DO i = 1, siteInfo%nlayer
          CALL ehc_init_profile(siteInfo%ehc%dz_roof(i, :), siteInfo%ehc%k_roof(i, :), &
                                forcing%temp_c, seb%t_indoor, seb%r_indoor_roof, modState%heatState%temp_roof(i, :))
@@ -4902,7 +4895,7 @@ CONTAINS
    END SUBROUTINE ehc_init_envelope
 
    SUBROUTINE ehc_implicit_boundaries( &
-      config, timer, siteInfo, modState, &
+      config, clock, siteInfo, modState, &
       seb)
       ! Lower-boundary temperatures of the implicit EHC columns.
       !
@@ -4930,7 +4923,7 @@ CONTAINS
       ! otherwise properties.stebbs.temperature_air_indoor_initial, or
       ! 20 degC where that is unset (zero).
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(IN) :: modState
       TYPE(dts_ehc_implicit), INTENT(INOUT) :: seb
@@ -4953,7 +4946,7 @@ CONTAINS
          IF (siteInfo%lat < 0.0D0) t0 = t0 + 0.5D0*days_per_year
          ! timer%dectime counts days from the start of the year (0 at
          ! 1 January 00:00)
-         phase = w_day*(timer%dectime + 1.0D0 - t0)
+         phase = w_day*(clock%dectime + 1.0D0 - t0)
 
          seb%t_deep_surf = ehcPrm%tin_surf
          IF (t_mean /= 0.0D0 .OR. t_amp /= 0.0D0) THEN

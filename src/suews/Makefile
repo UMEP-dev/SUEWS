@@ -183,9 +183,9 @@ UTILS = suews_ctrl_const.o \
 	suews_type_landcover.o \
 	suews_ctrl_type.o \
 	suews_ctrl_error.o \
+	suews_util_datetime.o \
 	suews_util_time.o \
 	suews_util_meteo.o \
-	suews_util_datetime.o \
 	suews_util_profile.o
 
 

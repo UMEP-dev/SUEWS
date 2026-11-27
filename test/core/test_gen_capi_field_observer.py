@@ -484,12 +484,12 @@ def test_reverse_pack_audit_rejects_dropped_component(tmp_path: Path) -> None:
         gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
 
     mutated_timer = orig_driver.replace(
-        "flat(17) = real(timer%DLS, c_double)",
-        "! dropped: flat(17) = real(timer%DLS, c_double)",
+        "flat(8) = real(timer%dt_since_start, c_double)",
+        "! dropped: flat(8) = real(timer%dt_since_start, c_double)",
     )
     assert mutated_timer != orig_driver
     (tmp_path / "driver.f95").write_text(mutated_timer, encoding="utf-8")
-    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_TIMER%DLS"):
+    with pytest.raises(gen.CoverageInventoryError, match=r"SUEWS_TIMER%dt_since_start"):
         gen.audit_reverse_packers(tmp_path, types_by_lower, leaves_by_type)
 
     mutated_state = orig_driver.replace(

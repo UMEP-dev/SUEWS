@@ -5,7 +5,7 @@ MODULE module_phys_lumps
 CONTAINS
 
    SUBROUTINE LUMPS_cal_QHQE( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
       ! heatState, &
       ! atmState, &
@@ -23,13 +23,13 @@ CONTAINS
       ! SG Feb 2012     - added some comments
       ! --------------------------------------------------------------
       USE module_util_meteo, ONLY: psyc_const, slope_svp, slopeice_svp
-      USE module_ctrl_type, ONLY: LUMPS_PRM, SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: LUMPS_PRM, SUEWS_CLOCK, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                PHENOLOGY_STATE, atm_state, HEAT_STATE, SUEWS_STATE
 
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER), INTENT(in) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(in) :: clock
       TYPE(SUEWS_CONFIG), INTENT(in) :: config
       TYPE(SUEWS_FORCING), INTENT(in) :: forcing
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
@@ -122,8 +122,8 @@ CONTAINS
             waterPrm => siteInfo%lc_water, &
             sfr_surf => siteInfo%sfr_surf, &
             VegFraction => siteInfo%vegFraction, &
-            tstep_real => timer%tstep_real, &
-            nsh_real => timer%nsh_real, &
+            tstep_real => clock%tstep_real, &
+            nsh_real => clock%nsh_real, &
             avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
             psyc_hPa => atmState%psyc_hPa, &

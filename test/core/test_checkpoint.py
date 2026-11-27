@@ -33,14 +33,12 @@ def _run_loaded(sim, **kwargs):
 
 
 def _checkpoint_payload(state_schema_version=1):
-    """Build the smallest version-3 envelope needed by API validation tests."""
+    """Build the smallest version-4 envelope needed by API validation tests."""
     return {
-        "checkpoint_schema_version": 3,
+        "checkpoint_schema_version": 4,
         "timer": {
             "dt_since_start": 600,
-            "dt_since_start_prev": 300,
             "tstep": 300,
-            "new_day": 0,
         },
         "state": {
             "schema_version": state_schema_version,
@@ -63,7 +61,7 @@ def test_checkpoint_json_roundtrip(tmp_path):
 
     assert loaded.grid_states.keys() == {1}
     assert json.loads(loaded.grid_states[1]) == payload
-    assert loaded.checkpoint_schema_version == 3
+    assert loaded.checkpoint_schema_version == 4
     assert loaded.state_schema_version == 3
     assert loaded.last_timestamp == "2012-01-01T00:55:00"
 
@@ -79,14 +77,13 @@ def test_run_stores_non_empty_checkpoint(short_sample_sim):
     assert isinstance(sim.checkpoint, SUEWSCheckpoint)
     assert output.checkpoint == sim.checkpoint
     assert sim.checkpoint.grid_states
-    assert sim.checkpoint.checkpoint_schema_version == 3
+    assert sim.checkpoint.checkpoint_schema_version == 4
     assert sim.checkpoint.last_timestamp == forcing.index.max().isoformat()
     checkpoint_payload = json.loads(next(iter(sim.checkpoint.grid_states.values())))
+    # DyOHM derives its day boundary from the elapsed timer (gh#2333).
     assert checkpoint_payload["timer"] == {
         "dt_since_start": 3900,
-        "dt_since_start_prev": 0,
         "tstep": 300,
-        "new_day": 0,
     }
 
 
@@ -315,7 +312,18 @@ def test_legacy_v2_checkpoint_rejected_for_dailystate_window_change(short_sample
     payload["checkpoint_schema_version"] = 2
     checkpoint = SUEWSCheckpoint.from_grid_states({1: payload})
 
-    with pytest.raises(ValueError, match=r"schema version 2.*DailyState.*version 3"):
+    with pytest.raises(ValueError, match=r"schema version 2.*DailyState.*version 4"):
+        sim.continue_from(checkpoint)
+
+
+def test_legacy_v3_checkpoint_rejected_for_timer_layout_change(short_sample_sim):
+    """Version-3 checkpoints with legacy DyOHM timer latch fields are rejected cleanly."""
+    sim = short_sample_sim()
+    payload = _checkpoint_payload()
+    payload["checkpoint_schema_version"] = 3
+    checkpoint = SUEWSCheckpoint.from_grid_states({1: payload})
+
+    with pytest.raises(ValueError, match=r"schema version 3.*gh#2333.*version 4"):
         sim.continue_from(checkpoint)
 
 

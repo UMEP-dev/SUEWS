@@ -475,7 +475,7 @@ CONTAINS
    END SUBROUTINE BoundaryLayerResistance
 
    SUBROUTINE SUEWS_cal_RoughnessParameters( &
-      timer, config, forcing, siteInfo, & !input
+      clock, config, forcing, siteInfo, & !input
       modState) ! input/output:
       ! phenState, &
       ! roughnessState)
@@ -490,7 +490,7 @@ CONTAINS
       ! sg feb 2012 - made separate subroutine
       !--------------------------------------------------------------------------------
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
@@ -507,7 +507,7 @@ CONTAINS
       INTEGER, PARAMETER :: WaterSurf = 7
       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo

@@ -2,14 +2,18 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const SUEWS_TIMER_FLAT_LEN: usize = 18;
-pub const SUEWS_TIMER_SCHEMA_VERSION: u32 = 1;
+/// Schema 2 (gh#2333): the timer carries only the eight caller-supplied
+/// inputs. Values derived from them (decimal time, timesteps per hour,
+/// weekday, daylight saving, day boundaries, local-standard clock) are
+/// computed inside the kernel every step and never cross the boundary.
+pub const SUEWS_TIMER_FLAT_LEN: usize = 8;
+pub const SUEWS_TIMER_SCHEMA_VERSION: u32 = 2;
 
 pub type SuewsTimerSchema = crate::codec::SimpleSchema;
 
 pub type SuewsTimerValuesPayload = ValuesPayload;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SuewsTimer {
     pub id: i32,
     pub imin: i32,
@@ -19,37 +23,6 @@ pub struct SuewsTimer {
     pub tstep: i32,
     pub tstep_prev: i32,
     pub dt_since_start: i32,
-    pub dt_since_start_prev: i32,
-    pub nsh: i32,
-    pub nsh_real: f64,
-    pub tstep_real: f64,
-    pub dectime: f64,
-    pub dayofweek_id: [i32; 3],
-    pub dls: i32,
-    pub new_day: i32,
-}
-
-impl Default for SuewsTimer {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            imin: 0,
-            isec: 0,
-            it: 0,
-            iy: 0,
-            tstep: 0,
-            tstep_prev: 0,
-            dt_since_start: 0,
-            dt_since_start_prev: 0,
-            nsh: 0,
-            nsh_real: 0.0,
-            tstep_real: 0.0,
-            dectime: 0.0,
-            dayofweek_id: [0; 3],
-            dls: 0,
-            new_day: 0,
-        }
-    }
 }
 
 fn decode_int(value: f64) -> Result<i32, BridgeError> {
@@ -82,18 +55,6 @@ impl SuewsTimer {
             tstep: decode_int(flat[5])?,
             tstep_prev: decode_int(flat[6])?,
             dt_since_start: decode_int(flat[7])?,
-            dt_since_start_prev: decode_int(flat[8])?,
-            nsh: decode_int(flat[9])?,
-            nsh_real: flat[10],
-            tstep_real: flat[11],
-            dectime: flat[12],
-            dayofweek_id: [
-                decode_int(flat[13])?,
-                decode_int(flat[14])?,
-                decode_int(flat[15])?,
-            ],
-            dls: decode_int(flat[16])?,
-            new_day: decode_int(flat[17])?,
         })
     }
 
@@ -107,16 +68,6 @@ impl SuewsTimer {
             self.tstep as f64,
             self.tstep_prev as f64,
             self.dt_since_start as f64,
-            self.dt_since_start_prev as f64,
-            self.nsh as f64,
-            self.nsh_real,
-            self.tstep_real,
-            self.dectime,
-            self.dayofweek_id[0] as f64,
-            self.dayofweek_id[1] as f64,
-            self.dayofweek_id[2] as f64,
-            self.dls as f64,
-            self.new_day as f64,
         ]
     }
 }
@@ -150,16 +101,6 @@ pub fn suews_timer_field_names() -> Vec<String> {
         "tstep".to_string(),
         "tstep_prev".to_string(),
         "dt_since_start".to_string(),
-        "dt_since_start_prev".to_string(),
-        "nsh".to_string(),
-        "nsh_real".to_string(),
-        "tstep_real".to_string(),
-        "dectime".to_string(),
-        "dayofweek_id_1".to_string(),
-        "dayofweek_id_2".to_string(),
-        "dayofweek_id_3".to_string(),
-        "dls".to_string(),
-        "new_day".to_string(),
     ]
 }
 
@@ -200,13 +141,13 @@ mod tests {
         let state = suews_timer_default_from_fortran().expect("default state should be available");
         let mut mapped = suews_timer_to_map(&state);
         mapped.insert("tstep".to_string(), 300.0);
-        mapped.insert("dectime".to_string(), 12.5);
-        mapped.insert("dayofweek_id_2".to_string(), 7.0);
+        mapped.insert("tstep_prev".to_string(), 600.0);
+        mapped.insert("dt_since_start".to_string(), 7.0);
 
         let updated = suews_timer_from_map(&mapped).expect("map to state should succeed");
         assert_eq!(updated.tstep, 300);
-        assert!((updated.dectime - 12.5).abs() < 1.0e-12);
-        assert_eq!(updated.dayofweek_id[1], 7);
+        assert_eq!(updated.tstep_prev, 600);
+        assert_eq!(updated.dt_since_start, 7);
     }
 
     #[test]

@@ -15,6 +15,7 @@ interpretation.
 """
 
 from __future__ import annotations
+import __future__
 
 import argparse
 import ast
@@ -50,28 +51,29 @@ STATUSES = (
 )
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
+OPERATIONAL_FAILURE_EXIT_CODE = 2
+
+_ALL_FUTURE_FLAGS = 0
+for _feature_name in __future__.all_feature_names:
+    _ALL_FUTURE_FLAGS |= getattr(__future__, _feature_name).compiler_flag
 
 _SHELL_PROMPT_RE = re.compile(r"^\s*\$\s+suews(?:-[a-z][a-z0-9-]*)?(?:\s|$)")
 _SHELL_CMD_RE = re.compile(r"^\s+suews(?:-[a-z][a-z0-9-]*)?(?:\s|$)")
-_EXAMPLES_HEADER_RE = re.compile(r"^\s*Examples\s*:?\s*$", re.IGNORECASE)
+_EXAMPLES_HEADER_RE = re.compile(r"^\s*Examples\s*:{0,2}\s*$", re.IGNORECASE)
 
-# Isolated subprocess runner executed via ``python -P -c`` so each example
-# block runs in a clean namespace with zero pre-populated globals, captures
-# both Python and OS-level fd 1/fd 2 output, and writes its structured outcome
-# to a dedicated result file.
+# Isolated subprocess runner executed via ``python -P -u`` so each example
+# block runs in a clean dedicated ``__main__`` namespace with minimal runner
+# imports (never pre-importing ``urllib.error``, ``socket``, ``pathlib`` or
+# ``doctest`` before user code), captures both Python and OS-level fd 1/fd 2
+# output, and writes its structured outcome atomically to a dedicated result file.
 _SUBPROCESS_RUNNER = r"""
 import builtins
 import ctypes
-import doctest
 import errno
 import json
 import os
-from pathlib import Path
-import socket
 import sys
 import time
-import traceback
-import urllib.error
 
 PREREQUISITE_TYPES = (
     NameError,
@@ -84,9 +86,13 @@ PREREQUISITE_TYPES = (
     PermissionError,
     EOFError,
     ConnectionError,
-    socket.gaierror,
-    urllib.error.URLError,
 )
+
+_NETWORK_EXC_QUALNAMES = frozenset({
+    ("_socket", "gaierror"),
+    ("socket", "gaierror"),
+    ("urllib.error", "URLError"),
+})
 
 NETWORK_ERRNOS = {
     getattr(errno, name)
@@ -104,6 +110,19 @@ NETWORK_ERRNOS = {
     if hasattr(errno, name)
 }
 
+_DOCTEST_MOD = None
+_DOCTEST_CHECKER = None
+
+
+def _get_doctest():
+    global _DOCTEST_MOD, _DOCTEST_CHECKER
+    if _DOCTEST_MOD is None:
+        import doctest as _dt
+
+        _DOCTEST_MOD = _dt
+        _DOCTEST_CHECKER = _dt.OutputChecker()
+    return _DOCTEST_MOD, _DOCTEST_CHECKER
+
 
 def _iter_exc_chain(exc: BaseException):
     seen: set[int] = set()
@@ -120,16 +139,29 @@ def _iter_exc_chain(exc: BaseException):
             stack.append(current.__context__)
 
 
+def _is_network_prerequisite(exc: BaseException) -> bool:
+    if not isinstance(exc, OSError):
+        return False
+    if exc.errno in NETWORK_ERRNOS:
+        return True
+    return any(
+        (cls.__module__, cls.__qualname__) in _NETWORK_EXC_QUALNAMES
+        for cls in type(exc).__mro__
+    )
+
+
 def _classify_exception(exc: BaseException) -> tuple[str, str]:
     for item in _iter_exc_chain(exc):
         if isinstance(item, PREREQUISITE_TYPES):
             return "prerequisite-missing", type(item).__name__
-        if isinstance(item, OSError) and item.errno in NETWORK_ERRNOS:
+        if _is_network_prerequisite(item):
             return "prerequisite-missing", type(item).__name__
     return "error", type(exc).__name__
 
 
 def _format_doctest_exc_only(exc: BaseException) -> str:
+    import traceback
+
     formatted_ex = traceback.format_exception_only(type(exc), exc)
     if issubclass(type(exc), SyntaxError):
         prefixes = (
@@ -173,12 +205,15 @@ def _execute_capturing_fds(
     source: str,
     filename: str,
     globs: dict[str, object],
+    compile_flags: int,
+    future_flags_mask: int,
     read_out: object,
     read_err: object,
-) -> tuple[str, str, BaseException | None, str]:
+) -> tuple[str, str, BaseException | None, str, int]:
     orig_displayhook = sys.displayhook
     raised: BaseException | None = None
     raised_tb = ""
+    next_flags = compile_flags
 
     def _displayhook(value: object) -> None:
         if value is not None:
@@ -189,9 +224,12 @@ def _execute_capturing_fds(
     try:
         sys.displayhook = _displayhook
         try:
-            code = compile(source, filename, "single")
+            code = compile(source, filename, "single", compile_flags, dont_inherit=True)
             exec(code, globs)
+            next_flags = compile_flags | (code.co_flags & future_flags_mask)
         except BaseException as exc:
+            import traceback
+
             raised = exc
             raised_tb = traceback.format_exc()
     finally:
@@ -212,26 +250,35 @@ def _execute_capturing_fds(
             read_err.read().decode("utf-8", errors="replace").replace("\r\n", "\n")
         )
 
-    return got_out, got_err, raised, raised_tb
+    return got_out, got_err, raised, raised_tb, next_flags
+
+
+def _write_json_atomic(path: str, data: dict[str, object]) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=True)
+    os.replace(tmp_path, path)
 
 
 def main() -> None:
     payload_path = sys.argv[1]
     result_path = sys.argv[2]
     gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    expected_ppid = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else 0
     if gate_path:
         deadline = time.monotonic() + 5.0
         while not os.path.exists(gate_path):
+            if expected_ppid and os.name != "nt" and os.getppid() != expected_ppid:
+                sys.exit(2)
             if time.monotonic() >= deadline:
                 sys.exit(2)
             time.sleep(0.005)
     with open(payload_path, encoding="utf-8") as fh:
         payload = json.load(fh)
 
-    checker = doctest.OutputChecker()
-    globs: dict[str, object] = {}
     name = payload["name"]
     examples = payload["examples"]
+    future_flags_mask = int(payload.get("future_flags_mask", 0))
     stderr_parts: list[str] = []
     outcome: dict[str, object] = {
         "status": "ok",
@@ -243,20 +290,29 @@ def main() -> None:
     # Place capture files in the separate IPC directory (never the example cwd/tempdir)
     # and keep fd 1 / fd 2 attached for the whole block so child processes started in
     # earlier statements write into the same capture stream read by later statements.
-    capture_dir = Path(result_path).resolve().parent
-    out_capture_path = capture_dir / "capture_stdout.bin"
-    err_capture_path = capture_dir / "capture_stderr.bin"
+    # Give each example block a clean, dedicated ``__main__`` module so classes,
+    # dataclasses, and ``if __name__ == "__main__"`` behave like a fresh script
+    # without exposing runner internals on ``sys.modules["__main__"]``.
+    runner_main_mod = sys.modules.get("__main__")
+    example_mod = type(sys)("__main__")
+    globs = example_mod.__dict__
+    compile_flags = 0
+
+    capture_dir = os.path.dirname(os.path.abspath(result_path))
+    out_capture_path = os.path.join(capture_dir, "capture_stdout.bin")
+    err_capture_path = os.path.join(capture_dir, "capture_stderr.bin")
 
     sys.stdout.flush()
     sys.stderr.flush()
     _flush_c_stdio()
     saved_fd1 = os.dup(1)
     saved_fd2 = os.dup(2)
-    write_out = out_capture_path.open("ab")
-    write_err = err_capture_path.open("ab")
-    read_out = out_capture_path.open("rb")
-    read_err = err_capture_path.open("rb")
+    write_out = open(out_capture_path, "ab")
+    write_err = open(err_capture_path, "ab")
+    read_out = open(out_capture_path, "rb")
+    read_err = open(err_capture_path, "rb")
     try:
+        sys.modules["__main__"] = example_mod
         os.dup2(write_out.fileno(), 1)
         os.dup2(write_err.fileno(), 2)
         for idx, item in enumerate(examples, start=1):
@@ -265,7 +321,7 @@ def main() -> None:
             exc_msg = item["exc_msg"]
             options = {int(k): bool(v) for k, v in item["options"].items()}
 
-            if options.get(doctest.SKIP, False):
+            if item.get("skip", False):
                 partial = (idx - 1) > 0
                 outcome.update({
                     "status": "unsupported",
@@ -288,27 +344,25 @@ def main() -> None:
                 else:
                     flags &= ~flag
 
-            got, err_text, raised, raised_tb = _execute_capturing_fds(
-                source, f"<doctest {name}[{idx}]>", globs, read_out, read_err
+            got, err_text, raised, raised_tb, compile_flags = _execute_capturing_fds(
+                source,
+                f"<doctest {name}[{idx}]>",
+                globs,
+                compile_flags,
+                future_flags_mask,
+                read_out,
+                read_err,
             )
             if err_text:
                 stderr_parts.append(err_text)
             outcome["executed"] = idx
 
-            example_obj = doctest.Example(
-                source=source,
-                want=want,
-                exc_msg=exc_msg,
-                lineno=item["lineno"],
-                indent=item["indent"],
-                options=options,
-            )
-
             if raised is not None:
                 actual_exc_msg = _format_doctest_exc_only(raised)
                 if exc_msg is not None:
+                    dt_mod, checker = _get_doctest()
                     matched = checker.check_output(exc_msg, actual_exc_msg, flags)
-                    if not matched and (flags & doctest.IGNORE_EXCEPTION_DETAIL):
+                    if not matched and (flags & dt_mod.IGNORE_EXCEPTION_DETAIL):
                         matched = checker.check_output(
                             _strip_exception_details(exc_msg),
                             _strip_exception_details(actual_exc_msg),
@@ -316,7 +370,7 @@ def main() -> None:
                         )
                     if matched:
                         continue
-                    diff_example = doctest.Example(
+                    diff_example = dt_mod.Example(
                         source=source,
                         want=exc_msg,
                         lineno=item["lineno"],
@@ -349,7 +403,8 @@ def main() -> None:
                 break
 
             if exc_msg is not None:
-                diff_example = doctest.Example(
+                dt_mod, checker = _get_doctest()
+                diff_example = dt_mod.Example(
                     source=source,
                     want=exc_msg,
                     lineno=item["lineno"],
@@ -367,7 +422,19 @@ def main() -> None:
                 })
                 break
 
+            if got == want:
+                continue
+
+            dt_mod, checker = _get_doctest()
             if not checker.check_output(want, got, flags):
+                example_obj = dt_mod.Example(
+                    source=source,
+                    want=want,
+                    exc_msg=exc_msg,
+                    lineno=item["lineno"],
+                    indent=item["indent"],
+                    options=options,
+                )
                 outcome.update({
                     "status": "mismatch",
                     "failed_statement_index": idx,
@@ -378,6 +445,8 @@ def main() -> None:
                 })
                 break
     finally:
+        if runner_main_mod is not None:
+            sys.modules["__main__"] = runner_main_mod
         try:
             sys.stdout.flush()
         except Exception:
@@ -397,8 +466,7 @@ def main() -> None:
         write_err.close()
 
     outcome["stderr"] = "".join(stderr_parts)
-    with open(result_path, "w", encoding="utf-8") as fh:
-        json.dump(outcome, fh, ensure_ascii=True)
+    _write_json_atomic(result_path, outcome)
 
 
 if __name__ == "__main__":
@@ -939,37 +1007,47 @@ class _WindowsJobObject:
         except Exception:
             return False
 
-    def _wait_all_exited(self, timeout: float = 5.0) -> None:
+    def _wait_all_exited(self, timeout: float = 5.0) -> bool:
         if not self.handle or os.name != "nt":
-            return
+            return True
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
         buf = _WinJobProcessIdList()
         ret_len = ctypes.c_uint32(0)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             # JobObjectBasicProcessIdList = 3
-            kernel32.QueryInformationJobObject(
+            ok = kernel32.QueryInformationJobObject(
                 ctypes.c_void_p(self.handle),
                 3,
                 ctypes.byref(buf),
                 ctypes.sizeof(buf),
                 ctypes.byref(ret_len),
             )
-            if buf.NumberOfAssignedProcesses == 0:
-                return
+            if ok and buf.NumberOfAssignedProcesses == 0:
+                return True
             time.sleep(0.02)
+        return False
 
-    def terminate_and_close(self) -> None:
+    def terminate_and_close(self) -> str | None:
         """Terminate every process in the job, await exit, then close the handle."""
         if not self.handle or os.name != "nt":
-            return
+            return None
+        error: str | None = None
+        handle = self.handle
         try:
             kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-            kernel32.TerminateJobObject(ctypes.c_void_p(self.handle), 1)
-            self._wait_all_exited()
-            kernel32.CloseHandle(ctypes.c_void_p(self.handle))
+            if not kernel32.TerminateJobObject(ctypes.c_void_p(handle), 1):
+                error = "failed to terminate Windows Job Object"
+            elif not self._wait_all_exited():
+                error = "failed to reap Windows Job Object processes"
+        except Exception as exc:
+            error = f"Windows Job Object cleanup failed: {exc}"
         finally:
+            with contextlib.suppress(Exception):
+                kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+                kernel32.CloseHandle(ctypes.c_void_p(handle))
             self.handle = None
+        return error
 
 
 def _validate_timeout(timeout: float) -> float:
@@ -1023,12 +1101,21 @@ def _reap_nonblocking() -> bool:
             return False
 
 
+def _write_text_atomic(path: Path, text: str) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def main() -> None:
     exe = sys.argv[1]
     runner_path = sys.argv[2]
     payload_path = sys.argv[3]
     result_path = sys.argv[4]
-    cleanup_error_path = Path(sys.argv[5])
+    gate_path = Path(sys.argv[5])
+    worker_pgid_path = Path(sys.argv[6])
+    cleanup_done_path = Path(sys.argv[7])
+    cleanup_error_path = Path(sys.argv[8])
 
     _enable_subreaper()
     stop_requested = False
@@ -1041,10 +1128,25 @@ def main() -> None:
     signal.signal(signal.SIGINT, _on_stop)
 
     worker = subprocess.Popen(
-        [exe, "-P", "-u", runner_path, payload_path, result_path, ""],
+        [
+            exe,
+            "-P",
+            "-u",
+            runner_path,
+            payload_path,
+            result_path,
+            str(gate_path),
+            str(os.getpid()),
+        ],
         stdin=subprocess.DEVNULL,
         process_group=0,
     )
+    # Publish worker PGID before releasing the startup gate so the outer process
+    # can independently terminate the worker group even if hostile code kills this
+    # supervisor with SIGKILL before its finally block runs.
+    _write_text_atomic(worker_pgid_path, f"{worker.pid}\n")
+    _write_text_atomic(gate_path, "ready\n")
+
     worker_rc: int | None = None
     try:
         while True:
@@ -1094,11 +1196,12 @@ def main() -> None:
             time.sleep(0.02)
 
         if not reaped_all or pg_alive:
-            cleanup_error_path.write_text(
+            _write_text_atomic(
+                cleanup_error_path,
                 "failed to terminate and reap isolated example process group",
-                encoding="utf-8",
             )
             sys.exit(125)
+        _write_text_atomic(cleanup_done_path, "done\n")
 
     sys.exit(0 if stop_requested else (worker_rc or 0))
 
@@ -1108,90 +1211,178 @@ if __name__ == "__main__":
 """
 
 
-def _terminate_process_tree(
-    proc: subprocess.Popen[str],
-    win_job: _WindowsJobObject | None = None,
-) -> str | None:
-    """Terminate the isolated runner and every descendant independently of runner exit."""
-    if os.name == "nt":
-        if win_job is not None and win_job.handle:
-            win_job.terminate_and_close()
-        if proc.poll() is None:
-            subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                capture_output=True,
-                check=False,
-                timeout=5,
-            )
-            if proc.poll() is None:
-                proc.kill()
-        proc.wait(timeout=5)
+@dataclass(frozen=True)
+class _RunnerOutcome:
+    """Outcome of a single contained subprocess execution."""
+
+    timed_out: bool
+    returncode: int
+    containment_error: str | None
+    started: bool
+
+
+@dataclass
+class _ContainedProcess:
+    """Live handles and IPC paths for a contained isolated subprocess."""
+
+    proc: subprocess.Popen[str]
+    win_job: _WindowsJobObject | None
+    gate_path: Path
+    worker_pgid_path: Path
+    cleanup_done_path: Path
+    cleanup_error_path: Path
+    startup_error: str | None = None
+
+
+def _posix_pgid_alive(pgid: int) -> bool:
+    """Return True if any process still belongs to POSIX process group ``pgid``."""
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
+def _kill_posix_pgid(pgid: int, label: str) -> str | None:
+    """Terminate a POSIX process group and confirm no processes remain in it."""
+    if pgid <= 0 or pgid == os.getpgid(0) or not _posix_pgid_alive(pgid):
         return None
 
-    # Ask the POSIX supervisor to terminate and reap the worker process group.
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(pgid, signal.SIGTERM)
+    grace = time.monotonic() + 0.2
+    while time.monotonic() < grace:
+        if not _posix_pgid_alive(pgid):
+            return None
+        time.sleep(0.01)
+
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(pgid, signal.SIGKILL)
+        if not _posix_pgid_alive(pgid):
+            return None
+        time.sleep(0.02)
+    return f"failed to terminate isolated example {label} process group"
+
+
+def _terminate_windows_process_tree(
+    proc: subprocess.Popen[str],
+    win_job: _WindowsJobObject | None,
+) -> str | None:
+    """Terminate a Windows Job Object and runner process, reporting cleanup failure."""
+    errors: list[str] = []
+    if win_job is not None and win_job.handle:
+        job_err = win_job.terminate_and_close()
+        if job_err is not None:
+            errors.append(job_err)
+    if proc.poll() is None:
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+        if proc.poll() is None:
+            proc.kill()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        errors.append("failed to reap isolated example process on Windows")
+    return "; ".join(errors) if errors else None
+
+
+def _terminate_posix_process_tree(
+    proc: subprocess.Popen[str],
+    worker_pgid_path: Path | None,
+    cleanup_done_path: Path | None,
+) -> str | None:
+    """Terminate POSIX supervisor and independently signal worker PGID if unconfirmed."""
+    errors: list[str] = []
     if proc.poll() is None:
         with contextlib.suppress(ProcessLookupError):
             proc.terminate()
-    try:
-        proc.wait(timeout=3.0)
-        return None
-    except subprocess.TimeoutExpired:
-        pass
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            proc.wait(timeout=3.0)
 
-    for sig in (signal.SIGTERM, signal.SIGKILL):
+    cleanup_confirmed = cleanup_done_path is not None and cleanup_done_path.is_file()
+    if proc.poll() is None:
+        sup_err = _kill_posix_pgid(proc.pid, "supervisor")
         try:
-            os.killpg(proc.pid, sig)
-        except (ProcessLookupError, PermissionError):
-            break
-        if sig == signal.SIGTERM:
-            try:
-                proc.wait(timeout=0.2)
-            except subprocess.TimeoutExpired:
-                continue
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait(timeout=5)
-    deadline = time.monotonic() + 1.0
-    while time.monotonic() < deadline:
-        try:
-            os.killpg(proc.pid, 0)
-        except (ProcessLookupError, PermissionError):
-            return None
-        time.sleep(0.02)
-    return "failed to terminate isolated example supervisor process group"
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+            proc.wait(timeout=5)
+        if sup_err is not None:
+            errors.append(sup_err)
+    elif not cleanup_confirmed:
+        sup_err = _kill_posix_pgid(proc.pid, "supervisor")
+        if sup_err is not None:
+            errors.append(sup_err)
+
+    # If the supervisor did not confirm worker cleanup (for example, hostile code
+    # killed the supervisor with SIGKILL), independently signal the worker PGID.
+    if (
+        not cleanup_confirmed
+        and worker_pgid_path is not None
+        and worker_pgid_path.is_file()
+    ):
+        raw_pgid = worker_pgid_path.read_text(encoding="utf-8").strip()
+        if raw_pgid.isdigit():
+            worker_pgid = int(raw_pgid)
+            if worker_pgid != proc.pid:
+                worker_err = _kill_posix_pgid(worker_pgid, "worker")
+                if worker_err is not None:
+                    errors.append(worker_err)
+
+    return "; ".join(errors) if errors else None
 
 
-def _spawn_isolated_runner(
+def _terminate_process_tree(
+    proc: subprocess.Popen[str],
+    win_job: _WindowsJobObject | None = None,
+    worker_pgid_path: Path | None = None,
+    cleanup_done_path: Path | None = None,
+) -> str | None:
+    """Terminate the isolated runner and every descendant independently of runner exit."""
+    if os.name == "nt":
+        return _terminate_windows_process_tree(proc, win_job)
+    return _terminate_posix_process_tree(proc, worker_pgid_path, cleanup_done_path)
+
+
+@contextlib.contextmanager
+def _start_contained_process(
     exe: str,
     path_cwd: Path,
     path_ipc: Path,
-    timeout: float,
-) -> tuple[bool, int, str | None]:
-    """Execute the isolated runner in its own process group/job and reap descendants."""
+    runner_source: str,
+) -> Iterator[_ContainedProcess]:
+    """Start a runner script inside a Windows Job Object or POSIX supervisor."""
     popen_kwargs: dict[str, object] = (
         {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
         if os.name == "nt"
         else {"start_new_session": True}
     )
     win_job = _WindowsJobObject() if os.name == "nt" else None
-    gate_path = path_ipc / "containment.ready" if os.name == "nt" else None
+    gate_path = path_ipc / ("containment.ready" if os.name == "nt" else "worker.ready")
+    worker_pgid_path = path_ipc / "worker_pgid.txt"
+    cleanup_done_path = path_ipc / "cleanup_done.txt"
     cleanup_error_path = path_ipc / "cleanup_error.txt"
+    runner_script = path_ipc / "runner.py"
+    runner_script.write_text(runner_source, encoding="utf-8")
+
     if os.name == "nt":
         cmd = [
             exe,
             "-P",
             "-u",
-            "-c",
-            _SUBPROCESS_RUNNER,
+            str(runner_script),
             str(path_ipc / "payload.json"),
             str(path_ipc / "result.json"),
             str(gate_path),
         ]
     else:
-        runner_script = path_ipc / "runner.py"
-        runner_script.write_text(_SUBPROCESS_RUNNER, encoding="utf-8")
         cmd = [
             exe,
             "-P",
@@ -1202,11 +1393,12 @@ def _spawn_isolated_runner(
             str(runner_script),
             str(path_ipc / "payload.json"),
             str(path_ipc / "result.json"),
+            str(gate_path),
+            str(worker_pgid_path),
+            str(cleanup_done_path),
             str(cleanup_error_path),
         ]
-    timed_out = False
-    returncode = 0
-    containment_error: str | None = None
+
     with (
         (path_ipc / "proc_stdout.txt").open("w", encoding="utf-8") as fh_out,
         (path_ipc / "proc_stderr.txt").open("w", encoding="utf-8") as fh_err,
@@ -1223,33 +1415,105 @@ def _spawn_isolated_runner(
             errors="replace",
             **popen_kwargs,
         )
+        contained = _ContainedProcess(
+            proc=proc,
+            win_job=win_job,
+            gate_path=gate_path,
+            worker_pgid_path=worker_pgid_path,
+            cleanup_done_path=cleanup_done_path,
+            cleanup_error_path=cleanup_error_path,
+        )
         if win_job is not None:
             if not win_job.assign(proc):
-                containment_error = "failed to assign Windows Job Object containment"
-                _terminate_process_tree(proc, win_job)
-                return False, proc.returncode or 1, containment_error
-            assert gate_path is not None
-            gate_path.write_text("ready\n", encoding="utf-8")
+                contained.startup_error = (
+                    "failed to assign Windows Job Object containment"
+                )
+            else:
+                gate_tmp = gate_path.with_suffix(".tmp")
+                gate_tmp.write_text("ready\n", encoding="utf-8")
+                os.replace(gate_tmp, gate_path)
+        yield contained
+
+
+def _collect_cleanup_error(
+    contained: _ContainedProcess,
+    timed_out: bool,
+    timeout: float,
+    existing_error: str | None,
+) -> str | None:
+    """Merge outer process-tree termination errors with supervisor-reported errors."""
+    error = existing_error
+    if contained.cleanup_error_path.is_file():
+        recorded = contained.cleanup_error_path.read_text(encoding="utf-8").strip()
+        if recorded:
+            if timed_out and error is None:
+                error = f"timed out after {timeout:.1f}s; {recorded}"
+            elif error is None:
+                error = recorded
+    return error
+
+
+def _spawn_isolated_runner(
+    exe: str,
+    path_cwd: Path,
+    path_ipc: Path,
+    timeout: float,
+    runner_source: str = _SUBPROCESS_RUNNER,
+) -> _RunnerOutcome:
+    """Execute an isolated runner in its own process group/job and reap descendants."""
+    timed_out = False
+    returncode = 0
+    containment_error: str | None = None
+    started = False
+    with _start_contained_process(exe, path_cwd, path_ipc, runner_source) as contained:
+        if contained.startup_error is not None:
+            containment_error = contained.startup_error
+            _terminate_process_tree(
+                contained.proc,
+                contained.win_job,
+                contained.worker_pgid_path,
+                contained.cleanup_done_path,
+            )
+            return _RunnerOutcome(
+                timed_out=False,
+                returncode=contained.proc.returncode or 1,
+                containment_error=containment_error,
+                started=False,
+            )
         try:
-            returncode = proc.wait(timeout=timeout)
+            returncode = contained.proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            cleanup_err = _terminate_process_tree(proc, win_job)
+            cleanup_err = _terminate_process_tree(
+                contained.proc,
+                contained.win_job,
+                contained.worker_pgid_path,
+                contained.cleanup_done_path,
+            )
             if cleanup_err is not None:
                 containment_error = f"timed out after {timeout:.1f}s; {cleanup_err}"
         finally:
             if not timed_out and containment_error is None:
-                cleanup_err = _terminate_process_tree(proc, win_job)
+                cleanup_err = _terminate_process_tree(
+                    contained.proc,
+                    contained.win_job,
+                    contained.worker_pgid_path,
+                    contained.cleanup_done_path,
+                )
                 if cleanup_err is not None:
                     containment_error = cleanup_err
-    if cleanup_error_path.is_file():
-        recorded = cleanup_error_path.read_text(encoding="utf-8").strip()
-        if recorded:
-            if timed_out and containment_error is None:
-                containment_error = f"timed out after {timeout:.1f}s; {recorded}"
-            elif containment_error is None:
-                containment_error = recorded
-    return timed_out, returncode, containment_error
+            started = contained.gate_path.is_file()
+        containment_error = _collect_cleanup_error(
+            contained, timed_out, timeout, containment_error
+        )
+        if not started and not timed_out and containment_error is None:
+            containment_error = f"isolated runner failed before execution started (exit code {returncode})"
+    return _RunnerOutcome(
+        timed_out=timed_out,
+        returncode=returncode,
+        containment_error=containment_error,
+        started=started,
+    )
 
 
 def run_example_block(
@@ -1262,6 +1526,7 @@ def run_example_block(
     timeout = _validate_timeout(timeout)
     payload = {
         "name": name,
+        "future_flags_mask": _ALL_FUTURE_FLAGS,
         "examples": [
             {
                 "source": ex.source,
@@ -1269,6 +1534,7 @@ def run_example_block(
                 "exc_msg": ex.exc_msg,
                 "lineno": ex.lineno,
                 "indent": ex.indent,
+                "skip": bool(ex.options.get(doctest.SKIP, False)),
                 "options": {str(k): bool(v) for k, v in ex.options.items()},
             }
             for ex in block.examples
@@ -1284,22 +1550,26 @@ def run_example_block(
         (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
-        timed_out, returncode, containment_error = _spawn_isolated_runner(
+        run_outcome = _spawn_isolated_runner(
             exe=python_executable or sys.executable,
             path_cwd=Path(cwd_dir),
             path_ipc=path_ipc,
             timeout=timeout,
         )
-        if containment_error is not None:
+        if run_outcome.containment_error is not None:
             return "error", {
                 "block_index": block.block_index,
                 "statements": len(block.examples),
-                "reason": containment_error,
+                "executed": 0,
+                "started": run_outcome.started,
+                "operational_failure": True,
+                "reason": run_outcome.containment_error,
             }
-        if timed_out:
+        if run_outcome.timed_out:
             return "error", {
                 "block_index": block.block_index,
                 "statements": len(block.examples),
+                "started": run_outcome.started,
                 "reason": f"timed out after {timeout:.1f}s",
             }
 
@@ -1318,8 +1588,10 @@ def run_example_block(
             return "error", {
                 "block_index": block.block_index,
                 "statements": len(block.examples),
+                "started": run_outcome.started,
                 "reason": (
-                    f"isolated runner exited with code {returncode} without a result"
+                    "isolated runner exited with code "
+                    f"{run_outcome.returncode} without a result"
                 ),
                 "stdout": proc_stdout,
                 "stderr": proc_stderr,
@@ -1330,9 +1602,13 @@ def run_example_block(
         outcome["block_index"] = block.block_index
         if proc_stderr:
             outcome["stderr"] = (outcome.get("stderr") or "") + proc_stderr
-        if returncode != 0 and status == "ok":
+        if run_outcome.returncode != 0 and (
+            status == "ok" or run_outcome.returncode < 0
+        ):
             status = "error"
-            outcome["reason"] = f"isolated runner exited with code {returncode}"
+            outcome["reason"] = (
+                f"isolated runner exited with code {run_outcome.returncode}"
+            )
         elif proc_stdout and status == "ok":
             status = "mismatch"
             outcome["reason"] = "unexpected output written to stdout outside statements"
@@ -1718,10 +1994,11 @@ def _extract_command_decorator_blocks(
         if kw_name == "help" and value is not None:
             has_help_kw = True
         if isinstance(value, str):
+            block_text = value.partition("\f")[0] if kw_name == "help" else value
             blocks.append(
                 TextBlock(
                     source=source,
-                    text=value,
+                    text=block_text,
                     node_start=span[0],
                     node_end=span[1],
                     origin=origin,
@@ -1794,13 +2071,353 @@ def _cli_help_text_blocks(
             blocks.append(
                 TextBlock(
                     source=source,
-                    text=doc_node.value,
+                    text=doc_node.value.partition("\f")[0],
                     node_start=doc_node.lineno,
                     node_end=doc_node.end_lineno or doc_node.lineno,
                     origin="cli-help-example",
                 )
             )
     return blocks, unsupported
+
+
+_CLI_HELP_PROBE_RUNNER = r"""
+import importlib
+import importlib.util
+import json
+import os
+import sys
+import time
+
+from click.testing import CliRunner
+
+
+def _write_json_atomic(path: str, data: dict[str, object]) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=True)
+    os.replace(tmp_path, path)
+
+
+def _load_cli_root(module_name: str, attr_name: str, origin_path: str | None):
+    try:
+        mod = importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        if not origin_path:
+            raise
+        spec = importlib.util.spec_from_file_location(module_name, origin_path)
+        if spec is None or spec.loader is None:
+            raise
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+    return getattr(mod, attr_name)
+
+
+def main() -> None:
+    payload_path = sys.argv[1]
+    result_path = sys.argv[2]
+    gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    expected_ppid = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else 0
+    if gate_path:
+        deadline = time.monotonic() + 5.0
+        while not os.path.exists(gate_path):
+            if expected_ppid and os.name != "nt" and os.getppid() != expected_ppid:
+                sys.exit(2)
+            if time.monotonic() >= deadline:
+                sys.exit(2)
+            time.sleep(0.005)
+
+    with open(payload_path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+
+    root = _load_cli_root(
+        payload["module_name"], payload["attr_name"], payload.get("origin_path")
+    )
+    commands_list = payload["commands"]
+    start_index = int(payload["start_index"])
+    results_dir = payload["results_dir"]
+    base_cwd = os.getcwd()
+    runner = CliRunner()
+
+    for idx in range(start_index, len(commands_list)):
+        path = commands_list[idx]
+        cmd_cwd = os.path.join(base_cwd, f"cmd_{idx}")
+        os.makedirs(cmd_cwd, exist_ok=True)
+        cmd_env = {
+            "HOME": cmd_cwd,
+            "USERPROFILE": cmd_cwd,
+            "XDG_CONFIG_HOME": cmd_cwd,
+            "XDG_CACHE_HOME": cmd_cwd,
+            "TMPDIR": cmd_cwd,
+            "TEMP": cmd_cwd,
+            "TMP": cmd_cwd,
+        }
+        orig_cwd = os.getcwd()
+        try:
+            os.chdir(cmd_cwd)
+            invocation = runner.invoke(
+                root, [*path, "--help"], terminal_width=240, env=cmd_env
+            )
+            exit_code = invocation.exit_code
+        finally:
+            os.chdir(orig_cwd)
+        _write_json_atomic(
+            os.path.join(results_dir, f"cmd_{idx}.json"),
+            {"index": idx, "exit_code": exit_code},
+        )
+
+    _write_json_atomic(result_path, {"status": "done"})
+
+
+if __name__ == "__main__":
+    main()
+"""
+
+
+@dataclass(frozen=True)
+class _CliProbeTarget:
+    """Importable module/attribute specification for an isolated CLI probe."""
+
+    module_name: str
+    attr_name: str
+    origin_path: str | None
+
+
+@dataclass(frozen=True)
+class _CliProbeOutcome:
+    """Outcome of probing ``--help`` for one CLI command."""
+
+    reason: str | None = None
+    operational_failure: bool = False
+
+
+def _resolve_cli_probe_target(root: click.Command) -> _CliProbeTarget | None:
+    """Locate the file-backed module and attribute holding ``root`` if importable."""
+    candidates: list[ModuleType] = []
+    mod_name = getattr(root.callback, "__module__", None)
+    if mod_name and mod_name in sys.modules:
+        mod = sys.modules[mod_name]
+        if isinstance(mod, ModuleType):
+            candidates.append(mod)
+    for mod in list(sys.modules.values()):
+        if isinstance(mod, ModuleType) and mod not in candidates:
+            candidates.append(mod)
+
+    for mod in candidates:
+        origin = getattr(mod, "__file__", None)
+        if not origin or not Path(origin).is_file():
+            continue
+        for attr_name, value in vars(mod).items():
+            if value is root:
+                return _CliProbeTarget(
+                    module_name=mod.__name__,
+                    attr_name=attr_name,
+                    origin_path=str(Path(origin).resolve()),
+                )
+    return None
+
+
+def _drain_probe_results(
+    results_dir: Path,
+    next_idx: int,
+    total: int,
+    outcomes: dict[int, _CliProbeOutcome],
+) -> int:
+    """Consume any completed per-command probe result files in order."""
+    while next_idx < total:
+        res_file = results_dir / f"cmd_{next_idx}.json"
+        if not res_file.is_file():
+            break
+        data = json.loads(res_file.read_text(encoding="utf-8"))
+        exit_code = int(data["exit_code"])
+        outcomes[next_idx] = (
+            _CliProbeOutcome()
+            if exit_code == 0
+            else _CliProbeOutcome(reason=f"--help exited with code {exit_code}")
+        )
+        next_idx += 1
+    return next_idx
+
+
+def _run_cli_probe_batch(
+    exe: str,
+    target: _CliProbeTarget,
+    command_paths: list[tuple[str, ...]],
+    start_index: int,
+    timeout: float,
+    outcomes: dict[int, _CliProbeOutcome],
+) -> tuple[int, _RunnerOutcome]:
+    """Run one contained subprocess batch of CLI ``--help`` probes from ``start_index``."""
+    total = len(command_paths)
+    with (
+        tempfile.TemporaryDirectory(prefix="suews-cli-probe-cwd-") as cwd_dir,
+        tempfile.TemporaryDirectory(prefix="suews-cli-probe-ipc-") as ipc_dir,
+    ):
+        path_cwd = Path(cwd_dir)
+        path_ipc = Path(ipc_dir)
+        results_dir = path_ipc / "help_results"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "module_name": target.module_name,
+            "attr_name": target.attr_name,
+            "origin_path": target.origin_path,
+            "commands": [list(p) for p in command_paths],
+            "start_index": start_index,
+            "results_dir": str(results_dir),
+        }
+        (path_ipc / "payload.json").write_text(
+            json.dumps(payload, ensure_ascii=True), encoding="utf-8"
+        )
+
+        next_idx = start_index
+        timed_out = False
+        returncode = 0
+        containment_error: str | None = None
+        started = False
+
+        with _start_contained_process(
+            exe, path_cwd, path_ipc, _CLI_HELP_PROBE_RUNNER
+        ) as contained:
+            if contained.startup_error is not None:
+                _terminate_process_tree(
+                    contained.proc,
+                    contained.win_job,
+                    contained.worker_pgid_path,
+                    contained.cleanup_done_path,
+                )
+                return next_idx, _RunnerOutcome(
+                    timed_out=False,
+                    returncode=contained.proc.returncode or 1,
+                    containment_error=contained.startup_error,
+                    started=False,
+                )
+
+            deadline = time.monotonic() + timeout
+            try:
+                while True:
+                    advanced = _drain_probe_results(
+                        results_dir, next_idx, total, outcomes
+                    )
+                    if advanced > next_idx:
+                        next_idx = advanced
+                        deadline = time.monotonic() + timeout
+                    rc = contained.proc.poll()
+                    if rc is not None:
+                        returncode = rc
+                        break
+                    if time.monotonic() >= deadline:
+                        timed_out = True
+                        break
+                    time.sleep(0.01)
+            finally:
+                cleanup_err = _terminate_process_tree(
+                    contained.proc,
+                    contained.win_job,
+                    contained.worker_pgid_path,
+                    contained.cleanup_done_path,
+                )
+                if cleanup_err is not None:
+                    containment_error = (
+                        f"--help timed out after {timeout:.1f}s; {cleanup_err}"
+                        if timed_out
+                        else cleanup_err
+                    )
+                started = contained.gate_path.is_file()
+            containment_error = _collect_cleanup_error(
+                contained, timed_out, timeout, containment_error
+            )
+
+        next_idx = _drain_probe_results(results_dir, next_idx, total, outcomes)
+        return next_idx, _RunnerOutcome(
+            timed_out=timed_out,
+            returncode=returncode,
+            containment_error=containment_error,
+            started=started,
+        )
+
+
+def _probe_cli_help_subprocess(
+    target: _CliProbeTarget,
+    command_paths: list[tuple[str, ...]],
+    timeout: float,
+    python_executable: str | None = None,
+) -> dict[int, _CliProbeOutcome]:
+    """Probe ``--help`` in an isolated, timeout-bounded, contained subprocess."""
+    outcomes: dict[int, _CliProbeOutcome] = {}
+    exe = python_executable or sys.executable
+    total = len(command_paths)
+    start_index = 0
+
+    while start_index < total:
+        next_idx, batch = _run_cli_probe_batch(
+            exe, target, command_paths, start_index, timeout, outcomes
+        )
+        if next_idx >= total:
+            if batch.containment_error is not None:
+                outcomes[total - 1] = _CliProbeOutcome(
+                    reason=batch.containment_error, operational_failure=True
+                )
+            break
+
+        if batch.containment_error is not None:
+            if not batch.started:
+                for rem in range(next_idx, total):
+                    outcomes[rem] = _CliProbeOutcome(
+                        reason=batch.containment_error, operational_failure=True
+                    )
+                break
+            outcomes[next_idx] = _CliProbeOutcome(
+                reason=batch.containment_error, operational_failure=True
+            )
+            start_index = next_idx + 1
+        elif batch.timed_out:
+            outcomes[next_idx] = _CliProbeOutcome(
+                reason=f"--help timed out after {timeout:.1f}s"
+            )
+            start_index = next_idx + 1
+        elif not batch.started:
+            reason = (
+                "isolated --help probe failed before execution started "
+                f"(exit code {batch.returncode})"
+            )
+            for rem in range(next_idx, total):
+                outcomes[rem] = _CliProbeOutcome(
+                    reason=reason, operational_failure=True
+                )
+            break
+        else:
+            outcomes[next_idx] = _CliProbeOutcome(
+                reason=f"--help exited with code {batch.returncode}"
+            )
+            start_index = next_idx + 1
+
+    return outcomes
+
+
+def _probe_cli_help_inprocess(
+    root: click.Command,
+    path: tuple[str, ...],
+) -> _CliProbeOutcome:
+    """Fallback for purely in-memory Click objects with isolated temporary cwd."""
+    runner = CliRunner()
+    orig_cwd = os.getcwd()
+    with tempfile.TemporaryDirectory(prefix="suews-cli-probe-cwd-") as cwd_dir:
+        path_cwd = Path(cwd_dir)
+        try:
+            os.chdir(cwd_dir)
+            invocation = runner.invoke(
+                root,
+                [*path, "--help"],
+                terminal_width=240,
+                env=_isolated_env(path_cwd),
+            )
+        finally:
+            os.chdir(orig_cwd)
+    if invocation.exit_code != 0:
+        return _CliProbeOutcome(
+            reason=f"--help exited with code {invocation.exit_code}"
+        )
+    return _CliProbeOutcome()
 
 
 def cli_example_results(
@@ -1814,17 +2431,38 @@ def cli_example_results(
     scanned_counter: Counter | None = None,
 ) -> Iterator[dict]:
     """Run revision-backed ``>>>`` examples from Click CLI ``--help`` text."""
+    timeout = _validate_timeout(timeout)
     excluded_counts = Counter() if excluded_counts is None else excluded_counts
     excluded_items = [] if excluded_items is None else excluded_items
-    runner = CliRunner()
 
+    discovered: list[tuple[tuple[str, ...], click.Command, str, Source | None]] = []
     for path, command in commands(root):
         if scanned_counter is not None:
             scanned_counter["cli"] += 1
         public = prog_name + (" " + " ".join(path) if path else "")
         try:
-            source = revision.locate(command.callback)
+            source: Source | None = revision.locate(command.callback)
         except ValueError:
+            source = None
+        discovered.append((path, command, public, source))
+
+    probe_target = _resolve_cli_probe_target(root)
+    resolved_indices = [
+        idx for idx, item in enumerate(discovered) if item[3] is not None
+    ]
+    probe_outcomes: dict[int, _CliProbeOutcome] = {}
+    if probe_target is not None and resolved_indices:
+        sub_outcomes = _probe_cli_help_subprocess(
+            probe_target,
+            [discovered[idx][0] for idx in resolved_indices],
+            timeout=timeout,
+            python_executable=python_executable,
+        )
+        for pos, disc_idx in enumerate(resolved_indices):
+            probe_outcomes[disc_idx] = sub_outcomes[pos]
+
+    for idx, (path, _command, public, source) in enumerate(discovered):
+        if source is None:
             yield make_result(
                 revision.sha,
                 "cli",
@@ -1836,16 +2474,23 @@ def cli_example_results(
             )
             continue
 
-        invocation = runner.invoke(root, [*path, "--help"], terminal_width=240)
-        if invocation.exit_code != 0:
+        outcome = (
+            probe_outcomes[idx]
+            if idx in probe_outcomes
+            else _probe_cli_help_inprocess(root, path)
+        )
+        if outcome.reason is not None:
+            detail: dict[str, object] = {"reason": outcome.reason}
+            if outcome.operational_failure:
+                detail["operational_failure"] = True
             yield make_result(
                 revision.sha,
                 "cli",
                 source,
                 public,
                 "cli-help-example",
-                "unsupported",
-                {"reason": f"--help exited with code {invocation.exit_code}"},
+                "error" if outcome.operational_failure else "unsupported",
+                detail,
             )
             continue
 
@@ -1897,12 +2542,19 @@ def _summarise(
         1
         for f in findings
         if f["detail"].get("executed", 0) > 0
-        or (f["status"] in executed_statuses and "block_index" in f["detail"])
+        or (
+            f["status"] in executed_statuses
+            and "block_index" in f["detail"]
+            and f["detail"].get("started", True)
+        )
     )
     blocks_partially_executed = sum(
         1
         for f in findings
         if f["status"] == "unsupported" and f["detail"].get("executed", 0) > 0
+    )
+    operational_failures = sum(
+        1 for f in findings if f["detail"].get("operational_failure")
     )
     return {
         "counts_by_surface": by_surface,
@@ -1913,6 +2565,7 @@ def _summarise(
         "blocks_executed": blocks_executed,
         "blocks_partially_executed": blocks_partially_executed,
         "blocks_excluded": len(excluded_items),
+        "operational_failures": operational_failures,
         "unique_definitions_with_examples": len({
             (f["file"], f["definition"])
             for f in findings
@@ -1982,6 +2635,9 @@ def build_report(
         },
         "results": findings,
         "failures": [f for f in findings if f["status"] != "ok"],
+        "operational_failures": [
+            f for f in findings if f["detail"].get("operational_failure")
+        ],
     }
 
 
@@ -2004,7 +2660,8 @@ def render_text_report(report: dict) -> str:
             f"python={summary['objects_scanned']['python']}, "
             f"cli={summary['objects_scanned']['cli']}; "
             f"executed_blocks={summary['blocks_executed']}; "
-            f"excluded_example_blocks={summary['blocks_excluded']}"
+            f"excluded_example_blocks={summary['blocks_excluded']}; "
+            f"operational_failures={summary.get('operational_failures', 0)}"
         ),
         ("Counts: " + ", ".join(f"{status}={counts[status]}" for status in STATUSES)),
         "",
@@ -2143,6 +2800,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.text_output is not None:
         args.text_output.write_text(text_report, encoding="utf-8")
     print(text_report, end="")
+    if report["operational_failures"]:
+        return OPERATIONAL_FAILURE_EXIT_CODE
     return 0
 
 

@@ -2,7 +2,9 @@
 
 `check_code_examples.py` reports the second, executable slice of #2168.
 It never edits prose or fails a build because of example findings.
-Operational failures (such as an unreadable Git revision) still exit non-zero.
+Operational failures (such as an unreadable Git revision, Windows Job Object
+containment failure, or process-group cleanup failure) still exit non-zero
+while preserving diagnostic details in any requested report files.
 Nothing is wired into CI.
 
 Run in a fresh virtual environment with the package built from the target
@@ -31,11 +33,15 @@ version and build commit are recorded separately alongside
    are excluded before checks run and summarised by count. Each defining
    declaration is checked once.
 2. **CLI `--help` text**: walk all registered `suews` Click groups and leaf
-   commands. Verify `--help` exits cleanly on the installed CLI, then extract
-   literal `help=` / `epilog=` decorator strings (or the callback docstring
-   when `help=` is absent) and literal option `help=` strings containing `>>>`
-   from the Git revision AST. Dynamic non-literal command help is reported as
-   `unsupported` rather than guessed from the installed command.
+   commands. Verify `--help` exits cleanly on the installed CLI in a
+   timeout-bounded, isolated, supervised subprocess with per-command empty
+   working directories (falling back to an isolated-cwd `CliRunner` only for
+   non-importable in-memory Click objects), then extract literal `help=` /
+   `epilog=` decorator strings (or the callback docstring when `help=` is
+   absent, truncated at Click's `\f` marker) and literal option `help=` strings
+   containing `>>>` from the Git revision AST. Dynamic non-literal command
+   help is reported as `unsupported` rather than guessed from the installed
+   command.
 
 Within each extracted text block, `doctest.DocTestParser` parses `>>>`
 examples into contiguous blocks separated by non-blank prose.
@@ -50,21 +56,25 @@ an expected traceback) runs in a fresh Python subprocess (`python -P`) with:
   with `EOFError` as a missing prerequisite rather than inheriting caller input,
 - a scrubbed environment pointing `HOME` / `XDG_CONFIG_HOME` / temp dirs to
   that empty directory and stripping `PYTHONPATH`,
-- an empty execution namespace containing only Python builtins (preserving
-  interactive `_` via `sys.displayhook`) and whatever the example itself
-  imports,
+- a dedicated clean `__main__` execution module containing only Python
+  builtins (preserving interactive `_` via `sys.displayhook` and accumulating
+  `__future__` flags across statements) and whatever the example itself
+  imports (never pre-importing `urllib.error`, `socket`, `pathlib`, or
+  `doctest` before user code),
 - unbuffered Python I/O (`-u`) plus OS file-descriptor capture (`fd 1` and
   `fd 2`) with C stdio flushing (`fflush(NULL)`) and CRLF normalisation so
   Python, buffered C/native and subprocess stdout are captured in order across
   platforms,
-- a supervised POSIX process group (using a per-block supervisor with
-  `PR_SET_CHILD_SUBREAPER` on Linux to terminate and reap descendants remaining
-  in the worker's process group and report cleanup failure if the group cannot
-  be cleared; processes that explicitly start a new session with `setsid` /
-  `start_new_session=True` escape POSIX process-group signalling) or a
-  startup-gated Windows Job Object (awaiting process exit before handle close
-  and temporary directory cleanup), bounded by a finite positive `--timeout`
-  (default `30.0` seconds).
+- a startup-gated supervised POSIX process group (using a per-block supervisor
+  with `PR_SET_CHILD_SUBREAPER` on Linux and publishing the worker PGID before
+  user execution so the outer process also signals the worker group if the
+  supervisor exits abnormally; processes that explicitly start a new session
+  with `setsid` / `start_new_session=True` escape POSIX process-group
+  signalling) or a startup-gated Windows Job Object (awaiting process exit
+  before handle close and temporary directory cleanup), bounded by a finite
+  positive `--timeout` (default `30.0` seconds). Containment setup or cleanup
+  failures are recorded under `operational_failures` (without counting
+  unstarted blocks in `blocks_executed`) and exit non-zero from `main()`.
 
 Outputs are compared with `doctest.OutputChecker`. Missing prerequisites
 (undefined names, missing imports, missing input files or configs, or

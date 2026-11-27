@@ -1090,3 +1090,426 @@ def unpacked_literal():
     lit_results = [r for r in results if r["object"] == "fixture unpacked-literal"]
     assert len(lit_results) == 2
     assert all(r["status"] == "ok" for r in lit_results)
+
+
+def test_runner_does_not_preimport_urllib_error_or_socket(tmp_path: Path):
+    """Harness must not pre-import urllib.error/socket while still classifying them."""
+    source = '''\
+__all__ = [
+    "incomplete_urllib_example",
+    "clean_sys_modules_example",
+    "explicit_urllib_error_example",
+    "explicit_socket_gaierror_example",
+]
+
+
+def incomplete_urllib_example():
+    """Importing only urllib must not resolve urllib.error from runner pre-imports.
+
+    >>> import urllib
+    >>> urllib.error.URLError("missing import")
+    URLError('missing import')
+    """
+
+
+def clean_sys_modules_example():
+    """Runner-only modules must not be pre-loaded in sys.modules before user code.
+
+    >>> import sys
+    >>> any(m in sys.modules for m in ("urllib.error", "socket", "doctest"))
+    False
+    """
+
+
+def explicit_urllib_error_example():
+    """Explicitly raised urllib.error.URLError still classifies as prerequisite-missing.
+
+    >>> import urllib.error
+    >>> raise urllib.error.URLError("offline")
+    1
+    """
+
+
+def explicit_socket_gaierror_example():
+    """Explicitly raised socket.gaierror still classifies as prerequisite-missing.
+
+    >>> import socket
+    >>> raise socket.gaierror("dns lookup failed")
+    1
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_preimports.py", "exec"), module.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(revision=revision, module=module)
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    incomplete = by_obj["supy.incomplete_urllib_example"]
+    assert incomplete["status"] == "error"
+    assert incomplete["detail"]["exception_type"] == "AttributeError"
+
+    assert by_obj["supy.clean_sys_modules_example"]["status"] == "ok"
+
+    url_err = by_obj["supy.explicit_urllib_error_example"]
+    assert url_err["status"] == "prerequisite-missing"
+    assert url_err["detail"]["prerequisite_type"] == "URLError"
+
+    gai_err = by_obj["supy.explicit_socket_gaierror_example"]
+    assert gai_err["status"] == "prerequisite-missing"
+    assert gai_err["detail"]["prerequisite_type"] == "gaierror"
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX supervisor abnormal-exit process-group cleanup test",
+)
+def test_hostile_example_killing_posix_supervisor_terminates_worker_group(
+    tmp_path: Path,
+):
+    """Outer process must kill worker PGID and descendants if supervisor gets SIGKILL."""
+    worker_pid_file = tmp_path / "worker.pid"
+    child_pid_file = tmp_path / "child.pid"
+    source = f'''\
+__all__ = ["kill_supervisor_example"]
+
+
+def kill_supervisor_example():
+    r"""Spawn a child, SIGKILL the supervisor parent, then sleep.
+
+    >>> import os, signal, subprocess, sys, time
+    >>> from pathlib import Path
+    >>> child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    >>> _ = Path({worker_pid_file.as_posix()!r}).write_text(str(os.getpid()), encoding="utf-8")
+    >>> _ = Path({child_pid_file.as_posix()!r}).write_text(str(child.pid), encoding="utf-8")
+    >>> os.kill(os.getppid(), signal.SIGKILL)
+    >>> time.sleep(60)
+    >>> 1
+    1
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_kill_sup.py", "exec"), module.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(revision=revision, module=module, timeout=5.0)
+    finding = report["results"][0]
+
+    assert finding["status"] == "error"
+    assert worker_pid_file.is_file()
+    assert child_pid_file.is_file()
+    _assert_pid_exited(int(worker_pid_file.read_text(encoding="utf-8").strip()))
+    _assert_pid_exited(int(child_pid_file.read_text(encoding="utf-8").strip()))
+
+
+def test_containment_operational_failure_exits_nonzero_and_excludes_unstarted_block(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Containment/cleanup operational failures exit non-zero and track execution accurately."""
+    source = '''\
+__all__ = ["sample_example"]
+
+
+def sample_example():
+    """Simple example.
+
+    >>> 1 + 1
+    2
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_opfail.py", "exec"), module.__dict__)
+    revision = checks.Revision(tmp_path, sha)
+
+    # 1. Real failing runner executable that exits before gate release (started=False).
+    if os.name == "nt":
+        bad_exe = tmp_path / "fail_runner.cmd"
+        bad_exe.write_text("@exit /b 1\r\n", encoding="utf-8")
+    else:
+        bad_exe = tmp_path / "fail_runner.sh"
+        bad_exe.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        bad_exe.chmod(0o755)
+
+    unstarted_report = checks.build_report(
+        revision=revision,
+        module=module,
+        python_executable=str(bad_exe),
+    )
+    assert unstarted_report["counts"]["error"] == 1
+    assert unstarted_report["summary"]["blocks_executed"] == 0
+    assert unstarted_report["summary"]["operational_failures"] == 1
+    assert len(unstarted_report["operational_failures"]) == 1
+    unstarted_finding = unstarted_report["operational_failures"][0]
+    assert unstarted_finding["detail"]["operational_failure"] is True
+    assert unstarted_finding["detail"]["started"] is False
+    assert unstarted_finding["detail"]["executed"] == 0
+    assert "operational_failures=1" in checks.render_text_report(unstarted_report)
+
+    # 2. Simulated Windows Job Object assignment failure through main() exits non-zero
+    #    while still writing JSON and ASCII text reports.
+    def _fake_win_job_failure(*_args, **_kwargs):
+        return checks._RunnerOutcome(
+            timed_out=False,
+            returncode=1,
+            containment_error="failed to assign Windows Job Object containment",
+            started=False,
+        )
+
+    monkeypatch.setattr(checks, "_spawn_isolated_runner", _fake_win_job_failure)
+    monkeypatch.setitem(sys.modules, "fixture_opfail_mod", module)
+    json_out = tmp_path / "opfail.json"
+    text_out = tmp_path / "opfail.txt"
+    rc = checks.main([
+        "--revision",
+        sha,
+        "--repo",
+        str(tmp_path),
+        "--module",
+        "fixture_opfail_mod",
+        "--no-cli",
+        "--output",
+        str(json_out),
+        "--text-output",
+        str(text_out),
+    ])
+    capsys.readouterr()
+    assert rc == checks.OPERATIONAL_FAILURE_EXIT_CODE
+    assert rc != 0
+    saved = json.loads(json_out.read_text(encoding="utf-8"))
+    assert saved["summary"]["blocks_executed"] == 0
+    assert saved["summary"]["operational_failures"] == 1
+    assert (
+        saved["operational_failures"][0]["detail"]["reason"]
+        == "failed to assign Windows Job Object containment"
+    )
+    assert "operational_failures=1" in text_out.read_text(encoding="utf-8")
+
+    # 3. Post-execution cleanup failure counts as executed AND operational failure.
+    def _fake_cleanup_failure(*_args, **_kwargs):
+        return checks._RunnerOutcome(
+            timed_out=False,
+            returncode=125,
+            containment_error="failed to terminate and reap isolated example process group",
+            started=True,
+        )
+
+    monkeypatch.setattr(checks, "_spawn_isolated_runner", _fake_cleanup_failure)
+    cleanup_report = checks.build_report(revision=revision, module=module)
+    assert cleanup_report["summary"]["blocks_executed"] == 1
+    assert cleanup_report["summary"]["operational_failures"] == 1
+    assert cleanup_report["operational_failures"][0]["detail"]["started"] is True
+
+
+def test_cli_help_probe_isolates_cwd_enforces_timeout_and_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """CLI --help probes run in isolated cwds with timeout and process-tree cleanup."""
+    pid_file = tmp_path / "cli_help_child.pid"
+    caller_cwd = tmp_path / "caller_cwd"
+    caller_cwd.mkdir()
+
+    source = f'''\
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+import click
+
+
+class HangingHelpCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        Path({pid_file.as_posix()!r}).write_text(str(child.pid), encoding="utf-8")
+        time.sleep(60)
+        super().format_help(ctx, formatter)
+
+
+@click.group()
+def root_cli():
+    """Root CLI writing a probe file in cwd to verify directory isolation."""
+
+
+@root_cli.command()
+def touch_cwd():
+    """Check cwd isolation.
+
+    >>> 2 + 2
+    4
+    """
+
+
+class CwdWritingCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        Path("leaked_from_help.txt").write_text("isolated\\n", encoding="utf-8")
+        super().format_help(ctx, formatter)
+
+
+@root_cli.command(cls=CwdWritingCommand)
+def write_cwd():
+    """Write a file during --help formatting.
+
+    >>> 3 + 3
+    6
+    """
+
+
+@root_cli.command(cls=HangingHelpCommand)
+def hang_help():
+    """Command whose --help hangs and spawns a child.
+
+    >>> 1 + 1
+    2
+    """
+
+
+@root_cli.command()
+def after_hang():
+    """Subcommand after a timed-out command must still be probed and checked.
+
+    >>> 4 + 5
+    9
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_probe_cli.py": source})
+    module_file = tmp_path / "src/supy/cmd/fixture_probe_cli.py"
+    spec = importlib.util.spec_from_file_location(
+        "supy.cmd.fixture_probe_cli", module_file
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, "supy.cmd.fixture_probe_cli", mod)
+    spec.loader.exec_module(mod)
+
+    monkeypatch.chdir(caller_cwd)
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision,
+        cli_root=mod.root_cli,
+        prog_name="fixture",
+        timeout=0.8,
+    )
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    assert not (caller_cwd / "leaked_from_help.txt").exists()
+    assert by_obj["fixture write-cwd"]["status"] == "ok"
+    assert by_obj["fixture touch-cwd"]["status"] == "ok"
+
+    hung = by_obj["fixture hang-help"]
+    assert hung["status"] == "unsupported"
+    assert "timed out" in hung["detail"]["reason"]
+    assert pid_file.is_file()
+    _assert_pid_exited(int(pid_file.read_text(encoding="utf-8").strip()))
+
+    assert by_obj["fixture after-hang"]["status"] == "ok"
+
+
+def test_main_module_identity_future_flags_and_click_formfeed_truncation(
+    tmp_path: Path,
+):
+    """Cover dedicated __main__ identity, __future__ flags, and Click \\f truncation."""
+    py_source = '''\
+__all__ = ["main_identity_example", "future_annotations_example"]
+
+
+def main_identity_example():
+    """Examples run in a clean dedicated __main__ module.
+
+    >>> import sys
+    >>> from dataclasses import dataclass
+    >>> __name__ == "__main__" and sys.modules["__main__"].__dict__ is globals()
+    True
+    >>> "_execute_capturing_fds" in dir(sys.modules["__main__"])
+    False
+    >>> @dataclass
+    ... class Point:
+    ...     x: int
+    >>> Point(3)
+    Point(x=3)
+    """
+
+
+def future_annotations_example():
+    """__future__ compiler flags persist across statements in the same block.
+
+    >>> from __future__ import annotations
+    >>> def make(x: int) -> Box:
+    ...     return Box(x)
+    >>> class Box:
+    ...     def __init__(self, value):
+    ...         self.value = value
+    >>> make(7).value
+    7
+    """
+'''
+    cli_source = '''\
+import click
+
+
+@click.group()
+def root_cli():
+    """Root CLI."""
+
+
+@root_cli.command(
+    help="Public help.\\n\\n>>> 1 + 2\\n3\\n\\f\\nHidden internal notes.\\n\\n>>> 1 / 0\\n0\\n"
+)
+def explicit_help():
+    """Unused callback docstring."""
+
+
+@root_cli.command()
+def docstring_help():
+    """Public callback help.
+
+    >>> 2 + 2
+    4
+
+    \\f
+    Hidden internal section not rendered in --help:
+
+    >>> 1 / 0
+    0
+    """
+'''
+    sha = _init_git_repo(
+        tmp_path,
+        {
+            "src/supy/__init__.py": py_source,
+            "src/supy/cmd/fixture_ff_cli.py": cli_source,
+        },
+    )
+    py_mod = ModuleType("supy")
+    exec(compile(py_source, "fixture_minors_py.py", "exec"), py_mod.__dict__)
+
+    cli_mod = ModuleType("supy.cmd.fixture_ff_cli")
+    exec(compile(cli_source, "fixture_minors_cli.py", "exec"), cli_mod.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision,
+        module=py_mod,
+        cli_root=cli_mod.root_cli,
+        prog_name="fixture",
+    )
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    assert by_obj["supy.main_identity_example"]["status"] == "ok"
+    assert by_obj["supy.future_annotations_example"]["status"] == "ok"
+
+    explicit_findings = [
+        r for r in report["results"] if r["object"] == "fixture explicit-help"
+    ]
+    assert len(explicit_findings) == 1
+    assert explicit_findings[0]["status"] == "ok"
+
+    doc_findings = [
+        r for r in report["results"] if r["object"] == "fixture docstring-help"
+    ]
+    assert len(doc_findings) == 1
+    assert doc_findings[0]["status"] == "ok"

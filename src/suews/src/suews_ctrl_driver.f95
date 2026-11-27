@@ -34,7 +34,7 @@ MODULE SUEWS_Driver
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, &
                                      SUEWS_update_atmState, relax_zl, stability_scales, &
                                      free_convection_velocity, relax_free_convection
-   USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
+   USE module_phys_narp, ONLY: NARP_update_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_perez, split_shortwave_forcing, split_shortwave_reindl
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
@@ -4741,81 +4741,6 @@ CONTAINS
       res_filled = RESHAPE(res_valid, [n_fill], pad=[NAN])
    END FUNCTION fill_sim_res
 
-! calculate several surface fraction related parameters
-   SUBROUTINE SUEWS_cal_surf( &
-      StorageHeatMethod, NetRadiationMethod, & !input
-      nlayer, &
-      sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water, & !input
-      building_frac, building_scale, height, & !input
-      vegfraction, ImpervFraction, PervFraction, NonWaterFraction, & ! output
-      sfr_roof, sfr_wall) ! output
-      IMPLICIT NONE
-
-      INTEGER, INTENT(IN) :: StorageHeatMethod ! method for storage heat calculations [-]
-      INTEGER, INTENT(IN) :: NetRadiationMethod ! method for net radiation calculations [-]
-      INTEGER, INTENT(IN) :: nlayer !number of vertical layers[-]
-
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_paved
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_bldg
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_evetr
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_dectr
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_grass
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_bsoil
-      REAL(KIND(1D0)), INTENT(IN) :: sfr_water
-      REAL(KIND(1D0)), DIMENSION(NSURF) :: sfr_surf !surface fraction [-]
-
-      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_frac !cumulative surface fraction of buildings across vertical layers [-]
-      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_scale !building scales of each vertical layer  [m]
-      REAL(KIND(1D0)), DIMENSION(nlayer + 1), INTENT(IN) :: height !building height of each layer[-]
-      REAL(KIND(1D0)), INTENT(OUT) :: VegFraction ! fraction of vegetation [-]
-      REAL(KIND(1D0)), INTENT(OUT) :: ImpervFraction !fractioin of impervious surface [-]
-      REAL(KIND(1D0)), INTENT(OUT) :: PervFraction !fraction of pervious surfaces [-]
-      REAL(KIND(1D0)), INTENT(OUT) :: NonWaterFraction !fraction of non-water [-]
-      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: sfr_roof !fraction of roof facets [-]
-      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: sfr_wall !fraction of wall facets [-]
-
-      ! REAL(KIND(1D0)), DIMENSION(nlayer) :: sfr_roof ! individual building fraction at each layer
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: dz_ind ! individual net building height at each layer
-      ! REAL(KIND(1D0)), DIMENSION(nlayer) :: sfr_wall ! individual net building height at each layer
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: perimeter_ind ! individual building perimeter at each layer
-
-      sfr_surf = [sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water]
-
-      VegFraction = sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf)
-      ImpervFraction = sfr_surf(PavSurf) + sfr_surf(BldgSurf)
-      PervFraction = 1 - ImpervFraction
-      NonWaterFraction = 1 - sfr_surf(WaterSurf)
-
-      IF (StorageHeatMethod == SHM_EHC .OR. NetRadiationMethod > 1000) THEN
-         ! get individual building fractions of each layer
-         ! NB.: sum(sfr_roof) = building_frac(1)
-         sfr_roof = 0.
-         IF (nlayer > 1) sfr_roof(1:nlayer - 1) = &
-            MAX( &
-            building_frac(1:nlayer - 1) - building_frac(2:nlayer), &
-            0.01) ! minimum value for sfr_roof to avoid zero fractions when adjacent layers have the same building fraction
-         sfr_roof(nlayer) = building_frac(nlayer)
-
-         ! get individual net building height of each layer
-         dz_ind = 0.
-         dz_ind(1:nlayer) = height(2:nlayer + 1) - height(1:nlayer)
-
-         ! get individual building perimeter of each layer
-         ! this is from eq. 8 in SS documentation:
-         ! https://github.com/ecmwf/spartacus-surface/blob/master/doc/spartacus_surface_documentation.pdf
-         perimeter_ind = 0.
-         perimeter_ind(1:nlayer) = 4.*building_frac(1:nlayer)/building_scale(1:nlayer)
-
-         ! sfr_wall stands for individual wall area
-         ! get individual wall area at each layer
-         sfr_wall = 0.
-         ! this is from eq. 1 in SS documentation:
-         ! https://github.com/ecmwf/spartacus-surface/blob/master/doc/spartacus_surface_documentation.pdf
-         sfr_wall(1:nlayer) = perimeter_ind(1:nlayer)*dz_ind(1:nlayer)
-      END IF
-
-   END SUBROUTINE SUEWS_cal_surf
-
    SUBROUTINE validate_outputline_layout(outputLine)
       ! Validate output_line storage against compile-time column constants.
       ! This detects stale/mixed compilation units (e.g., partial rebuilds)
@@ -4862,90 +4787,6 @@ CONTAINS
       END SUBROUTINE check_size
 
    END SUBROUTINE validate_outputline_layout
-
-   SUBROUTINE output_ncolumns(group_name, ncols)
-      ! Returns the number of data columns (excluding datetime) for a given output group.
-      ! Used by Python tests to verify OUTPUT_REGISTRY matches Fortran array sizes.
-      USE module_ctrl_const_allocate
-      IMPLICIT NONE
-      CHARACTER(len=*), INTENT(IN) :: group_name
-      INTEGER, INTENT(OUT) :: ncols
-
-      SELECT CASE (TRIM(group_name))
-      CASE ('datetime')
-         ncols = 5  ! Year, DOY, Hour, Min, Dectime
-      CASE ('SUEWS')
-         ncols = ncolumnsDataOutSUEWS - 5
-      CASE ('snow')
-         ncols = ncolumnsDataOutSnow - 5
-      CASE ('ESTM')
-         ncols = ncolumnsDataOutESTM - 5
-      CASE ('EHC')
-         ncols = ncolumnsDataOutEHC - 5
-      CASE ('RSL')
-         ncols = ncolumnsDataOutRSL - 5
-      CASE ('BL')
-         ncols = ncolumnsdataOutBL - 5
-      CASE ('debug')
-         ncols = ncolumnsDataOutDebug - 5
-      CASE ('BEERS')
-         ncols = ncolumnsDataOutBEERS - 5
-      CASE ('DailyState')
-         ncols = ncolumnsDataOutDailyState - 5
-      CASE ('SPARTACUS')
-         ncols = ncolumnsDataOutSPARTACUS - 5
-      CASE ('STEBBS')
-         ncols = ncolumnsDataOutSTEBBS - 5
-      CASE ('NHood')
-         ncols = ncolumnsDataOutNHood - 5
-      CASE DEFAULT
-         ncols = -1  ! Unknown group
-      END SELECT
-
-   END SUBROUTINE output_ncolumns
-
-! a wrapper of NARP_cal_SunPosition used by supy
-   SUBROUTINE SUEWS_cal_sunposition( &
-      year, idectime, UTC, locationlatitude, locationlongitude, locationaltitude, & !input
-      sunazimuth, sunzenith) !output
-      IMPLICIT NONE
-
-      REAL(KIND(1D0)), INTENT(in) :: year, idectime, UTC, &
-                                     locationlatitude, locationlongitude, locationaltitude
-      REAL(KIND(1D0)), INTENT(out) :: sunazimuth, sunzenith
-
-      CALL NARP_cal_SunPosition( &
-         year, idectime, UTC, locationlatitude, locationlongitude, locationaltitude, &
-         sunazimuth, sunzenith)
-
-   END SUBROUTINE SUEWS_cal_sunposition
-
-   FUNCTION cal_tair_av(tair_av_prev, dt_since_start, tstep, temp_c) RESULT(tair_av_next)
-      ! calculate mean air temperature of past 24 hours
-      ! TS, 17 Sep 2019
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: tair_av_prev
-      REAL(KIND(1D0)), INTENT(in) :: temp_c
-      INTEGER, INTENT(in) :: dt_since_start
-      INTEGER, INTENT(in) :: tstep
-
-      REAL(KIND(1D0)) :: tair_av_next
-
-      REAL(KIND(1D0)) :: len_cal_s ! length of average period in seconds
-      REAL(KIND(1D0)) :: temp_k ! temp in K
-
-      ! determine the average period
-      IF (dt_since_start > sec_per_day) THEN
-         ! if simulation has been running over one day
-         len_cal_s = sec_per_day
-      ELSE
-         ! if simulation has been running less than one day
-         len_cal_s = dt_since_start + tstep
-      END IF
-      temp_k = temp_c + C2K
-      tair_av_next = tair_av_prev*(len_cal_s - tstep*1.)/len_cal_s + temp_k*tstep/len_cal_s
-
-   END FUNCTION cal_tair_av
 
    FUNCTION cal_tsfc(qh, dens_air, vcp_air, RA, temp_c) RESULT(tsfc_C)
       ! calculate surface/skin temperature
@@ -5282,59 +5123,6 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt, errorState) RESU
     Temp_out(nz) = T_bottom
 
 END FUNCTION cal_tsfc_dyohm
-
-   SUBROUTINE restore_state(mod_state, mod_state_stepstart)
-      ! restore model state from the beginning of the time step while keeping the surface temperature updated from last iteration
-      ! TS, 03 Mar 2025
-      IMPLICIT NONE
-      TYPE(SUEWS_STATE), INTENT(INOUT) :: mod_state ! model state being updated during the time step
-      TYPE(SUEWS_STATE), INTENT(IN) :: mod_state_stepstart ! model state saved at the beginning of the time step
-
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_tmp ! temporary surface temperature of roof saved at the beginning of the time step
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall_tmp ! temporary surface temperature of wall saved at the beginning of the time step
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf_tmp ! temporary surface temperature saved at the beginning of the time step
-      TYPE(HEAT_STATE) :: heatstate_tmp ! temporary heat state saved at the beginning of the time step
-      TYPE(ATM_STATE) :: atmstate_tmp ! temporary atmosphere state saved at the beginning of the time step
-      TYPE(ROUGHNESS_STATE) :: roughnessstate_tmp ! temporary roughness state saved at the beginning of the time step
-      INTEGER :: nlayer ! number of vertical layers
-      INTEGER :: nsurf ! number of surfaces
-
-      ! get dimension information from surface temperature variables
-      nlayer = SIZE(mod_state%heatstate%tsfc_roof)
-      nsurf = SIZE(mod_state%heatstate%tsfc_surf)
-
-      ! allocate temporary surface temperature arrays
-      ALLOCATE (tsfc_roof_tmp(nlayer))
-      ALLOCATE (tsfc_wall_tmp(nlayer))
-      ALLOCATE (tsfc_surf_tmp(nsurf))
-
-      ! save surface temperature updated from last iteration and use it as initial surface temperature for the next iteration
-      tsfc_roof_tmp = mod_state%heatstate%tsfc_roof
-      tsfc_wall_tmp = mod_state%heatstate%tsfc_wall
-      tsfc_surf_tmp = mod_state%heatstate%tsfc_surf
-
-      heatstate_tmp = mod_state%heatstate
-      atmstate_tmp = mod_state%atmstate
-      roughnessstate_tmp = mod_state%roughnessstate
-
-      ! restore model state from the beginning of the time step
-      mod_state = mod_state_stepstart
-
-      ! restore surface temperature
-      mod_state%heatstate%tsfc_roof = tsfc_roof_tmp
-      mod_state%heatstate%tsfc_wall = tsfc_wall_tmp
-      mod_state%heatstate%tsfc_surf = tsfc_surf_tmp
-
-      mod_state%heatstate = heatstate_tmp
-      mod_state%atmstate = atmstate_tmp
-      mod_state%roughnessstate = roughnessstate_tmp
-
-      ! deallocate temporary surface temperature arrays
-      DEALLOCATE (tsfc_roof_tmp)
-      DEALLOCATE (tsfc_wall_tmp)
-      DEALLOCATE (tsfc_surf_tmp)
-
-   END SUBROUTINE restore_state
 
    !==============================================================================
    ! Synchronise the thread-local fatal error state to modState%errorState

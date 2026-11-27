@@ -1178,6 +1178,9 @@ CONTAINS
                END DO
             END IF
 
+            ! Initialise before the disjoint StorageHeatMethod / use_implicit
+            ! branches so every path defines dif_tsfc_iter manifestly for -Wmaybe-uninitialized.
+            dif_tsfc_iter = 0.0D0
             IF (StorageHeatMethod /= SHM_EHC) THEN
                ! Exclude absent surfaces (sfr_surf == 0) from convergence
                ! stopping so their uncoupled temperatures cannot add

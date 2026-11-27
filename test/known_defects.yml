@@ -5,18 +5,15 @@
 # Classification is governance metadata, not a claim of unique underlying bugs.
 version: 1
 mappings:
+  # Verified GCC 14.2.0 -Wmaybe-uninitialized false positive in untouched
+  # vendored ecmwf/spartacus-surface (triaged under #2172; reason recorded in
+  # scripts/lint/fortran_uninit_baseline.json).
   - selector:
       ledger: "U"
       file: "src/suews/ext_lib/spartacus-surface/radtool/radtool_eigen_decomposition.F90"
     contract: "C-RESPONSE"
-    issue: 2172
-    classification: "coverage_gap"
-  - selector:
-      ledger: "U"
-      file: "src/suews/src/suews_ctrl_driver.f95"
-    contract: "C-RESPONSE"
-    issue: 2172
-    classification: "coverage_gap"
+    issue: 2083
+    classification: "accepted_exception"
   - selector:
       ledger: "L"
     contract: "C-TOOLING"

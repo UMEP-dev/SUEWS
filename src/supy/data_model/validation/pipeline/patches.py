@@ -46,7 +46,7 @@ from .document import (
 from .patch_normaliser import (
     collect_nullifiable_values,
     invert_patches,
-    normalise_patches,
+    normalise_owned_patches,
 )
 
 SURFACE_TYPES: tuple[str, ...] = (
@@ -164,43 +164,58 @@ class PatchPlan:
 
         Every patch in the returned plan carries its verified original value
         (``old_value``), ``had_original``, ``original_style``, and frozen
-        ``original_ref`` metadata, and each :class:`PlannedAdjustment` binds
-        its corresponding normalised patches.
+        ``original_ref`` metadata, and each surviving :class:`PlannedAdjustment`
+        is reconciled against the surviving normalised patches in the plan.
         """
-        norm_patches = normalise_patches(
-            self.patches,
+        owner_by_pos: list[int | None] = [None] * len(self.patches)
+        claimed: set[int] = set()
+        for adj_idx, adj in enumerate(self.adjustments):
+            for adj_patch in adj.patches:
+                for pos, plan_patch in enumerate(self.patches):
+                    if pos not in claimed and (
+                        plan_patch is adj_patch or plan_patch == adj_patch
+                    ):
+                        owner_by_pos[pos] = adj_idx
+                        claimed.add(pos)
+                        break
+
+        owned_norm = normalise_owned_patches(
+            list(zip(owner_by_pos, self.patches)),
             target,
             expand_nullify_tree=expand_nullify_tree,
             drop_noops=drop_noops,
             coalesce=coalesce,
         )
-        base_data = target.data if isinstance(target, ConfigDocument) else target
-        working = thaw_copy(base_data)
-        style_ledger = target.style_ledger if isinstance(target, ConfigDocument) else None
+        norm_patches = [patch for _, patch in owned_norm]
+        by_owner: dict[int, list[ConfigPatch]] = {}
+        for owner_idx, patch in owned_norm:
+            if owner_idx is not None:
+                by_owner.setdefault(owner_idx, []).append(patch)
+
         norm_adjustments: list[PlannedAdjustment] = []
-        for adj in self.adjustments:
-            adj_norm = normalise_patches(
-                adj.patches,
-                ConfigDocument(working, style_ledger=style_ledger)
-                if style_ledger is not None
-                else working,
-                expand_nullify_tree=expand_nullify_tree,
-                drop_noops=drop_noops,
-                coalesce=coalesce,
+        for adj_idx, adj in enumerate(self.adjustments):
+            surviving = by_owner.get(adj_idx)
+            if not surviving:
+                continue
+            adj_old = (
+                surviving[0].old_value
+                if len(adj.patches) == 1
+                and len(surviving) == 1
+                and adj.patches[0].path == surviving[0].path
+                and surviving[0].action == "set"
+                else adj.old_value
             )
-            if adj_norm:
-                apply_patches_in_place(working, adj_norm, style_ledger=style_ledger)
-                norm_adjustments.append(
-                    PlannedAdjustment(
-                        parameter=adj.parameter,
-                        site_index=adj.site_index,
-                        site_gridid=adj.site_gridid,
-                        old_value=adj.old_value,
-                        new_value=adj.new_value,
-                        reason=adj.reason,
-                        patches=tuple(adj_norm),
-                    )
+            norm_adjustments.append(
+                PlannedAdjustment(
+                    parameter=adj.parameter,
+                    site_index=adj.site_index,
+                    site_gridid=adj.site_gridid,
+                    old_value=adj_old,
+                    new_value=adj.new_value,
+                    reason=adj.reason,
+                    patches=tuple(surviving),
                 )
+            )
         return PatchPlan(
             patches=norm_patches,
             adjustments=norm_adjustments,

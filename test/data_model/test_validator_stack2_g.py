@@ -6,10 +6,11 @@ from copy import deepcopy
 from dataclasses import FrozenInstanceError
 from importlib.resources import files
 import math
+from pathlib import Path
 from types import MappingProxyType
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 import pytest
 import yaml
 
@@ -20,6 +21,8 @@ from supy.data_model.validation.pipeline.document import (
     ConfigPatch,
     PathStyle,
     StyleLedger,
+    apply_nullify_tree_at_path,
+    apply_patches_in_place,
     canonicalise_path,
     deep_freeze,
     format_path_tokens,
@@ -36,6 +39,8 @@ from supy.data_model.validation.pipeline.patch_normaliser import (
     read_original_unwrapped,
 )
 from supy.data_model.validation.pipeline.patches import (
+    PatchPlan,
+    PlannedAdjustment,
     plan_land_cover_fraction_patches,
     plan_model_dependent_nullification_patches,
     plan_rcmethod_patches,
@@ -51,6 +56,7 @@ from supy.data_model.validation.rules import (
     ControlView,
     LandCoverView,
     PhysicsView,
+    ReadOnlyFieldInfo,
     ReadOnlyModelProxy,
     SiteView,
     SurfaceView,
@@ -688,3 +694,292 @@ def test_readonly_model_proxy_freezes_numpy_arrays_and_phase_b_reuses_cached_vie
     assert results
     assert from_mapping_calls == 0
     assert math.isfinite(ctx.view.sites[0].lat or 0.0)
+
+
+def test_coalescing_preserves_insertion_wrapper_representation_and_rollback() -> None:
+    """Coalescing keeps the representation established by the first insertion and rolls back ancestors/raw entries."""
+    # Both orders of default_wrapped on newly inserted keys match sequential application.
+    for first_wrap, second_wrap in ((False, True), (True, False)):
+        patches = [
+            ConfigPatch("a", "set", 1, default_wrapped=first_wrap),
+            ConfigPatch("a", "set", 2, default_wrapped=second_wrap),
+        ]
+        seq_target: dict[str, object] = {}
+        apply_patches_in_place(seq_target, patches)
+
+        norm = normalise_patches(patches, {})
+        norm_target: dict[str, object] = {}
+        apply_patches_in_place(norm_target, norm)
+        assert norm_target == seq_target
+
+        apply_patches_in_place(norm_target, invert_patches(norm))
+        assert norm_target == {}
+
+    # Implicit parent creation is undone cleanly for both missing and null ancestors.
+    for initial in ({}, {"a": None}):
+        base = deepcopy(initial)
+        patches = [
+            ConfigPatch("a.b.c", "set", 1, default_wrapped=False),
+            ConfigPatch("a.d", "set", 2, default_wrapped=False),
+        ]
+        norm = normalise_patches(patches, base)
+        working = deepcopy(base)
+        apply_patches_in_place(working, norm)
+        assert working == {"a": {"b": {"c": 1}, "d": 2}}
+        apply_patches_in_place(working, invert_patches(norm))
+        assert working == initial
+
+    # Bare overwritten by RefValue dict restores exact bare entry on invert.
+    bare_base = {"a": 1}
+    wrap_patches = normalise_patches(
+        [ConfigPatch("a", "set", {"value": 2}, default_wrapped=False)], bare_base
+    )
+    bare_work = deepcopy(bare_base)
+    apply_patches_in_place(bare_work, wrap_patches)
+    assert bare_work == {"a": {"value": 2}}
+    apply_patches_in_place(bare_work, invert_patches(wrap_patches))
+    assert bare_work == {"a": 1}
+
+    # Explicit {"value": 1, "ref": None} deleted and restored retains the "ref": None key.
+    null_ref_base = {"a": {"value": 1, "ref": None}}
+    del_patches = normalise_patches([ConfigPatch("a", "delete")], null_ref_base)
+    del_work = deepcopy(null_ref_base)
+    apply_patches_in_place(del_work, del_patches)
+    assert del_work == {}
+    apply_patches_in_place(del_work, invert_patches(del_patches))
+    assert del_work == {"a": {"value": 1, "ref": None}}
+
+
+def test_nullification_preserves_key_identity_and_unexpanded_scalar_targets() -> None:
+    """Expanded nullification matches direct nullification for int/punctuated keys; unexpanded keeps scalar roots."""
+    raw_special = {
+        "profile": {
+            1: 7,
+            "1": 8,
+            "a.b": 3,
+            "x[0]": 4,
+        }
+    }
+    direct = deepcopy(raw_special)
+    assert apply_nullify_tree_at_path(direct, "profile") is True
+    assert direct == {"profile": {1: None, "1": None, "a.b": None, "x[0]": None}}
+
+    expanded = normalise_patches(
+        [ConfigPatch("profile", "nullify_tree")], raw_special, expand_nullify_tree=True
+    )
+    via_expanded = deepcopy(raw_special)
+    apply_patches_in_place(via_expanded, expanded)
+    assert via_expanded == direct
+
+    apply_patches_in_place(via_expanded, invert_patches(expanded))
+    assert via_expanded == raw_special
+
+    # Unexpanded nullify_tree on a scalar target keeps the patch and records {"": old}.
+    scalar_base = {"x": 1}
+    unexpanded = normalise_patches(
+        [ConfigPatch("x", "nullify_tree")], scalar_base, expand_nullify_tree=False
+    )
+    assert len(unexpanded) == 1
+    assert unexpanded[0].action == "nullify_tree"
+    assert unexpanded[0].old_value == {"": 1}
+
+    applied_unexp = deepcopy(scalar_base)
+    apply_patches_in_place(applied_unexp, unexpanded)
+    applied_exp = deepcopy(scalar_base)
+    apply_patches_in_place(
+        applied_exp,
+        normalise_patches(
+            [ConfigPatch("x", "nullify_tree")], scalar_base, expand_nullify_tree=True
+        ),
+    )
+    assert applied_unexp == applied_exp == {"x": None}
+
+
+def test_defensive_copying_immutability_and_scalar_sequence_quoting() -> None:
+    """Proxy-backed inputs are detached, tuple payloads copied, and scalar list quotes preserved."""
+    # Caller-supplied MappingProxyType backing dicts cannot mutate StyleLedger/PathStyle/ConfigPatch.
+    backing_entries = {"a": PathStyle(wrapper_style="bare")}
+    ledger = StyleLedger(entries=MappingProxyType(backing_entries))
+    backing_entries["b"] = PathStyle(wrapper_style="ref_value")
+    assert "b" not in ledger
+
+    backing_ref = {"desc": "orig", "nested": {"k": 1}}
+    style = PathStyle(wrapper_style="ref_value", ref=MappingProxyType(backing_ref))
+    backing_ref["desc"] = "mutated"
+    backing_ref["nested"]["k"] = 99
+    assert style.ref is not None
+    assert style.ref["desc"] == "orig"
+    assert style.ref["nested"]["k"] == 1
+
+    backing_patch_ref = {"desc": "patch-ref"}
+    payload = ([1], {"k": [2]})
+    old_payload = ([3],)
+    patch = ConfigPatch(
+        "x",
+        "set",
+        payload,
+        old_value=old_payload,
+        original_ref=MappingProxyType(backing_patch_ref),
+    )
+    backing_patch_ref["desc"] = "tampered"
+    payload[0].append(99)
+    payload[1]["k"].append(88)
+    old_payload[0].append(77)
+    assert patch.original_ref is not None
+    assert patch.original_ref["desc"] == "patch-ref"
+    assert patch.new_value == ([1], {"k": [2]})
+    assert patch.old_value == ([3],)
+
+    # Scalar sequence elements preserve authored single/double quotes (bare and wrapped).
+    seq_yaml = "names: ['London', \"Paris\"]\nwrapped:\n  value: ['Alpha', \"Beta\"]\n"
+    doc = ConfigDocument.from_text(seq_yaml, normalise=False)
+    dumped = doc.dump_yaml(preserve_style=True)
+    assert "'London'" in dumped
+    assert '"Paris"' in dumped
+    assert "'Alpha'" in dumped
+    assert '"Beta"' in dumped
+    assert yaml.safe_load(dumped) == yaml.safe_load(seq_yaml)
+
+
+def test_readonly_proxy_numpy_immutability_and_field_metadata() -> None:
+    """Proxy blocks setflags(write=True), freezes object arrays, and detaches model_fields metadata."""
+
+    class _RichModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        arr: np.ndarray = Field(
+            description="numeric array",
+            json_schema_extra={"unit": "m", "nested": {"tag": "a"}},
+        )
+        obj_arr: np.ndarray = Field(description="object array")
+
+    orig_desc = _RichModel.model_fields["arr"].description
+    orig_meta_len = len(_RichModel.model_fields["arr"].metadata)
+    m = _RichModel(
+        arr=np.array([1.0, 2.0, 3.0]),
+        obj_arr=np.array([{"k": [1, 2]}, {"k": [3]}], dtype=object),
+    )
+    ro = freeze_model(m)
+
+    # Immutable bytes-backed numeric array cannot be re-enabled via setflags(write=True).
+    assert ro.arr.flags.writeable is False
+    with pytest.raises(ValueError, match="WRITEABLE"):
+        ro.arr.setflags(write=True)
+    with pytest.raises(ValueError, match="read-only"):
+        ro.arr[0] = 42.0
+
+    # Object array is recursively frozen so contained dicts/lists cannot be mutated.
+    assert isinstance(ro.obj_arr, tuple)
+    assert isinstance(ro.obj_arr[0], MappingProxyType)
+    assert isinstance(ro.obj_arr[0]["k"], tuple)
+    with pytest.raises(TypeError):
+        ro.obj_arr[0]["k"] = (99,)
+
+    # model_fields exposes deeply immutable ReadOnlyFieldInfo snapshots, leaving class metadata intact.
+    field_info = ro.model_fields["arr"]
+    assert isinstance(field_info, ReadOnlyFieldInfo)
+    assert field_info.description == "numeric array"
+    with pytest.raises(FrozenInstanceError):
+        field_info.description = "tampered"  # type: ignore[misc]
+    assert isinstance(field_info.metadata, tuple)
+    with pytest.raises(TypeError):
+        field_info.json_schema_extra["unit"] = "km"
+    with pytest.raises(TypeError):
+        field_info.json_schema_extra["nested"]["tag"] = "z"
+    assert _RichModel.model_fields["arr"].description == orig_desc
+    assert len(_RichModel.model_fields["arr"].metadata) == orig_meta_len
+    assert _RichModel.model_fields["arr"].json_schema_extra == {
+        "unit": "m",
+        "nested": {"tag": "a"},
+    }
+
+
+def test_vertical_layers_nlayer_and_proxy_source_dir_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """VerticalLayersView.nlayer rejects fractional/infinite values and proxy validation keeps _yaml_path."""
+    assert VerticalLayersView({"nlayer": 2}).nlayer == 2
+    assert VerticalLayersView({"nlayer": 2.0}).nlayer == 2
+    assert VerticalLayersView({"nlayer": "3"}).nlayer == 3
+    assert VerticalLayersView({"nlayer": "3.0"}).nlayer == 3
+    assert VerticalLayersView({"nlayer": 2.9}).nlayer is None
+    assert VerticalLayersView({"nlayer": "2.9"}).nlayer is None
+    assert VerticalLayersView({"nlayer": float("inf")}).nlayer is None
+    assert VerticalLayersView({"nlayer": float("-inf")}).nlayer is None
+    assert VerticalLayersView({"nlayer": float("nan")}).nlayer is None
+    assert VerticalLayersView({"nlayer": ".inf"}).nlayer is None
+
+    # Validating a ReadOnlyModelProxy loaded from YAML preserves _yaml_path across chdir.
+    cfg_dir = tmp_path / "site_cfg"
+    other_dir = tmp_path / "other_cwd"
+    cfg_dir.mkdir()
+    other_dir.mkdir()
+
+    sample_dict = yaml.safe_load(_load_sample_text())
+    forcing_file = cfg_dir / "forcing_2012.txt"
+    forcing_file.write_text(
+        "iy id it imin qn qh qe qs qf U RH Tair pres rain kdown snow ldown fcld Wuh xsmd lai kdiff kdir wdir\n"
+        "2012 180 12 0 100 50 30 20 10 2.0 50 20.0 101.3 0.0 500 0 300 0 0 0 1 100 400 180\n"
+        "2012 180 13 0 100 50 30 20 10 2.0 50 20.0 101.3 0.0 500 0 300 0 0 0 1 100 400 180\n",
+        encoding="utf-8",
+    )
+    sample_dict["model"]["control"]["forcing_file"] = {"value": "forcing_2012.txt"}
+    sample_dict["model"]["control"].pop("start_time", None)
+    sample_dict["model"]["control"].pop("end_time", None)
+    cfg_path = cfg_dir / "config.yml"
+    cfg_path.write_text(yaml.safe_dump(sample_dict, sort_keys=False), encoding="utf-8")
+
+    cfg = SUEWSConfig.from_yaml(str(cfg_path))
+    ro_cfg = freeze_model(cfg)
+    monkeypatch.chdir(other_dir)
+
+    import supy.data_model.validation.engine as engine_mod  # ruff: ignore[import-outside-top-level]
+
+    captured_base_dirs: list[Path | None] = []
+    orig_phase_b = engine_mod._run_phase_b_in_memory
+
+    def _spy_phase_b(*args, **kwargs):
+        captured_base_dirs.append(kwargs.get("base_dir"))
+        return orig_phase_b(*args, **kwargs)
+
+    monkeypatch.setattr(engine_mod, "_run_phase_b_in_memory", _spy_phase_b)
+    rep_cfg = supy.validate_config(cfg, pipeline="B", forcing="off")
+    rep_ro = supy.validate_config(ro_cfg, pipeline="B", forcing="off")
+    assert captured_base_dirs == [cfg_dir.resolve(), cfg_dir.resolve()]
+    assert [i.code for i in rep_ro.issues] == [i.code for i in rep_cfg.issues]
+    assert rep_ro.is_valid == rep_cfg.is_valid
+
+
+def test_patch_plan_normalised_reconciles_adjustments_with_surviving_patches() -> None:
+    """Cancelling or coalescing adjustments in PatchPlan.normalised() never leaves phantom records."""
+    # Cancelling adjustments (1 -> 2 -> 1) yield empty patches AND empty adjustments.
+    cancel_plan = PatchPlan()
+    cancel_plan.record(
+        PlannedAdjustment(parameter="a", old_value=1, new_value=2, reason="first"),
+        ConfigPatch("a", "set", 2, default_wrapped=False),
+    )
+    cancel_plan.record(
+        PlannedAdjustment(parameter="a", old_value=2, new_value=1, reason="second"),
+        ConfigPatch("a", "set", 1, default_wrapped=False),
+    )
+    norm_cancel = cancel_plan.normalised({"a": 1})
+    assert norm_cancel.patches == []
+    assert norm_cancel.adjustments == []
+
+    # Coalescing adjustments (1 -> 2 -> 3) reconcile adjustment records with the single surviving patch.
+    merge_plan = PatchPlan()
+    merge_plan.record(
+        PlannedAdjustment(parameter="a", old_value=1, new_value=2, reason="first"),
+        ConfigPatch("a", "set", 2, default_wrapped=False),
+    )
+    merge_plan.record(
+        PlannedAdjustment(parameter="a", old_value=2, new_value=3, reason="second"),
+        ConfigPatch("a", "set", 3, default_wrapped=False),
+    )
+    norm_merge = merge_plan.normalised({"a": 1})
+    assert len(norm_merge.patches) == 1
+    assert norm_merge.patches[0].old_value == 1
+    assert norm_merge.patches[0].new_value == 3
+    assert len(norm_merge.adjustments) == 1
+    assert norm_merge.adjustments[0].old_value == 1
+    assert norm_merge.adjustments[0].new_value == 3
+    assert norm_merge.adjustments[0].patches == tuple(norm_merge.patches)

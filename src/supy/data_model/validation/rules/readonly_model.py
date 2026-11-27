@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 import weakref
@@ -22,21 +23,81 @@ _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
 _PROXY_STATE: dict[int, tuple[BaseModel, dict[str, Any]]] = {}
 
 
+@dataclass(frozen=True)
+class ReadOnlyFieldInfo:
+    """Deeply immutable snapshot of a Pydantic ``FieldInfo`` declaration."""
+
+    name: str
+    annotation: Any
+    default: Any
+    is_required: bool
+    alias: str | None
+    title: str | None
+    description: str | None
+    deprecated: Any
+    metadata: tuple[Any, ...]
+    json_schema_extra: Any
+
+
+def _freeze_ndarray(value: np.ndarray) -> Any:
+    """Wrap *value* using immutable backing storage so ``setflags(write=True)`` fails."""
+    if value.dtype.hasobject:
+        if value.ndim == 0:
+            return _wrap_readonly(deepcopy(value.item()))
+        return _wrap_readonly(deepcopy(value.tolist()))
+    buf = value.tobytes()
+    arr = np.frombuffer(buf, dtype=value.dtype).reshape(value.shape)
+    return arr
+
+
 def _wrap_readonly(value: Any) -> Any:
     """Recursively wrap a detached Pydantic/Python value as read-only."""
-    if isinstance(value, BaseModel):
-        return ReadOnlyModelProxy._from_detached(value)
-    if isinstance(value, Mapping):
-        return MappingProxyType({k: _wrap_readonly(v) for k, v in value.items()})
-    if isinstance(value, (list, tuple)):
-        return tuple(_wrap_readonly(item) for item in value)
-    if isinstance(value, (set, frozenset)):
-        return frozenset(_wrap_readonly(item) for item in value)
-    if isinstance(value, np.ndarray):
-        arr = value.copy()
-        arr.setflags(write=False)
-        return arr
-    return value
+    result: Any = value
+    if isinstance(value, ReadOnlyModelProxy):
+        result = value
+    elif isinstance(value, BaseModel):
+        result = ReadOnlyModelProxy._from_detached(value)
+    elif isinstance(value, Mapping):
+        result = MappingProxyType({k: _wrap_readonly(v) for k, v in value.items()})
+    elif isinstance(value, (list, tuple)):
+        result = tuple(_wrap_readonly(item) for item in value)
+    elif isinstance(value, (set, frozenset)):
+        result = frozenset(_wrap_readonly(item) for item in value)
+    elif isinstance(value, (bytearray, memoryview)):
+        result = bytes(value)
+    elif isinstance(value, np.ndarray):
+        result = _freeze_ndarray(value)
+    return result
+
+
+def _freeze_field_metadata_value(value: Any) -> Any:
+    """Safely snapshot and freeze arbitrary Pydantic field metadata values."""
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return value
+    try:
+        copied = deepcopy(value)
+    except (TypeError, ValueError):
+        copied = value
+    return _wrap_readonly(copied)
+
+
+def _freeze_model_fields(model_cls: type[BaseModel]) -> Mapping[str, ReadOnlyFieldInfo]:
+    """Build a detached read-only snapshot of ``model_cls.model_fields``."""
+    frozen: dict[str, ReadOnlyFieldInfo] = {}
+    for field_name, info in model_cls.model_fields.items():
+        frozen[field_name] = ReadOnlyFieldInfo(
+            name=field_name,
+            annotation=info.annotation,
+            default=_freeze_field_metadata_value(info.default),
+            is_required=bool(info.is_required()),
+            alias=info.alias,
+            title=info.title,
+            description=info.description,
+            deprecated=_freeze_field_metadata_value(info.deprecated),
+            metadata=tuple(_freeze_field_metadata_value(m) for m in info.metadata),
+            json_schema_extra=_freeze_field_metadata_value(info.json_schema_extra),
+        )
+    return MappingProxyType(frozen)
 
 
 class ReadOnlyModelProxy:
@@ -74,9 +135,14 @@ class ReadOnlyModelProxy:
         return type(_PROXY_STATE[id(self)][0])
 
     @property
-    def model_fields(self) -> Mapping[str, Any]:
-        """Read-only view of the model's declared Pydantic fields."""
-        return MappingProxyType(self.model_type.model_fields)
+    def model_fields(self) -> Mapping[str, ReadOnlyFieldInfo]:
+        """Detached, deeply immutable view of the model's declared Pydantic fields."""
+        _target, cache = _PROXY_STATE[id(self)]
+        cached = cache.get("__model_fields__")
+        if cached is None:
+            cached = _freeze_model_fields(self.model_type)
+            cache["__model_fields__"] = cached
+        return cached
 
     @property
     def model_fields_set(self) -> frozenset[str]:

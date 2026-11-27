@@ -221,7 +221,7 @@ class PathStyle:
 
     def __post_init__(self) -> None:
         """Freeze ``ref`` metadata and normalise ``key_order`` to a tuple."""
-        if self.ref is not None and not isinstance(self.ref, MappingProxyType):
+        if self.ref is not None:
             object.__setattr__(self, "ref", _freeze_value(self.ref))
         if not isinstance(self.key_order, tuple):
             object.__setattr__(self, "key_order", tuple(self.key_order))
@@ -237,7 +237,7 @@ class StyleLedger:
 
     def __post_init__(self) -> None:
         """Freeze ``entries`` and normalise ``leading_comments`` to a tuple."""
-        if not isinstance(self.entries, MappingProxyType):
+        if self.entries is not _EMPTY_MAPPING:
             object.__setattr__(self, "entries", MappingProxyType(dict(self.entries)))
         if not isinstance(self.leading_comments, tuple):
             object.__setattr__(self, "leading_comments", tuple(self.leading_comments))
@@ -463,10 +463,34 @@ def _walk_yaml_ref_value(
         sub_kind, _, _, _ = _classify_mapping_node(val_node)
         if sub_kind is None:
             _walk_yaml_node(val_node, inner_prefix, entries, val_loader)
-    elif isinstance(val_node, yaml.SequenceNode) and _has_nested_yaml_children(
-        val_node
-    ):
-        _walk_yaml_node(val_node, inner_prefix, entries, val_loader)
+    elif isinstance(val_node, yaml.SequenceNode):
+        if _has_nested_yaml_children(val_node):
+            _walk_yaml_node(val_node, inner_prefix, entries, val_loader)
+        else:
+            _record_scalar_sequence_elements(val_node, inner_prefix, entries)
+
+
+def _record_scalar_sequence_elements(
+    seq_node: yaml.SequenceNode,
+    prefix: str,
+    entries: dict[str, PathStyle],
+) -> None:
+    """Record per-element scalar quoting styles without altering container wrapper counts."""
+    for idx, child_node in enumerate(seq_node.value):
+        if not isinstance(child_node, yaml.ScalarNode):
+            continue
+        scalar_style = child_node.style if child_node.tag == _YAML_STR_TAG else None
+        if scalar_style is None:
+            continue
+        child_line = (
+            child_node.start_mark.line + 1
+            if child_node.start_mark is not None
+            else None
+        )
+        entries[_join_index_path(prefix, idx)] = PathStyle(
+            scalar_style=scalar_style,
+            source_line=child_line,
+        )
 
 
 def _walk_yaml_mapping(
@@ -532,6 +556,7 @@ def _walk_yaml_node(
                     flow_style=node.flow_style,
                     source_line=line,
                 )
+            _record_scalar_sequence_elements(node, prefix, entries)
             return
         if prefix and prefix not in entries:
             entries[prefix] = PathStyle(flow_style=node.flow_style, source_line=line)
@@ -607,10 +632,11 @@ def _apply_style_to_mapping_node(
             sub_kind, _, _, _ = _classify_mapping_node(val_node)
             if sub_kind is None:
                 _apply_style_to_yaml_node(val_node, inner_prefix, ledger)
-        elif isinstance(val_node, yaml.SequenceNode) and _has_nested_yaml_children(
-            val_node
-        ):
-            _apply_style_to_yaml_node(val_node, inner_prefix, ledger)
+        elif isinstance(val_node, yaml.SequenceNode):
+            for idx, child_node in enumerate(val_node.value):
+                _apply_style_to_yaml_node(
+                    child_node, _join_index_path(inner_prefix, idx), ledger
+                )
         return
 
     for key_node, child_node in node.value:
@@ -633,11 +659,8 @@ def _apply_style_to_yaml_node(
     if isinstance(node, yaml.SequenceNode):
         if style is not None and style.flow_style is not None:
             node.flow_style = style.flow_style
-        if _has_nested_yaml_children(node):
-            for idx, child_node in enumerate(node.value):
-                _apply_style_to_yaml_node(
-                    child_node, _join_index_path(prefix, idx), ledger
-                )
+        for idx, child_node in enumerate(node.value):
+            _apply_style_to_yaml_node(child_node, _join_index_path(prefix, idx), ledger)
         return
     if isinstance(node, yaml.ScalarNode) and style is not None:
         node.style = _safe_scalar_style(node, style.scalar_style)

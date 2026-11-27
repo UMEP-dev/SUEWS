@@ -32,24 +32,89 @@ if TYPE_CHECKING:
     from ..rules.typed_view import TypedConfigView
 
 _MISSING = object()
+
+
+class _UnsetType:
+    """Sentinel distinguishing an omitted raw payload from an explicit ``None``."""
+
+    def __repr__(self) -> str:
+        """Return a readable sentinel representation."""
+        return "<UNSET>"
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _UnsetType:
+        """Preserve sentinel identity across deep copies."""
+        return self
+
+
+_UNSET = _UnsetType()
 _PATH_TOKEN_RE = re.compile(r"([^\.\[\]]+)|\[(\d+)\]")
 _VALID_PATH_RE = re.compile(
     r"^(?:[^\.\[\]]+(?:\[\d+\])*)(?:\.[^\.\[\]]+(?:\[\d+\])*)*$"
 )
 
+
+@dataclass(frozen=True)
+class MappingKey:
+    """Explicit mapping-key path token preserving non-string keys and punctuation."""
+
+    key: Any
+
+    def __eq__(self, other: object) -> bool:
+        """Compare key identity while keeping ``bool`` distinct from ``int``."""
+        if not isinstance(other, MappingKey):
+            return NotImplemented
+        if isinstance(self.key, bool) != isinstance(other.key, bool):
+            return False
+        return self.key == other.key
+
+    def __hash__(self) -> int:
+        """Hash key identity consistently with :meth:`__eq__`."""
+        return hash((type(self.key) is bool, self.key))
+
+
+PathToken = str | int | MappingKey
+
 PatchAction = Literal["set", "delete", "nullify_tree"]
 _VALID_PATCH_ACTIONS = frozenset({"set", "delete", "nullify_tree"})
 
 
+def make_key_token(key: Any) -> str | MappingKey:
+    """Return a plain string token when unambiguous, or a :class:`MappingKey`."""
+    if isinstance(key, str) and key and not any(ch in key for ch in ".[]"):
+        return key
+    return MappingKey(key)
+
+
+def _copy_payload(value: Any) -> Any:
+    """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return value
+    if isinstance(value, Mapping):
+        return {k: _copy_payload(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_copy_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_copy_payload(item) for item in value)
+    if isinstance(value, set):
+        return {_copy_payload(item) for item in value}
+    if isinstance(value, frozenset):
+        return frozenset(_copy_payload(item) for item in value)
+    return deepcopy(value)
+
+
 def deep_freeze(value: Any) -> Any:
     """Recursively freeze mappings, sequences, and sets into read-only containers."""
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return value
     if isinstance(value, Mapping):
         return MappingProxyType({k: deep_freeze(v) for k, v in value.items()})
     if isinstance(value, (list, tuple)):
         return tuple(deep_freeze(item) for item in value)
     if isinstance(value, (set, frozenset)):
         return frozenset(deep_freeze(item) for item in value)
-    return value
+    if isinstance(value, (bytearray, memoryview)):
+        return bytes(value)
+    return deepcopy(value)
 
 
 def thaw_copy(value: Any) -> Any:
@@ -287,13 +352,19 @@ def parse_path_tokens(path: str) -> list[str | int]:
     return tokens
 
 
-def format_path_tokens(tokens: Sequence[str | int]) -> str:
+def format_path_tokens(tokens: Sequence[PathToken]) -> str:
     """Format parsed path tokens back into a canonical dotted/indexed path string."""
     if not tokens:
         raise ValueError("Path tokens cannot be empty")
     parts: list[str] = []
     for token in tokens:
-        if isinstance(token, int) and not isinstance(token, bool):
+        if isinstance(token, MappingKey):
+            seg = f"[{token.key!r}]"
+            if not parts:
+                parts.append(seg)
+            else:
+                parts[-1] = f"{parts[-1]}{seg}"
+        elif isinstance(token, int) and not isinstance(token, bool):
             if not parts:
                 parts.append(f"[{token}]")
             else:
@@ -310,7 +381,11 @@ def canonicalise_path(path: str) -> str:
     return format_path_tokens(parse_path_tokens(path))
 
 
-def _step_read(current: Any, token: str | int) -> Any:
+def _step_read(current: Any, token: PathToken) -> Any:
+    if isinstance(token, MappingKey):
+        if isinstance(current, Mapping) and token.key in current:
+            return current[token.key]
+        return _MISSING
     if isinstance(token, int):
         if isinstance(current, (list, tuple)) and 0 <= token < len(current):
             return current[token]
@@ -320,18 +395,25 @@ def _step_read(current: Any, token: str | int) -> Any:
     return _MISSING
 
 
-def read_raw_path(data: Any, path: str, default: Any = _MISSING) -> Any:
-    """Resolve *path* inside *data* and return the raw entry without unwrapping ``RefValue``."""
-    try:
-        tokens = parse_path_tokens(path)
-    except ValueError:
-        return default
+def read_raw_tokens(
+    data: Any, tokens: Sequence[PathToken], default: Any = _MISSING
+) -> Any:
+    """Resolve *tokens* inside *data* and return the raw entry without unwrapping."""
     current: Any = data
     for token in tokens:
         current = _step_read(current, token)
         if current is _MISSING:
             return default
     return current
+
+
+def read_raw_path(data: Any, path: str, default: Any = _MISSING) -> Any:
+    """Resolve *path* inside *data* and return the raw entry without unwrapping ``RefValue``."""
+    try:
+        tokens = parse_path_tokens(path)
+    except ValueError:
+        return default
+    return read_raw_tokens(data, tokens, default=default)
 
 
 def path_exists(data: Any, path: str) -> bool:
@@ -347,36 +429,72 @@ def read_path(data: Any, path: str, default: Any = None) -> Any:
     return unwrap_entry(raw, default)
 
 
+def _is_list_index_token(token: PathToken) -> bool:
+    return isinstance(token, int) and not isinstance(token, bool)
+
+
+def _mapping_key_from_token(token: PathToken) -> Any:
+    return token.key if isinstance(token, MappingKey) else token
+
+
 def _can_resolve_parent(
-    data: dict[str, Any], tokens: Sequence[str | int], *, create_missing: bool
+    data: dict[str, Any], tokens: Sequence[PathToken], *, create_missing: bool
 ) -> bool:
     probe: Any = data
     creating = False
     for pos, token in enumerate(tokens[:-1]):
-        next_is_int = isinstance(tokens[pos + 1], int)
+        next_is_list_idx = _is_list_index_token(tokens[pos + 1])
         if creating:
-            if isinstance(token, int) or next_is_int:
+            if _is_list_index_token(token) or next_is_list_idx:
                 return False
             continue
-        if isinstance(token, int):
+        if _is_list_index_token(token):
+            assert isinstance(token, int)
             if not isinstance(probe, list) or not (0 <= token < len(probe)):
                 return False
             probe = probe[token]
             continue
         if not isinstance(probe, dict):
             return False
-        if token not in probe or probe[token] is None:
-            if not create_missing or next_is_int:
+        raw_key = _mapping_key_from_token(token)
+        if raw_key not in probe or probe[raw_key] is None:
+            if not create_missing or next_is_list_idx:
                 return False
             creating = True
         else:
-            probe = probe[token]
-    return not (creating and isinstance(tokens[-1], int))
+            probe = probe[raw_key]
+    return not (creating and _is_list_index_token(tokens[-1]))
+
+
+def find_first_created_ancestor(
+    data: Mapping[str, Any], tokens: Sequence[PathToken]
+) -> tuple[tuple[PathToken, ...], bool] | None:
+    """Return ``(ancestor_tokens, was_none)`` for the shallowest missing/null ancestor.
+
+    Returns ``None`` when all parent containers already exist and are non-null.
+    """
+    current: Any = data
+    for pos, token in enumerate(tokens[:-1]):
+        if _is_list_index_token(token):
+            assert isinstance(token, int)
+            if not isinstance(current, (list, tuple)) or not (0 <= token < len(current)):
+                return None
+            current = current[token]
+            continue
+        if not isinstance(current, Mapping):
+            return None
+        raw_key = _mapping_key_from_token(token)
+        if raw_key not in current:
+            return tuple(tokens[: pos + 1]), False
+        if current[raw_key] is None:
+            return tuple(tokens[: pos + 1]), True
+        current = current[raw_key]
+    return None
 
 
 def _ensure_parent_container(
-    data: dict[str, Any], tokens: Sequence[str | int], *, create_missing: bool
-) -> tuple[Any, str | int] | None:
+    data: dict[str, Any], tokens: Sequence[PathToken], *, create_missing: bool
+) -> tuple[Any, PathToken] | None:
     """Walk *data* to the parent container of *tokens[-1]* without partial mutations."""
     if not tokens or not _can_resolve_parent(
         data, tokens, create_missing=create_missing
@@ -384,18 +502,20 @@ def _ensure_parent_container(
         return None
     current: Any = data
     for token in tokens[:-1]:
-        if isinstance(token, int):
+        if _is_list_index_token(token):
+            assert isinstance(token, int)
             current = current[token]
         else:
-            if token not in current or current[token] is None:
-                current[token] = {}
-            current = current[token]
+            raw_key = _mapping_key_from_token(token)
+            if raw_key not in current or current[raw_key] is None:
+                current[raw_key] = {}
+            current = current[raw_key]
     return current, tokens[-1]
 
 
-def write_path(
+def write_tokens(
     data: dict[str, Any],
-    path: str,
+    tokens: Sequence[PathToken],
     new_value: Any,
     *,
     default_wrapped: bool = True,
@@ -403,14 +523,26 @@ def write_path(
     style_ledger: StyleLedger | None = None,
     original_style: WrapperStyle | None = None,
     original_ref: Mapping[str, Any] | None = None,
+    replace_raw: bool = False,
 ) -> bool:
-    """Write *new_value* at *path* in *data*, preserving bare vs ``RefValue`` style."""
-    tokens = parse_path_tokens(path)
+    """Write *new_value* at *tokens* in *data*, preserving style or replacing raw."""
     canon_path = format_path_tokens(tokens)
     located = _ensure_parent_container(data, tokens, create_missing=create_missing)
     if located is None:
         return False
     parent, leaf = located
+    if replace_raw:
+        if _is_list_index_token(leaf):
+            assert isinstance(leaf, int)
+            if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
+                return False
+            parent[leaf] = _copy_payload(new_value)
+            return True
+        if not isinstance(parent, dict):
+            return False
+        parent[_mapping_key_from_token(leaf)] = _copy_payload(new_value)
+        return True
+
     effective_style = original_style
     effective_ref = original_ref
     if style_ledger is not None:
@@ -418,7 +550,8 @@ def write_path(
             effective_style = style_ledger.wrapper_style(canon_path)
         if effective_ref is None:
             effective_ref = style_ledger.ref_metadata(canon_path)
-    if isinstance(leaf, int):
+    if _is_list_index_token(leaf):
+        assert isinstance(leaf, int)
         if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
             return False
         existing = parent[leaf]
@@ -435,13 +568,40 @@ def write_path(
         return False
     write_scalar(
         parent,
-        leaf,
+        _mapping_key_from_token(leaf),
         new_value,
         default_wrapped=default_wrapped,
         wrapper_style=effective_style,
         ref_metadata=effective_ref,
     )
     return True
+
+
+def write_path(
+    data: dict[str, Any],
+    path: str,
+    new_value: Any,
+    *,
+    default_wrapped: bool = True,
+    create_missing: bool = True,
+    style_ledger: StyleLedger | None = None,
+    original_style: WrapperStyle | None = None,
+    original_ref: Mapping[str, Any] | None = None,
+    replace_raw: bool = False,
+) -> bool:
+    """Write *new_value* at *path* in *data*, preserving bare vs ``RefValue`` style."""
+    tokens = parse_path_tokens(path)
+    return write_tokens(
+        data,
+        tokens,
+        new_value,
+        default_wrapped=default_wrapped,
+        create_missing=create_missing,
+        style_ledger=style_ledger,
+        original_style=original_style,
+        original_ref=original_ref,
+        replace_raw=replace_raw,
+    )
 
 
 def delete_path(data: dict[str, Any], path: str) -> bool:
@@ -451,9 +611,11 @@ def delete_path(data: dict[str, Any], path: str) -> bool:
     if located is None:
         return False
     parent, leaf = located
-    if isinstance(leaf, str) and isinstance(parent, dict) and leaf in parent:
-        del parent[leaf]
-        return True
+    if not _is_list_index_token(leaf) and isinstance(parent, dict):
+        raw_key = _mapping_key_from_token(leaf)
+        if raw_key in parent:
+            del parent[raw_key]
+            return True
     return False
 
 
@@ -515,27 +677,28 @@ def nullify_tree_in_place(
     return changed
 
 
-def apply_nullify_tree_at_path(
+def apply_nullify_tree_at_tokens(
     target: dict[str, Any],
-    path: str,
+    tokens: Sequence[PathToken],
     *,
     skip_keys: frozenset[str] = frozenset(),
 ) -> bool:
-    """Apply ``nullify_tree_in_place`` at *path* (supporting dict keys and list indices)."""
-    tokens = parse_path_tokens(path)
+    """Apply ``nullify_tree_in_place`` at *tokens* (supporting dict keys and list indices)."""
     located = _ensure_parent_container(target, tokens, create_missing=False)
     if located is None:
         return False
     parent, leaf = located
-    if isinstance(leaf, str):
-        if not isinstance(parent, dict) or leaf not in parent:
+    if not _is_list_index_token(leaf):
+        raw_key = _mapping_key_from_token(leaf)
+        if not isinstance(parent, dict) or raw_key not in parent:
             return False
-        node = parent[leaf]
+        node = parent[raw_key]
         if isinstance(node, (dict, list)):
             nullify_tree_in_place(node, skip_keys=skip_keys)
         elif node is not None:
-            parent[leaf] = None
+            parent[raw_key] = None
         return True
+    assert isinstance(leaf, int)
     if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
         return False
     node = parent[leaf]
@@ -544,6 +707,18 @@ def apply_nullify_tree_at_path(
     elif node is not None:
         parent[leaf] = None
     return True
+
+
+def apply_nullify_tree_at_path(
+    target: dict[str, Any],
+    path: str,
+    *,
+    skip_keys: frozenset[str] = frozenset(),
+) -> bool:
+    """Apply ``nullify_tree_in_place`` at *path* (supporting dict keys and list indices)."""
+    return apply_nullify_tree_at_tokens(
+        target, parse_path_tokens(path), skip_keys=skip_keys
+    )
 
 
 @dataclass(frozen=True)
@@ -555,9 +730,10 @@ class ConfigPatch:
     discard mutated trees, and apply mode applies the exact same patch list.
     When normalised via :func:`normalise_patches`, every patch carries its
     original value (``old_value``), existence flag (``had_original``),
-    authoring wrapper style (``original_style``), and frozen ``original_ref``
-    metadata so conflicts, oscillation checks, and exact rollbacks are
-    well-defined.
+    authoring wrapper style (``original_style``), frozen ``original_ref``
+    metadata, exact raw pre-patch entry (``original_raw``), and any implicitly
+    created ancestor (``created_ancestor``) so conflicts, oscillation checks,
+    and exact rollbacks are well-defined.
     """
 
     path: str
@@ -574,17 +750,21 @@ class ConfigPatch:
     had_original: bool | None = None
     original_style: WrapperStyle | None = None
     original_ref: Mapping[str, Any] | None = None
+    path_tokens: tuple[PathToken, ...] | None = None
+    original_raw: Any = _UNSET
+    replace_raw: bool = False
+    created_ancestor: tuple[tuple[PathToken, ...], bool] | None = None
 
     def __post_init__(self) -> None:
         """Defensively copy mutable payloads and freeze ``original_ref`` metadata."""
-        if isinstance(self.new_value, (Mapping, list, set)):
-            object.__setattr__(self, "new_value", thaw_copy(self.new_value))
-        if isinstance(self.old_value, (Mapping, list, set)):
-            object.__setattr__(self, "old_value", thaw_copy(self.old_value))
-        if self.original_ref is not None and not isinstance(
-            self.original_ref, MappingProxyType
-        ):
+        object.__setattr__(self, "new_value", _copy_payload(self.new_value))
+        object.__setattr__(self, "old_value", _copy_payload(self.old_value))
+        if self.original_ref is not None:
             object.__setattr__(self, "original_ref", deep_freeze(self.original_ref))
+        if self.path_tokens is not None and not isinstance(self.path_tokens, tuple):
+            object.__setattr__(self, "path_tokens", tuple(self.path_tokens))
+        if self.original_raw is not _UNSET:
+            object.__setattr__(self, "original_raw", _copy_payload(self.original_raw))
 
 
 def apply_patches_in_place(
@@ -601,7 +781,7 @@ def apply_patches_in_place(
 
     - ``set`` raises :class:`ValueError` if the path cannot be written.
     - ``delete`` raises :class:`ValueError` if the parent container does not
-      exist or is not a mapping / leaf is not a string key; deleting a missing
+      exist or is not a mapping / leaf is not a mapping key; deleting a missing
       key from an existing mapping parent is an idempotent no-op.
     - ``nullify_tree`` raises :class:`ValueError` if the path cannot be resolved.
     """
@@ -610,22 +790,27 @@ def apply_patches_in_place(
             raise ValueError(
                 f"Unsupported patch action {patch.action!r} at path {patch.path!r}"
             )
+        tokens: tuple[PathToken, ...] = (
+            patch.path_tokens
+            if patch.path_tokens is not None
+            else tuple(parse_path_tokens(patch.path))
+        )
         if patch.action == "set":
-            applied = write_path(
+            applied = write_tokens(
                 target,
-                patch.path,
+                tokens,
                 patch.new_value,
                 default_wrapped=patch.default_wrapped,
                 style_ledger=style_ledger,
                 original_style=patch.original_style,
                 original_ref=patch.original_ref,
+                replace_raw=patch.replace_raw,
             )
             if not applied:
                 raise ValueError(
                     f"Failed to apply 'set' patch at path {patch.path!r}"
                 )
         elif patch.action == "delete":
-            tokens = parse_path_tokens(patch.path)
             located = _ensure_parent_container(
                 target, tokens, create_missing=False
             )
@@ -635,16 +820,16 @@ def apply_patches_in_place(
                     "parent container not found"
                 )
             parent, leaf = located
-            if not isinstance(parent, dict) or not isinstance(leaf, str):
+            if not isinstance(parent, dict) or _is_list_index_token(leaf):
                 raise ValueError(
                     f"Failed to apply 'delete' patch at path {patch.path!r}: "
                     "target must be a mapping key"
                 )
-            parent.pop(leaf, None)
+            parent.pop(_mapping_key_from_token(leaf), None)
         elif patch.action == "nullify_tree":
-            applied = apply_nullify_tree_at_path(
+            applied = apply_nullify_tree_at_tokens(
                 target,
-                patch.path,
+                tokens,
                 skip_keys=frozenset(patch.skip_keys),
             )
             if not applied:
@@ -846,24 +1031,30 @@ class ConfigDocument:
 __all__ = [
     "ConfigDocument",
     "ConfigPatch",
+    "MappingKey",
     "PatchAction",
     "PathStyle",
+    "PathToken",
     "StyleLedger",
     "WrapperStyle",
     "apply_nullify_tree_at_path",
+    "apply_nullify_tree_at_tokens",
     "apply_patches_in_place",
     "canonicalise_path",
     "deep_freeze",
     "delete_path",
+    "find_first_created_ancestor",
     "format_path_tokens",
     "format_pydantic_loc",
     "is_ref_only",
     "is_ref_wrapper",
+    "make_key_token",
     "nullify_tree_in_place",
     "parse_path_tokens",
     "path_exists",
     "read_path",
     "read_raw_path",
+    "read_raw_tokens",
     "read_scalar",
     "site_gridid",
     "site_gridid_map",
@@ -871,4 +1062,5 @@ __all__ = [
     "unwrap_entry",
     "write_path",
     "write_scalar",
+    "write_tokens",
 ]

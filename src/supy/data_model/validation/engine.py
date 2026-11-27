@@ -1165,8 +1165,11 @@ class ValidationEngine:
             )
 
         first_phase = pipeline_norm[0]
+        unwrapped_source: Any = (
+            source.unwrap_copy() if isinstance(source, ReadOnlyModelProxy) else source
+        )
         raw_data, source_path, load_error = _load_source_in_memory(
-            source, first_phase=first_phase
+            unwrapped_source, first_phase=first_phase
         )
         if load_error is not None:
             return ValidationReport(
@@ -1210,15 +1213,19 @@ class ValidationEngine:
             source_path.parent if source_path is not None else None
         )
         if bound_base_dir is None:
-            yaml_path_attr = getattr(source, "_yaml_path", None)
+            yaml_path_attr = getattr(unwrapped_source, "_yaml_path", None)
             if isinstance(yaml_path_attr, (str, Path)) and str(yaml_path_attr).strip():
                 bound_base_dir = Path(yaml_path_attr).resolve().parent
 
         if "B" in pipeline_norm and (not has_errors or continue_on_error):
             typed_model_proxy = (
-                freeze_model(source)
-                if isinstance(source, (BaseModel, ReadOnlyModelProxy))
-                else None
+                source
+                if isinstance(source, ReadOnlyModelProxy)
+                else (
+                    freeze_model(unwrapped_source)
+                    if isinstance(unwrapped_source, BaseModel)
+                    else None
+                )
             )
             phase_b_out, phase_b_report = _run_phase_b_in_memory(
                 working_data,

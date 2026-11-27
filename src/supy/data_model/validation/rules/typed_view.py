@@ -307,14 +307,31 @@ class VerticalLayersView:
 
     @property
     def nlayer(self) -> int | None:
-        """Integer ``nlayer``, or None."""
+        """Finite integral ``nlayer``, or None for missing/non-integral/infinite values."""
         val = read_scalar(self.raw, "nlayer")
         if val is None or isinstance(val, bool):
             return None
-        try:
+        if isinstance(val, Integral):
             return int(val)
-        except (TypeError, ValueError):
-            return None
+        if isinstance(val, Real):
+            try:
+                fval = float(val)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            return int(fval) if math.isfinite(fval) and fval.is_integer() else None
+        if isinstance(val, str):
+            text = val.strip()
+            if not text:
+                return None
+            try:
+                return int(text)
+            except ValueError:
+                try:
+                    fval = float(text)
+                except (ValueError, OverflowError):
+                    return None
+                return int(fval) if math.isfinite(fval) and fval.is_integer() else None
+        return None
 
     def float_array(self, key: str) -> tuple[float | None, ...]:
         """Return a frozen tuple of finite floats (or None) for array *key*."""

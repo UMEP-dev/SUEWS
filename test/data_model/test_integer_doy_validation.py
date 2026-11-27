@@ -62,7 +62,7 @@ from supy.util.converter.yaml_upgrade import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-MIGRATE", "C-ROUNDTRIP", "C-SCHEMA"),
 ]
@@ -971,6 +971,7 @@ def test_suews_convert_cli_rejects_fractional_doy_and_accepts_ref_only(
     assert reloaded.sites[0].properties.anthropogenic_emissions.enddls is None
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("section", "field", "bad_val", "expected"),
     [

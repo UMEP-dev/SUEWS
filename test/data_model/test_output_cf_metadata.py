@@ -10,7 +10,7 @@ from supy.data_model.output import OUTPUT_REGISTRY, get_output_contract_catalogu
 from supy.data_model.output.variables import OutputVariable
 from supy.units import parse_unit
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-OUTPUT")]
 
 
 @pytest.mark.parametrize(

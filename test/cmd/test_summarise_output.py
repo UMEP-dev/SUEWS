@@ -15,7 +15,7 @@ from supy.cmd.compare_runs import compare_runs_cmd
 from supy.cmd.summarise_output import summarise_output_cmd
 from supy.diagnostics import check_energy_balance_closure, check_nan_proportion
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API")]
 
 
 def _suews_columns(names: list[str]) -> pd.MultiIndex:

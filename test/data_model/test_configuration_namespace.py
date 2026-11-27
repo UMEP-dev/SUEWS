@@ -9,7 +9,7 @@ import sys
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-PARITY")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-PARITY")]
 
 _MODULE_EXPORTS: dict[str, tuple[str, ...]] = {
     "": (
@@ -87,6 +87,8 @@ def test_package_star_exports_remain_unchanged() -> None:
     assert legacy.__all__ == canonical.__all__
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 @pytest.mark.parametrize("module_name", ["exporter", "publisher", "updater"])
 def test_legacy_executable_modules_forward_help(
     module_name: str,
@@ -111,6 +113,8 @@ def test_legacy_executable_modules_forward_help(
     assert "usage:" in result.stdout.lower()
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_legacy_updater_preserves_unsuccessful_exit_code(tmp_path: Path) -> None:
     """The updater wrapper forwards the canonical command's return value."""
     result = subprocess.run(

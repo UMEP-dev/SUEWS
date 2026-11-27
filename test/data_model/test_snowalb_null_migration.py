@@ -20,7 +20,7 @@ from supy.data_model.core import SUEWSConfig
 from supy.suews_sim import SUEWSSimulation
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE")]
+pytestmark = [pytest.mark.physics, pytest.mark.cfg, pytest.mark.contract("C-MIGRATE")]
 
 SHORT_SAMPLE = (
     Path(__file__).parents[1] / "fixtures" / "sample_short" / "sample_config_short.yml"
@@ -123,7 +123,6 @@ def _short_sample_with_snowalb(
     return path
 
 
-@pytest.mark.physics
 @pytest.mark.core
 def test_upgraded_null_snowalb_without_snowpack_runs_unchanged(tmp_path):
     """With no initial snowpack, albedo resets to zero before radiation."""
@@ -146,7 +145,6 @@ def test_upgraded_null_snowalb_without_snowpack_runs_unchanged(tmp_path):
     assert df_upgraded.equals(df_zero)
 
 
-@pytest.mark.physics
 @pytest.mark.core
 @pytest.mark.parametrize("snow", ["enabled", "disabled"])
 def test_upgraded_null_snowalb_with_snowpack_changes_output(tmp_path, snow):

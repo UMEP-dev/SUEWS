@@ -12,7 +12,11 @@ import pytest
 
 from supy.cmd.json_envelope import EXIT_OK, EXIT_USER_ERROR, Envelope
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-API", "C-ERROR"),
+]
 
 
 class TestEnvelopeStatus:

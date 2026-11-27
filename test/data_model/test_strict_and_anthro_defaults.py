@@ -27,7 +27,7 @@ import yaml
 from supy.data_model.core import AnthropogenicHeat, DayProfile, SUEWSConfig
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-API", "C-VALID", "C-SCHEMA"),
 ]

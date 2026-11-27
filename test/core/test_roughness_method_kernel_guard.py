@@ -29,7 +29,7 @@ from supy.data_model.core.model import MomentumRoughnessMethod
 _run_rust = import_module("supy._run_rust")
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.rust,
     pytest.mark.core,
     pytest.mark.contract("C-VALID", "C-ERROR", "C-STRICT"),

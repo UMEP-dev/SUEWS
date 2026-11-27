@@ -32,7 +32,7 @@ from supy.data_model.output import OUTPUT_REGISTRY
 import supy.suews_output as suews_output_mod
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.contract("C-RESAMPLE", "C-ISOLATION", "C-SAVE"),
 ]
 

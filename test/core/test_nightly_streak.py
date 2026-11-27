@@ -11,7 +11,7 @@ from scripts.suews.nightly_streak import (
     summarise_runs,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 
 def _run(run_id: int, conclusion: str, number: int = 1) -> dict:

@@ -18,8 +18,8 @@ _YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 _YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 pytestmark = [
-    pytest.mark.api,
-    pytest.mark.physics,
+    pytest.mark.native,
+    pytest.mark.e2e,
     pytest.mark.contract("C-STRICT", "C-BIND", "C-ERROR", "C-RESPONSE"),
 ]
 

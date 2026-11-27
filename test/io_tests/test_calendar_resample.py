@@ -11,7 +11,7 @@ import pytest
 
 from supy._post import _resample_output
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE", "C-CLOCK")]
+pytestmark = [pytest.mark.physics, pytest.mark.contract("C-RESAMPLE", "C-CLOCK")]
 
 
 @pytest.fixture(scope="module")

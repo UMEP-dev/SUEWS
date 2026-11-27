@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 def test_init_uses_simple_urban_default(

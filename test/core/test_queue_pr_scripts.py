@@ -12,7 +12,7 @@ import sys
 import pytest
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.tooling,
     pytest.mark.contract("C-TOOLING"),
     pytest.mark.skipif(
         sys.platform == "win32"

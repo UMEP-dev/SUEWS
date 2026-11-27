@@ -7,7 +7,7 @@ import pytest
 from supy.data_model.core.type import combine_df_states
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-ROUNDTRIP", "C-VALID"),
 ]

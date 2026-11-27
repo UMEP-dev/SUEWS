@@ -24,7 +24,11 @@ from supy._save import (
 )
 from supy.data_model import SUEWSConfig
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-OUTPUT", "C-SAVE")]
+pytestmark = [
+    pytest.mark.native,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-OUTPUT", "C-SAVE"),
+]
 
 
 def test_text_layout_prefix_sentinel_and_filenames(tmp_path: Path):
@@ -209,6 +213,7 @@ def _read_arrow_schema_summary(
     return summary
 
 
+@pytest.mark.e2e
 def test_engine_arrow_output_matches_suews_registry(tmp_path: Path):
     """Verify real engine Arrow IPC schema matches SuPy's canonical output registry."""
     engine_bin = _locate_suews_engine()

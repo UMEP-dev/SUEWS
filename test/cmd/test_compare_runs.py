@@ -12,7 +12,7 @@ import pytest
 
 from supy.cmd.compare_runs import compare_runs_cmd
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API", "C-ERROR")]
 
 
 def _suews_columns(names: list[str]) -> pd.MultiIndex:

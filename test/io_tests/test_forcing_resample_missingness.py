@@ -12,7 +12,7 @@ import pytest
 
 from supy.suews_forcing import SUEWSForcing
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING")]
 
 # SUEWS missing sentinel as written to forcing files and consumed by the kernel.
 MISSING = -999.0

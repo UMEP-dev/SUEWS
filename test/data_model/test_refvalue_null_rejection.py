@@ -37,7 +37,7 @@ from supy.data_model.validation.pipeline.phase_a import (
 from supy.suews_sim import SUEWSSimulation
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-EMIT"),
 ]

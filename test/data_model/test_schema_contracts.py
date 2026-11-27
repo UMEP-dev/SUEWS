@@ -68,7 +68,7 @@ from supy.data_model.validation.required_fields import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.core,
     pytest.mark.contract("C-SCHEMA", "C-VALID", "C-TOOLING"),

@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ERROR"),
 ]
@@ -119,6 +119,7 @@ def _run_module_subprocess(
     )
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("valid", "expected_code"),
     [(True, 0), (False, 1)],
@@ -515,6 +516,7 @@ def test_module_abc_publication_failure_rolls_back_and_retries(
     )
 
 
+@pytest.mark.os_compat
 def test_module_abc_replaces_output_symlinks_without_touching_targets(
     tmp_path, sample_config, monkeypatch, capsys
 ):
@@ -620,6 +622,7 @@ def _hash_seed_snapshots(tmp_path_factory):
     return results
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("mode", ["public", "dev"])
 @pytest.mark.parametrize("science_fixes", ["suggest", "apply"])
 def test_module_abc_reports_repeat_exactly_across_hash_seeds(

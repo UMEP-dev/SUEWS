@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PATH = PROJECT_ROOT / ".agents" / "skills" / "audit-docs" / "scripts" / "audit.py"

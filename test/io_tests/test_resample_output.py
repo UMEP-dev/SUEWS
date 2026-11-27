@@ -15,7 +15,7 @@ import supy as sp
 from supy._misc import infer_freq_offset
 from supy._post import _resample_output, dict_var_aggm
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-RESAMPLE")]
 
 
 def _regular_output_frame(periods=6, freq="5min", start="2023-01-01", tz=None):

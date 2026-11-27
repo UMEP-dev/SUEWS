@@ -17,7 +17,8 @@ import pytest
 import yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
+    pytest.mark.os_compat,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ERROR", "C-ISOLATION"),
 ]
@@ -330,6 +331,7 @@ def _stop(processes):
         process.communicate(timeout=30)
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("routes", [
     ("suews", "suews"), ("suews-validate", "suews-validate"), ("suews", "suews-validate"),
 ])
@@ -361,6 +363,7 @@ def test_public_abc_concurrent_results_match_isolated_controls(source, hooks, tm
         _stop(processes)
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("routes", [("suews", "suews-validate"), ("suews-validate", "suews")])
 def test_public_abc_concurrent_write_failure_preserves_good_set_and_retries(source, hooks, tmp_path, routes):
     original = _snapshot(list(source.parent.iterdir()))
@@ -448,6 +451,7 @@ def test_public_abc_forcing_option_reaches_shared_phase_a(source, route, forcing
     assert _snapshot(original) == original
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("route", ["suews", "suews-validate"])
 def test_installed_commands_use_working_tree_validator_sources(source, tmp_path, route):
     """An installed CLI must test the current files, including uncommitted edits.
@@ -531,6 +535,7 @@ def _encoded_validate(source, args, encoding):
     )
 
 
+@pytest.mark.e2e
 def test_installed_validator_cp1252_subprocess_smoke(source):
     """Focused subprocess smoke test for strict ``cp1252`` OS stream encoding."""
     path = source.rename(source.with_name("caf\u00e9[red]\u7ad9.yml"))

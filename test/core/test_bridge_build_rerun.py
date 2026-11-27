@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BRIDGE_BUILD_RS = REPO_ROOT / "src" / "suews_bridge" / "build.rs"

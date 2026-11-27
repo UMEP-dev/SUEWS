@@ -23,7 +23,6 @@ _YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 pytestmark = [
     pytest.mark.physics,
-    pytest.mark.api,
     pytest.mark.contract("C-STRICT", "C-FORCING", "C-NATIVE-ERROR"),
 ]
 
@@ -151,6 +150,7 @@ def _assert_public_config_error(doc: dict, needles: tuple[str, ...]) -> None:
         ),
     ],
 )
+@pytest.mark.e2e
 @pytest.mark.parametrize("route", ["file", "buffer", "resume"])
 def test_resolved_lumps_br02_failure_witnesses(
     tmp_path: Path,
@@ -267,6 +267,7 @@ def test_lumps_default_and_supplied_vegetation_reach_the_energy_fluxes(
         ),
     ],
 )
+@pytest.mark.e2e
 def test_engine_and_python_reject_invalid_emissions_selector(
     tmp_path: Path,
     suews_engine_bin: Path,
@@ -308,6 +309,7 @@ def test_engine_and_python_reject_invalid_emissions_selector(
         _assert_public_config_error(mutated_doc, public_needles)
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("emissions", [2, 12])
 def test_engine_accepts_valid_emissions_including_co2_methods(
     tmp_path: Path,
@@ -354,6 +356,7 @@ def test_engine_accepts_valid_emissions_including_co2_methods(
         ("malformed_token", ("qf", "invalid float literal")),
     ],
 )
+@pytest.mark.e2e
 def test_engine_rejects_invalid_observed_qf_for_emissions_zero(
     tmp_path: Path,
     suews_engine_bin: Path,
@@ -462,6 +465,7 @@ def test_python_simulation_rejects_invalid_observed_qf_for_emissions_zero(
     assert "emissions=0" in msg, f"{case}: {msg}"
 
 
+@pytest.mark.e2e
 def test_engine_accepts_valid_observed_qf_for_emissions_zero(
     tmp_path: Path, suews_engine_bin: Path, _engine_guards_base: dict
 ):
@@ -500,6 +504,7 @@ def test_engine_accepts_valid_observed_qf_for_emissions_zero(
     assert np.all(cols["QH"] > -200.0)
 
 
+@pytest.mark.e2e
 def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(
     tmp_path: Path, suews_engine_bin: Path, _engine_guards_base: dict
 ):
@@ -544,6 +549,7 @@ def test_engine_does_not_interpolate_sentinel_into_corrupted_floats(
     )
 
 
+@pytest.mark.e2e
 def test_fortran_anthropogenic_emissions_invalid_method_raises_error_73(
     tmp_path: Path,
 ):

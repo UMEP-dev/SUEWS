@@ -14,7 +14,7 @@ import supy as sp
 
 _umep2epw = import_module("supy.util._UMEP2epw")
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESAMPLE", "C-SAVE")]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-RESAMPLE", "C-SAVE")]
 
 
 @pytest.fixture(scope="module")

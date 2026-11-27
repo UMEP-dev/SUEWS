@@ -10,7 +10,7 @@ import pytest
 
 import supy._supy_module as supy_module
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API")]
 
 
 class _ForcingResult:

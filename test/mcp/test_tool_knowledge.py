@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API")]
 
 
 def _stub_envelope(captured: dict, payload: dict):

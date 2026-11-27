@@ -363,6 +363,7 @@ def test_pyo3_valid_storage_heat_options_produce_distinct_scientific_fluxes():
     np.testing.assert_allclose(obs.loc[:, ("SUEWS", "QS")].to_numpy(), 10.0)
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize(
     ("label", "mutator"),
     [
@@ -415,6 +416,7 @@ def test_standalone_engine_rejects_invalid_resolved_storage_heat(
     assert not (tmp_path / "suews_output.arrow").exists()
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("bad_code", [2, 4])
 def test_standalone_engine_preserves_kernel_error_106_for_unsupported_int_codes(
     tmp_path: Path, bad_code: int

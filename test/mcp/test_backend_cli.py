@@ -9,7 +9,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API", "C-ERROR")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-API", "C-ERROR"),
+]
 
 
 def test_rejects_subcommand_outside_allow_list() -> None:

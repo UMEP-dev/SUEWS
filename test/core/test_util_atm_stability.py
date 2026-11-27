@@ -8,7 +8,7 @@ import pytest
 
 from supy.util._atm import cal_Lob, cal_psi_heat, cal_psi_mom, cal_ra_obs
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESPONSE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-RESPONSE")]
 
 
 class TestStabilityAndAerodynamicResistance:

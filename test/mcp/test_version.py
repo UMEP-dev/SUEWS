@@ -10,7 +10,7 @@ import suews_mcp
 
 from supy import __version__ as supy_version
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-SCHEMA", "C-TOOLING")]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

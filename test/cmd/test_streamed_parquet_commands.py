@@ -24,10 +24,7 @@ StreamedParquetParts = _save_module.StreamedParquetParts
 save_df_output_parquet = _save_module.save_df_output_parquet
 write_output_parquet = _save_module.write_output_parquet
 
-pytestmark = [
-    pytest.mark.api,
-    pytest.mark.contract("C-API", "C-OUTPUT", "C-SAVE"),
-]
+pytestmark = [pytest.mark.native, pytest.mark.contract("C-API", "C-OUTPUT", "C-SAVE")]
 
 _STEP_S = 300
 

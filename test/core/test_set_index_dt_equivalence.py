@@ -16,10 +16,7 @@ from supy._load import (
     set_index_dt,
 )
 
-pytestmark = [
-    pytest.mark.api,
-    pytest.mark.contract("C-FORCING", "C-CLOCK"),
-]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING", "C-CLOCK")]
 
 
 def _reference_set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:

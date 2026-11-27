@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-API")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-API")]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -202,6 +202,7 @@ def _matches_evidence_contract(question: dict, matches: list[dict]) -> tuple[boo
     )
 
 
+@pytest.mark.e2e
 @pytestmark_skipif
 @pytest.mark.parametrize("question", _positive_questions(), ids=lambda q: q["id"])
 def test_positive_question_returns_indexed_evidence(
@@ -246,6 +247,7 @@ def test_positive_question_returns_indexed_evidence(
     # only when the pack returns nothing indexed at all.
 
 
+@pytest.mark.e2e
 @pytestmark_skipif
 @pytest.mark.parametrize("question", _negative_questions(), ids=lambda q: q["id"])
 def test_negative_question_pack_call_succeeds(question: dict) -> None:

@@ -13,7 +13,7 @@ from supy.util._io import prepare_dataframe_forcing, read_forcing
 
 # ruff: enable[import-private-name]
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING", "C-PARITY")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING", "C-PARITY")]
 FIXTURE = Path(__file__).parents[1] / "fixtures/soil_observation/modelled_content.txt"
 
 

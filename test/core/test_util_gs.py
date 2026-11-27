@@ -33,7 +33,7 @@ from supy.util._gs import (
     fit_g_ta,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESPONSE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-RESPONSE")]
 
 
 class TestSurfaceConductance:

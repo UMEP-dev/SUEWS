@@ -40,7 +40,7 @@ from supy.data_model.validation.pipeline.patches import (
 )
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-ERROR"),
 ]
@@ -420,6 +420,7 @@ def _copy_sample_case(dst: Path) -> Path:
     return dst / "sample_config.yml"
 
 
+@pytest.mark.e2e
 def test_installed_cli_outer_boundary_omitted_optionals_refvalue_apply_and_error_exit(
     tmp_path: Path,
 ) -> None:
@@ -548,6 +549,7 @@ def test_installed_cli_outer_boundary_omitted_optionals_refvalue_apply_and_error
     assert "start_time" not in updated_bad["model"]["control"]
 
 
+@pytest.mark.e2e
 def test_installed_cli_outer_boundary_transactional_rollback_on_publish_failure(
     tmp_path: Path,
 ) -> None:
@@ -630,6 +632,7 @@ def test_installed_cli_outer_boundary_transactional_rollback_on_publish_failure(
     assert list(tmp_path.glob(".suews-validate-*")) == [evidence_dir]
 
 
+@pytest.mark.e2e
 @pytest.mark.parametrize("bad_nlayer", [0, -1, 16, 100000])
 def test_phase_a_rejects_out_of_range_nlayer_as_error(
     tmp_path: Path, bad_nlayer: int

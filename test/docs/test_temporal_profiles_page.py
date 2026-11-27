@@ -12,7 +12,7 @@ import pytest
 from supy.data_model.core import profile
 from supy.data_model.core.site import SiteProperties
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-SCHEMA")]
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-SCHEMA")]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PAGE = PROJECT_ROOT / "docs" / "source" / "inputs" / "yaml" / "temporal-profiles.rst"

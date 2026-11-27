@@ -17,7 +17,7 @@ from supy.util.converter.table.profile_manager import (
     validate_and_fix_profiles,
 )
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-MIGRATE")]
 
 
 @pytest.fixture

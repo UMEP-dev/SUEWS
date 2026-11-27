@@ -19,7 +19,7 @@ from supy.data_model.core import SUEWSConfig
 from supy.util.converter.yaml_upgrade import upgrade_yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.unit,
     pytest.mark.cfg,
     pytest.mark.contract("C-VALID", "C-MIGRATE"),
 ]

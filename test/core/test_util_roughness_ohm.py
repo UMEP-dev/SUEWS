@@ -22,7 +22,7 @@ from supy.util._ohm import (
 )
 from supy.util._roughness import cal_neutral, cal_z0zd
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-RESPONSE")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-RESPONSE")]
 
 
 @pytest.fixture(autouse=True)

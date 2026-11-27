@@ -9,7 +9,7 @@ import pytest
 from supy.data_model.forcing import FORCING_REGISTRY
 from supy.suews_forcing import SUEWSForcing
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-FORCING")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-FORCING")]
 
 _CANONICAL = list(FORCING_REGISTRY.canonical_file_columns)
 _DATA_COLUMNS = [c for c in _CANONICAL if c not in {"iy", "id", "it", "imin"}]

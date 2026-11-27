@@ -9,7 +9,7 @@ from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.model import NetRadiationMethod, StorageHeatMethod
 from supy.data_model.core.site import StebbsProperties
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ROUNDTRIP")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-VALID", "C-ROUNDTRIP")]
 
 
 def _sample_config():

@@ -22,7 +22,7 @@ import test_rslprof as wind
 from supy import SUEWSSimulation
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.physics,
     pytest.mark.contract("C-BALANCE", "C-RESPONSE", "C-CLOCK", "C-OUTPUT"),
 ]
 

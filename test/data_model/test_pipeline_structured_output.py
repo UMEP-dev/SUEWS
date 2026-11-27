@@ -23,7 +23,7 @@ from supy.data_model.validation.pipeline.orchestrator import (
 )
 from supy.data_model.validation.pipeline.report_schema import PhaseReport
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-ERROR")]
+pytestmark = [pytest.mark.unit, pytest.mark.contract("C-ERROR")]
 
 
 def test_phase_a_emits_json_sidecar(tmp_path, sample_yaml_path):

@@ -194,24 +194,22 @@ than relying on `*_shadow` or `*_pack` round trips.
   feature and never enters shipped wheels or default CLI builds
   [fact: git grep -n "capi-observer\|suews_capi_observer" src/suews_bridge/Cargo.toml src/suews_bridge/build.rs].
 - **Coverage and harness.** `src/suews_bridge/tests/capi_field_observer.rs`
-  holds the `#[test]` suite across all 49 bridged types inventoried in
+  holds the `#[test]` suite across all 47 bridged types inventoried in
   `src/suews_bridge/bridge-manifest.json`: 30 direct `*_unpack` runtime
   observers, 4 driver-aggregate runtime observers (`SUEWS_CONFIG`,
   `SUEWS_TIMER`, `SUEWS_SITE`, `SUEWS_STATE`, exercising the 8 nested derived
   types live inside their parent unpackers), reverse-pack and forcing-row
   runtime observers, 1 manifest-coverage check over all
-  49 entries, 1 standalone nested-type codec round-trip check
+  47 bridged entries, 1 standalone nested-type codec round-trip check
   (`standalone_nested_type_codecs_roundtrip_distinct_sentinels`), 1 inventory
-  and codec check for the 7 non-unpacked types
+  and codec check for the 5 non-unpacked types
   (`non_unpacked_types_inventory_and_codecs`), and 1 truncated-buffer rejection
   check (`observer_rejects_truncated_flat_buffer`)
-  [fact: python3 scripts/suews/gen_capi_field_observer.py --check && git grep -c "^#\[test" src/suews_bridge/tests/capi_field_observer.rs].
+  [fact: python3 scripts/suews/gen_capi_field_observer.py --check && git grep -c '"status": "bridged"' src/suews_bridge/bridge-manifest.json && git grep -c "^#\[test" src/suews_bridge/tests/capi_field_observer.rs].
   In the original field-binding tests, 42 types have live receiver coverage (30 direct + 8 nested + 4 driver
-  aggregates); the 7 non-unpacked types have inventory/schema/default/codec
+  aggregates); the 5 non-unpacked types have inventory/schema/default/codec
   checks, not live receiver evidence
-  [fact: inspect `manifest_covers_all_49_bridged_types_with_zero_gaps` and
-  `non_unpacked_types_inventory_and_codecs` in
-  [the harness](../../../src/suews_bridge/tests/capi_field_observer.rs)].
+  [fact: git grep -n "fn manifest_covers_all_47_bridged_types_with_zero_gaps\|fn non_unpacked_types_inventory_and_codecs\|assert_eq!(non_unpacked_count, 5)" src/suews_bridge/tests/capi_field_observer.rs].
 - **Reverse neighbourhood binding.** In the same integration target,
   `tests/reverse_nhood/mod.rs` checks the five named `NHOOD_STATE` members
   returned by the driver packer and the short-buffer error. The hand-written

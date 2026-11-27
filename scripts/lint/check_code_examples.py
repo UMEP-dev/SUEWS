@@ -20,6 +20,7 @@ import argparse
 import ast
 from collections import Counter
 from collections.abc import Iterator
+import contextlib
 import ctypes
 from dataclasses import dataclass
 import doctest
@@ -65,6 +66,7 @@ import doctest
 import errno
 import json
 import os
+from pathlib import Path
 import socket
 import sys
 import time
@@ -241,19 +243,19 @@ def main() -> None:
     # Place capture files in the separate IPC directory (never the example cwd/tempdir)
     # and keep fd 1 / fd 2 attached for the whole block so child processes started in
     # earlier statements write into the same capture stream read by later statements.
-    capture_dir = os.path.dirname(os.path.abspath(result_path))
-    out_capture_path = os.path.join(capture_dir, "capture_stdout.bin")
-    err_capture_path = os.path.join(capture_dir, "capture_stderr.bin")
+    capture_dir = Path(result_path).resolve().parent
+    out_capture_path = capture_dir / "capture_stdout.bin"
+    err_capture_path = capture_dir / "capture_stderr.bin"
 
     sys.stdout.flush()
     sys.stderr.flush()
     _flush_c_stdio()
     saved_fd1 = os.dup(1)
     saved_fd2 = os.dup(2)
-    write_out = open(out_capture_path, "ab")
-    write_err = open(err_capture_path, "ab")
-    read_out = open(out_capture_path, "rb")
-    read_err = open(err_capture_path, "rb")
+    write_out = out_capture_path.open("ab")
+    write_err = err_capture_path.open("ab")
+    read_out = out_capture_path.open("rb")
+    read_err = err_capture_path.open("rb")
     try:
         os.dup2(write_out.fileno(), 1)
         os.dup2(write_err.fileno(), 2)
@@ -980,10 +982,136 @@ def _validate_timeout(timeout: float) -> float:
     return value
 
 
+_POSIX_SUPERVISOR_RUNNER = r"""
+import ctypes
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+PR_SET_CHILD_SUBREAPER = 36
+
+
+def _enable_subreaper() -> None:
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        libc = ctypes.CDLL(None)
+        prctl = libc.prctl
+        prctl.argtypes = [
+            ctypes.c_int,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+        ]
+        prctl.restype = ctypes.c_int
+        prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)
+    except Exception:
+        pass
+
+
+def _reap_nonblocking() -> bool:
+    while True:
+        try:
+            pid, _status = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return True
+        if pid == 0:
+            return False
+
+
+def main() -> None:
+    exe = sys.argv[1]
+    runner_path = sys.argv[2]
+    payload_path = sys.argv[3]
+    result_path = sys.argv[4]
+    cleanup_error_path = Path(sys.argv[5])
+
+    _enable_subreaper()
+    stop_requested = False
+
+    def _on_stop(_signum: int, _frame: object) -> None:
+        nonlocal stop_requested
+        stop_requested = True
+
+    signal.signal(signal.SIGTERM, _on_stop)
+    signal.signal(signal.SIGINT, _on_stop)
+
+    worker = subprocess.Popen(
+        [exe, "-P", "-u", runner_path, payload_path, result_path, ""],
+        stdin=subprocess.DEVNULL,
+        process_group=0,
+    )
+    worker_rc: int | None = None
+    try:
+        while True:
+            worker_rc = worker.poll()
+            if worker_rc is not None or stop_requested:
+                break
+            time.sleep(0.01)
+    finally:
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                os.killpg(worker.pid, sig)
+            except (ProcessLookupError, PermissionError):
+                pass
+            if sig == signal.SIGTERM:
+                grace = time.monotonic() + 0.2
+                while time.monotonic() < grace:
+                    if worker_rc is None:
+                        worker_rc = worker.poll()
+                    reaped_all = _reap_nonblocking()
+                    try:
+                        os.killpg(worker.pid, 0)
+                        pg_alive = True
+                    except (ProcessLookupError, PermissionError):
+                        pg_alive = False
+                    if reaped_all and not pg_alive:
+                        break
+                    time.sleep(0.01)
+
+        deadline = time.monotonic() + 2.0
+        reaped_all = False
+        pg_alive = True
+        while time.monotonic() < deadline:
+            if worker_rc is None:
+                worker_rc = worker.poll()
+            reaped_all = _reap_nonblocking()
+            try:
+                os.killpg(worker.pid, 0)
+                pg_alive = True
+            except (ProcessLookupError, PermissionError):
+                pg_alive = False
+            if reaped_all and not pg_alive:
+                break
+            try:
+                os.killpg(worker.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            time.sleep(0.02)
+
+        if not reaped_all or pg_alive:
+            cleanup_error_path.write_text(
+                "failed to terminate and reap isolated example process group",
+                encoding="utf-8",
+            )
+            sys.exit(125)
+
+    sys.exit(0 if stop_requested else (worker_rc or 0))
+
+
+if __name__ == "__main__":
+    main()
+"""
+
+
 def _terminate_process_tree(
     proc: subprocess.Popen[str],
     win_job: _WindowsJobObject | None = None,
-) -> None:
+) -> str | None:
     """Terminate the isolated runner and every descendant independently of runner exit."""
     if os.name == "nt":
         if win_job is not None and win_job.handle:
@@ -998,7 +1126,17 @@ def _terminate_process_tree(
             if proc.poll() is None:
                 proc.kill()
         proc.wait(timeout=5)
-        return
+        return None
+
+    # Ask the POSIX supervisor to terminate and reap the worker process group.
+    if proc.poll() is None:
+        with contextlib.suppress(ProcessLookupError):
+            proc.terminate()
+    try:
+        proc.wait(timeout=3.0)
+        return None
+    except subprocess.TimeoutExpired:
+        pass
 
     for sig in (signal.SIGTERM, signal.SIGKILL):
         try:
@@ -1020,8 +1158,9 @@ def _terminate_process_tree(
         try:
             os.killpg(proc.pid, 0)
         except (ProcessLookupError, PermissionError):
-            break
+            return None
         time.sleep(0.02)
+    return "failed to terminate isolated example supervisor process group"
 
 
 def _spawn_isolated_runner(
@@ -1038,16 +1177,33 @@ def _spawn_isolated_runner(
     )
     win_job = _WindowsJobObject() if os.name == "nt" else None
     gate_path = path_ipc / "containment.ready" if os.name == "nt" else None
-    cmd = [
-        exe,
-        "-P",
-        "-u",
-        "-c",
-        _SUBPROCESS_RUNNER,
-        str(path_ipc / "payload.json"),
-        str(path_ipc / "result.json"),
-        str(gate_path) if gate_path is not None else "",
-    ]
+    cleanup_error_path = path_ipc / "cleanup_error.txt"
+    if os.name == "nt":
+        cmd = [
+            exe,
+            "-P",
+            "-u",
+            "-c",
+            _SUBPROCESS_RUNNER,
+            str(path_ipc / "payload.json"),
+            str(path_ipc / "result.json"),
+            str(gate_path),
+        ]
+    else:
+        runner_script = path_ipc / "runner.py"
+        runner_script.write_text(_SUBPROCESS_RUNNER, encoding="utf-8")
+        cmd = [
+            exe,
+            "-P",
+            "-u",
+            "-c",
+            _POSIX_SUPERVISOR_RUNNER,
+            exe,
+            str(runner_script),
+            str(path_ipc / "payload.json"),
+            str(path_ipc / "result.json"),
+            str(cleanup_error_path),
+        ]
     timed_out = False
     returncode = 0
     containment_error: str | None = None
@@ -1078,10 +1234,21 @@ def _spawn_isolated_runner(
             returncode = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            _terminate_process_tree(proc, win_job)
+            cleanup_err = _terminate_process_tree(proc, win_job)
+            if cleanup_err is not None:
+                containment_error = f"timed out after {timeout:.1f}s; {cleanup_err}"
         finally:
             if not timed_out and containment_error is None:
-                _terminate_process_tree(proc, win_job)
+                cleanup_err = _terminate_process_tree(proc, win_job)
+                if cleanup_err is not None:
+                    containment_error = cleanup_err
+    if cleanup_error_path.is_file():
+        recorded = cleanup_error_path.read_text(encoding="utf-8").strip()
+        if recorded:
+            if timed_out and containment_error is None:
+                containment_error = f"timed out after {timeout:.1f}s; {recorded}"
+            elif containment_error is None:
+                containment_error = recorded
     return timed_out, returncode, containment_error
 
 
@@ -1495,6 +1662,104 @@ def commands(
                     yield from commands(sub, (*path, name))
 
 
+def _resolve_decorator_kwargs(
+    decorator: ast.Call,
+) -> tuple[dict[str, ast.AST], list[tuple[int, int]]]:
+    """Collect explicit and literal-dict unpacked kwargs; flag dynamic ``**kwargs``."""
+    kwargs: dict[str, ast.AST] = {}
+    unresolved_spans: list[tuple[int, int]] = []
+    for kw in decorator.keywords:
+        if kw.arg is not None:
+            kwargs[kw.arg] = kw.value
+            continue
+        if isinstance(kw.value, ast.Dict) and all(
+            isinstance(k, ast.Constant) and isinstance(k.value, str)
+            for k in kw.value.keys
+        ):
+            for k, v in zip(kw.value.keys, kw.value.values, strict=True):
+                assert isinstance(k, ast.Constant) and isinstance(k.value, str)
+                kwargs[k.value] = v
+        else:
+            val_node = kw.value
+            unresolved_spans.append((
+                val_node.lineno,
+                val_node.end_lineno or val_node.lineno,
+            ))
+    return kwargs, unresolved_spans
+
+
+def _extract_command_decorator_blocks(
+    source: Source,
+    kwargs: dict[str, ast.AST],
+    unresolved_spans: list[tuple[int, int]],
+    blocks: list[TextBlock],
+    unsupported: list[tuple[str, str, tuple[int, int]]],
+) -> tuple[bool, bool]:
+    """Extract literal help/epilog blocks from a Click command/group decorator."""
+    has_help_kw = False
+    has_unresolved = bool(unresolved_spans)
+    for span in unresolved_spans:
+        unsupported.append(("cli-help-example", "dynamic command **kwargs", span))
+    for kw_name, origin in (
+        ("help", "cli-help-example"),
+        ("epilog", "cli-epilog-example"),
+    ):
+        if kw_name not in kwargs:
+            continue
+        val_node = kwargs[kw_name]
+        span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
+        try:
+            value = ast.literal_eval(val_node)
+        except (ValueError, TypeError):
+            if kw_name == "help":
+                has_help_kw = True
+            unsupported.append((origin, f"dynamic command {kw_name}", span))
+            continue
+        if kw_name == "help" and value is not None:
+            has_help_kw = True
+        if isinstance(value, str):
+            blocks.append(
+                TextBlock(
+                    source=source,
+                    text=value,
+                    node_start=span[0],
+                    node_end=span[1],
+                    origin=origin,
+                )
+            )
+    return has_help_kw, has_unresolved
+
+
+def _extract_option_decorator_blocks(
+    source: Source,
+    kwargs: dict[str, ast.AST],
+    unresolved_spans: list[tuple[int, int]],
+    blocks: list[TextBlock],
+    unsupported: list[tuple[str, str, tuple[int, int]]],
+) -> None:
+    """Extract literal option help blocks containing ``>>>`` or flag dynamic kwargs."""
+    if "help" in kwargs:
+        val_node = kwargs["help"]
+        span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
+        try:
+            value = ast.literal_eval(val_node)
+        except (ValueError, TypeError):
+            return
+        if isinstance(value, str) and ">>>" in value:
+            blocks.append(
+                TextBlock(
+                    source=source,
+                    text=value,
+                    node_start=span[0],
+                    node_end=span[1],
+                    origin="cli-option-help-example",
+                )
+            )
+        return
+    for span in unresolved_spans:
+        unsupported.append(("cli-option-help-example", "dynamic option **kwargs", span))
+
+
 def _cli_help_text_blocks(
     source: Source,
 ) -> tuple[list[TextBlock], list[tuple[str, str, tuple[int, int]]]]:
@@ -1502,64 +1767,28 @@ def _cli_help_text_blocks(
     blocks: list[TextBlock] = []
     unsupported: list[tuple[str, str, tuple[int, int]]] = []
     has_command_help_kw = False
+    has_unresolved_command_kwargs = False
 
     for decorator in getattr(source.node, "decorator_list", []):
         if not isinstance(decorator, ast.Call):
             continue
         func_name = ast.unparse(decorator.func)
-        kwargs = {kw.arg: kw.value for kw in decorator.keywords}
+        kwargs, unresolved_spans = _resolve_decorator_kwargs(decorator)
         if func_name in {"command", "group"} or func_name.endswith((
             ".command",
             ".group",
         )):
-            for kw_name, origin in (
-                ("help", "cli-help-example"),
-                ("epilog", "cli-epilog-example"),
-            ):
-                if kw_name not in kwargs:
-                    continue
-                val_node = kwargs[kw_name]
-                span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
-                try:
-                    value = ast.literal_eval(val_node)
-                except (ValueError, TypeError):
-                    if kw_name == "help":
-                        has_command_help_kw = True
-                    unsupported.append((origin, f"dynamic command {kw_name}", span))
-                    continue
-                if kw_name == "help" and value is not None:
-                    has_command_help_kw = True
-                if isinstance(value, str):
-                    blocks.append(
-                        TextBlock(
-                            source=source,
-                            text=value,
-                            node_start=span[0],
-                            node_end=span[1],
-                            origin=origin,
-                        )
-                    )
-        elif (
-            func_name == "option" or func_name.endswith(".option")
-        ) and "help" in kwargs:
-            val_node = kwargs["help"]
-            span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
-            try:
-                value = ast.literal_eval(val_node)
-            except (ValueError, TypeError):
-                continue
-            if isinstance(value, str) and ">>>" in value:
-                blocks.append(
-                    TextBlock(
-                        source=source,
-                        text=value,
-                        node_start=span[0],
-                        node_end=span[1],
-                        origin="cli-option-help-example",
-                    )
-                )
+            help_kw, unresolved = _extract_command_decorator_blocks(
+                source, kwargs, unresolved_spans, blocks, unsupported
+            )
+            has_command_help_kw = has_command_help_kw or help_kw
+            has_unresolved_command_kwargs = has_unresolved_command_kwargs or unresolved
+        elif func_name == "option" or func_name.endswith(".option"):
+            _extract_option_decorator_blocks(
+                source, kwargs, unresolved_spans, blocks, unsupported
+            )
 
-    if not has_command_help_kw:
+    if not has_command_help_kw and not has_unresolved_command_kwargs:
         doc_node = _docstring_node(source.node)
         if doc_node is not None:
             blocks.append(

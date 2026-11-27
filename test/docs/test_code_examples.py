@@ -999,3 +999,94 @@ def empty_workdir_example():
     assert mismatch["status"] == "mismatch"
     assert "unmatched-child-output" in mismatch["detail"]["got"]
     assert by_obj["supy.empty_workdir_example"]["status"] == "ok"
+
+
+def test_orphaned_grandchild_is_terminated_and_reaped(tmp_path: Path):
+    """Supervisor reaps orphaned grandchildren on both normal exit and timeout."""
+    pid_file = tmp_path / "grandchild.pid"
+    child_code = (
+        "import pathlib, subprocess, sys; "
+        "gc = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+        f"pathlib.Path({pid_file.as_posix()!r}).write_text(str(gc.pid), encoding='utf-8')"
+    )
+    source = f'''\
+__all__ = ["orphan_grandchild_example"]
+
+
+def orphan_grandchild_example():
+    r"""Spawn a child that spawns a grandchild and exits, leaving an orphan.
+
+    >>> import subprocess, sys
+    >>> _ = subprocess.run([sys.executable, "-c", {child_code!r}], check=True)
+    >>> 1 + 1
+    2
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_grandchild.py", "exec"), module.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(revision=revision, module=module, timeout=5.0)
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    assert by_obj["supy.orphan_grandchild_example"]["status"] == "ok"
+    assert pid_file.is_file()
+    gc_pid = int(pid_file.read_text(encoding="utf-8").strip())
+    _assert_pid_exited(gc_pid)
+
+
+def test_cli_unpacked_decorator_kwargs_abstain_without_docstring_fallback(
+    tmp_path: Path,
+):
+    """Dynamic ``**kwargs`` on Click decorators report unsupported instead of guessing."""
+    source = '''\
+import click
+
+COMMAND_OPTIONS = {
+    "help": "Overridden help:\\n\\n>>> 1 + 1\\n2",
+    "epilog": "Overridden epilog:\\n\\n>>> 2 + 2\\n4",
+}
+
+
+@click.group()
+def root_cli():
+    """Root group."""
+
+
+@root_cli.command(**COMMAND_OPTIONS)
+def unpacked_dynamic():
+    """Callback docstring must NOT be executed when **COMMAND_OPTIONS may override help.
+
+    >>> 1 / 0
+    0
+    """
+
+
+@root_cli.command(**{"help": "Literal dict help:\\n\\n>>> 2 + 3\\n5", "epilog": "Literal epilog:\\n\\n>>> 3 + 4\\n7"})
+def unpacked_literal():
+    """Unused callback docstring.
+
+    >>> 1 / 0
+    0
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_kwargs_cli.py": source})
+    ns: dict[str, object] = {}
+    exec(compile(source, "fixture_kwargs_cli.py", "exec"), ns)
+    root_cli = ns["root_cli"]
+    for cmd in root_cli.commands.values():
+        cmd.callback.__module__ = "supy.cmd.fixture_kwargs_cli"
+    root_cli.callback.__module__ = "supy.cmd.fixture_kwargs_cli"
+
+    revision = checks.Revision(tmp_path, sha)
+    results = list(checks.cli_example_results(revision, root_cli, prog_name="fixture"))
+
+    dyn_results = [r for r in results if r["object"] == "fixture unpacked-dynamic"]
+    assert len(dyn_results) == 1
+    assert dyn_results[0]["status"] == "unsupported"
+    assert "**kwargs" in dyn_results[0]["detail"]["reason"]
+
+    lit_results = [r for r in results if r["object"] == "fixture unpacked-literal"]
+    assert len(lit_results) == 2
+    assert all(r["status"] == "ok" for r in lit_results)

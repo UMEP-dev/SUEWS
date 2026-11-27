@@ -57,12 +57,14 @@ an expected traceback) runs in a fresh Python subprocess (`python -P`) with:
   `fd 2`) with C stdio flushing (`fflush(NULL)`) and CRLF normalisation so
   Python, buffered C/native and subprocess stdout are captured in order across
   platforms,
-- a managed process group (POSIX, terminating and reaping descendants remaining
-  in the runner's process group; processes that explicitly start a new session
-  with `setsid` / `start_new_session=True` escape POSIX process-group
-  signalling) or a startup-gated Windows Job Object (awaiting process exit
-  before handle close and temporary directory cleanup), bounded by a finite
-  positive `--timeout` (default `30.0` seconds).
+- a supervised POSIX process group (using a per-block supervisor with
+  `PR_SET_CHILD_SUBREAPER` on Linux to terminate and reap descendants remaining
+  in the worker's process group and report cleanup failure if the group cannot
+  be cleared; processes that explicitly start a new session with `setsid` /
+  `start_new_session=True` escape POSIX process-group signalling) or a
+  startup-gated Windows Job Object (awaiting process exit before handle close
+  and temporary directory cleanup), bounded by a finite positive `--timeout`
+  (default `30.0` seconds).
 
 Outputs are compared with `doctest.OutputChecker`. Missing prerequisites
 (undefined names, missing imports, missing input files or configs, or

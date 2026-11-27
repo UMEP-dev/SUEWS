@@ -28,10 +28,10 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import sysconfig
 from typing import Any, Callable, Dict, Iterator
 
 from click.testing import CliRunner
+from conftest import resolve_suews_cli_command
 import pytest
 import yaml
 
@@ -830,12 +830,10 @@ def _run_public_validation(path, pipeline, out_format, cwd, *, dry_run=False):
 
 
 def _run_installed_validate_subprocess(route, args, cwd):
-    """Run the installed console script in a subprocess for CLI smoke coverage."""
-    executable = Path(sysconfig.get_path("scripts")) / (
-        route + (".exe" if os.name == "nt" else "")
+    """Run the console script (or source-lane CLI dispatch) in a subprocess for CLI smoke coverage."""
+    command = resolve_suews_cli_command(route) + (
+        ["validate"] if route == "suews" else []
     )
-    assert executable.is_file(), f"Public console script not installed: {executable}"
-    command = [str(executable)] + (["validate"] if route == "suews" else [])
     env = {
         k: v
         for k, v in os.environ.items()

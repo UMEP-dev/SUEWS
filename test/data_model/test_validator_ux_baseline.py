@@ -14,10 +14,10 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sysconfig
 from typing import Any
 
 from click.testing import CliRunner
+from conftest import resolve_suews_cli_command
 import pytest
 import yaml
 
@@ -419,12 +419,8 @@ def test_phase_b_apply_runs_adjustment_pipeline_once(
 
 
 def _installed_suews_command() -> list[str]:
-    """Return the installed ``suews`` console entry point command."""
-    executable = Path(sysconfig.get_path("scripts")) / (
-        "suews" + (".exe" if os.name == "nt" else "")
-    )
-    assert executable.is_file(), f"Missing installed command: {executable}"
-    return [str(executable), "validate"]
+    """Return the ``suews validate`` CLI command for wheel or source-lane runs."""
+    return [*resolve_suews_cli_command("suews"), "validate"]
 
 
 @pytest.mark.e2e

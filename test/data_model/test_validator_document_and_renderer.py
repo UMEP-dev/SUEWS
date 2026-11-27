@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from importlib.resources import files
 import json
-import os
 from pathlib import Path
 import subprocess
-import sysconfig
 from types import MappingProxyType
 
+from conftest import resolve_suews_cli_command
 import pytest
 import yaml
 
@@ -391,12 +390,8 @@ def test_document_hardening_ref_metadata_immutability_and_path_validation() -> N
 
 
 def _installed_suews_validate_cmd() -> list[str]:
-    """Return the installed ``suews validate`` console entry point command."""
-    executable = Path(sysconfig.get_path("scripts")) / (
-        "suews" + (".exe" if os.name == "nt" else "")
-    )
-    assert executable.is_file(), f"Missing installed command: {executable}"
-    return [str(executable), "validate"]
+    """Return the ``suews validate`` CLI command for wheel or source-lane runs."""
+    return [*resolve_suews_cli_command("suews"), "validate"]
 
 
 def test_phase_c_extra_forbidden_emits_drift_hint_in_single_pass(

@@ -1,0 +1,462 @@
+"""Unit and subprocess tests for wheel-free source-lane bootstrap (gh#2366 W1-4s)."""
+
+from __future__ import annotations
+
+import importlib.util
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TEST_DIR = REPO_ROOT / "test"
+BOOTSTRAP_PATH = REPO_ROOT / "scripts" / "suews" / "source_lane_bootstrap.py"
+
+_SPEC = importlib.util.spec_from_file_location(
+    "suews_source_lane_bootstrap", BOOTSTRAP_PATH
+)
+assert _SPEC is not None and _SPEC.loader is not None
+slb = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = slb
+_SPEC.loader.exec_module(slb)
+
+pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
+
+_SYNTHETIC_PYPROJECT = """\
+[tool.pytest.ini_options]
+markers = [
+    "tooling: tooling test",
+    "unit: unit test",
+    "native: native test",
+    "physics: physics test",
+    "os_compat: os compat slice",
+    "e2e: subprocess e2e slice",
+    "api: temporary Schema-1 compatibility shim",
+    "qgis: UMEP/QGIS test",
+    "contract(*ids): test-contract ids",
+]
+"""
+
+
+def _setup_synthetic_source_repo(tmp_path: Path) -> Path:
+    """Create a minimal synthetic repo carrying real conftest + source_lane_bootstrap."""
+    test_root = tmp_path / "test"
+    scripts_dir = tmp_path / "scripts" / "suews"
+    test_root.mkdir(parents=True, exist_ok=True)
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "pyproject.toml").write_text(_SYNTHETIC_PYPROJECT, encoding="utf-8")
+    shutil.copy2(TEST_DIR / "conftest.py", test_root / "conftest.py")
+    shutil.copy2(BOOTSTRAP_PATH, scripts_dir / "source_lane_bootstrap.py")
+    return test_root
+
+
+def _run_pytest(
+    cwd: Path,
+    args: list[str],
+    *,
+    source_lane_value: str | None,
+    extra_pythonpath: list[Path] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run pytest in a subprocess with explicit ``SUEWS_SOURCE_LANE_ONLY`` control."""
+    env = dict(os.environ)
+    if source_lane_value is None:
+        env.pop(slb.SOURCE_LANE_ENV_VAR, None)
+    else:
+        env[slb.SOURCE_LANE_ENV_VAR] = source_lane_value
+    if extra_pythonpath is not None:
+        env["PYTHONPATH"] = os.pathsep.join(str(path) for path in extra_pythonpath)
+    return subprocess.run(
+        [sys.executable, "-m", "pytest", *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, False),
+        ("", False),
+        ("   ", False),
+        ("0", False),
+        ("false", False),
+        ("False", False),
+        ("no", False),
+        ("off", False),
+        ("1", True),
+        ("true", True),
+        ("TRUE", True),
+        ("yes", True),
+        ("on", True),
+    ],
+)
+def test_is_source_lane_only_parses_boolean_tokens(
+    raw: str | None, expected: bool
+) -> None:
+    """``is_source_lane_only`` accepts canonical truthy/falsy values."""
+    env = {} if raw is None else {slb.SOURCE_LANE_ENV_VAR: raw}
+    assert slb.is_source_lane_only(env) is expected
+
+
+@pytest.mark.parametrize("raw", ["2", "maybe", "enabled", "source"])
+def test_is_source_lane_only_fails_closed_on_invalid_value(raw: str) -> None:
+    """Unrecognised values raise ``ValueError`` rather than silently disabling guards."""
+    with pytest.raises(ValueError, match=slb.SOURCE_LANE_ENV_VAR):
+        slb.is_source_lane_only({slb.SOURCE_LANE_ENV_VAR: raw})
+
+
+@pytest.mark.parametrize(
+    ("module_name", "expected"),
+    [
+        ("suews_bridge", True),
+        ("supy.suews_bridge", True),
+        ("supy.suews_bridge.extra", True),
+        ("supy._suews_bridge", True),
+        ("supy._supy_driver", True),
+        ("_supy_driver", True),
+        ("supy._suews_driver", True),
+        ("supy._run_rust", False),
+        ("supy.data_model", False),
+        ("supy", False),
+    ],
+)
+def test_is_blocked_compiled_module_targets_extensions_only(
+    module_name: str, expected: bool
+) -> None:
+    """Compiled extension names are blocked while pure-Python ``supy._run_rust`` stays importable."""
+    assert slb.is_blocked_compiled_module(module_name) is expected
+
+
+def test_compiled_extension_blocker_blocks_and_uninstalls_cleanly() -> None:
+    """``CompiledExtensionBlocker`` raises ``SourceLaneViolationError`` and cleans up cleanly."""
+    blocker = slb.CompiledExtensionBlocker()
+    with pytest.raises(slb.SourceLaneViolationError, match="suews_bridge"):
+        blocker.find_spec("supy.suews_bridge", None)
+    assert blocker.find_spec("supy._run_rust", None) is None
+    assert not issubclass(slb.SourceLaneViolationError, ImportError)
+
+
+def test_activate_if_enabled_is_noop_when_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Normal wheel mode (env unset or ``0``) installs no source-lane meta-path finders."""
+    meta_snapshot = list(sys.meta_path)
+    monkeypatch.setattr(sys, "meta_path", list(meta_snapshot))
+    slb.uninstall_guards()
+
+    assert slb.activate_if_enabled(REPO_ROOT, env={}) is False
+    assert (
+        slb.activate_if_enabled(REPO_ROOT, env={slb.SOURCE_LANE_ENV_VAR: "0"}) is False
+    )
+    assert not any(
+        isinstance(f, (slb.CompiledExtensionBlocker, slb.VersionScmFallbackFinder))
+        for f in sys.meta_path
+    )
+
+
+def test_source_lane_blocks_compiled_extension_even_behind_importorskip(
+    tmp_path: Path,
+) -> None:
+    """``SUEWS_SOURCE_LANE_ONLY=1`` fails loudly on compiled imports even with ``importorskip``."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_accidental_bridge.py").write_text(
+        "import importlib\n"
+        "import pytest\n\n"
+        "pytestmark = pytest.mark.unit\n\n"
+        "def test_direct_import():\n"
+        "    importlib.import_module('supy.suews_bridge')\n\n"
+        "def test_importorskip_cannot_swallow():\n"
+        "    pytest.importorskip('supy.suews_bridge')\n\n"
+        "def test_except_import_error_cannot_swallow():\n"
+        "    try:\n"
+        "        import suews_bridge  # noqa: F401\n"
+        "    except ImportError:\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_pytest(
+        tmp_path,
+        ["-q", "test/test_accidental_bridge.py"],
+        source_lane_value="1",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == pytest.ExitCode.TESTS_FAILED, combined
+    assert "3 failed" in combined, combined
+    assert "SourceLaneViolationError" in combined, combined
+    assert "skipped" not in combined, combined
+
+
+def test_source_lane_blocks_compiled_only_conftest_fixtures(tmp_path: Path) -> None:
+    """Compiled-only fixtures (e.g. ``suews_engine_bin``, ``completed_sample_sim``) fail loudly."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_compiled_fixture.py").write_text(
+        "import pytest\n\n"
+        "pytestmark = pytest.mark.unit\n\n"
+        "def test_uses_engine_bin(suews_engine_bin):\n"
+        "    assert suews_engine_bin\n\n"
+        "def test_uses_completed_sim(completed_sample_sim):\n"
+        "    assert completed_sample_sim\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_pytest(
+        tmp_path,
+        ["-q", "test/test_compiled_fixture.py"],
+        source_lane_value="1",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == pytest.ExitCode.TESTS_FAILED, combined
+    assert "2 errors" in combined, combined
+    assert "SourceLaneViolationError" in combined, combined
+
+
+@pytest.mark.parametrize("axis", ["native", "physics"])
+def test_source_lane_rejects_executing_native_and_physics_tests(
+    tmp_path: Path, axis: str
+) -> None:
+    """Running ``native`` or ``physics`` tests under ``SUEWS_SOURCE_LANE_ONLY=1`` fails with UsageError."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_tooling_ok.py").write_text(
+        "import pytest\npytestmark = pytest.mark.tooling\ndef test_ok():\n    assert True\n",
+        encoding="utf-8",
+    )
+    (test_root / f"test_{axis}_blocked.py").write_text(
+        f"import pytest\npytestmark = pytest.mark.{axis}\ndef test_blocked():\n    assert True\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_pytest(
+        tmp_path,
+        ["-q", "-m", axis, "test/"],
+        source_lane_value="1",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == pytest.ExitCode.USAGE_ERROR, combined
+    assert f"test_{axis}_blocked.py::test_blocked ({axis})" in combined, combined
+
+
+def test_source_lane_allows_collect_only_and_tooling_unit_execution(
+    tmp_path: Path,
+) -> None:
+    """``--collect-only`` (inventory) and ``tooling``/``unit`` runs succeed under ``SUEWS_SOURCE_LANE_ONLY=1``."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_tooling_ok.py").write_text(
+        "import pytest\npytestmark = pytest.mark.tooling\ndef test_t():\n    assert True\n",
+        encoding="utf-8",
+    )
+    (test_root / "test_unit_ok.py").write_text(
+        "import pytest\npytestmark = pytest.mark.unit\ndef test_u():\n    assert True\n",
+        encoding="utf-8",
+    )
+    (test_root / "test_native_skip.py").write_text(
+        "import pytest\npytestmark = pytest.mark.native\ndef test_n():\n    assert True\n",
+        encoding="utf-8",
+    )
+    (test_root / "test_physics_skip.py").write_text(
+        "import pytest\npytestmark = pytest.mark.physics\ndef test_p():\n    assert True\n",
+        encoding="utf-8",
+    )
+
+    collect_proc = _run_pytest(
+        tmp_path,
+        ["--collect-only", "-q", "test/"],
+        source_lane_value="1",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+    assert collect_proc.returncode == 0, collect_proc.stdout + collect_proc.stderr
+
+    run_proc = _run_pytest(
+        tmp_path,
+        ["-q", "-m", "tooling or unit", "test/"],
+        source_lane_value="1",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+    combined = run_proc.stdout + run_proc.stderr
+    assert run_proc.returncode == 0, combined
+    assert "2 passed" in combined, combined
+
+
+def test_normal_mode_unchanged_when_env_unset(tmp_path: Path) -> None:
+    """Unset ``SUEWS_SOURCE_LANE_ONLY`` leaves ``native``/``physics`` execution untouched."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_native_allowed.py").write_text(
+        "import sys\n"
+        "import pytest\n\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def test_native_runs_without_blocker():\n"
+        "    assert not any(type(f).__name__ == 'CompiledExtensionBlocker' for f in sys.meta_path)\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_pytest(
+        tmp_path,
+        ["-q", "test/test_native_allowed.py"],
+        source_lane_value=None,
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 0, combined
+    assert "1 passed" in combined, combined
+
+
+def test_source_lane_invalid_env_value_fails_closed_in_pytest(tmp_path: Path) -> None:
+    """Invalid ``SUEWS_SOURCE_LANE_ONLY`` value aborts pytest with ``USAGE_ERROR``."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_tooling_ok.py").write_text(
+        "import pytest\npytestmark = pytest.mark.tooling\ndef test_t():\n    assert True\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_pytest(
+        tmp_path,
+        ["-q", "test/test_tooling_ok.py"],
+        source_lane_value="bogus",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == pytest.ExitCode.USAGE_ERROR, combined
+    assert slb.SOURCE_LANE_ENV_VAR in combined, combined
+
+
+def test_version_scm_fallback_provides_clean_checkout_metadata(tmp_path: Path) -> None:
+    """Clean checkout without ``_version_scm.py`` imports ``supy`` and ``supy._version_scm``."""
+    fake_src = tmp_path / "src"
+    fake_pkg = fake_src / "supy"
+    fake_pkg.mkdir(parents=True)
+    # Copy only tracked __init__.py (no generated _version_scm.py).
+    shutil.copy2(REPO_ROOT / "src" / "supy" / "__init__.py", fake_pkg / "__init__.py")
+
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR}
+    }
+    # 1. Pure stdlib import (-S skips site.py / editable .pth loaders) without bootstrap:
+    plain_script = (
+        f"import sys; sys.path.insert(0, {str(fake_src)!r}); "
+        "import supy; "
+        "assert supy.__version__ == '0+unknown', supy.__version__"
+    )
+    plain_proc = subprocess.run(
+        [sys.executable, "-S", "-P", "-c", plain_script],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert plain_proc.returncode == 0, plain_proc.stdout + plain_proc.stderr
+
+    # 2. With source-lane bootstrap activated: `from supy import _version_scm` also resolves.
+    bootstrap_script = (
+        "import importlib.util, pathlib; "
+        f"spec = importlib.util.spec_from_file_location('slb', {str(BOOTSTRAP_PATH)!r}); "
+        "mod = importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(mod); "
+        f"mod.activate(pathlib.Path({str(tmp_path)!r})); "
+        "import supy; "
+        "from supy import _version_scm; "
+        "assert supy.__version__ == '0+unknown', supy.__version__; "
+        "assert _version_scm.__commit_hash__ == 'unknown', _version_scm.__commit_hash__"
+    )
+    env[slb.SOURCE_LANE_ENV_VAR] = "1"
+    proc = subprocess.run(
+        [sys.executable, "-S", "-P", "-c", bootstrap_script],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_resolve_suews_cli_command_dispatches_python_in_source_lane() -> None:
+    """In source-lane mode, CLI routes dispatch via ``sys.executable -c`` instead of venv scripts."""
+    cmd = slb.resolve_suews_cli_command(
+        "suews",
+        repo_root=REPO_ROOT,
+        env={slb.SOURCE_LANE_ENV_VAR: "1"},
+    )
+    assert cmd[0] == sys.executable
+    assert cmd[1] == "-c"
+    assert "supy.cmd.suews_cli" in cmd[2]
+    assert "main" in cmd[2]
+
+    alias_cmd = slb.resolve_suews_cli_command(
+        "suews-validate",
+        repo_root=REPO_ROOT,
+        env={slb.SOURCE_LANE_ENV_VAR: "1"},
+    )
+    assert "validate_alias" in alias_cmd[2]
+
+    with pytest.raises(ValueError, match="Unknown SUEWS CLI route"):
+        slb.resolve_suews_cli_command(
+            "suews-nonexistent",
+            repo_root=REPO_ROOT,
+            env={slb.SOURCE_LANE_ENV_VAR: "1"},
+        )
+
+
+def test_source_lane_blocks_run_rust_bridge_load_while_keeping_pure_helpers(
+    tmp_path: Path,
+) -> None:
+    """``supy._run_rust`` imports cleanly, but ``_load_rust_module`` fails loudly under source-lane mode."""
+    test_root = _setup_synthetic_source_repo(tmp_path)
+    (test_root / "test_run_rust_guard.py").write_text(
+        "import pytest\n"
+        "from supy import _run_rust\n\n"
+        "pytestmark = pytest.mark.unit\n\n"
+        "def test_pure_helper_ok_and_bridge_load_blocked():\n"
+        "    assert _run_rust.OUTPUT_ALL_COLS > 0\n"
+        "    with pytest.raises(RuntimeError) as exc_info:\n"
+        "        _run_rust._load_rust_module()\n"
+        "    assert type(exc_info.value.__cause__).__name__ == 'SourceLaneViolationError'\n",
+        encoding="utf-8",
+    )
+
+    proc = _run_pytest(
+        tmp_path,
+        ["-q", "test/test_run_rust_guard.py"],
+        source_lane_value="1",
+        extra_pythonpath=[REPO_ROOT / "src", REPO_ROOT / "mcp" / "src"],
+    )
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 0, combined
+    assert "1 passed" in combined, combined
+
+
+def test_configure_source_paths_normalises_relative_pythonpath(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Relative ``PYTHONPATH`` entries are resolved to absolute paths for child subprocesses."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "mcp" / "src").mkdir(parents=True)
+    extra_rel = tmp_path / "extra"
+    extra_rel.mkdir()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setenv("PYTHONPATH", f"src{os.pathsep}extra")
+
+    src_dir, mcp_dir = slb.configure_source_paths(tmp_path)
+
+    entries = os.environ["PYTHONPATH"].split(os.pathsep)
+    assert entries[:3] == [str(src_dir), str(mcp_dir), str(extra_rel.resolve())]
+    assert all(Path(entry).is_absolute() for entry in entries)

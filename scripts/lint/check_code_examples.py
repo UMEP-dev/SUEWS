@@ -1057,6 +1057,15 @@ def _isolated_env(temp_dir: Path) -> dict[str, str]:
     ):
         if key in os.environ:
             env[key] = os.environ[key]
+    if os.environ.get("SUEWS_SOURCE_LANE_ONLY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        env["SUEWS_SOURCE_LANE_ONLY"] = os.environ["SUEWS_SOURCE_LANE_ONLY"]
+        if "PYTHONPATH" in os.environ:
+            env["PYTHONPATH"] = os.environ["PYTHONPATH"]
     temp_str = str(temp_dir)
     env["HOME"] = temp_str
     env["USERPROFILE"] = temp_str

@@ -190,8 +190,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "src/supy/data_model/configuration/updater.py" = ["D401", "D406", "D407"]
 "src/supy/data_model/validation/__init__.py" = ["D400"]
 "src/supy/data_model/validation/core/__init__.py" = ["D400"]
-"src/supy/data_model/validation/core/controller.py" = ["D400", "D401", "D406", "D407"]
-"src/supy/data_model/validation/core/feedback.py" = ["D406", "D407"]
 "src/supy/data_model/validation/core/utils.py" = ["D401", "D406", "D407"]
 "src/supy/data_model/validation/core/yaml_helpers.py" = ["D100", "D101", "D102", "D105", "D202", "D205", "D401", "D406", "D407"]
 "src/supy/data_model/validation/pipeline/__init__.py" = ["D400"]
@@ -223,7 +221,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "src/supy/util/converter/__init__.py" = ["D406", "D407"]
 "src/supy/util/converter/table/profile_manager.py" = ["D406", "D407"]
 "src/supy/util/converter/table/table.py" = ["D100", "D103"]
-"src/supy/validation.py" = ["D400", "D401", "D406", "D407"]
 # --- END legacy docstring debt (gh1294) ---
 
 [lint.isort]

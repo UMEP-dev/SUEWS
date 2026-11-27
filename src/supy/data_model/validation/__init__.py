@@ -1,35 +1,19 @@
-"""
-SUEWS Data Model Validation Module
+"""SUEWS Data Model Validation Module.
 
-This module provides comprehensive validation for SUEWS configurations,
-including both core validation infrastructure and the three-phase validation pipeline.
-
-Structure:
-- core/: Core validation infrastructure (controller, utilities, feedback)
-- pipeline/: Three-phase validation pipeline (Phase A, B, C and orchestrator)
+Provides the unified :class:`ValidationEngine` / :func:`validate_config` API,
+shared validation rules, core utilities, and the three-phase validation
+pipeline (Phase A, B, C, and orchestrator).
 """
 
 # Re-export package-level utilities for use by submodules
 # This avoids deep relative imports like '...._env' in pipeline modules
 from ..._env import logger_supy
 
-# Core validation exports
-from .core.controller import (
-    ValidationController,
-    ValidationResult,
-    validate_suews_config_conditional,
-)
+# Core validation utilities
 from .core.utils import (
     check_missing_params,
-    warn_missing_params,
     validate_only_when_complete,
-)
-from .core.feedback import (
-    ValidatedConfig,
-    emit_validation_feedback,
-)
-from .core.yaml_helpers import (
-    run_precheck,
+    warn_missing_params,
 )
 
 # Public validation engine & report schema
@@ -39,13 +23,13 @@ from .engine import (
     validate_config,
 )
 
-# Pipeline exports (if needed by external modules)
+# Pipeline facades (retained for backward compatibility)
 from .pipeline.orchestrator import (
-    validate_input_file,
-    setup_output_paths,
     run_phase_a,
     run_phase_b,
     run_phase_c,
+    setup_output_paths,
+    validate_input_file,
 )
 from .pipeline.report_schema import (
     Issue,
@@ -54,28 +38,19 @@ from .pipeline.report_schema import (
 )
 
 __all__ = [
-    # Public validation engine
     "Issue",
     "PhaseReport",
     "ValidationEngine",
     "ValidationReport",
+    "check_missing_params",
     "check_public_mode_restrictions",
     "logger_supy",
-    "validate_config",
-    # Core validation
-    "ValidationController",
-    "ValidationResult",
-    "validate_suews_config_conditional",
-    "check_missing_params",
-    "warn_missing_params",
-    "validate_only_when_complete",
-    "ValidatedConfig",
-    "emit_validation_feedback",
-    "run_precheck",
-    # Pipeline functions
-    "validate_input_file",
-    "setup_output_paths",
     "run_phase_a",
     "run_phase_b",
     "run_phase_c",
+    "setup_output_paths",
+    "validate_config",
+    "validate_input_file",
+    "validate_only_when_complete",
+    "warn_missing_params",
 ]

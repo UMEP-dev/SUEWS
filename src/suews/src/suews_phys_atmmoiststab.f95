@@ -159,7 +159,7 @@ CONTAINS
       es_hPa, Ea_hPa, VPd_hpa, VPD_Pa, dq, dens_dry, avcp, air_dens, &
       modState) ! optional: for thread-safe error logging
       USE module_ctrl_const_physconst, ONLY: C2K
-      USE meteo, ONLY: &
+      USE module_util_meteo, ONLY: &
          sat_vap_press_x, spec_heat_beer, &
          lat_vap, lat_vapSublim, spec_hum_def
 
@@ -1196,8 +1196,3 @@ CONTAINS
       RETURN
    END FUNCTION psi_heat_W16
 END MODULE module_phys_atmmoiststab
-
-! Backward compatibility alias
-MODULE AtmMoistStab_module
-   USE module_phys_atmmoiststab
-END MODULE AtmMoistStab_module

@@ -1,6 +1,6 @@
 ! Hand-maintained native OUTPUT_LINE and OUTPUT_BLOCK witnesses; capi-observer only.
 ! Values originate in real typed members, not a shadow or payload codec.
-SUBMODULE (SUEWS_Driver) test_output_groups
+SUBMODULE (module_ctrl_driver) test_output_groups
    IMPLICIT NONE
 CONTAINS
 SUBROUTINE suews_obs_output_groups(data, dates, ld, ncols, err) BIND(C)

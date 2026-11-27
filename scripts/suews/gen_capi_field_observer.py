@@ -573,7 +573,7 @@ NON_UNPACKED_SPECS: dict[str, str] = {
     ),
     "suews_forcing": (
         "No C-API flat unpacker. The typed forcing-row observer exercises the production "
-        "SUEWS_Driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
+        "module_ctrl_driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
     ),
     "suews_state_block": (
         "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no "
@@ -2316,7 +2316,7 @@ def emit_fortran_observer(
     lines.extend([
         "end module module_test_capi_field_observer",
         "",
-        "submodule (SUEWS_Driver) test_forcing_rows",
+        "submodule (module_ctrl_driver) test_forcing_rows",
         "   use, intrinsic :: iso_c_binding, only: c_double",
         "   implicit none",
         "contains",

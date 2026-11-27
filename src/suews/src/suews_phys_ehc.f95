@@ -412,10 +412,6 @@ CONTAINS
 
 END MODULE module_phys_ehc_heatflux
 
-! Backward compatibility alias
-MODULE heatflux
-   USE module_phys_ehc_heatflux
-END MODULE heatflux
 
 ! Main module following naming standard: matches filename
 MODULE module_phys_ehc
@@ -1276,8 +1272,3 @@ CONTAINS
    END SUBROUTINE EHC
 
 END MODULE module_phys_ehc
-
-! Backward compatibility alias
-MODULE EHC_module
-   USE module_phys_ehc
-END MODULE EHC_module

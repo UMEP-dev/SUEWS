@@ -371,8 +371,4 @@ CONTAINS
 
 END MODULE module_phys_anthro
 
-! Backward compatibility alias
-MODULE AnEmsn_module
-   USE module_phys_anthro
-END MODULE AnEmsn_module
 !========================================================================================

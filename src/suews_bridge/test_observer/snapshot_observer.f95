@@ -1,7 +1,7 @@
 ! Opt-in native observation of SUEWS_DEBUG stage transitions (via SUEWS_cal_Main)
 ! and multiline batch parity (SUEWS_cal_multitsteps vs SUEWS_cal_Main).
 ! Test-only under feature `capi-observer`; no production snapshot wire is added or advertised.
-SUBMODULE (SUEWS_Driver) test_snapshot_observer
+SUBMODULE (module_ctrl_driver) test_snapshot_observer
    IMPLICIT NONE
 CONTAINS
 

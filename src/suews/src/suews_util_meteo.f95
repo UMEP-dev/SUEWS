@@ -453,9 +453,3 @@ CONTAINS
    END FUNCTION qa2RH
 
 END MODULE module_util_meteo
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE METEO
-   USE module_util_meteo
-END MODULE METEO

@@ -2,7 +2,7 @@
 MODULE module_phys_rslprof
    USE module_ctrl_const_mathconst, ONLY: pi
    USE module_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
-   USE meteo, ONLY: RH2qa, qa2RH
+   USE module_util_meteo, ONLY: RH2qa, qa2RH
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
    USE module_ctrl_const_physconst, ONLY: eps_fp
@@ -1401,8 +1401,3 @@ CONTAINS
    END FUNCTION cal_beta_lc
 
 END MODULE module_phys_rslprof
-
-! Backward compatibility alias
-MODULE rsl_module
-   USE module_phys_rslprof
-END MODULE rsl_module

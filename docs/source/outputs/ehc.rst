@@ -1,3 +1,5 @@
+:doc-source: hand-written
+
 EHC coupling and heat diagnostics
 =================================
 

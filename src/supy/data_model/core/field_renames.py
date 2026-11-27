@@ -1375,11 +1375,13 @@ def apply_field_renames(
                     f"'{new_name}' are present. Use only '{new_name}'."
                 )
             values[new_name] = values.pop(old_name)
+            from ..._env import _user_warning_stacklevel
+
             warnings.warn(
                 f"{class_name}: field '{old_name}' is deprecated, "
                 f"use '{new_name}' instead.",
                 DeprecationWarning,
-                stacklevel=4,
+                stacklevel=_user_warning_stacklevel(),
             )
     return values
 

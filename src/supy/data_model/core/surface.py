@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from math import isfinite
 from pydantic import (
     ConfigDict,
@@ -6,7 +7,7 @@ from pydantic import (
     model_validator,
     field_validator,
 )
-from typing import ClassVar, Optional, Literal, List, Union
+from typing import Any, ClassVar, Optional, Literal, List, Union
 import pandas as pd
 import warnings
 from .type import (
@@ -14,9 +15,11 @@ from .type import (
     RefValue,
     Reference,
     FlexibleRefValue,
+    _SOIL_OBSERVED_CONTEXT,
     df_from_col_items,
     df_from_cols,
     merge_df_state_col_items,
+    normalise_inactive_float_value,
     reject_bool_input,
 )
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
@@ -218,6 +221,29 @@ class SurfaceProperties(DataModelBase):
     """Base properties for all surface types"""
 
     model_config = ConfigDict(title="Surface Properties")
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_soil_field_capacity(
+        cls, data: Any, handler: Any
+    ) -> "SurfaceProperties":
+        """Skip ``soil_field_capacity`` bounds when ``soil_moisture != 1`` inside SUEWSConfig."""
+        if isinstance(data, SurfaceProperties):
+            return handler(data)
+        if _SOIL_OBSERVED_CONTEXT.get() is not False or not isinstance(data, Mapping):
+            return handler(data)
+        if "soil_field_capacity" not in data:
+            return handler(data)
+        ok, normalised = normalise_inactive_float_value(
+            data["soil_field_capacity"], allow_null=True, allow_non_finite=True
+        )
+        if not ok:
+            return handler(data)
+        stripped = {k: v for k, v in data.items() if k != "soil_field_capacity"}
+        inst = handler(stripped)
+        object.__setattr__(inst, "soil_field_capacity", normalised)
+        inst.model_fields_set.add("soil_field_capacity")
+        return inst
 
     @model_validator(mode="before")
     @classmethod
@@ -532,11 +558,13 @@ class SurfaceProperties(DataModelBase):
                 cols[(f"{col_name}_surf", f"({surf_idx},)")] = value
             elif field_name == "soil_field_capacity":
                 if self.soil_field_capacity is not None and surf_idx != 6:
-                    cols[(col_name, f"({surf_idx},)")] = (
+                    fc_val = (
                         self.soil_field_capacity.value
                         if isinstance(self.soil_field_capacity, RefValue)
                         else self.soil_field_capacity
                     )
+                    if fc_val is not None:
+                        cols[(col_name, f"({surf_idx},)")] = fc_val
             elif field_name == "rho_cp_anohm":
                 value = getattr(self, field_name)
                 value = value.value if isinstance(value, RefValue) else value

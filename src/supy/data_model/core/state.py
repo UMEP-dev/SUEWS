@@ -1,7 +1,7 @@
 import math
 import numbers
 from collections.abc import Mapping
-from typing import Optional, Union, List, Literal, Type
+from typing import Any, ClassVar, Optional, Union, List, Literal, Type
 import numpy as np
 import pandas as pd
 from pydantic import (
@@ -17,8 +17,10 @@ from .type import (
     RefValue,
     Reference,
     FlexibleRefValue,
+    _SNOW_ACTIVE_CONTEXT,
     df_from_cols,
     merge_df_state_cols,
+    normalise_inactive_float_value,
     reject_bool_input,
     SurfaceType,
 )
@@ -128,6 +130,43 @@ class SurfaceInitialState(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    _SNOW_STATE_FIELDS: ClassVar[tuple[str, ...]] = (
+        "snowfrac",
+        "snowpack",
+        "icefrac",
+        "snowwater",
+        "snowdens",
+    )
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_snow_initial_state(
+        cls, data: Any, handler: Any
+    ) -> "SurfaceInitialState":
+        """Skip per-surface snow state bounds when ``snow_use == 0`` inside SUEWSConfig."""
+        if isinstance(data, SurfaceInitialState):
+            return handler(data)
+        if _SNOW_ACTIVE_CONTEXT.get() is not False or not isinstance(data, Mapping):
+            return handler(data)
+        stashed: dict[str, Any] = {}
+        stripped: dict[str, Any] = {}
+        for key, val in data.items():
+            if key in cls._SNOW_STATE_FIELDS:
+                ok, normalised = normalise_inactive_float_value(
+                    val, allow_null=True, allow_non_finite=False
+                )
+                if ok:
+                    stashed[key] = normalised
+                    continue
+            stripped[key] = val
+        if not stashed:
+            return handler(data)
+        inst = handler(stripped)
+        for field_name, norm_val in stashed.items():
+            object.__setattr__(inst, field_name, norm_val)
+            inst.model_fields_set.add(field_name)
+        return inst
+
     @field_validator("temperature", mode="before")
     def validate_temperature(cls, v):
         if isinstance(v, dict):
@@ -174,36 +213,16 @@ class SurfaceInitialState(DataModelBase):
                 else self.soilstore
             ),
         }
-        if self.snowfrac is not None:
-            cols[("snowfrac", f"({surf_idx},)")] = (
-                self.snowfrac.value
-                if isinstance(self.snowfrac, RefValue)
-                else self.snowfrac
-            )
-        if self.snowpack is not None:
-            cols[("snowpack", f"({surf_idx},)")] = (
-                self.snowpack.value
-                if isinstance(self.snowpack, RefValue)
-                else self.snowpack
-            )
-        if self.icefrac is not None:
-            cols[("icefrac", f"({surf_idx},)")] = (
-                self.icefrac.value
-                if isinstance(self.icefrac, RefValue)
-                else self.icefrac
-            )
-        if self.snowwater is not None:
-            cols[("snowwater", f"({surf_idx},)")] = (
-                self.snowwater.value
-                if isinstance(self.snowwater, RefValue)
-                else self.snowwater
-            )
-        if self.snowdens is not None:
-            cols[("snowdens", f"({surf_idx},)")] = (
-                self.snowdens.value
-                if isinstance(self.snowdens, RefValue)
-                else self.snowdens
-            )
+        for snow_field in ("snowfrac", "snowpack", "icefrac", "snowwater", "snowdens"):
+            raw_snow = getattr(self, snow_field)
+            if raw_snow is not None:
+                val = raw_snow.value if isinstance(raw_snow, RefValue) else raw_snow
+                if val is not None:
+                    cols[(snow_field, f"({surf_idx},)")] = val
+                elif vert_idx is None:
+                    cols[(snow_field, f"({surf_idx},)")] = 0.0
+            elif vert_idx is None:
+                cols[(snow_field, f"({surf_idx},)")] = 0.0
         temp_values = (
             self.temperature.value
             if isinstance(self.temperature, RefValue)
@@ -1056,6 +1075,34 @@ class InitialStates(DataModelBase):
         description="Initial states for wall layers",
         json_schema_extra={"display_name": "Walls"},
     )
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_snowalb(cls, data: Any, handler: Any) -> "InitialStates":
+        """Skip ``snowalb`` [0, 1] bounds on finite scalars when ``snow_use == 0``.
+
+        Explicit ``null``, ``{value: null}``, and non-finite inputs continue to
+        fail so the 2026.6.dev8 migration contract and native BR-02 witnesses
+        remain intact.
+        """
+        if isinstance(data, InitialStates):
+            return handler(data)
+        if (
+            _SNOW_ACTIVE_CONTEXT.get() is not False
+            or not isinstance(data, Mapping)
+            or "snowalb" not in data
+        ):
+            return handler(data)
+        ok, normalised = normalise_inactive_float_value(
+            data["snowalb"], allow_null=False, allow_non_finite=False
+        )
+        if not ok:
+            return handler(data)
+        stripped = {k: v for k, v in data.items() if k != "snowalb"}
+        inst = handler(stripped)
+        object.__setattr__(inst, "snowalb", normalised)
+        inst.model_fields_set.add("snowalb")
+        return inst
 
     @model_validator(mode="after")
     def _clear_building_surface_snow(self):

@@ -557,6 +557,42 @@
       "rationale": "Snow density bounds and precipitation threshold are unused when snow is disabled."
     },
     {
+      "id": "snow-defaulted-scalars-inactive",
+      "anchors": [
+        "all_surfaces_baseline",
+        "co2_methods",
+        "spartacus_ehc_stebbs",
+        "observed_and_dyohm",
+        "irrigation_and_dls"
+      ],
+      "path_patterns": [
+        "sites[0].properties.snow.water_holding_capacity_max",
+        "sites[0].properties.snow.water_holding_capacity_min",
+        "sites[0].properties.snow.narp_emissivity_snow",
+        "sites[0].properties.snow.precipitation_threshold_albedo_reset",
+        "sites[0].properties.snow.snow_albedo_max",
+        "sites[0].properties.snow.snow_albedo_min",
+        "sites[0].properties.snow.snow_depth_limit_building",
+        "sites[0].properties.snow.snow_depth_limit_paved",
+        "sites[0].properties.snow.tau_cold_snow",
+        "sites[0].properties.snow.tau_melting_snow",
+        "sites[0].properties.snow.tau_refreezing_snow",
+        "sites[0].properties.snow.temperature_melt_factor",
+        "sites[0].properties.snow.radiation_melt_factor"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when snow_use=0 (snow disabled); strictly enforced when snow_use=1 (snow_cold anchor).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2363"
+      ],
+      "rationale": "Scheme-gated snow validation (#2363) relaxes SnowParams scalar null/bound checks while snow_use == 0; Rust apply_snow_overrides ignores absent/null inactive snow scalars."
+    },
+    {
       "id": "snow-pack-limit-and-states-null-active",
       "anchors": [
         "snow_cold"

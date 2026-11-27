@@ -1,5 +1,7 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from contextvars import ContextVar
 from enum import Enum
+import math
 import types
 from typing import (
     Annotated,
@@ -14,6 +16,7 @@ from typing import (
     get_args,
     get_origin,
 )
+import weakref
 
 import numpy as np
 import pandas as pd
@@ -637,3 +640,219 @@ def init_df_state(grid_id: int) -> pd.DataFrame:
     df_state = pd.DataFrame(index=idx, columns=col)
     df_state.loc[grid_id, ("gridiv", "0")] = grid_id
     return df_state
+
+
+# Scheme-gating validation contexts propagated from SUEWSConfig during nested
+# construction and df_state reconstruction:
+# - None: standalone model construction (no parent model.physics; stay strict).
+# - True: owning physical scheme is active (or selector unresolved).
+# - False: owning physical scheme is cleanly declared inactive.
+_SNOW_ACTIVE_CONTEXT: ContextVar[bool | None] = ContextVar(
+    "_SNOW_ACTIVE_CONTEXT", default=None
+)
+_SOIL_OBSERVED_CONTEXT: ContextVar[bool | None] = ContextVar(
+    "_SOIL_OBSERVED_CONTEXT", default=None
+)
+
+_SNOW_USE_NAME_CODES: dict[str, int] = {
+    "disabled": 0,
+    "enabled": 1,
+}
+_SOIL_MOISTURE_NAME_CODES: dict[str, int] = {
+    "modelled": 0,
+    "modeled": 0,
+    "observed": 1,
+    "observed_volumetric": 1,
+    "observed_gravimetric": 2,
+}
+
+
+def _unwrap_selector_raw(value: Any) -> Any:
+    """Unwrap RefValue, single-key ``{"value": ...}`` mappings, Enum, and NumPy scalars."""
+    while True:
+        if isinstance(value, RefValue):
+            value = value.value
+            continue
+        if isinstance(value, Mapping) and "value" in value:
+            value = value["value"]
+            continue
+        break
+    if isinstance(value, Enum):
+        value = value.value
+    if isinstance(value, np.generic):
+        value = value.item()
+    return value
+
+
+def resolve_snow_use_code(value: Any) -> int | None:
+    """Resolve a raw ``snow_use`` selector to 0 or 1; ``None`` if unknown or malformed."""
+    raw = _unwrap_selector_raw(value)
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        try:
+            num = float(text)
+        except ValueError:
+            return _SNOW_USE_NAME_CODES.get(text.rsplit(".", 1)[-1])
+        if math.isfinite(num) and num.is_integer() and int(num) in (0, 1):
+            return int(num)
+        return None
+    if isinstance(raw, (int, float)) and math.isfinite(float(raw)):
+        fval = float(raw)
+        if fval.is_integer() and int(fval) in (0, 1):
+            return int(fval)
+    return None
+
+
+def resolve_soil_moisture_code(value: Any) -> int | None:
+    """Resolve a raw ``soil_moisture`` selector to 0, 1 or 2; ``None`` if unknown."""
+    raw = _unwrap_selector_raw(value)
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        try:
+            num = float(text)
+        except ValueError:
+            return _SOIL_MOISTURE_NAME_CODES.get(text.rsplit(".", 1)[-1])
+        if math.isfinite(num) and num.is_integer() and int(num) in (0, 1, 2):
+            return int(num)
+        return None
+    if isinstance(raw, (int, float)) and math.isfinite(float(raw)):
+        fval = float(raw)
+        if fval.is_integer() and int(fval) in (0, 1, 2):
+            return int(fval)
+    return None
+
+
+def is_finite_real_number(value: Any) -> bool:
+    """Return True iff *value* is a non-bool finite int/float/NumPy real scalar."""
+    if isinstance(value, (bool, np.bool_)):
+        return False
+    if not isinstance(value, (int, float, np.number)):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
+def _coerce_inactive_float_scalar(
+    inner: Any, *, allow_null: bool, allow_non_finite: bool
+) -> tuple[bool, Any]:
+    """Coerce a bare scalar inside an inactive float field without enforcing active bounds."""
+    if isinstance(inner, np.generic):
+        inner = inner.item()
+    if inner is None:
+        return (True, None) if allow_null else (False, inner)
+    if isinstance(inner, bool) or not isinstance(inner, (int, float)):
+        return (False, inner)
+    try:
+        fval = float(inner)
+    except OverflowError:
+        return (False, inner)
+    if not allow_non_finite and not math.isfinite(fval):
+        return (False, inner)
+    return (True, fval)
+
+
+def normalise_inactive_float_value(
+    raw: Any,
+    *,
+    allow_null: bool,
+    allow_non_finite: bool,
+) -> tuple[bool, Any]:
+    """Normalise an inactive ``FlexibleRefValue(float)`` input without enforcing active bounds.
+
+    Returns ``(True, normalised_value)`` when *raw* is an acceptable inactive value
+    (preserving ``RefValue`` wrappers and optional ``ref`` metadata), or
+    ``(False, raw)`` when *raw* should fall through to strict Pydantic validation
+    (e.g. booleans, malformed strings, containers, or disallowed ``None`` / non-finite).
+    """
+    if isinstance(raw, np.generic):
+        raw = raw.item()
+
+    if isinstance(raw, RefValue):
+        ok, inner = _coerce_inactive_float_scalar(
+            raw.value, allow_null=allow_null, allow_non_finite=allow_non_finite
+        )
+        if not ok:
+            return (False, raw)
+        rv = (
+            RefValue[float].model_construct(value=None, ref=raw.ref)
+            if inner is None
+            else RefValue[float](value=inner, ref=raw.ref)
+        )
+        return (True, rv)
+
+    if isinstance(raw, Mapping) and "value" in raw and set(raw.keys()) <= {"value", "ref"}:
+        ok, inner = _coerce_inactive_float_scalar(
+            raw["value"], allow_null=allow_null, allow_non_finite=allow_non_finite
+        )
+        ref_raw = raw.get("ref")
+        if not ok or (
+            ref_raw is not None and not isinstance(ref_raw, (Mapping, Reference))
+        ):
+            return (False, raw)
+        ref_obj = (
+            Reference.model_validate(ref_raw)
+            if isinstance(ref_raw, Mapping)
+            else ref_raw
+        )
+        rv = (
+            RefValue[float].model_construct(value=None, ref=ref_obj)
+            if inner is None
+            else RefValue[float](value=inner, ref=ref_obj)
+        )
+        return (True, rv)
+
+    return _coerce_inactive_float_scalar(
+        raw, allow_null=allow_null, allow_non_finite=allow_non_finite
+    )
+
+
+def serialise_relaxed_ref_float(value: Any, handler: Any) -> Any:
+    """Serialise relaxed inactive ``FlexibleRefValue(float)`` values without Pydantic warnings."""
+    if value is None:
+        return None
+    if isinstance(value, RefValue):
+        if value.value is None:
+            out: dict[str, Any] = {"value": None}
+            if value.ref is not None:
+                out["ref"] = (
+                    value.ref.model_dump(mode="json", exclude_none=True)
+                    if hasattr(value.ref, "model_dump")
+                    else value.ref
+                )
+            return out
+        return handler(value)
+    return handler(value)
+
+
+class _WeakConfigRef:
+    """Picklable, copy-aware weak reference to an owning ``SUEWSConfig``."""
+
+    __slots__ = ("_ref",)
+
+    def __init__(self, config: Any | None = None) -> None:
+        self._ref = weakref.ref(config) if config is not None else None
+
+    def get(self) -> Any | None:
+        """Return the owning ``SUEWSConfig`` if still alive, else ``None``."""
+        return self._ref() if self._ref is not None else None
+
+    def __getstate__(self) -> None:
+        return None
+
+    def __setstate__(self, state: Any) -> None:
+        self._ref = None
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "_WeakConfigRef":
+        target = self.get()
+        if target is None:
+            return _WeakConfigRef(None)
+        copied_target = memo.get(id(target))
+        if copied_target is not None:
+            return _WeakConfigRef(copied_target)
+        return _WeakConfigRef(None)

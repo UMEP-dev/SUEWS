@@ -1,18 +1,5 @@
 {
   "description": "Per-file counts of gated Python literal kinds; see scripts/lint/check_python_literals.py. Counts may only go down.",
-  "totals": {
-    "seconds_per_day": 2,
-    "seconds_per_hour": 2
-  },
-  "files": {
-    "src/supy/_run_rust.py": {
-      "seconds_per_day": 2
-    },
-    "src/supy/suews_output.py": {
-      "seconds_per_hour": 1
-    },
-    "src/supy/suews_sim.py": {
-      "seconds_per_hour": 1
-    }
-  }
+  "totals": {},
+  "files": {}
 }

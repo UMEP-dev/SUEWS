@@ -86,9 +86,10 @@ elapsed model-time metadata, and schema versions, keyed by grid ID.
 
 The checkpoint does not contain the YAML configuration or forcing data. To
 continue a run, load the same YAML configuration, attach the next forcing
-period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
-checkpoint schema version 1 and legacy ``DailyState`` window schema version 2
-must be regenerated with schema version 3 before they can provide continuity. Chunked and restarted outputs are expected to match
+period, and run from ``SUEWSSimulation.from_checkpoint(...)``. Checkpoints with
+schema version 1 (state only), 2 (legacy ``DailyState`` window), or 3 (older
+timer layout) must be regenerated with schema version 4 before they can be
+continued. Chunked and restarted outputs are expected to match
 uninterrupted outputs within relative and absolute tolerances of ``1e-12``.
 
 Legacy ``df_state_SSss.csv`` and state parquet files remain documented for

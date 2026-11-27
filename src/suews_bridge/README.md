@@ -41,7 +41,7 @@ Data crosses four layers during a simulation:
 |    data_model/ (Pydantic validation, defaults, migrations)                  |
 |      -> _run_rust.py (config_to_engine_yaml / _grid_config_jsons,           |
 |                       forcing array, output buffers)                        |
-|      -> suews_checkpoint.py (SUEWSCheckpoint v3 envelope per grid)          |
+|      -> suews_checkpoint.py (SUEWSCheckpoint v4 envelope per grid)          |
 +-------------------------------------+---------------------------------------+
                                       | PyO3 (lib.rs) or resolved YAML (main.rs)
                                       v
@@ -128,10 +128,10 @@ parameter, see [dev-ref/RUST_BRIDGE_ADD_PARAMETER.md](../../dev-ref/RUST_BRIDGE_
   separate from restart decoding (`BR-06`).
 - After each run, `c_api/driver.f95` packs the updated Fortran `SUEWS_STATE`
   and `SUEWS_TIMER` back into flat buffers. `src/sim.rs` decodes them and
-  `src/checkpoint.rs::suews_checkpoint_to_json` emits a schema-version-3 JSON
-  envelope containing both `timer` (`dt_since_start`, `dt_since_start_prev`,
-  `tstep`, `new_day`) and all 13 `state` members (`src/suews_state.rs`).
-- On restart, `suews_checkpoint_from_json` requires schema version 3, a valid
+  `src/checkpoint.rs::suews_checkpoint_to_json` emits a schema-version-4 JSON
+  envelope containing both `timer` (`dt_since_start`, `tstep`) and all 13
+  `state` members (`src/suews_state.rs`).
+- On restart, `suews_checkpoint_from_json` requires schema version 4, a valid
   elapsed timer and the complete 13-member state set; it rejects legacy
   state-only envelopes, missing members and `+/-Inf` while preserving `NaN` as
   JSON `null` for inactive-state sentinels. On the Python side,
@@ -189,11 +189,11 @@ Fortran facades under `c_api/`, and `47` bridged derived types in
 | `src/suews_bridge/Cargo.toml` | Crate manifest defining `suews_bridge` (`rlib`, `cdylib`), `suews-engine` binary, 5 optional features and `capi_field_observer` test target. |
 | `src/suews_bridge/pyproject.toml` | Separate standalone `maturin` crate build metadata (`python-extension` + `physics`, installing top-level `suews_bridge`); the root SuPy wheel instead uses `meson-python` (`pyproject.toml` -> `src/supy/meson.build` -> `src/supy/build_rust_bridge.py` -> `cargo`, installing `supy.suews_bridge`). |
 | `src/suews_bridge/build.rs` | Build script: embeds version metadata (`SUEWS_VERSION`/`SUEWS_COMMIT`, from env overrides, `git describe`, or `_version_scm.py`), compiles `c_api/*.f95` into `libsuews_bridge.a` (and optional `libsuews_capi_observer.a`), links SUEWS static libraries + `libgfortran`, and generates `$OUT_DIR/output_cols.rs` from `suews_ctrl_const.f95`. Supports `SUEWS_BRIDGE_LINT_ONLY=1` and `SUEWS_BUILD_PROFILE=release\|checked`. |
-| `src/suews_bridge/bridge-manifest.json` | Machine-checked inventory of all 48 `TYPE, PUBLIC` derived types in `src/suews/src/*.f95` (47 bridged, 1 excluded) and their bridge status (`bridged`, `planned`, `excluded`). |
+| `src/suews_bridge/bridge-manifest.json` | Machine-checked inventory of all 49 `TYPE, PUBLIC` derived types in `src/suews/src/*.f95` (47 bridged, 2 excluded) and their bridge status (`bridged`, `planned`, `excluded`). |
 | `src/supy/build_rust_bridge.py` | Meson build helper invoked by the root `meson-python` build (`pyproject.toml` -> `src/supy/meson.build`): runs `cargo build` for the PyO3 extension and `suews-engine` binary, copies them into package staging paths, and writes a Ninja depfile tracking Rust, C-API and driver sources. |
 | `src/supy/cmd/rust_bridge.py` | Thin Python wrapper locating and invoking the bundled `supy/bin/suews-engine` binary. |
 | `src/supy/_run_rust.py` | Primary Python-to-Rust integration layer: validates output column layout parity against Fortran, serialises `SUEWSConfig` (single-grid YAML via `config_to_engine_yaml`, one-site-per-grid JSON via `_grid_config_jsons`), prepares `(len_sim, 32)` forcing blocks, allocates Fortran-ordered output stores, dispatches single/multi-grid/chunked/streamed runs, and wraps results into pandas DataFrames. |
-| `src/supy/suews_checkpoint.py` | Python `SUEWSCheckpoint` dataclass wrapping per-grid version-3 checkpoint JSON envelopes with schema validation and atomic file writes. |
+| `src/supy/suews_checkpoint.py` | Python `SUEWSCheckpoint` dataclass wrapping per-grid version-4 checkpoint JSON envelopes with schema validation and atomic file writes. |
 | `src/suews_bridge/examples/ohm_state_python_demo.py` | Minimal Python demonstration of constructing and inspecting `OhmState` via PyO3. |
 
 ### Rust entry points, orchestration and ABI (`src/suews_bridge/src/`)
@@ -218,7 +218,7 @@ Fortran facades under `c_api/`, and `47` bridged derived types in
 | `src/suews_site.rs` | Composite `SuewsSite` container aggregating all 18 site parameter members (`SUEWS_SITE_MEMBER_ORDER`) with nested and dotted-map codecs. |
 | `src/suews_state.rs` | Composite `SuewsState` container aggregating all 13 model state members (`SUEWS_STATE_MEMBER_ORDER`), enforcing full-member restart validation and `NaN` <-> JSON `null` checkpoint encoding. |
 | `src/suews_debug.rs` | 15-stage intra-timestep `SuewsState` snapshot container (`SUEWS_DEBUG`). |
-| `src/checkpoint.rs` | Version-2 restart envelope (`CheckpointTimer` + `SuewsCheckpointData`) serialising/deserialising JSON with exact `float_roundtrip` parsing and strict version/timer checks. |
+| `src/checkpoint.rs` | Version-4 restart envelope (`CheckpointTimer` + `SuewsCheckpointData`) serialising/deserialising JSON with exact `float_roundtrip` parsing and strict version/timer checks. |
 | `src/forcing.rs` | Single-timestep `SuewsForcing` flat codec (`SUEWS_FORCING`). |
 | `src/forcing_io.rs` | Standalone engine (`suews-engine run`) meteorological forcing file reader, `kPa -> hPa` pressure conversion (`* 10.0`), optional-column `-999.0` sentinel handling and timestep interpolation (`physics`-gated; separate from SuPy's Python forcing preparation). |
 | `src/forcing_time.rs` | Gregorian leap-year and signed-second calendar conversions (`to_seconds` / `from_seconds`, `days_in_month` / `ymd_to_doy` / `doy_to_ymd`) and `TimeColumns` indices used by `forcing_io.rs` and `run_period.rs`. |

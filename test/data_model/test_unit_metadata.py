@@ -9,6 +9,8 @@ metadata rather than placeholder prose strings or exemptions.
 import copy
 import importlib
 import inspect
+import json
+from pathlib import Path
 import pkgutil
 from typing import Any, get_args
 
@@ -18,7 +20,7 @@ import pytest
 from supy.data_model import configuration, core
 from supy.data_model.core.human_activity import CO2Params
 from supy.data_model.core.hydro import StorageDrainParams
-from supy.data_model.core.site import Conductance
+from supy.data_model.core.site import Conductance, SnowParams
 from supy.data_model.core.unit_metadata import (
     CONDITIONAL_UNIT_KEY,
     ConditionalUnitCase,
@@ -447,3 +449,45 @@ class TestConditionalUnitNegativeControls:
                 unit="equation-dependent",
                 formula="drain = ...",
             )
+
+
+def test_snow_removal_limit_metadata_matches_swe_mm_and_committed_schema():
+    """Snow removal limits advertise SWE in mm in both Pydantic metadata and schema.json."""
+    # ARRANGE
+    committed_schema_path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "source"
+        / "inputs"
+        / "tables"
+        / "schema.json"
+    )
+    committed_schema = json.loads(committed_schema_path.read_text(encoding="utf-8"))
+    committed_snow_props = committed_schema["$defs"]["SnowParams"]["properties"]
+    live_snow_props = core.SUEWSConfig.model_json_schema()["$defs"]["SnowParams"][
+        "properties"
+    ]
+
+    # ACT / ASSERT
+    for field_name in ("snow_depth_limit_building", "snow_depth_limit_paved"):
+        field = SnowParams.model_fields[field_name]
+        extra = field.json_schema_extra
+        assert isinstance(extra, dict)
+        assert field.default == pytest.approx(0.1)
+        assert extra["unit"] == "mm"
+        desc_lower = (field.description or "").lower()
+        assert "snow water equivalent" in desc_lower
+        assert "mm" in desc_lower
+        assert "snow depth" not in desc_lower
+        assert "metre" not in desc_lower
+        assert "meter" not in desc_lower
+        display_lower = str(extra.get("display_name", "")).lower()
+        assert "snow water equivalent" in display_lower
+        assert "snow depth" not in display_lower
+
+        for props in (live_snow_props, committed_snow_props):
+            prop = props[field_name]
+            assert prop["unit"] == "mm"
+            assert prop["default"] == pytest.approx(0.1)
+            assert prop["description"] == field.description
+            assert prop["display_name"] == extra["display_name"]

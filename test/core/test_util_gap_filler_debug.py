@@ -433,6 +433,10 @@ class TestFillGapAll:
         assert not filled_6h.isna().any()
         np.testing.assert_allclose(filled_6h.values, base_6h.values, rtol=1e-12)
 
+        filled_6h_all = fill_gap_all(ser_6h, freq="6h", limit_fill=0, thresh_ratio=0.5)
+        assert not filled_6h_all.isna().any()
+        np.testing.assert_allclose(filled_6h_all.values, base_6h.values, rtol=1e-12)
+
     def test_fill_gap_all_x_rebalances_split_in_timestep_units(self):
         """Rebalancing shifts n_sep by n_chunk timesteps so an all-gapped half gets valid data."""
         # 7 days: days 0-2 valid, days 3-6 gapped ([0, 0, 0, 1, 1, 1, 1]).
@@ -588,6 +592,60 @@ class TestFillGapAll:
             1.0, rel=1e-12
         )
         assert pd.isna(filled.loc[pd.Timestamp("2023-07-02 12:00")])
+
+    def test_fill_gap_all_preserves_resampling_origin_for_non_divisor_freq(self):
+        """Recursive slices keep the top-level resampling origin for freq='5h'."""
+        # Non-divisor 5h divisions across 72h: missing division 40:45 lies between
+        # [1, 2, 3, 4, 5] (35:40) and [3, 6, 9, 12, 15] (45:50). With a consistent
+        # origin, the full missing period is filled as the unscaled median [2,4,6,8,10].
+        idx = pd.date_range("2023-07-01 00:00", periods=72, freq="1h")
+        ser = pd.Series(np.tile([1.0, 2.0, 3.0, 4.0, 5.0], 15)[:72], index=idx)
+        ser.iloc[45:50] *= 3.0
+        ser.iloc[40:45] = np.nan
+
+        filled = fill_gap_all(ser, freq="5h", limit_fill=0)
+
+        assert not filled.isna().any()
+        np.testing.assert_allclose(
+            filled.iloc[40:45].values,
+            np.array([2.0, 4.0, 6.0, 8.0, 10.0]),
+            rtol=1e-12,
+        )
+
+    def test_fill_gap_all_preserves_final_hour_on_autumn_dst_transition(self):
+        """norm_ser_dt and fill_gap_all retain the 25th hour when ending on autumn DST."""
+        idx = pd.date_range(
+            "2024-10-25 00:00",
+            "2024-10-27 23:00",
+            freq="1h",
+            tz="Europe/London",
+        )
+        truth = pd.Series(idx.hour + 1.0, index=idx, dtype=float)
+        ser = truth.copy()
+        ser.loc["2024-10-26 10:00":"2024-10-26 14:00"] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0, thresh_ratio=0.6)
+
+        assert list(filled.index) == list(idx)
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
+
+    def test_fill_gap_all_preserves_sub_hour_sampling_phase(self):
+        """norm_ser_dt and fill_gap_all preserve regular sampling grids offset from midnight."""
+        idx = pd.date_range("2023-07-01 00:30", periods=144, freq="1h")
+        truth = pd.Series(
+            15.0 + 10.0 * np.sin(2.0 * np.pi * (idx.hour + 0.5 - 6.0) / 24.0),
+            index=idx,
+            dtype=float,
+        )
+        ser = truth.copy()
+        ser.iloc[24 + 4 : 24 + 8] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0)
+
+        assert list(filled.index) == list(idx)
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
 
     def test_fill_gap_all_end_to_end_and_threshold_error(self):
         """fill_gap_all fills multi-day partial-boundary series and enforces thresh_ratio."""

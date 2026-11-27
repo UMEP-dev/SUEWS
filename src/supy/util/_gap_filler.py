@@ -2,21 +2,33 @@ import numpy as np
 import pandas as pd
 
 
+def _is_calendar_day_freq(freq: str) -> bool:
+    """Return True when ``freq`` is a pandas calendar-day offset (e.g. '1D')."""
+    try:
+        offset = pd.tseries.frequencies.to_offset(freq)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(offset, pd.offsets.Day)
+
+
 def _period_offsets(
-    index: pd.DatetimeIndex, loc_key: pd.Timestamp
+    index: pd.DatetimeIndex, loc_key: pd.Timestamp, freq: str = "1D"
 ) -> pd.TimedeltaIndex:
-    """Return civil-time offsets from ``loc_key`` within a division of ``freq``."""
-    if index.tz is not None:
+    """Return intra-period offsets from ``loc_key`` within a division of ``freq``."""
+    if index.tz is not None and _is_calendar_day_freq(freq):
         key_naive = loc_key.tz_localize(None) if loc_key.tz is not None else loc_key
         return index.tz_localize(None) - key_naive
     return index - loc_key
 
 
 def _find_gap_candidates(
-    ser_test: pd.Series, freq: str = "1D", pattern: str = "010"
+    ser_test: pd.Series,
+    freq: str = "1D",
+    pattern: str = "010",
+    origin: str | pd.Timestamp = "start_day",
 ) -> tuple[pd.core.resample.Resampler, list[pd.DatetimeIndex], pd.DatetimeIndex]:
     """Return resampler, all period windows matching ``pattern``, and an empty index."""
-    rsmp = ser_test.resample(freq)
+    rsmp = ser_test.resample(freq, origin=origin)
     ser_TF_10 = rsmp.apply(lambda ser: ser.isna().any()) * 1
     n_gap = int(ser_TF_10.sum())
     n_total = ser_TF_10.size
@@ -55,6 +67,7 @@ def _fill_gap_at_loc(
     rsmp: pd.core.resample.Resampler,
     loc_ser: pd.DatetimeIndex,
     pattern: str,
+    freq: str = "1D",
 ) -> pd.Series:
     """Fill a single located gap window ``loc_ser`` using its neighbouring periods."""
     # assign series:
@@ -68,10 +81,12 @@ def _fill_gap_at_loc(
         ser_post = rsmp.get_group(loc_post)
         fill_parts = [
             pd.Series(
-                ser_prev.to_numpy(), index=_period_offsets(ser_prev.index, loc_prev)
+                ser_prev.to_numpy(),
+                index=_period_offsets(ser_prev.index, loc_prev, freq=freq),
             ),
             pd.Series(
-                ser_post.to_numpy(), index=_period_offsets(ser_post.index, loc_post)
+                ser_post.to_numpy(),
+                index=_period_offsets(ser_post.index, loc_post, freq=freq),
             ),
         ]
     elif pattern == "01":
@@ -80,7 +95,8 @@ def _fill_gap_at_loc(
         ser_gap = rsmp.get_group(loc_gap_key).copy()
         fill_parts = [
             pd.Series(
-                ser_prev.to_numpy(), index=_period_offsets(ser_prev.index, loc_prev)
+                ser_prev.to_numpy(),
+                index=_period_offsets(ser_prev.index, loc_prev, freq=freq),
             ),
         ]
     elif pattern == "10":
@@ -89,19 +105,20 @@ def _fill_gap_at_loc(
         ser_post = rsmp.get_group(loc_post)
         fill_parts = [
             pd.Series(
-                ser_post.to_numpy(), index=_period_offsets(ser_post.index, loc_post)
+                ser_post.to_numpy(),
+                index=_period_offsets(ser_post.index, loc_post, freq=freq),
             ),
         ]
     else:
         raise ValueError(f"Unsupported gap pattern: {pattern!r}")
 
-    # align neighbouring periods by civil-time offset within each `freq` division
+    # align neighbouring periods by offset within each `freq` division
     ser_fill_base = pd.concat(fill_parts)
     ser_fill = (
         ser_fill_base
         .groupby(level=0)
         .median()
-        .reindex(_period_offsets(ser_gap.index, loc_gap_key))
+        .reindex(_period_offsets(ser_gap.index, loc_gap_key, freq=freq))
     )
     ser_fill.index = ser_gap.index
 
@@ -133,11 +150,11 @@ def fill_gap_one(ser_test, freq="1D", pattern="010"):
     rsmp, candidates, _ = _find_gap_candidates(ser_test, freq=freq, pattern=pattern)
     if not candidates or len(candidates[0]) != len(pattern):
         return ser_test
-    return _fill_gap_at_loc(ser_test, rsmp, candidates[0], pattern)
+    return _fill_gap_at_loc(ser_test, rsmp, candidates[0], pattern, freq=freq)
 
 
-def cal_ratio_info(ser_to_fill, freq="1d"):
-    rsmp = ser_to_fill.resample(freq)
+def cal_ratio_info(ser_to_fill, freq="1d", origin="start_day"):
+    rsmp = ser_to_fill.resample(freq, origin=origin)
     ser_TF_10 = rsmp.apply(lambda ser: ser.isna().any()) * 1
     if ser_TF_10.size == 0:
         return 0.0
@@ -176,6 +193,7 @@ def _find_balanced_split(
     n_chunk: int,
     freq: str,
     rinfo_thresh: float = 0.2,
+    origin: str | pd.Timestamp = "start_day",
 ) -> tuple[pd.Series, pd.Series]:
     """Split ``ser_head`` into two non-empty chunk-aligned halves.
 
@@ -190,8 +208,8 @@ def _find_balanced_split(
     n_sep = n_sep_mid
     ser_left = ser_head.iloc[:n_sep]
     ser_right = ser_head.iloc[n_sep:]
-    rinfo1 = cal_ratio_info(ser_left, freq=freq)
-    rinfo2 = cal_ratio_info(ser_right, freq=freq)
+    rinfo1 = cal_ratio_info(ser_left, freq=freq, origin=origin)
+    rinfo2 = cal_ratio_info(ser_right, freq=freq, origin=origin)
 
     visited_seps = {n_sep}
     while not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh):
@@ -204,8 +222,8 @@ def _find_balanced_split(
         visited_seps.add(n_sep)
         ser_left = ser_head.iloc[:n_sep]
         ser_right = ser_head.iloc[n_sep:]
-        rinfo1 = cal_ratio_info(ser_left, freq=freq)
-        rinfo2 = cal_ratio_info(ser_right, freq=freq)
+        rinfo1 = cal_ratio_info(ser_left, freq=freq, origin=origin)
+        rinfo2 = cal_ratio_info(ser_right, freq=freq, origin=origin)
 
     if not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh):
         ser_left = ser_head.iloc[:n_sep_mid]
@@ -214,7 +232,11 @@ def _find_balanced_split(
     return ser_left, ser_right
 
 
-def _fill_gaps_iterative(ser_test_filled: pd.Series, freq: str) -> pd.Series:
+def _fill_gaps_iterative(
+    ser_test_filled: pd.Series,
+    freq: str,
+    origin: str | pd.Timestamp = "start_day",
+) -> pd.Series:
     """Fill matching gap windows iteratively until complete or a pass makes no progress."""
     ptn_list = ["010", "01", "10"]
     while ser_test_filled.isna().any():
@@ -222,7 +244,7 @@ def _fill_gaps_iterative(ser_test_filled: pd.Series, freq: str) -> pd.Series:
         for ptn in ptn_list:
             try:
                 rsmp, candidates, _ = _find_gap_candidates(
-                    ser_test_filled, freq=freq, pattern=ptn
+                    ser_test_filled, freq=freq, pattern=ptn, origin=origin
                 )
             except RuntimeError:
                 return ser_test_filled
@@ -230,7 +252,9 @@ def _fill_gaps_iterative(ser_test_filled: pd.Series, freq: str) -> pd.Series:
                 if len(loc_ser) != len(ptn):
                     continue
                 n_missing_before = ser_test_filled.isna().sum()
-                candidate_filled = _fill_gap_at_loc(ser_test_filled, rsmp, loc_ser, ptn)
+                candidate_filled = _fill_gap_at_loc(
+                    ser_test_filled, rsmp, loc_ser, ptn, freq=freq
+                )
                 if candidate_filled.isna().sum() < n_missing_before:
                     ser_test_filled = candidate_filled
                     made_progress = True
@@ -247,6 +271,7 @@ def _fill_residual_tail(
     ser_residual: pd.Series,
     n_chunk: int,
     freq: str,
+    origin: str | pd.Timestamp = "start_day",
 ) -> pd.Series:
     """Fill gaps in a trailing partial-chunk residual using preceding context."""
     if not ser_residual.isna().any():
@@ -257,11 +282,61 @@ def _fill_residual_tail(
         if context_len == 0:
             break
         ser_window = pd.concat([ser_head_filled.iloc[-context_len:], ser_residual])
-        ser_window_filled = _fill_gaps_iterative(ser_window, freq=freq)
+        ser_window_filled = _fill_gaps_iterative(ser_window, freq=freq, origin=origin)
         ser_residual = ser_window_filled.iloc[-n_res:]
         if not ser_residual.isna().any() or context_len == ser_head_filled.size:
             break
     return ser_residual
+
+
+def _fill_gap_all_x_recursive(
+    ser_to_fill: pd.Series,
+    freq: str,
+    limit_fill: int,
+    origin: str | pd.Timestamp,
+) -> pd.Series:
+    """Fill gaps recursively while preserving a single resampling ``origin``."""
+    if limit_fill > 0:
+        ser_test_filled = ser_to_fill.copy().interpolate(limit=limit_fill)
+    else:
+        ser_test_filled = ser_to_fill.copy()
+
+    if not ser_test_filled.isna().any():
+        return ser_test_filled
+
+    n_freq_rsmp = ser_test_filled.resample(freq, origin=origin).size().size
+    n_chunk = _chunk_size(ser_test_filled.index, freq) if n_freq_rsmp > 4 else None
+    n_freq = ser_test_filled.size // n_chunk if n_chunk is not None else 0
+
+    if n_freq > 4:
+        n_total = n_chunk * n_freq
+        ser_residual = (
+            ser_test_filled.iloc[n_total:] if n_total < ser_test_filled.size else None
+        )
+        ser_head = ser_test_filled.iloc[:n_total]
+        ser_test_filled1, ser_test_filled2 = _find_balanced_split(
+            ser_head, n_freq, n_chunk, freq=freq, origin=origin
+        )
+        ser_test_filled1 = _fill_gap_all_x_recursive(
+            ser_test_filled1, freq=freq, limit_fill=limit_fill, origin=origin
+        )
+        ser_test_filled2 = _fill_gap_all_x_recursive(
+            ser_test_filled2, freq=freq, limit_fill=limit_fill, origin=origin
+        )
+        ser_head_filled = pd.concat([ser_test_filled1, ser_test_filled2])
+        if ser_residual is not None:
+            ser_residual = _fill_residual_tail(
+                ser_head_filled, ser_residual, n_chunk, freq=freq, origin=origin
+            )
+            ser_test_filled = pd.concat([ser_head_filled, ser_residual])
+        else:
+            ser_test_filled = ser_head_filled
+    else:
+        ser_test_filled = _fill_gaps_iterative(
+            ser_test_filled, freq=freq, origin=origin
+        )
+
+    return ser_test_filled
 
 
 # fill gaps iteratively
@@ -292,45 +367,12 @@ def fill_gap_all_x(ser_to_fill: pd.Series, freq="1D", limit_fill=1) -> pd.Series
     01:  missing data in division after one with no missing data
     10:  division with missing data before one with no missing data
     """
-    if limit_fill > 0:
-        ser_test_filled = ser_to_fill.copy().interpolate(limit=limit_fill)
-    else:
-        ser_test_filled = ser_to_fill.copy()
-
-    if not ser_test_filled.isna().any():
-        return ser_test_filled
-
-    n_freq_rsmp = ser_test_filled.resample(freq).size().size
-    n_chunk = _chunk_size(ser_test_filled.index, freq) if n_freq_rsmp > 4 else None
-    n_freq = ser_test_filled.size // n_chunk if n_chunk is not None else 0
-
-    if n_freq > 4:
-        n_total = n_chunk * n_freq
-        ser_residual = (
-            ser_test_filled.iloc[n_total:] if n_total < ser_test_filled.size else None
-        )
-        ser_head = ser_test_filled.iloc[:n_total]
-        ser_test_filled1, ser_test_filled2 = _find_balanced_split(
-            ser_head, n_freq, n_chunk, freq=freq
-        )
-        ser_test_filled1 = fill_gap_all_x(
-            ser_test_filled1, freq=freq, limit_fill=limit_fill
-        )
-        ser_test_filled2 = fill_gap_all_x(
-            ser_test_filled2, freq=freq, limit_fill=limit_fill
-        )
-        ser_head_filled = pd.concat([ser_test_filled1, ser_test_filled2])
-        if ser_residual is not None:
-            ser_residual = _fill_residual_tail(
-                ser_head_filled, ser_residual, n_chunk, freq=freq
-            )
-            ser_test_filled = pd.concat([ser_head_filled, ser_residual])
-        else:
-            ser_test_filled = ser_head_filled
-    else:
-        ser_test_filled = _fill_gaps_iterative(ser_test_filled, freq=freq)
-
-    return ser_test_filled
+    origin: str | pd.Timestamp = (
+        ser_to_fill.index[0].normalize() if len(ser_to_fill) > 0 else "start_day"
+    )
+    return _fill_gap_all_x_recursive(
+        ser_to_fill, freq=freq, limit_fill=limit_fill, origin=origin
+    )
 
 
 def fill_gap_all(
@@ -406,8 +448,16 @@ def norm_ser_dt(ser_dt):
         time series with complete diurnal cycles; missing values may be inserted as np.nan.
     """
     freq = _infer_step_freq(ser_dt.index)
-    dt_start, dt_end = ser_dt.index.normalize()[[0, -1]]
-    dt_end = dt_end + pd.Timedelta("1d")
-    idx_norm = pd.date_range(dt_start, dt_end, freq=freq)[:-1]
+    dt_start = ser_dt.index[0].normalize()
+    dt_end = ser_dt.index[-1].normalize() + pd.DateOffset(days=1)
+    if freq is not None:
+        try:
+            step_td = pd.Timedelta(freq)
+        except (TypeError, ValueError):
+            step_td = None
+        if step_td is not None and step_td > pd.Timedelta(0):
+            phase = (ser_dt.index[0] - dt_start) % step_td
+            dt_start = dt_start + phase
+    idx_norm = pd.date_range(dt_start, dt_end, freq=freq, inclusive="left")
     ser_norm = ser_dt.reindex(idx_norm)
     return ser_norm

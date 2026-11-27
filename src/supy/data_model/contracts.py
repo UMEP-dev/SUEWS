@@ -1358,9 +1358,6 @@ def _windows_file_publish_lock(lock_path: Path) -> Iterator[None]:  # pragma: no
             time.sleep(0.01)
     locked = False
     try:
-        if os.fstat(fd).st_size == 0:
-            os.lseek(fd, 0, os.SEEK_SET)
-            os.write(fd, b"0")
         while True:
             os.lseek(fd, 0, os.SEEK_SET)
             try:

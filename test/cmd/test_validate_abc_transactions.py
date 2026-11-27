@@ -1,10 +1,15 @@
-"""Exercise installed ABC entry points with real phases and overlapping processes."""
+"""Exercise ABC validation entry points with real phases and overlapping processes."""
 
+import copy
+from dataclasses import dataclass
+from functools import lru_cache
 from importlib.resources import files
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import sysconfig
 import time
 
@@ -17,17 +22,48 @@ pytestmark = [
     pytest.mark.contract("C-VALID", "C-ERROR", "C-ISOLATION"),
 ]
 
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
+
+@dataclass(frozen=True)
+class _CliRunResult:
+    """Subprocess-compatible result for in-process standalone Click invocations."""
+
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+@lru_cache(maxsize=1)
+def _sample_data_files() -> dict[str, bytes]:
+    """Cache bundled sample_data file bytes once per process via Traversable API."""
+    return {
+        item.name: item.read_bytes()
+        for item in files("supy").joinpath("sample_data").iterdir()
+        if item.is_file()
+    }
+
+
+@lru_cache(maxsize=1)
+def _sample_dict_template():
+    return yaml.load(
+        _sample_data_files()["sample_config.yml"].decode("utf-8"), Loader=_YAML_LOADER
+    )
+
+
+def _load_sample_dict():
+    return copy.deepcopy(_sample_dict_template())
+
 
 @pytest.fixture
 def source(tmp_path):
     project = tmp_path / "project"
     project.mkdir()
-    for item in files("supy").joinpath("sample_data").iterdir():
-        if item.is_file():
-            (project / item.name).write_bytes(item.read_bytes())
+    for name, content in _sample_data_files().items():
+        (project / name).write_bytes(content)
     path = project / "sample_config.yml"
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    forcing = payload["model"]["control"]["forcing"]["file"]["value"]
+    forcing = _sample_dict_template()["model"]["control"]["forcing"]["file"]["value"]
     assert not Path(forcing).is_absolute()
     assert (project / forcing).is_file()
     return path
@@ -49,10 +85,104 @@ def _command(route, source, science, mode="public", out_format="json"):
     return command
 
 
+def _invoke_standalone_click(
+    route,
+    args,
+    *,
+    cwd,
+    encoding="utf-8",
+    env_overrides=None,
+    unset_env=(),
+):
+    """Run ``suews`` or ``suews-validate`` Click entry point in-process in standalone mode.
+
+    Uses ``io.TextIOWrapper(..., encoding=encoding, errors="strict")`` on
+    ``sys.stdout`` and ``sys.stderr`` so strict encoding (e.g. ``cp1252``),
+    Rich console width/colour settings, and Click's ``KeyboardInterrupt`` ->
+    ``Aborted!`` handling match standalone CLI execution without spawning a
+    subprocess.
+    """
+    from rich.console import Console
+
+    from supy.cmd import validate_config as validate_config_mod
+    from supy.cmd.suews_cli import cli as suews_cli
+
+    command = validate_config_mod.cli if route == "suews-validate" else suews_cli
+    argv = list(map(str, args))
+    if route == "suews":
+        argv = ["validate", *argv]
+
+    out_buf = io.BytesIO()
+    err_buf = io.BytesIO()
+    out_stream = io.TextIOWrapper(
+        out_buf, encoding=encoding, errors="strict", write_through=True
+    )
+    err_stream = io.TextIOWrapper(
+        err_buf, encoding=encoding, errors="strict", write_through=True
+    )
+
+    old_cwd = Path.cwd()
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    old_argv = sys.argv
+    old_console = validate_config_mod.console
+    saved_env: dict[str, str | None] = {}
+    for key in unset_env:
+        saved_env[key] = os.environ.get(key)
+        os.environ.pop(key, None)
+    for key, value in (env_overrides or {}).items():
+        if key not in saved_env:
+            saved_env[key] = os.environ.get(key)
+        os.environ[key] = value
+
+    returncode = 0
+    try:
+        os.chdir(cwd)
+        sys.stdout = out_stream
+        sys.stderr = err_stream
+        sys.argv = [route, *argv]
+        validate_config_mod.console = Console()
+        try:
+            command.main(args=argv, prog_name=route, standalone_mode=True)
+        except SystemExit as exc:
+            if exc.code is None:
+                returncode = 0
+            elif isinstance(exc.code, int):
+                returncode = exc.code
+            else:
+                returncode = 1
+    finally:
+        out_stream.flush()
+        err_stream.flush()
+        validate_config_mod.console = old_console
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        sys.argv = old_argv
+        os.chdir(old_cwd)
+        for key, prev in saved_env.items():
+            if prev is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prev
+
+    return _CliRunResult(
+        returncode=returncode,
+        stdout=out_buf.getvalue().decode(encoding),
+        stderr=err_buf.getvalue().decode(encoding),
+    )
+
+
 def _run(route, source, science, mode="public", out_format="json", extra=()):
-    return subprocess.run(
-        _command(route, source, science, mode, out_format) + list(extra),
-        cwd=source.parent.parent, capture_output=True, text=True, timeout=180,
+    args = [str(source), "-p", "ABC", "--mode", mode, "--science-fixes", science]
+    if out_format == "json":
+        args += ["--format", "json"]
+    args += list(extra)
+    return _invoke_standalone_click(
+        route,
+        args,
+        cwd=source.parent.parent,
+        env_overrides={"NO_COLOR": "1", "COLUMNS": "240"},
+        unset_env=("FORCE_COLOR", "CLICOLOR_FORCE"),
     )
 
 
@@ -143,30 +273,6 @@ original_replace = engine.os.replace
 def replace(source, destination):
     if os.environ.get("SUEWS_TEST_FAIL") == "1" and Path(source).name == "publish_2":
         raise OSError("injected final JSON publication failure")
-    return original_replace(source, destination)
-
-engine.os.replace = replace
-''', encoding="utf-8")
-    return directory
-
-
-@pytest.fixture
-def interrupt_hooks(tmp_path):
-    """Interrupt the final publication step and fail one rollback restore."""
-    directory = tmp_path / "interrupt-hooks"
-    directory.mkdir()
-    (directory / "sitecustomize.py").write_text('''
-from pathlib import Path
-from supy.data_model.validation.pipeline import orchestrator as engine
-
-original_replace = engine.os.replace
-
-def replace(source, destination):
-    name = Path(source).name
-    if name == "publish_2":
-        raise KeyboardInterrupt("injected interrupt during JSON publication")
-    if name == "previous_1":
-        raise OSError("injected rollback failure on the text report")
     return original_replace(source, destination)
 
 engine.os.replace = replace
@@ -294,9 +400,9 @@ def test_public_abc_concurrent_write_failure_preserves_good_set_and_retries(sour
 @pytest.mark.parametrize("reject", [False, True])
 def test_public_abc_table_json_and_rejection_evidence(source, route, out_format, reject):
     if reject:
-        payload = yaml.safe_load(source.read_text(encoding="utf-8"))
+        payload = _load_sample_dict()
         payload["sites"][0]["properties"]["bogus_extra_param"] = 42
-        source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+        source.write_text(yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False), encoding="utf-8")
     original = _snapshot(list(source.parent.iterdir()))
     result = _run(route, source, "suggest", out_format=out_format)
     assert result.returncode == (1 if reject else 0), result.stdout + result.stderr
@@ -324,9 +430,9 @@ def test_public_abc_table_json_and_rejection_evidence(source, route, out_format,
 @pytest.mark.parametrize("route", ["suews", "suews-validate"])
 @pytest.mark.parametrize("forcing", ["on", "off"])
 def test_public_abc_forcing_option_reaches_shared_phase_a(source, route, forcing):
-    payload = yaml.safe_load(source.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     payload["model"]["control"]["forcing"]["file"]["value"] = "missing-forcing.txt"
-    source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    source.write_text(yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False), encoding="utf-8")
     original = _snapshot(list(source.parent.iterdir()))
     result = _run(route, source, "off", extra=("--forcing", forcing))
     envelope = json.loads(result.stdout)
@@ -415,27 +521,43 @@ atexit.register(record_sources)
 
 
 def _encoded_validate(source, args, encoding):
+    return _invoke_standalone_click(
+        "suews",
+        args,
+        cwd=source.parent,
+        encoding=encoding,
+        env_overrides={"NO_COLOR": "1", "COLUMNS": "320"},
+        unset_env=("FORCE_COLOR", "CLICOLOR_FORCE"),
+    )
+
+
+def test_installed_validator_cp1252_subprocess_smoke(source):
+    """Focused subprocess smoke test for strict ``cp1252`` OS stream encoding."""
+    path = source.rename(source.with_name("caf\u00e9[red]\u7ad9.yml"))
     env = {
         k: v
         for k, v in os.environ.items()
-        if k not in ("FORCE_COLOR", "CLICOLOR_FORCE")
+        if k not in {"FORCE_COLOR", "CLICOLOR_FORCE"}
     }
     env.update(
         {
             "NO_COLOR": "1",
-            "PYTHONIOENCODING": f"{encoding}:strict",
+            "PYTHONIOENCODING": "cp1252:strict",
             "COLUMNS": "320",
         }
     )
-    return subprocess.run(
-        [*_entry_point("suews"), *map(str, args)],
-        cwd=source.parent,
+    result = subprocess.run(
+        [*_entry_point("suews"), str(path)],
+        cwd=path.parent,
         env=env,
         capture_output=True,
-        encoding=encoding,
+        encoding="cp1252",
         check=False,
         timeout=180,
     )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "[OK] Validation completed" in result.stdout
+    assert result.stdout.isascii(), result.stdout
 
 
 @pytest.mark.parametrize("encoding", ["cp1252", "utf-8"])
@@ -465,10 +587,10 @@ def test_installed_validator_text_keeps_literal_product_paths(source, encoding):
 @pytest.mark.parametrize("encoding", ["cp1252", "utf-8"])
 def test_installed_validator_dry_run_literal_issue_and_filename(source, pipeline, encoding):
     rejected = source.with_name("bad[red]\u7ad9.yml")
-    payload = yaml.safe_load(source.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     key = "bad[red]\u7ad9"
     payload["sites"][0]["properties"][key] = 42
-    rejected.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    rejected.write_text(yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False), encoding="utf-8")
     inputs = [source, rejected] if pipeline == "C" else [rejected]
     result = _encoded_validate(source, [*inputs, "-p", pipeline, "--dry-run"], encoding)
     assert result.returncode == 1, result.stdout + result.stderr
@@ -501,9 +623,9 @@ def test_installed_validator_legacy_stream_usage_and_public_restriction(source):
     usage = _encoded_validate(source, [source, "-p", "B", "--dry-run"], "cp1252")
     assert usage.returncode == 2
     assert "[X] --dry-run is supported for pipeline C or ABC only" in usage.stdout
-    payload = yaml.safe_load(source.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     payload["model"]["physics"]["stebbs"]["enabled"] = {"value": True}
-    source.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    source.write_text(yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False), encoding="utf-8")
     restricted = _encoded_validate(source, [source], "cp1252")
     assert restricted.returncode == 1
     assert "[X] Configuration contains experimental features restricted in public mode:" in restricted.stdout
@@ -515,25 +637,32 @@ def test_installed_validator_legacy_stream_usage_and_public_restriction(source):
 @pytest.mark.parametrize("route", ["suews", "suews-validate"])
 @pytest.mark.parametrize("out_format", [None, "json"])
 def test_public_abc_interrupt_with_failed_rollback_names_unrestored_outputs(
-    source, interrupt_hooks, route, out_format,
+    source, monkeypatch, route, out_format,
 ):
     """Ctrl-C during publication must not hide outputs rollback left changed.
 
     Click turns a bare KeyboardInterrupt into "Aborted!"; the CLI first names
     the unrestored output, its retained previous copy and the evidence directory.
     """
+    from supy.data_model.validation.pipeline import orchestrator as engine
+
     _success(_run(route, source, "suggest"), "suggest")
     before = _products(source)
     report_txt = source.parent / f"report_{source.stem}.txt"
-    env = {
-        **os.environ,
-        "PYTHONPATH": str(interrupt_hooks) + os.pathsep + os.environ.get("PYTHONPATH", ""),
-    }
+    original_replace = engine.os.replace
+
+    def fail_interrupt_replace(src, dst):
+        name = Path(src).name
+        if name == "publish_2":
+            raise KeyboardInterrupt("injected interrupt during JSON publication")
+        if name == "previous_1":
+            raise OSError("injected rollback failure on the text report")
+        return original_replace(src, dst)
+
     # A different generation makes the unrestored text report detectable.
-    result = subprocess.run(
-        _command(route, source, "off", out_format=out_format),
-        cwd=source.parent.parent, capture_output=True, text=True, timeout=180, env=env,
-    )
+    with monkeypatch.context() as patch:
+        patch.setattr(engine.os, "replace", fail_interrupt_replace)
+        result = _run(route, source, "off", out_format=out_format)
     assert result.returncode != 0, result.stdout + result.stderr
     assert "Traceback" not in result.stdout + result.stderr
     assert "Aborted!" in result.stderr

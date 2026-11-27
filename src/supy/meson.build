@@ -32,6 +32,7 @@ py.install_sources(
             'cmd/__init__.py',
             'cmd/SUEWS.py',
             'cmd/compare_runs.py',
+            'cmd/contracts_cli.py',
             'cmd/diagnose_run.py',
             'cmd/init_case.py',
             'cmd/json_envelope.py',
@@ -112,6 +113,7 @@ py.install_sources(
         [
             'data_model/__init__.py',
             'data_model/README.md',
+            'data_model/contracts.py',
             'data_model/doc_utils.py',
             'data_model/parameter_examples.py',
             'data_model/parameter_examples.json',

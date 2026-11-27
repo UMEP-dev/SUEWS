@@ -11,6 +11,14 @@ energy balance, water balance, meteorological variables, and model diagnostics.
 The output format is configured in the YAML configuration file.
 See :doc:`../inputs/yaml/index` for configuration details.
 
+For automated tooling, machine-readable output contract artefacts are published
+at `suews.io/contracts/output <https://suews.io/contracts/output/>`_ (latest
+`catalogue.json <https://suews.io/contracts/output/latest/catalogue.json>`_,
+`catalogue.schema.json <https://suews.io/contracts/output/latest/catalogue.schema.json>`_,
+and `manifest.json <https://suews.io/contracts/output/latest/manifest.json>`_)
+and can also be inspected or exported offline with ``suews contracts info output``
+and ``suews contracts export output`` (see :ref:`data_interface_versioning`).
+
 .. toctree::
    :maxdepth: 1
    :caption: Output Formats

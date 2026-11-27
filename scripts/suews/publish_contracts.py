@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Build and validate the static SUEWS data-contracts site tree.
+
+Delegates to ``supy.data_model.contracts`` as the single source of truth.
+When run from a source checkout without a compiled ``supy`` installation (for
+example in lightweight CI jobs), loads the pure-Python contract package
+directly from ``src/supy/data_model``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib
+import json
+from pathlib import Path
+import sys
+from types import ModuleType
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_DATA_MODEL_ROOT = PROJECT_ROOT / "src/supy/data_model"
+_STANDALONE_PACKAGE = "_suews_contracts_standalone"
+
+
+def _register_namespace_package(name: str, directory: Path) -> ModuleType:
+    existing = sys.modules.get(name)
+    if existing is not None:
+        return existing
+    module = ModuleType(name)
+    module.__package__ = name
+    module.__path__ = [str(directory)]
+    sys.modules[name] = module
+    return module
+
+
+def _load_contracts_module(*, force_standalone: bool = False) -> ModuleType:
+    if not force_standalone:
+        try:
+            return importlib.import_module("supy.data_model.contracts")
+        except ImportError:
+            pass
+
+    _register_namespace_package(_STANDALONE_PACKAGE, _DATA_MODEL_ROOT)
+    _register_namespace_package(
+        f"{_STANDALONE_PACKAGE}.forcing", _DATA_MODEL_ROOT / "forcing"
+    )
+    _register_namespace_package(
+        f"{_STANDALONE_PACKAGE}.output", _DATA_MODEL_ROOT / "output"
+    )
+    return importlib.import_module(f"{_STANDALONE_PACKAGE}.contracts")
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Publish and/or validate the static forcing and output contracts tree."""
+    contracts = _load_contracts_module()
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output-dir",
+        "-o",
+        type=Path,
+        default=None,
+        help="Destination contracts directory to materialise (e.g. _site/contracts).",
+    )
+    parser.add_argument(
+        "--validate-only",
+        type=Path,
+        default=None,
+        metavar="CONTRACTS_DIR",
+        help="Validate an already-built contracts directory without writing files.",
+    )
+    parser.add_argument(
+        "--base-url",
+        default=contracts.DEFAULT_BASE_URL,
+        help=f"Base URL recorded in index.json (default: {contracts.DEFAULT_BASE_URL}).",
+    )
+    parser.add_argument(
+        "--preserve-from",
+        type=Path,
+        default=None,
+        help="Existing contracts directory whose historical releases are preserved.",
+    )
+    parser.add_argument(
+        "--no-validate",
+        action="store_true",
+        help="Skip post-build validation when publishing.",
+    )
+    parser.add_argument(
+        "--json",
+        dest="as_json",
+        action="store_true",
+        help="Emit the publication or validation report as JSON on stdout.",
+    )
+    args = parser.parse_args(argv)
+
+    if args.validate_only is not None and args.output_dir is not None:
+        print(
+            "[contracts] FAILED: specify either --output-dir or --validate-only, not both",
+            file=sys.stderr,
+        )
+        return 2
+    if args.validate_only is None and args.output_dir is None:
+        print(
+            "[contracts] FAILED: one of --output-dir or --validate-only is required",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        if args.validate_only is not None:
+            report = contracts.validate_published_contracts(
+                args.validate_only,
+                base_url=args.base_url,
+            )
+            if args.as_json:
+                print(json.dumps(report, indent=2, sort_keys=True))
+            else:
+                print(f"[OK] Validated contracts directory: {report['contracts_dir']}")
+                for iface, versions in report["interfaces"].items():
+                    print(f"  - {iface}: {', '.join(versions)}")
+                print(
+                    f"  - HTML pages: {report['html_files_checked']}, "
+                    f"relative links: {report['relative_links_checked']}"
+                )
+            return 0
+
+        report = contracts.publish_contracts_site(
+            args.output_dir,
+            base_url=args.base_url,
+            preserve_from=args.preserve_from,
+            validate=not args.no_validate,
+        )
+        if args.as_json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(f"[OK] Published contracts to {report['output_dir']}")
+            for iface, details in report["interfaces"].items():
+                print(
+                    f"  - {iface}: current={details['current_version']}, "
+                    f"versions={len(details['versions'])}, "
+                    f"preserved={len(details['preserved_versions'])}"
+                )
+            if report["validated"] and report["validation"] is not None:
+                val = report["validation"]
+                print(
+                    f"[OK] Validated {val['html_files_checked']} HTML page(s) and "
+                    f"{val['relative_links_checked']} relative link(s)"
+                )
+        return 0
+    except (
+        OSError,
+        contracts.ContractError,
+        contracts.ContractPublicationError,
+    ) as exc:
+        print(f"[contracts] FAILED: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

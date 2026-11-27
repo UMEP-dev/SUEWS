@@ -28,7 +28,7 @@ from typing import Any
 import weakref
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, PlainSerializer, WrapSerializer
 from pydantic_core import PydanticUndefinedType
 
 from ..pipeline.document import (
@@ -253,10 +253,29 @@ def _detach_callable(
             raise TypeError(
                 f"Cannot safely detach classmethod bound to class {bound_self.__name__!r}"
             )
+        func = value.__func__
+        if (
+            func.__closure__ is not None
+            or (
+                func.__defaults__ is not None
+                and any(not _is_exact_immutable_scalar(d) for d in func.__defaults__)
+            )
+            or (
+                func.__kwdefaults__ is not None
+                and any(
+                    not _is_exact_immutable_scalar(d)
+                    for d in func.__kwdefaults__.values()
+                )
+            )
+        ):
+            raise TypeError(
+                f"Cannot safely detach bound method {func.__qualname__!r} with "
+                "mutable closure or default state"
+            )
         copied_self = _detach_snapshot_tree(
             bound_self, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
         )
-        rebound = MethodType(value.__func__, copied_self)
+        rebound = MethodType(func, copied_self)
         memo[obj_id] = rebound
         return True, rebound
     if isinstance(value, functools.partial):
@@ -426,6 +445,7 @@ def _detach_plain_instance(
         isinstance(value, type)
         or type(value).__new__ is not object.__new__
         or hasattr(value, "__deepcopy__")
+        or hasattr(value, "__copy__")
         or type(value).__reduce_ex__ is not object.__reduce_ex__
         or not (
             hasattr(value, "__dict__") or bool(_iter_custom_slots(type(value), skip))
@@ -457,13 +477,72 @@ def _detach_plain_instance(
     return True, cloned_obj
 
 
-def _is_safe_identity_copy(value: Any) -> bool:
-    """Return True only when returning *value* unchanged from ``deepcopy`` is deeply safe."""
-    if value is Ellipsis or value is NotImplemented:
-        return True
-    return (
-        isinstance(value, np.dtype) and value.names is None and value.metadata is None
-    )
+_PRIMITIVE_SUBCLASS_BASES: tuple[type[Any], ...] = (str, bytes, int, float, complex)
+
+
+def _detach_primitive_subclass(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach subclasses of immutable primitive types (e.g. ``class Label(str)``)."""
+    if (
+        isinstance(value, type)
+        or hasattr(value, "__deepcopy__")
+        or hasattr(value, "__copy__")
+        or not isinstance(value, _PRIMITIVE_SUBCLASS_BASES)
+    ):
+        return False, None
+    skip = frozenset({"__dict__", "__weakref__"})
+    val_cls = type(value)
+    for base in _PRIMITIVE_SUBCLASS_BASES:
+        if issubclass(val_cls, base) and val_cls is not base:
+            if val_cls.__new__ is not base.__new__:
+                return False, None
+            cloned_sub = base.__new__(val_cls, value)
+            memo[id(value)] = cloned_sub
+            if hasattr(value, "__dict__"):
+                src_dict = object.__getattribute__(value, "__dict__")
+                object.__setattr__(
+                    cloned_sub,
+                    "__dict__",
+                    {
+                        k: _detach_snapshot_tree(
+                            v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                        )
+                        for k, v in src_dict.items()
+                    },
+                )
+            _copy_slots(
+                value,
+                cloned_sub,
+                memo,
+                skip=skip,
+                reject_enums=reject_enums,
+                wrap_enums=wrap_enums,
+            )
+            return True, cloned_sub
+    return False, None
+
+
+def _detach_suews_internal_ref(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach SUEWS internal weak-config helpers onto copied targets in *memo*."""
+    del reject_enums, wrap_enums
+    from ...core.type import _SchemeActiveGuard, _WeakConfigRef  # noqa: PLC0415
+
+    if type(value) in {_WeakConfigRef, _SchemeActiveGuard}:
+        copied = value.__deepcopy__(memo)
+        memo[id(value)] = copied
+        return True, copied
+    return False, None
 
 
 def _detach_container_or_object(
@@ -474,6 +553,14 @@ def _detach_container_or_object(
     wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
 ) -> Any:
     """Detach Python containers, callables, NumPy values, and plain Python objects."""
+    if value is Ellipsis or value is NotImplemented:
+        return value
+    if isinstance(value, np.dtype):
+        if value.names is None and value.metadata is None:
+            return value
+        copied_dt = deepcopy(value)
+        memo[id(value)] = copied_dt
+        return copied_dt
     if type(value) in {datetime.datetime, datetime.time} and value.tzinfo is not None:
         detached_tz = _detach_snapshot_tree(
             value.tzinfo, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
@@ -494,23 +581,22 @@ def _detach_container_or_object(
             )
         return out_dict
     for handler in (
+        _detach_suews_internal_ref,
         _detach_sequence_or_set,
         _detach_callable,
         _detach_numpy_or_buffer,
         _detach_plain_instance,
+        _detach_primitive_subclass,
     ):
         handled, result = handler(
             value, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
         )
         if handled:
             return result
-    copied = deepcopy(value)
-    if copied is value and not _is_safe_identity_copy(value):
-        raise TypeError(
-            f"Cannot safely detach object of type {type(value).__name__!r} "
-            "because deepcopy preserves shared identity"
-        )
-    return copied
+    raise TypeError(
+        f"Cannot safely detach object of type {type(value).__name__!r} with "
+        "opaque or custom copy semantics"
+    )
 
 
 def _detach_enum_value(
@@ -621,6 +707,62 @@ def _snapshot_enum_extra_attrs(member: Enum) -> Mapping[str, Any]:
     return _freeze_mapping_entries(attrs)
 
 
+_STD_ENUM_EQ_METHODS = frozenset({object.__eq__, int.__eq__, float.__eq__, str.__eq__})
+_STD_ENUM_HASH_METHODS = frozenset({
+    Enum.__hash__,
+    object.__hash__,
+    int.__hash__,
+    float.__hash__,
+    str.__hash__,
+})
+
+
+def _compare_enum_members(
+    left: Enum, left_val: Any, right: Enum, right_val: Any
+) -> bool:
+    """Compare two validated ``Enum`` members purely without custom ``__eq__`` hooks."""
+    left_eq = type(left).__eq__
+    right_eq = type(right).__eq__
+    if right_eq not in _STD_ENUM_EQ_METHODS:
+        raise TypeError(
+            f"Cannot safely compare Enum proxy with custom __eq__ on {type(right).__name__!r}"
+        )
+    if left is right:
+        return True
+    if left_eq is object.__eq__ or right_eq is object.__eq__:
+        return False
+    return bool(left_val == right_val)
+
+
+def _enum_proxy_equals(member: Enum, frozen_value: Any, other: object) -> bool | Any:
+    """Compare an enum proxy safely without passing live singletons to reflected hooks."""
+    member_eq = type(member).__eq__
+    if member_eq not in _STD_ENUM_EQ_METHODS:
+        raise TypeError(
+            f"Cannot safely compare Enum proxy with custom __eq__ on {type(member).__name__!r}"
+        )
+    if isinstance(other, ReadOnlyEnumProxy):
+        other_member, other_val, _ = _ENUM_STATE[id(other)]
+        return _compare_enum_members(member, frozen_value, other_member, other_val)
+    if isinstance(other, Enum):
+        return _compare_enum_members(member, frozen_value, other, other.value)
+    if _is_exact_immutable_scalar(other):
+        return False if member_eq is object.__eq__ else bool(frozen_value == other)
+    return NotImplemented
+
+
+def _enum_proxy_hash(member: Enum, frozen_value: Any) -> int:
+    """Hash an enum proxy purely without invoking custom user ``__hash__`` hooks."""
+    member_hash = type(member).__hash__
+    if member_hash not in _STD_ENUM_HASH_METHODS:
+        raise TypeError(
+            f"Cannot safely hash Enum proxy with custom __hash__ on {type(member).__name__!r}"
+        )
+    if member_hash in {Enum.__hash__, object.__hash__}:
+        return Enum.__hash__(member)
+    return hash(frozen_value)
+
+
 class ReadOnlyEnumProxy:
     """Deeply immutable proxy over an ``Enum`` member blocking attribute reassignment."""
 
@@ -695,15 +837,14 @@ class ReadOnlyEnumProxy:
         )
 
     def __eq__(self, other: object) -> bool:
-        """Compare underlying enum equality against another proxy, member, or scalar."""
-        member = _ENUM_STATE[id(self)][0]
-        if isinstance(other, ReadOnlyEnumProxy):
-            return bool(member == _ENUM_STATE[id(other)][0])
-        return bool(member == other)
+        """Compare snapshotted enum equality without leaking the live singleton."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        return _enum_proxy_equals(member, frozen_value, other)
 
     def __hash__(self) -> int:
-        """Delegate hashing to the underlying ``Enum`` member."""
-        return hash(_ENUM_STATE[id(self)][0])
+        """Hash the wrapped ``Enum`` member purely without custom user hooks."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        return _enum_proxy_hash(member, frozen_value)
 
     def __bool__(self) -> bool:
         """Delegate truthiness to the underlying ``Enum`` member."""
@@ -833,32 +974,24 @@ class ReadOnlyFieldInfo:
         return self
 
 
-def _iter_snapshot_children(
-    obj: Any,
-    field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]],
-) -> list[Any]:
-    """Return child objects reachable from *obj* for eager enum/field snapshotting."""
+def _iter_instance_state_children(obj: Any, skip: frozenset[str]) -> list[Any]:
+    """Return values from ``__dict__`` and custom ``__slots__`` on *obj*."""
+    out: list[Any] = []
+    if hasattr(obj, "__dict__"):
+        out.extend(object.__getattribute__(obj, "__dict__").values())
+    for slot_name in _iter_custom_slots(type(obj), skip):
+        try:
+            out.append(object.__getattribute__(obj, slot_name))
+        except AttributeError:
+            continue
+    return out
+
+
+def _iter_non_container_children(obj: Any) -> list[Any]:
+    """Return child objects for non-container types traversed by ``_detach_snapshot_tree``."""
     children: list[Any] = []
-    if isinstance(obj, BaseModel):
-        model_cls = type(obj)
-        if model_cls not in field_snapshots:
-            field_snapshots[model_cls] = _freeze_model_fields(model_cls)
-        children.extend(getattr(obj, name) for name in model_cls.model_fields)
-        for attr in ("model_extra", "__pydantic_private__"):
-            mapping = getattr(obj, attr, None)
-            if isinstance(mapping, Mapping):
-                children.append(mapping)
-    elif is_dataclass(obj) and not isinstance(obj, type):
-        children.extend(getattr(obj, f.name) for f in dc_fields(type(obj)))
-        if hasattr(obj, "__dict__"):
-            children.append(object.__getattribute__(obj, "__dict__"))
-    elif isinstance(obj, Mapping):
-        for k, v in obj.items():
-            children.extend((k, v))
-    elif isinstance(obj, (list, tuple, deque, set, frozenset)):
-        children.extend(obj)
-    elif type(obj) is slice:
-        children.extend((obj.start, obj.stop, obj.step))
+    if type(obj) in {datetime.datetime, datetime.time} and obj.tzinfo is not None:
+        children.append(obj.tzinfo)
     elif isinstance(obj, np.ndarray) and obj.dtype.hasobject:
         children.extend(obj.flat)
     elif isinstance(obj, np.void) and obj.dtype.names:
@@ -869,6 +1002,43 @@ def _iter_snapshot_children(
             children.append(bound_self)
     elif isinstance(obj, functools.partial):
         children.extend((obj.func, obj.args, obj.keywords))
+    elif not isinstance(
+        obj, (type, bytearray, memoryview, np.dtype, np.ndarray, np.void)
+    ):
+        children.extend(
+            _iter_instance_state_children(obj, frozenset({"__dict__", "__weakref__"}))
+        )
+    return children
+
+
+def _iter_snapshot_children(
+    obj: Any,
+    field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]] | None,
+) -> list[Any]:
+    """Return all child objects reachable from *obj* matching ``_detach_snapshot_tree``."""
+    children: list[Any] = []
+    if isinstance(obj, BaseModel):
+        model_cls = type(obj)
+        if field_snapshots is not None and model_cls not in field_snapshots:
+            field_snapshots[model_cls] = _freeze_model_fields(model_cls)
+        children.extend(_iter_instance_state_children(obj, _PYDANTIC_INTERNAL_SLOTS))
+        for attr in ("model_extra", "__pydantic_private__"):
+            mapping = getattr(obj, attr, None)
+            if isinstance(mapping, Mapping):
+                children.append(mapping)
+    elif is_dataclass(obj) and not isinstance(obj, type):
+        children.extend(
+            _iter_instance_state_children(obj, frozenset({"__dict__", "__weakref__"}))
+        )
+    elif isinstance(obj, Mapping):
+        for k, v in obj.items():
+            children.extend((k, v))
+    elif isinstance(obj, (list, tuple, deque, set, frozenset)):
+        children.extend(obj)
+    elif type(obj) is slice:
+        children.extend((obj.start, obj.stop, obj.step))
+    else:
+        children.extend(_iter_non_container_children(obj))
     return children
 
 
@@ -876,7 +1046,6 @@ def _contains_enum(root: Any) -> bool:
     """Return True if any ``Enum`` member is reachable from *root*."""
     visited: set[int] = set()
     stack: list[Any] = [root]
-    dummy_fields: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]] = {}
     while stack:
         obj = stack.pop()
         if obj is None or _is_exact_immutable_scalar(obj):
@@ -887,15 +1056,119 @@ def _contains_enum(root: Any) -> bool:
         if obj_id in visited:
             continue
         visited.add(obj_id)
+        stack.extend(_iter_snapshot_children(obj, None))
+    return False
+
+
+def _is_standard_dataclass_hook(cls: type[Any], hook_name: str) -> bool:
+    """Return True when *cls* uses the compiler-generated dataclass ``__eq__``/``__hash__``."""
+    hook = getattr(cls, hook_name, None)
+    if hook is None:
+        return True
+    if hook is getattr(object, hook_name, None):
+        return True
+    code = getattr(hook, "__code__", None)
+    return code is not None and code.co_filename == "<string>"
+
+
+_STD_EQ_METHODS = frozenset({
+    object.__eq__,
+    dict.__eq__,
+    MappingProxyType.__eq__,
+    list.__eq__,
+    tuple.__eq__,
+    deque.__eq__,
+    set.__eq__,
+    frozenset.__eq__,
+    slice.__eq__,
+    np.ndarray.__eq__,
+    np.void.__eq__,
+    np.dtype.__eq__,
+    bytearray.__eq__,
+    memoryview.__eq__,
+    BuiltinMethodType.__eq__,
+    MethodWrapperType.__eq__,
+    MethodType.__eq__,
+    functools.partial.__eq__,
+    weakref.ReferenceType.__eq__,
+    str.__eq__,
+    bytes.__eq__,
+    int.__eq__,
+    float.__eq__,
+    complex.__eq__,
+    datetime.datetime.__eq__,
+    datetime.time.__eq__,
+    datetime.date.__eq__,
+    datetime.timedelta.__eq__,
+})
+_STD_HASH_METHODS = frozenset({
+    None,
+    object.__hash__,
+    dict.__hash__,
+    MappingProxyType.__hash__,
+    list.__hash__,
+    tuple.__hash__,
+    deque.__hash__,
+    set.__hash__,
+    frozenset.__hash__,
+    slice.__hash__,
+    np.ndarray.__hash__,
+    np.void.__hash__,
+    np.dtype.__hash__,
+    bytearray.__hash__,
+    memoryview.__hash__,
+    BuiltinMethodType.__hash__,
+    MethodWrapperType.__hash__,
+    MethodType.__hash__,
+    functools.partial.__hash__,
+    weakref.ReferenceType.__hash__,
+    str.__hash__,
+    bytes.__hash__,
+    int.__hash__,
+    float.__hash__,
+    complex.__hash__,
+    datetime.datetime.__hash__,
+    datetime.time.__hash__,
+    datetime.date.__hash__,
+    datetime.timedelta.__hash__,
+})
+
+
+def _has_custom_dunder(root: Any, dunder: str) -> bool:
+    """Return True if any reachable object in *root* defines a non-standard ``__eq__``/``__hash__``."""
+    from ...core.type import RefValue  # noqa: PLC0415
+
+    std_model_hook = getattr(BaseModel, dunder, None)
+    std_ref_hook = getattr(RefValue, dunder, None) if dunder == "__eq__" else None
+    std_enum_hooks = (
+        _STD_ENUM_EQ_METHODS if dunder == "__eq__" else _STD_ENUM_HASH_METHODS
+    )
+    std_generic_hooks = _STD_EQ_METHODS if dunder == "__eq__" else _STD_HASH_METHODS
+    visited: set[int] = set()
+    stack: list[Any] = [root]
+    while stack:
+        obj = stack.pop()
+        if obj is None or _is_exact_immutable_scalar(obj):
+            continue
+        if isinstance(obj, Enum):
+            if getattr(type(obj), dunder, None) not in std_enum_hooks:
+                return True
+            continue
+        obj_id = id(obj)
+        if obj_id in visited:
+            continue
+        visited.add(obj_id)
+        cls = type(obj)
         if isinstance(obj, BaseModel):
-            model_cls = type(obj)
-            stack.extend(getattr(obj, name) for name in model_cls.model_fields)
-            for attr in ("model_extra", "__pydantic_private__"):
-                mapping = getattr(obj, attr, None)
-                if isinstance(mapping, Mapping):
-                    stack.append(mapping)
-        else:
-            stack.extend(_iter_snapshot_children(obj, dummy_fields))
+            hook = getattr(cls, dunder, None)
+            if hook is not std_model_hook and hook is not std_ref_hook:
+                return True
+        elif is_dataclass(obj) and not isinstance(obj, type):
+            if not _is_standard_dataclass_hook(cls, dunder):
+                return True
+        elif getattr(cls, dunder, None) not in std_generic_hooks:
+            return True
+        stack.extend(_iter_snapshot_children(obj, None))
     return False
 
 
@@ -908,16 +1181,25 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
             "Cannot safely run custom fallback serializer on a model containing "
             "live Enum singletons without exposing writable singleton state"
         )
+    from ...core.site import SiteProperties  # noqa: PLC0415
     from ...core.type import RefValue  # noqa: PLC0415
 
-    allowed_model_ser = getattr(
-        RefValue._serialize_with_value_key,
-        "__func__",
-        RefValue._serialize_with_value_key,
-    )
+    allowed_model_sers = frozenset({
+        getattr(
+            RefValue._serialize_with_value_key,
+            "__func__",
+            RefValue._serialize_with_value_key,
+        ),
+    })
+    allowed_field_sers = frozenset({
+        getattr(
+            SiteProperties._serialise_optional_snow,
+            "__func__",
+            SiteProperties._serialise_optional_snow,
+        ),
+    })
     visited: set[int] = set()
     stack: list[Any] = [root]
-    dummy_fields: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]] = {}
     while stack:
         obj = stack.pop()
         if obj is None or _is_exact_immutable_scalar(obj):
@@ -936,13 +1218,23 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
         if isinstance(obj, BaseModel):
             model_cls = type(obj)
             decorators = model_cls.__pydantic_decorators__
+            has_disallowed_field_ser = any(
+                getattr(dec.func, "__func__", dec.func) not in allowed_field_sers
+                for dec in decorators.field_serializers.values()
+            )
             has_disallowed_model_ser = any(
-                getattr(dec.func, "__func__", dec.func) is not allowed_model_ser
+                getattr(dec.func, "__func__", dec.func) not in allowed_model_sers
                 for dec in decorators.model_serializers.values()
             )
+            has_annotated_ser = any(
+                isinstance(meta, (PlainSerializer, WrapSerializer))
+                for info in model_cls.model_fields.values()
+                for meta in info.metadata
+            )
             if (
-                decorators.field_serializers
+                has_disallowed_field_ser
                 or has_disallowed_model_ser
+                or has_annotated_ser
                 or model_cls.model_computed_fields
             ) and _contains_enum(obj):
                 raise TypeError(
@@ -950,13 +1242,7 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
                     f"{model_cls.__name__!r} containing live Enum singletons without "
                     "exposing writable singleton state or altering Enum semantics"
                 )
-            stack.extend(getattr(obj, name) for name in model_cls.model_fields)
-            for attr in ("model_extra", "__pydantic_private__"):
-                mapping = getattr(obj, attr, None)
-                if isinstance(mapping, Mapping):
-                    stack.append(mapping)
-        else:
-            stack.extend(_iter_snapshot_children(obj, dummy_fields))
+        stack.extend(_iter_snapshot_children(obj, None))
 
 
 def _safe_repr_container(value: Any, seen: set[int]) -> str | None:
@@ -1209,17 +1495,33 @@ class ReadOnlyDataclassProxy:
         )
 
     def __eq__(self, other: object) -> bool:
-        """Compare underlying dataclass equality against another proxy or instance."""
+        """Compare underlying dataclass equality on isolated copies without mutating snapshot."""
         target = _DATACLASS_STATE[id(self)][0]
         if isinstance(other, ReadOnlyDataclassProxy):
-            return bool(target == _DATACLASS_STATE[id(other)][0])
-        if is_dataclass(other) and not isinstance(other, type):
-            return bool(target == other)
-        return NotImplemented
+            other_target = _DATACLASS_STATE[id(other)][0]
+        elif is_dataclass(other) and not isinstance(other, type):
+            other_target = other
+        else:
+            return NotImplemented
+        if (_contains_enum(target) or _contains_enum(other_target)) and (
+            _has_custom_dunder(target, "__eq__")
+            or _has_custom_dunder(other_target, "__eq__")
+        ):
+            raise TypeError(
+                f"Cannot safely compare dataclasses containing live Enum singletons "
+                f"with custom __eq__ on {type(target).__name__!r}"
+            )
+        return bool(_safe_snapshot_copy(target) == _safe_snapshot_copy(other_target))
 
     def __hash__(self) -> int:
-        """Delegate hashing to the underlying immutable dataclass snapshot when hashable."""
-        return hash(_DATACLASS_STATE[id(self)][0])
+        """Hash an isolated copy of the underlying dataclass without mutating snapshot."""
+        target = _DATACLASS_STATE[id(self)][0]
+        if _contains_enum(target) and _has_custom_dunder(target, "__hash__"):
+            raise TypeError(
+                f"Cannot safely hash dataclass containing live Enum singletons "
+                f"with custom __hash__ on {type(target).__name__!r}"
+            )
+        return hash(_safe_snapshot_copy(target))
 
     def unwrap_copy(self) -> Any:
         """Return an independent mutable deep copy of the underlying dataclass."""
@@ -1570,17 +1872,33 @@ class ReadOnlyModelProxy:
         )
 
     def __eq__(self, other: object) -> bool:
-        """Compare underlying model equality against another proxy or ``BaseModel``."""
+        """Compare underlying model equality on isolated copies without mutating snapshot."""
         target = _PROXY_STATE[id(self)][0]
         if isinstance(other, ReadOnlyModelProxy):
-            return target == _PROXY_STATE[id(other)][0]
-        if isinstance(other, BaseModel):
-            return target == other
-        return NotImplemented
+            other_target = _PROXY_STATE[id(other)][0]
+        elif isinstance(other, BaseModel):
+            other_target = other
+        else:
+            return NotImplemented
+        if (_contains_enum(target) or _contains_enum(other_target)) and (
+            _has_custom_dunder(target, "__eq__")
+            or _has_custom_dunder(other_target, "__eq__")
+        ):
+            raise TypeError(
+                f"Cannot safely compare models containing live Enum singletons "
+                f"with custom __eq__ on {type(target).__name__!r}"
+            )
+        return bool(_safe_snapshot_copy(target) == _safe_snapshot_copy(other_target))
 
     def __hash__(self) -> int:
-        """Delegate hashing to the underlying immutable model snapshot when hashable."""
-        return hash(_PROXY_STATE[id(self)][0])
+        """Hash an isolated copy of the underlying model without mutating snapshot."""
+        target = _PROXY_STATE[id(self)][0]
+        if _contains_enum(target) and _has_custom_dunder(target, "__hash__"):
+            raise TypeError(
+                f"Cannot safely hash model containing live Enum singletons "
+                f"with custom __hash__ on {type(target).__name__!r}"
+            )
+        return hash(_safe_snapshot_copy(target))
 
     def __copy__(self) -> ReadOnlyModelProxy:
         """Return ``self`` because ``ReadOnlyModelProxy`` is deeply immutable."""

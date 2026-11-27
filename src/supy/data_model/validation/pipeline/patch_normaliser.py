@@ -262,14 +262,14 @@ def _collect_nullifiable_token_entries(
     ) -> None:
         inner = cur["value"]
         inner_tokens = (*cur_tokens, "value")
-        if isinstance(inner, (list, tuple)):
-            if any(isinstance(item, (Mapping, list, tuple)) for item in inner):
+        if isinstance(inner, list):
+            if any(isinstance(item, (Mapping, list)) for item in inner):
                 _walk(inner, inner_tokens, False)
             elif any(item is not None for item in inner):
                 entries.append((
                     cur_tokens,
                     _format_relative_tokens(cur_tokens),
-                    thaw_copy(inner),
+                    _copy_payload(inner),
                     [None] * len(inner),
                 ))
         elif isinstance(inner, Mapping):
@@ -278,7 +278,7 @@ def _collect_nullifiable_token_entries(
             entries.append((
                 cur_tokens,
                 _format_relative_tokens(cur_tokens),
-                thaw_copy(inner),
+                _copy_payload(inner),
                 None,
             ))
 
@@ -295,32 +295,32 @@ def _collect_nullifiable_token_entries(
                 ):
                     continue
                 child_tokens = (*cur_tokens, make_key_token(key))
-                if isinstance(val, (Mapping, list, tuple)):
+                if isinstance(val, (Mapping, list)):
                     _walk(val, child_tokens, False)
                 elif val is not None:
                     entries.append((
                         child_tokens,
                         _format_relative_tokens(child_tokens),
-                        thaw_copy(val),
+                        _copy_payload(val),
                         None,
                     ))
-        elif isinstance(cur, (list, tuple)):
+        elif isinstance(cur, list):
             for idx, item in enumerate(cur):
                 child_tokens = (*cur_tokens, idx)
-                if isinstance(item, (Mapping, list, tuple)):
+                if isinstance(item, (Mapping, list)):
                     _walk(item, child_tokens, False)
                 elif item is not None:
                     entries.append((
                         child_tokens,
                         _format_relative_tokens(child_tokens),
-                        thaw_copy(item),
+                        _copy_payload(item),
                         None,
                     ))
         elif cur is not None:
             entries.append((
                 cur_tokens,
                 _format_relative_tokens(cur_tokens),
-                thaw_copy(cur),
+                _copy_payload(cur),
                 None,
             ))
 

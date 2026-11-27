@@ -2648,3 +2648,109 @@ def test_r10_r3_tuple_baseline_nullify_bare_closures_repr_suews_int_enum_and_tzi
     mut_dt = datetime.datetime(2025, 1, 1, tzinfo=_MutableTZ(1))
     with pytest.raises(TypeError, match="cannot safely freeze"):
         deep_freeze({"when": mut_dt})
+
+
+def test_r10_r4_tuple_nullify_proxy_eq_hash_custom_deepcopy_and_payload_enum_scan() -> (
+    None
+):
+    """Tuple nullification matches direct apply, eq/hash isolate snapshots, custom __deepcopy__ rejected, and nested payload enums detected."""
+    # R3 Major 1: bare and RefValue-wrapped tuples nullify as leaves matching direct nullify_tree_in_place.
+    for raw_tup, expected_null in (
+        ({"a": (1, 2)}, {"a": None}),
+        (
+            {"a": {"value": (1, 2), "ref": {"ID": "t"}}},
+            {"a": {"value": None, "ref": {"ID": "t"}}},
+        ),
+    ):
+        for expand in (True, False):
+            direct_t = deepcopy(raw_tup)
+            apply_patches_in_place(direct_t, [ConfigPatch("a", "nullify_tree")])
+            norm_t = normalise_patches(
+                [ConfigPatch("a", "nullify_tree")], raw_tup, expand_nullify_tree=expand
+            )
+            replayed_t = deepcopy(raw_tup)
+            apply_patches_in_place(replayed_t, norm_t)
+            assert replayed_t == direct_t == expected_null
+            if expand:
+                assert type(norm_t[0].old_value) is tuple
+                apply_patches_in_place(replayed_t, invert_patches(norm_t))
+                assert replayed_t == raw_tup
+                restored_val = (
+                    replayed_t["a"]["value"]
+                    if isinstance(replayed_t["a"], dict)
+                    else replayed_t["a"]
+                )
+                assert type(restored_val) is tuple
+
+    # R3 Major 2: __eq__ and __hash__ never mutate stored snapshots and Enum __eq__ never leaks singleton to reflected operand.
+    class _MutEqHashModel(BaseModel):
+        items: list[int] = Field(default_factory=lambda: [1])
+
+        def __eq__(self, other: object) -> bool:
+            self.items.append(99)
+            return isinstance(other, _MutEqHashModel)
+
+        def __hash__(self) -> int:
+            self.items.append(88)
+            return 7
+
+    m_eq = _MutEqHashModel()
+    ro_eq = freeze_model(m_eq)
+    assert ro_eq == m_eq
+    assert hash(ro_eq) == 7
+    assert ro_eq.items == (1,)
+    assert ro_eq.unwrap_copy().items == [1]
+
+    class _SpyEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "orig"
+
+    class _SpyOperand:
+        __hash__ = None  # type: ignore[assignment]
+
+        def __eq__(self, other: object) -> bool:
+            other.label = "hacked"  # type: ignore[attr-defined]
+            return True
+
+    ro_spy_enum = deep_freeze(_SpyEnum.ITEM)
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        _ = ro_spy_enum == _SpyOperand()
+    assert _SpyEnum.ITEM.label == "orig"
+
+    # R3 Major 3: custom __deepcopy__ returning shallow shared state is rejected explicitly.
+    class _ShallowBox:
+        def __init__(self, items: list[int]) -> None:
+            self.items = items
+
+        def __deepcopy__(self, _memo: dict[int, object]) -> _ShallowBox:
+            return _ShallowBox(self.items)
+
+    class _BoxModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        box: _ShallowBox
+
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_BoxModel(box=_ShallowBox([1])))
+
+    # R3 Major 4: Enum inside plain payload object is detected by _contains_enum and blocks property evaluation.
+    class _PayloadWithEnum:
+        def __init__(self, member: _SpyEnum) -> None:
+            self.member = member
+
+    class _NestedEnumPayloadModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: _PayloadWithEnum
+
+        @property
+        def mutate_nested_enum(self) -> str:
+            self.payload.member.label = "mutated"
+            return self.payload.member.label
+
+    ro_nested_enum = freeze_model(
+        _NestedEnumPayloadModel(payload=_PayloadWithEnum(_SpyEnum.ITEM))
+    )
+    with pytest.raises(TypeError, match="Enum singletons"):
+        _ = ro_nested_enum.mutate_nested_enum
+    assert _SpyEnum.ITEM.label == "orig"

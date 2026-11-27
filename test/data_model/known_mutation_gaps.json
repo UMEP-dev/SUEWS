@@ -598,25 +598,20 @@
         "snow_cold"
       ],
       "path_patterns": [
-        "sites[0].properties.land_cover.*.snowpack_limit",
-        "sites[0].initial_states.*.snowfrac",
-        "sites[0].initial_states.*.snowpack",
-        "sites[0].initial_states.*.snowdens",
-        "sites[0].initial_states.*.snowwater",
-        "sites[0].initial_states.*.icefrac"
+        "sites[0].properties.land_cover.*.snowpack_limit"
       ],
       "mutations": {
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
       "category": "active_gap",
-      "active_condition": "Active when snow_use=1 (snow_cold anchor); omit emits defaults while Optional[...] allows explicit null.",
+      "active_condition": "Active when snow_use=1 (snow_cold anchor); omit emits defaults while Optional[...] allows explicit null on snowpack_limit (active snow initial states now reject null).",
       "owner_issue": "#1982",
       "related_issues": [
         "#1991",
         "#2101"
       ],
-      "rationale": "Snowpack limits and initial snow states accept explicit null/wrapped-null even when snow_use=1."
+      "rationale": "Snowpack limits accept explicit null/wrapped-null even when snow_use=1."
     },
     {
       "id": "snow-pack-limit-and-states-null-inactive",

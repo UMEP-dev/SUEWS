@@ -213,15 +213,16 @@ class SurfaceInitialState(DataModelBase):
                 else self.soilstore
             ),
         }
+        inactive_snow_export = _SNOW_ACTIVE_CONTEXT.get() is False
         for snow_field in ("snowfrac", "snowpack", "icefrac", "snowwater", "snowdens"):
             raw_snow = getattr(self, snow_field)
             if raw_snow is not None:
                 val = raw_snow.value if isinstance(raw_snow, RefValue) else raw_snow
                 if val is not None:
                     cols[(snow_field, f"({surf_idx},)")] = val
-                elif vert_idx is None:
+                elif vert_idx is None and inactive_snow_export:
                     cols[(snow_field, f"({surf_idx},)")] = 0.0
-            elif vert_idx is None:
+            elif vert_idx is None and inactive_snow_export:
                 cols[(snow_field, f"({surf_idx},)")] = 0.0
         temp_values = (
             self.temperature.value

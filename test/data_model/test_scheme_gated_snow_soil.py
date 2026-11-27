@@ -25,8 +25,13 @@ from supy.data_model.configuration.publisher import generate_json_schema
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.model import SMDMethod, SnowUse
 from supy.data_model.core.site import SnowParams, SoilObservationConfig
-from supy.data_model.core.state import InitialStates, SurfaceInitialState
+from supy.data_model.core.state import (
+    InitialStatePaved,
+    InitialStates,
+    SurfaceInitialState,
+)
 from supy.data_model.core.surface import PavedProperties
+from supy.data_model.core.type import RefValue
 
 pytestmark = [
     pytest.mark.api,
@@ -137,6 +142,18 @@ def _assert_clean_json_dump(cfg: SUEWSConfig) -> dict:
             "null and wrapped-null SnowParams scalars",
         ),
         (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "snow_profile_24hr", None
+            ),
+            "null properties.snow.snow_profile_24hr",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "snow_profile_24hr", {"value": None}
+            ),
+            "wrapped-null properties.snow.snow_profile_24hr",
+        ),
+        (
             lambda d: d["sites"][0]["properties"].__setitem__("snow", None),
             "null properties.snow block",
         ),
@@ -184,10 +201,14 @@ def test_snow_disabled_accepts_relaxed_snow_params_and_states(
     yaml_text = config_to_engine_yaml(cfg, for_file_output=False)
     assert isinstance(yaml_text, str) and yaml_text
 
-    # Round-trip via df_state must also succeed cleanly.
+    # Round-trip via df_state must also succeed cleanly and preserve grid IDs.
     df_state = cfg.to_df_state()
     rebuilt = SUEWSConfig.from_df_state(df_state)
-    assert len(rebuilt.sites) == len(cfg.sites), description
+    assert [s.gridiv for s in rebuilt.sites] == [s.gridiv for s in cfg.sites], (
+        description
+    )
+    assert ("snowfrac", "(0,)") in df_state.columns
+    assert ("snowpack", "(0,)") in df_state.columns
 
 
 def test_snow_disabled_accepts_legacy_snow_aliases_and_omitted_switch(
@@ -253,6 +274,12 @@ def test_snow_disabled_accepts_legacy_snow_aliases_and_omitted_switch(
             r"water_holding_capacity_max",
         ),
         (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "snow_profile_24hr", None
+            ),
+            r"snow_profile_24hr",
+        ),
+        (
             lambda d: d["sites"][0]["properties"].__setitem__("snow", None),
             r"snow",
         ),
@@ -271,6 +298,18 @@ def test_snow_disabled_accepts_legacy_snow_aliases_and_omitted_switch(
                 "snowpack", -5.0
             ),
             r"snowpack",
+        ),
+        (
+            lambda d: d["sites"][0]["initial_states"]["paved"].__setitem__(
+                "snowfrac", None
+            ),
+            r"initial_states\.paved\.snowfrac",
+        ),
+        (
+            lambda d: d["sites"][0]["initial_states"]["paved"].__setitem__(
+                "snowpack", {"value": None}
+            ),
+            r"initial_states\.paved\.snowpack",
         ),
     ],
 )
@@ -308,6 +347,12 @@ def test_snow_enabled_strictly_rejects_invalid_snow_params_and_states(
             r"water_holding_capacity_max",
         ),
         (
+            lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+                "snow_profile_24hr", None
+            ),
+            r"snow_profile_24hr",
+        ),
+        (
             lambda d: d["sites"][0]["properties"].__setitem__("snow", None),
             r"snow",
         ),
@@ -320,6 +365,12 @@ def test_snow_enabled_strictly_rejects_invalid_snow_params_and_states(
                 "snowfrac", -999.0
             ),
             r"snowfrac",
+        ),
+        (
+            lambda d: d["sites"][0]["initial_states"]["paved"].__setitem__(
+                "snowpack", {"value": None}
+            ),
+            r"initial_states\.paved\.snowpack",
         ),
     ],
 )
@@ -372,6 +423,113 @@ def test_snow_disabled_live_mutation_allows_relaxation_and_rejects_when_active(
         SurfaceInitialState(snowfrac=-0.5)
     with pytest.raises(ValidationError):
         InitialStates(snowalb=1.5)
+
+
+def test_active_snow_rejects_null_snow_states_before_df_state_export(
+    sample_dict: dict,
+) -> None:
+    """Active snow rejects null ground-surface snow states before df_state or engine export."""
+    data = copy.deepcopy(sample_dict)
+    _set_snow_use(data, 1)
+    cfg = SUEWSConfig.from_dict(data)
+
+    # Mutate snowpack to None/wrapped-None after load -> must fail at handoff AND to_df_state.
+    for bad_val in (None, RefValue(value=None)):
+        mutated = copy.deepcopy(cfg)
+        mutated.sites[0].initial_states.paved.snowpack = bad_val
+        with pytest.raises(ValueError, match=r"initial_states\.paved\.snowpack"):
+            mutated.validate_for_engine()
+        with pytest.raises(ValueError, match=r"initial_states\.paved\.snowpack"):
+            mutated.to_df_state()
+
+    # Standalone ground surface state must never silently invent 0.0 for None.
+    standalone = InitialStatePaved(snowfrac=None, snowpack=None)
+    standalone_cols = standalone._to_df_state_cols(1)
+    assert ("snowfrac", "(0,)") not in standalone_cols
+    assert ("snowpack", "(0,)") not in standalone_cols
+
+
+def test_inplace_refvalue_edits_follow_live_scheme_transitions(
+    sample_dict: dict,
+) -> None:
+    """In-place ``RefValue.value = None`` consults the owning config's live scheme state."""
+    # Snow: load active -> disable -> in-place .value = None succeeds; deep copy reactivated fails.
+    snow_data = copy.deepcopy(sample_dict)
+    _set_snow_use(snow_data, 1)
+    snow_cfg = SUEWSConfig.from_dict(snow_data)
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        snow_cfg.sites[0].properties.snow.water_holding_capacity_max.value = None
+
+    snow_cfg.model.physics.snow_use = SnowUse.DISABLED
+    snow_cfg.sites[0].properties.snow.water_holding_capacity_max.value = None
+    snow_cfg.validate_for_engine()
+
+    copied_snow = copy.deepcopy(snow_cfg)
+    copied_snow.model.physics.snow_use = SnowUse.ENABLED
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        copied_snow.sites[0].properties.snow.water_holding_capacity_max.value = None
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        copied_snow.validate_for_engine()
+
+    # Original remains snow-disabled and valid.
+    snow_cfg.validate_for_engine()
+
+    # Observed soil: load active -> switch to modelled -> in-place .value = None succeeds.
+    soil_data = _make_active_observed_soil_dict(sample_dict)
+    soil_data["sites"][0]["properties"]["soil_observation"]["layer_depth"] = {
+        "value": 0.2
+    }
+    soil_cfg = SUEWSConfig.from_dict(soil_data)
+    with pytest.raises(ValueError, match="layer_depth"):
+        soil_cfg.sites[0].properties.soil_observation.layer_depth.value = None
+
+    soil_cfg.model.physics.soil_moisture = SMDMethod.MODELLED
+    soil_cfg.sites[0].properties.soil_observation.layer_depth.value = None
+    soil_cfg.validate_for_engine()
+
+    copied_soil = copy.deepcopy(soil_cfg)
+    copied_soil.model.physics.soil_moisture = SMDMethod.OBSERVED
+    with pytest.raises(ValueError, match="layer_depth"):
+        copied_soil.sites[0].properties.soil_observation.layer_depth.value = None
+    with pytest.raises(ValueError, match="layer_depth"):
+        copied_soil.validate_for_engine()
+
+
+def test_replacing_child_snow_and_soil_models_preserves_scheme_ownership(
+    sample_dict: dict,
+) -> None:
+    """Replacing ``properties.snow`` or ``properties.soil_observation`` binds to parent config."""
+    data = copy.deepcopy(sample_dict)
+    _set_snow_use(data, 0)
+    data["model"]["physics"]["soil_moisture"] = "modelled"
+    cfg = SUEWSConfig.from_dict(data)
+
+    # Fresh replacement SnowParams inherits inactive snow_use == 0 ownership.
+    cfg.sites[0].properties.snow = SnowParams()
+    cfg.sites[0].properties.snow.water_holding_capacity_max = None
+    cfg.sites[0].properties.snow.snow_profile_24hr = None
+    cfg.validate_for_engine()
+
+    # model_copy(update=...) replacement also passes handoff validation when inactive.
+    replaced = SnowParams().model_copy(update={"water_holding_capacity_max": None})
+    cfg.sites[0].properties.snow = replaced
+    cfg.validate_for_engine()
+
+    # Fresh replacement SoilObservationConfig inherits inactive soil_moisture == 0 ownership.
+    cfg.sites[0].properties.soil_observation = SoilObservationConfig(layer_depth=0.2)
+    cfg.sites[0].properties.soil_observation.layer_depth = None
+    cfg.validate_for_engine()
+
+    # Activating either scheme catches the null on the replaced child.
+    cfg_snow_on = copy.deepcopy(cfg)
+    cfg_snow_on.model.physics.snow_use = SnowUse.ENABLED
+    with pytest.raises(ValueError, match="water_holding_capacity_max"):
+        cfg_snow_on.validate_for_engine()
+
+    cfg_soil_on = copy.deepcopy(cfg)
+    cfg_soil_on.model.physics.soil_moisture = SMDMethod.OBSERVED
+    with pytest.raises(ValueError, match="layer_depth"):
+        cfg_soil_on.validate_for_engine()
 
 
 # =============================================================================
@@ -460,10 +618,14 @@ def test_modelled_soil_accepts_relaxed_soil_observation_and_field_capacity(
     yaml_text = config_to_engine_yaml(cfg, for_file_output=False)
     assert isinstance(yaml_text, str) and yaml_text
 
-    # Round-trip via df_state must also succeed cleanly.
+    # Round-trip via df_state must also succeed cleanly and preserve grid IDs.
     df_state = cfg.to_df_state()
     rebuilt = SUEWSConfig.from_df_state(df_state)
-    assert len(rebuilt.sites) == len(cfg.sites), description
+    assert [s.gridiv for s in rebuilt.sites] == [s.gridiv for s in cfg.sites], (
+        description
+    )
+    assert ("snowfrac", "(0,)") in df_state.columns
+    assert ("snowpack", "(0,)") in df_state.columns
 
 
 @pytest.mark.parametrize(
@@ -669,10 +831,10 @@ def test_inactive_snow_and_observed_soil_run_bit_identical_in_engine(
     pd.testing.assert_frame_equal(df_relaxed, df_control, check_exact=True)
 
 
-def test_inactive_null_snow_block_runs_bit_identical_in_engine(
+def test_inactive_null_snow_block_and_profile_run_bit_identical_in_engine(
     short_sample_sim,
 ) -> None:
-    """``properties.snow: null`` under ``snow_use == 0`` executes bit-identically in engine."""
+    """``properties.snow: null`` and ``snow_profile_24hr: null`` match control bit-identically."""
     control_sim = short_sample_sim()
     df_forcing = control_sim.forcing.df.iloc[:12].copy()
     control_sim.update_forcing(df_forcing)
@@ -682,21 +844,27 @@ def test_inactive_null_snow_block_runs_bit_identical_in_engine(
         n_jobs=1,
     ).df
 
-    raw_null_snow = control_sim.config.model_dump(mode="json")
-    _set_snow_use(raw_null_snow, 0)
-    raw_null_snow["sites"][0]["properties"]["snow"] = None
+    for mutator in (
+        lambda d: d["sites"][0]["properties"].__setitem__("snow", None),
+        lambda d: d["sites"][0]["properties"]["snow"].__setitem__(
+            "snow_profile_24hr", None
+        ),
+    ):
+        raw_variant = control_sim.config.model_dump(mode="json")
+        _set_snow_use(raw_variant, 0)
+        mutator(raw_variant)
 
-    null_snow_cfg = SUEWSConfig.from_dict(raw_null_snow)
-    null_snow_sim = SUEWSSimulation()
-    null_snow_sim.update_config(null_snow_cfg, auto_load_forcing=False)
-    null_snow_sim.update_forcing(df_forcing)
-    df_null_snow = null_snow_sim.run(
-        start_date=df_forcing.index[0],
-        end_date=df_forcing.index[-1],
-        n_jobs=1,
-    ).df
+        variant_cfg = SUEWSConfig.from_dict(raw_variant)
+        variant_sim = SUEWSSimulation()
+        variant_sim.update_config(variant_cfg, auto_load_forcing=False)
+        variant_sim.update_forcing(df_forcing)
+        df_variant = variant_sim.run(
+            start_date=df_forcing.index[0],
+            end_date=df_forcing.index[-1],
+            n_jobs=1,
+        ).df
 
-    pd.testing.assert_frame_equal(df_null_snow, df_control, check_exact=True)
+        pd.testing.assert_frame_equal(df_variant, df_control, check_exact=True)
 
 
 def test_json_schema_unchanged_by_scheme_gating() -> None:

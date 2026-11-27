@@ -1720,6 +1720,10 @@ class SUEWSConfig(DataModelBase):
                         f"{site_name}: precipitation_threshold_albedo_reset ({precip_alb_val}) "
                         "must be greater than or equal to 0"
                     )
+                if snow_params.snow_profile_24hr is None:
+                    errors.append(
+                        f"{site_name}: snow.snow_profile_24hr is missing when snow_use is enabled"
+                    )
 
             init_states = getattr(site, "initial_states", None)
             if init_states is not None:
@@ -1736,22 +1740,19 @@ class SUEWSConfig(DataModelBase):
                         continue
                     for frac_field in ("snowfrac", "icefrac"):
                         raw = _unwrap_value(getattr(surf_state, frac_field, None))
-                        if raw is not None and (
-                            not is_finite_real_number(raw)
-                            or not (0.0 <= float(raw) <= 1.0)
+                        if not is_finite_real_number(raw) or not (
+                            0.0 <= float(raw) <= 1.0
                         ):
                             errors.append(
                                 f"{site_name}: initial_states.{surf_name}.{frac_field} "
-                                f"({raw!r}) must be finite and in range [0, 1]"
+                                f"({raw!r}) must be finite and in range [0, 1] when snow_use is enabled"
                             )
                     for nonneg_field in ("snowpack", "snowwater", "snowdens"):
                         raw = _unwrap_value(getattr(surf_state, nonneg_field, None))
-                        if raw is not None and (
-                            not is_finite_real_number(raw) or float(raw) < 0.0
-                        ):
+                        if not is_finite_real_number(raw) or float(raw) < 0.0:
                             errors.append(
                                 f"{site_name}: initial_states.{surf_name}.{nonneg_field} "
-                                f"({raw!r}) must be finite and greater than or equal to 0"
+                                f"({raw!r}) must be finite and greater than or equal to 0 when snow_use is enabled"
                             )
 
         if errors:
@@ -4294,6 +4295,7 @@ class SUEWSConfig(DataModelBase):
 
     def validate_non_null_ref_values(self, _path: str = "") -> None:
         """Check non-optional values and consumed conditional inputs at handoff."""
+        self._rebind_irrigation_owner_refs()
         super().validate_non_null_ref_values(_path)
         bioco2_issues = self._iter_biogenic_co2_null_issues()
         if bioco2_issues:
@@ -5125,7 +5127,11 @@ class SUEWSConfig(DataModelBase):
             if props is None:
                 continue
             if hasattr(props, "_sync_snow_validation_state"):
-                props._sync_snow_validation_state(active=snow_active, config=self)
+                props._sync_snow_validation_state(
+                    active=snow_active,
+                    soil_obs_active=soil_obs_active,
+                    config=self,
+                )
             irr = getattr(props, "irrigation", None)
             if irr is not None and hasattr(irr, "_sync_doy_validation_state"):
                 irr._sync_doy_validation_state(
@@ -6868,6 +6874,10 @@ class SUEWSConfig(DataModelBase):
             )
 
         # Proceed with DataFrame conversion
+        snow_code = resolve_snow_use_code(
+            getattr(getattr(self.model, "physics", None), "snow_use", None)
+        )
+        snow_token = _SNOW_ACTIVE_CONTEXT.set(snow_code is None or snow_code != 0)
         try:
             grid_ids = []
             site_col_dicts = []
@@ -6912,6 +6922,8 @@ class SUEWSConfig(DataModelBase):
                 raise
             else:
                 raise
+        finally:
+            _SNOW_ACTIVE_CONTEXT.reset(snow_token)
 
         # # Fix level=1 columns sorted alphabetically not numerically (i.e. 10 < 2)
         # # Filter columns based on level=0 criteria

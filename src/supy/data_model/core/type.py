@@ -86,6 +86,7 @@ class RefValue(BaseModel, Generic[T]):
     ref: Optional[Reference] = None
     _non_null_field_name: Optional[str] = PrivateAttr(default=None)
     _non_null_expected_kind: str = PrivateAttr(default="value")
+    _non_null_guard: Optional[Callable[[], bool]] = PrivateAttr(default=None)
     _reject_bool_field_name: Optional[str] = PrivateAttr(default=None)
     _value_validator: Optional[Callable[[Any], Any]] = PrivateAttr(default=None)
 
@@ -152,10 +153,17 @@ class RefValue(BaseModel, Generic[T]):
         data["ref"] = ref
         super().__init__(**data)
 
-    def _bind_non_optional(self, field_name: str, expected_kind: str) -> None:
-        """Bind this wrapper to a non-optional field so ``.value = None`` fails."""
+    def _bind_non_optional(
+        self,
+        field_name: str,
+        expected_kind: str,
+        *,
+        guard: Optional[Callable[[], bool]] = None,
+    ) -> None:
+        """Bind this wrapper to a non-optional field so ``.value = None`` fails when active."""
         self._non_null_field_name = field_name
         self._non_null_expected_kind = expected_kind
+        self._non_null_guard = guard
 
     def _bind_reject_bool(self, field_name: str) -> None:
         """Bind this wrapper so ``.value = True`` / ``np.bool_`` fails before coercion."""
@@ -170,13 +178,15 @@ class RefValue(BaseModel, Generic[T]):
             if value is None:
                 field_name = getattr(self, "_non_null_field_name", None)
                 if field_name is not None:
-                    reject_null_value(
-                        None,
-                        field_name,
-                        expected_kind=getattr(
-                            self, "_non_null_expected_kind", "value"
-                        ),
-                    )
+                    guard = getattr(self, "_non_null_guard", None)
+                    if guard is None or guard():
+                        reject_null_value(
+                            None,
+                            field_name,
+                            expected_kind=getattr(
+                                self, "_non_null_expected_kind", "value"
+                            ),
+                        )
             else:
                 bool_field = getattr(self, "_reject_bool_field_name", None)
                 if bool_field is not None:
@@ -856,3 +866,55 @@ class _WeakConfigRef:
         if copied_target is not None:
             return _WeakConfigRef(copied_target)
         return _WeakConfigRef(None)
+
+
+class _SchemeActiveGuard:
+    """Picklable, copy-aware callable checking whether a scheme is currently active.
+
+    Attached to ``RefValue._non_null_guard`` on scheme-gated fields so in-place
+    ``.value = None`` mutations dynamically consult the owning ``SUEWSConfig``'s
+    live physics switch (both active->inactive and inactive->active transitions).
+    """
+
+    __slots__ = ("_config_ref", "_fallback_active", "_scheme")
+
+    def __init__(
+        self,
+        scheme: Literal["snow", "soil_obs"],
+        *,
+        active: bool = True,
+        config: Any | None = None,
+    ) -> None:
+        self._scheme = scheme
+        self._fallback_active = bool(active)
+        self._config_ref = _WeakConfigRef(config)
+
+    def __call__(self) -> bool:
+        parent_cfg = self._config_ref.get()
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            if self._scheme == "snow":
+                raw = getattr(physics, "snow_use", None) if physics is not None else None
+                code = resolve_snow_use_code(raw)
+                return code is None or code != 0
+            raw = getattr(physics, "soil_moisture", None) if physics is not None else None
+            code = resolve_soil_moisture_code(raw)
+            return code is None or code == 1
+        return self._fallback_active
+
+    def __getstate__(self) -> tuple[str, bool]:
+        return (self._scheme, self._fallback_active)
+
+    def __setstate__(self, state: tuple[str, bool]) -> None:
+        self._scheme, self._fallback_active = state
+        self._config_ref = _WeakConfigRef(None)
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "_SchemeActiveGuard":
+        cloned = _SchemeActiveGuard(
+            self._scheme,
+            active=self._fallback_active,
+            config=None,
+        )
+        cloned._config_ref = self._config_ref.__deepcopy__(memo)
+        return cloned

@@ -457,6 +457,95 @@ CONTAINS
       IF (forcing_timestamp_reference == 1) timer%tz_solar = 0.0D0
    END SUBROUTINE SUEWS_cal_timer_reference
 
+   SUBROUTINE SUEWS_cal_interval_day_st( &
+      timer, deliv_year, deliv_month, deliv_day, deliv_doy, deliv_dow, is_new_day)
+      ! Resolve the right-closed local-standard delivery day (D 00:00, D+1 00:00]
+      ! owning the current forcing interval (t_end - step_dt, t_end] on the
+      ! site's fixed-offset local standard clock (gh#2381). Any interval endpoint
+      ! t_end in (D 00:00, D+1 00:00] maps to date(t_end - 1 s), and the previous
+      ! interval ended at t_prev = t_end - step_dt -> date(t_prev - 1 s), which
+      ! stays exact even when adaptive steps or fractional-hour timezones
+      ! (e.g. UTC+05:30 with hourly forcing) straddle local midnight.
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
+      USE module_ctrl_const_physconst, ONLY: sec_per_day, sec_per_hour
+      IMPLICIT NONE
+
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      INTEGER, INTENT(OUT) :: deliv_year, deliv_month, deliv_day, deliv_doy, deliv_dow
+      LOGICAL, INTENT(OUT) :: is_new_day
+
+      INTEGER :: iy_end, id_end, it_end, imin_end
+      INTEGER :: sec_day, sec_hour, step_dt
+      INTEGER :: cur_sec, cur_yr, prev_sec, prev_yr, year_days, year_sec
+      INTEGER :: cur_doy, prev_doy, seas
+
+      sec_day = NINT(sec_per_day)
+      sec_hour = NINT(sec_per_hour)
+
+      IF (timer%iy_st > 0) THEN
+         iy_end = timer%iy_st
+         id_end = timer%id_st
+         it_end = timer%it_st
+         imin_end = timer%imin_st
+      ELSE
+         iy_end = timer%iy
+         id_end = timer%id
+         it_end = timer%it
+         imin_end = timer%imin
+      END IF
+
+      IF (timer%tstep > 0) THEN
+         step_dt = timer%tstep
+      ELSE IF (timer%nsh > 0) THEN
+         step_dt = sec_hour/timer%nsh
+      ELSE
+         step_dt = 0
+      END IF
+
+      ! Current delivery day via right-closed endpoint: date(t_end - 1 s)
+      cur_yr = iy_end
+      cur_sec = (id_end - 1)*sec_day + it_end*sec_hour + imin_end*60 + timer%isec - 1
+      DO
+         CALL LeapYearCalc(cur_yr, year_days)
+         year_sec = year_days*sec_day
+         IF (cur_sec >= 0 .AND. cur_sec < year_sec) EXIT
+         IF (cur_sec < 0) THEN
+            cur_yr = cur_yr - 1
+            CALL LeapYearCalc(cur_yr, year_days)
+            cur_sec = cur_sec + year_days*sec_day
+         ELSE
+            cur_sec = cur_sec - year_sec
+            cur_yr = cur_yr + 1
+         END IF
+      END DO
+      cur_doy = cur_sec/sec_day + 1
+
+      ! Previous interval's delivery day: date((t_end - step_dt) - 1 s)
+      prev_yr = cur_yr
+      prev_sec = cur_sec - step_dt
+      DO
+         CALL LeapYearCalc(prev_yr, year_days)
+         year_sec = year_days*sec_day
+         IF (prev_sec >= 0 .AND. prev_sec < year_sec) EXIT
+         IF (prev_sec < 0) THEN
+            prev_yr = prev_yr - 1
+            CALL LeapYearCalc(prev_yr, year_days)
+            prev_sec = prev_sec + year_days*sec_day
+         ELSE
+            prev_sec = prev_sec - year_sec
+            prev_yr = prev_yr + 1
+         END IF
+      END DO
+      prev_doy = prev_sec/sec_day + 1
+
+      deliv_year = cur_yr
+      deliv_doy = cur_doy
+      CALL day2month(deliv_doy, deliv_month, deliv_day, seas, deliv_year, 0.0D0)
+      CALL Day_Of_Week(deliv_day, deliv_month, deliv_year, deliv_dow)
+      is_new_day = (timer%dt_since_start == step_dt) .OR. &
+                   (cur_yr /= prev_yr) .OR. (cur_doy /= prev_doy)
+   END SUBROUTINE SUEWS_cal_interval_day_st
+
 END MODULE module_util_time
 
 ! Backward compatibility alias (deprecated - will be removed in future version)

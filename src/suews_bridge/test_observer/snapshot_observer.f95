@@ -290,7 +290,7 @@ CONTAINS
          st_iter1 = state
          forcing_iter1 = forcing
          timer_internal = timer
-         CALL SUEWS_cal_timer_reference( &
+         CALL SUEWS_cal_timer( &
             timer_internal, site, site%anthroemis, config%ForcingTimestampReference)
 
          IF (config%snowuse == 0) THEN
@@ -961,7 +961,7 @@ CONTAINS
       oracle_state = state_in
       nl = siteInfo%nlayer
 
-      CALL SUEWS_cal_timer_reference( &
+      CALL SUEWS_cal_timer( &
          tmr, siteInfo, siteInfo%anthroemis, config_in%ForcingTimestampReference)
 
       CALL st_tstepstart%ALLOCATE(nl, ndepth)

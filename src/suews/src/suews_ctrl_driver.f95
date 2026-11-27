@@ -68,7 +68,7 @@ MODULE SUEWS_Driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
-                          SUEWS_cal_DLS, SUEWS_cal_timer_reference, cal_weekday_index
+                          SUEWS_cal_DLS, SUEWS_cal_timer, cal_weekday_index
    ! Re-export error state accessors from module_ctrl_error_state
    USE module_ctrl_error_state, ONLY: supy_error_flag, get_supy_error, SUPY_ERROR_MESSAGE_LEN, &
                                        reset_supy_error, set_supy_error
@@ -146,7 +146,7 @@ CONTAINS
       ! Coupled callers provide only the established public timer fields.
       ! Derive the internal clock view without changing the public timer ABI.
       timer_internal = timer
-      CALL SUEWS_cal_timer_reference( &
+      CALL SUEWS_cal_timer( &
          timer_internal, siteInfo, siteInfo%anthroemis, &
          config%ForcingTimestampReference)
 
@@ -915,7 +915,7 @@ CONTAINS
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0
 
-         CALL SUEWS_cal_timer_reference( &
+         CALL SUEWS_cal_timer( &
             timer, siteInfo, siteInfo%anthroemis, &
             config%ForcingTimestampReference)
 

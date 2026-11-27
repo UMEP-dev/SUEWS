@@ -414,24 +414,13 @@ CONTAINS
       timer_st%imin = MOD(day_minutes, 60)
    END SUBROUTINE SUEWS_cal_local_standard_timer
 
-   SUBROUTINE SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
-      ! Preserve the established public three-argument timer interface.
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, anthroEMIS_PRM
-
-      IMPLICIT NONE
-
-      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
-      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-      TYPE(anthroEMIS_PRM), INTENT(IN) :: ahemisPrm
-
-      CALL SUEWS_cal_timer_reference(timer, siteInfo, ahemisPrm, 0)
-   END SUBROUTINE SUEWS_cal_timer
-
-   SUBROUTINE SUEWS_cal_timer_reference(timer, siteInfo, ahemisPrm, forcing_timestamp_reference)
+   SUBROUTINE SUEWS_cal_timer(timer, siteInfo, ahemisPrm, forcing_timestamp_reference)
       ! Single entry point that computes all derived timer values for a
       ! timestep, consolidating the previously separate dectime / tstep /
       ! weekday / DLS calls. The main clock follows the forcing reference;
       ! solar and profile consumers also receive a fixed-offset site clock.
+      ! When forcing_timestamp_reference is omitted, defaults to 0 (site local
+      ! standard time) for three-argument coupled callers.
       USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, anthroEMIS_PRM
 
       IMPLICIT NONE
@@ -439,13 +428,17 @@ CONTAINS
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(anthroEMIS_PRM), INTENT(IN) :: ahemisPrm
-      INTEGER, INTENT(IN) :: forcing_timestamp_reference
+      INTEGER, INTENT(IN), OPTIONAL :: forcing_timestamp_reference
+      INTEGER :: ref_mode
       TYPE(SUEWS_TIMER) :: timer_st
+
+      ref_mode = 0
+      IF (PRESENT(forcing_timestamp_reference)) ref_mode = forcing_timestamp_reference
 
       CALL SUEWS_cal_dectime(timer, timer%dectime)
       CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
       CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
-      CALL SUEWS_cal_local_standard_timer(timer, siteInfo, forcing_timestamp_reference, timer_st)
+      CALL SUEWS_cal_local_standard_timer(timer, siteInfo, ref_mode, timer_st)
       CALL SUEWS_cal_dectime(timer_st, timer%dectime_st)
       CALL SUEWS_cal_weekday(timer_st, siteInfo, timer%dayofWeek_id_st)
       CALL SUEWS_cal_DLS(timer_st, ahemisPrm, timer%DLS)
@@ -454,8 +447,8 @@ CONTAINS
       timer%it_st = timer_st%it
       timer%imin_st = timer_st%imin
       timer%tz_solar = siteInfo%timezone
-      IF (forcing_timestamp_reference == 1) timer%tz_solar = 0.0D0
-   END SUBROUTINE SUEWS_cal_timer_reference
+      IF (ref_mode == 1) timer%tz_solar = 0.0D0
+   END SUBROUTINE SUEWS_cal_timer
 
    SUBROUTINE SUEWS_cal_interval_day_st( &
       timer, deliv_year, deliv_month, deliv_day, deliv_doy, deliv_dow, is_new_day)

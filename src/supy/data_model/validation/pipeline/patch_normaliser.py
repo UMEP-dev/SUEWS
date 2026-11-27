@@ -40,6 +40,7 @@ from .document import (
     _is_list_index_token,
     _mapping_key_from_token,
     apply_nullify_tree_at_tokens,
+    canonicalise_token,
     deep_freeze,
     find_first_created_ancestor,
     format_path_tokens,
@@ -69,8 +70,12 @@ def _strict_equal(left: Any, right: Any) -> bool:
             _strict_equal(a, b) for a, b in zip(left, right)
         )
     if isinstance(left, Mapping) and isinstance(right, Mapping):
-        return left.keys() == right.keys() and all(
-            _strict_equal(left[k], right[k]) for k in left
+        if len(left) != len(right):
+            return False
+        left_typed = {MappingKey(k): v for k, v in left.items()}
+        right_typed = {MappingKey(k): v for k, v in right.items()}
+        return left_typed.keys() == right_typed.keys() and all(
+            _strict_equal(left_typed[k], right_typed[k]) for k in left_typed
         )
     return left == right
 
@@ -103,12 +108,14 @@ def _classify_raw_entry(
 def _tokens_overlap(left: Sequence[PathToken], right: Sequence[PathToken]) -> bool:
     """Return True when *left* and *right* are equal or one is an ancestor of the other."""
     min_len = min(len(left), len(right))
-    return tuple(left[:min_len]) == tuple(right[:min_len])
+    return tuple(canonicalise_token(t) for t in left[:min_len]) == tuple(
+        canonicalise_token(t) for t in right[:min_len]
+    )
 
 
 def _resolve_patch_tokens(patch: ConfigPatch) -> tuple[PathToken, ...]:
     if patch.path_tokens is not None:
-        return tuple(patch.path_tokens)
+        return tuple(canonicalise_token(t) for t in patch.path_tokens)
     return tuple(parse_path_tokens(patch.path))
 
 
@@ -368,6 +375,10 @@ def _apply_atomic_nullify(
         )
         expanded: list[ConfigPatch] = []
         for leaf_tokens, leaf_path, _old_val, new_null_val in token_entries:
+            cur_leaf = read_raw_tokens(working, leaf_tokens, default=_MISSING)
+            preserve_wrapper: WrapperStyle | None = (
+                "ref_value" if is_ref_wrapper(cur_leaf) else None
+            )
             leaf_patch = ConfigPatch(
                 path=leaf_path,
                 action="set",
@@ -379,6 +390,7 @@ def _apply_atomic_nullify(
                 source=patch.source,
                 default_wrapped=patch.default_wrapped,
                 path_tokens=leaf_tokens,
+                write_style=preserve_wrapper,
             )
             expanded.append(
                 _apply_atomic_set(
@@ -428,7 +440,7 @@ def _is_noop_set_patch(patch: ConfigPatch) -> bool:
             patch.original_raw, patch.new_value
         )
     if patch.original_style == "ref_only" and patch.new_value is None:
-        return True
+        return patch.write_style != "ref_value"
     return _strict_equal(patch.old_value, patch.new_value)
 
 
@@ -501,6 +513,13 @@ def _delete_then_set_preserves_style(
         )
     )
     if eff_style != first.original_style or eff_ref != first.original_ref:
+        return False
+    # Non-RefValue mappings (e.g. {"value": 1, "unit": "m"}) cannot merge delete+set into an update.
+    if (
+        isinstance(first.original_raw, Mapping)
+        and not is_ref_wrapper(first.original_raw)
+        and not is_ref_only(first.original_raw)
+    ):
         return False
     # Explicit null ref key in original_raw (e.g. {"value": 1, "ref": None}) would be dropped.
     return not (

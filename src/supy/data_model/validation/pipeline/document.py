@@ -14,19 +14,35 @@ fragile ``isinstance(..., dict)`` / ``.get("value")`` handling.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections import deque
+from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, is_dataclass
+import datetime
+from decimal import Decimal
+from enum import Enum
+from fractions import Fraction
+import ipaddress
+from pathlib import Path, PurePath
 import re
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
+from uuid import UUID
+
+import numpy as np
+from pydantic import BaseModel
 
 from ...core._yaml_io import safe_load_yaml
 from ...core.field_renames import RAW_YAML_FIELD_RENAMES, normalise_yaml_renames
 from ...core.physics_families import flatten_physics_in_config
 from ...core.profile import normalise_hourly_profile_keys_in_raw_config
-from .style_ledger import PathStyle, StyleLedger, WrapperStyle, dump_yaml_with_style
+from .style_ledger import (
+    PathStyle,
+    StyleLedger,
+    WrapperStyle,
+    _join_key_path,
+    dump_yaml_with_style,
+)
 
 if TYPE_CHECKING:
     from ..rules.typed_view import TypedConfigView
@@ -85,6 +101,49 @@ def make_key_token(key: Any) -> str | MappingKey:
     return MappingKey(key)
 
 
+def canonicalise_token(token: PathToken) -> PathToken:
+    """Canonicalise equivalent mapping-key tokens so ``MappingKey('a') == 'a'``."""
+    if isinstance(token, MappingKey):
+        return make_key_token(token.key)
+    return token
+
+
+_FREEZE_IMMUTABLE_TYPES = (
+    type(None),
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+    range,
+    slice,
+    type,
+    Enum,
+    Decimal,
+    Fraction,
+    UUID,
+    PurePath,
+    datetime.datetime,
+    datetime.date,
+    datetime.time,
+    datetime.timedelta,
+    datetime.tzinfo,
+    re.Pattern,
+    ipaddress.IPv4Address,
+    ipaddress.IPv6Address,
+    ipaddress.IPv4Network,
+    ipaddress.IPv6Network,
+    ipaddress.IPv4Interface,
+    ipaddress.IPv6Interface,
+    np.number,
+    np.bool_,
+    np.character,
+    np.datetime64,
+    np.timedelta64,
+)
+
+
 def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
     if value is None or isinstance(value, (bool, int, float, str, bytes)):
@@ -102,19 +161,45 @@ def _copy_payload(value: Any) -> Any:
     return deepcopy(value)
 
 
+def _freeze_numpy_value(value: np.ndarray[Any, Any] | np.void) -> Any:
+    if isinstance(value, np.void):
+        if value.dtype.names:
+            return MappingProxyType({
+                name: deep_freeze(value[name]) for name in value.dtype.names
+            })
+        return bytes(value)
+    if value.dtype.hasobject:
+        if value.ndim == 0:
+            return deep_freeze(deepcopy(value.item()))
+        return deep_freeze(deepcopy(value.tolist()))
+    return np.frombuffer(value.tobytes(), dtype=value.dtype).reshape(value.shape)
+
+
 def deep_freeze(value: Any) -> Any:
-    """Recursively freeze mappings, sequences, and sets into read-only containers."""
-    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+    """Recursively freeze mappings, sequences, sets, arrays, and models into read-only objects."""
+    if isinstance(value, _FREEZE_IMMUTABLE_TYPES):
         return value
     if isinstance(value, Mapping):
         return MappingProxyType({k: deep_freeze(v) for k, v in value.items()})
-    if isinstance(value, (list, tuple)):
-        return tuple(deep_freeze(item) for item in value)
-    if isinstance(value, (set, frozenset)):
-        return frozenset(deep_freeze(item) for item in value)
     if isinstance(value, (bytearray, memoryview)):
         return bytes(value)
-    return deepcopy(value)
+    if isinstance(value, (list, tuple, deque, Sequence)):
+        return tuple(deep_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset, AbstractSet)):
+        return frozenset(deep_freeze(item) for item in value)
+    if isinstance(value, (np.ndarray, np.void)):
+        return _freeze_numpy_value(value)
+    if isinstance(value, BaseModel):
+        from ..rules.readonly_model import freeze_model  # noqa: PLC0415
+
+        return freeze_model(value)
+    if is_dataclass(value) and not isinstance(value, type):
+        from ..rules.readonly_model import ReadOnlyDataclassProxy  # noqa: PLC0415
+
+        return ReadOnlyDataclassProxy(value)
+    raise TypeError(
+        f"deep_freeze cannot safely freeze mutable object of type {type(value).__name__!r}"
+    )
 
 
 def thaw_copy(value: Any) -> Any:
@@ -219,7 +304,10 @@ def _update_existing_entry(
 ) -> Any:
     """Update an existing bare, ``RefValue``, or ref-only entry preserving metadata."""
     copied = thaw_copy(new_value)
-    if copied is None and (original_style == "ref_only" or is_ref_only(existing)):
+    if copied is None and (
+        original_style == "ref_only"
+        or (original_style is None and is_ref_only(existing))
+    ):
         if isinstance(existing, Mapping) and "ref" in existing:
             return {"ref": thaw_copy(existing["ref"])}
         if original_ref is not None:
@@ -762,8 +850,12 @@ class ConfigPatch:
             object.__setattr__(self, "original_ref", deep_freeze(self.original_ref))
         if self.write_ref is not None:
             object.__setattr__(self, "write_ref", deep_freeze(self.write_ref))
-        if self.path_tokens is not None and not isinstance(self.path_tokens, tuple):
-            object.__setattr__(self, "path_tokens", tuple(self.path_tokens))
+        if self.path_tokens is not None:
+            object.__setattr__(
+                self,
+                "path_tokens",
+                tuple(canonicalise_token(tok) for tok in self.path_tokens),
+            )
         if self.original_raw is not _UNSET:
             object.__setattr__(self, "original_raw", _copy_payload(self.original_raw))
 
@@ -941,8 +1033,15 @@ class ConfigDocument:
 
         if normalise:
             working = normalise_yaml_renames(working)
-            working, _ = normalise_hourly_profile_keys_in_raw_config(working)
             ledger = ledger.remap_leaf_keys(RAW_YAML_FIELD_RENAMES)
+            pre_profile = thaw_copy(working)
+            working, profile_changed = normalise_hourly_profile_keys_in_raw_config(
+                working
+            )
+            if profile_changed:
+                profile_renames = _collect_mapping_key_renames(pre_profile, working)
+                if profile_renames:
+                    ledger = ledger.remap_paths(profile_renames)
         if flatten_physics:
             flatten_physics_in_config(working)
         return cls(
@@ -1038,6 +1137,30 @@ class ConfigDocument:
         )
 
 
+def _collect_mapping_key_renames(
+    before: Any, after: Any, prefix: str = ""
+) -> dict[str, str]:
+    """Collect path renames produced by profile-key normalisation (e.g. ``1``/``"01"`` -> ``"1"``)."""
+    renames: dict[str, str] = {}
+    if isinstance(before, Mapping) and isinstance(after, Mapping):
+        if len(before) == len(after):
+            before_keys = list(before.keys())
+            after_keys = list(after.keys())
+            for old_k, new_k in zip(before_keys, after_keys):
+                old_path = _join_key_path(prefix, old_k)
+                new_path = _join_key_path(prefix, new_k)
+                if old_path != new_path:
+                    renames[old_path] = new_path
+                renames.update(
+                    _collect_mapping_key_renames(before[old_k], after[new_k], new_path)
+                )
+    elif isinstance(before, list) and isinstance(after, list) and len(before) == len(after):
+        for idx, (b_item, a_item) in enumerate(zip(before, after)):
+            child_prefix = f"{prefix}[{idx}]" if prefix else f"[{idx}]"
+            renames.update(_collect_mapping_key_renames(b_item, a_item, child_prefix))
+    return renames
+
+
 __all__ = [
     "ConfigDocument",
     "ConfigPatch",
@@ -1051,6 +1174,7 @@ __all__ = [
     "apply_nullify_tree_at_tokens",
     "apply_patches_in_place",
     "canonicalise_path",
+    "canonicalise_token",
     "deep_freeze",
     "delete_path",
     "find_first_created_ancestor",

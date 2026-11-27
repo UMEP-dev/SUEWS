@@ -1141,3 +1141,151 @@ def test_readonly_proxy_freezes_deque_dataclass_array_metadata_and_rejects_unkno
     # Unrecognised custom mutable objects are rejected explicitly instead of leaking mutable state.
     with pytest.raises(TypeError, match="cannot safely freeze"):
         _ = ro.custom
+
+
+def test_round3_patch_token_barriers_and_non_ref_mapping_coalesce() -> None:
+    """Mixed MappingKey/str barriers and non-RefValue delete+set preserve exact semantics."""
+    # Major 1: MappingKey("a") and "a" share the same ancestor barrier.
+    mixed_patches = [
+        ConfigPatch("a.b", "set", 2, default_wrapped=False),
+        ConfigPatch("a", "delete", path_tokens=(MappingKey("a"),)),
+        ConfigPatch("a.b", "set", 3, default_wrapped=False),
+    ]
+    base_mixed = {"a": {"b": 1}}
+    norm_mixed = normalise_patches(mixed_patches, base_mixed)
+    direct_mixed = deepcopy(base_mixed)
+    apply_patches_in_place(direct_mixed, mixed_patches)
+    replayed_mixed = deepcopy(base_mixed)
+    apply_patches_in_place(replayed_mixed, norm_mixed)
+    assert replayed_mixed == direct_mixed == {"a": {"b": 3}}
+    apply_patches_in_place(replayed_mixed, invert_patches(norm_mixed))
+    assert replayed_mixed == base_mixed
+
+    # Major 3: delete+set on a non-RefValue dict containing "value" + extra keys does not turn into an update.
+    unit_base = {"a": {"value": 1, "unit": "m"}}
+    unit_patches = [
+        ConfigPatch("a", "delete"),
+        ConfigPatch("a", "set", 2, default_wrapped=False),
+    ]
+    norm_unit = normalise_patches(unit_patches, unit_base)
+    replayed_unit = deepcopy(unit_base)
+    apply_patches_in_place(replayed_unit, norm_unit)
+    assert replayed_unit == {"a": 2}
+    apply_patches_in_place(replayed_unit, invert_patches(norm_unit))
+    assert replayed_unit == unit_base
+
+
+def test_round3_ref_only_populate_nullify_and_strict_key_type_equality() -> None:
+    """Populating then nullifying a ref-only placeholder agrees across modes, and bool vs int keys differ."""
+    # Minor 4: populating a ref-only placeholder then nullifying agrees between direct and expanded.
+    ref_doc = ConfigDocument.from_dict({"a": {"ref": {"ID": "x"}}}, normalise=False)
+    pop_null = [ConfigPatch("a", "set", 1), ConfigPatch("a", "nullify_tree")]
+    direct_pn = ref_doc.apply_patches(pop_null)
+    norm_pn = ref_doc.normalise_patches(pop_null, expand_nullify_tree=True)
+    expanded_pn = ref_doc.apply_patches(norm_pn)
+    assert (
+        expanded_pn.data == direct_pn.data == {"a": {"ref": {"ID": "x"}, "value": None}}
+    )
+    assert expanded_pn.apply_patches(invert_patches(norm_pn)).data == ref_doc.data
+
+    # Minor 7: _strict_equal distinguishes int key 1 from bool key True.
+    key_type_base = {"a": {1: "x"}}
+    key_type_norm = normalise_patches(
+        [ConfigPatch("a", "set", {True: "x"}, default_wrapped=False)], key_type_base
+    )
+    assert len(key_type_norm) == 1
+    replayed_kt = deepcopy(key_type_base)
+    apply_patches_in_place(replayed_kt, key_type_norm)
+    assert next(iter(replayed_kt["a"].keys())) is True
+
+
+def test_round3_deep_freeze_surfaces_yaml_keys_profile_ledger_and_proxy_edge_cases() -> (
+    None
+):
+    """deep_freeze protects arrays/views, YAML key decoding & profile ledger align, structured scalars & sets work."""
+    # Major 2: TypedConfigView, ConfigDocument.frozen_data, and ValidationContext freeze NumPy arrays.
+    arr_raw = {"a": np.array([1.0, 2.0])}
+    tv = TypedConfigView.from_mapping(arr_raw)
+    with pytest.raises(ValueError, match="read-only"):
+        tv.raw["a"][0] = 9.0
+    doc_arr = ConfigDocument(arr_raw)
+    with pytest.raises(ValueError, match="read-only"):
+        doc_arr.frozen_data()["a"][0] = 9.0
+    ctx_arr = ValidationContext(yaml_data=arr_raw)
+    with pytest.raises(ValueError, match="read-only"):
+        ctx_arr.yaml_data["a"][0] = 9.0
+
+    # Minor 5 & 6: YAML 01/yes/float keys and hourly profile normalisation preserve ledger provenance.
+    yaml_text = (
+        "sites:\n"
+        "  - properties:\n"
+        "      irrigation:\n"
+        "        wuprofa_24hr:\n"
+        "          working_day:\n"
+        "            01:\n"
+        "              value: 0.5\n"
+        "              ref:\n"
+        "                ID: h1\n"
+        "            '02':\n"
+        "              value: 0.25\n"
+        "              ref:\n"
+        "                ID: h2\n"
+        "extra:\n"
+        "  yes:\n"
+        "    value: 10\n"
+        "    ref:\n"
+        "      ID: bool-key\n"
+    )
+    prof_doc = ConfigDocument.from_text(yaml_text, normalise=True)
+    h1_path = "sites[0].properties.irrigation.wuprofa_24hr.working_day.1"
+    h2_path = "sites[0].properties.irrigation.wuprofa_24hr.working_day.2"
+    assert prof_doc.style_ledger.ref_metadata(h1_path) == {"ID": "h1"}
+    assert prof_doc.style_ledger.ref_metadata(h2_path) == {"ID": "h2"}
+    assert prof_doc.style_ledger.ref_metadata("extra[True]") == {"ID": "bool-key"}
+
+    rebuilt = prof_doc.apply_patches([
+        ConfigPatch(h1_path, "delete"),
+        ConfigPatch(h1_path, "set", 0.75),
+    ])
+    assert rebuilt.data["sites"][0]["properties"]["irrigation"]["wuprofa_24hr"][
+        "working_day"
+    ]["1"] == {"value": 0.75, "ref": {"ID": "h1"}}
+
+    # Minor 8 & 9: Structured np.void scalars are frozen and sets of frozen models/dataclasses work.
+    class _FrozenChild(BaseModel):
+        model_config = ConfigDict(frozen=True)
+        code: int
+
+    @dataclass(frozen=True)
+    class _FrozenDC:
+        tag: str
+
+    class _EdgeModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        void_scalar: object
+        obj_void: object
+        model_set: set[_FrozenChild]
+        dc_set: set[_FrozenDC]
+
+    num_void = np.array([(1,)], dtype=[("x", "i4")])[0]
+    obj_void = np.array([({"k": [1]},)], dtype=[("payload", object)])[0]
+    em = _EdgeModel(
+        void_scalar=num_void,
+        obj_void=obj_void,
+        model_set={_FrozenChild(code=1), _FrozenChild(code=2)},
+        dc_set={_FrozenDC(tag="a"), _FrozenDC(tag="b")},
+    )
+    ro_em = freeze_model(em)
+    assert isinstance(ro_em.void_scalar, MappingProxyType)
+    assert ro_em.void_scalar["x"] == 1
+    with pytest.raises(TypeError):
+        ro_em.void_scalar["x"] = 2
+    assert ro_em.obj_void["payload"]["k"] == (1,)
+    with pytest.raises(TypeError):
+        ro_em.obj_void["payload"]["k"] = (9,)
+
+    assert isinstance(ro_em.model_set, frozenset)
+    assert len(ro_em.model_set) == 2
+    assert _FrozenChild(code=1) in ro_em.model_set
+    assert isinstance(ro_em.dc_set, frozenset)
+    assert _FrozenDC(tag="a") in ro_em.dc_set

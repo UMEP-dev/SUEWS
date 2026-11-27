@@ -67,7 +67,11 @@ _IMMUTABLE_TYPES = (
     ipaddress.IPv4Interface,
     ipaddress.IPv6Interface,
     PydanticUndefinedType,
-    np.generic,
+    np.number,
+    np.bool_,
+    np.character,
+    np.datetime64,
+    np.timedelta64,
     FunctionType,
     BuiltinFunctionType,
     MethodDescriptorType,
@@ -107,7 +111,6 @@ class ReadOnlyDataclassProxy:
     """Deeply immutable attribute-access proxy over a Python dataclass instance."""
 
     __slots__ = ("__weakref__",)
-    __hash__ = None  # type: ignore[assignment]
 
     def __init__(self, instance: Any, *, _detached: bool = False) -> None:
         if not is_dataclass(instance) or isinstance(instance, type):
@@ -182,13 +185,24 @@ class ReadOnlyDataclassProxy:
             return bool(target == other)
         return NotImplemented
 
+    def __hash__(self) -> int:
+        """Delegate hashing to the underlying immutable dataclass snapshot when hashable."""
+        return hash(_DATACLASS_STATE[id(self)][0])
+
     def __repr__(self) -> str:
         """Return a readable representation of the wrapped dataclass."""
         return f"ReadOnlyDataclassProxy({_DATACLASS_STATE[id(self)][0]!r})"
 
 
-def _freeze_ndarray_spec(value: np.ndarray[Any, Any]) -> Any:
-    """Wrap *value* using immutable backing storage or frozen nested tuples."""
+def _freeze_ndarray_spec(value: np.ndarray[Any, Any] | np.void) -> Any:
+    """Wrap *value* using immutable backing storage or frozen nested containers."""
+    if isinstance(value, np.void):
+        if value.dtype.names:
+            return MappingProxyType({
+                name: _wrap_readonly(deepcopy(value[name]))
+                for name in value.dtype.names
+            })
+        return bytes(value)
     if value.dtype.hasobject:
         if value.ndim == 0:
             return _wrap_readonly(deepcopy(value.item()))
@@ -232,7 +246,7 @@ def _wrap_container_or_object(value: Any) -> Any:
         return tuple(_wrap_readonly(item) for item in value)
     if isinstance(value, (set, frozenset, AbstractSet)):
         return frozenset(_wrap_readonly(item) for item in value)
-    if isinstance(value, np.ndarray):
+    if isinstance(value, (np.ndarray, np.void)):
         return _freeze_ndarray_spec(value)
     if is_dataclass(value) and not isinstance(value, type):
         return ReadOnlyDataclassProxy._from_detached(value)
@@ -308,7 +322,6 @@ class ReadOnlyModelProxy:
     """
 
     __slots__ = ("__weakref__",)
-    __hash__ = None  # type: ignore[assignment]
 
     def __init__(self, model: BaseModel, *, _detached: bool = False) -> None:
         if not isinstance(model, BaseModel):
@@ -420,6 +433,10 @@ class ReadOnlyModelProxy:
         if isinstance(other, BaseModel):
             return target == other
         return NotImplemented
+
+    def __hash__(self) -> int:
+        """Delegate hashing to the underlying immutable model snapshot when hashable."""
+        return hash(_PROXY_STATE[id(self)][0])
 
     def __repr__(self) -> str:
         """Return a readable representation of the wrapped model."""

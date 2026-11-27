@@ -91,22 +91,17 @@ def _node_scalar_key(node: yaml.Node) -> str | None:
     return None
 
 
-def _node_typed_key(node: yaml.Node) -> Any:
-    """Recover the typed Python key (e.g. ``int`` vs ``str``) from a PyYAML scalar key node."""
+def _node_typed_key(node: yaml.Node, loader: yaml.SafeLoader | None = None) -> Any:
+    """Recover the typed Python key using PyYAML's SafeLoader scalar constructors."""
     if not isinstance(node, yaml.ScalarNode):
         return None
-    if node.tag == "tag:yaml.org,2002:int":
-        try:
-            return int(node.value, 0)
-        except ValueError:
-            return node.value
-    if node.tag == "tag:yaml.org,2002:bool":
-        lowered = node.value.lower()
-        if lowered == "true":
-            return True
-        if lowered == "false":
-            return False
-    return str(node.value)
+    if loader is not None:
+        return loader.construct_object(node, deep=True)
+    helper = yaml.SafeLoader("")
+    try:
+        return helper.construct_object(node, deep=True)
+    finally:
+        helper.dispose()
 
 
 def _construct_node_value(loader: yaml.SafeLoader, node: yaml.Node) -> Any:
@@ -551,7 +546,7 @@ def _walk_yaml_mapping(
         source_line=line,
     )
     for key_node, child_node in node.value:
-        typed_key = _node_typed_key(key_node)
+        typed_key = _node_typed_key(key_node, val_loader)
         if typed_key is None or typed_key == "ref":
             continue
         _walk_yaml_node(

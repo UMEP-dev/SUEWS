@@ -69,6 +69,7 @@ CONTAINS
 
       ! USE module_phys_snow, ONLY: SnowUpdate
       USE module_util_datetime, ONLY: datetime, timedelta
+      USE module_util_time, ONLY: SUEWS_cal_interval_day_st
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                   PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                   IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
@@ -98,6 +99,8 @@ CONTAINS
       LOGICAL :: first_tstep_Q ! if this is the first tstep of a day
       LOGICAL :: first_tstep_run_Q ! if this is the first tstep of the run
       LOGICAL :: last_tstep_Q ! if this is the last tstep of a day
+      LOGICAL :: irrig_new_day_Q ! if this step opens a right-closed local-standard delivery day
+      INTEGER :: irr_year, irr_month, irr_day, irr_doy, irr_dow
       TYPE(datetime) :: time_now, time_prev, time_next
 
       REAL(KIND(1D0)) :: tair ! air temperature [degC]
@@ -277,6 +280,11 @@ CONTAINS
                first_tstep_Q = time_now%getDay() /= time_prev%getDay() .OR. first_tstep_run_Q
                last_tstep_Q = time_now%getDay() /= time_next%getDay()
 
+               ! Right-closed local-standard delivery day (D 00:00, D+1 00:00] for modelled
+               ! irrigation (gh#2381), shared with SUEWS_cal_WaterUse.
+               CALL SUEWS_cal_interval_day_st( &
+                  timer, irr_year, irr_month, irr_day, irr_doy, irr_dow, irrig_new_day_Q)
+
                ! --------------------------------------------------------------------------------
                !> assign Tair with either the forcing air temperature or the local diagnostic air temperature
                IF (config%RSLLevel == 1) THEN
@@ -321,6 +329,19 @@ CONTAINS
                !    SnowAlb, SnowDens)!inout
 
                ! --------------------------------------------------------------------------------
+               ! Calculate modelled daily irrigation budget at the opening step of each
+               ! right-closed local-standard delivery day (or on a fresh cold start),
+               ! before SUEWS_cal_WaterUse runs, and hold WUDay_id frozen through D+1 00:00
+               ! (gh#2381).
+               IF (irrig_new_day_Q) THEN
+                  CALL update_WaterUse( &
+                     irr_doy, WaterUseMethod, [irr_dow, irr_month, 0], lat, Faut, HDD_id, & !input
+                     state_surf, soilstore_surf, SoilStoreCap, H_maintain, & !input
+                     Ie_a, Ie_m, Ie_start, Ie_end, DayWatPer, DayWat, &
+                     WUDay_id) !output
+               END IF
+
+               ! --------------------------------------------------------------------------------
                ! On last timestep, perform the daily calculations -------------------------------
                ! Daily values not correct until end of each day,
                !  so main program should use values from the previous day
@@ -331,13 +352,6 @@ CONTAINS
                         dt_since_start, it, imin, tstep, & !input
                         HDD_id) !inout
                   END IF
-
-                  ! Calculate modelled daily water use ------------------------------------------
-                  CALL update_WaterUse( &
-                     id, WaterUseMethod, DayofWeek_id, lat, Faut, HDD_id, & !input
-                     state_surf, soilstore_surf, SoilStoreCap, H_maintain, & !input
-                     Ie_a, Ie_m, Ie_start, Ie_end, DayWatPer, DayWat, &
-                     WUDay_id) !output
 
                   !------------------------------------------------------------------------------
                   ! Calculation of LAI from growing degree days
@@ -539,6 +553,28 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
+   PURE LOGICAL FUNCTION is_in_irrigation_season(doy, lat, ie_start, ie_end) RESULT(in_season)
+      ! Inclusive irrigation season gate matching documented Ie_start / Ie_end (gh#2381):
+      ! - Both bounds zero (ie_start == 0 .AND. ie_end == 0): window disabled (gh#2329).
+      ! - Northern Hemisphere (lat >= 0): [ie_start, ie_end] (closed all year if ie_start > ie_end).
+      ! - Southern Hemisphere (lat < 0): [ie_start, ie_end] when ie_start <= ie_end (e.g. 1..366),
+      !   or inclusive wrap-around across New Year (doy >= ie_start .OR. doy <= ie_end) when ie_start > ie_end.
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: doy, ie_start, ie_end
+      REAL(KIND(1D0)), INTENT(IN) :: lat
+
+      IF (ie_start == 0 .AND. ie_end == 0) THEN
+         in_season = .FALSE.
+      ELSE IF (lat >= 0.0D0) THEN
+         in_season = (doy >= ie_start .AND. doy <= ie_end)
+      ELSE IF (ie_start <= ie_end) THEN
+         in_season = (doy >= ie_start .AND. doy <= ie_end)
+      ELSE
+         in_season = (doy >= ie_start .OR. doy <= ie_end)
+      END IF
+   END FUNCTION is_in_irrigation_season
+
    SUBROUTINE update_WaterUse( &
       id, WaterUseMethod, DayofWeek_id, lat, FrIrriAuto, HDD_id, & !input
       state_surf, soilstore_surf, SoilStoreCap_surf, H_maintain, & !input
@@ -578,7 +614,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(3) :: WUDay_total !Coefficients for manual irrigation models
 
       INTEGER :: wd ! Day of week index (DOW_SUNDAY..DOW_SATURDAY)
-      INTEGER :: calc !Water use calculation is done when calc = 1
       INTEGER :: i
 
       REAL(KIND(1D0)) :: temp_avg
@@ -599,17 +634,7 @@ CONTAINS
          wd = DayofWeek_id(1)
 
          IF (DayWat(wd) == 1.0) THEN !1 indicates watering permitted on this day
-            calc = 0
-            IF (Ie_start == 0 .AND. Ie_end == 0) THEN
-               calc = 0 ! Irrigation window disabled (both bounds absent)
-            ELSE IF (lat >= 0) THEN !Northern Hemisphere
-               IF (id >= Ie_start - 1 .AND. id <= Ie_end + 1) calc = 1 !Day between irrigation period
-            ELSE !Southern Hemisphere
-               calc = 1
-               IF (id >= Ie_end .AND. id <= Ie_start) calc = 0 !Day between irrigation period
-            END IF
-
-            IF (calc == 1) THEN
+            IF (is_in_irrigation_season(id, lat, Ie_start, Ie_end)) THEN
                ! Model daily water use based on days_since_rain (days since rain) and temp_avg (average temp)
                ! WUDay is the amount of water [mm] per day, applied to each of the irrigated areas
                ! N.B. These are the same for each vegetation type at the moment

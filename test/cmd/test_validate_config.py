@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
 import copy
+from dataclasses import dataclass
+from functools import lru_cache
 from importlib.resources import as_file, files
+from inspect import signature
 import json
 import math
 import os
@@ -35,6 +38,47 @@ import yaml
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-VALID", "C-ERROR")]
 
 
+@dataclass(frozen=True)
+class _CliResult:
+    """Subprocess-compatible result wrapper for in-process Click invocations."""
+
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+def _make_cli_runner() -> CliRunner:
+    """Create a CliRunner with separate stdout/stderr across Click versions."""
+    if "mix_stderr" in signature(CliRunner).parameters:
+        return CliRunner(mix_stderr=False)
+    return CliRunner()
+
+
+def _invoke_validate_inprocess(
+    route: str,
+    args: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
+) -> _CliResult:
+    """Invoke ``suews validate`` or ``suews-validate`` Click entry point in-process."""
+    from supy.cmd.suews_cli import cli as suews_cli
+    from supy.cmd.validate_config import cli as standalone_cli
+
+    command = standalone_cli if route == "suews-validate" else suews_cli
+    full_args = list(args) if route == "suews-validate" else ["validate", *args]
+    runner = _make_cli_runner()
+    if cwd is not None and monkeypatch is not None:
+        monkeypatch.chdir(cwd)
+    result = runner.invoke(command, full_args, env=env)
+    return _CliResult(
+        returncode=result.exit_code,
+        stdout=result.stdout,
+        stderr=result.stderr,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -48,15 +92,43 @@ def _sample_yaml_path() -> Iterator[Path]:
         yield path_sample
 
 
-def _load_sample_dict() -> Dict[str, Any]:
+@lru_cache(maxsize=1)
+def _sample_data_files() -> dict[str, bytes]:
+    """Cache bundled sample_data file bytes once per process via Traversable API."""
+    sample_dir = files("supy").joinpath("sample_data")
+    if not sample_dir.joinpath("sample_config.yml").is_file():
+        pytest.skip("Sample data not available")
+    return {
+        resource.name: resource.read_bytes()
+        for resource in sample_dir.iterdir()
+        if resource.is_file()
+    }
+
+
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
+
+def _load_yaml(text: str) -> Any:
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+@lru_cache(maxsize=1)
+def _sample_dict_template() -> Dict[str, Any]:
     resource = files("supy").joinpath("sample_data", "sample_config.yml")
     if not resource.is_file():
         pytest.skip(f"Sample config not available at {resource}")
-    return yaml.safe_load(resource.read_text(encoding="utf-8"))
+    return _load_yaml(resource.read_text(encoding="utf-8"))
+
+
+def _load_sample_dict() -> Dict[str, Any]:
+    return copy.deepcopy(_sample_dict_template())
 
 
 def _write_yaml(path: Path, payload: Dict[str, Any]) -> None:
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False), encoding="utf-8"
+    )
 
 
 def _set_first_paved_sfr(payload: Dict[str, Any], value: float) -> None:
@@ -130,13 +202,19 @@ def test_validate_c_valid_mapping_executes_phase(tmp_path, mode):
     assert not envelope["errors"]
     assert envelope["data"]["phases_run"] == ["C"]
 
-def _resolved_sample_dict():
+@lru_cache(maxsize=1)
+def _resolved_sample_dict_template():
     """Use the supported model dump, not human-facing physics shorthand."""
     from supy.data_model.core.config import SUEWSConfig
 
     return SUEWSConfig.from_dict(_load_sample_dict()).model_dump(
         mode="json", exclude_none=True, round_trip=True
     )
+
+
+def _resolved_sample_dict():
+    """Return a fresh copy of the supported model dump."""
+    return copy.deepcopy(_resolved_sample_dict_template())
 
 
 @pytest.mark.parametrize("pipeline", ["C", "ABC"])
@@ -192,17 +270,17 @@ def test_site_longitude_normal_pipeline(
 ):
     """Only lng is public; real phases must reject every lon spelling.
 
-    The installed commands run with the candidate environment, including an
-    uncommitted working tree. No git archive or HEAD checkout supplies code.
-    ABC stops at B for missing/invalid lng, otherwise C rejects unknown lon.
-    Rejection publishes the last successful phase's YAML and the diagnosis.
+    Exercises the public Click commands and module orchestrator in-process
+    against the working tree. ABC stops at B for missing/invalid lng,
+    otherwise C rejects unknown lon. Rejection publishes the last successful
+    phase's YAML and the diagnosis.
     """
     from supy._run_rust import config_to_engine_yaml
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.validation.pipeline import orchestrator
 
     path = _copy_sample_data(tmp_path)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = _load_sample_dict()
     props = data["sites"][0]["properties"]
     props["lng"] = {"value": 0.0}
     if spelling.startswith("alias"):
@@ -237,6 +315,7 @@ def test_site_longitude_normal_pipeline(
     failed_phase = "B" if stops_at_b else "C"
 
     if entry == "orchestrator-ABC":
+        monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(
             "sys.argv",
             ["suews_yaml_processor", str(path), "--phase", "ABC", "--mode", mode],
@@ -245,15 +324,11 @@ def test_site_longitude_normal_pipeline(
         diagnostics = capsys.readouterr().out
     else:
         route = "suews-validate" if entry.startswith("standalone") else "suews"
-        executable = Path(sysconfig.get_path("scripts")) / (
-            route + (".exe" if os.name == "nt" else "")
-        )
-        assert executable.is_file(), f"Missing installed command: {executable}"
-        command = [str(executable)] + (["validate"] if route == "suews" else [])
-        result = subprocess.run(
-            command + [str(path), "--pipeline", pipeline, "--mode", mode,
-                       "--format", "json"],
-            cwd=tmp_path, capture_output=True, text=True, timeout=180,
+        result = _invoke_validate_inprocess(
+            route,
+            [str(path), "--pipeline", pipeline, "--mode", mode, "--format", "json"],
+            cwd=tmp_path,
+            monkeypatch=monkeypatch,
         )
         exit_code = result.returncode
         diagnostics = result.stdout + result.stderr
@@ -282,7 +357,7 @@ def test_site_longitude_normal_pipeline(
     if entry != "orchestrator-ABC":
         assert envelope["data"]["validation_report"] == sidecar
 
-    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated = _load_yaml(updated_path.read_text(encoding="utf-8"))
     annotated = updated["sites"][0]["properties"]
     for authored_key in ("lon", "lng"):
         if authored_key in props:
@@ -326,7 +401,7 @@ def test_site_longitude_normal_pipeline(
         config = SUEWSConfig.from_yaml(str(updated_path))
         longitude = config.sites[0].properties.lng
         assert getattr(longitude, "value", longitude) == 0.0
-        resolved = yaml.safe_load(config_to_engine_yaml(config))["sites"][0]["properties"]
+        resolved = _load_yaml(config_to_engine_yaml(config))["sites"][0]["properties"]
         assert "lon" not in resolved
         longitude = resolved["lng"]
         assert (longitude["value"] if isinstance(longitude, dict) else longitude) == 0.0
@@ -358,7 +433,7 @@ def test_supported_alias_atomic_report_repeats_once_per_section(
     from supy.data_model.validation.pipeline import orchestrator
 
     path = _copy_sample_data(tmp_path)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = _load_sample_dict()
     paved = data["sites"][0]["properties"]["land_cover"]["paved"]
     value = paved.pop("soil_depth")
     paved["soildepth"] = value
@@ -421,7 +496,7 @@ def test_supported_alias_atomic_report_repeats_once_per_section(
                 assert lines.index(header) < lines.index(detail), report
         updated_path = tmp_path / f"updated_{path.name}"
         SUEWSConfig.from_yaml(str(updated_path))
-        updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+        updated = _load_yaml(updated_path.read_text(encoding="utf-8"))
         paved = updated["sites"][0]["properties"]["land_cover"]["paved"]
         assert paved["soil_depth"] == value
         assert "soildepth" not in paved
@@ -446,7 +521,7 @@ def test_supported_soil_aliases_preserve_required_null_rejection(
     from supy.data_model.core.config import SUEWSConfig
 
     path = _copy_sample_data(tmp_path)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = _load_sample_dict()
     paved = data["sites"][0]["properties"]["land_cover"]["paved"]
     key = canonical if spelling == "canonical" else alias
     value = paved.pop(canonical)
@@ -486,7 +561,7 @@ def test_supported_soil_aliases_preserve_required_null_rejection(
         assert canonical in report_path.read_text(encoding="utf-8")
         assert sidecar["overall_status"] == "FAILED"
     else:
-        block = yaml.safe_load(updated.read_text(encoding="utf-8"))["sites"][0]["properties"]["land_cover"]["paved"]
+        block = _load_yaml(updated.read_text(encoding="utf-8"))["sites"][0]["properties"]["land_cover"]["paved"]
         assert block[output_key] == value
     assert {p: p.read_bytes() for p in original} == original
 
@@ -682,7 +757,7 @@ def public_validator_sample(tmp_path):
     project = tmp_path / "project"
     project.mkdir()
     path = _copy_sample_data(project)
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    payload = _sample_dict_template()
     forcing_file = payload["model"]["control"]["forcing"]["file"]["value"]
     assert not Path(forcing_file).is_absolute()
     assert (path.parent / forcing_file).is_file()
@@ -702,33 +777,98 @@ def _source_file_snapshot(root):
     return snapshot
 
 
-def _run_public_validation(path, pipeline, out_format, cwd, *, dry_run=False):
+def _run_public_validation(
+    path, pipeline, out_format, cwd, *, dry_run=False, monkeypatch=None
+):
+    args = [str(path), "-p", pipeline]
+    if dry_run:
+        args.append("--dry-run")
+    if out_format == "json":
+        args.extend(["--format", "json"])
+    # Omitting --format exercises the public command's default table renderer.
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in {"FORCE_COLOR", "CLICOLOR_FORCE"}
+    }
+    env.update({"COLUMNS": "240", "NO_COLOR": "1"})
+    return _invoke_validate_inprocess(
+        "suews", args, cwd=cwd, env=env, monkeypatch=monkeypatch
+    )
+
+
+def _run_installed_validate_subprocess(route, args, cwd):
+    """Run the installed console script in a subprocess for CLI smoke coverage."""
     executable = Path(sysconfig.get_path("scripts")) / (
-        "suews.exe" if os.name == "nt" else "suews"
+        route + (".exe" if os.name == "nt" else "")
     )
     assert executable.is_file(), f"Public console script not installed: {executable}"
-    command = [str(executable), "validate", str(path), "-p", pipeline]
-    if dry_run:
-        command.append("--dry-run")
-    if out_format == "json":
-        command.extend(["--format", "json"])
-    # Omitting --format exercises the public command's default table renderer.
+    command = [str(executable)] + (["validate"] if route == "suews" else [])
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in {"FORCE_COLOR", "CLICOLOR_FORCE"}
+    }
+    env.update({"COLUMNS": "240", "NO_COLOR": "1"})
     return subprocess.run(
-        command, cwd=cwd,
-        env={**os.environ, "COLUMNS": "240", "NO_COLOR": "1"},
-        capture_output=True, text=True, timeout=180,
+        command + list(args),
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=180,
     )
+
+
+@pytest.mark.parametrize(
+    ("route", "case", "out_format"),
+    [
+        ("suews", "valid", "json"),
+        ("suews-validate", "bad-tstep", None),
+    ],
+    ids=["suews-valid-json", "suews-validate-invalid-table"],
+)
+def test_installed_validate_cli_subprocess_smoke(
+    tmp_path, public_validator_sample, route, case, out_format
+):
+    """Focused subprocess smoke test for installed ``suews validate`` and ``suews-validate``."""
+    path = public_validator_sample
+    if case == "bad-tstep":
+        payload = _load_sample_dict()
+        payload["model"]["control"]["tstep"] = "not an integer"
+        _write_yaml(path, payload)
+    before = _source_file_snapshot(tmp_path)
+    args = [str(path), "-p", "C", "--dry-run"]
+    if out_format == "json":
+        args.extend(["--format", "json"])
+    result = _run_installed_validate_subprocess(route, args, tmp_path)
+    valid = case == "valid"
+    assert result.returncode == (0 if valid else 1), result.stdout + result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+    assert _source_file_snapshot(tmp_path) == before
+    if out_format == "json":
+        envelope = json.loads(result.stdout)
+        assert set(envelope) == {"status", "data", "errors", "warnings", "meta"}
+        assert envelope["status"] == "success"
+        assert envelope["data"]["is_valid"] is True
+        assert envelope["errors"] == []
+    else:
+        assert "DEPRECATED: 'suews-validate'" in result.stderr
+        rendered = re.sub(r"\s+", " ", result.stdout.replace("|", " "))
+        assert "Summary: 0/1 files valid" in rendered
+        assert "model -> control -> tstep" in rendered
 
 
 @pytest.mark.parametrize("pipeline", ["C", "ABC"])
 @pytest.mark.parametrize("out_format", [pytest.param(None, id="default"), "json"])
 @pytest.mark.parametrize("case", ["valid", "bad-tstep", "unknown-property"])
 def test_public_validate_dry_run_reports_field_reason_without_writes(
-    tmp_path, public_validator_sample, pipeline, out_format, case
+    tmp_path, monkeypatch, public_validator_sample, pipeline, out_format, case
 ):
-    """Exercise the installed public command, including its ordinary renderer."""
+    """Exercise the public command in-process, including its ordinary renderer."""
     path = public_validator_sample
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     expected_path = expected_reason = None
     if case == "bad-tstep":
         payload["model"]["control"]["tstep"] = "not an integer"
@@ -748,7 +888,7 @@ def test_public_validate_dry_run_reports_field_reason_without_writes(
     before = _source_file_snapshot(tmp_path)
     entries_before = set(tmp_path.rglob("*"))
     result = _run_public_validation(
-        path, pipeline, out_format, tmp_path, dry_run=True,
+        path, pipeline, out_format, tmp_path, dry_run=True, monkeypatch=monkeypatch,
     )
     valid = case == "valid"
     assert result.returncode == (0 if valid else 1), result.stdout + result.stderr
@@ -801,12 +941,14 @@ def test_public_validate_dry_run_reports_field_reason_without_writes(
 @pytest.mark.parametrize("pipeline", ["C", "ABC"])
 @pytest.mark.parametrize("out_format", [pytest.param(None, id="default"), "json"])
 def test_public_validate_normal_sample_preserves_sources(
-    tmp_path, public_validator_sample, pipeline, out_format
+    tmp_path, monkeypatch, public_validator_sample, pipeline, out_format
 ):
     """The dry-run control must also be valid with real config-relative forcing."""
     path = public_validator_sample
     before = _source_file_snapshot(tmp_path)
-    result = _run_public_validation(path, pipeline, out_format, tmp_path)
+    result = _run_public_validation(
+        path, pipeline, out_format, tmp_path, monkeypatch=monkeypatch
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Traceback" not in result.stdout + result.stderr
     after = _source_file_snapshot(tmp_path)
@@ -818,7 +960,7 @@ def test_public_validate_normal_sample_preserves_sources(
     report = json.loads(sidecar_path.read_text(encoding="utf-8"))
     assert [phase["phase"] for phase in report["phases"]] == list(pipeline)
     assert all(phase["status"] != "FAILED" for phase in report["phases"])
-    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated = _load_yaml(updated_path.read_text(encoding="utf-8"))
     tstep = updated["model"]["control"]["tstep"]
     assert (tstep["value"] if isinstance(tstep, dict) else tstep) == 300
     if out_format == "json":
@@ -853,12 +995,8 @@ def _copy_sample_data(dst: Path) -> Path:
     validation resolves it and the science checks run end-to-end. Returns
     the path to the copied ``sample_config.yml``.
     """
-    sample_dir = files("supy").joinpath("sample_data")
-    if not sample_dir.joinpath("sample_config.yml").is_file():
-        pytest.skip("Sample data not available")
-    for resource in sample_dir.iterdir():
-        if resource.is_file():
-            (dst / resource.name).write_bytes(resource.read_bytes())
+    for name, content in _sample_data_files().items():
+        (dst / name).write_bytes(content)
     return dst / "sample_config.yml"
 
 
@@ -1229,7 +1367,7 @@ def test_validate_pipeline_cleans_legacy_flat_stebbs_updated_yaml(
     assert result.exit_code == 0, result.output
     updated_path = tmp_path / "updated_legacy_stebbs.yml"
     assert updated_path.exists(), result.output
-    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated = _load_yaml(updated_path.read_text(encoding="utf-8"))
     updated_physics = updated["model"]["physics"]
     updated_stebbs = updated_physics["stebbs"]
 
@@ -1789,7 +1927,7 @@ def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> No
     from supy.cmd.validate_config import cli as validate_cli
 
     with _sample_yaml_path() as sample:
-        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+        data = _load_yaml(sample.read_text(encoding="utf-8"))
     data["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
         "emission_factor_co2_fuel"
     )
@@ -1861,7 +1999,7 @@ def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
     from supy.cmd.validate_config import cli as validate_cli
 
     with _sample_yaml_path() as sample:
-        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+        data = _load_yaml(sample.read_text(encoding="utf-8"))
     data["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
         "emission_factor_co2_fuel"
     )  # -> A.MISSING_PARAM (info)
@@ -2042,7 +2180,7 @@ def _validate_sample_with_bounds(
     from supy.cmd.validate_config import cli as validate_cli
 
     config_path = _copy_sample_data(tmp_path)
-    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    payload = _load_yaml(config_path.read_text(encoding="utf-8"))
     payload["model"]["control"]["start_time"] = start_time
     payload["model"]["control"]["end_time"] = end_time
     _write_yaml(config_path, payload)
@@ -2122,7 +2260,7 @@ def test_validate_updated_yaml_keeps_constant_kdown_fraction(tmp_path: Path) -> 
     from supy.data_model.core.model import KdownSplitMethod
 
     config_path = _copy_sample_data(tmp_path)
-    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    payload = _load_yaml(config_path.read_text(encoding="utf-8"))
     split = payload["model"]["physics"]["kdown_split_method"]
     assert split["constant"]["sw_dn_direct_frac"] == pytest.approx(0.45)
 
@@ -2197,7 +2335,7 @@ def test_validate_accepts_omitted_null_rejecting_field(
     assert updated.exists(), result.output
     text = updated.read_text(encoding="utf-8")
     SUEWSConfig.from_yaml(str(updated))
-    reloaded = yaml.safe_load(text)["sites"][0]
+    reloaded = _load_yaml(text)["sites"][0]
     for part in path:
         reloaded = reloaded[part]
     assert key not in reloaded, reloaded
@@ -2270,7 +2408,7 @@ def test_snowalb_drop_survives_revalidation(tmp_path: Path) -> None:
         str(config_path), "--science-fixes", "apply", "--forcing", "off",
     ])
     assert first.exit_code == 0, first.output
-    updated = yaml.safe_load(
+    updated = _load_yaml(
         (tmp_path / "updated_myconfig.yml").read_text(encoding="utf-8")
     )
     assert "snowalb" not in updated["sites"][0]["initial_states"]
@@ -2305,7 +2443,7 @@ def test_abc_all_bare_scalar_multi_site_config_passes(tmp_path: Path) -> None:
     from supy.cmd.validate_config import cli as validate_cli
 
     path = _copy_sample_data(tmp_path)
-    data = _unwrap_refvalues(yaml.safe_load(path.read_text(encoding="utf-8")))
+    data = _unwrap_refvalues(_load_yaml(path.read_text(encoding="utf-8")))
     second = copy.deepcopy(data["sites"][0])
     second["gridiv"] = 2
     second["name"] = f"{second.get('name') or 'site'}_copy"
@@ -2326,7 +2464,7 @@ def test_abc_all_bare_scalar_multi_site_config_passes(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert envelope["errors"] == []
     assert envelope["data"]["phases_run"] == ["A", "B", "C"]
-    updated = yaml.safe_load(
+    updated = _load_yaml(
         (tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8")
     )
     assert [site["gridiv"] for site in updated["sites"]] == [1, 2]

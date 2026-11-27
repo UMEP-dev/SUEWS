@@ -1,5 +1,8 @@
 """Exercise the module CLI with real phases and scientific transformations."""
 
+import copy
+from dataclasses import dataclass
+from functools import lru_cache
 from importlib.resources import files
 import json
 import os
@@ -15,12 +18,50 @@ pytestmark = [
     pytest.mark.contract("C-VALID", "C-ERROR"),
 ]
 
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
+
+def _load_yaml(text: str):
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+def _dump_yaml(payload) -> str:
+    return yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False)
+
+
+@dataclass(frozen=True)
+class _ModuleRunResult:
+    """Subprocess-compatible result for in-process ``orchestrator.main()`` calls."""
+
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+@lru_cache(maxsize=1)
+def _sample_data_files() -> dict[str, bytes]:
+    """Cache bundled sample_data file bytes once per process via Traversable API."""
+    return {
+        resource.name: resource.read_bytes()
+        for resource in files("supy").joinpath("sample_data").iterdir()
+        if resource.is_file()
+    }
+
+
+@lru_cache(maxsize=1)
+def _sample_dict_template():
+    return _load_yaml(_sample_data_files()["sample_config.yml"].decode("utf-8"))
+
+
+def _load_sample_dict():
+    return copy.deepcopy(_sample_dict_template())
+
 
 @pytest.fixture
 def sample_config(tmp_path):
-    for resource in files("supy").joinpath("sample_data").iterdir():
-        if resource.is_file():
-            (tmp_path / resource.name).write_bytes(resource.read_bytes())
+    for name, content in _sample_data_files().items():
+        (tmp_path / name).write_bytes(content)
     return tmp_path / "sample_config.yml"
 
 
@@ -30,7 +71,41 @@ def _evidence(tmp_path):
     return directories[0]
 
 
-def _run_module(path, mode="dev", phase="ABC", science_fixes="suggest", hash_seed=None):
+def _run_module_inprocess(
+    monkeypatch, capsys, path, mode="dev", phase="ABC", science_fixes="suggest"
+):
+    """Invoke ``orchestrator.main()`` directly in-process with argv/cwd isolated."""
+    from supy.data_model.validation.pipeline import orchestrator
+
+    monkeypatch.chdir(path.parent)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "orchestrator",
+            str(path),
+            "--mode",
+            mode,
+            "--phase",
+            phase,
+            "--science-fixes",
+            science_fixes,
+        ],
+    )
+    capsys.readouterr()
+    returncode = orchestrator.main()
+    captured = capsys.readouterr()
+    return _ModuleRunResult(
+        returncode=returncode,
+        stdout=captured.out,
+        stderr=captured.err,
+    )
+
+
+def _run_module_subprocess(
+    path, mode="dev", phase="ABC", science_fixes="suggest", hash_seed=None
+):
+    """Run ``python -m supy.data_model.validation.pipeline.orchestrator`` in a subprocess."""
     env = os.environ.copy()
     if hash_seed is not None:
         env["PYTHONHASHSEED"] = str(hash_seed)
@@ -40,8 +115,33 @@ def _run_module(path, mode="dev", phase="ABC", science_fixes="suggest", hash_see
             str(path), "--mode", mode, "--phase", phase,
             "--science-fixes", science_fixes,
         ],
-        cwd=path.parent, capture_output=True, text=True, timeout=180, env=env,
+        cwd=path.parent, capture_output=True, text=True, check=False, timeout=180, env=env,
     )
+
+
+@pytest.mark.parametrize(
+    ("valid", "expected_code"),
+    [(True, 0), (False, 1)],
+    ids=["valid-sample", "malformed-input"],
+)
+def test_module_cli_subprocess_smoke(tmp_path, sample_config, valid, expected_code):
+    """Focused subprocess smoke test for ``python -m ...orchestrator`` entry point."""
+    target = sample_config
+    if not valid:
+        target = tmp_path / "malformed.yml"
+        target.write_text("model: null\n", encoding="utf-8")
+    result = _run_module_subprocess(target)
+    assert result.returncode == expected_code, result.stdout + result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+    if valid:
+        assert "[OK] Validation completed" in result.stdout
+        assert (tmp_path / "updated_sample_config.yml").is_file()
+        assert (tmp_path / "report_sample_config.txt").is_file()
+        assert (tmp_path / "report_sample_config.json").is_file()
+    else:
+        assert "[X] Validation failed!" in result.stdout
+        assert (tmp_path / "report_malformed.txt").is_file()
+        assert not (tmp_path / "updated_malformed.yml").exists()
 
 
 @pytest.mark.parametrize("mode", ["public", "dev"])
@@ -49,11 +149,11 @@ def _run_module(path, mode="dev", phase="ABC", science_fixes="suggest", hash_see
 @pytest.mark.parametrize("science_fixes", ["suggest", "apply", "off"])
 @pytest.mark.parametrize("warning_only", [False, True])
 def test_module_cli_runs_phases_and_preserves_science_mode(
-    tmp_path, sample_config, mode, phase, science_fixes, warning_only
+    tmp_path, sample_config, monkeypatch, capsys, mode, phase, science_fixes, warning_only
 ):
     """Phase B must run and apply corrections only when explicitly requested."""
     path = sample_config
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     land_cover = payload["sites"][0]["properties"]["land_cover"]
     # A small fraction-sum discrepancy is a real Phase B correction.
     land_cover["paved"]["sfr"]["value"] -= 0.00005
@@ -64,9 +164,9 @@ def test_module_cli_runs_phases_and_preserves_science_mode(
         payload["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
             "emission_factor_co2_fuel"
         )
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    path.write_text(_dump_yaml(payload), encoding="utf-8")
 
-    result = _run_module(path, mode, phase, science_fixes)
+    result = _run_module_inprocess(monkeypatch, capsys, path, mode, phase, science_fixes)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Unexpected error" not in result.stdout
     assert "Configuration structure check..." in result.stdout
@@ -75,7 +175,7 @@ def test_module_cli_runs_phases_and_preserves_science_mode(
         assert "Configuration consistency check..." in result.stdout
     updated_path = tmp_path / "updated_sample_config.yml"
     assert updated_path.is_file()
-    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated = _load_yaml(updated_path.read_text(encoding="utf-8"))
     updated_cover = updated["sites"][0]["properties"]["land_cover"]
     updated_sum = sum(
         surface["sfr"]["value"] for surface in updated_cover.values() if "sfr" in surface
@@ -112,17 +212,19 @@ def test_module_cli_runs_phases_and_preserves_science_mode(
 @pytest.mark.parametrize("mode", ["public", "dev"])
 @pytest.mark.parametrize("science_fixes", ["suggest", "apply", "off"])
 def test_module_abc_c_rejection_keeps_diagnosis_and_last_b_yaml(
-    tmp_path, sample_config, mode, science_fixes
+    tmp_path, sample_config, monkeypatch, capsys, mode, science_fixes
 ):
     """An extra property passes B but must fail C without losing B's work."""
-    payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     properties = payload["sites"][0]["properties"]
     properties["bogus_extra_param"] = 42
     properties["land_cover"]["paved"]["sfr"]["value"] -= 0.00005
     properties["anthropogenic_emissions"]["co2"].pop("emission_factor_co2_fuel")
-    sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
 
-    result = _run_module(sample_config, mode, science_fixes=science_fixes)
+    result = _run_module_inprocess(
+        monkeypatch, capsys, sample_config, mode, science_fixes=science_fixes
+    )
     assert result.returncode == 1, result.stdout + result.stderr
     assert "[OK] Phase B completed" in result.stdout
     assert "[OK] Validation completed" not in result.stdout
@@ -152,10 +254,12 @@ def test_module_abc_c_rejection_keeps_diagnosis_and_last_b_yaml(
 @pytest.mark.parametrize("output", [
     "report_sample_config.txt", "report_sample_config.json", "updated_sample_config.yml",
 ])
-def test_module_abc_output_write_failure_is_not_success(tmp_path, sample_config, output):
+def test_module_abc_output_write_failure_is_not_success(
+    tmp_path, sample_config, monkeypatch, capsys, output
+):
     """An unwritable final destination must never yield a success exit/banner."""
     (tmp_path / output).mkdir()
-    result = _run_module(sample_config)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "[OK] Validation completed" not in result.stdout
     assert "[X]" in result.stdout
@@ -167,16 +271,18 @@ def test_module_abc_output_write_failure_is_not_success(tmp_path, sample_config,
 
 
 @pytest.mark.parametrize("failed_phase", ["A", "B"])
-def test_module_abc_stops_at_first_failure(tmp_path, sample_config, failed_phase):
+def test_module_abc_stops_at_first_failure(
+    tmp_path, sample_config, monkeypatch, capsys, failed_phase
+):
     """Early failures retain their own diagnosis and never enter Phase C."""
-    payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     if failed_phase == "A":
         payload["model"]["physics"].pop("net_radiation")
     else:
         payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] = -0.1
-    sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
 
-    result = _run_module(sample_config)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "Configuration consistency check..." not in result.stdout
     assert "[OK] Validation completed" not in result.stdout
@@ -196,14 +302,16 @@ def test_module_abc_stops_at_first_failure(tmp_path, sample_config, failed_phase
 
 
 @pytest.mark.parametrize("mode", ["public", "dev"])
-def test_module_abc_keeps_default_info_separate_from_science(tmp_path, sample_config, mode):
+def test_module_abc_keeps_default_info_separate_from_science(
+    tmp_path, sample_config, monkeypatch, capsys, mode
+):
     """C defaults must not replace B warnings or be labelled scientific fixes."""
-    payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     payload.pop("schema_version")
     payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] -= 0.00005
-    sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
 
-    result = _run_module(sample_config, mode)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config, mode)
     assert result.returncode == 0, result.stdout + result.stderr
     report = (tmp_path / "report_sample_config.txt").read_text(encoding="utf-8")
     sections = {}
@@ -219,7 +327,7 @@ def test_module_abc_keeps_default_info_separate_from_science(tmp_path, sample_co
 
 @pytest.mark.parametrize("existing_evidence", [False, True])
 def test_module_abc_success_file_set_preserves_existing_evidence(
-    tmp_path, sample_config, existing_evidence
+    tmp_path, sample_config, monkeypatch, capsys, existing_evidence
 ):
     """Remove only this run's redundant reports, including their JSON sidecars."""
     preserved = {
@@ -234,7 +342,7 @@ def test_module_abc_success_file_set_preserves_existing_evidence(
         (tmp_path / name).write_bytes(content)
     before = {path.name for path in tmp_path.iterdir()}
 
-    result = _run_module(sample_config)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert {path.name for path in tmp_path.iterdir()} - before == {
@@ -248,20 +356,20 @@ def test_module_abc_success_file_set_preserves_existing_evidence(
 @pytest.mark.parametrize("mode", ["public", "dev"])
 @pytest.mark.parametrize("changed_input", [False, True])
 def test_module_abc_repeat_run_updates_canonical_outputs(
-    tmp_path, sample_config, mode, changed_input
+    tmp_path, sample_config, monkeypatch, capsys, mode, changed_input
 ):
     """Both invocations validate; the second final YAML reflects its own input."""
     before = {path.name for path in tmp_path.iterdir()}
-    payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     for run in range(2):
         if run and changed_input:
             payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] -= 0.00005
-            sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+            sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
         input_bytes = sample_config.read_bytes()
-        result = _run_module(sample_config, mode)
+        result = _run_module_inprocess(monkeypatch, capsys, sample_config, mode)
         assert result.returncode == 0, result.stdout + result.stderr
         assert sample_config.read_bytes() == input_bytes
-        updated = yaml.safe_load((tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8"))
+        updated = _load_yaml((tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8"))
         assert updated["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] == pytest.approx(
             payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"], abs=1e-10
         )
@@ -280,11 +388,13 @@ def test_module_abc_repeat_run_updates_canonical_outputs(
 
 
 @pytest.mark.parametrize("content", ["model: [unterminated\n", "model: null\n"])
-def test_module_abc_malformed_input_retains_diagnostic_without_yaml(tmp_path, content):
+def test_module_abc_malformed_input_retains_diagnostic_without_yaml(
+    tmp_path, monkeypatch, capsys, content
+):
     """No generated YAML must not hide Phase A's genuine rejection."""
     path = tmp_path / "malformed.yml"
     path.write_text(content, encoding="utf-8")
-    result = _run_module(path)
+    result = _run_module_inprocess(monkeypatch, capsys, path)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "File error" not in result.stdout
     assert "Unexpected error" not in result.stdout
@@ -319,9 +429,9 @@ def test_module_abc_final_write_failure_keeps_all_phase_evidence(
     capsys.readouterr()
 
     if output == "yaml":
-        payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+        payload = _load_sample_dict()
         payload["sites"][0]["properties"]["bogus_extra_param"] = 42
-        sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+        sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
         original_copy = orchestrator.shutil.copy2
 
         def fail_copy(source, destination, *args, **kwargs):
@@ -373,9 +483,9 @@ def test_module_abc_publication_failure_rolls_back_and_retries(
     if previous_run:
         assert orchestrator.main() == 0
     previous = {name: (tmp_path / name).read_bytes() for name in names} if previous_run else {}
-    payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] -= 0.00005
-    sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
     capsys.readouterr()
     original_replace = orchestrator.os.replace
 
@@ -399,13 +509,15 @@ def test_module_abc_publication_failure_rolls_back_and_retries(
     assert orchestrator.main() == 0
     assert list(tmp_path.glob(".suews-validate-*")) == [evidence]
     assert all((evidence / name).read_bytes() == content for name, content in retained.items())
-    updated = yaml.safe_load((tmp_path / names[0]).read_text(encoding="utf-8"))
+    updated = _load_yaml((tmp_path / names[0]).read_text(encoding="utf-8"))
     assert updated["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] == pytest.approx(
         payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"], abs=1e-10
     )
 
 
-def test_module_abc_replaces_output_symlinks_without_touching_targets(tmp_path, sample_config):
+def test_module_abc_replaces_output_symlinks_without_touching_targets(
+    tmp_path, sample_config, monkeypatch, capsys
+):
     """Canonical output links must not turn a rerun into a write to the input."""
     original = sample_config.read_bytes()
     notes = tmp_path / "notes.txt"
@@ -415,7 +527,7 @@ def test_module_abc_replaces_output_symlinks_without_touching_targets(tmp_path, 
         (tmp_path / "report_sample_config.txt").symlink_to(notes)
     except OSError as exc:
         pytest.skip(f"Symlinks unavailable on this platform: {exc}")
-    result = _run_module(sample_config)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config)
     assert result.returncode == 0, result.stdout + result.stderr
     assert sample_config.read_bytes() == original
     assert notes.read_bytes() == b"unrelated user notes"
@@ -424,12 +536,14 @@ def test_module_abc_replaces_output_symlinks_without_touching_targets(tmp_path, 
     assert not list(tmp_path.glob(".suews-validate-*"))
 
 
-def test_module_abc_malformed_rerun_does_not_advertise_stale_yaml(tmp_path, sample_config):
+def test_module_abc_malformed_rerun_does_not_advertise_stale_yaml(
+    tmp_path, sample_config, monkeypatch, capsys
+):
     """A new rejection publishes its diagnosis and removes the old canonical YAML."""
-    result = _run_module(sample_config)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config)
     assert result.returncode == 0, result.stdout + result.stderr
     sample_config.write_text("model: null\n", encoding="utf-8")
-    result = _run_module(sample_config)
+    result = _run_module_inprocess(monkeypatch, capsys, sample_config)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "Updated YAML:" not in result.stdout
     assert not (tmp_path / "updated_sample_config.yml").exists()
@@ -442,25 +556,82 @@ def test_module_abc_malformed_rerun_does_not_advertise_stale_yaml(tmp_path, samp
     ).read_text(encoding="utf-8")
 
 
+_HASH_SEED_COMBOS = (
+    ("public", "suggest"),
+    ("public", "apply"),
+    ("dev", "suggest"),
+    ("dev", "apply"),
+)
+_HASH_SEEDS = (1, 17, 95)
+
+
+@pytest.fixture(scope="module")
+def _hash_seed_snapshots(tmp_path_factory):
+    """Run all (mode, science_fixes) combinations once per PYTHONHASHSEED subprocess."""
+    root = tmp_path_factory.mktemp("orchestrator_hash_seeds")
+    sample_files = _sample_data_files()
+    driver = (
+        "import os, sys\n"
+        "from pathlib import Path\n"
+        "from supy.data_model.validation.pipeline import orchestrator\n"
+        "root = Path(sys.argv[1])\n"
+        "for mode in ('public', 'dev'):\n"
+        "    for science in ('suggest', 'apply'):\n"
+        "        workdir = root / f'{mode}_{science}'\n"
+        "        os.chdir(workdir)\n"
+        "        sys.argv = [\n"
+        "            'orchestrator', str(workdir / 'sample_config.yml'),\n"
+        "            '--mode', mode, '--phase', 'ABC', '--science-fixes', science,\n"
+        "        ]\n"
+        "        rc = orchestrator.main()\n"
+        "        if rc != 0:\n"
+        "            sys.exit(rc)\n"
+    )
+    for mode, science in _HASH_SEED_COMBOS:
+        workdir = root / f"{mode}_{science}"
+        workdir.mkdir(parents=True)
+        for name, content in sample_files.items():
+            (workdir / name).write_bytes(content)
+    results = {}
+    for seed in _HASH_SEEDS:
+        env = {**os.environ, "PYTHONHASHSEED": str(seed)}
+        proc = subprocess.run(
+            [sys.executable, "-c", driver, str(root)],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=180,
+            env=env,
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        for mode, science in _HASH_SEED_COMBOS:
+            workdir = root / f"{mode}_{science}"
+            outputs = {
+                name: (workdir / name).read_bytes()
+                for name in (
+                    "report_sample_config.txt",
+                    "report_sample_config.json",
+                    "updated_sample_config.yml",
+                )
+            }
+            leftovers = list(workdir.glob(".suews-validate-*"))
+            results.setdefault((mode, science), []).append((outputs, leftovers))
+    return results
+
+
 @pytest.mark.parametrize("mode", ["public", "dev"])
 @pytest.mark.parametrize("science_fixes", ["suggest", "apply"])
 def test_module_abc_reports_repeat_exactly_across_hash_seeds(
-    tmp_path, sample_config, mode, science_fixes
+    _hash_seed_snapshots, mode, science_fixes
 ):
     """Hash randomisation must not reorder the disabled CO2 findings."""
+    runs = _hash_seed_snapshots[mode, science_fixes]
     snapshots = []
-    for seed in (1, 17, 95):
-        result = _run_module(sample_config, mode, science_fixes=science_fixes, hash_seed=seed)
-        assert result.returncode == 0, result.stdout + result.stderr
-        snapshots.append({
-            name: (tmp_path / name).read_bytes()
-            for name in (
-                "report_sample_config.txt", "report_sample_config.json",
-                "updated_sample_config.yml",
-            )
-        })
-        assert b"nullified 14 related parameters" in snapshots[-1]["report_sample_config.txt"]
-        assert not list(tmp_path.glob(".suews-validate-*"))
+    for outputs, leftovers in runs:
+        snapshots.append(outputs)
+        assert b"nullified 14 related parameters" in outputs["report_sample_config.txt"]
+        assert not leftovers
     assert snapshots[0] == snapshots[1] == snapshots[2]
 
 
@@ -498,9 +669,9 @@ def test_module_abc_cleanup_failure_keeps_published_success(
 
     monkeypatch.setattr(sys, "argv", ["orchestrator", str(sample_config), "--mode", "dev"])
     assert orchestrator.main() == 0
-    payload = yaml.safe_load(sample_config.read_text(encoding="utf-8"))
+    payload = _load_sample_dict()
     payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] -= 0.00005
-    sample_config.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    sample_config.write_text(_dump_yaml(payload), encoding="utf-8")
     capsys.readouterr()
 
     def fail_cleanup(workspace):
@@ -518,7 +689,7 @@ def test_module_abc_cleanup_failure_keeps_published_success(
     assert "[X]" not in stdout
     evidence = _evidence(tmp_path)
     assert f"Remaining temporary directory: {evidence}" in stdout
-    updated = yaml.safe_load((tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8"))
+    updated = _load_yaml((tmp_path / "updated_sample_config.yml").read_text(encoding="utf-8"))
     assert updated["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] == pytest.approx(
         payload["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"], abs=1e-10
     )

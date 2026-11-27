@@ -934,8 +934,9 @@ CONTAINS
 
          CALL store_output_line(output_line_local, ir, dataOutBlockData, datetimeBlock)
 
-         ! === Update dt_since_start for next iteration ===
+         ! === Update dt_since_start and tstep_prev for next iteration ===
          timer%dt_since_start = timer%dt_since_start + timer%tstep
+         timer%tstep_prev = timer%tstep
 
       END DO
 

@@ -4,7 +4,7 @@
 inputs directly to ``self._df_forcing``, bypassing the timestep resampling,
 temporal-column refresh, and unit contract that file loading applies. Hourly
 DataFrame forcing then ran at the input timestep instead of the model
-timestep, so a 300 s model never reached the ``23:55`` daily-write point and
+timestep, so a 300 s model never reached the closing ``00:00`` daily-write point and
 ``DailyState`` stopped being saved. These tests pin the normalised behaviour.
 """
 
@@ -87,7 +87,7 @@ class TestTimestepNormalisation:
         sim.update_forcing(hourly_forcing)
 
         out = sim.run(
-            start_date="2012-01-01", end_date="2012-01-03 23:59:59", n_jobs=1
+            start_date="2012-01-01", end_date="2012-01-03", n_jobs=1
         )
         df_daily = out.df.xs("DailyState", level="group", axis=1)
         # Three complete days -> three daily-state write points (the symptom

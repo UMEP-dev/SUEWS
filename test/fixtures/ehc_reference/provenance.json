@@ -1,6 +1,11 @@
 {
   "build": {
     "compilers": {
+      "c": {
+        "full_version": "cc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
+        "id": "gcc",
+        "version": "10.2.1"
+      },
       "fortran": {
         "full_version": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
         "id": "gcc",
@@ -8,8 +13,8 @@
       }
     },
     "fortran_build_profile": "release",
-    "git_commit": "5526161",
-    "supy_version": "2026.11.27.dev11"
+    "git_commit": "bf800ef",
+    "supy_version": "2026.11.27.dev8"
   },
   "cases": {
     "ehc_facets": {
@@ -34,7 +39,7 @@
       "config_sha256": "159896183e1197a33aa9e4b5365633db52fda509fbd7a19d53ba13cd38d73772",
       "negative_qf_air_steps": 94,
       "rows": 2591,
-      "sha256": "40f6c9ea5b77f3237bded0af775d2adec6d416b71bbdc4513e6471477ef0b497"
+      "sha256": "c57cbdad834240bebd815fa759b004d48e3ddae5c9625bc3ff0f524b29eed603"
     },
     "ehc_slab": {
       "annual_rows": 105408,
@@ -58,12 +63,12 @@
       "config_sha256": "4a2f8e11d59b2166adcf026543bd7e9e664bb517d12461430b6fbc6558602d1c",
       "negative_qf_air_steps": 0,
       "rows": 2591,
-      "sha256": "f556876f8848163bf01ce8fc9a4c3b1e77a1a6fed6fd89ef7e1e43fe693b403f"
+      "sha256": "c49b3813ad6cf6776cd70e8e10ffea6853c259aa6b911e18da41d78567fe973c"
     }
   },
   "float_format": "%.7g",
   "format_version": 1,
-  "generated_utc": "2026-11-27T07:44:30.092539+00:00",
+  "generated_utc": "2026-11-27T11:32:01.543773+00:00",
   "platform": {
     "libc": "glibc 2.17",
     "machine": "x86_64",

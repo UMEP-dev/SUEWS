@@ -610,7 +610,7 @@ def test_partial_coverage_survives_saved_clock_change(frames, tmp_path):
     pd.testing.assert_frame_equal(saved_again, saved)
 
 
-@pytest.mark.parametrize("start,steps", [("00:00", 288), ("12:00", 144), ("00:00", 145)])
+@pytest.mark.parametrize("start,steps", [("00:05", 288), ("12:05", 144), ("00:05", 145)])
 @pytest.mark.parametrize("writer", ["text", "parquet", "streamed"])
 def test_daily_water_preserves_totals_and_records_coverage(frames, tmp_path, start, steps, writer):
     """Full and partial days keep raw totals and record counted model steps."""

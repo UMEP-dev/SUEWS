@@ -1472,11 +1472,11 @@ def test_overlapping_and_exclusive_dailystate_resample_controls(seven_hour_overl
         0.8, abs=1e-15, rel=0
     )
     np.testing.assert_array_equal(
-        native["DailyState"].loc[pd.Timestamp("2012-01-04 23:55:00")].to_numpy(),
+        native["DailyState"].loc[pd.Timestamp("2012-01-05 00:00:00")].to_numpy(),
         combined["DailyState"].loc[day1_ts].to_numpy(),
     )
     np.testing.assert_array_equal(
-        native["DailyState"].loc[pd.Timestamp("2012-01-05 23:55:00")].to_numpy(),
+        native["DailyState"].loc[pd.Timestamp("2012-01-06 00:00:00")].to_numpy(),
         combined["DailyState"].loc[day2_ts].to_numpy(),
     )
 
@@ -1569,7 +1569,7 @@ def test_native_dailystate_subset_origin_and_contract_boundaries(
     # Native subset occurrence: if Day 1 DailyState is absent natively, public resample
     # keeps the shared per-grid origin so Day 2 stays on 2012-01-06 01:00 (matching SUEWS).
     day2_only_native_df = _erase_dailystate_row(
-        output.df, (1, pd.Timestamp("2012-01-04 23:55:00"))
+        output.df, (1, pd.Timestamp("2012-01-05 00:00:00"))
     )
     day2_only_res = SUEWSOutput(
         day2_only_native_df, output.state_final, config=output.config
@@ -1609,7 +1609,7 @@ def test_native_dailystate_subset_origin_and_contract_boundaries(
 
     # Invalid-only native DailyState corruption must be rejected rather than ignored.
     bad_native = day2_only_native.copy()
-    bad_native.at[pd.Timestamp("2012-01-04 23:55:00"), ("DailyState", "LAI_Grass")] = (
+    bad_native.at[pd.Timestamp("2012-01-05 00:00:00"), ("DailyState", "LAI_Grass")] = (
         np.inf
     )
     with pytest.raises(AssertionError, match="non-finite or -999"):

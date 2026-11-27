@@ -270,12 +270,16 @@ def _same_datetime_instants(left: pd.Index, right: pd.Index) -> bool:
 def expected_dailystate_mask(index: pd.DatetimeIndex, tstep: int) -> np.ndarray:
     """Return mask of exact end-of-day rows where Fortran writes ``DailyState``.
 
-    Matches ``last_tstep_Q = time_now%getDay() /= time_next%getDay()`` in
-    ``src/suews/src/suews_phys_dailystate.f95:269`` across every supported
-    ``tstep`` (e.g. ``23:55`` for 300 s, ``23:00`` for 3600 s).
+    Matches ``last_tstep_Q`` in ``src/suews/src/suews_phys_dailystate.f95``
+    under the unified right-closed day-ownership rule ``date(t - 1 s)``
+    across every supported ``tstep`` on both midnight-aligned (``D+1 00:00``)
+    and offset (e.g. ``D 23:57``) grids.
     """
-    next_ts = index + pd.Timedelta(seconds=int(tstep)).as_unit(index.unit)
-    return np.asarray(next_ts.normalize() != index.normalize(), dtype=bool)
+    one_sec = pd.Timedelta(seconds=1).as_unit(index.unit)
+    step_dt = pd.Timedelta(seconds=int(tstep)).as_unit(index.unit)
+    day_now = (index - one_sec).normalize()
+    day_next = (index + step_dt - one_sec).normalize()
+    return np.asarray(day_now != day_next, dtype=bool)
 
 
 def _assert_group_finiteness(

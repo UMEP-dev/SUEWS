@@ -13,7 +13,8 @@ import pandas as pd
 
 from ._version_scm import __version__
 
-CURRENT_CHECKPOINT_SCHEMA_VERSION = 2
+CURRENT_CHECKPOINT_SCHEMA_VERSION = 3
+LEGACY_DAILYSTATE_CHECKPOINT_SCHEMA_VERSION = 2
 LEGACY_CHECKPOINT_SCHEMA_VERSION = 1
 CURRENT_STEBBS_STATE_SCHEMA_VERSION = 3
 
@@ -267,8 +268,19 @@ class SUEWSCheckpoint:
         if self.checkpoint_schema_version == LEGACY_CHECKPOINT_SCHEMA_VERSION:
             raise ValueError(
                 "Checkpoint schema version 1 has no elapsed timer metadata. "
-                "Rerun the preceding segment with checkpoint schema version 2 "
+                "Rerun the preceding segment with checkpoint schema version 3 "
                 "before continuing."
+            )
+        if (
+            self.checkpoint_schema_version
+            == LEGACY_DAILYSTATE_CHECKPOINT_SCHEMA_VERSION
+        ):
+            raise ValueError(
+                "Checkpoint schema version 2 used the legacy [D 00:00, D 23:55] "
+                "DailyState accumulation window and cannot resume cleanly across "
+                "the right-closed (D 00:00, D+1 00:00] boundary. Rerun the "
+                "preceding segment with checkpoint schema version 3 before "
+                "continuing."
             )
         if self.checkpoint_schema_version != CURRENT_CHECKPOINT_SCHEMA_VERSION:
             raise ValueError(

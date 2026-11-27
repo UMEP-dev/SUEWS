@@ -446,10 +446,11 @@ def _resample_output(
     the period's label. See the "Timestamp convention" page of the
     documentation (``timestamp_convention``).
 
-    Note that the Fortran kernel still accumulates ``DailyState`` over the
-    calendar-day steps ``00:00`` to ``23:55`` (at a 5-minute timestep) and
-    emits each day's values on its final step (``23:55``); resampling places
-    that record in the ``(t - freq, t]`` bin ending at ``D+1 00:00``.
+    The Fortran kernel also accumulates ``DailyState`` over each right-closed
+    day ``(D 00:00, D+1 00:00]`` (for example, ``00:05`` to ``D+1 00:00`` at a
+    5-minute timestep) and emits day ``D``'s record directly on ``D+1 00:00``,
+    so native model-timestep output and every coarser resample share the same
+    right-labelled alignment.
 
     Examples
     --------

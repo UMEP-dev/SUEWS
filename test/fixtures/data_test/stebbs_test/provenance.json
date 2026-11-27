@@ -1,9 +1,9 @@
 {
-  "source_ref": "da78796e4f5143a9c7c432c1effbb10aa1e04de3",
-  "source_commit": "da78796e4f5143a9c7c432c1effbb10aa1e04de3",
-  "source_tree": "598d5249d6517b1f171dad05f26958ea4f049b09",
+  "source_ref": "309c6107f6e9ad9a17f75589e1a07d352e8d5405",
+  "source_commit": "309c6107f6e9ad9a17f75589e1a07d352e8d5405",
+  "source_tree": "f12de8e138369fc6e833ad6567a33a0c588946fd",
   "generator": "scripts/suews/gen_stebbs_output.py",
-  "generated_date": "2026-11-24",
+  "generated_date": "2026-11-27",
   "platform": "Linux x86_64",
   "compiler": "GNU Fortran (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11)",
   "python": "3.12.12",
@@ -16,6 +16,6 @@
   "files": {
     "sample_config.yml": "2bb709002e9dcf1c657d14ca8333ac8301b144267ce2e2f31da6949ace873bc3",
     "test_2017_data_15_mp.txt": "c3632f3329acc0391ebb8e605a106dd457540bd15a93a3524ae1156506257106",
-    "sample_output_stebbs.csv": "e98a2dd854f993033881b9c83bcdc853369d9c6da8e3c2f4751725fc8b6c30bc"
+    "sample_output_stebbs.csv": "41c109610ad15d8fc8782ac1b89767ee344caa9a39546d4330fb5ea527ba74b9"
   }
 }

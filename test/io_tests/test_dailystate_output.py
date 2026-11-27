@@ -842,3 +842,169 @@ class TestDailyStateOutput:
 
         with pytest.raises(RuntimeError, match="code 105"):
             sim.run(_validate_forcing=False)
+
+    def test_dailystate_grass_albedo_falls_as_lai_rises(
+        self, sample_dailystate_full_year, sample_data_loaded
+    ):
+        """Grass albedo moves against grass LAI; tree albedo moves with tree LAI.
+
+        Grass has the reversed LAI-albedo relationship (gh#1134): a denser
+        canopy replaces the bright soil/litter background, so albedo falls as
+        LAI rises and climbs back as the sward senesces. The data model
+        encodes this in ``alb_min`` (full-leaf) / ``alb_max`` (sparse), and the
+        Python phenology initialiser already follows it; this pins the Fortran
+        daily-state update to the same convention. Deciduous trees keep the
+        direct relationship (leaf-on brighter than bare wood) as a guard that
+        only the grass branch was reversed.
+
+        Days where the albedo is already pinned at a bound are excluded from
+        the direction check, because the clamp legitimately reports no change
+        there. The sample starts the year with grass albedo at ``alb_min``, so
+        its spring greening is entirely clamped; the autumn senescence days
+        and the full-leaf versus dormant comparison carry the grass check.
+        """
+        df_state_init, _ = sample_data_loaded
+        df_dailystate = sample_dailystate_full_year
+
+        eps = 1e-9
+
+        def _direction_check(lai, alb, alb_min, alb_max, *, reversed_relation):
+            d_lai = lai.diff()
+            d_alb = alb.diff()
+            alb_prev = alb.shift()
+
+            # Albedo must stay inside its configured range.
+            assert (alb >= alb_min - eps).all()
+            assert (alb <= alb_max + eps).all()
+
+            room_to_fall = alb_prev > alb_min + eps
+            room_to_rise = alb_prev < alb_max - eps
+            if reversed_relation:
+                greening = (d_lai > 0) & room_to_fall
+                browning = (d_lai < 0) & room_to_rise
+                assert greening.any() or browning.any(), "no unclamped LAI-change day"
+                assert (d_alb[greening] < 0).all(), "albedo must fall as LAI rises"
+                assert (d_alb[browning] > 0).all(), "albedo must rise as LAI falls"
+            else:
+                greening = (d_lai > 0) & room_to_rise
+                browning = (d_lai < 0) & room_to_fall
+                assert greening.any() or browning.any(), "no unclamped LAI-change day"
+                assert (d_alb[greening] > 0).all(), "albedo must rise as LAI rises"
+                assert (d_alb[browning] < 0).all(), "albedo must fall as LAI falls"
+
+        alb_min_grass = float(df_state_init[("albmin_grass", "0")].iloc[0])
+        alb_max_grass = float(df_state_init[("albmax_grass", "0")].iloc[0])
+        assert alb_max_grass > alb_min_grass, "sample grass albedo range is degenerate"
+        _direction_check(
+            df_dailystate["LAI_Grass"],
+            df_dailystate["AlbGrass"],
+            alb_min_grass,
+            alb_max_grass,
+            reversed_relation=True,
+        )
+
+        # Full-leaf grass is darker than post-senescence dormant grass.
+        # (The packaged sample starts 1 Jan at alb_min with LAI at lai_min, so
+        # compare peak leaf against the autumn/winter minimum after the peak.)
+        lai_grass = df_dailystate["LAI_Grass"]
+        alb_grass = df_dailystate["AlbGrass"]
+        peak_day = lai_grass.idxmax()
+        post_peak_dormant_day = lai_grass.loc[peak_day:].idxmin()
+        assert alb_grass[peak_day] < alb_grass[post_peak_dormant_day]
+
+        alb_min_dectr = float(df_state_init[("albmin_dectr", "0")].iloc[0])
+        alb_max_dectr = float(df_state_init[("albmax_dectr", "0")].iloc[0])
+        _direction_check(
+            df_dailystate["LAI_DecTr"],
+            df_dailystate["AlbDecTr"],
+            alb_min_dectr,
+            alb_max_dectr,
+            reversed_relation=False,
+        )
+
+    def test_dailystate_grass_albedo_exact_step_both_directions(
+        self, sample_data_loaded, sample_yaml_path
+    ):
+        """Unclamped grass albedo follows the reversed linear LAI step in both growth and senescence."""
+        _, df_forcing_base = sample_data_loaded
+
+        def _run_window(start_date: str, temp_c: float) -> pd.DataFrame:
+            cfg = sp.data_model.SUEWSConfig.from_yaml(str(sample_yaml_path))
+            _set_ref(cfg.model.physics, "roughness_sublayer_level", RSLLevel.NONE)
+            site = cfg.sites[0]
+            site.properties.lat.value = 51.5
+
+            for surf, alb_min, alb_max in (
+                ("grass", 0.18, 0.24),
+                ("dectr", 0.12, 0.18),
+            ):
+                lc = getattr(site.properties.land_cover, surf)
+                _set_ref(lc, "alb_min", alb_min)
+                _set_ref(lc, "alb_max", alb_max)
+                _set_ref(lc.lai, "base_temperature", 5.0)
+                _set_ref(lc.lai, "base_temperature_senescence", 20.0)
+                _set_ref(lc.lai, "gdd_base", 0.0)
+                _set_ref(lc.lai, "sdd_base", 0.0)
+                _set_ref(lc.lai, "lai_min", 0.5)
+                _set_ref(lc.lai, "lai_max", 5.5)
+
+                init = getattr(site.initial_states, surf)
+                _set_ref(init, "lai_id", 3.0)
+                _set_ref(init, "alb_id", 0.5 * (alb_min + alb_max))
+                _set_ref(init, "gdd_id", 0.0)
+                _set_ref(init, "sdd_id", 0.0)
+
+            df_win = _make_constant_temp_window(
+                df_forcing_base, start_date, n_days=4, temp_c=temp_c
+            )
+            sim = sp.SUEWSSimulation()
+            sim.update_config(cfg, auto_load_forcing=False)
+            sim.update_forcing(df_win)
+            out = sim.run(start_date=df_win.index[0], end_date=df_win.index[-1])
+            return out.df.loc[:, "DailyState"].dropna(how="all")
+
+        lai_span = 5.5 - 0.5
+        n_days = 4
+        expected_transitions = n_days - 1
+        checked_cols = ("LAI_Grass", "AlbGrass", "LAI_DecTr", "AlbDecTr")
+
+        for label, start_date, temp_c, lai_sign in (
+            ("growth", "2012-03-01", 20.0, 1.0),
+            ("senescence", "2012-10-01", 5.0, -1.0),
+        ):
+            ds = _run_window(start_date, temp_c=temp_c)
+            assert len(ds) == n_days, (
+                f"{label}: expected {n_days} daily records, got {len(ds)}"
+            )
+            for col in checked_cols:
+                assert np.isfinite(ds[col]).all(), (
+                    f"{label}: non-finite values in {col}"
+                )
+            d_lai_g = ds["LAI_Grass"].diff().dropna()
+            d_alb_g = ds["AlbGrass"].diff().dropna()
+            d_lai_d = ds["LAI_DecTr"].diff().dropna()
+            d_alb_d = ds["AlbDecTr"].diff().dropna()
+            for series in (d_lai_g, d_alb_g, d_lai_d, d_alb_d):
+                assert len(series) == expected_transitions
+            assert (lai_sign * d_lai_g > 0).all(), (
+                f"{label}: unexpected grass dLAI sign"
+            )
+            assert (lai_sign * d_alb_g < 0).all(), (
+                f"{label}: grass albedo must move opposite to LAI"
+            )
+            np.testing.assert_allclose(
+                d_alb_g.to_numpy(),
+                (0.18 - 0.24) * d_lai_g.to_numpy() / lai_span,
+                atol=1e-12,
+            )
+            assert (lai_sign * d_lai_d > 0).all(), (
+                f"{label}: unexpected DecTr dLAI sign"
+            )
+            assert (lai_sign * d_alb_d > 0).all(), (
+                f"{label}: DecTr albedo must move with LAI"
+            )
+            np.testing.assert_allclose(
+                d_alb_d.to_numpy(),
+                (0.18 - 0.12) * d_lai_d.to_numpy() / lai_span,
+                atol=1e-12,
+            )

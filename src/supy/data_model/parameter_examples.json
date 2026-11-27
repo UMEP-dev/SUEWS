@@ -1520,7 +1520,6 @@
       "sheet": "Drainage",
       "model": "StorageDrainParams",
       "field_map": {
-        "DrainageEq": "drain_eq",
         "DrainageCoef1": "drain_coef_1",
         "DrainageCoef2": "drain_coef_2"
       },

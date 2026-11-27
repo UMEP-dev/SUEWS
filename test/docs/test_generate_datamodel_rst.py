@@ -798,8 +798,8 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
     sheets = {example["source"]["sheet"] for example in examples}
 
     # ASSERT
-    assert len(index) == 88
-    assert len(examples) == 500
+    assert len(index) == 87
+    assert len(examples) == 483
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -816,6 +816,7 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
         "Water Storage",
     }
     assert len(get_parameter_examples("Conductance", "g_max")) == 3
+    assert get_parameter_examples("StorageDrainParams", "drain_eq") == []
     assert get_parameter_examples("SnowParams", "radiation_melt_factor") == []
     assert len(get_parameter_examples("SurfaceProperties", "soil_depth")) == 7
     assert len(get_parameter_examples("PavedProperties", "snowpack_limit")) == 1
@@ -975,6 +976,19 @@ def test_parameter_example_catalogue_excludes_unreferenced_database_records() ->
         ]
         == "J11"
     )
+    assert _by_record_id("StorageDrainParams", "drain_coef_2", 45240015)[
+        "selector"
+    ] == {"name": "drain_eq", "value": 3}
+    assert (
+        _by_record_id("StorageDrainParams", "drain_coef_2", 45240012)["reference"][
+            "docs_citation_key"
+        ]
+        == "J11"
+    )
+    assert _by_record_id("StorageDrainParams", "drain_coef_2", 45240012)[
+        "selector"
+    ] == {"name": "drain_eq", "value": 2}
+    assert get_parameter_examples("StorageDrainParams", "drain_eq") == []
     assert _by_record_id("GrassProperties", "wet_threshold", 45240063)[
         "value"
     ] == pytest.approx(1.9)

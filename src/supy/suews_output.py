@@ -17,6 +17,7 @@ import pandas as pd
 
 from ._filename import safe_filename_component
 from ._output_metadata import OutputUnits, prepare_output, with_daily_coverage
+from .constants import SEC_PER_HOUR
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -961,7 +962,7 @@ class SUEWSOutput:
 
         # Get defaults from config if available; resampled output defaults to
         # the interval it holds rather than the configured output frequency.
-        freq = freq_s if freq_s is not None else (held_s or 3600)
+        freq = freq_s if freq_s is not None else (held_s or SEC_PER_HOUR)
         site = ""
         output_config = None
         forcing_timestamp_reference = "local_standard_time"

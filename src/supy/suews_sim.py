@@ -51,6 +51,7 @@ from ._save import (
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
+from .constants import SEC_PER_HOUR
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
 from .data_model.core.model import OutputControl, check_stream_chunk
@@ -68,7 +69,7 @@ from .suews_output import (
 from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
-DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
+DEFAULT_OUTPUT_FREQ_SECONDS = SEC_PER_HOUR  # Default hourly output frequency
 DEFAULT_FORCING_FILE_PATTERNS = [
     "*.txt",
     "*.csv",

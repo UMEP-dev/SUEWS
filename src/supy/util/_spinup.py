@@ -131,9 +131,17 @@ def _assign_spinup_state(
             df_target.loc[:, var] = pheno_by_grid[_DECTR_GRID_IDX][var]
 
 
-def _resolve_forcing_cadence(index: pd.DatetimeIndex) -> pd.DateOffset:
-    """Validate that ``index`` is strictly increasing, unique, and regular."""
-    if not index.is_monotonic_increasing or not index.is_unique:
+def _resolve_forcing_cadence(
+    index: pd.DatetimeIndex,
+) -> tuple[pd.DateOffset, pd.Timedelta]:
+    """Validate that ``index`` is strictly increasing, unique, and fixed-step."""
+    if not index.is_monotonic_increasing or not index.is_unique or len(index) < 2:
+        raise ValueError(
+            "Spin-up forcing requires a regular, increasing DatetimeIndex."
+        )
+    diffs = index[1:] - index[:-1]
+    step = diffs[0]
+    if step <= pd.Timedelta(0) or not (diffs == step).all():
         raise ValueError(
             "Spin-up forcing requires a regular, increasing DatetimeIndex."
         )
@@ -143,13 +151,11 @@ def _resolve_forcing_cadence(index: pd.DatetimeIndex) -> pd.DateOffset:
         freq = (
             infer_freq_offset(index)
             if len(index) >= 3
-            else pd.tseries.frequencies.to_offset(index[1] - index[0])
+            else pd.tseries.frequencies.to_offset(step)
         )
     if freq is None:
-        raise ValueError(
-            "Spin-up forcing requires a regular, increasing DatetimeIndex."
-        )
-    return freq
+        freq = pd.tseries.frequencies.to_offset(step)
+    return freq, step
 
 
 def _parse_spinup_window(
@@ -212,24 +218,31 @@ def _prepare_spinup_forcing(
             "The forcing dataframe is shorter than one year, spin-up not possible!"
         )
 
-    freq = _resolve_forcing_cadence(df_forcing.index)
+    freq, step = _resolve_forcing_cadence(df_forcing.index)
 
-    needs_duplication = len_forcing < pd.Timedelta(days=365 * 2)
     latest = df_forcing.index[-1]
+    covered_span = latest - (df_forcing.index[0] - step)
+    needs_duplication = covered_span < pd.Timedelta(days=365 * 2)
     if needs_duplication:
         n_year = math.ceil(spinup_days_int / 365)
-        earliest = latest - (len(df_forcing) * n_year - 1) * freq
+        earliest = latest - (len(df_forcing) * n_year - 1) * step
     else:
         n_year = 1
         earliest = df_forcing.index[0]
 
-    if start_spinup < earliest:
-        available_span = max(pd.Timedelta(0), min(end_spinup, latest) - earliest)
+    # SUEWS forcing rows are interval-end timestamps covering (t - step, t].
+    earliest_interval_start = earliest - step
+    if start_spinup < earliest_interval_start:
+        available_span = max(
+            pd.Timedelta(0), min(end_spinup, latest) - earliest_interval_start
+        )
         raise ValueError(
             f"Insufficient pre-analysis forcing for spinup_days={spinup_days_int}: "
-            f"start_analysis={end_spinup} requires forcing from {start_spinup}, "
+            f"start_analysis={end_spinup} requires forcing covering "
+            f"({start_spinup}, {end_spinup}] (first row at {start_spinup + step}), "
             f"but earliest available forcing timestamp is {earliest} "
-            f"(available pre-analysis duration: {available_span})."
+            f"(interval start {earliest_interval_start}; "
+            f"available pre-analysis duration: {available_span})."
         )
     if end_spinup > latest:
         available_span = max(pd.Timedelta(0), latest - start_spinup)
@@ -238,6 +251,15 @@ def _prepare_spinup_forcing(
             f"start_analysis={end_spinup} requires forcing up to {end_spinup}, "
             f"but latest available forcing timestamp is {latest} "
             f"(available duration in spin-up window: {available_span})."
+        )
+    if (latest - end_spinup) % step != pd.Timedelta(0) or (
+        latest - start_spinup
+    ) % step != pd.Timedelta(0):
+        raise ValueError(
+            f"start_analysis={end_spinup} is not aligned with the forcing "
+            f"cadence ({step}): requested spin-up window "
+            f"({start_spinup}, {end_spinup}] does not fall on forcing interval "
+            f"boundaries (grid anchor {latest})."
         )
 
     # if df_forcing is longer than one year but shorter than two years
@@ -256,11 +278,16 @@ def _prepare_spinup_forcing(
     else:
         df_forcing_spinup = df_forcing
 
-    df_forcing_spinup = df_forcing_spinup.loc[start_spinup:end_spinup]
+    # Select rows strictly after start_spinup up to end_spinup so the
+    # interval-end rows cover (start_spinup, end_spinup] exactly.
+    df_forcing_spinup = df_forcing_spinup.loc[
+        (df_forcing_spinup.index > start_spinup)
+        & (df_forcing_spinup.index <= end_spinup)
+    ]
     if len(df_forcing_spinup) < 2:
         raise ValueError(
             f"Insufficient forcing records in spin-up window "
-            f"[{start_spinup}, {end_spinup}]: found {len(df_forcing_spinup)} "
+            f"({start_spinup}, {end_spinup}]: found {len(df_forcing_spinup)} "
             f"record(s), need at least 2."
         )
 
@@ -283,11 +310,13 @@ def get_spinup_state(
         Dataframe containing the initial state of the model.
     df_forcing : pd.DataFrame
         Dataframe containing the forcing data for the model. Must have a
-        regular, strictly increasing ``DatetimeIndex`` spanning at least one
-        year (its frequency is inferred from the timestamps if metadata is
-        absent) and covering the full requested spin-up window
-        ``[start_analysis - spinup_days, start_analysis]`` (after any
-        duplication applied to 1-to-2-year forcing).
+        regular, fixed-step, strictly increasing ``DatetimeIndex`` spanning at
+        least one year (its frequency is inferred from the timestamps if
+        metadata is absent). Under SUEWS interval-end timestamp semantics
+        ``(t - step, t]``, forcing (after any duplication applied to
+        1-to-2-year data) must cover the full requested spin-up interval
+        ``(start_analysis - spinup_days, start_analysis]`` with both bounds
+        aligned to the forcing cadence.
     start_analysis : str
         Start date of the analysis period in the format 'YYYY-MM-DD'.
     spinup_days : int, optional
@@ -306,11 +335,13 @@ def get_spinup_state(
     Raises
     ------
     ValueError
-        If ``df_forcing`` does not have a non-empty, regular, strictly
+        If ``df_forcing`` does not have a non-empty, fixed-step, strictly
         increasing ``DatetimeIndex`` without ``NaT``, spans less than one
-        year, or does not cover the full requested ``spinup_days`` window
-        ending at ``start_analysis``; or if ``spinup_days`` is not a positive
-        integer or ``start_analysis`` is invalid or timezone-mismatched.
+        year, does not cover the full requested ``spinup_days`` interval
+        ``(start_analysis - spinup_days, start_analysis]``, or is not aligned
+        to ``start_analysis``; or if ``spinup_days`` is not a positive integer,
+        ``start_analysis`` is invalid or timezone-mismatched, or fewer than two
+        forcing records fall in the spin-up window.
     RuntimeError
         If the spin-up simulation does not return a complete final checkpoint.
     """

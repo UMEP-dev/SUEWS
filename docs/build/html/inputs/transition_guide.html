@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-11-27T16:18:11+00:00" />
-    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.27.dev35 documentation</title>
+    <meta property="article:modified_time" content="2026-11-27T18:06:55+00:00" />
+    <title>4.8. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.11.27.dev40 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=5ac51b77"></script>
+    <script src="../_static/documentation_options.js?v=92196c1d"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,7 +61,7 @@
     <link rel="prev" title="4.7. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.27.dev35" />
+  <meta name="docsearch:version" content="2026.11.27.dev40" />
     <meta name="docbuild:last-update" content="2026-11-27"/>
   
     
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.27.dev35, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f4c33f4b71f5600cf68991842159d718c4196a6f" style="color: #31708f;">f4c33f4</a>).
+        (2026.11.27.dev40, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/adbc9679442bc03f35b32b400b050c66bd10a871" style="color: #31708f;">adbc967</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -157,8 +157,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev35 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev35 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev40 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev40 documentation - Home"/>
   
   
 </a></div>
@@ -876,15 +876,23 @@ combined legacy+schema upgrades) and <code class="docutils literal notranslate">
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.</p>
-<p>By default, <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> upgrades to the current schema.
-Among CalVer schemas, explicit <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> values are supported
-only for <code class="docutils literal notranslate"><span class="pre">2026.4</span></code> (from <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> or <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>), <code class="docutils literal notranslate"><span class="pre">2026.6.dev8</span></code>
-and later (from any older schema), and the current schema. Earlier
-historical labels such as <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>, <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> and <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code> to
-<code class="docutils literal notranslate"><span class="pre">2026.6.dev7</span></code> have no migration route from older schemas, and
-configurations cannot be migrated to an older schema. If you need a
-configuration for an older release without a migration route, use that
-release’s documentation and sample configuration.</p>
+<p>To upgrade an older YAML configuration to the current installed schema, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
+</pre></div>
+</div>
+<p>Omit <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> so the migrator targets the current installed schema
+(writing <code class="docutils literal notranslate"><span class="pre">site.migrated.yml</span></code> beside the original without modifying it; pass
+<code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> first to preview changes). Among CalVer schemas, explicit
+<code class="docutils literal notranslate"><span class="pre">--target-version</span></code> values are supported only for <code class="docutils literal notranslate"><span class="pre">2026.4</span></code> (from
+<code class="docutils literal notranslate"><span class="pre">2025.12</span></code> or <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>), <code class="docutils literal notranslate"><span class="pre">2026.6.dev8</span></code> and later (from any older schema),
+and the current schema. Pinning <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> to an older schema emits a
+warning and writes a historical schema file that may fail current validation or
+engine load; use it only when you deliberately need an archived schema shape.
+Earlier historical labels such as <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>, <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> and <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code> to
+<code class="docutils literal notranslate"><span class="pre">2026.6.dev7</span></code> have no migration route from older schemas, and configurations
+cannot be migrated to an older schema. If you need a configuration for an older
+release without a migration route, use that release’s documentation and sample
+configuration.</p>
 <p>The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in <a class="reference internal" href="../contributing/schema/schema_versioning.html#schema-version-history"><span class="std std-ref">Version History</span></a>.</p>
@@ -916,7 +924,7 @@ ignored by the model kernel.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> preserves existing user values unchanged and logs an
 advisory for sites using modelled LAI:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev23
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 </section>
@@ -940,7 +948,7 @@ YAML files carrying the ignored cross-facet keys
 still load with a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code> while stripping the dead cross-facet
 keys, and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> drops them cleanly with an explicit log
 entry:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev22
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 </section>
@@ -970,11 +978,11 @@ is removed.</p></li>
 required top-level and STEBBS physics switches from a single definition in
 <code class="docutils literal notranslate"><span class="pre">supy.data_model.core.model</span></code>.</p></li>
 </ul>
-<p>Existing YAML files remain structurally loadable. Upgrading to
+<p>Existing YAML files remain structurally loadable. Upgrading through
 <code class="docutils literal notranslate"><span class="pre">2026.6.dev21</span></code> preserves surface fractions and daylight-saving values
 unchanged and logs an advisory for any site with off-sum land-cover fractions
 or a half-specified daylight-saving window:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev21
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 </section>
@@ -995,10 +1003,10 @@ silently overwriting duplicate slots.</p>
 <p>Both layers now accept canonical strings <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code>..``”144”<code class="docutils literal notranslate"><span class="pre">,</span> <span class="pre">zero-padded</span>
 <span class="pre">ASCII-digit</span> <span class="pre">strings</span> <span class="pre">(such</span> <span class="pre">as</span> <span class="pre">``&quot;01&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;0144&quot;</span></code>), and plain integers
 <code class="docutils literal notranslate"><span class="pre">1</span></code>..``144``, normalising them to canonical <code class="docutils literal notranslate"><span class="pre">&quot;1&quot;</span></code>..``”144”`` strings while
-strictly rejecting malformed keys and canonical collisions. Upgrading to
+strictly rejecting malformed keys and canonical collisions. Upgrading through
 <code class="docutils literal notranslate"><span class="pre">2026.6.dev20</span></code> rewrites valid non-canonical 10-minute profile keys to
 canonical strings and reports any malformed or colliding keys explicitly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev20
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 </section>
@@ -1011,13 +1019,14 @@ tables, <code class="docutils literal notranslate"><span class="pre">df_state</s
 kernel (#2049). Earlier versions mapped <code class="docutils literal notranslate"><span class="pre">monday</span></code> to slot <code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">sunday</span></code>
 to slot <code class="docutils literal notranslate"><span class="pre">6</span></code>, shifting asymmetric weekday irrigation schedules by one day on
 <code class="docutils literal notranslate"><span class="pre">df_state</span></code> round-trips and legacy table conversions.</p>
-<p>Existing YAML files remain structurally valid. Upgrading to <code class="docutils literal notranslate"><span class="pre">2026.6.dev19</span></code>
-does not rotate or alter weekday keys automatically, because a YAML edited by
-hand may already carry the intended weekday names. Instead, migration logs an
-advisory whenever a site defines an asymmetric <code class="docutils literal notranslate"><span class="pre">daywat</span></code> or <code class="docutils literal notranslate"><span class="pre">daywatper</span></code>
-schedule so users who converted from legacy <code class="docutils literal notranslate"><span class="pre">SUEWS_Irrigation.txt</span></code> tables
-under an earlier schema can verify that each weekday holds the intended value:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev19
+<p>Existing YAML files remain structurally valid. Upgrading through
+<code class="docutils literal notranslate"><span class="pre">2026.6.dev19</span></code> does not rotate or alter weekday keys automatically, because a
+YAML edited by hand may already carry the intended weekday names. Instead,
+migration logs an advisory whenever a site defines an asymmetric <code class="docutils literal notranslate"><span class="pre">daywat</span></code> or
+<code class="docutils literal notranslate"><span class="pre">daywatper</span></code> schedule so users who converted from legacy
+<code class="docutils literal notranslate"><span class="pre">SUEWS_Irrigation.txt</span></code> tables under an earlier schema can verify that each
+weekday holds the intended value:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 </section>
@@ -1034,9 +1043,9 @@ with backward Euler conduction. Four companion optional controls are added under
 <p>Existing method-5 YAML files that omit <code class="docutils literal notranslate"><span class="pre">ehc_surface_coupling</span></code> remain valid
 and now run with implicit coupling. To retain the legacy explicit coupling and
 boundary treatment, set <code class="docutils literal notranslate"><span class="pre">model.physics.ehc_surface_coupling:</span> <span class="pre">explicit</span></code> (other
-storage heat methods ignore these fields). To migrate an older configuration
-explicitly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev18
+storage heat methods ignore these fields). To migrate an older configuration to
+the current installed schema:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 <p>See <a class="reference internal" href="../outputs/ehc.html"><span class="doc">EHC coupling and heat diagnostics</span></a> for boundary conditions, envelope initialisation, and
@@ -1050,15 +1059,15 @@ time (<code class="docutils literal notranslate"><span class="pre">sites[].prope
 require whole integers between <code class="docutils literal notranslate"><span class="pre">1</span></code> and <code class="docutils literal notranslate"><span class="pre">366</span></code>, or <code class="docutils literal notranslate"><span class="pre">null</span></code> / omission when
 disabled. Earlier versions declared float fields and could silently truncate
 fractional values or turn invalid native inputs into zero.</p>
-<p>Migrating to <code class="docutils literal notranslate"><span class="pre">2026.6.dev17</span></code> normalises exact whole-number floats such as
+<p>Migrating through <code class="docutils literal notranslate"><span class="pre">2026.6.dev17</span></code> normalises exact whole-number floats such as
 <code class="docutils literal notranslate"><span class="pre">86.0</span></code> to <code class="docutils literal notranslate"><span class="pre">86</span></code> (preserving reference metadata) and leaves <code class="docutils literal notranslate"><span class="pre">null</span></code>, empty
 mappings (<code class="docutils literal notranslate"><span class="pre">{}</span></code>), and reference-only mappings (<code class="docutils literal notranslate"><span class="pre">{ref:</span> <span class="pre">...}</span></code>) as disabled
 windows. Fractional values (such as <code class="docutils literal notranslate"><span class="pre">20.5</span></code>), explicit <code class="docutils literal notranslate"><span class="pre">0</span></code>, booleans,
 non-finite numbers, and integers outside <code class="docutils literal notranslate"><span class="pre">1..366</span></code> stop migration with the
 affected site and field path so you can choose the intended calendar day
 explicitly:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">suews schema migrate site.yml --target-version 2026.6.dev17 --dry-run</span>
-<span class="go">suews schema migrate site.yml --target-version 2026.6.dev17</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">suews schema migrate site.yml --dry-run</span>
+<span class="go">suews schema migrate site.yml</span>
 </pre></div>
 </div>
 </section>
@@ -1078,8 +1087,8 @@ the deciduous trees on grid 27. A finite scalar or a mapping such as
 reference. This example describes a particular initial condition. Choose
 the value for your own start date and vegetation. Water has no <code class="docutils literal notranslate"><span class="pre">sdd_id</span></code>.</p>
 <p>Keep a copy of the old input and check the migration before saving it:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">suews schema migrate site.yml --target-version 2026.6.dev16 --dry-run</span>
-<span class="go">suews schema migrate site.yml --target-version 2026.6.dev16</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">suews schema migrate site.yml --dry-run</span>
+<span class="go">suews schema migrate site.yml</span>
 </pre></div>
 </div>
 <p>The second command writes <code class="docutils literal notranslate"><span class="pre">site.migrated.yml</span></code> beside the original. An
@@ -1315,9 +1324,10 @@ For modelled configurations, run:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>new.yml<span class="w"> </span>--from<span class="w"> </span><span class="m">2026</span>.6.dev8
 </pre></div>
 </div>
-<p>Alternatively use <code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span></code> with target version
-<code class="docutils literal notranslate"><span class="pre">2026.6.dev9</span></code>. Inactive legacy observation blocks are removed with a logged
-reason. Current observation blocks are preserved. A second upgrade is a no-op.</p>
+<p>Alternatively run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span> <span class="pre">old.yml</span></code> to upgrade through
+<code class="docutils literal notranslate"><span class="pre">2026.6.dev9</span></code> to the current installed schema. Inactive legacy observation
+blocks are removed with a logged reason. Current observation blocks are
+preserved. A second upgrade is a no-op.</p>
 <p>Active legacy observations (method 1 or 2) are converted together with their
 <code class="docutils literal notranslate"><span class="pre">xsmd</span></code> forcing, by the same command with <code class="docutils literal notranslate"><span class="pre">--forcing</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>convert<span class="w"> </span>-i<span class="w"> </span>old.yml<span class="w"> </span>-o<span class="w"> </span>new/config.yml<span class="w"> </span><span class="se">\</span>
@@ -1681,14 +1691,21 @@ selected, use the new <code class="docutils literal notranslate"><span class="pr
 <li><p>New daylight-control and lighting/metabolism fields are available
 as optional additions — they default to sensible values if absent.</p></li>
 </ul>
-<p>Run:</p>
+<p>To apply these changes and continue through to the current installed schema,
+omit <code class="docutils literal notranslate"><span class="pre">--target-version</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml
+</pre></div>
+</div>
+<p>To stop at the historical <code class="docutils literal notranslate"><span class="pre">2026.4</span></code> schema (for example, to target SUEWS
+2026.4.3 from a <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> or <code class="docutils literal notranslate"><span class="pre">2026.1</span></code> file), pass <code class="docutils literal notranslate"><span class="pre">--target-version</span></code>
+explicitly:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 </pre></div>
 </div>
-<p>The migrator accepts <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> or <code class="docutils literal notranslate"><span class="pre">2026.1</span></code> and walks the chain to
-the <code class="docutils literal notranslate"><span class="pre">2026.4</span></code> schema. To upgrade further to the current schema, omit
-<code class="docutils literal notranslate"><span class="pre">--target-version</span></code> (see <a class="reference internal" href="#yaml-schema-migrations"><span class="std std-ref">YAML Schema Migrations</span></a> for supported
-explicit targets).</p>
+<p>Pinning an older <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> emits a warning and writes a historical
+schema file that may fail validation or engine load on newer SUEWS
+installations (see <a class="reference internal" href="#yaml-schema-migrations"><span class="std std-ref">YAML Schema Migrations</span></a> for supported explicit
+targets).</p>
 </section>
 <section id="upgrading-to-schema-2026-1-suews-2026-1-28">
 <h3><span class="section-number">4.8.5.24. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
@@ -1945,8 +1962,8 @@ these fields if a cold start is intended; use a complete checkpoint if
 continuation is intended. A configuration or a legacy DFState alone cannot
 restore the complete state and elapsed clock. Zero DFState placeholders remain
 supported for legacy fresh-run adapters; nonzero memory entries are rejected.</p>
-<p>To write an upgraded configuration explicitly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev13
+<p>To write an upgraded configuration to the current installed schema:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 <p>Unsigned YAML is treated as current input by the Python loader. For an older
@@ -1979,8 +1996,8 @@ than silently discarded. Remove these fields if a cold start is intended; use
 a complete checkpoint if continuation is intended. Legacy <code class="docutils literal notranslate"><span class="pre">DFState</span></code> adapters
 retain zero/cold-start placeholders and reject non-placeholder continuation
 values.</p>
-<p>To write an upgraded configuration explicitly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.6.dev14
+<p>To write an upgraded configuration to the current installed schema:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>site.yml
 </pre></div>
 </div>
 <p>Unsigned YAML is treated as current input by the Python loader. For an older
@@ -2135,8 +2152,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.27.dev35 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f4c33f4b71f5600cf68991842159d718c4196a6f">f4c33f4</a> |
+  <p>Version: 2026.11.27.dev40 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/adbc9679442bc03f35b32b400b050c66bd10a871">adbc967</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

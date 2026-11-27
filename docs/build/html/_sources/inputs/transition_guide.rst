@@ -217,15 +217,25 @@ schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.
 
-By default, ``suews schema migrate`` upgrades to the current schema.
-Among CalVer schemas, explicit ``--target-version`` values are supported
-only for ``2026.4`` (from ``2025.12`` or ``2026.1``), ``2026.6.dev8``
-and later (from any older schema), and the current schema. Earlier
-historical labels such as ``2026.1``, ``2026.5`` and ``2026.6.dev1`` to
-``2026.6.dev7`` have no migration route from older schemas, and
-configurations cannot be migrated to an older schema. If you need a
-configuration for an older release without a migration route, use that
-release's documentation and sample configuration.
+To upgrade an older YAML configuration to the current installed schema, run:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml
+
+Omit ``--target-version`` so the migrator targets the current installed schema
+(writing ``site.migrated.yml`` beside the original without modifying it; pass
+``--dry-run`` first to preview changes). Among CalVer schemas, explicit
+``--target-version`` values are supported only for ``2026.4`` (from
+``2025.12`` or ``2026.1``), ``2026.6.dev8`` and later (from any older schema),
+and the current schema. Pinning ``--target-version`` to an older schema emits a
+warning and writes a historical schema file that may fail current validation or
+engine load; use it only when you deliberately need an archived schema shape.
+Earlier historical labels such as ``2026.1``, ``2026.5`` and ``2026.6.dev1`` to
+``2026.6.dev7`` have no migration route from older schemas, and configurations
+cannot be migrated to an older schema. If you need a configuration for an older
+release without a migration route, use that release's documentation and sample
+configuration.
 
 The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
@@ -265,7 +275,7 @@ advisory for sites using modelled LAI:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev23
+   suews schema migrate site.yml
 
 .. _schema_dev22_building_layer_split:
 
@@ -293,7 +303,7 @@ entry:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev22
+   suews schema migrate site.yml
 
 .. _schema_dev21_land_cover_sum_and_dst:
 
@@ -324,14 +334,14 @@ pipeline and runtime engine handoff:
   required top-level and STEBBS physics switches from a single definition in
   ``supy.data_model.core.model``.
 
-Existing YAML files remain structurally loadable. Upgrading to
+Existing YAML files remain structurally loadable. Upgrading through
 ``2026.6.dev21`` preserves surface fractions and daylight-saving values
 unchanged and logs an advisory for any site with off-sum land-cover fractions
 or a half-specified daylight-saving window:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev21
+   suews schema migrate site.yml
 
 .. _schema_dev20_ten_minute_profile_keys:
 
@@ -354,13 +364,13 @@ silently overwriting duplicate slots.
 Both layers now accept canonical strings ``"1"``..``"144"``, zero-padded
 ASCII-digit strings (such as ``"01"`` or ``"0144"``), and plain integers
 ``1``..``144``, normalising them to canonical ``"1"``..``"144"`` strings while
-strictly rejecting malformed keys and canonical collisions. Upgrading to
+strictly rejecting malformed keys and canonical collisions. Upgrading through
 ``2026.6.dev20`` rewrites valid non-canonical 10-minute profile keys to
 canonical strings and reports any malformed or colliding keys explicitly:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev20
+   suews schema migrate site.yml
 
 .. _schema_dev19_irrigation_weekdays:
 
@@ -375,16 +385,17 @@ kernel (#2049). Earlier versions mapped ``monday`` to slot ``0`` and ``sunday``
 to slot ``6``, shifting asymmetric weekday irrigation schedules by one day on
 ``df_state`` round-trips and legacy table conversions.
 
-Existing YAML files remain structurally valid. Upgrading to ``2026.6.dev19``
-does not rotate or alter weekday keys automatically, because a YAML edited by
-hand may already carry the intended weekday names. Instead, migration logs an
-advisory whenever a site defines an asymmetric ``daywat`` or ``daywatper``
-schedule so users who converted from legacy ``SUEWS_Irrigation.txt`` tables
-under an earlier schema can verify that each weekday holds the intended value:
+Existing YAML files remain structurally valid. Upgrading through
+``2026.6.dev19`` does not rotate or alter weekday keys automatically, because a
+YAML edited by hand may already carry the intended weekday names. Instead,
+migration logs an advisory whenever a site defines an asymmetric ``daywat`` or
+``daywatper`` schedule so users who converted from legacy
+``SUEWS_Irrigation.txt`` tables under an earlier schema can verify that each
+weekday holds the intended value:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev19
+   suews schema migrate site.yml
 
 .. _schema_dev18_ehc_implicit:
 
@@ -403,12 +414,12 @@ with backward Euler conduction. Four companion optional controls are added under
 Existing method-5 YAML files that omit ``ehc_surface_coupling`` remain valid
 and now run with implicit coupling. To retain the legacy explicit coupling and
 boundary treatment, set ``model.physics.ehc_surface_coupling: explicit`` (other
-storage heat methods ignore these fields). To migrate an older configuration
-explicitly:
+storage heat methods ignore these fields). To migrate an older configuration to
+the current installed schema:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev18
+   suews schema migrate site.yml
 
 See :doc:`../outputs/ehc` for boundary conditions, envelope initialisation, and
 the seven diagnostics appended in output contract ``2.1.0``.
@@ -425,7 +436,7 @@ require whole integers between ``1`` and ``366``, or ``null`` / omission when
 disabled. Earlier versions declared float fields and could silently truncate
 fractional values or turn invalid native inputs into zero.
 
-Migrating to ``2026.6.dev17`` normalises exact whole-number floats such as
+Migrating through ``2026.6.dev17`` normalises exact whole-number floats such as
 ``86.0`` to ``86`` (preserving reference metadata) and leaves ``null``, empty
 mappings (``{}``), and reference-only mappings (``{ref: ...}``) as disabled
 windows. Fractional values (such as ``20.5``), explicit ``0``, booleans,
@@ -435,8 +446,8 @@ explicitly:
 
 .. code-block:: console
 
-   suews schema migrate site.yml --target-version 2026.6.dev17 --dry-run
-   suews schema migrate site.yml --target-version 2026.6.dev17
+   suews schema migrate site.yml --dry-run
+   suews schema migrate site.yml
 
 .. _schema_dev16_vegetation_senescence:
 
@@ -462,8 +473,8 @@ Keep a copy of the old input and check the migration before saving it:
 
 .. code-block:: console
 
-   suews schema migrate site.yml --target-version 2026.6.dev16 --dry-run
-   suews schema migrate site.yml --target-version 2026.6.dev16
+   suews schema migrate site.yml --dry-run
+   suews schema migrate site.yml
 
 The second command writes ``site.migrated.yml`` beside the original. An
 invalid value stops both commands. Correct the named field in a working
@@ -747,9 +758,10 @@ For modelled configurations, run:
 
    suews convert -i old.yml -o new.yml --from 2026.6.dev8
 
-Alternatively use ``suews-schema migrate`` with target version
-``2026.6.dev9``. Inactive legacy observation blocks are removed with a logged
-reason. Current observation blocks are preserved. A second upgrade is a no-op.
+Alternatively run ``suews schema migrate old.yml`` to upgrade through
+``2026.6.dev9`` to the current installed schema. Inactive legacy observation
+blocks are removed with a logged reason. Current observation blocks are
+preserved. A second upgrade is a no-op.
 
 Active legacy observations (method 1 or 2) are converted together with their
 ``xsmd`` forcing, by the same command with ``--forcing``:
@@ -1146,16 +1158,25 @@ the following deltas:
 - New daylight-control and lighting/metabolism fields are available
   as optional additions — they default to sensible values if absent.
 
-Run:
+To apply these changes and continue through to the current installed schema,
+omit ``--target-version``:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
+To stop at the historical ``2026.4`` schema (for example, to target SUEWS
+2026.4.3 from a ``2025.12`` or ``2026.1`` file), pass ``--target-version``
+explicitly:
 
 .. code-block:: bash
 
    suews schema migrate your_config.yml --target-version 2026.4
 
-The migrator accepts ``2025.12`` or ``2026.1`` and walks the chain to
-the ``2026.4`` schema. To upgrade further to the current schema, omit
-``--target-version`` (see :ref:`yaml_schema_migrations` for supported
-explicit targets).
+Pinning an older ``--target-version`` emits a warning and writes a historical
+schema file that may fail validation or engine load on newer SUEWS
+installations (see :ref:`yaml_schema_migrations` for supported explicit
+targets).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1438,11 +1459,11 @@ continuation is intended. A configuration or a legacy DFState alone cannot
 restore the complete state and elapsed clock. Zero DFState placeholders remain
 supported for legacy fresh-run adapters; nonzero memory entries are rejected.
 
-To write an upgraded configuration explicitly:
+To write an upgraded configuration to the current installed schema:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev13
+   suews schema migrate site.yml
 
 Unsigned YAML is treated as current input by the Python loader. For an older
 unsigned file, use ``suews convert --from <known-source-version> -i old.yml
@@ -1479,11 +1500,11 @@ a complete checkpoint if continuation is intended. Legacy ``DFState`` adapters
 retain zero/cold-start placeholders and reject non-placeholder continuation
 values.
 
-To write an upgraded configuration explicitly:
+To write an upgraded configuration to the current installed schema:
 
 .. code-block:: bash
 
-   suews schema migrate site.yml --target-version 2026.6.dev14
+   suews schema migrate site.yml
 
 Unsigned YAML is treated as current input by the Python loader. For an older
 unsigned file, run ``suews convert --from <known-source-version> -i old.yml

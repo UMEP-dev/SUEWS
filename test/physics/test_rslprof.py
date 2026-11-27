@@ -267,7 +267,8 @@ def test_forced_rsl_low_canopy_uses_consistent_zh_floor(canopy_height):
     """Regression test for GH#1883: RSL_cal_prms and RSLProfile share the 2 m zH floor."""
     df_state_init, df_forcing = load_sample_frames()
     df_state = df_state_init.iloc[[0]].copy()
-    df_forcing_short = df_forcing.iloc[:4]
+    # Summer daytime slice so QH and QE are both active for scalar profile checks.
+    df_forcing_short = df_forcing.loc["2012-07-01 09:05:00":"2012-07-01 11:00:00"].copy()
 
     df_state.loc[:, ("rslmethod", "0")] = 1
     df_state.loc[:, ("bldgh", "0")] = canopy_height
@@ -275,6 +276,16 @@ def test_forced_rsl_low_canopy_uses_consistent_zh_floor(canopy_height):
     df_state.loc[:, ("dectreeh", "0")] = canopy_height
 
     df_output, _ = run_simulation(df_forcing_short, df_state)
+    fluxes = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "SUEWS",
+        ["QH", "QE"],
+    )
+    assert np.max(np.abs(fluxes[:, 0])) > 10.0
+    assert np.max(np.abs(fluxes[:, 1])) > 1.0
+
     diag = _required_output(
         df_output,
         df_state,
@@ -301,8 +312,57 @@ def test_forced_rsl_low_canopy_uses_consistent_zh_floor(canopy_height):
         "RSL",
         [f"U_{i}" for i in PROFILE_LEVELS],
     )
+    t_profile = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        [f"T_{i}" for i in PROFILE_LEVELS],
+    )
+    q_profile = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        [f"q_{i}" for i in PROFILE_LEVELS],
+    )
     assert (np.diff(z_profile, axis=1) > 0).all()
     assert (u_profile >= 0).all()
     # Within the canopy (levels 1..20), wind must decay downward rather than
     # jumping above U_20 due to zarray(z) > zH_RSL.
     assert (np.diff(u_profile[:, :20], axis=1) >= 0).all()
+    # Forcing-height boundary condition: level 30 equals forcing air temperature,
+    # and specific humidity stays positive throughout the profile.
+    np.testing.assert_allclose(
+        t_profile[:, -1], df_forcing_short["Tair"].to_numpy(dtype=float), rtol=0, atol=1e-9
+    )
+    assert (q_profile > 0.0).all()
+    # In-canopy scalar profiles must approach level 20 smoothly without a
+    # positive-exponent canopy-top jump (|T_19 - T_20| << |T_1 - T_20|).
+    t_can_delta = np.abs(t_profile[:, :20] - t_profile[:, 19:20])
+    q_can_delta = np.abs(q_profile[:, :20] - q_profile[:, 19:20])
+    assert (np.diff(t_can_delta, axis=1) <= 1e-12).all()
+    assert (np.diff(q_can_delta, axis=1) <= 1e-12).all()
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("forcing_height", [1.1, 2.0])
+def test_forced_rsl_rejects_forcing_height_not_above_zh_floor(forcing_height):
+    """Forced RSL must fail with code 114 when zMeas <= ZH_MIN (2 m) instead of NaN."""
+    df_state_init, df_forcing = load_sample_frames()
+    df_state = df_state_init.iloc[[0]].copy()
+    df_forcing_short = df_forcing.iloc[:2]
+
+    df_state.loc[:, ("rslmethod", "0")] = 1
+    df_state.loc[:, ("bldgh", "0")] = 0.5
+    df_state.loc[:, ("evetreeh", "0")] = 0.5
+    df_state.loc[:, ("dectreeh", "0")] = 0.5
+    df_state.loc[:, ("z", "0")] = forcing_height
+    df_state.loc[:, ("zdm_in", "0")] = 0.3
+    df_state.loc[:, ("z0m_in", "0")] = 0.05
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"code 114.*RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL",
+    ):
+        run_simulation(df_forcing_short, df_state)

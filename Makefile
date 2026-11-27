@@ -220,7 +220,7 @@ TEST_DEFAULT_PATHS := test/test_api_surface.py test/core test/data_model test/ph
 # full-year DailyState tests materialises its own year of output (about 1 GB);
 # raise it on a machine with memory to spare: make test TEST_JOBS=8
 TEST_JOBS ?= 4
-test: lint-fortran-constants
+test: lint-fortran-constants lint-python-constants
 	@echo "Running everyday development tests (core, data model, physics, I/O)..."
 	@echo "NOTE: slow regressions and peripheral surfaces (cmd, mcp, docs,"
 	@echo "      knowledge, umep) are excluded - run 'make test-all' or the"
@@ -349,6 +349,9 @@ test-rss-growth:
 test-rss-growth-contract:
 	$(PYTHON) -m pytest test/core/test_rss_growth.py -q
 
-.PHONY: lint-fortran-constants
+.PHONY: lint-fortran-constants lint-python-constants
 lint-fortran-constants:
 	$(PYTHON) scripts/lint/check_fortran_literals.py
+
+lint-python-constants:
+	$(PYTHON) scripts/lint/check_python_literals.py

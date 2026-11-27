@@ -9,18 +9,82 @@ caller.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections import deque
+from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
-from dataclasses import dataclass
-from types import MappingProxyType
+from dataclasses import dataclass, fields as dc_fields, is_dataclass
+import datetime
+from decimal import Decimal
+from enum import Enum
+from fractions import Fraction
+import ipaddress
+from pathlib import PurePath
+import re
+from types import (
+    BuiltinFunctionType,
+    FunctionType,
+    MappingProxyType,
+    MethodDescriptorType,
+)
 from typing import Any
+from uuid import UUID
 import weakref
 
 import numpy as np
 from pydantic import BaseModel
+from pydantic_core import PydanticUndefinedType
 
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
 _PROXY_STATE: dict[int, tuple[BaseModel, dict[str, Any]]] = {}
+_DATACLASS_STATE: dict[int, tuple[Any, dict[str, Any]]] = {}
+
+_IMMUTABLE_TYPES = (
+    type(None),
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+    range,
+    slice,
+    type,
+    Enum,
+    Decimal,
+    Fraction,
+    UUID,
+    PurePath,
+    datetime.datetime,
+    datetime.date,
+    datetime.time,
+    datetime.timedelta,
+    datetime.tzinfo,
+    re.Pattern,
+    ipaddress.IPv4Address,
+    ipaddress.IPv6Address,
+    ipaddress.IPv4Network,
+    ipaddress.IPv6Network,
+    ipaddress.IPv4Interface,
+    ipaddress.IPv6Interface,
+    PydanticUndefinedType,
+    np.generic,
+    FunctionType,
+    BuiltinFunctionType,
+    MethodDescriptorType,
+)
+
+
+@dataclass(frozen=True)
+class _FrozenArraySpec:
+    """Immutable byte-backed specification materialised as fresh read-only views."""
+
+    buf: bytes
+    dtype: np.dtype[Any]
+    shape: tuple[int, ...]
+
+    def materialise(self) -> np.ndarray[Any, Any]:
+        """Return a fresh zero-copy read-only NumPy view over immutable bytes."""
+        return np.frombuffer(self.buf, dtype=self.dtype).reshape(self.shape)
 
 
 @dataclass(frozen=True)
@@ -39,46 +103,175 @@ class ReadOnlyFieldInfo:
     json_schema_extra: Any
 
 
-def _freeze_ndarray(value: np.ndarray) -> Any:
-    """Wrap *value* using immutable backing storage so ``setflags(write=True)`` fails."""
+class ReadOnlyDataclassProxy:
+    """Deeply immutable attribute-access proxy over a Python dataclass instance."""
+
+    __slots__ = ("__weakref__",)
+    __hash__ = None  # type: ignore[assignment]
+
+    def __init__(self, instance: Any, *, _detached: bool = False) -> None:
+        if not is_dataclass(instance) or isinstance(instance, type):
+            raise TypeError(
+                f"ReadOnlyDataclassProxy requires a dataclass instance, got {type(instance).__name__}"
+            )
+        snapshot = instance if _detached else deepcopy(instance)
+        key = id(self)
+        _DATACLASS_STATE[key] = (snapshot, {})
+        weakref.finalize(self, _DATACLASS_STATE.pop, key, None)
+
+    @classmethod
+    def _from_detached(cls, detached_instance: Any) -> ReadOnlyDataclassProxy:
+        """Wrap an already-detached dataclass snapshot without re-copying."""
+        return cls(detached_instance, _detached=True)
+
+    @property
+    def dataclass_type(self) -> type[Any]:
+        """Underlying dataclass type."""
+        return type(_DATACLASS_STATE[id(self)][0])
+
+    def __getattr__(self, name: str) -> Any:
+        """Resolve declared dataclass fields and read-only properties."""
+        if name.startswith("_"):
+            raise AttributeError(
+                f"Read-only dataclass view {self.dataclass_type.__name__!r} "
+                f"does not expose private attribute {name!r}"
+            )
+        target, cache = _DATACLASS_STATE[id(self)]
+        if name in cache:
+            return _materialise_readonly(cache[name])
+
+        dc_type = type(target)
+        field_names = {field.name for field in dc_fields(dc_type)}
+        if name in field_names:
+            wrapped = _wrap_readonly(getattr(target, name))
+            cache[name] = wrapped
+            return _materialise_readonly(wrapped)
+
+        for cls_in_mro in dc_type.__mro__:
+            if name in cls_in_mro.__dict__:
+                if isinstance(cls_in_mro.__dict__[name], property):
+                    wrapped = _wrap_readonly(getattr(target, name))
+                    cache[name] = wrapped
+                    return _materialise_readonly(wrapped)
+                break
+
+        raise AttributeError(
+            f"Read-only dataclass view {dc_type.__name__!r} has no readable attribute {name!r}"
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Reject every attribute assignment on the read-only dataclass proxy."""
+        raise TypeError(
+            f"Cannot mutate attribute {name!r} on read-only dataclass view "
+            f"{self.dataclass_type.__name__!r}"
+        )
+
+    def __delattr__(self, name: str) -> None:
+        """Reject every attribute deletion on the read-only dataclass proxy."""
+        raise TypeError(
+            f"Cannot delete attribute {name!r} on read-only dataclass view "
+            f"{self.dataclass_type.__name__!r}"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        """Compare underlying dataclass equality against another proxy or instance."""
+        target = _DATACLASS_STATE[id(self)][0]
+        if isinstance(other, ReadOnlyDataclassProxy):
+            return bool(target == _DATACLASS_STATE[id(other)][0])
+        if is_dataclass(other) and not isinstance(other, type):
+            return bool(target == other)
+        return NotImplemented
+
+    def __repr__(self) -> str:
+        """Return a readable representation of the wrapped dataclass."""
+        return f"ReadOnlyDataclassProxy({_DATACLASS_STATE[id(self)][0]!r})"
+
+
+def _freeze_ndarray_spec(value: np.ndarray[Any, Any]) -> Any:
+    """Wrap *value* using immutable backing storage or frozen nested tuples."""
     if value.dtype.hasobject:
         if value.ndim == 0:
             return _wrap_readonly(deepcopy(value.item()))
         return _wrap_readonly(deepcopy(value.tolist()))
-    buf = value.tobytes()
-    arr = np.frombuffer(buf, dtype=value.dtype).reshape(value.shape)
-    return arr
+    return _FrozenArraySpec(
+        buf=value.tobytes(),
+        dtype=value.dtype,
+        shape=value.shape,
+    )
+
+
+def _contains_array_spec(value: Any) -> bool:
+    """Return True if *value* is or contains a :class:`_FrozenArraySpec`."""
+    if isinstance(value, _FrozenArraySpec):
+        return True
+    if isinstance(value, Mapping):
+        return any(_contains_array_spec(v) for v in value.values())
+    if isinstance(value, (tuple, frozenset)):
+        return any(_contains_array_spec(item) for item in value)
+    return False
+
+
+def _materialise_readonly(value: Any) -> Any:
+    """Materialise any :class:`_FrozenArraySpec` into fresh zero-copy read-only views."""
+    if isinstance(value, _FrozenArraySpec):
+        return value.materialise()
+    if not _contains_array_spec(value):
+        return value
+    if isinstance(value, Mapping):
+        return MappingProxyType({k: _materialise_readonly(v) for k, v in value.items()})
+    if isinstance(value, tuple):
+        return tuple(_materialise_readonly(item) for item in value)
+    return value
+
+
+def _wrap_container_or_object(value: Any) -> Any:
+    """Wrap containers, dataclasses, NumPy arrays, or reject unsupported mutable objects."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({k: _wrap_readonly(v) for k, v in value.items()})
+    if isinstance(value, (list, tuple, deque, Sequence)):
+        return tuple(_wrap_readonly(item) for item in value)
+    if isinstance(value, (set, frozenset, AbstractSet)):
+        return frozenset(_wrap_readonly(item) for item in value)
+    if isinstance(value, np.ndarray):
+        return _freeze_ndarray_spec(value)
+    if is_dataclass(value) and not isinstance(value, type):
+        return ReadOnlyDataclassProxy._from_detached(value)
+    raise TypeError(
+        f"ReadOnlyModelProxy cannot safely freeze mutable object of type {type(value).__name__!r}"
+    )
 
 
 def _wrap_readonly(value: Any) -> Any:
     """Recursively wrap a detached Pydantic/Python value as read-only."""
-    result: Any = value
-    if isinstance(value, ReadOnlyModelProxy):
-        result = value
-    elif isinstance(value, BaseModel):
-        result = ReadOnlyModelProxy._from_detached(value)
-    elif isinstance(value, Mapping):
-        result = MappingProxyType({k: _wrap_readonly(v) for k, v in value.items()})
-    elif isinstance(value, (list, tuple)):
-        result = tuple(_wrap_readonly(item) for item in value)
-    elif isinstance(value, (set, frozenset)):
-        result = frozenset(_wrap_readonly(item) for item in value)
-    elif isinstance(value, (bytearray, memoryview)):
-        result = bytes(value)
-    elif isinstance(value, np.ndarray):
-        result = _freeze_ndarray(value)
-    return result
+    if isinstance(
+        value,
+        (
+            ReadOnlyModelProxy,
+            ReadOnlyDataclassProxy,
+            _FrozenArraySpec,
+            *_IMMUTABLE_TYPES,
+        ),
+    ):
+        return value
+    if isinstance(value, (bytearray, memoryview)):
+        return bytes(value)
+    if isinstance(value, BaseModel):
+        return ReadOnlyModelProxy._from_detached(value)
+    return _wrap_container_or_object(value)
 
 
 def _freeze_field_metadata_value(value: Any) -> Any:
     """Safely snapshot and freeze arbitrary Pydantic field metadata values."""
-    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+    if isinstance(value, _IMMUTABLE_TYPES):
         return value
     try:
         copied = deepcopy(value)
     except (TypeError, ValueError):
         copied = value
-    return _wrap_readonly(copied)
+    try:
+        return _materialise_readonly(_wrap_readonly(copied))
+    except TypeError:
+        return repr(value)
 
 
 def _freeze_model_fields(model_cls: type[BaseModel]) -> Mapping[str, ReadOnlyFieldInfo]:
@@ -105,10 +298,13 @@ class ReadOnlyModelProxy:
 
     All attribute writes and deletions raise :class:`TypeError`. Nested
     ``BaseModel`` attributes are lazily wrapped in :class:`ReadOnlyModelProxy`,
-    mappings are exposed as :class:`~types.MappingProxyType`, lists as tuples,
-    sets as frozensets, and NumPy arrays as non-writeable views. Backing state
-    is held outside the proxy instance so private attribute access cannot leak
-    the underlying mutable model.
+    dataclasses in :class:`ReadOnlyDataclassProxy`, mappings in
+    :class:`~types.MappingProxyType`, sequences (including ``list`` and
+    ``deque``) as tuples, sets as frozensets, and NumPy arrays as fresh
+    zero-copy views backed by immutable ``bytes``. Unsupported mutable objects
+    are rejected explicitly with :class:`TypeError`. Backing state is held
+    outside the proxy instance so private attribute access cannot leak the
+    underlying mutable model.
     """
 
     __slots__ = ("__weakref__",)
@@ -171,14 +367,14 @@ class ReadOnlyModelProxy:
             )
         target, cache = _PROXY_STATE[id(self)]
         if name in cache:
-            return cache[name]
+            return _materialise_readonly(cache[name])
 
         model_cls = type(target)
 
         if name in model_cls.model_fields or name in model_cls.model_computed_fields:
             wrapped = _wrap_readonly(getattr(target, name))
             cache[name] = wrapped
-            return wrapped
+            return _materialise_readonly(wrapped)
 
         for cls_in_mro in model_cls.__mro__:
             if name in cls_in_mro.__dict__:
@@ -186,14 +382,14 @@ class ReadOnlyModelProxy:
                 if isinstance(descriptor, property):
                     wrapped = _wrap_readonly(getattr(target, name))
                     cache[name] = wrapped
-                    return wrapped
+                    return _materialise_readonly(wrapped)
                 break
 
         extra = getattr(target, "model_extra", None)
         if isinstance(extra, Mapping) and name in extra:
             wrapped = _wrap_readonly(extra[name])
             cache[name] = wrapped
-            return wrapped
+            return _materialise_readonly(wrapped)
 
         if name in _ALLOWED_READONLY_METHODS:
             return getattr(self, name)

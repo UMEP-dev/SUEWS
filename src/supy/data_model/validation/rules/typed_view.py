@@ -553,6 +553,9 @@ class SiteView:
         return out
 
 
+_UNSET_CONTROL: Any = object()
+
+
 @dataclass(frozen=True)
 class TypedConfigView:
     """Deeply immutable typed view over a full SUEWS YAML configuration."""
@@ -561,11 +564,22 @@ class TypedConfigView:
     physics: PhysicsView
     sites: tuple[SiteView, ...]
     site_structure_errors: tuple[tuple[int | None, str, str], ...] = ()
-    control: ControlView = ControlView()
+    control: ControlView = _UNSET_CONTROL
 
     def __post_init__(self) -> None:
-        """Deep-freeze the backing root configuration mapping."""
-        object.__setattr__(self, "raw", _freeze_mapping(self.raw))
+        """Deep-freeze the backing root mapping and derive ``control`` if omitted."""
+        frozen_raw = _freeze_mapping(self.raw)
+        object.__setattr__(self, "raw", frozen_raw)
+        if self.control is _UNSET_CONTROL:
+            model = frozen_raw.get("model")
+            control_raw = model.get("control") if isinstance(model, Mapping) else None
+            object.__setattr__(
+                self,
+                "control",
+                ControlView(
+                    control_raw if isinstance(control_raw, Mapping) else _EMPTY_MAPPING
+                ),
+            )
 
     @classmethod
     def from_mapping(cls, yaml_data: Any) -> TypedConfigView:

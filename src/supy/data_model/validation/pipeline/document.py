@@ -219,14 +219,11 @@ def _update_existing_entry(
 ) -> Any:
     """Update an existing bare, ``RefValue``, or ref-only entry preserving metadata."""
     copied = thaw_copy(new_value)
-    if original_style == "ref_only" and copied is None:
-        ref_source = (
-            existing.get("ref")
-            if isinstance(existing, Mapping) and "ref" in existing
-            else original_ref
-        )
-        if ref_source is not None:
-            return {"ref": thaw_copy(ref_source)}
+    if copied is None and (original_style == "ref_only" or is_ref_only(existing)):
+        if isinstance(existing, Mapping) and "ref" in existing:
+            return {"ref": thaw_copy(existing["ref"])}
+        if original_ref is not None:
+            return {"ref": thaw_copy(original_ref)}
     if isinstance(existing, dict) and (is_ref_wrapper(existing) or is_ref_only(existing)):
         existing["value"] = copied
         return existing
@@ -754,6 +751,8 @@ class ConfigPatch:
     original_raw: Any = _UNSET
     replace_raw: bool = False
     created_ancestor: tuple[tuple[PathToken, ...], bool] | None = None
+    write_style: WrapperStyle | None = None
+    write_ref: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Defensively copy mutable payloads and freeze ``original_ref`` metadata."""
@@ -761,6 +760,8 @@ class ConfigPatch:
         object.__setattr__(self, "old_value", _copy_payload(self.old_value))
         if self.original_ref is not None:
             object.__setattr__(self, "original_ref", deep_freeze(self.original_ref))
+        if self.write_ref is not None:
+            object.__setattr__(self, "write_ref", deep_freeze(self.write_ref))
         if self.path_tokens is not None and not isinstance(self.path_tokens, tuple):
             object.__setattr__(self, "path_tokens", tuple(self.path_tokens))
         if self.original_raw is not _UNSET:
@@ -796,14 +797,23 @@ def apply_patches_in_place(
             else tuple(parse_path_tokens(patch.path))
         )
         if patch.action == "set":
+            if patch.write_style is not None or patch.write_ref is not None:
+                eff_style = patch.write_style
+                eff_ref = patch.write_ref
+            elif patch.had_original is None:
+                eff_style = patch.original_style
+                eff_ref = patch.original_ref
+            else:
+                eff_style = None
+                eff_ref = None
             applied = write_tokens(
                 target,
                 tokens,
                 patch.new_value,
                 default_wrapped=patch.default_wrapped,
                 style_ledger=style_ledger,
-                original_style=patch.original_style,
-                original_ref=patch.original_ref,
+                original_style=eff_style,
+                original_ref=eff_ref,
                 replace_raw=patch.replace_raw,
             )
             if not applied:

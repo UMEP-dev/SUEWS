@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections import deque
 from copy import deepcopy
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, dataclass
 from importlib.resources import files
 import math
 from pathlib import Path
@@ -19,6 +20,7 @@ from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.validation.pipeline.document import (
     ConfigDocument,
     ConfigPatch,
+    MappingKey,
     PathStyle,
     StyleLedger,
     apply_nullify_tree_at_path,
@@ -56,6 +58,7 @@ from supy.data_model.validation.rules import (
     ControlView,
     LandCoverView,
     PhysicsView,
+    ReadOnlyDataclassProxy,
     ReadOnlyFieldInfo,
     ReadOnlyModelProxy,
     SiteView,
@@ -983,3 +986,158 @@ def test_patch_plan_normalised_reconciles_adjustments_with_surviving_patches() -
     assert norm_merge.adjustments[0].old_value == 1
     assert norm_merge.adjustments[0].new_value == 3
     assert norm_merge.adjustments[0].patches == tuple(norm_merge.patches)
+
+
+def test_coalescing_sibling_rollback_forward_write_style_and_ref_only_null() -> None:
+    """Coalescing preserves sibling rollback order, forward write style, and ref-only null agreement."""
+    # Interleaved sibling writes under an implicitly created ancestor invert without error.
+    interleaved = [
+        ConfigPatch("a.b", "set", 1, default_wrapped=False),
+        ConfigPatch("a.c", "set", 2, default_wrapped=False),
+        ConfigPatch("a.b", "set", 3, default_wrapped=False),
+    ]
+    norm_interleaved = normalise_patches(interleaved, {})
+    work: dict[str, object] = {}
+    apply_patches_in_place(work, norm_interleaved)
+    assert work == {"a": {"b": 3, "c": 2}}
+    apply_patches_in_place(work, invert_patches(norm_interleaved))
+    assert work == {}
+
+    # Normalisation records forward write_style/write_ref so replay matches with and without a ledger.
+    bare_insert = normalise_patches(
+        [ConfigPatch("a", "set", 2, original_style="bare")], {}
+    )
+    replayed_empty: dict[str, object] = {}
+    apply_patches_in_place(replayed_empty, bare_insert)
+    assert replayed_empty == {"a": 2}
+    apply_patches_in_place(replayed_empty, invert_patches(bare_insert))
+    assert replayed_empty == {}
+
+    ref_doc = ConfigDocument.from_dict(
+        {"a": {"value": 1, "ref": {"ID": "A1"}}}, normalise=False
+    )
+    uncoalesced = ref_doc.normalise_patches(
+        [ConfigPatch("a", "delete"), ConfigPatch("a", "set", 2)], coalesce=False
+    )
+    plan_no_ledger = PatchPlan(patches=uncoalesced)
+    replayed_dict = plan_no_ledger.apply_to_dict(ref_doc.data)
+    assert replayed_dict == {"a": {"value": 2, "ref": {"ID": "A1"}}}
+    replayed_doc = ref_doc.apply_patches(uncoalesced)
+    assert replayed_doc.data == replayed_dict
+
+    # Ref-only placeholder with explicit ref: None agrees between direct and normalised application.
+    ref_null_base = {"a": {"ref": None}}
+    direct_ref_null = deepcopy(ref_null_base)
+    apply_patches_in_place(direct_ref_null, [ConfigPatch("a", "set", None)])
+    norm_ref_null = normalise_patches([ConfigPatch("a", "set", None)], ref_null_base)
+    applied_ref_null = deepcopy(ref_null_base)
+    apply_patches_in_place(applied_ref_null, norm_ref_null)
+    assert direct_ref_null == applied_ref_null == {"a": {"ref": None}}
+
+
+def test_ledger_mapping_key_paths_and_typed_view_direct_construction() -> None:
+    """Ledger preserves wrapper/ref across delete/reinsert for int and punctuated keys; direct TypedConfigView keeps control."""
+    raw_profile = {
+        "profile": {
+            1: {"value": 7, "ref": {"ID": "int-key"}},
+            "1": {"value": 8, "ref": {"ID": "str-key"}},
+            "a.b": {"value": 9, "ref": {"ID": "dot-key"}},
+        }
+    }
+    doc = ConfigDocument.from_dict(raw_profile, normalise=False)
+    for key, expected_id, new_val in (
+        (1, "int-key", 17),
+        ("1", "str-key", 18),
+        ("a.b", "dot-key", 19),
+    ):
+        toks = ("profile", MappingKey(key)) if key != "1" else ("profile", "1")
+        path = format_path_tokens(toks)
+        patches = [
+            ConfigPatch(path, "delete", path_tokens=toks),
+            ConfigPatch(path, "set", new_val, path_tokens=toks),
+        ]
+        updated = doc.apply_patches(patches)
+        assert updated.data["profile"][key] == {
+            "value": new_val,
+            "ref": {"ID": expected_id},
+        }
+
+    # Direct three-argument TypedConfigView(raw, physics, sites) derives control from raw.
+    raw_cfg = {
+        "model": {
+            "control": {
+                "start_time": "2012-01-01",
+                "end_time": "2012-01-02",
+            },
+            "physics": {},
+        },
+        "sites": [],
+    }
+    direct_view = TypedConfigView(raw_cfg, PhysicsView(), ())
+    assert direct_view.start_time == "2012-01-01"
+    assert direct_view.end_time == "2012-01-02"
+    explicit_empty = TypedConfigView(raw_cfg, PhysicsView(), (), control=ControlView())
+    assert explicit_empty.start_time is None
+
+
+def test_readonly_proxy_freezes_deque_dataclass_array_metadata_and_rejects_unknown_mutable() -> (
+    None
+):
+    """Proxy freezes deque/dataclass fields, isolates NumPy view metadata, and rejects unfreezable objects."""
+
+    @dataclass
+    class _MutableDC:
+        items: list[int]
+        label: str
+
+    class _CustomMutable:
+        def __init__(self, val: int) -> None:
+            self.val = val
+
+        def bump(self) -> None:
+            self.val += 1
+
+    class _ComplexModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        queue: deque[int]
+        dc: _MutableDC
+        arr: np.ndarray
+        arrays: list[np.ndarray]
+        custom: _CustomMutable | None = None
+
+    m = _ComplexModel(
+        queue=deque([1, 2]),
+        dc=_MutableDC(items=[10, 20], label="ok"),
+        arr=np.array([1.0, 2.0, 3.0]),
+        arrays=[np.array([4.0, 5.0])],
+        custom=_CustomMutable(5),
+    )
+    ro = freeze_model(m)
+
+    # deque is frozen as an immutable tuple; snapshot and model_dump remain untouched.
+    assert ro.queue == (1, 2)
+    assert isinstance(ro.queue, tuple)
+
+    # Dataclass field is wrapped in ReadOnlyDataclassProxy with frozen nested containers.
+    assert isinstance(ro.dc, ReadOnlyDataclassProxy)
+    assert ro.dc.items == (10, 20)
+    assert ro.dc.label == "ok"
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        ro.dc.label = "bad"
+    with pytest.raises(AttributeError):
+        _ = ro.dc._internal
+
+    # Mutating NumPy view metadata (shape/dtype) on one read cannot affect subsequent reads.
+    first_view = ro.arr
+    first_view.shape = (1, 3)
+    first_view.dtype = np.int32
+    assert ro.arr.shape == (3,)
+    assert ro.arr.dtype == np.float64
+
+    nested_view = ro.arrays[0]
+    nested_view.shape = (1, 2)
+    assert ro.arrays[0].shape == (2,)
+
+    # Unrecognised custom mutable objects are rejected explicitly instead of leaking mutable state.
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        _ = ro.custom

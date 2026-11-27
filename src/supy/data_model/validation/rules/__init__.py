@@ -20,7 +20,12 @@ from .hard_invariants import (
     is_modelled_irrigation_active,
     resolve_water_use_code,
 )
-from .readonly_model import ReadOnlyFieldInfo, ReadOnlyModelProxy, freeze_model
+from .readonly_model import (
+    ReadOnlyDataclassProxy,
+    ReadOnlyFieldInfo,
+    ReadOnlyModelProxy,
+    freeze_model,
+)
 from .typed_view import (
     ControlView,
     LandCoverView,
@@ -38,6 +43,7 @@ __all__ = [
     "InvariantViolation",
     "LandCoverView",
     "PhysicsView",
+    "ReadOnlyDataclassProxy",
     "ReadOnlyFieldInfo",
     "ReadOnlyModelProxy",
     "SiteView",

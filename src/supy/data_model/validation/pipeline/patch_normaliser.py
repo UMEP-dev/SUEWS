@@ -256,18 +256,26 @@ def _apply_atomic_set(
     had_original, old_val, orig_style, orig_ref = _classify_raw_entry(raw_before)
     raw_snapshot = _copy_payload(raw_before) if had_original else _UNSET
     created_ancestor = find_first_created_ancestor(working, tokens)
+    if patch.write_style is not None or patch.write_ref is not None:
+        forward_style = patch.write_style
+        forward_ref = patch.write_ref
+    else:
+        forward_style = patch.original_style
+        forward_ref = patch.original_ref
     applied = write_tokens(
         working,
         tokens,
         patch.new_value,
         default_wrapped=patch.default_wrapped,
         style_ledger=style_ledger,
-        original_style=patch.original_style,
-        original_ref=patch.original_ref,
+        original_style=forward_style,
+        original_ref=forward_ref,
         replace_raw=patch.replace_raw,
     )
     if not applied:
         raise ValueError(f"Failed to apply 'set' patch at path {patch.path!r}")
+    raw_after = read_raw_tokens(working, tokens, default=_MISSING)
+    _, _, written_style, written_ref = _classify_raw_entry(raw_after)
     return ConfigPatch(
         path=canon_path,
         action="set",
@@ -279,7 +287,9 @@ def _apply_atomic_set(
         site_gridid=patch.site_gridid,
         source=patch.source,
         skip_keys=patch.skip_keys,
-        default_wrapped=patch.default_wrapped,
+        default_wrapped=written_style != "bare"
+        if written_style is not None
+        else patch.default_wrapped,
         had_original=had_original,
         original_style=orig_style,
         original_ref=orig_ref,
@@ -287,6 +297,8 @@ def _apply_atomic_set(
         original_raw=raw_snapshot,
         replace_raw=patch.replace_raw,
         created_ancestor=created_ancestor,
+        write_style=written_style,
+        write_ref=written_ref,
     )
 
 
@@ -472,13 +484,21 @@ def _merge_with_delete(
 def _delete_then_set_preserves_style(
     first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger
 ) -> bool:
-    eff_style = second.original_style or style_ledger.wrapper_style(second.path)
+    eff_style = (
+        second.write_style
+        or second.original_style
+        or style_ledger.wrapper_style(second.path)
+    )
     if eff_style is None:
         eff_style = "ref_value" if second.default_wrapped else "bare"
     eff_ref = (
-        second.original_ref
-        if second.original_ref is not None
-        else style_ledger.ref_metadata(second.path)
+        second.write_ref
+        if second.write_ref is not None
+        else (
+            second.original_ref
+            if second.original_ref is not None
+            else style_ledger.ref_metadata(second.path)
+        )
     )
     if eff_style != first.original_style or eff_ref != first.original_ref:
         return False
@@ -500,6 +520,12 @@ def _merge_with_set(
             return second
         if not _delete_then_set_preserves_style(first, second, style_ledger):
             return _CANNOT_MERGE
+    merged_write_style = (
+        first.write_style if first.had_original is False else second.write_style
+    )
+    merged_write_ref = (
+        first.write_ref if first.had_original is False else second.write_ref
+    )
     return ConfigPatch(
         path=first.path,
         action="set",
@@ -522,6 +548,8 @@ def _merge_with_set(
         path_tokens=first.path_tokens,
         original_raw=first.original_raw,
         created_ancestor=first.created_ancestor,
+        write_style=merged_write_style,
+        write_ref=merged_write_ref,
     )
 
 
@@ -573,12 +601,13 @@ def _coalesce_owned_patches(
             result_tokens.append(tokens)
             continue
 
-        result.pop(merge_idx)
-        result_tokens.pop(merge_idx)
         if isinstance(merged, ConfigPatch):
+            # Replace in place so any created_ancestor stays ordered before sibling writes.
             merged_owner = owner_idx if owner_idx is not None else prev_owner
-            result.append((merged_owner, merged))
-            result_tokens.append(tokens)
+            result[merge_idx] = (merged_owner, merged)
+        else:
+            result.pop(merge_idx)
+            result_tokens.pop(merge_idx)
 
     return result
 

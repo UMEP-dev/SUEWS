@@ -59,8 +59,12 @@ def _is_ref_wrapper_mapping(entry: Any) -> bool:
     )
 
 
-def _join_key_path(prefix: str, key: str) -> str:
-    return f"{prefix}.{key}" if prefix else key
+def _join_key_path(prefix: str, key: Any) -> str:
+    """Format a mapping key onto *prefix* preserving non-string and punctuated keys."""
+    if isinstance(key, str) and key and not any(ch in key for ch in ".[]"):
+        return f"{prefix}.{key}" if prefix else key
+    seg = f"[{key!r}]"
+    return f"{prefix}{seg}" if prefix else seg
 
 
 def _join_index_path(prefix: str, index: int) -> str:
@@ -85,6 +89,24 @@ def _node_scalar_key(node: yaml.Node) -> str | None:
     if isinstance(node, yaml.ScalarNode):
         return str(node.value)
     return None
+
+
+def _node_typed_key(node: yaml.Node) -> Any:
+    """Recover the typed Python key (e.g. ``int`` vs ``str``) from a PyYAML scalar key node."""
+    if not isinstance(node, yaml.ScalarNode):
+        return None
+    if node.tag == "tag:yaml.org,2002:int":
+        try:
+            return int(node.value, 0)
+        except ValueError:
+            return node.value
+    if node.tag == "tag:yaml.org,2002:bool":
+        lowered = node.value.lower()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+    return str(node.value)
 
 
 def _construct_node_value(loader: yaml.SafeLoader, node: yaml.Node) -> Any:
@@ -167,7 +189,7 @@ def _walk_mapping_value(
     for key, val in node.items():
         if key == "ref":
             continue
-        child_path = _join_key_path(prefix, str(key))
+        child_path = _join_key_path(prefix, key)
         if isinstance(val, (Mapping, list, tuple)):
             _walk_python_data(val, child_path, entries)
         else:
@@ -529,11 +551,11 @@ def _walk_yaml_mapping(
         source_line=line,
     )
     for key_node, child_node in node.value:
-        key_str = _node_scalar_key(key_node)
-        if key_str is None or key_str == "ref":
+        typed_key = _node_typed_key(key_node)
+        if typed_key is None or typed_key == "ref":
             continue
         _walk_yaml_node(
-            child_node, _join_key_path(prefix, key_str), entries, val_loader
+            child_node, _join_key_path(prefix, typed_key), entries, val_loader
         )
 
 
@@ -640,10 +662,10 @@ def _apply_style_to_mapping_node(
         return
 
     for key_node, child_node in node.value:
-        key_str = _node_scalar_key(key_node)
-        if key_str is None or key_str == "ref":
+        typed_key = _node_typed_key(key_node)
+        if typed_key is None or typed_key == "ref":
             continue
-        _apply_style_to_yaml_node(child_node, _join_key_path(prefix, key_str), ledger)
+        _apply_style_to_yaml_node(child_node, _join_key_path(prefix, typed_key), ledger)
 
 
 def _apply_style_to_yaml_node(

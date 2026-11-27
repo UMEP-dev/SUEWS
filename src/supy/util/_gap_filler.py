@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 # locate the first position of period with in-between gaps
@@ -7,26 +7,25 @@ def loc_gap(ser_test, freq="1D", pattern="010"):
     rsmp = ser_test.resample(freq)
     ser_TF_10 = rsmp.apply(lambda ser: ser.isna().any()) * 1
     n_gap = ser_TF_10.sum()
-    if cal_ratio_info(ser_test) < 0.5:
+    if cal_ratio_info(ser_test, freq=freq) < 0.5:
         raise RuntimeError(
             f"too many gaps (n_gap/n_period={n_gap}/{ser_TF_10.size}) to proceed! please enlarge the series to introduce more valid periods."
         )
     str_TF_10 = ser_TF_10.astype(str).str.cat()
     pos_gap = str_TF_10.find(pattern)
+    if pos_gap == -1:
+        return ser_TF_10.iloc[0:0].index
     loc_ser = ser_TF_10.iloc[pos_gap : pos_gap + len(pattern)].index
     return loc_ser
 
 
-# fill gap with neighbouring days
+# fill gap with neighbouring periods
 def fill_gap_one(ser_test, freq="1D", pattern="010"):
-    # resample into daily periods
+    # resample into divisions of `freq`
     rsmp = ser_test.resample(freq)
     # locate the gaps according to gap pattern: 0 for NO gap, 1 for gapped
     loc_ser = loc_gap(ser_test, freq, pattern)
-
-    # generator groups
-    ser_find = (rsmp.get_group(x) for x in loc_ser)
-    if len(loc_ser) == 0:
+    if len(loc_ser) != len(pattern):
         return ser_test
 
     # assign series:
@@ -34,31 +33,37 @@ def fill_gap_one(ser_test, freq="1D", pattern="010"):
     # ser_gap: series with gaps
     # ser_post: series after gapped period
     if pattern == "010":
-        ser_prev, ser_gap, ser_post = ser_find
+        loc_prev, loc_gap_key, loc_post = loc_ser
+        ser_prev = rsmp.get_group(loc_prev)
+        ser_gap = rsmp.get_group(loc_gap_key).copy()
+        ser_post = rsmp.get_group(loc_post)
+        fill_parts = [
+            pd.Series(ser_prev.to_numpy(), index=ser_prev.index - loc_prev),
+            pd.Series(ser_post.to_numpy(), index=ser_post.index - loc_post),
+        ]
     elif pattern == "01":
-        ser_prev, ser_gap = ser_find
-        ser_post = pd.Series([])
+        loc_prev, loc_gap_key = loc_ser
+        ser_prev = rsmp.get_group(loc_prev)
+        ser_gap = rsmp.get_group(loc_gap_key).copy()
+        fill_parts = [
+            pd.Series(ser_prev.to_numpy(), index=ser_prev.index - loc_prev),
+        ]
     elif pattern == "10":
-        ser_gap, ser_post = ser_find
-        ser_prev = pd.Series([])
+        loc_gap_key, loc_post = loc_ser
+        ser_gap = rsmp.get_group(loc_gap_key).copy()
+        ser_post = rsmp.get_group(loc_post)
+        fill_parts = [
+            pd.Series(ser_post.to_numpy(), index=ser_post.index - loc_post),
+        ]
+    else:
+        raise ValueError(f"Unsupported gap pattern: {pattern!r}")
 
-    # base series for gap filling
-    ser_fill_base = pd.concat([ser_prev, ser_post])
+    # align neighbouring periods by elapsed offset within each `freq` division
+    ser_fill_base = pd.concat(fill_parts)
     ser_fill = (
-        ser_fill_base.groupby([
-            ser_fill_base.index.hour.rename("hr"),
-            ser_fill_base.index.minute.rename("min"),
-        ])
-        .median()
-        .reset_index(drop=True)
+        ser_fill_base.groupby(level=0).median().reindex(ser_gap.index - loc_gap_key)
     )
-    try:
-        ser_fill.index = ser_gap.index
-    except ValueError:
-        print(ser_test)
-        print(pattern)
-        print(ser_fill_base)
-        print(ser_gap)
+    ser_fill.index = ser_gap.index
 
     # calculate rescaling factor with enough values to robustly rescale
     if (pattern == "010") and (ser_gap.count() > len(ser_gap) / 2):
@@ -73,19 +78,90 @@ def fill_gap_one(ser_test, freq="1D", pattern="010"):
     ser_fill_gap = ser_fill / scale_fill
 
     # fill in gaps with rescaled values of the filling data
-    ser_gap.loc[ser_gap.isna()] = ser_fill_gap.loc[ser_gap.isna()]
-    ser_filled = pd.concat([ser_prev, ser_gap, ser_post])
+    mask_na = ser_gap.isna()
+    ser_gap.loc[mask_na] = ser_fill_gap.loc[mask_na]
 
     # fill the original gapped series
     ser_test_filled = ser_test.copy()
-    ser_test_filled.loc[ser_filled.index] = ser_filled
+    ser_test_filled.loc[ser_gap.index] = ser_gap
     return ser_test_filled
 
 
 def cal_ratio_info(ser_to_fill, freq="1d"):
     rsmp = ser_to_fill.resample(freq)
     ser_TF_10 = rsmp.apply(lambda ser: ser.isna().any()) * 1
+    if ser_TF_10.size == 0:
+        return 0.0
     return 1 - ser_TF_10.sum() / ser_TF_10.size
+
+
+def _infer_step_freq(index: pd.DatetimeIndex):
+    """Return the index's regular step frequency, inferring it when unset."""
+    if index.freq is not None:
+        return index.freq
+    if len(index) < 3:
+        return None
+    inferred = pd.infer_freq(index)
+    if inferred is None:
+        return None
+    return pd.tseries.frequencies.to_offset(inferred)
+
+
+def _chunk_size(index: pd.DatetimeIndex, freq: str) -> int | None:
+    """Return timesteps per ``freq`` division, or ``None`` if non-uniform."""
+    step_freq = _infer_step_freq(index)
+    if step_freq is None:
+        return None
+    try:
+        ratio = pd.Timedelta(freq) / step_freq
+    except (TypeError, ValueError):
+        return None
+    n_chunk = int(ratio)
+    return n_chunk if n_chunk > 0 else None
+
+
+def _find_balanced_split(
+    ser_head: pd.Series,
+    n_freq: int,
+    n_chunk: int,
+    freq: str,
+    rinfo_thresh: float = 0.2,
+) -> tuple[pd.Series, pd.Series]:
+    """Split ``ser_head`` into two non-empty chunk-aligned halves.
+
+    Starts at the midpoint ``(n_freq // 2) * n_chunk`` and shifts by one
+    ``n_chunk`` period at a time when one side falls below ``rinfo_thresh``.
+    Both halves always remain strictly non-empty (at least ``n_chunk``
+    timesteps each) so recursion terminates, and if no balanced split exists
+    the midpoint split is returned.
+    """
+    n_total = n_chunk * n_freq
+    n_sep_mid = (n_freq // 2) * n_chunk
+    n_sep = n_sep_mid
+    ser_left = ser_head.iloc[:n_sep]
+    ser_right = ser_head.iloc[n_sep:]
+    rinfo1 = cal_ratio_info(ser_left, freq=freq)
+    rinfo2 = cal_ratio_info(ser_right, freq=freq)
+
+    visited_seps = {n_sep}
+    while not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh):
+        if rinfo1 < rinfo_thresh and rinfo2 < rinfo_thresh:
+            break
+        next_sep = n_sep + n_chunk if rinfo1 < rinfo_thresh else n_sep - n_chunk
+        if not (n_chunk <= next_sep <= n_total - n_chunk) or next_sep in visited_seps:
+            break
+        n_sep = next_sep
+        visited_seps.add(n_sep)
+        ser_left = ser_head.iloc[:n_sep]
+        ser_right = ser_head.iloc[n_sep:]
+        rinfo1 = cal_ratio_info(ser_left, freq=freq)
+        rinfo2 = cal_ratio_info(ser_right, freq=freq)
+
+    if not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh):
+        ser_left = ser_head.iloc[:n_sep_mid]
+        ser_right = ser_head.iloc[n_sep_mid:]
+
+    return ser_left, ser_right
 
 
 # fill gaps iteratively
@@ -113,72 +189,53 @@ def fill_gap_all_x(ser_to_fill: pd.Series, freq="1D", limit_fill=1) -> pd.Series
     01:  missing data in division after one with no missing data
     10:  division with missing data before one with no missing data
     """
-
     if limit_fill > 0:
         ser_test_filled = ser_to_fill.copy().interpolate(limit=limit_fill)
     else:
         ser_test_filled = ser_to_fill.copy()
 
+    if not ser_test_filled.isna().any():
+        return ser_test_filled
+
     ptn_list = ["010", "01", "10"]
 
-    # if ratio_info > 0.5:
-    n_freq = ser_test_filled.resample(freq).size().size
-    if n_freq > 4:
-        n_chunk = int(pd.Timedelta(freq) / ser_test_filled.index.freq)
-        n_freq = int(ser_test_filled.size / n_chunk)
-        if n_chunk * n_freq < ser_test_filled.size:
-            ser_residual = ser_test_filled.iloc[n_chunk * n_freq :]
-        else:
-            ser_residual = pd.Series([])
-        ser_test_filled = ser_test_filled.iloc[: n_chunk * n_freq]
-        # ser_test_filled
-        # n_freq
-        if n_freq > 4:
-            n_sep = int(n_freq / 2) * n_chunk
-            #     offset = pd.Timedelta(freq) * n_sep
-            #     ind_sep1 = ser_test_filled.index[0] + offset
-            #     ind_sep2 = ser_test_filled.index[1] + offset
-            ser_test_filled1 = ser_test_filled.iloc[:n_sep]
-            ser_test_filled2 = ser_test_filled.iloc[n_sep:]
-            rinfo1 = cal_ratio_info(ser_test_filled1)
-            rinfo2 = cal_ratio_info(ser_test_filled2)
-            rinfo_thresh = 0.2
-            while (not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh)) and (
-                n_sep < n_freq
-            ):
-                # print(rinfo1, rinfo2, n_sep)
-                if rinfo1 < rinfo_thresh:
-                    n_sep += n_chunk
-                if rinfo2 < rinfo_thresh:
-                    n_sep -= n_chunk
-                ser_test_filled1 = ser_test_filled.iloc[:n_sep]
-                ser_test_filled2 = ser_test_filled.iloc[n_sep:]
-                rinfo1 = cal_ratio_info(ser_test_filled1)
-                rinfo2 = cal_ratio_info(ser_test_filled2)
+    n_freq_rsmp = ser_test_filled.resample(freq).size().size
+    n_chunk = _chunk_size(ser_test_filled.index, freq) if n_freq_rsmp > 4 else None
+    n_freq = ser_test_filled.size // n_chunk if n_chunk is not None else 0
 
-        # print(rinfo1, rinfo2, ser_test_filled1.size, ser_test_filled2.size)
-        ser_test_filled1 = fill_gap_all_x(ser_test_filled1)
-        ser_test_filled2 = fill_gap_all_x(ser_test_filled2)
-        # print(ser_test_filled1.size)
-        # print(ser_test_filled2.size)
-        # print()
-        ser_test_filled = pd.concat([ser_test_filled1, ser_test_filled2, ser_residual])
+    if n_freq > 4:
+        n_total = n_chunk * n_freq
+        ser_residual = (
+            ser_test_filled.iloc[n_total:] if n_total < ser_test_filled.size else None
+        )
+        ser_head = ser_test_filled.iloc[:n_total]
+        ser_test_filled1, ser_test_filled2 = _find_balanced_split(
+            ser_head, n_freq, n_chunk, freq=freq
+        )
+        ser_test_filled1 = fill_gap_all_x(
+            ser_test_filled1, freq=freq, limit_fill=limit_fill
+        )
+        ser_test_filled2 = fill_gap_all_x(
+            ser_test_filled2, freq=freq, limit_fill=limit_fill
+        )
+        parts = [ser_test_filled1, ser_test_filled2]
+        if ser_residual is not None:
+            parts.append(ser_residual)
+        ser_test_filled = pd.concat(parts)
     else:
         while ser_test_filled.isna().any():
-            # print("here")
-            # try to different gap patterns and fill gaps
+            n_missing_before = ser_test_filled.isna().sum()
+            # try different gap patterns and fill gaps
             try:
                 ptn_gap = next(
                     ptn
                     for ptn in ptn_list
                     if len(loc_gap(ser_test_filled, freq, ptn)) == len(ptn)
                 )
-                # print(ser_test_filled,ptn_gap)
                 ser_test_filled = fill_gap_one(ser_test_filled, freq, ptn_gap)
-            except StopIteration:
-                pass
-            except RuntimeError as e:
-                # print("cannot proceed so can only return the original gapped series!")
+            except (StopIteration, RuntimeError):
+                return ser_test_filled
+            if ser_test_filled.isna().sum() >= n_missing_before:
                 return ser_test_filled
 
     return ser_test_filled
@@ -215,23 +272,24 @@ def fill_gap_all(
     01:  missing data in division after one with no missing data
     10:  division with missing data before one with no missing data
     """
-    ratio_info = cal_ratio_info(ser_to_fill)
-    ser_test_filled = norm_ser_dt(ser_to_fill)
+    ratio_info = cal_ratio_info(ser_to_fill, freq=freq)
     if ratio_info < thresh_ratio:
         raise RuntimeError(
             f"input series is too gapped (valid data ratio = {ratio_info:.2%}) to proceed with the gap-filling method."
         )
     else:
         # normalise into a series with complete diurnal cycles
-        ser_test_filled = fill_gap_all_x(ser_test_filled, freq, limit_fill)
-        # i = 0
+        ser_test_filled = norm_ser_dt(ser_to_fill)
+        ser_test_filled = fill_gap_all_x(
+            ser_test_filled, freq=freq, limit_fill=limit_fill
+        )
         while ser_test_filled.isna().any():
-            # i += 1
-            ser_test_filled = fill_gap_all_x(ser_test_filled, freq, limit_fill)
-            ser_gap = ser_test_filled.groupby(ser_test_filled.index.year).apply(
-                lambda x: x.isna().sum()
+            n_missing_before = ser_test_filled.isna().sum()
+            ser_test_filled = fill_gap_all_x(
+                ser_test_filled, freq=freq, limit_fill=limit_fill
             )
-            # print(i, ser_gap)
+            if ser_test_filled.isna().sum() >= n_missing_before:
+                break
         ser_test_filled = ser_test_filled.loc[ser_to_fill.index]
         return ser_test_filled
 
@@ -250,10 +308,9 @@ def norm_ser_dt(ser_dt):
     pandas.Series
         time series with complete diurnal cycles; missing values may be inserted as np.nan.
     """
-    freq = ser_dt.index.freq
+    freq = _infer_step_freq(ser_dt.index)
     dt_start, dt_end = ser_dt.index.normalize()[[0, -1]]
     dt_end = dt_end + pd.Timedelta("1d")
-    dt_end
     idx_norm = pd.date_range(dt_start, dt_end, freq=freq)[:-1]
     ser_norm = ser_dt.reindex(idx_norm)
     return ser_norm

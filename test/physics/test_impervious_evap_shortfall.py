@@ -15,8 +15,9 @@ output) that:
   entire impervious evaporation shortfall is transferred to the land-pervious
   surfaces proportionally to their area fractions, open water is unaffected,
   and both water and energy balances close.
-- With zero land-pervious cover and open water present, the explicit zero-cover
-  guard keeps all outputs finite and preserves water and energy closure.
+- With zero land-pervious cover and open water present, end-to-end simulation
+  keeps all outputs finite, leaves open water evaporation unperturbed, and
+  preserves water and energy closure.
 - With zero open water, shortfall transfer and budget closure hold identically.
 """
 
@@ -100,13 +101,24 @@ def _water_balance_residual_mm(
     soil_store = pd.Series(soil_next @ sfr, index=suews.index)
     total_store = soil_store + suews["State"]
     net_input = suews["Rain"] + suews["Irr"] - suews["Evap"] - suews["RO"]
-    return (total_store.diff() - net_input).dropna()
+    # Exclude only the intentional first diff row (no prior row in df_output);
+    # assert all remaining steps are finite so unexpected NaNs fail loudly.
+    residual = (total_store.diff() - net_input).iloc[1:]
+    assert len(residual) == len(suews) - 1
+    assert np.isfinite(residual.to_numpy(dtype=float)).all(), (
+        "non-finite water-balance residual encountered"
+    )
+    return residual
 
 
 def _energy_balance_residual_wm2(df_output: pd.DataFrame) -> pd.Series:
     """Per-timestep energy-balance residual (QN + QF - QH - QE - QS) [W m-2]."""
     suews = df_output.loc[GRID, "SUEWS"]
-    return suews["QN"] + suews["QF"] - suews["QH"] - suews["QE"] - suews["QS"]
+    residual = suews["QN"] + suews["QF"] - suews["QH"] - suews["QE"] - suews["QS"]
+    assert np.isfinite(residual.to_numpy(dtype=float)).all(), (
+        "non-finite energy-balance residual encountered"
+    )
+    return residual
 
 
 @pytest.mark.core
@@ -185,7 +197,7 @@ def test_impervious_evap_shortfall_fully_allocated_with_open_water() -> None:
 
 @pytest.mark.core
 def test_zero_land_pervious_with_open_water_closes_budgets_without_nan() -> None:
-    """Zero land-pervious cover with open water guards against division by zero and closes budgets."""
+    """Zero land-pervious cover with open water stays finite, leaves open water unperturbed, and closes budgets."""
     # ARRANGE
     sfrs = {
         "Paved": 0.50,

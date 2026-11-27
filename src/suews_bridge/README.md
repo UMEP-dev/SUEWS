@@ -41,7 +41,7 @@ Data crosses four layers during a simulation:
 |    data_model/ (Pydantic validation, defaults, migrations)                  |
 |      -> _run_rust.py (config_to_engine_yaml / _grid_config_jsons,           |
 |                       forcing array, output buffers)                        |
-|      -> suews_checkpoint.py (SUEWSCheckpoint v2 envelope per grid)          |
+|      -> suews_checkpoint.py (SUEWSCheckpoint v3 envelope per grid)          |
 +-------------------------------------+---------------------------------------+
                                       | PyO3 (lib.rs) or resolved YAML (main.rs)
                                       v
@@ -128,10 +128,10 @@ parameter, see [dev-ref/RUST_BRIDGE_ADD_PARAMETER.md](../../dev-ref/RUST_BRIDGE_
   separate from restart decoding (`BR-06`).
 - After each run, `c_api/driver.f95` packs the updated Fortran `SUEWS_STATE`
   and `SUEWS_TIMER` back into flat buffers. `src/sim.rs` decodes them and
-  `src/checkpoint.rs::suews_checkpoint_to_json` emits a schema-version-2 JSON
+  `src/checkpoint.rs::suews_checkpoint_to_json` emits a schema-version-3 JSON
   envelope containing both `timer` (`dt_since_start`, `dt_since_start_prev`,
   `tstep`, `new_day`) and all 13 `state` members (`src/suews_state.rs`).
-- On restart, `suews_checkpoint_from_json` requires schema version 2, a valid
+- On restart, `suews_checkpoint_from_json` requires schema version 3, a valid
   elapsed timer and the complete 13-member state set; it rejects legacy
   state-only envelopes, missing members and `+/-Inf` while preserving `NaN` as
   JSON `null` for inactive-state sentinels. On the Python side,
@@ -193,7 +193,7 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 | `src/supy/build_rust_bridge.py` | Meson build helper invoked by the root `meson-python` build (`pyproject.toml` -> `src/supy/meson.build`): runs `cargo build` for the PyO3 extension and `suews-engine` binary, copies them into package staging paths, and writes a Ninja depfile tracking Rust, C-API and driver sources. |
 | `src/supy/cmd/rust_bridge.py` | Thin Python wrapper locating and invoking the bundled `supy/bin/suews-engine` binary. |
 | `src/supy/_run_rust.py` | Primary Python-to-Rust integration layer: validates output column layout parity against Fortran, serialises `SUEWSConfig` (single-grid YAML via `config_to_engine_yaml`, one-site-per-grid JSON via `_grid_config_jsons`), prepares `(len_sim, 32)` forcing blocks, allocates Fortran-ordered output stores, dispatches single/multi-grid/chunked/streamed runs, and wraps results into pandas DataFrames. |
-| `src/supy/suews_checkpoint.py` | Python `SUEWSCheckpoint` dataclass wrapping per-grid version-2 checkpoint JSON envelopes with schema validation and atomic file writes. |
+| `src/supy/suews_checkpoint.py` | Python `SUEWSCheckpoint` dataclass wrapping per-grid version-3 checkpoint JSON envelopes with schema validation and atomic file writes. |
 | `src/suews_bridge/examples/ohm_state_python_demo.py` | Minimal Python demonstration of constructing and inspecting `OhmState` via PyO3. |
 
 ### Rust entry points, orchestration and ABI (`src/suews_bridge/src/`)

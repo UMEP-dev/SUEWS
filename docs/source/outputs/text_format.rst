@@ -147,12 +147,12 @@ Group Details
       **Timestamp Convention for DailyState**
 
       ``DailyState`` follows the same end-of-period convention
-      (``closed="right", label="right"``) as every other output group: day
-      ``D`` is labelled ``D+1 00:00``, so the row labelled ``2012-01-16 00:00``
-      holds the model state at the end of 15 January, matching daily ``SUEWS``
-      output. In native model-timestep output, the Fortran kernel still
-      accumulates daily values over ``00:00`` to ``23:55`` (at a 5-minute
-      timestep). See :ref:`timestamp_convention`.
+      (``closed="right", label="right"``) as every other output group: the
+      Fortran kernel accumulates daily values over ``(D 00:00, D+1 00:00]``
+      (``00:05`` to ``D+1 00:00`` at a 5-minute timestep) and labels day ``D``
+      as ``D+1 00:00``, so the row labelled ``2012-01-16 00:00`` holds the
+      model state at the end of 15 January, matching daily ``SUEWS`` output.
+      See :ref:`timestamp_convention`.
 
 .. _output-snow:
 
@@ -250,7 +250,8 @@ The checkpoint contains typed runtime state and elapsed timer metadata, but not
 the YAML configuration or forcing data. To continue a run, load the same YAML
 configuration, attach the next forcing period, and run from
 ``SUEWSSimulation.from_checkpoint(...)``. State-only checkpoint schema version 1
-cannot preserve timer continuity and must be regenerated with schema version 2.
+and legacy ``DailyState`` window schema version 2 cannot preserve continuity and
+must be regenerated with schema version 3.
 Chunked and restarted outputs are expected to match uninterrupted outputs within
 relative and absolute tolerances of ``1e-12``; JSON and bridge round-trips may
 otherwise differ in the final floating-point bits.

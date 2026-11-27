@@ -214,8 +214,8 @@ def test_utc_forcing_retains_utc_output_clock_through_rollover_and_restart(
 @pytest.mark.parametrize(
     ("offset_hours", "local_day_end_utc"),
     [
-        (5.75, "2011-12-31 18:10"),
-        (-3.5, "2012-01-01 03:25"),
+        (5.75, "2011-12-31 18:15"),
+        (-3.5, "2012-01-01 03:30"),
     ],
 )
 def test_utc_daily_state_boundary_remains_at_utc_midnight(
@@ -239,7 +239,7 @@ def test_utc_daily_state_boundary_remains_at_utc_midnight(
         return frame.loc[:, "DailyState"].to_numpy()
 
     assert np.all(np.isnan(daily_state_at(local_day_end_utc)))
-    assert np.any(np.isfinite(daily_state_at("2011-12-31 23:55")))
+    assert np.any(np.isfinite(daily_state_at("2012-01-01 00:00")))
 
 
 def test_utc_multi_site_outputs_share_the_forcing_clock():

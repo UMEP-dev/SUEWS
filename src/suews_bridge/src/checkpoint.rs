@@ -19,8 +19,9 @@ use crate::timer::SuewsTimer;
 use serde_json::{json, Map, Value};
 
 /// Current JSON envelope schema version carrying both elapsed timer metadata
-/// and the complete nested `SuewsState` payload.
-pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 2;
+/// and the complete nested `SuewsState` payload under the right-closed
+/// `(D 00:00, D+1 00:00]` DailyState accumulation boundary.
+pub const SUEWS_CHECKPOINT_SCHEMA_VERSION: u32 = 3;
 
 /// Elapsed timing metadata carried alongside model state across restart
 /// boundaries.
@@ -92,7 +93,7 @@ fn validate_timer(timer: CheckpointTimer) -> Result<CheckpointTimer, BridgeError
     Ok(timer)
 }
 
-/// Serialise a post-run model `state` and `timer` into a schema-version-2 JSON
+/// Serialise a post-run model `state` and `timer` into a schema-version-3 JSON
 /// checkpoint envelope.
 ///
 /// Inactive `NaN` state entries are encoded as JSON `null`; `+/-Inf` values
@@ -124,7 +125,7 @@ pub fn suews_checkpoint_to_json(
     })
 }
 
-/// Deserialise and validate a schema-version-2 JSON checkpoint envelope.
+/// Deserialise and validate a schema-version-3 JSON checkpoint envelope.
 ///
 /// Rejects legacy version-1 state-only payloads with
 /// [`BridgeError::LegacyCheckpointMissingTimer`], unknown schema versions with
@@ -244,12 +245,22 @@ mod tests {
 
     #[test]
     fn unsupported_checkpoint_version_is_actionable() {
-        let error = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":3}"#)
+        let legacy_v2 = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":2}"#)
+            .expect_err("legacy v2 checkpoints should be rejected");
+        assert_eq!(
+            legacy_v2,
+            BridgeError::UnsupportedCheckpointVersion {
+                found: 2,
+                expected: SUEWS_CHECKPOINT_SCHEMA_VERSION,
+            }
+        );
+
+        let future = suews_checkpoint_from_json(r#"{"checkpoint_schema_version":4}"#)
             .expect_err("future checkpoint versions should be rejected");
         assert_eq!(
-            error,
+            future,
             BridgeError::UnsupportedCheckpointVersion {
-                found: 3,
+                found: 4,
                 expected: SUEWS_CHECKPOINT_SCHEMA_VERSION,
             }
         );

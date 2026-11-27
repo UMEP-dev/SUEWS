@@ -4378,7 +4378,7 @@ mod python_bindings {
         ))
     }
 
-    /// Continue a single-grid simulation from a schema-version-2 checkpoint
+    /// Continue a single-grid simulation from a schema-version-3 checkpoint
     /// JSON envelope, returning `(output_bytes, checkpoint_json, actual_len, warnings)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_with_state")]

@@ -80,8 +80,8 @@ elapsed model-time metadata, and schema versions, keyed by grid ID.
 The checkpoint does not contain the YAML configuration or forcing data. To
 continue a run, load the same YAML configuration, attach the next forcing
 period, and run from ``SUEWSSimulation.from_checkpoint(...)``. State-only
-checkpoint schema version 1 must be regenerated with schema version 2 before it
-can provide timer continuity. Chunked and restarted outputs are expected to match
+checkpoint schema version 1 and legacy ``DailyState`` window schema version 2
+must be regenerated with schema version 3 before they can provide continuity. Chunked and restarted outputs are expected to match
 uninterrupted outputs within relative and absolute tolerances of ``1e-12``.
 
 Legacy ``df_state_SSss.csv`` and state parquet files remain documented for
@@ -144,9 +144,8 @@ Compared with ``run()`` followed by ``save(format="parquet")``:
   ``DailyState`` labelled ``D+1 00:00`` at hourly and daily frequencies and
   aligned on the same row as ``SUEWS``. At the native model timestep
   (``freq == tstep``), neither streamed nor unstreamed Parquet resamples
-  ``DailyState``, so both retain the kernel's native ``D 23:55`` emission row
-  (whereas text output always writes ``DailyState`` as a daily ``86400 s`` file
-  labelled ``D+1 00:00``).
+  ``DailyState``; on midnight-aligned grids the kernel emits day ``D``'s row
+  directly on ``D+1 00:00`` (matching the daily ``86400 s`` text file).
 - The values keep full double (float64) precision, where text files carry four
   decimal places. Prefer Parquet for streamed runs whose output will be read
   back for analysis.
@@ -254,10 +253,9 @@ Temporal Information
    the left-open, right-closed period ``(2021-09-12 12:00, 2021-09-12 13:00]``,
    covering model steps ending after 12:00 and up to and including 13:00.
 
-   ``DailyState`` follows the same end-of-period rule (day ``D`` is labelled
-   ``D+1 00:00`` at hourly and daily frequencies, matching ``SUEWS``); note
-   that the Fortran kernel still accumulates daily values across the
-   calendar-day steps ``00:00`` to ``23:55`` (at a 5-minute timestep). See
+   ``DailyState`` follows the same end-of-period rule (day ``D`` accumulates
+   over ``(D 00:00, D+1 00:00]`` and is labelled ``D+1 00:00`` at native
+   midnight-aligned, hourly, and daily frequencies, matching ``SUEWS``). See
    :ref:`timestamp_convention` and :ref:`output-dailystate` for details.
 
 Saved Timestamp Reference

@@ -35,9 +35,9 @@ def test_calendar_dailystate_shares_the_period_row(output, freq):
     """Each period's P_day sits in the row of that period's Rain.
 
     Before the fix, ME put January's P_day in the 2011-12-31 row and January's
-    Rain in the 2012-01-31 row. A DailyState day sums the steps stamped on
-    that date (00:00 to 23:55), so P_day is compared with Rain summed the same
-    way, period by period.
+    Rain in the 2012-01-31 row. DailyState now accumulates over each
+    right-closed day (D 00:00, D+1 00:00], matching native Rain summed by
+    interval start time period by period.
     """
     result = output.resample(freq).df.droplevel("grid")
     p_day = result["DailyState", "P_day"]
@@ -45,8 +45,9 @@ def test_calendar_dailystate_shares_the_period_row(output, freq):
     # No row holds only one of the two: no leading DailyState-only row.
     assert (p_day.notna() == rain.notna()).all()
     native = output.df["SUEWS", "Rain"].droplevel("grid")
-    native = native.loc[: "2012-03-01 23:55"]  # days with a DailyState row
-    by_date = native.groupby(native.index.to_period(PERIOD[freq])).sum()
+    native = native.loc[: "2012-03-02 00:00"]  # completed right-closed days
+    starts = native.index - pd.Timedelta(output._output_frequency())
+    by_date = native.groupby(starts.to_period(PERIOD[freq])).sum()
     np.testing.assert_allclose(p_day.to_numpy()[: len(by_date)], by_date.to_numpy(), atol=1e-9)
 
 
@@ -58,7 +59,13 @@ def test_monthly_values_match_independent_sums(output):
     np.testing.assert_allclose(
         result["SUEWS", "Rain"].to_numpy(), expected.to_numpy(), atol=1e-9
     )
-    jan = output.df["DailyState", "P_day"].droplevel("grid").loc["2012-01"].sum()
+    # January's right-closed DailyState records are stamped 2012-01-02 00:00 .. 2012-02-01 00:00.
+    jan = (
+        output.df["DailyState", "P_day"]
+        .droplevel("grid")
+        .loc["2012-01-02 00:00":"2012-02-01 00:00"]
+        .sum()
+    )
     assert result.loc["2012-01-31", ("DailyState", "P_day")] == pytest.approx(jan)
 
 
@@ -92,7 +99,7 @@ def test_daily_labels_align_with_suews(output):
 
 def test_hourly_daily_and_monthly_align_dailystate_with_suews(output):
     """DailyState aligns with SUEWS rows at hourly, daily and monthly cadences."""
-    # Hourly: day D's 23:55 record sits on D+1 00:00 alongside SUEWS (23:00, 00:00],
+    # Hourly: day D's D+1 00:00 record sits on D+1 00:00 alongside SUEWS (23:00, 00:00],
     # never on 23:00 alongside SUEWS (22:00, 23:00].
     hourly = output.resample("h").df.droplevel("grid")
     ds_hourly = hourly["DailyState", "P_day"].dropna()

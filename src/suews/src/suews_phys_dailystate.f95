@@ -5,13 +5,48 @@ MODULE module_phys_dailystate
    USE module_ctrl_const_calendar, ONLY: &
       NDAYS_WEEK, DOW_SUNDAY, DOW_MONDAY, DOW_TUESDAY, DOW_WEDNESDAY, &
       DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
-   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
    use module_phys_lai, only: update_gddlai
-   USE module_ctrl_const_physconst, ONLY: sec_per_day
+   USE module_ctrl_const_physconst, ONLY: sec_per_day, sec_per_hour
    IMPLICIT NONE
 
+   PRIVATE :: get_step_day_bounds, is_same_calendar_day
+
 CONTAINS
+
+   PURE LOGICAL FUNCTION is_same_calendar_day(a, b) RESULT(same_day)
+      USE module_util_datetime, ONLY: datetime
+      IMPLICIT NONE
+      TYPE(datetime), INTENT(IN) :: a, b
+
+      same_day = (a%getDay() == b%getDay()) .AND. &
+                 (a%getMonth() == b%getMonth()) .AND. &
+                 (a%getYear() == b%getYear())
+   END FUNCTION is_same_calendar_day
+
+   PURE SUBROUTINE get_step_day_bounds(timer, time_now, day_now, day_prev, day_next)
+      ! Return timestamp time_now and the right-closed day-ownership instants
+      ! (t - 1 s) for the current, previous, and next steps. Under SUEWS's
+      ! closed="right", label="right" convention, every step ending at t belongs
+      ! to calendar day date(t - 1 s) (i.e. (D 00:00, D+1 00:00]), matching
+      ! pandas resample(..., closed="right", label="right") and
+      ! SUEWS_cal_interval_day_st across midnight-aligned and offset regular grids.
+      USE module_util_datetime, ONLY: datetime, timedelta
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
+      IMPLICIT NONE
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(datetime), INTENT(OUT) :: time_now, day_now, day_prev, day_next
+      TYPE(timedelta) :: one_sec, step_dt
+
+      one_sec = timedelta(seconds=1)
+      step_dt = timedelta(seconds=timer%tstep)
+      time_now = datetime(year=timer%iy) + &
+                 timedelta(days=timer%id - 1, hours=timer%it, minutes=timer%imin, seconds=timer%isec)
+      day_now = time_now - one_sec
+      day_prev = (time_now - step_dt) - one_sec
+      day_next = (time_now + step_dt) - one_sec
+   END SUBROUTINE get_step_day_bounds
 
    ! Calculation of daily state variables
    ! Responds to what has happened in the past (temperature, rainfall, etc)
@@ -19,7 +54,8 @@ CONTAINS
    ! --> for these variables, the rest of the code MUST use values from the previous day
    ! N.B. Some of this code is repeated in SUEWS_Initial
    ! --> so if changes are made here, SUEWS_Initial may also need to be updated accordingly
-   ! N.B. Currently, daily variables are calculated using 00:00-23:55 timestamps (for 5-min resolution); should use 00:05-00:00
+   ! Daily variables accumulate over right-closed days (D 00:00, D+1 00:00] and emit at D+1 00:00
+   ! (for 5-min resolution, 00:05 to 00:00 next day).
    !
    ! Last modified:
    !  TS 09 Jul 2018  - Modified HDD array to hold values for actual calculation
@@ -69,7 +105,7 @@ CONTAINS
 
       ! USE module_phys_snow, ONLY: SnowUpdate
       USE module_util_datetime, ONLY: datetime, timedelta
-      USE module_util_time, ONLY: SUEWS_cal_interval_day_st
+      USE module_util_time, ONLY: SUEWS_cal_interval_day_st, day2month, Day_Of_Week
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                   PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                   IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
@@ -96,12 +132,17 @@ CONTAINS
 
       TYPE(PHENOLOGY_STATE) :: phenState_prev
 
-      LOGICAL :: first_tstep_Q ! if this is the first tstep of a day
+      LOGICAL :: first_tstep_day_Q ! if this is the first tstep of a right-closed day
+      LOGICAL :: first_tstep_Q ! if this is the first tstep of a day or of the run
       LOGICAL :: first_tstep_run_Q ! if this is the first tstep of the run
-      LOGICAL :: last_tstep_Q ! if this is the last tstep of a day
+      LOGICAL :: last_tstep_Q ! if this is the closing tstep of a right-closed day (D+1 00:00)
       LOGICAL :: irrig_new_day_Q ! if this step opens a right-closed local-standard delivery day
       INTEGER :: irr_year, irr_month, irr_day, irr_doy, irr_dow
-      TYPE(datetime) :: time_now, time_prev, time_next
+      TYPE(datetime) :: time_now, day_now, day_prev, day_next, prev_pred_next
+      INTEGER :: iy_day, id_day ! calendar year and DOY of the accumulated day date(time_now - 1 s)
+      INTEGER :: mb_day, date_day, seas_day, wd_day
+      INTEGER, DIMENSION(3) :: DayofWeek_day ! [weekday, month, season] of the accumulated day
+      INTEGER :: elapsed_sec_of_day ! seconds elapsed in the accumulated day up to time_now [s]
 
       REAL(KIND(1D0)) :: tair ! air temperature [degC]
 
@@ -125,11 +166,7 @@ CONTAINS
 
          ASSOCIATE ( &
             lat => siteInfo%lat, &
-            iy => timer%iy, &
             id => timer%id, &
-            it => timer%it, &
-            imin => timer%imin, &
-            isec => timer%isec, &
             tstep => timer%tstep, &
             tstep_prev => timer%tstep_prev, &
             dt_since_start => timer%dt_since_start, &
@@ -260,22 +297,56 @@ CONTAINS
                LAIPower(:, 2) = dectrLAIPower
                LAIPower(:, 3) = grassLAIPower
 
-               ! get timestamps
-               time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
-               ! WRF-SUEWS COUPLING: tstep_prev allows for adaptive timesteps in WRF
-               ! In standalone SUEWS, tstep_prev always equals tstep
-               time_prev = time_now - timedelta(seconds=tstep_prev)
-               time_next = time_now + timedelta(seconds=tstep)
-
-               ! test if time at now is the first/last tstep of today
-               ! The first step of a run also starts a day, so a run that starts after
-               ! 00:00 begins its first day from that step rather than from the initial
-               ! state (gh#1919). The bridge starts a fresh run with dt_since_start = tstep;
-               ! a run continued from a checkpoint carries it on, so a chunk boundary
+               ! Resolve right-closed day-ownership instants date(t - 1 s) for the
+               ! current, previous (t - tstep), and next (t + tstep) steps. Every
+               ! step ending at t in (D 00:00, D+1 00:00] belongs to day D,
+               ! matching pandas resample(..., closed="right", label="right") and
+               ! SUEWS_cal_interval_day_st across midnight-aligned (00:05..00:00),
+               ! offset (e.g. 00:02..23:57), and adaptive-timestep grids.
+               ! The first step of a run also starts a day, so a run starting
+               ! mid-day or at 00:00 begins its first (possibly partial) day from
+               ! that step rather than from the initial state (gh#1919). The
+               ! bridge starts a fresh run with dt_since_start = tstep; a run
+               ! continued from a checkpoint carries it on, so a chunk boundary
                ! inside a day does not restart that day.
+               CALL get_step_day_bounds(timer, time_now, day_now, day_prev, day_next)
                first_tstep_run_Q = dt_since_start == tstep
-               first_tstep_Q = time_now%getDay() /= time_prev%getDay() .OR. first_tstep_run_Q
-               last_tstep_Q = time_now%getDay() /= time_next%getDay()
+               first_tstep_day_Q = .NOT. is_same_calendar_day(day_now, day_prev)
+               first_tstep_Q = first_tstep_day_Q .OR. first_tstep_run_Q
+               last_tstep_Q = .NOT. is_same_calendar_day(day_now, day_next)
+
+               ! Reject intra-day or midnight-skipping timestep changes explicitly.
+               ! DailyState accumulates fixed-step means via update_HDD (using tstep)
+               ! and emits DailyStateLine only on each day's closing step, so changing
+               ! tstep within an open day or jumping past an unclosed day boundary
+               ! cannot preserve exact daily means or emit day_prev's record.
+               ! Clean between-day changes after a closed day boundary remain allowed.
+               IF ((.NOT. first_tstep_run_Q) .AND. tstep_prev > 0 .AND. (tstep /= tstep_prev)) THEN
+                  prev_pred_next = day_prev + timedelta(seconds=tstep_prev)
+                  IF ((.NOT. first_tstep_day_Q) .OR. &
+                      is_same_calendar_day(day_prev, prev_pred_next)) THEN
+                     CALL set_supy_error( &
+                        118, &
+                        'SUEWS_cal_DailyState: changing tstep within a day or across an unclosed day boundary is not supported')
+                     RETURN
+                  END IF
+               END IF
+
+               ! Calendar identity of the accumulated day date(time_now - 1 s).
+               ! At exact closing midnight D+1 00:00:00, timer%id and timer%DayofWeek_id
+               ! already belong to D+1 (and Jan 1 00:00 has id=1 while closing Dec 31
+               ! DOY 365/366), so derive the closing day's DOY and weekday/month/season
+               ! from day_now (D 23:59:59).
+               IF (time_now%getDay() /= day_now%getDay()) THEN
+                  iy_day = day_now%getYear()
+                  id_day = day_now%yearday()
+                  CALL day2month(id_day, mb_day, date_day, seas_day, iy_day, lat)
+                  CALL Day_Of_Week(date_day, mb_day, iy_day, wd_day)
+                  DayofWeek_day = [wd_day, mb_day, seas_day]
+               ELSE
+                  id_day = id
+                  DayofWeek_day = DayofWeek_id
+               END IF
 
                ! Right-closed local-standard delivery day (D 00:00, D+1 00:00] for modelled
                ! irrigation (gh#2381), shared with SUEWS_cal_WaterUse.
@@ -293,11 +364,11 @@ CONTAINS
                END IF
 
                ! --------------------------------------------------------------------------------
-               ! On first timestep of each day, define whether the day each a workday or weekend
+               ! On first timestep of each day (or run), reset daily accumulators
                IF ((first_tstep_Q) .AND. execute_subroutines) THEN
                   CALL update_DailyState_Start( &
-                     it, imin, first_tstep_run_Q, & !input
-                     HDD_id) !inout
+                     first_tstep_Q, & !input
+                     HDD_id(1:6)) !inout
 
                   ! reset certain GDD columns from the same Tair used for the rest of the day (gh#1882)
                   Tmin_id = Tair !Daily min T in column 3
@@ -308,7 +379,7 @@ CONTAINS
                ! regular update at all timesteps of a day
                IF (execute_subroutines) THEN
                   CALL update_DailyState_Day( &
-                     DayofWeek_id, &
+                     DayofWeek_day, &
                      avkdn, & !input
                      Tair, &
                      Precip, &
@@ -339,14 +410,17 @@ CONTAINS
                END IF
 
                ! --------------------------------------------------------------------------------
-               ! On last timestep, perform the daily calculations -------------------------------
+               ! On closing timestep of each right-closed day (D+1 00:00), perform daily updates
                ! Daily values not correct until end of each day,
                !  so main program should use values from the previous day
                IF (last_tstep_Q) THEN
                   ! Calculate heating degree days ------------------------------------------
                   IF (execute_subroutines) THEN
+                     elapsed_sec_of_day = day_now%getHour()*NINT(sec_per_hour) &
+                                          + day_now%getMinute()*60 &
+                                          + day_now%getSecond() + 1
                      CALL update_HDD( &
-                        dt_since_start, it, imin, tstep, & !input
+                        dt_since_start, elapsed_sec_of_day, tstep, & !input
                         HDD_id) !inout
                   END IF
 
@@ -356,7 +430,7 @@ CONTAINS
                   !------------------------------------------------------------------------------
                   IF (execute_subroutines) THEN
                      CALL update_gddlai( &
-                        id=id, lai_calc_yes=LAICalcYes, & !input
+                        id=id_day, lai_calc_yes=LAICalcYes, & !input
                         lat=lat, lai_obs=[lai_evetr, lai_dectr, lai_grass], &
                         t_min_id_prev=Tmin_id, t_max_id_prev=Tmax_id, &
                         base_t_gdd=BaseT, base_t_sdd=BaseTe, &
@@ -673,31 +747,37 @@ CONTAINS
    END SUBROUTINE update_WaterUse
 
    SUBROUTINE update_HDD( &
-      dt_since_start, it, imin, tstep, & !input
+      dt_since_start, elapsed_sec_of_day, tstep, & !input
       HDD_id) !inout
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: dt_since_start, it, imin, tstep
+      INTEGER, INTENT(IN) :: dt_since_start, elapsed_sec_of_day, tstep
 
       REAL(KIND(1D0)), DIMENSION(12), INTENT(INOUT) :: HDD_id
       ! REAL(KIND(1d0)),DIMENSION(6),INTENT(OUT):: HDD_id_use
 
       INTEGER :: days_prev
+      INTEGER :: steps_in_day
       REAL(KIND(1D0)) :: tstepcount
 
-      ! count of timesteps performed during day: the sums are reset at 00:00 and
-      ! accumulate every step from 00:00 to the current (last) step inclusive,
-      ! hence the +1 (gh#1878); on the first day of a run that starts after 00:00
-      ! they start at the run's first step, so only dt_since_start/tstep steps
-      ! have been summed (gh#1919)
-      tstepcount = MIN((it*60 + imin)*60/tstep + 1, dt_since_start/tstep)*1.
+      ! Count of timesteps accumulated in this right-closed day (D 00:00, D+1 00:00]:
+      ! ceiling(elapsed_sec_of_day / tstep) gives the full-day step count across
+      ! both midnight-aligned (e.g. 86400/300 = 288, 86400/3600 = 24) and offset
+      ! grids (e.g. 00:02..23:57 -> ceiling(86220/300) = 288), capped by
+      ! dt_since_start/tstep on a partial first day (including a run starting at
+      ! 00:00 where dt_since_start/tstep == 1) (gh#1878, gh#1919).
+      steps_in_day = MAX(1, MIN((elapsed_sec_of_day + tstep - 1)/tstep, dt_since_start/tstep))
+      tstepcount = REAL(steps_in_day, KIND(1D0))
       ! Heating degree days (HDD) -------------
       HDD_id(1) = HDD_id(1)/tstepcount !Heating
       HDD_id(2) = HDD_id(2)/tstepcount !Cooling
       HDD_id(3) = HDD_id(3)/tstepcount !Average temp
 
-      ! Calculate a quasi-5-day-running-mean temp
-      days_prev = MIN(4, & ! dt_since_start >= 4 days
-                      FLOOR(dt_since_start/(sec_per_day)*1.)) ! dt_since_start < 4 days
+      ! Calculate a quasi-5-day-running-mean temp:
+      ! Count completed prior days using (dt_since_start - tstep) so Day 1
+      ! (dt_since_start == sec_per_day for a full 00:05..00:00 day) has
+      ! days_prev == 0 and does not blend with the initial HDD_id(4).
+      days_prev = MIN(4, & ! >= 4 prior days
+                      MAX(0, FLOOR(REAL(dt_since_start - tstep, KIND(1D0))/sec_per_day)))
       HDD_id(4) = (HDD_id(4)*days_prev + HDD_id(3))/(days_prev + 1)
 
       ! Calculate number of days since rain
@@ -713,12 +793,10 @@ CONTAINS
    END SUBROUTINE update_HDD
 
    SUBROUTINE update_DailyState_Start( &
-      it, imin, first_tstep_run_Q, & !input
+      first_tstep_Q, & !input
       HDD_id) !output
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: it
-      INTEGER, INTENT(IN) :: imin
-      LOGICAL, INTENT(IN) :: first_tstep_run_Q ! first step of the run (gh#1919)
+      LOGICAL, INTENT(IN) :: first_tstep_Q ! first step of a right-closed day or of the run (gh#1919)
 
       REAL(KIND(1D0)), DIMENSION(6), INTENT(INOUT) :: HDD_id
       REAL(KIND(1D0)) :: HDD_id_mav, HDD_id_daysSR
@@ -728,7 +806,7 @@ CONTAINS
       HDD_id_mav = HDD_id(4)
       ! Days Since Rain
       HDD_id_daysSR = HDD_id(6)
-      IF ((it == 0 .AND. imin == 0) .OR. first_tstep_run_Q) THEN
+      IF (first_tstep_Q) THEN
          HDD_id = 0
          HDD_id(4) = HDD_id_mav
          HDD_id(6) = HDD_id_daysSR
@@ -742,11 +820,12 @@ CONTAINS
       modState, & ! input/output:
       DailyStateLine) !out
 
+      USE module_util_datetime, ONLY: datetime
       USE module_ctrl_type, ONLY: &
          SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
          PHENOLOGY_STATE, anthroEmis_STATE, &
-         SNOW_STATE, SUEWS_TIMER, HYDRO_STATE, &
-         OHM_STATE, PHENOLOGY_STATE, &
+         SNOW_STATE, HYDRO_STATE, &
+         OHM_STATE, &
          SUEWS_STATE
 
       IMPLICIT NONE
@@ -759,6 +838,9 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5), INTENT(OUT) :: DailyStateLine
+
+      TYPE(datetime) :: time_now, day_now, day_prev, day_next
+      LOGICAL :: last_tstep_Q
 
       ASSOCIATE ( &
          phenState => modState%phenState, &
@@ -789,16 +871,16 @@ CONTAINS
             a3 => OHMState%a3, &
             a1_bldg => ohmState%a1_bldg, &
             a2_bldg => ohmState%a2_bldg, &
-            a3_bldg => ohmState%a3_bldg, &
-            it => timer%it, &
-            imin => timer%imin, &
-            nsh_real => timer%nsh_real &
+            a3_bldg => ohmState%a3_bldg &
             )
 
             ! initialise DailyStateLine
             DailyStateLine = -999
-            ! Check if this is the last timestep of the day
-            IF (it == 23 .AND. imin == INT((nsh_real - 1)/nsh_real*60)) THEN
+            ! Emit day D's DailyState on its closing timestep (D+1 00:00 on
+            ! midnight-aligned grids, matching last_tstep_Q in SUEWS_cal_DailyState).
+            CALL get_step_day_bounds(timer, time_now, day_now, day_prev, day_next)
+            last_tstep_Q = .NOT. is_same_calendar_day(day_now, day_next)
+            IF (last_tstep_Q) THEN
                ! Write actual data only at the last timestep of each day
                DailyStateLine = [ &
                                 HDD_id(1:6), &

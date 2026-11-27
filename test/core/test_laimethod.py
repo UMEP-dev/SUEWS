@@ -303,14 +303,14 @@ class TestLAIMethodRuntime:
         results = sim.run(end_date=df_forcing.index[-1])
 
         df_dailystate = results.xs("DailyState", level="group", axis=1)
-        # DailyState has a (grid, datetime) MultiIndex; LAI values are written at
-        # 23:55 of each day. Drop the grid level and re-key by date to align with
-        # the forcing daily mean.
+        # DailyState has a (grid, datetime) MultiIndex; day D's LAI values are
+        # written at closing midnight D+1 00:00. Drop the grid level and re-key
+        # by accumulated date D to align with the forcing daily mean.
         df_single_grid = df_dailystate.xs(1, level="grid")
         df_lai_daily = df_single_grid[["LAI_EveTr", "LAI_DecTr", "LAI_Grass"]].dropna(
             how="all"
         )
-        df_lai_daily.index = df_lai_daily.index.normalize()
+        df_lai_daily.index = (df_lai_daily.index - pd.Timedelta(days=1)).normalize()
         return df_lai_daily
 
     def _assert_runtime_switch(

@@ -195,27 +195,29 @@ def test_tz_aware_chained_multiday_resample_matches_direct(tz, start, end, rule)
 def test_native_timestep_parquet_keeps_kernel_stamp_while_text_is_daily(
     sample_three_day_output, tmp_path
 ):
-    """Native-step Parquet preserves kernel 23:55 stamps; text DailyState is daily."""
+    """Native-step Parquet and text DailyState both emit at D+1 00:00."""
     output = sample_three_day_output
-    expected_native = pd.DatetimeIndex([
-        "2012-01-01 23:55",
-        "2012-01-02 23:55",
-        "2012-01-03 23:55",
-    ])
     expected_daily = pd.DatetimeIndex([
         "2012-01-02 00:00",
         "2012-01-03 00:00",
         "2012-01-04 00:00",
     ])
 
-    # Unstreamed Parquet at native 300 s keeps kernel 23:55 DailyState rows.
+    # Native output.df itself emits day D's DailyState at D+1 00:00.
+    assert (
+        output.df.droplevel("grid")["DailyState", "P_day"]
+        .dropna()
+        .index.equals(expected_daily)
+    )
+
+    # Unstreamed Parquet at native 300 s keeps kernel D+1 00:00 DailyState rows.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", FutureWarning)
         pq_paths = output.save(tmp_path / "pq300", format="parquet", freq_s=300)
     df_pq = pd.read_parquet(
         next(p for p in pq_paths if p.name.endswith("_output.parquet"))
     ).droplevel("grid")
-    assert df_pq["DailyState", "P_day"].dropna().index.equals(expected_native)
+    assert df_pq["DailyState", "P_day"].dropna().index.equals(expected_daily)
 
     # Streamed Parquet at native 300 s agrees with unstreamed Parquet and output.df.
     sim = SUEWSSimulation.from_sample_data()
@@ -229,7 +231,7 @@ def test_native_timestep_parquet_keeps_kernel_stamp_while_text_is_daily(
     sim.run(start_date="2012-01-01", end_date="2012-01-03")
     [stream_folder] = (tmp_path / "stream300").glob("*SUEWS_output*.parquet")
     df_stream = pd.read_parquet(stream_folder).sort_index().droplevel("grid")
-    assert df_stream["DailyState", "P_day"].dropna().index.equals(expected_native)
+    assert df_stream["DailyState", "P_day"].dropna().index.equals(expected_daily)
 
     # Text DailyState is always a daily (86400 s) file labelled D+1 00:00.
     txt_paths = output.save(
@@ -280,7 +282,7 @@ def test_year_boundary_dailystate_text_file_and_coverage_sidecar(
     meta_2012 = json.loads(
         ds_paths[1].with_name(ds_paths[1].name + ".units.json").read_text(encoding="utf-8")
     )
-    assert meta_2011["daily_coverage_s"] == {"1|2012-01-01T00:00:00": 86100.0}
+    assert meta_2011["daily_coverage_s"] == {"1|2012-01-01T00:00:00": 86400.0}
     assert meta_2012["daily_coverage_s"] == {
         "1|2012-01-02T00:00:00": 86400.0,
         "1|2012-01-03T00:00:00": 86400.0,

@@ -2143,3 +2143,259 @@ mod stebbs_checkpoint_validation_tests {
             .expect("STEBBS disabled skips STEBBS buildings validation");
     }
 }
+
+#[cfg(all(test, feature = "physics"))]
+mod dailystate_timestep_change_tests {
+    use super::*;
+
+    fn met_row(id: f64, it: f64, imin: f64, temp_c: f64, rain: f64, kdown: f64) -> Vec<f64> {
+        let mut row = vec![-999.0_f64; MET_FORCING_COLS];
+        row[0] = 2012.0; // iy
+        row[1] = id; // id (DOY)
+        row[2] = it; // it (hour)
+        row[3] = imin; // imin (minute)
+        row[9] = 2.0; // U
+        row[10] = 60.0; // RH
+        row[11] = temp_c; // Tair
+        row[12] = 101.3; // pres [kPa]
+        row[13] = rain; // rain [mm]
+        row[14] = kdown; // kdown [W m-2]
+        row[15] = 0.0; // snow
+        row[16] = 320.0; // ldown
+        row[17] = 0.5; // fcld
+        row[18] = 0.0; // Wuh
+        row[19] = 0.0; // xsmd
+        row[20] = 4.0; // lai
+        row[21] = 0.0; // kdiff
+        row[22] = 0.0; // kdir
+        row[23] = 180.0; // wdir
+        row
+    }
+
+    fn load_sample_run_cfg() -> crate::yaml_config::RunConfig {
+        let yaml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test/fixtures/bridge/sample_resolved.yml");
+        let yaml_str = std::fs::read_to_string(&yaml_path)
+            .expect("sample_resolved.yml fixture must be readable");
+        let mut run_cfg =
+            load_run_config_from_str(&yaml_str).expect("sample_resolved.yml fixture must load");
+        // Use direct forcing temperature in DailyState (RSLLevel = 0).
+        run_cfg.config.rsl_level = 0;
+        run_cfg
+    }
+
+    #[test]
+    fn between_day_timestep_change_at_closed_midnight_preserves_daily_state() {
+        let mut run_cfg = load_sample_run_cfg();
+
+        // Seed Day 1 state just before its closing 00:00 step (287 five-minute steps done).
+        let steps_before = 287;
+        run_cfg.state.anthroemis_state.hdd_id = [0.0; 12];
+        run_cfg.state.anthroemis_state.hdd_id[2] = 20.0 * (steps_before as f64);
+        run_cfg.state.anthroemis_state.hdd_id[3] = 99.0;
+        run_cfg.state.anthroemis_state.hdd_id[4] = 4.0;
+        run_cfg.state.phenology_state.tmin_id = 18.0;
+        run_cfg.state.phenology_state.tmax_id = 22.0;
+
+        // Step 1: Day 1 closing midnight DOY 2 00:00 at tstep=300 closes and emits Day 1.
+        run_cfg.timer.tstep = 300;
+        run_cfg.timer.tstep_prev = 300;
+        run_cfg.timer.nsh = 12;
+        run_cfg.timer.nsh_real = 12.0;
+        run_cfg.timer.tstep_real = 300.0;
+        run_cfg.timer.dt_since_start = (steps_before + 1) * 300;
+        run_cfg.timer.dt_since_start_prev = steps_before * 300;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(2.0, 0.0, 0.0, 20.0, 1.5, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("Day 1 closing midnight step should succeed");
+
+        assert!(
+            (out1.state.anthroemis_state.hdd_id[8] - 20.0).abs() < 1e-12,
+            "Day 1 HDD3_Tmean must close cleanly at 20.0, got {}",
+            out1.state.anthroemis_state.hdd_id[8]
+        );
+        assert!(
+            (out1.state.anthroemis_state.hdd_id[10] - 5.5).abs() < 1e-12,
+            "Day 1 P_day must close cleanly at 5.5 mm, got {}",
+            out1.state.anthroemis_state.hdd_id[10]
+        );
+
+        // Step 2: Day 2 opens cleanly at DOY 2 00:20 with a new tstep=1200 (tstep_prev=300)
+        // and continues to 00:40 in the same batch (verifying SUEWS_cal_multitsteps updates
+        // tstep_prev after 00:20 so 00:40 does not falsely trip error 118).
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 1200;
+        timer2.tstep_prev = 300;
+        timer2.nsh = 3;
+        timer2.nsh_real = 3.0;
+        timer2.tstep_real = 1200.0;
+        timer2.dt_since_start = (steps_before + 1) * 300 + 1200;
+        timer2.dt_since_start_prev = (steps_before + 1) * 300;
+
+        let mut forcing_day2 = met_row(2.0, 0.0, 20.0, 6.0, 0.75, 0.0);
+        forcing_day2.extend(met_row(2.0, 0.0, 40.0, 12.0, 0.50, 0.0));
+
+        let out2 = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: forcing_day2,
+            len_sim: 2,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("clean between-day timestep change across multi-step batch should succeed");
+
+        assert_eq!(out2.timer.tstep_prev, 1200);
+        assert!(
+            (out2.state.anthroemis_state.hdd_id[4] - 1.25).abs() < 1e-12,
+            "Day 2 P_day must reset at 00:20 and accumulate through 00:40 (0.75 + 0.50 = 1.25 mm), got {}",
+            out2.state.anthroemis_state.hdd_id[4]
+        );
+        assert!(
+            (out2.state.phenology_state.tmin_id - 6.0).abs() < 1e-12
+                && (out2.state.phenology_state.tmax_id - 12.0).abs() < 1e-12,
+            "Day 2 Tmin/Tmax must span 6.0..12.0 across 00:20..00:40, got {}/{}",
+            out2.state.phenology_state.tmin_id,
+            out2.state.phenology_state.tmax_id
+        );
+    }
+
+    #[test]
+    fn intraday_timestep_change_is_rejected_with_code_118() {
+        let mut run_cfg = load_sample_run_cfg();
+
+        // Step 1: Day 2 opens at 00:05 with tstep=300 (dt_since_start > tstep).
+        run_cfg.timer.tstep = 300;
+        run_cfg.timer.tstep_prev = 300;
+        run_cfg.timer.nsh = 12;
+        run_cfg.timer.nsh_real = 12.0;
+        run_cfg.timer.tstep_real = 300.0;
+        run_cfg.timer.dt_since_start = 86_400;
+        run_cfg.timer.dt_since_start_prev = 86_100;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(2.0, 0.0, 5.0, 20.0, 1.0, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("step 1 (00:05) should succeed");
+
+        // Step 2: changing tstep mid-day (00:05 -> 00:25, tstep=1200, tstep_prev=300)
+        // must fail loudly with error code 118 rather than corrupting update_HDD means.
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 1200;
+        timer2.tstep_prev = 300;
+        timer2.nsh = 3;
+        timer2.nsh_real = 3.0;
+        timer2.tstep_real = 1200.0;
+        timer2.dt_since_start = 86_400 + 1200;
+        timer2.dt_since_start_prev = 86_400;
+
+        let err = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: met_row(2.0, 0.0, 25.0, 20.0, 1.0, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect_err("intra-day timestep change must be rejected");
+
+        assert!(
+            matches!(
+                err,
+                crate::error::BridgeError::SimulationError {
+                    code: 118,
+                    ref message,
+                } if message.contains("SUEWS_cal_DailyState")
+            ),
+            "expected SimulationError code 118 from SUEWS_cal_DailyState, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn midnight_skipping_timestep_change_is_rejected_with_code_118() {
+        let mut run_cfg = load_sample_run_cfg();
+
+        // Step 1: DOY 16 23:55 at tstep=300 leaves DOY 16 open (predicts 00:00 next).
+        let steps_before = 286;
+        run_cfg.timer.tstep = 300;
+        run_cfg.timer.tstep_prev = 300;
+        run_cfg.timer.nsh = 12;
+        run_cfg.timer.nsh_real = 12.0;
+        run_cfg.timer.tstep_real = 300.0;
+        run_cfg.timer.dt_since_start = (steps_before + 1) * 300;
+        run_cfg.timer.dt_since_start_prev = steps_before * 300;
+
+        let out1 = run_simulation(SimulationInput {
+            timer: run_cfg.timer.clone(),
+            config: run_cfg.config.clone(),
+            site: run_cfg.site.clone(),
+            site_scalars: run_cfg.site_scalars.clone(),
+            state: run_cfg.state.clone(),
+            forcing_block: met_row(16.0, 23.0, 55.0, 20.0, 1.5, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("step 1 (23:55) should succeed");
+
+        // Step 2: jumping across midnight without closing DOY 16 (23:55 -> 00:15,
+        // tstep=1200, tstep_prev=300) must fail loudly with error code 118 instead
+        // of silently dropping DOY 16's DailyStateLine record.
+        let mut timer2 = out1.timer.clone();
+        timer2.tstep = 1200;
+        timer2.tstep_prev = 300;
+        timer2.nsh = 3;
+        timer2.nsh_real = 3.0;
+        timer2.tstep_real = 1200.0;
+        timer2.dt_since_start = (steps_before + 1) * 300 + 1200;
+        timer2.dt_since_start_prev = (steps_before + 1) * 300;
+
+        let err = run_simulation(SimulationInput {
+            timer: timer2,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: out1.state,
+            forcing_block: met_row(17.0, 0.0, 15.0, 3.0, 0.25, 0.0),
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect_err("midnight-skipping timestep change must be rejected");
+
+        assert!(
+            matches!(
+                err,
+                crate::error::BridgeError::SimulationError {
+                    code: 118,
+                    ref message,
+                } if message.contains("SUEWS_cal_DailyState")
+            ),
+            "expected SimulationError code 118 from SUEWS_cal_DailyState, got {err:?}"
+        );
+    }
+}

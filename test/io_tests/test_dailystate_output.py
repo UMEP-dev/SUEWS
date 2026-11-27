@@ -58,10 +58,11 @@ def _make_constant_temp_window(
     n_days: int,
     temp_c: float,
 ) -> pd.DataFrame:
-    """Create a multi-day 5-minute forcing slice with constant air temperature."""
+    """Create a multi-day right-closed 5-minute forcing slice with constant Tair."""
     n_steps = TIMESTEPS_PER_DAY * n_days
     template = df_forcing_base.iloc[:n_steps].copy()
-    idx = pd.date_range(start, periods=n_steps, freq="5min")
+    first_stamp = pd.Timestamp(start) + pd.Timedelta(minutes=5)
+    idx = pd.date_range(first_stamp, periods=n_steps, freq="5min")
     template.index = idx
     template["iy"] = idx.year
     template["id"] = idx.day_of_year
@@ -94,9 +95,9 @@ class TestDailyStateOutput:
         assert len(df_dailystate_clean) <= n_days
         assert len(df_dailystate_clean) > 0
 
-        hours = df_dailystate_clean.index.get_level_values("datetime").hour
-        assert all(h >= 23 for h in hours), (
-            "DailyState should only have values at end of day"
+        times = df_dailystate_clean.index.get_level_values("datetime")
+        assert ((times.hour == 0) & (times.minute == 0)).all(), (
+            "DailyState should only have values at closing midnight (D+1 00:00)"
         )
 
     def test_dailystate_save_output(self, sample_run_cached):
@@ -225,7 +226,10 @@ class TestDailyStateOutput:
         """LAI does not decline in growth season and does not grow in senescence season."""
         latitude = float(sample_config_loaded.sites[0].properties.lat.value)
         df_dailystate = sample_dailystate_full_year
-        doy = df_dailystate.index.get_level_values("datetime").day_of_year
+        # Under right-closed (D 00:00, D+1 00:00], row D+1 00:00 closes day D.
+        doy = (
+            df_dailystate.index.get_level_values("datetime") - pd.Timedelta(days=1)
+        ).day_of_year
         growth_mask, senescence_mask = _season_masks(doy, latitude)
 
         assert growth_mask.any(), "Expected non-empty growth season mask"
@@ -254,7 +258,10 @@ class TestDailyStateOutput:
         base_t_sdd = float(lai_cfg.base_temperature_senescence.value)
 
         df_dailystate = sample_dailystate_full_year
-        doy = df_dailystate.index.get_level_values("datetime").day_of_year
+        # Under right-closed (D 00:00, D+1 00:00], row D+1 00:00 closes day D.
+        doy = (
+            df_dailystate.index.get_level_values("datetime") - pd.Timedelta(days=1)
+        ).day_of_year
         growth_mask, senescence_mask = _season_masks(doy, latitude)
 
         gdd = df_dailystate["GDD_DecTr"]
@@ -335,7 +342,11 @@ class TestDailyStateOutput:
             sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
 
             ds = sim.output.loc[:, "DailyState"].dropna(how="all")
-            doys = list(ds.index.get_level_values("datetime").day_of_year)
+            doys = list(
+                (
+                    ds.index.get_level_values("datetime") - pd.Timedelta(days=1)
+                ).day_of_year
+            )
             assert len(doys) == 3
 
             # Middle day is the boundary day (DOY 15 or DOY 196)
@@ -462,7 +473,9 @@ class TestDailyStateOutput:
         sim.run(start_date=df_wrap.index[0], end_date=df_wrap.index[-1])
 
         ds = sim.output.loc[:, "DailyState"].dropna(how="all")
-        doys = list(ds.index.get_level_values("datetime").day_of_year)
+        doys = list(
+            (ds.index.get_level_values("datetime") - pd.Timedelta(days=1)).day_of_year
+        )
         assert doys == [365, 366, 1, 2]
         assert np.isfinite(ds["LAI_DecTr"]).all()
         tmean = 0.5 * (ds["Tmin"] + ds["Tmax"])
@@ -813,7 +826,10 @@ class TestDailyStateOutput:
         _, df_forcing = sample_data_loaded
         df_forcing = df_forcing.copy()
 
-        first_day = df_forcing.index.normalize() == df_forcing.index[0].normalize()
+        day_keys = (
+            df_forcing.index - pd.Timedelta(1, df_forcing.index.unit)
+        ).normalize()
+        first_day = day_keys == day_keys[0]
         df_forcing.loc[first_day, "lai"] = bad_lai
 
         sim.update_forcing(df_forcing)

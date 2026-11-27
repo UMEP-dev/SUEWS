@@ -1595,12 +1595,19 @@ class SUEWSSimulation:
         else:
             streamed_files = StreamedTextFiles(resume_after=resume_after)
             year_last = None
-        # Streaming chunks are right-closed; a day's midnight step may be in
-        # the preceding chunk. Count the run's forcing rows before slicing.
+        # Streaming chunks are right-closed; count the run's forcing rows by
+        # their right-closed day (D 00:00, D+1 00:00] before slicing so days
+        # split across chunks still report their full step count.
         coverage_index = df_forcing.index
-        if resume_after is not None:
-            coverage_index = coverage_index.insert(0, pd.Timestamp(resume_after))
-        daily_steps = pd.Series(1, index=coverage_index.normalize()).groupby(level=0).sum()
+        tick = pd.Timedelta(1, coverage_index.unit)
+        daily_steps = (
+            pd.Series(
+                1,
+                index=(coverage_index - tick).normalize(),
+            )
+            .groupby(level=0)
+            .sum()
+        )
         # _save_supy sets the logger level; preserve the caller's level.
         log_level = logger_supy.level
         folder = Path(settings["output_path"]).resolve()

@@ -68,13 +68,16 @@ def with_daily_coverage(
         return result
     dates = df_output.index.get_level_values("datetime")
     grids = df_output.index.get_level_values("grid")
+    tick = pd.Timedelta(1, dates.unit)
+    day_keys = (dates - tick).normalize()
     counts = pd.Series(
-        1, index=pd.MultiIndex.from_arrays([grids, dates.normalize()])
+        1, index=pd.MultiIndex.from_arrays([grids, day_keys])
     ).groupby(level=[0, 1]).sum()
     daily = df_output["DailyState"].notna().any(axis=1)
     coverage = {}
     for grid, date in df_output.index[daily]:
-        count = counts.loc[grid, date.normalize()] if daily_steps is None else daily_steps[date.normalize()]
+        day_key = (date - tick).normalize()
+        count = counts.loc[grid, day_key] if daily_steps is None else daily_steps[day_key]
         coverage[f"{grid}|{date.isoformat()}"] = float(count * step_s)
     result = df_output.copy(deep=False)
     result.attrs[key] = coverage

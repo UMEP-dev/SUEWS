@@ -16,13 +16,15 @@ Two defects are pinned here:
   sums started from the initial state, and its means were divided by a full
   day's count. The first step of a run now starts a day as 00:00 does.
 
-Which forcing rows make up a model day is taken as the model has it (rows
-stamped 00:00 to 23:55 of the date). The forcing temperature drives DailyState
-directly (``roughness_sublayer_level: none``), so each day's statistics can be
-computed from the forcing.
+Which forcing rows make up a model day follows SUEWS's right-closed convention
+``(D 00:00, D+1 00:00]`` (rows stamped ``D 00:05`` to ``D+1 00:00`` at 5-min
+resolution, emitting day ``D`` at ``D+1 00:00``). The forcing temperature
+drives DailyState directly (``roughness_sublayer_level: none``), so each day's
+statistics can be computed from the forcing.
 """
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from supy import SUEWSSimulation
@@ -58,31 +60,37 @@ def _run_daily_state(first_step):
 @pytest.mark.core
 @pytest.mark.parametrize(
     "first_step",
-    ["00:05", "00:00"],
-    ids=["run-starts-after-midnight", "run-starts-at-midnight"],
+    ["00:05", "00:00", "12:00"],
+    ids=[
+        "run-starts-after-midnight",
+        "run-starts-at-midnight",
+        "run-starts-midday",
+    ],
 )
 def test_daily_statistics_cover_the_steps_the_day_accumulated(first_step):
-    # ARRANGE + ACT: the sample forcing starts at 00:05, so "00:05" gives a
-    # partial first day of 287 steps and "00:00" a complete one
+    # ARRANGE + ACT: under right-closed (D 00:00, D+1 00:00], "00:05" starts a
+    # complete 288-step day, "00:00" starts with a 1-step closing midnight of
+    # the prior day, and "12:00" starts a partial 145-step first day.
     df_daily, ser_tair = _run_daily_state(first_step)
 
     # ASSERT
     assert f"{ser_tair.index[0]:%H:%M}" == first_step
     n_days = 0
     for ts_end, row in df_daily.iterrows():
-        day = ts_end.normalize()
-        ser_day = ser_tair[(ser_tair.index >= day) & (ser_tair.index <= ts_end)]
+        day_start = ts_end - pd.Timedelta(days=1)
+        ser_day = ser_tair[(ser_tair.index > day_start) & (ser_tair.index <= ts_end)]
+        assert len(ser_day) >= 1
         n_days += 1
         np.testing.assert_allclose(
             row["HDD3_Tmean"],
             ser_day.mean(),
             rtol=1e-9,
             err_msg=(
-                f"HDD3_Tmean on {day:%Y-%m-%d} is not the mean of the day's "
-                f"{len(ser_day)} forcing temperatures: a ratio of n/(n-1) means "
-                "the timestep count is one short (gh#1878); on a run's first "
-                "day it means the day was not started at the run's first step "
-                "(gh#1919)"
+                f"HDD3_Tmean closing {ts_end:%Y-%m-%d %H:%M} is not the mean of "
+                f"the day's {len(ser_day)} forcing temperatures: a ratio of "
+                "n/(n-1) means the timestep count is one short (gh#1878); on a "
+                "run's first day it means the day was not started at the run's "
+                "first step (gh#1919)"
             ),
         )
         for col, expected in (("Tmin", ser_day.min()), ("Tmax", ser_day.max())):
@@ -91,11 +99,13 @@ def test_daily_statistics_cover_the_steps_the_day_accumulated(first_step):
                 expected,
                 rtol=1e-12,
                 err_msg=(
-                    f"{col} on {day:%Y-%m-%d} is not the extreme of the day's "
-                    f"{len(ser_day)} forcing temperatures; on a run's first day "
-                    "this means it was carried from the initial state (gh#1919)"
+                    f"{col} closing {ts_end:%Y-%m-%d %H:%M} is not the extreme "
+                    f"of the day's {len(ser_day)} forcing temperatures; on a "
+                    "run's first day this means it was carried from the initial "
+                    "state (gh#1919)"
                 ),
             )
     # the first (possibly partial) day is checked as well as the full ones
-    assert df_daily.index[0].normalize() == ser_tair.index[0].normalize()
+    first_day_start = (ser_tair.index[0] - pd.Timedelta(1, ser_tair.index.unit)).normalize()
+    assert df_daily.index[0] == first_day_start + pd.Timedelta(days=1)
     assert n_days >= N_DAYS - 1

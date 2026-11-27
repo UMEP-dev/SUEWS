@@ -57,15 +57,14 @@ def test_daily_extremes_come_from_the_diagnosed_temperature():
     n_full_days = 0
     n_days_forcing_outside = 0
     for ts_end, row in df_daily.iterrows():
-        day = ts_end.normalize()
+        day_start = ts_end - pd.Timedelta("1D")
         ser_day = ser_t2_seen[
-            (ser_t2_seen.index >= day) & (ser_t2_seen.index < day + pd.Timedelta("1D"))
+            (ser_t2_seen.index > day_start) & (ser_t2_seen.index <= ts_end)
         ]
-        # the first day starts after 00:00 and is never reset; skip it
         if len(ser_day) < TIMESTEPS_PER_DAY or ser_day.isna().any():
             continue
         n_full_days += 1
-        t_forcing_first = ser_tair.loc[day]
+        t_forcing_first = ser_tair.loc[day_start + pd.Timedelta("5min")]
         if not ser_day.min() <= t_forcing_first <= ser_day.max():
             n_days_forcing_outside += 1
         np.testing.assert_allclose(
@@ -74,7 +73,7 @@ def test_daily_extremes_come_from_the_diagnosed_temperature():
             rtol=0,
             atol=1e-9,
             err_msg=(
-                f"Tmin/Tmax on {day:%Y-%m-%d} are not the extremes of the T2 "
+                f"Tmin/Tmax on {day_start:%Y-%m-%d} are not the extremes of the T2 "
                 "that DailyState used that day; the daily reset is taking the "
                 "forcing temperature (regression of gh#1882)"
             ),

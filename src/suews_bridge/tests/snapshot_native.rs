@@ -1547,12 +1547,17 @@ fn production_multiline_batch_matches_step_by_step_reference() {
         "Case 1D STEBBS ws_10 must vary across forcing rows"
     );
 
-    // Case 1E: End-of-day boundary (23:45, 23:50, 23:55) activates real
+    // Case 1E: End-of-day boundary (23:50, 23:55, D+1 00:00) activates real
     // DailyState population on row 2 while rows 0..1 stay -999.0.
     let mut rows_e = sample_met_rows_ascending();
-    for (r, row) in rows_e.iter_mut().enumerate() {
-        row.it = 23.0;
-        row.imin = 45.0 + 5.0 * (r as f64);
+    rows_e[0].it = 23.0;
+    rows_e[0].imin = 50.0;
+    rows_e[1].it = 23.0;
+    rows_e[1].imin = 55.0;
+    rows_e[2].id += 1.0;
+    rows_e[2].it = 0.0;
+    rows_e[2].imin = 0.0;
+    for row in rows_e.iter_mut() {
         row.kdown = 25.0;
     }
     let obs_e = run_multiline_observer(&run_a, &rows_e);
@@ -1568,13 +1573,13 @@ fn production_multiline_batch_matches_step_by_step_reference() {
         obs_e.batch_output[2][16],
         3.0 / 12.0,
         1e-12,
-        "Case 1E row 2 (23:55) populated DailyState DLHrs",
+        "Case 1E row 2 (D+1 00:00) populated DailyState DLHrs",
     );
     assert_approx(
         obs_e.batch_output[2][17],
         rows_e[0].rain + rows_e[1].rain + rows_e[2].rain,
         1e-12,
-        "Case 1E row 2 (23:55) populated DailyState P_day",
+        "Case 1E row 2 (D+1 00:00) populated DailyState P_day",
     );
     assert_wall_final_matches_ref(&obs_c, "Case 1C");
     assert_wall_final_matches_ref(&obs_d, "Case 1D");

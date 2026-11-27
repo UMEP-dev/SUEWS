@@ -141,12 +141,14 @@ Former names are shown in brackets once.
    * - ``heat.popprof_24hr``
      - HourlyProfile
      - Raw population transition in metabolic emissions and, for the
-       detailed emission methods, building heat: 1=night, 2=day.
-     - 1/24
+       detailed emission methods, building heat: 1=night, 2=day, validated in
+       ``[1.0, 2.0]``.
+     - 1
    * - ``co2.profile_human_activity_24hr`` (``humactivity_24hr``)
      - HourlyProfile
-     - Raw activity transition in metabolic emissions: 1=night, 2=day.
-     - 1/24
+     - Raw activity transition in metabolic emissions: 1=night, 2=day,
+       validated in ``[1.0, 2.0]``.
+     - 1
    * - ``irrigation.wuprofa_24hr``
      - HourlyProfile
      - Automatic irrigation weights; normalised to daily sum 1.
@@ -201,12 +203,13 @@ values explicitly for active emissions runs.
 
 The uniform ``HourlyProfile`` default is 1/24 in both day types.
 It becomes a constant multiplier of 1 for mean-normalised profiles and equal
-hourly weights for irrigation.
-It does not suit the 1-to-2 population/activity scale and never enables the
-exactly-1 snow-clearing switch.
-The shipped population/activity values also have a known scale mismatch;
-see the `population and activity profile report
-<https://github.com/UMEP-dev/SUEWS/issues/2043>`_.
+hourly weights for irrigation, and never enables the exactly-1 snow-clearing
+switch.
+``heat.popprof_24hr`` and ``co2.profile_human_activity_24hr`` override that
+default to uniform ``1.0`` (night level) on their validated ``[1.0, 2.0]``
+transition scale, and the shipped configurations supply canonical ``[1.0, 2.0]``
+diurnal schedules (legacy ``801``/``802`` for population and ``55663``/``55664``
+for human activity).
 Choose values for the consuming calculation: the generic 1/144 ten-minute
 default is read raw, while heating and cooling setpoint defaults are 0 and
 100 degrees Celsius respectively.

@@ -24,7 +24,13 @@ from ..validation.core.utils import (
     warn_missing_params,
 )
 from .field_renames import CO2PARAMS_RENAMES, apply_field_renames
-from .profile import DayProfile, HourlyProfile, WeeklyProfile
+from .profile import (
+    DayProfile,
+    HourlyProfile,
+    WeeklyProfile,
+    default_day_night_hourly_profile,
+    validate_day_night_hourly_profile,
+)
 from .type import (
     DataModelBase,
     FlexibleRefValue,
@@ -800,13 +806,24 @@ class AnthropogenicHeat(
         ge=0.0,
     )
     popprof_24hr: HourlyProfile = Field(
-        description="24-hour profile of population density",
-        default_factory=HourlyProfile,
+        description=(
+            "24-hour population transition profile on the kernel's [1.0, 2.0] scale "
+            "(1.0 = night, 2.0 = day, values in between = transition; read raw "
+            "without normalisation). Defaults to uniform 1.0 (night level)."
+        ),
+        default_factory=default_day_night_hourly_profile,
         json_schema_extra={
             "unit": "1",
             "display_name": "Population Profile (24hr)",
         },
     )
+
+    @field_validator("popprof_24hr", mode="after")
+    @classmethod
+    def _validate_popprof_24hr_scale(cls, v: HourlyProfile) -> HourlyProfile:
+        validated = validate_day_night_hourly_profile(v, "popprof_24hr")
+        assert validated is not None
+        return validated
 
     ref: Optional[Reference] = None
 
@@ -1103,16 +1120,27 @@ class CO2Params(DataModelBase):  # TODO: May need to add the RefValue to the pro
     # validation preprocessing.
 
     profile_human_activity_24hr: Optional[HourlyProfile] = Field(
-        description="24-hour profile of human activity",
-        default_factory=HourlyProfile,
+        description=(
+            "24-hour human activity transition profile on the kernel's [1.0, 2.0] "
+            "scale (1.0 = night, 2.0 = day, values in between = transition; read "
+            "raw without normalisation). Defaults to uniform 1.0 (night level)."
+        ),
+        default_factory=default_day_night_hourly_profile,
         json_schema_extra={
             "unit": "1",
             "display_name": "Human Activity Profile (24hr)",
         },
     )
-    # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
+    # Field is Optional[HourlyProfile] but has a default_factory,
     # so it will never actually be None unless explicitly set during
     # validation preprocessing.
+
+    @field_validator("profile_human_activity_24hr", mode="after")
+    @classmethod
+    def _validate_human_activity_profile_scale(
+        cls, v: Optional[HourlyProfile]
+    ) -> Optional[HourlyProfile]:
+        return validate_day_night_hourly_profile(v, "profile_human_activity_24hr")
 
     ref: Optional[Reference] = None
 

@@ -582,7 +582,9 @@ _MLM_PRE2018A = {
     "trafficrate",
 }
 _MLM_ALLOWED = {
-    "2016a": _MLM_COMMON | _MLM_PRE2018A | {"pormin_dec"},
+    # 2016a also lacks ActivityProfWD/WE (added in 2017a) so humactivity_24hr
+    # cannot be represented separately.
+    "2016a": _MLM_COMMON | _MLM_PRE2018A | {"pormin_dec", "humactivity_24hr"},
     "2017a": _MLM_COMMON | _MLM_PRE2018A,
     "2017b": _MLM_COMMON | _MLM_PRE2018A,
     "2018a": _MLM_COMMON,
@@ -604,8 +606,8 @@ _MLM_PERTURB = {
     ("trafficrate", "(1,)"): 0.05,
     ("ahprof_24hr", "(3, 0)"): 0.31,
     ("ahprof_24hr", "(3, 1)"): 0.77,
-    ("popprof_24hr", "(5, 0)"): 0.41,
-    ("popprof_24hr", "(5, 1)"): 0.62,
+    ("popprof_24hr", "(5, 0)"): 1.41,
+    ("popprof_24hr", "(5, 1)"): 1.62,
     ("ohm_coef", "(0, 0, 0)"): 0.31,
     ("laipower", "(2, 1)"): 0.04,
     ("storedrainprm", "(1, 2)"): 0.6,

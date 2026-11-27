@@ -398,3 +398,68 @@ def test_anthro_guards_reject_corrupted_grid_and_timestamps(
         )
     with pytest.raises(AssertionError):
         _assert_distinct_scenarios_contract(corrupted, anthro_expected_index)
+
+
+def test_day_night_profile_defaults_and_shipped_scale_metabolic_bounds(
+    sample_forcing_parsed,
+):
+    """Omitted and shipped day-night profiles yield physically bounded metabolic CO2 (#2043).
+
+    Under ``emissions=12`` (J11 heat + anthropogenic CO2), omitting
+    ``popprof_24hr`` and ``profile_human_activity_24hr`` defaults to uniform
+    ``1.0`` (night level), so ``FcMetab`` equals the exact nighttime metabolic
+    flux ``PopDensNighttime * MinFCMetab / 10000`` at every timestep (instead
+    of turning negative under the former ``1/24`` default). With the shipped
+    ``[1.0, 2.0]`` profiles (801/802 and 55663/55664), ``FcMetab`` transitions
+    between the nighttime minimum and full daytime maximum
+    ``PopDensDaytime * MaxFCMetab / 10000``.
+    """
+    _, df_forcing_2d = sample_forcing_parsed(RUN_STEPS)
+    start_date = df_forcing_2d.index[0]
+    end_date = df_forcing_2d.index[-1]
+
+    raw_shipped = yaml.safe_load(
+        files("supy")
+        .joinpath("sample_data/sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
+    raw_shipped["model"]["physics"]["emissions"] = {"value": 12}
+    anthro_s = raw_shipped["sites"][0]["properties"]["anthropogenic_emissions"]
+    pop_night = float(anthro_s["heat"]["popdensnighttime"])
+    pop_day = float(anthro_s["heat"]["popdensdaytime"]["working_day"])
+    min_fc = float(anthro_s["co2"]["emission_co2_metabolism_min"]["value"])
+    max_fc = float(anthro_s["co2"]["emission_co2_metabolism_max"]["value"])
+    expected_fc_night = pop_night * min_fc / 10000.0
+    expected_fc_day = pop_day * max_fc / 10000.0
+
+    # 1. Shipped [1.0, 2.0] profiles reach both night minimum and full day maximum.
+    sim_shipped = SUEWSSimulation(SUEWSConfig.from_dict(raw_shipped))
+    sim_shipped.update_forcing(df_forcing_2d)
+    fc_metab_shipped = sim_shipped.run(
+        start_date=start_date, end_date=end_date
+    ).df["SUEWS"]["FcMetab"].to_numpy(dtype=float)
+    assert np.isfinite(fc_metab_shipped).all()
+    assert fc_metab_shipped.min() == pytest.approx(expected_fc_night, rel=1e-6)
+    assert fc_metab_shipped.max() == pytest.approx(expected_fc_day, rel=1e-6)
+
+    # 2. Omitted profiles default to uniform 1.0 (pure night baseline, never negative).
+    raw_default = yaml.safe_load(
+        files("supy")
+        .joinpath("sample_data/sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
+    raw_default["model"]["physics"]["emissions"] = {"value": 12}
+    raw_default["sites"][0]["properties"]["anthropogenic_emissions"]["heat"].pop(
+        "popprof_24hr", None
+    )
+    raw_default["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
+        "profile_human_activity_24hr", None
+    )
+    sim_default = SUEWSSimulation(SUEWSConfig.from_dict(raw_default))
+    sim_default.update_forcing(df_forcing_2d)
+    fc_metab_default = sim_default.run(
+        start_date=start_date, end_date=end_date
+    ).df["SUEWS"]["FcMetab"].to_numpy(dtype=float)
+    np.testing.assert_allclose(
+        fc_metab_default, expected_fc_night, rtol=1e-6, atol=1e-12
+    )

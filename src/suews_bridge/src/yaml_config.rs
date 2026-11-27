@@ -961,6 +961,7 @@ fn apply_hourly_day_profile(
     day_value: &Value,
     path_display: &str,
     required: bool,
+    bounds: Option<(f64, f64)>,
 ) -> Result<(), String> {
     if matches!(day_value, Value::Null) {
         if required {
@@ -994,6 +995,13 @@ fn apply_hourly_day_profile(
         match given_value(raw_val) {
             Some(Value::Number(n)) => match n.as_f64() {
                 Some(v) if v.is_finite() => {
+                    if let Some((min_val, max_val)) = bounds {
+                        if !(min_val..=max_val).contains(&v) {
+                            return Err(format!(
+                                "`{path_display}.{hour}` is {v}; must be in [{min_val:.1}, {max_val:.1}] (1.0 = night, 2.0 = day)."
+                            ));
+                        }
+                    }
                     parsed_values[idx] = Some(v);
                 }
                 _ => {
@@ -1048,6 +1056,26 @@ fn apply_hourly_profile_overrides(
     holiday: &mut [f64; 24],
     required: bool,
 ) -> Result<(), String> {
+    apply_hourly_profile_overrides_with_bounds(
+        site_root,
+        profile_path,
+        site_at,
+        working,
+        holiday,
+        required,
+        None,
+    )
+}
+
+fn apply_hourly_profile_overrides_with_bounds(
+    site_root: &Value,
+    profile_path: &[&str],
+    site_at: &str,
+    working: &mut [f64; 24],
+    holiday: &mut [f64; 24],
+    required: bool,
+    bounds: Option<(f64, f64)>,
+) -> Result<(), String> {
     let profile_display = yaml_path_display(site_at, profile_path);
     let Some(profile_root) = get_path(site_root, profile_path) else {
         if required {
@@ -1087,6 +1115,7 @@ fn apply_hourly_profile_overrides(
                 wd,
                 &format!("{profile_display}.working_day"),
                 required,
+                bounds,
             )?;
         }
         None if required => {
@@ -1103,6 +1132,7 @@ fn apply_hourly_profile_overrides(
                 hol,
                 &format!("{profile_display}.holiday"),
                 required,
+                bounds,
             )?;
         }
         None if required => {
@@ -3434,13 +3464,14 @@ fn apply_anthro_emis_overrides(
         &mut h.ahprof_24hr_holiday,
         anthro_on,
     )?;
-    apply_hourly_profile_overrides(
+    apply_hourly_profile_overrides_with_bounds(
         site_root,
         &[base[0], base[1], "heat", "popprof_24hr"],
         &site_at,
         &mut h.popprof_24hr_working,
         &mut h.popprof_24hr_holiday,
         anthro_on,
+        Some((1.0, 2.0)),
     )?;
 
     // --- co2 sub-section ---
@@ -3540,13 +3571,14 @@ fn apply_anthro_emis_overrides(
         &mut e.traffprof_24hr_holiday,
         anthro_on,
     )?;
-    apply_hourly_profile_overrides(
+    apply_hourly_profile_overrides_with_bounds(
         site_root,
         &[base[0], base[1], "co2", "humactivity_24hr"],
         &site_at,
         &mut e.humactivity_24hr_working,
         &mut e.humactivity_24hr_holiday,
         anthro_on,
+        Some((1.0, 2.0)),
     )?;
     Ok(())
 }
@@ -9248,7 +9280,7 @@ mod tests {
                     "heat",
                     "popprof_24hr",
                 ],
-                5.0,
+                1.1,
             ),
             (
                 &[
@@ -9266,7 +9298,7 @@ mod tests {
                     "co2",
                     "profile_human_activity_24hr",
                 ],
-                7.0,
+                1.2,
             ),
         ];
 
@@ -9313,7 +9345,7 @@ mod tests {
             (
                 &run_cfg.site.anthroemis.anthroheat.popprof_24hr_working,
                 &run_cfg.site.anthroemis.anthroheat.popprof_24hr_holiday,
-                5.0,
+                1.1,
             ),
             (
                 &run_cfg.site.anthroemis.traffprof_24hr_working,
@@ -9323,7 +9355,7 @@ mod tests {
             (
                 &run_cfg.site.anthroemis.humactivity_24hr_working,
                 &run_cfg.site.anthroemis.humactivity_24hr_holiday,
-                7.0,
+                1.2,
             ),
         ];
 
@@ -10999,6 +11031,46 @@ mod tests {
                     "`sites[gridiv=1].properties.anthropogenic_emissions.co2.profile_human_activity_24hr.working_day.12`"
                 ),
                 "{err}"
+            );
+        }
+
+        // Day-night transition profiles (popprof_24hr and profile_human_activity_24hr)
+        // must lie in [1.0, 2.0] whenever explicitly supplied, even when emissions=0 (#2043).
+        for (emissions, section, field, bad_val) in [
+            (2, "heat", "popprof_24hr", 0.4_f64),
+            (2, "heat", "popprof_24hr", 2.1_f64),
+            (0, "heat", "popprof_24hr", 1.0_f64 / 24.0_f64),
+            (2, "co2", "profile_human_activity_24hr", 0.99_f64),
+            (2, "co2", "profile_human_activity_24hr", 2.5_f64),
+            (0, "co2", "profile_human_activity_24hr", 0.4_f64),
+        ] {
+            let mut root = with_emissions(emissions);
+            let wd = get_path_mut(
+                first_site_mut(&mut root).unwrap(),
+                &[
+                    "properties",
+                    "anthropogenic_emissions",
+                    section,
+                    field,
+                    "working_day",
+                ],
+            )
+            .unwrap();
+            let Value::Mapping(wd_map) = wd else {
+                panic!("{field}.working_day should be a mapping");
+            };
+            wd_map.insert(
+                Value::String("4".to_string()),
+                Value::Number(serde_yaml::Number::from(bad_val)),
+            );
+            let err = load_run_config_from_value(&mut root).expect_err(
+                "out-of-range popprof_24hr / profile_human_activity_24hr must be rejected",
+            );
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.anthropogenic_emissions.{section}.{field}.working_day.4`"
+                )) && err.contains("[1.0, 2.0]"),
+                "em={emissions} {field}={bad_val}: {err}"
             );
         }
 

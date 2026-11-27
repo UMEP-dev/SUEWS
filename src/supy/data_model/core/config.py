@@ -48,8 +48,10 @@ from .model import (
 )
 from .profile import (
     _CANONICAL_HOUR_KEY_SET,
+    DAY_NIGHT_HOURLY_PROFILE_NAMES,
     normalise_hourly_profile_mapping,
     normalise_ten_minute_profile_mapping,
+    validate_day_night_hourly_profile,
 )
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams, SnowParams, SoilObservationConfig
 from .type import (
@@ -6098,6 +6100,12 @@ class SUEWSConfig(DataModelBase):
                             f"{site_name}: {profile_name}.{day_type} must have all hours from 1 to 24. "
                             f"Issues: {', '.join(error_parts)}"
                         )
+
+                if profile_name in DAY_NIGHT_HOURLY_PROFILE_NAMES:
+                    try:
+                        validate_day_night_hourly_profile(profile, profile_name)
+                    except ValueError as exc:
+                        errors.append(f"{site_name}: {exc}")
 
             if errors:
                 raise ValueError("\n".join(errors))

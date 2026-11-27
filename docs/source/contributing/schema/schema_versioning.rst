@@ -30,7 +30,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev23"`` describes the shape of the configuration
+``schema_version: "2026.6.dev24"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -43,7 +43,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev23"
+   schema_version: "2026.6.dev24"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -61,7 +61,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number -- ``2026.6.dev23`` comes after ``2026.6.dev22``,
+as a floating-point number -- ``2026.6.dev24`` comes after ``2026.6.dev23``,
+which comes after ``2026.6.dev22``,
 which comes after ``2026.6.dev21``, which comes after ``2026.6.dev20``,
 which comes after ``2026.6.dev19``,
 which comes after ``2026.6.dev18``,
@@ -197,7 +198,24 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev23** (current development version)
+**Schema 2026.6.dev24** (current development version)
+
+   Aligns population (``popprof_24hr``) and human-activity
+   (``profile_human_activity_24hr``) 24-hour profiles with the kernel's raw
+   ``[1.0, 2.0]`` night-to-day transition scale (``1.0`` = night, ``2.0`` =
+   day, values in between = transition; #2043). Omitted fields now default to
+   uniform ``1.0`` (night level) instead of ``1/24``, values outside
+   ``[1.0, 2.0]`` are rejected by both the Pydantic data model and the Rust
+   bridge, and shipped configurations replace the off-scale London QF profile
+   (legacy ``661``/``662``) with the canonical ``[1.0, 2.0]`` legacy population
+   (``801``/``802``) and UK human-activity (``55663``/``55664``) profiles.
+   Migration preserves profiles already in ``[1.0, 2.0]``, upgrades legacy
+   uniform ``1/24`` defaults to uniform ``1.0``, replaces known shipped
+   ``661``/``662`` profiles with ``801``/``802`` and ``55663``/``55664`` with
+   explicit logs, and raises ``YamlUpgradeError`` for custom out-of-range
+   profiles. See :ref:`schema_dev24_day_night_profile_scale`.
+
+**Schema 2026.6.dev23** (development)
 
    Computes modelled LAI from daily GDD/SDD increments within fixed growth and
    senescence seasons (reset before accumulation on DOY 15 and DOY 196,

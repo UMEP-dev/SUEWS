@@ -26,6 +26,7 @@ class ProfileManager:
         "NO_ACTIVITY": 0,  # No activity profile
         "UNIFORM": 1,  # Uniform distribution
         "PLACEHOLDER": 999,  # Placeholder for missing data
+        "DAY_NIGHT_DEFAULT": 99901,  # Uniform 1.0 (night level) on [1.0, 2.0] scale (#2043)
     }
 
     # Profile types that need to exist in SUEWS_Profiles.txt

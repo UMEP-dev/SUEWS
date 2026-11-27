@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from copy import deepcopy
+import math
 from typing import Dict, Optional
 
 import pandas as pd
@@ -10,6 +11,13 @@ from .type import DataModelBase, Reference, df_from_cols
 
 CANONICAL_HOUR_KEYS: tuple[str, ...] = tuple(str(hour) for hour in range(1, 25))
 _CANONICAL_HOUR_KEY_SET: frozenset[str] = frozenset(CANONICAL_HOUR_KEYS)
+DAY_NIGHT_PROFILE_MIN: float = 1.0
+DAY_NIGHT_PROFILE_MAX: float = 2.0
+DAY_NIGHT_PROFILE_DEFAULT: float = 1.0
+DAY_NIGHT_HOURLY_PROFILE_NAMES: frozenset[str] = frozenset({
+    "anthropogenic_emissions.heat.popprof_24hr",
+    "anthropogenic_emissions.co2.profile_human_activity_24hr",
+})
 CANONICAL_TEN_MINUTE_KEYS: tuple[str, ...] = tuple(str(step) for step in range(1, 145))
 _CANONICAL_TEN_MINUTE_KEY_SET: frozenset[str] = frozenset(CANONICAL_TEN_MINUTE_KEYS)
 
@@ -537,8 +545,10 @@ class HourlyProfile(DataModelBase):
     (``working_day``) and one for holidays (``holiday``). Each set is a
     mapping keyed by the hour, ``"1"`` to ``"24"``, where ``"1"`` is the
     first hour of the day, starting at 00:00; all 24 keys must be present.
-    The two sets are given together. A profile left out of the
-    configuration takes a uniform 1/24 in both sets.
+    The two sets are given together. A generic profile left out of the
+    configuration takes a uniform 1/24 in both sets; ``popprof_24hr`` and
+    ``profile_human_activity_24hr`` instead default to a uniform 1.0 (night
+    level) on their ``[1.0, 2.0]`` transition scale.
 
     Used by the snow, irrigation, anthropogenic-heat, population, traffic
     and human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,
@@ -644,6 +654,56 @@ class HourlyProfile(DataModelBase):
 
         # Create an instance of HourlyProfile
         return cls(working_day=working_day, holiday=holiday)
+
+
+def default_day_night_hourly_profile() -> HourlyProfile:
+    """Return a uniform 1.0 (night-level) 24-hour profile on the ``[1.0, 2.0]`` scale."""
+    hourly_values = {str(hour): DAY_NIGHT_PROFILE_DEFAULT for hour in range(1, 25)}
+    return HourlyProfile(
+        working_day=hourly_values.copy(),
+        holiday=hourly_values.copy(),
+    )
+
+
+def validate_day_night_hourly_profile(
+    profile: Optional[HourlyProfile], field_name: str
+) -> Optional[HourlyProfile]:
+    """Validate that non-null hourly values lie on the kernel's ``[1.0, 2.0]`` scale.
+
+    The anthropogenic emissions kernel reads ``popprof_24hr`` and
+    ``profile_human_activity_24hr`` raw without normalisation, weighting night
+    terms by ``(2 - x)`` and day terms by ``(x - 1)``. Values below ``1.0``
+    produce negative daytime weights and values above ``2.0`` produce negative
+    night-time weights.
+    """
+    if profile is None:
+        return None
+    bad_entries: list[str] = []
+    for day_type in ("working_day", "holiday"):
+        day_map = getattr(profile, day_type, None)
+        if not isinstance(day_map, dict):
+            continue
+        for hour, val in day_map.items():
+            if val is None:
+                continue
+            if (
+                isinstance(val, bool)
+                or not isinstance(val, (int, float))
+                or not math.isfinite(float(val))
+                or not (DAY_NIGHT_PROFILE_MIN <= float(val) <= DAY_NIGHT_PROFILE_MAX)
+            ):
+                bad_entries.append(f"{day_type}.{hour}={val!r}")
+    if bad_entries:
+        preview = ", ".join(bad_entries[:6])
+        if len(bad_entries) > 6:
+            preview += f", ... ({len(bad_entries)} total)"
+        raise ValueError(
+            f"{field_name} values must be finite numbers in "
+            f"[{DAY_NIGHT_PROFILE_MIN}, {DAY_NIGHT_PROFILE_MAX}] "
+            "(1.0 = night, 2.0 = day, values in between = transition; "
+            f"read raw without normalisation). Out-of-range entries: {preview}."
+        )
+    return profile
 
 
 class TenMinuteProfile(DataModelBase):

@@ -3280,6 +3280,214 @@ def _with_lai_daily_increment_advisory_delta(handler):
     return migrate
 
 
+_LEGACY_SHIPPED_661: tuple[float, ...] = (
+    0.57, 0.45, 0.43, 0.4, 0.4, 0.45, 0.71, 1.2,
+    1.44, 1.29, 1.28, 1.31, 1.3, 1.32, 1.35, 1.44,
+    1.51, 1.41, 1.14, 0.99, 0.86, 0.85, 0.8, 0.7,
+)
+_LEGACY_SHIPPED_662: tuple[float, ...] = (
+    0.65, 0.49, 0.46, 0.47, 0.47, 0.53, 0.7, 1.13,
+    1.37, 1.37, 1.3, 1.37, 1.33, 1.3, 1.27, 1.36,
+    1.44, 1.3, 1.1, 0.98, 0.84, 0.9, 0.87, 0.74,
+)
+_CANONICAL_POPPROF_801: tuple[float, ...] = (
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.5, 2.0, 2.0,
+    2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+    2.0, 2.0, 2.0, 2.0, 2.0, 1.5, 1.0, 1.0,
+)
+_CANONICAL_POPPROF_802: tuple[float, ...] = (
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+    2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.5, 1.0,
+)
+_CANONICAL_ACTIVITY_55663: tuple[float, ...] = (
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.5,
+    2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+    2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.5, 1.0,
+)
+_CANONICAL_ACTIVITY_55664: tuple[float, ...] = (
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+    2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.5, 1.0,
+)
+
+
+def _hourly_tuple_to_dict(values: tuple[float, ...]) -> dict[str, float]:
+    return {str(hour): val for hour, val in enumerate(values, start=1)}
+
+
+def _extract_complete_24hr_values(day_map: Mapping) -> list[float] | None:
+    """Return 24 finite float values ordered hours 1..24 if all 24 slots are numeric."""
+    by_hour: dict[int, float] = {}
+    for raw_k, raw_v in day_map.items():
+        if isinstance(raw_k, bool):
+            return None
+        if isinstance(raw_k, int):
+            hour = raw_k
+        elif isinstance(raw_k, str) and raw_k.isdigit():
+            hour = int(raw_k)
+        else:
+            return None
+        if not (1 <= hour <= 24):
+            return None
+        if isinstance(raw_v, bool) or not isinstance(raw_v, (int, float)):
+            return None
+        fval = float(raw_v)
+        if not math.isfinite(fval):
+            return None
+        by_hour[hour] = fval
+    if len(by_hour) != 24:
+        return None
+    return [by_hour[h] for h in range(1, 25)]
+
+
+def _matches_profile_sequence(
+    values: list[float], reference: tuple[float, ...], tol: float = 1e-6
+) -> bool:
+    return len(values) == 24 and all(
+        abs(actual - expected) <= tol for actual, expected in zip(values, reference)
+    )
+
+
+def _migrate_day_night_hourly_profiles(cfg: dict) -> dict:
+    """Enforce the kernel's [1.0, 2.0] scale on population and human-activity profiles (#2043).
+
+    - Profiles already in [1.0, 2.0] are left untouched.
+    - Legacy uniform 1/24 defaults are upgraded to uniform 1.0 (night level).
+    - Known shipped off-scale London QF profiles (legacy 661/662 copied into
+      pre-2026.6.dev24 sample configs) are replaced with the canonical [1.0, 2.0]
+      legacy population (801/802) and UK human-activity (55663/55664) profiles.
+    - Any other out-of-range or non-finite profile raises YamlUpgradeError so
+      custom user profiles are never silently distorted.
+    """
+    sites = cfg.get("sites")
+    if not isinstance(sites, list):
+        return cfg
+
+    result = deepcopy(cfg)
+    profile_specs = (
+        (
+            "heat",
+            "popprof_24hr",
+            {
+                "working_day": (_CANONICAL_POPPROF_801, "801"),
+                "holiday": (_CANONICAL_POPPROF_802, "802"),
+            },
+        ),
+        (
+            "co2",
+            "profile_human_activity_24hr",
+            {
+                "working_day": (_CANONICAL_ACTIVITY_55663, "55663"),
+                "holiday": (_CANONICAL_ACTIVITY_55664, "55664"),
+            },
+        ),
+        (
+            "co2",
+            "humactivity_24hr",
+            {
+                "working_day": (_CANONICAL_ACTIVITY_55663, "55663"),
+                "holiday": (_CANONICAL_ACTIVITY_55664, "55664"),
+            },
+        ),
+    )
+
+    for index, site in enumerate(result["sites"]):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        anthro = props.get("anthropogenic_emissions") if isinstance(props, dict) else None
+        if not isinstance(anthro, dict):
+            continue
+        site_label = _format_site_label(index, site)
+
+        for section_name, field_name, replacements in profile_specs:
+            section = anthro.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            profile = section.get(field_name)
+            if not isinstance(profile, dict):
+                continue
+
+            for day_type in ("working_day", "holiday"):
+                day_map = profile.get(day_type)
+                if not isinstance(day_map, dict) or not day_map:
+                    continue
+
+                bad_entries: list[str] = []
+                for raw_k, raw_v in day_map.items():
+                    if raw_v is None:
+                        continue
+                    if (
+                        isinstance(raw_v, bool)
+                        or not isinstance(raw_v, (int, float))
+                        or not math.isfinite(float(raw_v))
+                        or not (1.0 <= float(raw_v) <= 2.0)
+                    ):
+                        bad_entries.append(f"{raw_k}={raw_v!r}")
+
+                if not bad_entries:
+                    continue
+
+                complete = _extract_complete_24hr_values(day_map)
+                if complete is not None and all(
+                    abs(v - (1.0 / 24.0)) <= 1e-5 for v in complete
+                ):
+                    profile[day_type] = {str(h): 1.0 for h in range(1, 25)}
+                    _log(
+                        f"[yaml-upgrade] {site_label}: upgraded "
+                        f"anthropogenic_emissions.{section_name}.{field_name}.{day_type} "
+                        "from legacy uniform 1/24 default to uniform 1.0 (night level "
+                        "on the kernel's [1.0, 2.0] scale)."
+                    )
+                    continue
+
+                if complete is not None and (
+                    _matches_profile_sequence(complete, _LEGACY_SHIPPED_661)
+                    or _matches_profile_sequence(complete, _LEGACY_SHIPPED_662)
+                ):
+                    target_seq, target_code = replacements[day_type]
+                    source_code = (
+                        "661"
+                        if _matches_profile_sequence(complete, _LEGACY_SHIPPED_661)
+                        else "662"
+                    )
+                    profile[day_type] = _hourly_tuple_to_dict(target_seq)
+                    _log(
+                        f"[yaml-upgrade] {site_label}: replaced off-scale shipped "
+                        f"London QF profile ({source_code}) in "
+                        f"anthropogenic_emissions.{section_name}.{field_name}.{day_type} "
+                        f"with canonical [1.0, 2.0] legacy profile {target_code} "
+                        "(1.0 = night, 2.0 = day); review if your site uses a custom "
+                        "diurnal population/activity schedule."
+                    )
+                    continue
+
+                preview = ", ".join(bad_entries[:6])
+                if len(bad_entries) > 6:
+                    preview += f", ... ({len(bad_entries)} total)"
+                raise YamlUpgradeError(
+                    f"{site_label}: anthropogenic_emissions.{section_name}.{field_name}."
+                    f"{day_type} contains value(s) outside the kernel's [1.0, 2.0] "
+                    f"transition scale ({preview}). Rescale this profile onto "
+                    "[1.0, 2.0] (1.0 = night, 2.0 = day, values in between = "
+                    "transition) before upgrading to schema 2026.6.dev24."
+                )
+
+    return result
+
+
+def _with_day_night_profile_scale_delta(handler):
+    @wraps(handler)
+    def migrate(cfg, *, migration_context=None):
+        cfg = apply_migration_handler(
+            handler, deepcopy(cfg), migration_context=migration_context
+        )
+        return _migrate_day_night_hourly_profiles(cfg)
+
+    return migrate
+
+
 for (_source, _target), _handler in list(_HANDLERS.items()):
     if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
         _HANDLERS[_source, "2026.6.dev22"] = _handler
@@ -3307,6 +3515,40 @@ _HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
         _with_land_cover_and_dst_advisory_delta(
             _with_ten_minute_profile_key_delta(
                 _with_integer_doy_delta(_with_senescence_check(_identity))
+            )
+        )
+    )
+)
+
+for (_source, _target), _handler in list(_HANDLERS.items()):
+    if _target == CURRENT_SCHEMA_VERSION and _source != CURRENT_SCHEMA_VERSION:
+        _HANDLERS[_source, "2026.6.dev23"] = _handler
+        _HANDLERS[_source, _target] = _with_day_night_profile_scale_delta(_handler)
+_HANDLERS["2026.6.dev23", "2026.6.dev23"] = _with_vertical_layer_split_delta(
+    _with_land_cover_and_dst_advisory_delta(
+        _with_ten_minute_profile_key_delta(
+            _with_integer_doy_delta(_with_senescence_check(_identity))
+        )
+    )
+)
+_HANDLERS["2026.6.dev23", CURRENT_SCHEMA_VERSION] = (
+    _with_day_night_profile_scale_delta(
+        _with_vertical_layer_split_delta(
+            _with_land_cover_and_dst_advisory_delta(
+                _with_ten_minute_profile_key_delta(
+                    _with_integer_doy_delta(_with_senescence_check(_identity))
+                )
+            )
+        )
+    )
+)
+_HANDLERS[CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION] = (
+    _with_day_night_profile_scale_delta(
+        _with_vertical_layer_split_delta(
+            _with_land_cover_and_dst_advisory_delta(
+                _with_ten_minute_profile_key_delta(
+                    _with_integer_doy_delta(_with_senescence_check(_identity))
+                )
             )
         )
     )

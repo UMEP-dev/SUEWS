@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev23"
+CURRENT_SCHEMA_VERSION = "2026.6.dev24"
 
 # Schema version history and descriptions.
 #
@@ -323,6 +323,23 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "existing user parameters unchanged and logs an advisory for sites "
         "using modelled LAI so users know to retune legacy lai_power "
         "coefficients and review initial sdd_id."
+    ),
+    "2026.6.dev24": (
+        "Align population (popprof_24hr) and human-activity "
+        "(profile_human_activity_24hr) 24-hour profiles with the kernel's "
+        "raw [1.0, 2.0] night-to-day transition scale (1.0 = night, "
+        "2.0 = day, values in between = transition; #2043). Omitted fields "
+        "now default to uniform 1.0 (night level) instead of 1/24, values "
+        "outside [1.0, 2.0] are rejected by both the Pydantic data model and "
+        "the Rust bridge, and shipped configurations replace the off-scale "
+        "London QF profile (legacy 661/662) with the canonical [1.0, 2.0] "
+        "legacy population (801/802) and UK human-activity (55663/55664) "
+        "profiles. The (2026.6.dev23 -> 2026.6.dev24) migration preserves "
+        "profiles already in [1.0, 2.0], upgrades legacy uniform 1/24 "
+        "defaults to uniform 1.0, replaces the known shipped off-scale "
+        "661/662 profiles with 801/802 and 55663/55664 with explicit logs, "
+        "and raises YamlUpgradeError for custom out-of-range profiles so "
+        "users rescale them explicitly."
     ),
 }
 

@@ -241,6 +241,40 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev24_day_night_profile_scale:
+
+Upgrading to Schema 2026.6.dev24
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev24`` aligns the population (``anthropogenic_emissions.heat.popprof_24hr``)
+and human-activity (``anthropogenic_emissions.co2.profile_human_activity_24hr``)
+24-hour profiles with the kernel's fixed ``[1.0, 2.0]`` night-to-day transition
+scale (``1.0`` = night, ``2.0`` = day, values in between = transition; read raw
+without normalisation):
+
+- **Strict ``[1.0, 2.0]`` bounds**: both the Pydantic data model and the native
+  Rust bridge now reject finite values below ``1.0`` or above ``2.0`` in
+  ``popprof_24hr`` and ``profile_human_activity_24hr`` (values below ``1.0``
+  previously produced negative daytime weights ``(x - 1)`` and could drive
+  metabolic fluxes negative).
+- **Updated default when omitted**: omitting either profile now defaults to
+  uniform ``1.0`` (night level) rather than the generic ``1/24`` hourly
+  default.
+- **Shipped configurations updated**: the shipped sample and benchmark
+  configurations replace the off-scale London QF profile (legacy ``661``/``662``)
+  with the canonical ``[1.0, 2.0]`` legacy population (``801``/``802``) and UK
+  human-activity (``55663``/``55664``) profiles.
+
+``suews schema migrate`` leaves valid ``[1.0, 2.0]`` profiles untouched,
+upgrades legacy uniform ``1/24`` defaults to uniform ``1.0``, replaces the
+known shipped ``661``/``662`` profiles with ``801``/``802`` and
+``55663``/``55664`` with explicit log notices, and raises ``YamlUpgradeError``
+for custom out-of-range profiles so they can be rescaled explicitly:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev24
+
 .. _schema_dev23_lai_daily_increment:
 
 Upgrading to Schema 2026.6.dev23

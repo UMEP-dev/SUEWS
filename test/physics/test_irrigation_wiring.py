@@ -284,3 +284,68 @@ class TestDailyStateWaterUseTotal:
                     "(regression of gh#1864)"
                 ),
             )
+
+
+@pytest.mark.core
+@pytest.mark.parametrize(
+    ("hemisphere", "lat", "active_start", "active_end"),
+    [
+        ("southern", -33.9, 300, 90),
+        ("northern", 51.5, 1, 10),
+    ],
+    ids=["southern-hemisphere", "northern-hemisphere"],
+)
+def test_disabled_irrigation_window_sets_calc_zero_both_hemispheres(
+    hemisphere: str, lat: float, active_start: int, active_end: int
+) -> None:
+    """Fortran update_WaterUse sets calc=0 in both hemispheres when ie_start=ie_end=0."""
+    evening = _evening_profile()
+
+    def _run_case(ie_start: int | None, ie_end: int | None) -> float:
+        sim = SUEWSSimulation.from_sample_data()
+        # 4 days of 5-minute forcing starting on DOY 1 so daily update_WaterUse
+        # exercises both NH DOY 1 (where id <= 0 + 1 previously triggered) and SH.
+        forcing = sim.forcing.df.iloc[: TIMESTEPS_PER_DAY * 4].copy()
+        assert int(forcing.index[0].dayofyear) == 1
+        forcing["rain"] = 0.0
+        forcing["Tair"] = 28.0
+        sim.update_forcing(forcing)
+        sim.config.model.physics.water_use = WaterUseMethod.MODELLED
+        props = sim.config.sites[0].properties
+        props.lat.value = lat
+        irr = props.irrigation
+        for day in (
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ):
+            setattr(irr.daywat, day, 1.0)
+            setattr(irr.daywatper, day, 1.0)
+        irr.faut.value = 1.0
+        irr.h_maintain.value = 10.0
+        irr.internalwateruse_h.value = 0.0
+        irr.wuprofa_24hr.working_day = dict(evening)
+        irr.wuprofa_24hr.holiday = dict(evening)
+        irr.wuprofm_24hr.working_day = dict(evening)
+        irr.wuprofm_24hr.holiday = dict(evening)
+        irr.ie_start = ie_start
+        irr.ie_end = ie_end
+        props.land_cover.evetr.ie_a.value = 10.0
+        props.land_cover.grass.irrigation_fraction.value = 1.0
+        results = sim.run(
+            start_date=forcing.index[0], end_date=forcing.index[-1], n_jobs=1
+        )
+        suews_wu = results.xs("SUEWS", level="group", axis=1).xs(1, level="grid")
+        return float(suews_wu["Irr"].sum() + suews_wu["WUGrass"].sum())
+
+    # Negative control: disabled irrigation window (None/None -> 0/0 in Fortran)
+    # must set calc = 0 in both hemispheres -> zero irrigation water use.
+    assert _run_case(None, None) == pytest.approx(0.0, abs=0.0), hemisphere
+
+    # Positive control: active window covering DOY 1..4 sets calc = 1 and
+    # produces strictly positive irrigation water use.
+    assert _run_case(active_start, active_end) > 0.0, hemisphere

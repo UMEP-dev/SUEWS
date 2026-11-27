@@ -3,14 +3,13 @@ from .rules_core import (
     ValidationResult,
 )
 from collections.abc import Mapping
-from ...required_fields import stebbs_shading_requirements
 from ...core.yaml_helpers import (
     get_ref_or_bare,
     get_value_safe,
-    get_stebbs_block,
-    get_stebbsmethod_value,
 )
-from typing import Dict, List, Optional, Union, Any, Tuple
+from ...rules.hard_invariants import check_stebbs_internal_shading
+from ...rules.typed_view import TypedConfigView
+from typing import List
 import math
 
 def check_archetype_radiation_properties(archetype_data, facet):
@@ -103,61 +102,34 @@ def check_archetype_properties(context):
     - For each site, the function checks the "Wall" and "Roof" facets of the building archetype properties.
     - If a validation result is found, it is annotated with the site's index and grid ID before being added to the results list.
     """
-    yaml_data = context.yaml_data
-
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_stebbsmethod_value(physics)
 
-    if stebbsmethod == 1:
-        sites = yaml_data.get("sites", [])
-        for i, site in enumerate(sites):
-            site_props = site.get("properties", {})
-            archetype_props = site_props.get("building_archetype", {})
-
-            for facet in ["wall", "roof"]:
-                result = check_archetype_radiation_properties(archetype_props, facet=facet)
+    if view.physics.stebbs_method == 1:
+        for site in view.sites:
+            archetype_props = site.building_archetype
+            for facet in ("wall", "roof"):
+                result = check_archetype_radiation_properties(
+                    archetype_props, facet=facet
+                )
                 if result is not None:
-                    result.site_index = i
-                    result.site_gridid = site.get("gridiv")
+                    result.site_index = site.index
+                    result.site_gridid = site.gridid
                     results.append(result)
 
     return results
 
+
 @RulesRegistry.add_rule("occupants_metabolism")
 def check_occupants_metabolism(context):
-    """
-    Check for inconsistency between the number of occupants and metabolism profile.
-
-    This rule validates that if the number of occupants is set to 0.0 in the building archetype,
-    then all entries in the profile_metabolism must also be zero. If any nonzero values are found
-    in the profile_metabolism when occupants are zero, an error is reported for each problematic entry.
-
-    Parameters
-    ----------
-    context : object
-        The validation context containing the parsed YAML data under `context.yaml_data`.
-
-    Returns
-    -------
-    list of ValidationResult
-        A list of validation results indicating errors where the profile_metabolism contains
-        nonzero entries while the number of occupants is zero. Each result includes details
-        about the site, parameter, and suggested correction.
-    """
-    yaml_data = context.yaml_data
-
+    """Check for inconsistency between the number of occupants and metabolism profile."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_stebbsmethod_value(physics)
 
-    if stebbsmethod == 1:
-        sites = yaml_data.get("sites", [])
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            building_archetype = props.get("building_archetype", {})
-            occupants_entry = building_archetype.get("occupants", {})
-            occupants = occupants_entry.get("value") if isinstance(occupants_entry, Mapping) else occupants_entry
+    if view.physics.stebbs_method == 1:
+        for site in view.sites:
+            building_archetype = site.building_archetype
+            occupants = site.exact_scalar(building_archetype, "occupants")
             metabolism_profile = building_archetype.get("profile_metabolism", {})
             if occupants == 0.0 and isinstance(metabolism_profile, Mapping):
                 problematic_entries = []
@@ -175,8 +147,8 @@ def check_occupants_metabolism(context):
                             status="ERROR",
                             category="MODEL_OPTIONS",
                             parameter="building_archetype.profile_metabolism",
-                            site_index=site_idx,
-                            site_gridid=site.get("gridiv"),
+                            site_index=site.index,
+                            site_gridid=site.gridid,
                             message=(
                                 f"occupants is 0.0 but profile_metabolism has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
                             ),
@@ -188,66 +160,40 @@ def check_occupants_metabolism(context):
 
 @RulesRegistry.add_rule("daylight_control")
 def check_daylight_control(context):
-    """
-    Validate the 'daylight_control' flag and related lighting parameters for each site when STEBBS is active.
-
-    - Checks that the 'daylight_control' flag under each site's 'stebbs' properties is set to 0 or 1
-      (accepting both integer and float representations), but only if the 'stebbs_method' in the model
-      physics is set to 1.
-    - If 'daylight_control' is 1, 'threshold_lighting_illuminance' must be provided by the user in the YAML.
-
-    Parameters
-    ----------
-    context : object
-        An object containing the parsed YAML data as an attribute `yaml_data`.
-
-    Returns
-    -------
-    results : list of ValidationResult
-        A list of ValidationResult objects for each site with an invalid or missing value.
-    """
-    yaml_data = context.yaml_data
-
+    """Validate the 'daylight_control' flag and related lighting parameters for each site when STEBBS is active."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_stebbsmethod_value(physics)
 
-    if stebbsmethod == 1:
-        sites = yaml_data.get("sites", [])
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            stebbs = props.get("stebbs", {})
-            site_gridid = site.get("gridiv")
+    if view.physics.stebbs_method == 1:
+        for site in view.sites:
+            stebbs = site.stebbs
+            site_gridid = site.gridid
 
-            # get_value_safe accepts the legacy `control_daylight` spelling too,
-            # so a dev11-compatible config still validates in Phase-B-standalone
-            # mode (where the YAML is not Phase-A-normalised).
-            dc_val = get_value_safe(stebbs, "daylight_control")
+            # get_value_safe accepts the legacy `control_daylight` spelling too.
+            dc_val = site.scalar(stebbs, "daylight_control")
 
-            # Validate daylight_control value
             if dc_val not in (0, 1, 0.0, 1.0, None):
                 results.append(
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
                         parameter="stebbs.daylight_control",
-                        site_index=site_idx,
+                        site_index=site.index,
                         site_gridid=site_gridid,
                         message=f"daylight_control flag must be 0 (off) or 1 (on), got '{dc_val}'.",
                         suggested_value="Set daylight_control to 0 or 1",
                     )
                 )
 
-            # Check threshold_lighting_illuminance if daylight_control is 1
             if dc_val in (1, 1.0):
-                lit_val = get_value_safe(stebbs, "threshold_lighting_illuminance")
+                lit_val = site.scalar(stebbs, "threshold_lighting_illuminance")
                 if lit_val is None:
                     results.append(
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
                             parameter="stebbs.threshold_lighting_illuminance",
-                            site_index=site_idx,
+                            site_index=site.index,
                             site_gridid=site_gridid,
                             message="threshold_lighting_illuminance must be provided when daylight_control is 1.",
                             suggested_value="Provide a value for threshold_lighting_illuminance in stebbs.",
@@ -260,157 +206,48 @@ def check_daylight_control(context):
 @RulesRegistry.add_rule("internal_shading")
 def check_internal_shading(context):
     """Validate internal window-shading controls when STEBBS is active."""
-    yaml_data = context.yaml_data
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
 
-    if get_stebbsmethod_value(physics) != 1:
+    if view.physics.stebbs_method != 1:
         return results
 
-    for site_idx, site in enumerate(yaml_data.get("sites", [])):
-        stebbs = site.get("properties", {}).get("stebbs", {})
-        shading_mode = get_value_safe(stebbs, "internal_shading")
-        if isinstance(shading_mode, bool) or shading_mode not in {0, 1, 2, None}:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="MODEL_OPTIONS",
-                    parameter="stebbs.internal_shading",
-                    site_index=site_idx,
-                    site_gridid=site.get("gridiv"),
-                    message=(
-                        "internal_shading must be 0 (disabled), 1 (always active), "
-                        f"or 2 (controlled), got '{shading_mode}'."
-                    ),
-                    suggested_value="Set internal_shading to 0, 1, or 2",
-                )
+    for site in view.sites:
+        stebbs = site.stebbs
+        shading_mode = site.scalar(stebbs, "internal_shading")
+        values = {
+            field_name: site.scalar(stebbs, field_name)
+            for field_name in (
+                "reduction_factor_shading",
+                "temperature_threshold_shading",
+                "radiation_threshold_shading",
             )
-            continue
-
-        required_fields = stebbs_shading_requirements(shading_mode)
-        if not required_fields:
-            continue
-
-        missing_suggestions = {
-            "reduction_factor_shading": "Provide a value between 0 and 1",
-            "temperature_threshold_shading": "Provide temperature_threshold_shading in degC",
-            "radiation_threshold_shading": "Provide radiation_threshold_shading in W m-2",
         }
-        for field_name, message in required_fields.items():
-            if get_value_safe(stebbs, field_name) is not None:
-                continue
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="MODEL_OPTIONS",
-                    parameter=f"stebbs.{field_name}",
-                    site_index=site_idx,
-                    site_gridid=site.get("gridiv"),
-                    message=f"{message}.",
-                    suggested_value=missing_suggestions[field_name],
-                )
-            )
-
-        reduction_factor = get_value_safe(stebbs, "reduction_factor_shading")
-        if reduction_factor is not None and (
-            not isinstance(reduction_factor, (int, float))
-            or isinstance(reduction_factor, bool)
-            or not math.isfinite(reduction_factor)
-            or not 0.0 <= reduction_factor <= 1.0
-        ):
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="MODEL_OPTIONS",
-                    parameter="stebbs.reduction_factor_shading",
-                    site_index=site_idx,
-                    site_gridid=site.get("gridiv"),
-                    message=(
-                        "reduction_factor_shading must be a finite value between "
-                        f"0 and 1, got '{reduction_factor}'."
-                    ),
-                    suggested_value="Set reduction_factor_shading between 0 and 1",
-                )
-            )
-
-        threshold_specs = (
-            ("temperature_threshold_shading", -273.15, False, "degC"),
-            ("radiation_threshold_shading", 0.0, True, "W m-2"),
+        violations = check_stebbs_internal_shading(
+            shading_mode,
+            values,
+            require_explicit_presence=False,
+            site_index=site.index,
+            site_gridid=site.gridid,
         )
-        for field_name, lower_bound, inclusive, unit in threshold_specs:
-            if field_name not in required_fields:
-                continue
-            threshold = get_value_safe(stebbs, field_name)
-            if threshold is None:
-                continue
-
-            valid_number = (
-                isinstance(threshold, (int, float))
-                and not isinstance(threshold, bool)
-                and math.isfinite(threshold)
-            )
-            above_lower_bound = (
-                (threshold >= lower_bound if inclusive else threshold > lower_bound)
-                if valid_number
-                else False
-            )
-            if not above_lower_bound:
-                comparison = "at least" if inclusive else "greater than"
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="MODEL_OPTIONS",
-                        parameter=f"stebbs.{field_name}",
-                        site_index=site_idx,
-                        site_gridid=site.get("gridiv"),
-                        message=(
-                            f"{field_name} must be finite and {comparison} "
-                            f"{lower_bound} {unit}, got '{threshold}'."
-                        ),
-                        suggested_value=f"Provide a physically valid threshold in {unit}",
-                    )
-                )
+        results.extend(ValidationResult.from_violation(v) for v in violations)
 
     return results
 
 
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
-    """
-    Validate the 'profile_flow_hot_water' values in the STEBBS properties for each site.
-
-    Checks that, if the 'stebbs_method' is set to 1 in the model physics configuration,
-    the 'profile_flow_hot_water' for both 'working_day' and 'holiday' day types contains
-    only values of 0 or 1 for each hour. If any value is not 0 or 1, an error is added
-    to the results.
-
-    Parameters
-    ----------
-    context : object
-        An object containing the parsed YAML data as an attribute `yaml_data`.
-
-    Returns
-    -------
-    list of ValidationResult
-        A list of ValidationResult objects describing any errors found in the
-        'profile_flow_hot_water' values for each site.
-    """
-
-    yaml_data = context.yaml_data
-
+    """Validate the 'profile_flow_hot_water' values in STEBBS properties when STEBBS is active."""
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_stebbsmethod_value(physics)
 
-    if stebbsmethod == 1:
-        sites = yaml_data.get("sites", [])
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            stebbs = props.get("stebbs", {})
-            site_gridid = site.get("gridiv")
-            # rename-aware: resolves the legacy `profile_hot_water_flow` /
-            # `hot_water_flow_profile` spellings in un-normalised input.
-            hwfp_entry = get_value_safe(stebbs, "profile_flow_hot_water", {})
+    if view.physics.stebbs_method == 1:
+        for site in view.sites:
+            stebbs = site.stebbs
+            site_gridid = site.gridid
+            hwfp_entry = site.scalar(stebbs, "profile_flow_hot_water", {})
+            if not isinstance(hwfp_entry, Mapping):
+                continue
             for daytype in ("working_day", "holiday"):
                 day_profile = hwfp_entry.get(daytype, {})
                 if isinstance(day_profile, Mapping):
@@ -421,7 +258,7 @@ def check_stebbs_properties(context):
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
                                     parameter=f"stebbs.profile_flow_hot_water.{daytype}.{hour_str}",
-                                    site_index=site_idx,
+                                    site_index=site.index,
                                     site_gridid=site_gridid,
                                     message=(
                                         f"profile_flow_hot_water for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
@@ -458,23 +295,21 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
       `working_day` and `holiday` profiles.
     - All checks are only performed if stebbsmethod == 1.
     """
+    view = TypedConfigView.from_mapping(context.yaml_data)
     results = []
-    yaml_data = context.yaml_data
-    physics = yaml_data.get("model", {}).get("physics", {})
 
-    # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
-    setpointmethod = get_value_safe(get_stebbs_block(physics), "setpoint")
-    stebbsmethod = get_stebbsmethod_value(physics)
+    setpointmethod = view.physics.stebbs_value("setpoint")
+    stebbsmethod = view.physics.stebbs_method
 
     if stebbsmethod != 1:
         return results
 
     if setpointmethod == 0 or setpointmethod == 1:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            heating = get_value_safe(building_archetype, "setpoint_temperature_heating_air")
-            cooling = get_value_safe(building_archetype, "setpoint_temperature_cooling_air")
+        for site in view.sites:
+            site_name = site.name
+            building_archetype = site.building_archetype
+            heating = site.scalar(building_archetype, "setpoint_temperature_heating_air")
+            cooling = site.scalar(building_archetype, "setpoint_temperature_cooling_air")
             if heating is None:
                 results.append(
                     ValidationResult(
@@ -500,13 +335,18 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     )
                 )
     elif setpointmethod == 2:
-        for site_idx, site in enumerate(yaml_data.get("sites", [])):
-            site_name = site.get("name", "Unknown")
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
+        for site in view.sites:
+            site_idx = site.index
+            site_name = site.name
+            building_archetype = site.building_archetype
             # rename-aware: resolves the legacy `profile_temperature_air_*_setpoint`
             # spellings in un-normalised (Phase-B-standalone/BC) input.
-            heating_profile = get_value_safe(building_archetype, "profile_setpoint_temperature_heating_air", {})
-            cooling_profile = get_value_safe(building_archetype, "profile_setpoint_temperature_cooling_air", {})
+            heating_profile = site.scalar(
+                building_archetype, "profile_setpoint_temperature_heating_air", {}
+            )
+            cooling_profile = site.scalar(
+                building_archetype, "profile_setpoint_temperature_cooling_air", {}
+            )
 
             # Check heating profile
             heating_missing_entries = []

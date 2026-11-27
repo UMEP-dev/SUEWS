@@ -131,6 +131,17 @@ const NON_OWNING_FACET_KEYS: &[&str] = &[
     "sites[0].properties.vertical_layers.walls[2].roof_albedo_dir_mult_fact",
 ];
 
+/// Scheme-gated YAML keys whose owning scheme is inactive across all six
+/// default Jacobian anchors (`irrigation.daywat.* == 0.0`, so
+/// `modelled_irrigation_active == false` and Rust exports neutral `0/0`).
+/// Active 1:1 wiring and strict DOY rejection when `daywat == 1.0` are
+/// verified explicitly in `precedence_fallbacks_and_spartacus_facet_isolation`
+/// and `nan_poison_completeness_across_all_six_anchors`.
+const INACTIVE_SCHEME_GATED_KEYS: &[&str] = &[
+    "sites[0].properties.irrigation.ie_start",
+    "sites[0].properties.irrigation.ie_end",
+];
+
 /// Reviewed slots permitted to be perturbed by more than one distinct YAML key
 /// within a single fixture sweep. Empty at baseline: every active slot has a
 /// single owning YAML key.
@@ -1346,6 +1357,7 @@ fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
     let known_dead: BTreeSet<&str> = KNOWN_DEAD_KEYS
         .iter()
         .chain(NON_OWNING_FACET_KEYS.iter())
+        .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .copied()
         .collect();
     let known_non_unit: BTreeSet<&str> = KNOWN_NON_UNIT_DELTAS.iter().map(|(k, _)| *k).collect();
@@ -1636,11 +1648,13 @@ fn build_expected_receivers(
     }
 
     // 4. Irrigation scalars, daywat/daywatper, and all 96 24-hour profile slots.
+    //    `ie_start` / `ie_end` are gated on `modelled_irrigation_active`
+    //    (inactive on all six default anchors with `daywat.* == 0.0`) and
+    //    verified live when `daywat.monday == 1.0` in
+    //    `precedence_fallbacks_and_spartacus_facet_isolation`.
     for field in [
         "h_maintain",
         "faut",
-        "ie_start",
-        "ie_end",
         "internalwateruse_h",
     ] {
         b.expect_one(
@@ -2726,12 +2740,13 @@ fn validate_sweep_report(
         ));
     }
 
-    // 1a. Non-owning SPARTACUS facet invariance: shared BuildingLayer schema
-    //     keys emitted on the non-owning facet must leave every RunConfig slot
-    //     strictly invariant (zero moved slots).
+    // 1a. Non-owning SPARTACUS facet & inactive scheme-gated invariance:
+    //     keys outside the active owning facet/scheme must leave every
+    //     RunConfig slot strictly invariant (zero moved slots).
     let non_owning_keys: BTreeSet<String> = allowlist
         .non_owning_facet_keys
         .iter()
+        .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .map(|s| (*s).to_string())
         .collect();
     let mut non_owning_violations = Vec::new();
@@ -3920,7 +3935,20 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
             "site.anthroemis.enddls",
         ),
     ];
-    let mut base_sample_mut = orig_sample.clone();
+    let mut active_irr_sample = orig_sample.clone();
+    assert!(set_scalar_or_ref_value(
+        &mut active_irr_sample,
+        &[
+            Step::Key("sites".into()),
+            Step::Idx(0),
+            Step::Key("properties".into()),
+            Step::Key("irrigation".into()),
+            Step::Key("daywat".into()),
+            Step::Key("monday".into()),
+        ],
+        serde_yaml::to_value(1.0_f64).unwrap(),
+    ));
+    let mut base_sample_mut = active_irr_sample.clone();
     let base_flat = flatten_run_config_map(
         &load_run_config_from_value(&mut base_sample_mut).expect("load sample"),
     );
@@ -3933,7 +3961,7 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
         full_path.extend(rel_path.iter().map(|s| Step::Key((*s).to_string())));
         let base_val = base_flat[*slot_name];
         let step: i64 = if base_val >= 366.0 { -1 } else { 1 };
-        let mut pert_root = orig_sample.clone();
+        let mut pert_root = active_irr_sample.clone();
         assert!(set_scalar_or_ref_value(
             &mut pert_root,
             &full_path,
@@ -3954,7 +3982,7 @@ fn precedence_fallbacks_and_spartacus_facet_isolation() {
             Value::Number(0_i64.into()),
             Value::Number(367_i64.into()),
         ] {
-            let mut bad_root = orig_sample.clone();
+            let mut bad_root = active_irr_sample.clone();
             assert!(set_scalar_or_ref_value(
                 &mut bad_root,
                 &full_path,
@@ -4254,8 +4282,6 @@ fn nan_poison_completeness_across_all_six_anchors() {
             strict_jobs.push((anchor_idx, format!("sites[0].properties.{field}")));
         }
         for field in [
-            "irrigation.ie_start",
-            "irrigation.ie_end",
             "anthropogenic_emissions.startdls",
             "anthropogenic_emissions.enddls",
         ] {
@@ -4706,6 +4732,7 @@ fn make_clean_synthetic_report() -> SweepReport {
     let dead_keys: BTreeSet<String> = KNOWN_DEAD_KEYS
         .iter()
         .chain(NON_OWNING_FACET_KEYS.iter())
+        .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .map(|s| (*s).to_string())
         .collect();
     let non_unit_deltas: BTreeMap<(String, String), String> = KNOWN_NON_UNIT_DELTAS

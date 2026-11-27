@@ -191,12 +191,6 @@ mappings:
     issue: 2309
     classification: "defect"
   - selector:
-      ledger: "S"
-      group: "doc_required_when_pending_from_yaml"
-    contract: "C-VALID"
-    issue: 2083
-    classification: "coverage_gap"
-  - selector:
       ledger: "M"
       category: "active_gap"
       owner_issue: "#1982"

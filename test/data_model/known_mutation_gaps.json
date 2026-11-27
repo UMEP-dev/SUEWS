@@ -1033,8 +1033,6 @@
         "irrigation_and_dls"
       ],
       "path_patterns": [
-        "sites[0].properties.irrigation.ie_start",
-        "sites[0].properties.irrigation.ie_end",
         "sites[0].properties.irrigation.internalwateruse_h"
       ],
       "mutations": {
@@ -1043,14 +1041,14 @@
         "wrapped_null": "null_or_empty"
       },
       "category": "active_gap",
-      "active_condition": "Active when water_use=modelled (WaterUseMethod==0) with irrigation.daywat.* == 1.0 (ie_start/ie_end gate update_WaterUse at suews_phys_dailystate.f95:593-602; internalwateruse_h splits total water use when wu > 0 at suews_phys_waterdist.f95:1420-1437).",
+      "active_condition": "Active when water_use=modelled (WaterUseMethod==0) with irrigation.daywat.* == 1.0 (internalwateruse_h splits total water use when wu > 0 at suews_phys_waterdist.f95:1420-1437; ie_start/ie_end pairing enforced on active modelled irrigation via SUEWSConfig and Phase B).",
       "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001",
         "#2002"
       ],
-      "rationale": "IrrigationParams scalar fields default to None and are silently dropped or nulled under active modelled irrigation."
+      "rationale": "IrrigationParams.internalwateruse_h defaults to None and is silently dropped or nulled under active modelled irrigation."
     },
     {
       "id": "irrigation-scalars-inactive",
@@ -1077,7 +1075,7 @@
       "related_issues": [
         "#2083"
       ],
-      "rationale": "ie_start and ie_end are skipped when WaterUseMethod==1 or all DayWat(1:7)==0.0; internalwateruse_h has no external/internal redistribution effect when wu == 0 and defaults to 0.0 in these anchors."
+      "rationale": "ie_start and ie_end are skipped when WaterUseMethod==1 or all DayWat(1:7)==0.0 (passing neutral 0/0 to Fortran); internalwateruse_h has no external/internal redistribution effect when wu == 0 and defaults to 0.0 in these anchors."
     },
     {
       "id": "irrigation-fraction-null-active",

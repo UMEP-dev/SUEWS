@@ -600,7 +600,9 @@ CONTAINS
 
          IF (DayWat(wd) == 1.0) THEN !1 indicates watering permitted on this day
             calc = 0
-            IF (lat >= 0) THEN !Northern Hemisphere
+            IF (Ie_start == 0 .AND. Ie_end == 0) THEN
+               calc = 0 ! Irrigation window disabled (both bounds absent)
+            ELSE IF (lat >= 0) THEN !Northern Hemisphere
                IF (id >= Ie_start - 1 .AND. id <= Ie_end + 1) calc = 1 !Day between irrigation period
             ELSE !Southern Hemisphere
                calc = 1

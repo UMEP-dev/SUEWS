@@ -2672,17 +2672,39 @@ fn apply_irrigation_overrides(
     )? {
         site.irrigation.faut = v;
     }
-    if let Some(v) = require_optional_doy_i32(
-        site_root,
-        &["properties", "irrigation", "ie_start"],
-        &site_at,
-    )? {
-        site.irrigation.ie_start = v;
-    }
-    if let Some(v) =
-        require_optional_doy_i32(site_root, &["properties", "irrigation", "ie_end"], &site_at)?
-    {
-        site.irrigation.ie_end = v;
+    if modelled_irrigation_active {
+        let ie_start = require_optional_doy_i32(
+            site_root,
+            &["properties", "irrigation", "ie_start"],
+            &site_at,
+        )?;
+        let ie_end =
+            require_optional_doy_i32(site_root, &["properties", "irrigation", "ie_end"], &site_at)?;
+        match (ie_start, ie_end) {
+            (Some(start), Some(end)) => {
+                site.irrigation.ie_start = start;
+                site.irrigation.ie_end = end;
+            }
+            (None, None) => {
+                site.irrigation.ie_start = 0;
+                site.irrigation.ie_end = 0;
+            }
+            (Some(_), None) => {
+                let shown = yaml_path_display(&site_at, &["properties", "irrigation", "ie_end"]);
+                return Err(format!(
+                    "`{shown}` must be set when `ie_start` is set and modelled irrigation is active (set both or omit both)"
+                ));
+            }
+            (None, Some(_)) => {
+                let shown = yaml_path_display(&site_at, &["properties", "irrigation", "ie_start"]);
+                return Err(format!(
+                    "`{shown}` must be set when `ie_end` is set and modelled irrigation is active (set both or omit both)"
+                ));
+            }
+        }
+    } else {
+        site.irrigation.ie_start = 0;
+        site.irrigation.ie_end = 0;
     }
     if let Some(v) = require_if_active_numeric(
         site_root,
@@ -12788,6 +12810,10 @@ mod tests {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
                 let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                if rel_path[1] == "irrigation" {
+                    *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"])
+                        .unwrap() = serde_yaml::from_str("1.0").unwrap();
+                }
                 *get_path_mut(site, rel_path).unwrap() = serde_yaml::from_str(yaml_val).unwrap();
                 let rc = load_run_config_from_value(&mut root).unwrap_or_else(|e| {
                     panic!("{display_suffix}={yaml_val} must succeed, got: {e}")
@@ -12823,6 +12849,10 @@ mod tests {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
                 let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                if rel_path[1] == "irrigation" {
+                    *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"])
+                        .unwrap() = serde_yaml::from_str("1.0").unwrap();
+                }
                 for pair_path in pair_paths {
                     *get_path_mut(site, pair_path).unwrap() =
                         serde_yaml::from_str(null_form).unwrap();
@@ -12869,6 +12899,10 @@ mod tests {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
                 let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                if rel_path[1] == "irrigation" {
+                    *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"])
+                        .unwrap() = serde_yaml::from_str("1.0").unwrap();
+                }
                 *get_path_mut(site, rel_path).unwrap() = serde_yaml::from_str(bad_yaml).unwrap();
                 let err = load_run_config_from_value(&mut root).expect_err(&format!(
                     "{display_suffix}={bad_yaml} must be rejected instead of silently zeroed"
@@ -12878,6 +12912,84 @@ mod tests {
                     "{display_suffix}={bad_yaml}: expected path and `{expected_phrase}` in error, got: {err}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn inactive_irrigation_skips_ie_start_ie_end_and_exports_zero() {
+        for (label, water_use_yaml, daywat_monday_yaml) in [
+            ("observed_water_use_with_daywat_on", "{value: 1}", "1.0"),
+            ("modelled_water_use_with_all_daywat_zero", "{value: 0}", "0.0"),
+        ] {
+            for (ie_start_yaml, ie_end_yaml) in [
+                ("20.5", "null"),
+                ("0", "367"),
+                ("\"abc\"", "true"),
+                ("{value: 120}", "null"),
+            ] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+                *get_path_mut(&mut root, &["model", "physics", "water_use"]).unwrap() =
+                    serde_yaml::from_str(water_use_yaml).unwrap();
+                let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+                *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"]).unwrap() =
+                    serde_yaml::from_str(daywat_monday_yaml).unwrap();
+                *get_path_mut(site, &["properties", "irrigation", "ie_start"]).unwrap() =
+                    serde_yaml::from_str(ie_start_yaml).unwrap();
+                *get_path_mut(site, &["properties", "irrigation", "ie_end"]).unwrap() =
+                    serde_yaml::from_str(ie_end_yaml).unwrap();
+
+                let rc = load_run_config_from_value(&mut root).unwrap_or_else(|e| {
+                    panic!("{label} ({ie_start_yaml}, {ie_end_yaml}) must succeed when inactive, got: {e}")
+                });
+                assert_eq!(rc.site.irrigation.ie_start, 0, "{label} ie_start");
+                assert_eq!(rc.site.irrigation.ie_end, 0, "{label} ie_end");
+            }
+        }
+    }
+
+    #[test]
+    fn active_irrigation_rejects_unpaired_ie_start_ie_end() {
+        for (label, ie_start_yaml, ie_end_yaml, expected_missing) in [
+            ("ie_start_set_ie_end_null", "120", "null", "ie_end"),
+            ("ie_start_null_ie_end_set", "null", "240", "ie_start"),
+            ("ie_start_wrapped_ie_end_omitted", "{value: 120}", "__OMIT__", "ie_end"),
+            ("ie_start_omitted_ie_end_wrapped", "__OMIT__", "{value: 240}", "ie_start"),
+        ] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+            *get_path_mut(&mut root, &["model", "physics", "water_use"]).unwrap() =
+                serde_yaml::from_str("{value: 0}").unwrap();
+            let site = root["sites"].as_sequence_mut().unwrap().get_mut(0).unwrap();
+            *get_path_mut(site, &["properties", "irrigation", "daywat", "monday"]).unwrap() =
+                serde_yaml::from_str("1.0").unwrap();
+            let irr_map = get_path_mut(site, &["properties", "irrigation"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            if ie_start_yaml == "__OMIT__" {
+                irr_map.remove(Value::String("ie_start".to_string()));
+            } else {
+                irr_map.insert(
+                    Value::String("ie_start".to_string()),
+                    serde_yaml::from_str(ie_start_yaml).unwrap(),
+                );
+            }
+            if ie_end_yaml == "__OMIT__" {
+                irr_map.remove(Value::String("ie_end".to_string()));
+            } else {
+                irr_map.insert(
+                    Value::String("ie_end".to_string()),
+                    serde_yaml::from_str(ie_end_yaml).unwrap(),
+                );
+            }
+
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("{label} must reject half-paired irrigation window"));
+            assert!(
+                err.contains(expected_missing),
+                "{label}: expected error mentioning {expected_missing}, got: {err}"
+            );
         }
     }
 

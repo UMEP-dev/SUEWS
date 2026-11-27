@@ -17,6 +17,15 @@ those conditions must fail across all four public routes:
 
 Zero storage capacity, inactive surfaces (``sfr == 0``), ``water``, and
 positive supplied ``soil_depth`` values remain permitted.
+
+Cost shape (gh#2349). The sample YAML, resolved engine mapping, and two-step
+native Rust forcing block are prepared once per module with libyaml when
+available. Live-mutation and direct Rust engine tests reuse
+``sample_config_loaded`` and a two-step forcing slice instead of re-parsing the
+full-year forcing file. The 12-case ``suews convert`` refusal matrix uses a
+compact legacy YAML payload while the transactional multi-API, two-grid,
+release-fixture, and positive-control migration tests continue to exercise the
+full sample configuration.
 """
 
 from __future__ import annotations
@@ -31,7 +40,6 @@ import pytest
 import yaml
 
 from supy import SUEWSSimulation
-from supy._env import trv_supy_module
 from supy._run_rust import (
     _check_rust_available,
     _grid_config_jsons,
@@ -58,14 +66,61 @@ pytestmark = [
     pytest.mark.contract("C-VALID", "C-STRICT", "C-MIGRATE"),
 ]
 
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_YAML_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+_HANDOFF_STEPS = 2
+
+
+def _yaml_load(text: str):
+    return yaml.load(text, Loader=_YAML_LOADER)
+
+
+def _yaml_dump(payload: dict) -> str:
+    return yaml.dump(payload, Dumper=_YAML_DUMPER, sort_keys=False)
+
 
 @pytest.fixture(scope="module")
-def sample_dict() -> dict:
-    """Return a parsed copy of the shipped sample configuration."""
-    text = (trv_supy_module / "sample_data" / "sample_config.yml").read_text(
-        encoding="utf-8"
+def sample_dict(sample_yaml_path: Path) -> dict:
+    """Return a parsed copy of the shipped sample configuration. READ-ONLY."""
+    return _yaml_load(sample_yaml_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def resolved_sample_dict(sample_config_loaded: SUEWSConfig) -> dict:
+    """Parsed resolved engine YAML for the sample config. READ-ONLY."""
+    return _yaml_load(config_to_engine_yaml(sample_config_loaded))
+
+
+@pytest.fixture(scope="module")
+def short_forcing(sample_forcing_parsed):
+    """Two forcing timesteps. READ-ONLY: tests take ``.copy()``."""
+    _, forcing = sample_forcing_parsed(_HANDOFF_STEPS)
+    return forcing
+
+
+@pytest.fixture(scope="module")
+def rust_engine_context(sample_config_loaded: SUEWSConfig, short_forcing):
+    """Prepared native Rust module and two-step forcing block. READ-ONLY."""
+    rust_module = _check_rust_available()
+    forcing_block = _prepare_forcing_block(
+        short_forcing.copy(),
+        soil_moisture_method=int(
+            sample_config_loaded.model.physics.soil_moisture.value.value
+        ),
     )
-    return yaml.safe_load(text)
+    return rust_module, forcing_block, len(short_forcing)
+
+
+def _sim_from_sample(
+    sample_config_loaded: SUEWSConfig, short_forcing
+) -> SUEWSSimulation:
+    """Build a fresh ``SUEWSSimulation`` from cached sample config and two-step forcing."""
+    sim = SUEWSSimulation()
+    sim.update_config(
+        sample_config_loaded.model_copy(deep=True), auto_load_forcing=False
+    )
+    sim.update_forcing(short_forcing.copy())
+    return sim
 
 
 def _land_cover(data: dict, site_index: int = 0) -> dict:
@@ -195,7 +250,7 @@ def test_public_loading_routes_reject_zero_soil_depth(
     )
     site = data["sites"][0]
     yaml_path = tmp_path / ("legacy_zero.yml" if legacy_keys else "canonical_zero.yml")
-    yaml_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    yaml_path.write_text(_yaml_dump(data), encoding="utf-8")
 
     # ACT / ASSERT: from_yaml (including auto_generate_annotated=True)
     with warnings.catch_warnings():
@@ -244,19 +299,20 @@ def test_public_loading_routes_reject_zero_soil_depth(
 
 
 def test_direct_constructor_with_model_instances_rejects_zero_soil_depth(
-    sample_dict: dict,
+    sample_config_loaded: SUEWSConfig,
 ) -> None:
     """SUEWSConfig(model=..., sites=[Site(...)]) rejects zero soil_depth without _yaml_raw."""
     # ARRANGE
-    valid = SUEWSConfig.from_dict(sample_dict)
-    site = valid.sites[0].model_copy(deep=True)
+    site = sample_config_loaded.sites[0].model_copy(deep=True)
     site.name = "DirectSite"
     site.gridiv = 77
     site.properties.land_cover.bldgs.soil_depth = RefValue(0.0)
 
     # ACT / ASSERT
     with pytest.raises(ValueError) as exc_info:
-        SUEWSConfig(model=valid.model.model_copy(deep=True), sites=[site])
+        SUEWSConfig(
+            model=sample_config_loaded.model.model_copy(deep=True), sites=[site]
+        )
     _assert_zero_depth_error_tokens(
         str(exc_info.value),
         site_index=0,
@@ -364,6 +420,96 @@ def _legacy_zero_soil_depth_doc(
     return doc, site
 
 
+def _compact_legacy_zero_soil_depth_doc(
+    *,
+    source_schema: str,
+    surface: str,
+    form: str,
+    second_site: bool = False,
+) -> tuple[dict, dict]:
+    """Build a compact legacy config with explicit zero soil_depth on site 0 or 1."""
+
+    def _make_site(name: str, gridiv: int) -> dict:
+        lc: dict[str, dict] = {
+            "paved": {
+                "sfr": {"value": 0.45},
+                "soil_depth": {"value": 350.0},
+                "soil_store_capacity": {"value": 150.0},
+                "saturated_hydraulic_conductivity": {"value": 0.0005},
+            },
+            "bldgs": {
+                "sfr": {"value": 0.35},
+                "soil_depth": {"value": 350.0},
+                "soil_store_capacity": {"value": 150.0},
+                "saturated_hydraulic_conductivity": {"value": 0.0005},
+            },
+            "evetr": {
+                "sfr": {"value": 0.0},
+                "soil_depth": {"value": 350.0},
+                "soil_store_capacity": {"value": 150.0},
+                "saturated_hydraulic_conductivity": {"value": 0.0005},
+            },
+            "dectr": {
+                "sfr": {"value": 0.05},
+                "soil_depth": {"value": 350.0},
+                "soil_store_capacity": {"value": 150.0},
+                "saturated_hydraulic_conductivity": {"value": 0.0005},
+            },
+            "grass": {
+                "sfr": {"value": 0.15},
+                "soil_depth": {"value": 350.0},
+                "soil_store_capacity": {"value": 150.0},
+                "saturated_hydraulic_conductivity": {"value": 0.0005},
+            },
+            "bsoil": {
+                "sfr": {"value": 0.0},
+                "soil_depth": {"value": 350.0},
+                "soil_store_capacity": {"value": 150.0},
+                "saturated_hydraulic_conductivity": {"value": 0.0005},
+            },
+            "water": {"sfr": {"value": 0.0}},
+        }
+        return {"name": name, "gridiv": gridiv, "properties": {"land_cover": lc}}
+
+    physics: dict[str, dict] = (
+        {"soil_moisture_deficit": {"value": 0}}
+        if source_schema == "2026.6.dev8"
+        else {"soil_moisture": {"value": 0}}
+    )
+    sites = [_make_site("ZeroDepthSiteA", 1)]
+    if second_site:
+        sites.append(_make_site("ZeroDepthSiteB", 42))
+    doc = {
+        "name": "compact_zero_soil_depth",
+        "schema_version": source_schema,
+        "model": {"physics": physics},
+        "sites": sites,
+    }
+    site = doc["sites"][-1]
+    lc = site["properties"]["land_cover"]
+    _activate_surface(lc, surface)
+    fields = lc[surface]
+    fields.pop("soil_depth", None)
+    fields.pop("soildepth", None)
+    if form == "bare-zero":
+        fields["soil_depth"] = 0
+        fields["soil_store_capacity"] = {"value": 150.0}
+    elif form == "wrapped-zero":
+        fields["soil_depth"] = {"value": 0.0}
+        fields["soil_store_capacity"] = {"value": 150.0}
+    elif form == "legacy-alias-bare-zero":
+        fields.pop("soil_store_capacity", None)
+        fields["soildepth"] = 0.0
+        fields["soilstorecap"] = 150.0
+    elif form == "legacy-alias-wrapped-zero":
+        fields.pop("soil_store_capacity", None)
+        fields["soildepth"] = {"value": 0.0}
+        fields["soilstorecap"] = {"value": 150.0}
+    else:
+        raise AssertionError(f"Unexpected form {form!r}")
+    return doc, site
+
+
 @pytest.mark.parametrize(
     ("surface", "form", "second_site"),
     [
@@ -377,7 +523,6 @@ def _legacy_zero_soil_depth_doc(
     "source_schema", ["2026.6.dev10", "2026.6.dev9", "2026.6.dev8"]
 )
 def test_cli_convert_refuses_zero_soil_depth_without_writing_output(
-    sample_dict: dict,
     tmp_path: Path,
     surface: str,
     form: str,
@@ -386,8 +531,7 @@ def test_cli_convert_refuses_zero_soil_depth_without_writing_output(
 ) -> None:
     """suews convert exits 1, writes no file, and reports site/surface/soil_depth."""
     # ARRANGE
-    doc, site = _legacy_zero_soil_depth_doc(
-        sample_dict,
+    doc, site = _compact_legacy_zero_soil_depth_doc(
         source_schema=source_schema,
         surface=surface,
         form=form,
@@ -395,7 +539,7 @@ def test_cli_convert_refuses_zero_soil_depth_without_writing_output(
     )
     source = tmp_path / "old_zero.yml"
     output = tmp_path / "converted.yml"
-    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    source.write_text(_yaml_dump(doc), encoding="utf-8")
 
     # ACT
     result = CliRunner().invoke(
@@ -430,7 +574,7 @@ def test_release_2026_4_old_names_zero_soildepth_refused_before_write(
         / "release_configs"
         / "2026.4.3.yml"
     )
-    doc = yaml.safe_load(fixture_2026_4.read_text(encoding="utf-8"))
+    doc = _yaml_load(fixture_2026_4.read_text(encoding="utf-8"))
     site = doc["sites"][0]
     paved = site["properties"]["land_cover"]["paved"]
     assert "soildepth" in paved and "soilstorecap" in paved
@@ -439,7 +583,7 @@ def test_release_2026_4_old_names_zero_soildepth_refused_before_write(
 
     source = tmp_path / "legacy_2026_4.yml"
     output = tmp_path / "upgraded_2026_4.yml"
-    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    source.write_text(_yaml_dump(doc), encoding="utf-8")
 
     # ACT
     res = CliRunner().invoke(
@@ -474,7 +618,7 @@ def test_current_schema_convert_and_migrator_refuse_zero_soil_depth(
     before = copy.deepcopy(doc)
     source = tmp_path / "current_zero.yml"
     dest = tmp_path / "existing.yml"
-    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    source.write_text(_yaml_dump(doc), encoding="utf-8")
     dest.write_text("existing output", encoding="utf-8")
 
     # ACT / ASSERT: SchemaMigrator
@@ -547,7 +691,7 @@ def test_migration_refusal_is_transactional_across_all_migration_apis(
 
     source = tmp_path / "old_multi.yml"
     dest = tmp_path / "existing.yml"
-    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    source.write_text(_yaml_dump(doc), encoding="utf-8")
     dest.write_text("existing output", encoding="utf-8")
 
     with pytest.raises(YamlUpgradeError):
@@ -667,7 +811,7 @@ def test_two_grid_zero_depth_migration_both_orders(
     broken_in = tmp_path / "two_grid_zero.yml"
     broken_out = tmp_path / "two_grid_zero_out.yml"
     schema_out = broken_in.with_suffix(".migrated.yml")
-    broken_in.write_text(yaml.safe_dump(broken_doc, sort_keys=False), encoding="utf-8")
+    broken_in.write_text(_yaml_dump(broken_doc), encoding="utf-8")
 
     # ACT / ASSERT: convert & schema migrate refuse and blame only GridActive
     res_convert = CliRunner().invoke(
@@ -711,7 +855,7 @@ def test_two_grid_zero_depth_migration_both_orders(
     )
     fixed_in = tmp_path / "two_grid_fixed.yml"
     fixed_out = tmp_path / "two_grid_fixed_out.yml"
-    fixed_in.write_text(yaml.safe_dump(fixed_doc, sort_keys=False), encoding="utf-8")
+    fixed_in.write_text(_yaml_dump(fixed_doc), encoding="utf-8")
 
     ok_res = CliRunner().invoke(
         cli,
@@ -754,7 +898,7 @@ def test_cli_convert_positive_controls_with_zero_or_positive_depth(
 
     source = tmp_path / f"{case}.yml"
     output = tmp_path / f"{case}_out.yml"
-    source.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    source.write_text(_yaml_dump(doc), encoding="utf-8")
 
     # ACT
     res = CliRunner().invoke(
@@ -801,12 +945,12 @@ def _apply_live_zero_mutation(surface: object, mode: str) -> None:
 
 @pytest.mark.parametrize("mode", ["inplace-value", "refvalue", "scalar", "dict"])
 def test_live_mutation_before_update_config_rejected_atomically(
-    sample_dict: dict, mode: str
+    sample_config_loaded: SUEWSConfig, mode: str
 ) -> None:
     """Mutating soil_depth to 0 before update_config fails without replacing existing config."""
     # ARRANGE
     sim = SUEWSSimulation()
-    original_cfg = SUEWSConfig.from_dict(sample_dict)
+    original_cfg = sample_config_loaded.model_copy(deep=True)
     sim.update_config(original_cfg, auto_load_forcing=False)
 
     mutated_cfg = original_cfg.model_copy(deep=True)
@@ -827,12 +971,12 @@ def test_live_mutation_before_update_config_rejected_atomically(
 
 
 def test_partial_dict_update_config_rejects_zero_soil_depth_atomically(
-    sample_dict: dict,
+    sample_config_loaded: SUEWSConfig,
 ) -> None:
     """Partial dict update setting soil_depth to 0 fails without mutating sim.config."""
     # ARRANGE
     sim = SUEWSSimulation()
-    original_cfg = SUEWSConfig.from_dict(sample_dict)
+    original_cfg = sample_config_loaded.model_copy(deep=True)
     sim.update_config(original_cfg, auto_load_forcing=False)
     original_depth = sim.config.sites[0].properties.land_cover.paved.soil_depth.value
 
@@ -860,13 +1004,13 @@ def test_partial_dict_update_config_rejects_zero_soil_depth_atomically(
 
 @pytest.mark.parametrize("mode", ["inplace-value", "refvalue", "scalar", "dict"])
 def test_live_mutation_after_update_config_rejected_at_all_handoffs(
-    mode: str,
+    sample_config_loaded: SUEWSConfig, short_forcing, mode: str
 ) -> None:
     """Mutating sim.config soil_depth to 0 fails at run, export, grid JSON, to_df_state and runners."""
     # ARRANGE
-    sim = SUEWSSimulation.from_sample_data()
+    sim = _sim_from_sample(sample_config_loaded, short_forcing)
     site = sim.config.sites[0]
-    forcing_slice = sim.forcing.df.iloc[:2]
+    forcing_slice = sim.forcing.df
     _apply_live_zero_mutation(site.properties.land_cover.bldgs, mode)
 
     # ACT / ASSERT: every handoff fails cleanly with ValueError before the engine
@@ -931,12 +1075,14 @@ def test_cross_field_live_mutations_to_active_or_positive_capacity_rejected(
             call()
 
 
-def test_live_mutation_positive_controls_run_cleanly() -> None:
+def test_live_mutation_positive_controls_run_cleanly(
+    sample_config_loaded: SUEWSConfig, short_forcing
+) -> None:
     """Valid live edits (positive soil_depth, or zero depth with zero capacity) run cleanly."""
     # Positive soil_depth mutation
-    sim_pos = SUEWSSimulation.from_sample_data()
+    sim_pos = _sim_from_sample(sample_config_loaded, short_forcing)
     sim_pos.config.sites[0].properties.land_cover.paved.soil_depth.value = 250.0
-    forcing_slice = sim_pos.forcing.df.iloc[:2]
+    forcing_slice = sim_pos.forcing.df
     assert sim_pos.config.to_df_state() is not None
     assert "soil_depth" in config_to_engine_yaml(sim_pos.config)
     grid_ids, jsons = _grid_config_jsons(sim_pos.config)
@@ -945,7 +1091,7 @@ def test_live_mutation_positive_controls_run_cleanly() -> None:
     assert not out_pos.df.empty
 
     # Zero soil_depth paired with zero soil_store_capacity (and matching 0 initial soilstore)
-    sim_zero_cap = SUEWSSimulation.from_sample_data()
+    sim_zero_cap = _sim_from_sample(sample_config_loaded, short_forcing)
     paved = sim_zero_cap.config.sites[0].properties.land_cover.paved
     paved.soil_depth.value = 0.0
     paved.soil_store_capacity.value = 0.0
@@ -957,6 +1103,7 @@ def test_live_mutation_positive_controls_run_cleanly() -> None:
 
 def test_validate_for_engine_aggregates_refvalue_null_and_zero_soil_depth(
     sample_dict: dict,
+    sample_config_loaded: SUEWSConfig,
 ) -> None:
     """Verify ``validate_for_engine()`` and ``to_df_state()`` run both guards."""
     # ARRANGE: active biogenic CO2 mutated to null min_res_bioco2
@@ -972,7 +1119,7 @@ def test_validate_for_engine_aggregates_refvalue_null_and_zero_soil_depth(
         cfg_co2.to_df_state()
 
     # ARRANGE: mutated zero soil_depth on active positive-capacity surface
-    cfg_soil = SUEWSConfig.from_dict(copy.deepcopy(sample_dict))
+    cfg_soil = sample_config_loaded.model_copy(deep=True)
     cfg_soil.sites[0].properties.land_cover.paved.soil_depth.value = 0.0
 
     # ACT / ASSERT
@@ -990,13 +1137,15 @@ def test_validate_for_engine_aggregates_refvalue_null_and_zero_soil_depth(
 @pytest.mark.parametrize("surface", NON_WATER_SURFACES)
 @pytest.mark.parametrize("legacy_keys", [False, True])
 def test_native_rust_engine_directly_rejects_zero_soil_depth(
-    surface: str, legacy_keys: bool
+    resolved_sample_dict: dict,
+    rust_engine_context,
+    surface: str,
+    legacy_keys: bool,
 ) -> None:
     """Direct Rust engine call rejects zero soil_depth on active positive-capacity surfaces."""
     # ARRANGE: bypass Python validation by patching the resolved YAML handed straight to Rust
-    sim = SUEWSSimulation.from_sample_data()
-    forcing_slice = sim.forcing.df.iloc[:2]
-    resolved_dict = yaml.safe_load(config_to_engine_yaml(sim.config))
+    rust_module, forcing_block, n_steps = rust_engine_context
+    resolved_dict = copy.deepcopy(resolved_sample_dict)
     lc = resolved_dict["sites"][0]["properties"]["land_cover"]
     _activate_surface(lc, surface)
     lc[surface].pop("soil_depth", None)
@@ -1007,13 +1156,7 @@ def test_native_rust_engine_directly_rejects_zero_soil_depth(
     else:
         lc[surface]["soil_store_capacity"] = {"value": 150.0}
         lc[surface]["soil_depth"] = {"value": 0.0}
-    patched_yaml = yaml.safe_dump(resolved_dict, sort_keys=False)
-
-    rust_module = _check_rust_available()
-    forcing_block = _prepare_forcing_block(
-        forcing_slice,
-        soil_moisture_method=int(sim.config.model.physics.soil_moisture.value.value),
-    )
+    patched_yaml = _yaml_dump(resolved_dict)
 
     # ACT / ASSERT
     with pytest.raises(
@@ -1024,19 +1167,19 @@ def test_native_rust_engine_directly_rejects_zero_soil_depth(
             rust_module,
             patched_yaml,
             forcing_block,
-            len(forcing_slice),
+            n_steps,
             grid_id=1,
         )
 
 
-def test_native_rust_engine_positive_controls_allow_zero_capacity_inactive_and_water() -> (
-    None
-):
+def test_native_rust_engine_positive_controls_allow_zero_capacity_inactive_and_water(
+    resolved_sample_dict: dict,
+    rust_engine_context,
+) -> None:
     """Direct Rust engine call accepts zero soil_depth when capacity is 0, inactive or water."""
     # ARRANGE
-    sim = SUEWSSimulation.from_sample_data()
-    forcing_slice = sim.forcing.df.iloc[:2]
-    resolved_dict = yaml.safe_load(config_to_engine_yaml(sim.config))
+    rust_module, forcing_block, n_steps = rust_engine_context
+    resolved_dict = copy.deepcopy(resolved_sample_dict)
     lc = resolved_dict["sites"][0]["properties"]["land_cover"]
 
     # Zero capacity on active paved (with initial soilstore within capacity)
@@ -1050,20 +1193,14 @@ def test_native_rust_engine_positive_controls_allow_zero_capacity_inactive_and_w
     # Water with positive capacity
     lc["water"]["soil_store_capacity"] = {"value": 150.0}
     lc["water"]["soil_depth"] = {"value": 0.0}
-    patched_yaml = yaml.safe_dump(resolved_dict, sort_keys=False)
-
-    rust_module = _check_rust_available()
-    forcing_block = _prepare_forcing_block(
-        forcing_slice,
-        soil_moisture_method=int(sim.config.model.physics.soil_moisture.value.value),
-    )
+    patched_yaml = _yaml_dump(resolved_dict)
 
     # ACT
     df_output, _, _ = _run_grid_into(
         rust_module,
         patched_yaml,
         forcing_block,
-        len(forcing_slice),
+        n_steps,
         grid_id=1,
     )
 

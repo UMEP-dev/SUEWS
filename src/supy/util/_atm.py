@@ -2,6 +2,8 @@
 import numpy as np
 import pandas as pd
 
+from ..constants import C2K, CP_AIR, LV_BOLTON
+
 
 # atmospheric related utilities
 def cal_des_dta(ta, pa, dta=1.0):
@@ -41,7 +43,7 @@ def cal_qa(rh_pct, theta_K, pres_hPa):
 def cal_dq(rh_pct, ta_c, pres_hPa):
     from atmosp import calculate as ac
 
-    ta_k = ta_c + 273.15
+    ta_k = ta_c + C2K
     pa = pres_hPa * 100
     dq = ac("qvs", T=ta_k, p=pa) - ac("qv", T=ta_k, p=pa, RH=rh_pct)
 
@@ -69,7 +71,7 @@ def cal_lat_vap(qa_kgkg, theta_K, pres_hPa):
         remove_assumptions=("constant Lv"),
     )
     # latent heat [J kg-1]
-    Lv = 2.501e6 - 2370.0 * (tw - 273.15)
+    Lv = LV_BOLTON - 2370.0 * (tw - C2K)
     return Lv
 
 
@@ -77,7 +79,7 @@ def cal_lat_vap(qa_kgkg, theta_K, pres_hPa):
 def cal_cp(qa_kgkg, ta_K, pres_hPa):
     from atmosp import calculate as ac
 
-    temp_C = ta_K - 273.15
+    temp_C = ta_K - C2K
 
     rh_pct = ac("RH", qv=qa_kgkg, T=ta_K, p=pres_hPa * 100)
 
@@ -117,7 +119,7 @@ def cal_cp_with_rh(temp_C, rh_pct, pres_hPa):
     # from atmosp import calculate as ac
 
     # Garratt equation a20(1992)
-    cpd = 1005.0 + ((temp_C + 23.16) ** 2) / 3364.0
+    cpd = CP_AIR + ((temp_C + 23.16) ** 2) / 3364.0
 
     # Beer(1990) for water vapour
     cpm = (
@@ -224,7 +226,7 @@ def cal_dens_dry(RH_pct, Temp_C, Press_hPa):
     gas_ct_dry = 8.31451 / 0.028965  # dry_gas/molar
     es_hPa = cal_vap_sat(Temp_C, Press_hPa)
     Ea_hPa = RH_pct / 100 * es_hPa
-    dens_dry = ((Press_hPa - Ea_hPa) * 100) / (gas_ct_dry * (273.15 + Temp_C))
+    dens_dry = ((Press_hPa - Ea_hPa) * 100) / (gas_ct_dry * (C2K + Temp_C))
     return dens_dry
 
 
@@ -233,7 +235,7 @@ def cal_dens_vap(RH_pct, Temp_C, Press_hPa):
     gas_ct_wv = 8.31451 / 0.0180153  # dry_gas/molar_wat_vap
     es_hPa = cal_vap_sat(Temp_C, Press_hPa)
     Ea_hPa = RH_pct / 100 * es_hPa
-    vap_dens = Ea_hPa * 100 / ((Temp_C + 273.15) * gas_ct_wv)
+    vap_dens = Ea_hPa * 100 / ((Temp_C + C2K) * gas_ct_wv)
     return vap_dens
 
 
@@ -267,14 +269,14 @@ def cal_dens_air(Press_hPa, Temp_C):
     gas_ct_dry = 8.31451 / 0.028965
 
     # air density [kg m-3]
-    dens_air = (Press_hPa * 100) / (gas_ct_dry * (Temp_C + 273.15))
+    dens_air = (Press_hPa * 100) / (gas_ct_dry * (Temp_C + C2K))
     return dens_air
 
 
 # Obukhov length
 def cal_Lob(QH, UStar, Temp_C, RH_pct, Pres_hPa, g=9.8, k=0.4):
     # gravity constant/(Temperature*Von Karman Constant)
-    G_T_K = (g / (Temp_C + 273.15)) * k
+    G_T_K = (g / (Temp_C + C2K)) * k
 
     # air density [kg m-3]
     rho = cal_dens_air(Pres_hPa, Temp_C)

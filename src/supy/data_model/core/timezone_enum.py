@@ -6,6 +6,8 @@ Timezones are expressed as hours offset from UTC.
 
 from enum import Enum
 
+from ...constants import SEC_PER_HOUR
+
 
 class TimezoneOffset(float, Enum):
     """Valid timezone offsets from UTC in hours.
@@ -95,4 +97,4 @@ class TimezoneOffset(float, Enum):
     @property
     def seconds(self):
         """Return the offset in seconds as an integer."""
-        return int(self.value * 3600)
+        return int(self.value * SEC_PER_HOUR)

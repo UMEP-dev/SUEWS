@@ -11,6 +11,8 @@ import pandas as pd
 import yaml
 from datetime import datetime, timedelta
 import pytz
+
+from ....constants import SEC_PER_HOUR
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     STEBBS_PHYSICS_LEAF_RENAMES,
@@ -702,7 +704,7 @@ class DLSCheck(BaseModel):
                 if curr_offset != prev_offset:
                     doy = curr_date.timetuple().tm_yday
                     transition_steps.append(
-                        abs((curr_offset - prev_offset).total_seconds()) / 3600
+                        abs((curr_offset - prev_offset).total_seconds()) / SEC_PER_HOUR
                     )
                     if curr_offset > prev_offset:
                         starts.append(doy)
@@ -730,7 +732,7 @@ class DLSCheck(BaseModel):
         # never bypass the +1 h DST safety check.
         distinct_offsets = sorted(set(daily_offsets))
         std_offset = distinct_offsets[0]
-        utc_offset_hours: int | float = std_offset.total_seconds() / 3600
+        utc_offset_hours: int | float = std_offset.total_seconds() / SEC_PER_HOUR
         if utc_offset_hours.is_integer():
             utc_offset_hours = int(utc_offset_hours)
         non_hourly_steps = [
@@ -744,7 +746,7 @@ class DLSCheck(BaseModel):
         elif len(distinct_offsets) == 2:
             offset_step_hours = (
                 distinct_offsets[1] - distinct_offsets[0]
-            ).total_seconds() / 3600
+            ).total_seconds() / SEC_PER_HOUR
         logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
 
         return DSTSchedule(

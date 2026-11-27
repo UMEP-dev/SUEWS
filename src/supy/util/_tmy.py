@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .._post import _resample_output
+from ..constants import DEG2RAD, SEC_PER_HOUR
 from ..units import convert
 
 # Logger for this module
@@ -572,7 +573,7 @@ def gen_epw(
     df_tmy = gen_TMY(df_output.copy())
 
     # assign timezone info
-    df_tmy.index = df_tmy.index.tz_localize(tz * 3600)
+    df_tmy.index = df_tmy.index.tz_localize(tz * SEC_PER_HOUR)
 
     # adding necessary variables that can be derived from supy output
     df_tmy["Dew Point Temperature"], df_tmy["Atmospheric Station Pressure"] = (
@@ -616,7 +617,7 @@ def gen_epw(
     # diffuse horizontal radiation
     # DHI = GHI - DNI * cos (Z)
     df_tmy["Diffuse Horizontal Radiation"] = GHI - DNI * np.cos(
-        solar_zenith_deg * np.pi / 180
+        solar_zenith_deg * DEG2RAD
     )
     # end: solar radiation processing
     # ===================================================================

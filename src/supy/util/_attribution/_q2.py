@@ -10,6 +10,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from ...constants import C2K
 from .._atm import cal_qa
 from ._core import shapley_triple_product
 from ._helpers import (
@@ -103,8 +104,8 @@ def attribute_q2(
     P_B = df_forcing_B.loc[common_idx, "pres"].values
 
     # Calculate reference specific humidity
-    theta_A = T_ref_A + 273.15  # Celsius to Kelvin
-    theta_B = T_ref_B + 273.15
+    theta_A = T_ref_A + C2K  # Celsius to Kelvin
+    theta_B = T_ref_B + C2K
     q_ref_A = cal_qa(RH_A, theta_A, P_A)
     q_ref_B = cal_qa(RH_B, theta_B, P_B)
 
@@ -266,8 +267,8 @@ def diagnose_q2(
     P_A, P_B = forcing_means["pres"]
 
     # Calculate reference specific humidity
-    theta_A = T_ref_A + 273.15
-    theta_B = T_ref_B + 273.15
+    theta_A = T_ref_A + C2K
+    theta_B = T_ref_B + C2K
     q_ref_A = cal_qa(RH_A, theta_A, P_A)
     q_ref_B = cal_qa(RH_B, theta_B, P_B)
 

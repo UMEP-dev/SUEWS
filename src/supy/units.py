@@ -42,6 +42,8 @@ import re
 from types import MappingProxyType
 from typing import Any, Optional
 
+from .constants import C2K, DEG2RAD, SEC_PER_DAY, SEC_PER_HOUR
+
 __all__ = ["NO_UNIT", "VOCABULARY", "Unit", "UnitError", "convert", "parse_unit"]
 
 # Base dimensions, in this order: length, mass, time, temperature, amount of
@@ -120,7 +122,7 @@ _TEMPERATURE_AXIS = DIMENSION_NAMES.index("temperature")
 _ENERGY = _dim(length=2, mass=1, time=-2)
 _POWER = _dim(length=2, mass=1, time=-3)
 _PRESSURE = _dim(length=-1, mass=1, time=-2)
-_DEGREE = math.pi / 180.0
+_DEGREE = DEG2RAD
 
 #: The allowed symbols: each maps to ``(scale, offset, dimension)``. Every
 #: symbol is a valid UDUNITS-2 unit with the same scale and offset; a
@@ -144,12 +146,12 @@ VOCABULARY = MappingProxyType({
     # time
     "s": (1.0, 0.0, _dim(time=1)),
     "min": (60.0, 0.0, _dim(time=1)),
-    "h": (3600.0, 0.0, _dim(time=1)),
-    "d": (86400.0, 0.0, _dim(time=1)),
+    "h": (float(SEC_PER_HOUR), 0.0, _dim(time=1)),
+    "d": (float(SEC_PER_DAY), 0.0, _dim(time=1)),
     # temperature: kelvin for temperatures and temperature differences,
     # degC for Celsius values only
     "K": (1.0, 0.0, _dim(temperature=1)),
-    "degC": (1.0, 273.15, _dim(temperature=1)),
+    "degC": (1.0, C2K, _dim(temperature=1)),
     # amount of substance
     "mol": (1.0, 0.0, _dim(amount=1)),
     "umol": (1e-6, 0.0, _dim(amount=1)),

@@ -17,6 +17,7 @@ from packaging import version
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
 from ._misc import infer_freq_offset, path_insensitive
+from .constants import C2K, SEC_PER_DAY
 from .data_model.forcing import FORCING_REGISTRY
 
 # choose different second representation to accommodate different pandas versions
@@ -2419,8 +2420,8 @@ def add_state_init_df(df_init):
         ("wuday_id", 9, 0.0),
         ("dt_since_start", 0, 0.0),
         ("tstep_prev", 0, "tstep"),
-        ("tair24hr", int(24 * 3600 / df_init["tstep"].values[0, 0]), 273.15),
-        ("tair_av", 0, 273.15),
+        ("tair24hr", int(SEC_PER_DAY / df_init["tstep"].values[0, 0]), C2K),
+        ("tair_av", 0, C2K),
         ("qn_surfs", 7, 0.0),
         ("dqndt_surf", 7, 0.0),
     ]

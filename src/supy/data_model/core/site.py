@@ -27,6 +27,7 @@ from .profile import (
 )
 from .timezone_enum import TimezoneOffset
 from ..._env import logger_supy
+from ...constants import C2K
 from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
@@ -2522,7 +2523,7 @@ class StebbsProperties(DataModelBase):
             "unit": "degC",
             "display_name": "Internal Shading Temperature Threshold",
         },
-        gt=-273.15,
+        gt=-C2K,
     )
     radiation_threshold_shading: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

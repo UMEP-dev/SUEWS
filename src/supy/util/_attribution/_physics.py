@@ -9,6 +9,7 @@ import logging
 
 import numpy as np
 
+from ...constants import C2K
 from .._atm import cal_cp_with_rh, cal_dens_air, cal_lat_vap, cal_psi_mom, cal_qa
 
 # Module logger
@@ -77,7 +78,7 @@ def cal_gamma_humidity(
     rho = cal_dens_air(press_hPa, temp_C)
 
     # Calculate specific humidity from RH for latent heat calculation
-    theta_K = temp_C + 273.15  # Celsius to Kelvin
+    theta_K = temp_C + C2K  # Celsius to Kelvin
     qa = cal_qa(rh_pct, theta_K, press_hPa)
 
     # Calculate latent heat of vaporisation

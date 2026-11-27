@@ -20,6 +20,7 @@ from datetime import datetime
 
 from packaging.version import Version
 
+from ...constants import SEC_PER_HOUR
 from ..core import SUEWSConfig
 from ..core.hydro import DRAINAGE_COEFFICIENT_REQUIREMENT
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
@@ -326,7 +327,7 @@ def _get_minimal_example(version: str) -> Dict[str, Any]:
         "schema_version": version,
         "description": "Minimal SUEWS configuration example",
         "model": {
-            "control": {"tstep": 3600, "forcing": {"file": "forcing.txt"}},
+            "control": {"tstep": SEC_PER_HOUR, "forcing": {"file": "forcing.txt"}},
             "physics": {},
         },
         "sites": [

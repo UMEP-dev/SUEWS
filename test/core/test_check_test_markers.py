@@ -11,7 +11,11 @@ import sys
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]
+pytestmark = [
+    pytest.mark.tooling,
+    pytest.mark.os_compat,
+    pytest.mark.contract("C-TOOLING"),
+]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "lint" / "check_test_markers.py"
@@ -22,8 +26,29 @@ check_test_markers = importlib.util.module_from_spec(SCRIPT_SPEC)
 sys.modules[SCRIPT_SPEC.name] = check_test_markers
 SCRIPT_SPEC.loader.exec_module(check_test_markers)
 
-API_TEST_SOURCE = (
+LEGACY_API_TEST_SOURCE = (
     "import pytest\n\npytestmark = pytest.mark.api\n\ndef test_ok():\n    assert True\n"
+)
+
+TOOLING_TEST_SOURCE = (
+    "import pytest\n\n"
+    "pytestmark = pytest.mark.tooling\n\n"
+    "def test_ok():\n"
+    "    assert True\n"
+)
+
+UNIT_TEST_SOURCE = (
+    "import pytest\n\n"
+    "pytestmark = pytest.mark.unit\n\n"
+    "def test_ok():\n"
+    "    assert True\n"
+)
+
+NATIVE_TEST_SOURCE = (
+    "import pytest\n\n"
+    "pytestmark = [pytest.mark.native, pytest.mark.e2e]\n\n"
+    "def test_ok():\n"
+    "    assert True\n"
 )
 
 PHYSICS_TEST_SOURCE = (
@@ -32,6 +57,9 @@ PHYSICS_TEST_SOURCE = (
     "def test_ok():\n"
     "    assert True\n"
 )
+
+# Backward-compatible local fixture alias for lane-coverage tests below.
+API_TEST_SOURCE = UNIT_TEST_SOURCE
 
 UNMARKED_TEST_SOURCE = "def test_unmarked():\n    assert True\n"
 
@@ -719,15 +747,231 @@ def test_trailing_backslash_at_eof_without_newline_is_rejected(
 @pytest.mark.parametrize(
     ("source", "should_pass"),
     [
-        (API_TEST_SOURCE, True),
+        (TOOLING_TEST_SOURCE, True),
+        (UNIT_TEST_SOURCE, True),
+        (NATIVE_TEST_SOURCE, True),
         (PHYSICS_TEST_SOURCE, True),
         (
             "import pytest\n"
-            'pytestmark = [pytest.mark.api, pytest.mark.contract("C-TOOLING")]\n',
+            'pytestmark = [pytest.mark.tooling, pytest.mark.os_compat, pytest.mark.contract("C-TOOLING")]\n',
             True,
         ),
         (
             "import pytest\npytestmark: object = pytest.mark.physics\n",
+            True,
+        ),
+        (LEGACY_API_TEST_SOURCE, False),
+        (
+            "import pytest\npytestmark = [pytest.mark.unit, pytest.mark.physics]\n",
+            False,
+        ),
+        (
+            "import pytest\npytestmark = [pytest.mark.native, pytest.mark.physics]\n",
+            False,
+        ),
+        (
+            "import pytest\npytestmark = [pytest.mark.unit, pytest.mark.api]\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "@pytest.mark.physics\n"
+            "def test_conflict():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "@pytest.mark.api\n"
+            "def test_legacy_decorator():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            '@pytest.mark.parametrize("x", [pytest.param(1, marks=pytest.mark.physics)])\n'
+            "def test_param_conflict(x):\n    assert x == 1\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            '@pytest.mark.parametrize(argnames="x", argvalues=[pytest.param(1, marks=pytest.mark.physics)])\n'
+            "def test_kw_argvalues_conflict(x):\n    assert x == 1\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            '@pytest.mark.parametrize(argnames="x", argvalues=[pytest.param(1, marks=pytest.mark.cfg)])\n'
+            "def test_kw_argvalues_orthogonal_ok(x):\n    assert x == 1\n",
+            True,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "CASES = [pytest.param(1, marks=pytest.mark.physics)]\n"
+            '@pytest.mark.parametrize("x", CASES)\n'
+            "def test_indirect_param_conflict(x):\n    assert x == 1\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "class TestClassConflict:\n"
+            "    pytestmark = pytest.mark.physics\n"
+            "    def test_in_class(self):\n        assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "class TestClassAnnotatedConflict:\n"
+            "    pytestmark: object = [pytest.mark.native]\n"
+            "    def test_in_class(self):\n        assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "class TestClassOrthogonalOk:\n"
+            "    pytestmark = pytest.mark.cfg\n"
+            "    def test_in_class(self):\n        assert True\n",
+            True,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = [pytest.mark.unit]\n"
+            "pytestmark += [pytest.mark.physics]\n"
+            "def test_augassign_conflict():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "OTHER = pytest.mark.physics\n"
+            "pytestmark = [pytest.mark.unit, OTHER]\n"
+            "def test_dynamic_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "OTHER = pytest.mark.physics\n"
+            "pytestmark = pytest.mark.unit\n"
+            "class TestDynamicClassMark:\n"
+            "    pytestmark = OTHER\n"
+            "    def test_in_class(self):\n        assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            '@getattr(pytest.mark, "physics")\n'
+            "def test_dynamic_decorator_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            'axis = "physics"\n'
+            "CASES = [pytest.param(1, marks=getattr(pytest.mark, axis))]\n"
+            '@pytest.mark.parametrize("x", CASES)\n'
+            "def test_indirect_dynamic_param_rejected(x):\n    assert x == 1\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = [pytest.mark.unit]\n"
+            "pytestmark = []\n"
+            "def test_reassigned_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = [pytest.mark.unit]\n"
+            "pytestmark.append(pytest.mark.physics)\n"
+            "def test_mutated_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "if True:\n"
+            "    pytestmark = pytest.mark.physics\n"
+            "def test_conditional_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "class TestCond:\n"
+            "    if True:\n"
+            "        pytestmark = pytest.mark.physics\n"
+            "    def test_in_class(self):\n        assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            '@pytest.mark.parametrize("mark_value", [pytest.mark.physics])\n'
+            "def test_marker_object_as_data_ok(mark_value):\n    assert mark_value is not None\n",
+            True,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = [pytest.mark.unit]\n"
+            "pytestmark, other = [], 0\n"
+            "def test_destructured_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = [pytest.mark.unit]\n"
+            "alias = pytestmark\n"
+            "alias.clear()\n"
+            "def test_aliased_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "MARKS = []\n"
+            "MARKS.append(pytest.mark.physics)\n"
+            '@pytest.mark.parametrize("x", [pytest.param(1, marks=MARKS)])\n'
+            "def test_mutated_module_marks_rejected(x):\n    assert x == 1\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            '@getattr(pytest.mark, "physics")()\n'
+            "def test_called_dynamic_decorator_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "@pytest.mark.physics.with_args()\n"
+            "def test_with_args_decorator_conflict_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = (pytest.mark.unit,)\n"
+            "def test_tuple_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = [[pytest.mark.unit]]\n"
+            "def test_nested_list_pytestmark_rejected():\n    assert True\n",
+            False,
+        ),
+        (
+            "import pytest\n"
+            "pytestmark = pytest.mark.unit\n"
+            "def render(*, marks):\n    return marks\n"
+            'def test_non_param_marks_kw_ok():\n    assert render(marks=["warning"]) == ["warning"]\n',
             True,
         ),
         (UNMARKED_TEST_SOURCE, False),
@@ -735,17 +979,21 @@ def test_trailing_backslash_at_eof_without_newline_is_rejected(
             "import pytest\npytestmark = pytest.mark.smoke\n",
             False,
         ),
+        (
+            "import pytest\npytestmark = [pytest.mark.os_compat, pytest.mark.e2e]\n",
+            False,
+        ),
         ("def broken(:\n", False),
     ],
 )
-def test_nature_marker_detection(
+def test_axis_marker_detection(
     tmp_path: Path, capsys, source: str, should_pass: bool
 ) -> None:
-    """Nature-marker lint accepts physics/api and rejects unmarked or invalid files."""
+    """Single-axis lint accepts one primary axis and rejects retired api, dual axes, or unmarked files."""
     repo = _make_repo(
         tmp_path,
         {
-            "test/test_surface.py": API_TEST_SOURCE,
+            "test/test_surface.py": NATIVE_TEST_SOURCE,
             "test/core/test_subject.py": source,
         },
     )
@@ -760,6 +1008,84 @@ def test_nature_marker_detection(
         assert rc == 1
         assert "[X]" in captured.err
         assert "test/core/test_subject.py" in captured.err
+        assert captured.err.isascii()
+
+
+def test_locked_pr_file_axes_policy_and_compatibility(tmp_path: Path, capsys) -> None:
+    """LOCKED_PR_FILE_AXES maps only valid primary axes and allows legacy api on locked files."""
+    assert check_test_markers.LOCKED_PR_FILE_AXES
+    for rel_path, axis in check_test_markers.LOCKED_PR_FILE_AXES.items():
+        assert rel_path.startswith("test/"), rel_path
+        assert axis in check_test_markers.AXIS_MARKERS, (rel_path, axis)
+
+    # Legacy `api` marker is accepted for a locked file, and migrated single axis is also accepted.
+    locked_unit = "test/core/test_util_gap_filler_debug.py"
+    locked_dual_phys = "test/io_tests/test_native_spartacus_ehc_guards.py"
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": NATIVE_TEST_SOURCE,
+            locked_unit: LEGACY_API_TEST_SOURCE,
+            locked_dual_phys: (
+                "import pytest\n"
+                "pytestmark = [pytest.mark.api, pytest.mark.physics]\n"
+                "def test_ok():\n    assert True\n"
+            ),
+            "test/core/test_util_profile_manager_csv.py": UNIT_TEST_SOURCE,
+        },
+        makefile="TEST_DEFAULT_PATHS := test/test_surface.py test/core test/io_tests\n",
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 0, captured.err
+    assert "3 locked open-PR compatibility files" in captured.out
+
+
+def test_locked_pr_file_still_rejects_unmarked_or_dual_primary_axes(
+    tmp_path: Path, capsys
+) -> None:
+    """Locked open-PR files still fail if unmarked or declaring two primary axes."""
+    locked_unit = "test/core/test_util_gap_filler_debug.py"
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": NATIVE_TEST_SOURCE,
+            locked_unit: (
+                "import pytest\n"
+                "pytestmark = [pytest.mark.unit, pytest.mark.native]\n"
+                "def test_bad():\n    assert True\n"
+            ),
+        },
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert locked_unit in captured.err
+    assert "multiple primary axis markers" in captured.err
+
+
+def test_auto_applied_dir_rejects_explicit_axis_or_legacy_api(
+    tmp_path: Path, capsys
+) -> None:
+    """Files under test/umep/ must not declare explicit axis or retired api markers."""
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": NATIVE_TEST_SOURCE,
+            "test/umep/test_conflict.py": LEGACY_API_TEST_SOURCE,
+        },
+    )
+
+    rc = _run(repo)
+    captured = capsys.readouterr()
+
+    assert rc == 1
+    assert "test/umep/test_conflict.py" in captured.err
+    assert "auto-applied" in captured.err
 
 
 def test_suffix_test_file_missing_marker_is_caught(tmp_path: Path, capsys) -> None:

@@ -6,15 +6,52 @@ different schema versions. It includes automatic detection, migration
 handlers, and validation.
 """
 
-from typing import Dict, Any, Optional, Callable
-from pathlib import Path
-import yaml
-import logging
 from copy import deepcopy
+import logging
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
+import warnings
+
+from packaging.version import InvalidVersion, Version
+import yaml
 
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
 logger = logging.getLogger(__name__)
+
+
+def get_older_target_warning(
+    to_version: str, current_version: str = CURRENT_SCHEMA_VERSION
+) -> str | None:
+    """Return a warning message when ``to_version`` is older than ``current_version``.
+
+    Parameters
+    ----------
+    to_version : str
+        Requested target schema version.
+    current_version : str, optional
+        Current installed schema version, by default ``CURRENT_SCHEMA_VERSION``.
+
+    Returns
+    -------
+    str | None
+        Warning text if ``to_version`` parses as strictly older than
+        ``current_version``, otherwise ``None``.
+    """
+    if to_version == current_version:
+        return None
+    try:
+        is_older = Version(to_version) < Version(current_version)
+    except (InvalidVersion, TypeError):
+        return None
+    if not is_older:
+        return None
+    return (
+        f"Target schema version '{to_version}' is older than the current installed "
+        f"schema '{current_version}'. The migrated configuration uses a historical "
+        "schema and may fail current validation or engine load; omit to_version "
+        "(or --target-version in the CLI) to migrate to the current schema."
+    )
 
 
 class SchemaMigrator:
@@ -102,10 +139,11 @@ class SchemaMigrator:
         if from_version is None:
             from_version = self.auto_detect_version(config)
 
+        older_warning = get_older_target_warning(to_version)
+
         # No migration needed if versions match
         if from_version == to_version:
             if to_version in SCHEMA_VERSIONS:
-                from packaging.version import Version  # noqa: PLC0415
                 from ...util.converter.yaml_upgrade import (  # noqa: PLC0415
                     _advise_land_cover_and_dst_policy,
                     _check_and_normalise_integer_doys,
@@ -129,6 +167,8 @@ class SchemaMigrator:
                 if target_ver >= Version("2026.6.dev22"):
                     config = _strip_non_owning_vertical_layer_optical_keys(config)
             logger.info(f"Configuration already at schema version {to_version}")
+            if older_warning is not None:
+                warnings.warn(older_warning, UserWarning, stacklevel=2)
             return config
 
         # Find migration path
@@ -145,8 +185,10 @@ class SchemaMigrator:
             if handler_key in self.migration_handlers:
                 logger.info(f"Migrating from {current_version} to {next_version}")
                 from ...util.converter.yaml_upgrade import apply_migration_handler
+
                 config = apply_migration_handler(
-                    self.migration_handlers[handler_key], config,
+                    self.migration_handlers[handler_key],
+                    config,
                     migration_context=migration_context,
                 )
                 current_version = next_version
@@ -160,6 +202,9 @@ class SchemaMigrator:
 
         # Set the target schema version
         config["schema_version"] = to_version
+
+        if older_warning is not None:
+            warnings.warn(older_warning, UserWarning, stacklevel=2)
 
         return config
 

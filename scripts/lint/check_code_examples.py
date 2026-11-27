@@ -33,6 +33,7 @@ import math
 import os
 from pathlib import Path
 import re
+import secrets
 import signal
 import subprocess
 import sys
@@ -52,6 +53,16 @@ STATUSES = (
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 OPERATIONAL_FAILURE_EXIT_CODE = 2
+_HARNESS_FAILURE_EXIT_CODE = 124
+_HARNESS_ERROR_PREFIX = "__SUEWS_HARNESS_ERROR__:"
+
+_DOCTEST_FLAG_VALUES = {
+    "DONT_ACCEPT_TRUE_FOR_1": doctest.DONT_ACCEPT_TRUE_FOR_1,
+    "DONT_ACCEPT_BLANKLINE": doctest.DONT_ACCEPT_BLANKLINE,
+    "NORMALIZE_WHITESPACE": doctest.NORMALIZE_WHITESPACE,
+    "ELLIPSIS": doctest.ELLIPSIS,
+    "IGNORE_EXCEPTION_DETAIL": doctest.IGNORE_EXCEPTION_DETAIL,
+}
 
 _ALL_FUTURE_FLAGS = 0
 for _feature_name in __future__.all_feature_names:
@@ -122,6 +133,63 @@ def _get_doctest():
         _DOCTEST_MOD = _dt
         _DOCTEST_CHECKER = _dt.OutputChecker()
     return _DOCTEST_MOD, _DOCTEST_CHECKER
+
+
+def _ellipsis_match(want: str, got: str) -> bool:
+    if "..." not in want:
+        return want == got
+    ws = want.split("...")
+    startpos, endpos = 0, len(got)
+    w = ws[0]
+    if w:
+        if got.startswith(w):
+            startpos = len(w)
+            ws = ws[1:]
+        else:
+            return False
+    w = ws[-1]
+    if w:
+        if got.endswith(w):
+            endpos -= len(w)
+            ws = ws[:-1]
+        else:
+            return False
+    if startpos > endpos:
+        return False
+    for w in ws:
+        startpos = got.find(w, startpos, endpos)
+        if startpos < 0:
+            return False
+        startpos += len(w)
+    return True
+
+
+def _check_doctest_output(
+    want: str,
+    got: str,
+    optionflags: int,
+    dt_flags: dict[str, int],
+) -> bool:
+    if got == want:
+        return True
+    if not (optionflags & dt_flags["DONT_ACCEPT_TRUE_FOR_1"]):
+        if (got, want) in (("True\n", "1\n"), ("False\n", "0\n")):
+            return True
+    if not (optionflags & dt_flags["DONT_ACCEPT_BLANKLINE"]):
+        want = "\n".join(
+            "" if line.strip() == "<BLANKLINE>" else line for line in want.split("\n")
+        )
+        if got == want:
+            return True
+    if optionflags & dt_flags["NORMALIZE_WHITESPACE"]:
+        got = " ".join(got.split())
+        want = " ".join(want.split())
+        if got == want:
+            return True
+    if optionflags & dt_flags["ELLIPSIS"]:
+        if _ellipsis_match(want, got):
+            return True
+    return False
 
 
 def _iter_exc_chain(exc: BaseException):
@@ -225,8 +293,8 @@ def _execute_capturing_fds(
         sys.displayhook = _displayhook
         try:
             code = compile(source, filename, "single", compile_flags, dont_inherit=True)
-            exec(code, globs)
             next_flags = compile_flags | (code.co_flags & future_flags_mask)
+            exec(code, globs)
         except BaseException as exc:
             import traceback
 
@@ -267,6 +335,23 @@ def _write_text_atomic(path: str, text: str) -> None:
     os.replace(tmp_path, path)
 
 
+def _report_harness_failure(
+    ipc_dir: str,
+    harness_token: str,
+    message: str,
+) -> None:
+    try:
+        _write_text_atomic(os.path.join(ipc_dir, "harness_error.txt"), message + "\n")
+    except Exception:
+        pass
+    try:
+        sys.stderr.write(f"__SUEWS_HARNESS_ERROR__:{harness_token}:{message}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    sys.exit(124)
+
+
 def main() -> None:
     payload_path = sys.argv[1]
     result_path = sys.argv[2]
@@ -287,6 +372,8 @@ def main() -> None:
     name = payload["name"]
     examples = payload["examples"]
     future_flags_mask = int(payload.get("future_flags_mask", 0))
+    dt_flags = {str(k): int(v) for k, v in payload["doctest_flags"].items()}
+    harness_token = str(payload.get("harness_token", ""))
     stderr_parts: list[str] = []
     outcome: dict[str, object] = {
         "status": "ok",
@@ -294,6 +381,10 @@ def main() -> None:
         "executed": 0,
         "stderr": "",
     }
+
+    # Reset sys.argv so user code (for example argparse examples) never sees
+    # internal IPC paths passed to the runner harness.
+    sys.argv = ["<doctest>"]
 
     # Place capture files in the separate IPC directory (never the example cwd/tempdir)
     # and keep fd 1 / fd 2 attached for the whole block so child processes started in
@@ -320,6 +411,8 @@ def main() -> None:
     read_out = open(out_capture_path, "rb")
     read_err = open(err_capture_path, "rb")
     captured_stdout_bytes = 0
+    captured_stderr_bytes = 0
+    harness_exc: BaseException | None = None
     try:
         sys.modules["__main__"] = example_mod
         os.dup2(write_out.fileno(), 1)
@@ -371,16 +464,19 @@ def main() -> None:
             if raised is not None:
                 actual_exc_msg = _format_doctest_exc_only(raised)
                 if exc_msg is not None:
-                    dt_mod, checker = _get_doctest()
-                    matched = checker.check_output(exc_msg, actual_exc_msg, flags)
-                    if not matched and (flags & dt_mod.IGNORE_EXCEPTION_DETAIL):
-                        matched = checker.check_output(
+                    matched = _check_doctest_output(
+                        exc_msg, actual_exc_msg, flags, dt_flags
+                    )
+                    if not matched and (flags & dt_flags["IGNORE_EXCEPTION_DETAIL"]):
+                        matched = _check_doctest_output(
                             _strip_exception_details(exc_msg),
                             _strip_exception_details(actual_exc_msg),
                             flags,
+                            dt_flags,
                         )
                     if matched:
                         continue
+                    dt_mod, checker = _get_doctest()
                     diff_example = dt_mod.Example(
                         source=source,
                         want=exc_msg,
@@ -433,28 +529,29 @@ def main() -> None:
                 })
                 break
 
-            if got == want:
+            if _check_doctest_output(want, got, flags, dt_flags):
                 continue
 
             dt_mod, checker = _get_doctest()
-            if not checker.check_output(want, got, flags):
-                example_obj = dt_mod.Example(
-                    source=source,
-                    want=want,
-                    exc_msg=exc_msg,
-                    lineno=item["lineno"],
-                    indent=item["indent"],
-                    options=options,
-                )
-                outcome.update({
-                    "status": "mismatch",
-                    "failed_statement_index": idx,
-                    "failed_source": source,
-                    "want": want,
-                    "got": got,
-                    "diff": checker.output_difference(example_obj, got, flags),
-                })
-                break
+            example_obj = dt_mod.Example(
+                source=source,
+                want=want,
+                exc_msg=exc_msg,
+                lineno=item["lineno"],
+                indent=item["indent"],
+                options=options,
+            )
+            outcome.update({
+                "status": "mismatch",
+                "failed_statement_index": idx,
+                "failed_source": source,
+                "want": want,
+                "got": got,
+                "diff": checker.output_difference(example_obj, got, flags),
+            })
+            break
+    except BaseException as exc:
+        harness_exc = exc
     finally:
         if runner_main_mod is not None:
             sys.modules["__main__"] = runner_main_mod
@@ -472,14 +569,30 @@ def main() -> None:
         os.close(saved_fd1)
         os.close(saved_fd2)
         captured_stdout_bytes = read_out.tell()
+        captured_stderr_bytes = read_err.tell()
         read_out.close()
         read_err.close()
         write_out.close()
         write_err.close()
 
+    if harness_exc is not None:
+        _report_harness_failure(
+            capture_dir,
+            harness_token,
+            f"runner harness error: {type(harness_exc).__name__}: {harness_exc}",
+        )
+
     outcome["stderr"] = "".join(stderr_parts)
     outcome["captured_stdout_bytes"] = captured_stdout_bytes
-    _write_json_atomic(result_path, outcome)
+    outcome["captured_stderr_bytes"] = captured_stderr_bytes
+    try:
+        _write_json_atomic(result_path, outcome)
+    except BaseException as exc:
+        _report_harness_failure(
+            capture_dir,
+            harness_token,
+            f"runner harness failed to publish result: {type(exc).__name__}: {exc}",
+        )
 
 
 if __name__ == "__main__":
@@ -597,14 +710,18 @@ class Revision:
             else:
                 self._index(child, prefix, path, text)
 
-    def locate(self, obj: object) -> Source:
-        """Resolve by qualified identity, never by an installed source path."""
-        obj = inspect.unwrap(obj)
-        name = f"{getattr(obj, '__module__', '')}.{getattr(obj, '__qualname__', '')}"
+    def locate_name(self, name: str) -> Source:
+        """Resolve a qualified ``module.qualname`` declaration against the revision."""
         matches = self.sources.get(name, [])
         if len(matches) != 1:
             raise ValueError("missing, nested or overloaded source declaration")
         return matches[0]
+
+    def locate(self, obj: object) -> Source:
+        """Resolve by qualified identity, never by an installed source path."""
+        obj = inspect.unwrap(obj)
+        name = f"{getattr(obj, '__module__', '')}.{getattr(obj, '__qualname__', '')}"
+        return self.locate_name(name)
 
 
 def make_result(
@@ -825,6 +942,29 @@ def _scan_shell_output_lines(
     return next_idx, end_line, cursor
 
 
+def _consume_shell_continuations(
+    text_block: TextBlock,
+    lines: list[str],
+    file_lines: list[str],
+    start_idx: int,
+    start_line: int,
+    cursor: int,
+) -> tuple[int, int, int]:
+    """Consume backslash-continued shell command lines before scanning for output."""
+    cmd_idx = start_idx
+    cmd_end_line = start_line
+    while lines[cmd_idx].rstrip().endswith("\\") and cmd_idx + 1 < len(lines):
+        nxt = lines[cmd_idx + 1]
+        stripped = nxt.strip()
+        if not stripped or stripped == "\b":
+            break
+        cmd_idx += 1
+        cmd_end_line, cursor = _line_offset_to_file_line(
+            text_block, file_lines, cmd_idx, stripped, cursor
+        )
+    return cmd_idx, cmd_end_line, cursor
+
+
 def extract_cli_shell_examples(
     text_block: TextBlock,
 ) -> list[tuple[tuple[int, int], bool]]:
@@ -854,20 +994,24 @@ def extract_cli_shell_examples(
             idx += 1
             continue
 
+        cmd_indent = len(line) - len(line.lstrip())
         start_line, cursor = _line_offset_to_file_line(
             text_block, file_lines, idx, line.strip(), cursor
+        )
+        cmd_idx, cmd_end_line, cursor = _consume_shell_continuations(
+            text_block, lines, file_lines, idx, start_line, cursor
         )
         idx, end_line, cursor = _scan_shell_output_lines(
             text_block,
             lines,
             file_lines,
-            idx,
-            len(line) - len(line.lstrip()),
+            cmd_idx,
+            cmd_indent,
             in_examples_section,
             cursor,
         )
         has_output = end_line is not None
-        final_end = start_line if end_line is None else end_line
+        final_end = cmd_end_line if end_line is None else end_line
         span = (
             (text_block.node_start, text_block.node_end)
             if final_end < start_line
@@ -1473,12 +1617,32 @@ def _collect_cleanup_error(
     return error
 
 
+def _collect_harness_error(path_ipc: Path, harness_token: str) -> str | None:
+    """Read an authenticated runner harness failure from IPC file or stderr marker."""
+    harness_error_path = path_ipc / "harness_error.txt"
+    if harness_error_path.is_file():
+        recorded = harness_error_path.read_text(encoding="utf-8").strip()
+        if recorded:
+            return recorded
+    if harness_token:
+        stderr_path = path_ipc / "proc_stderr.txt"
+        if stderr_path.is_file():
+            marker = f"{_HARNESS_ERROR_PREFIX}{harness_token}:"
+            for line in stderr_path.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines():
+                if line.startswith(marker):
+                    return line[len(marker) :].strip() or "runner harness failed"
+    return None
+
+
 def _spawn_isolated_runner(
     exe: str,
     path_cwd: Path,
     path_ipc: Path,
     timeout: float,
     runner_source: str = _SUBPROCESS_RUNNER,
+    harness_token: str = "",
 ) -> _RunnerOutcome:
     """Execute an isolated runner in its own process group/job and reap descendants."""
     timed_out = False
@@ -1526,22 +1690,40 @@ def _spawn_isolated_runner(
         containment_error = _collect_cleanup_error(
             contained, timed_out, timeout, containment_error
         )
-        if not started and containment_error is None:
-            if timed_out:
-                containment_error = (
-                    f"isolated runner timed out after {timeout:.1f}s "
-                    "before execution started"
-                )
-            else:
-                containment_error = (
-                    "isolated runner failed before execution started "
-                    f"(exit code {returncode})"
-                )
+    if containment_error is None:
+        harness_err = _collect_harness_error(path_ipc, harness_token)
+        if harness_err is not None:
+            containment_error = harness_err
+    if not started and containment_error is None:
+        if timed_out:
+            containment_error = (
+                f"isolated runner timed out after {timeout:.1f}s "
+                "before execution started"
+            )
+        else:
+            containment_error = (
+                "isolated runner failed before execution started "
+                f"(exit code {returncode})"
+            )
     return _RunnerOutcome(
         timed_out=timed_out,
         returncode=returncode,
         containment_error=containment_error,
         started=started,
+    )
+
+
+def _read_trailing_capture(path: Path, consumed_bytes: int) -> str:
+    """Read any bytes appended to a capture file after runner consumption."""
+    if not path.is_file():
+        return ""
+    raw_capture = path.read_bytes()
+    if len(raw_capture) <= consumed_bytes:
+        return ""
+    return (
+        raw_capture[consumed_bytes:]
+        .decode("utf-8", errors="replace")
+        .replace("\r\n", "\n")
     )
 
 
@@ -1553,9 +1735,12 @@ def run_example_block(
 ) -> tuple[str, dict]:
     """Run one ``>>>`` block in a fresh isolated subprocess with empty cwd."""
     timeout = _validate_timeout(timeout)
+    harness_token = secrets.token_hex(16)
     payload = {
         "name": name,
         "future_flags_mask": _ALL_FUTURE_FLAGS,
+        "doctest_flags": _DOCTEST_FLAG_VALUES,
+        "harness_token": harness_token,
         "examples": [
             {
                 "source": ex.source,
@@ -1584,6 +1769,7 @@ def run_example_block(
             path_cwd=Path(cwd_dir),
             path_ipc=path_ipc,
             timeout=timeout,
+            harness_token=harness_token,
         )
         if run_outcome.containment_error is not None:
             return "error", {
@@ -1629,20 +1815,22 @@ def run_example_block(
         outcome = json.loads(path_result.read_text(encoding="utf-8"))
         status = outcome.pop("status")
         consumed_stdout_bytes = int(outcome.pop("captured_stdout_bytes", 0))
-        trailing_capture_stdout = ""
-        capture_stdout_path = path_ipc / "capture_stdout.bin"
-        if capture_stdout_path.is_file():
-            raw_capture = capture_stdout_path.read_bytes()
-            if len(raw_capture) > consumed_stdout_bytes:
-                trailing_capture_stdout = (
-                    raw_capture[consumed_stdout_bytes:]
-                    .decode("utf-8", errors="replace")
-                    .replace("\r\n", "\n")
-                )
-        trailing_stdout = trailing_capture_stdout + proc_stdout
+        consumed_stderr_bytes = int(outcome.pop("captured_stderr_bytes", 0))
+        trailing_stdout = (
+            _read_trailing_capture(
+                path_ipc / "capture_stdout.bin", consumed_stdout_bytes
+            )
+            + proc_stdout
+        )
+        trailing_stderr = (
+            _read_trailing_capture(
+                path_ipc / "capture_stderr.bin", consumed_stderr_bytes
+            )
+            + proc_stderr
+        )
         outcome["block_index"] = block.block_index
-        if proc_stderr:
-            outcome["stderr"] = (outcome.get("stderr") or "") + proc_stderr
+        if trailing_stderr:
+            outcome["stderr"] = (outcome.get("stderr") or "") + trailing_stderr
         if run_outcome.returncode != 0 and (
             status == "ok" or run_outcome.returncode < 0
         ):
@@ -1829,6 +2017,36 @@ def class_members(
         yield definition, target
 
 
+def _export_anchor_node(tree: ast.Module, name: str) -> ast.AST:
+    """Locate the AST anchor node for ``name`` inside a module tree."""
+    return next(
+        (
+            n
+            for n in tree.body
+            if (
+                isinstance(n, ast.Assign)
+                and any(
+                    isinstance(t, ast.Name) and t.id == "__all__" for t in n.targets
+                )
+            )
+            or (
+                isinstance(n, ast.AnnAssign)
+                and isinstance(n.target, ast.Name)
+                and n.target.id == "__all__"
+            )
+        ),
+        next(
+            (
+                n
+                for n in tree.body
+                if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+                and n.name == name
+            ),
+            tree,
+        ),
+    )
+
+
 def public_targets(
     revision: Revision,
     module: ModuleType,
@@ -1837,7 +2055,7 @@ def public_targets(
     excluded: Counter | None = None,
     root_package: str = "supy",
 ) -> Iterator[tuple[str, object | None, Source, str | None]]:
-    """Walk exported modules, callables, classes, methods and properties."""
+    """Walk exported modules, callables, classes, methods and properties safely."""
     seen_modules = set() if seen_modules is None else seen_modules
     members_seen = set() if members_seen is None else members_seen
     excluded = Counter() if excluded is None else excluded
@@ -1848,34 +2066,22 @@ def public_targets(
     module_source = Source(path, module.__name__, tree, text)
     yield module.__name__, module, module_source, None
 
+    mod_vars = vars(module)
     for name in exported_names(tree):
         public = f"{module.__name__}.{name}"
-        export_node = next(
-            (
-                n
-                for n in tree.body
-                if isinstance(n, ast.Assign)
-                and any(
-                    isinstance(t, ast.Name) and t.id == "__all__" for t in n.targets
-                )
-            ),
-            next(
-                (
-                    n
-                    for n in tree.body
-                    if isinstance(
-                        n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
-                    )
-                    and n.name == name
-                ),
-                tree,
-            ),
-        )
-        anchor = Source(path, module.__name__, export_node, text)
-        try:
-            obj = getattr(module, name)
-        except Exception as exc:  # Inventory failures must stay visible.
-            yield public, None, anchor, f"export lookup failed: {type(exc).__name__}"
+        anchor = Source(path, module.__name__, _export_anchor_node(tree, name), text)
+        if name in mod_vars:
+            obj = mod_vars[name]
+        elif "__getattr__" in mod_vars:
+            yield (
+                public,
+                None,
+                anchor,
+                "in-memory module __getattr__ cannot be evaluated in an isolated subprocess",
+            )
+            continue
+        else:
+            yield public, None, anchor, "export lookup failed: AttributeError"
             continue
         if isinstance(obj, ModuleType):
             yield from public_targets(
@@ -1903,6 +2109,389 @@ def public_targets(
             yield public, None, anchor, "export unavailable"
 
 
+_PYTHON_DISCOVERY_RUNNER = r"""
+import importlib
+import importlib.util
+import inspect
+import json
+import os
+import sys
+import time
+from types import ModuleType
+
+import click
+
+
+def _write_json_atomic(path: str, data: dict[str, object]) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=True)
+    os.replace(tmp_path, path)
+
+
+def _write_text_atomic(path: str, text: str) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp_path, path)
+
+
+def _report_harness_failure(ipc_dir: str, token: str, message: str) -> None:
+    try:
+        _write_text_atomic(os.path.join(ipc_dir, "harness_error.txt"), message + "\n")
+    except Exception:
+        pass
+    try:
+        sys.stderr.write(f"__SUEWS_HARNESS_ERROR__:{token}:{message}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    sys.exit(124)
+
+
+def _in_package(module_name: str | None, root_package: str) -> bool:
+    return bool(module_name) and (
+        module_name == root_package or module_name.startswith(f"{root_package}.")
+    )
+
+
+def _load_module(module_name: str, origin_path: str | None) -> ModuleType:
+    try:
+        return importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        if not origin_path:
+            raise
+        spec = importlib.util.spec_from_file_location(module_name, origin_path)
+        if spec is None or spec.loader is None:
+            raise
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+        return mod
+
+
+def _walk_module(
+    mod: ModuleType,
+    module_exports: dict[str, list[str]],
+    root_package: str,
+    seen_modules: set[str],
+    members_seen: set[tuple[type, str]],
+    excluded: dict[str, int],
+    targets: list[dict[str, object]],
+) -> None:
+    if mod.__name__ in seen_modules or mod.__name__ not in module_exports:
+        return
+    seen_modules.add(mod.__name__)
+    targets.append({
+        "public": mod.__name__,
+        "anchor_module": mod.__name__,
+        "export_name": "",
+        "kind": "module",
+        "qual_name": mod.__name__,
+        "reason": None,
+    })
+
+    for name in module_exports[mod.__name__]:
+        public = f"{mod.__name__}.{name}"
+        try:
+            obj = getattr(mod, name)
+        except Exception as exc:
+            targets.append({
+                "public": public,
+                "anchor_module": mod.__name__,
+                "export_name": name,
+                "kind": "error",
+                "qual_name": "",
+                "reason": f"export lookup failed: {type(exc).__name__}",
+            })
+            continue
+        if isinstance(obj, ModuleType):
+            _walk_module(
+                obj,
+                module_exports,
+                root_package,
+                seen_modules,
+                members_seen,
+                excluded,
+                targets,
+            )
+        elif isinstance(obj, click.Command):
+            key = "click command checked on cli surface"
+            excluded[key] = excluded.get(key, 0) + 1
+        elif callable(obj):
+            unwrapped = inspect.unwrap(obj)
+            obj_module = getattr(unwrapped, "__module__", "")
+            if not _in_package(obj_module, root_package):
+                key = f"object defined outside {root_package}"
+                excluded[key] = excluded.get(key, 0) + 1
+                continue
+            targets.append({
+                "public": public,
+                "anchor_module": mod.__name__,
+                "export_name": name,
+                "kind": "callable",
+                "qual_name": f"{obj_module}.{getattr(unwrapped, '__qualname__', '')}",
+                "reason": None,
+            })
+            if inspect.isclass(obj):
+                for member in sorted(dir(obj)):
+                    if member.startswith("_"):
+                        continue
+                    try:
+                        raw = inspect.getattr_static(obj, member)
+                    except AttributeError:
+                        continue
+                    if isinstance(raw, staticmethod | classmethod):
+                        target = raw.__func__
+                    elif isinstance(raw, property):
+                        target = raw.fget
+                    else:
+                        target = raw
+                    if not callable(target):
+                        continue
+                    owner = next((cls for cls in obj.__mro__ if member in vars(cls)), None)
+                    if owner is None:
+                        continue
+                    t_unwrapped = inspect.unwrap(target)
+                    target_module = getattr(t_unwrapped, "__module__", "")
+                    if not _in_package(owner.__module__, root_package) or not _in_package(
+                        target_module, root_package
+                    ):
+                        key = f"member defined outside {root_package}"
+                        excluded[key] = excluded.get(key, 0) + 1
+                        continue
+                    mkey = (owner, member)
+                    if mkey in members_seen:
+                        continue
+                    members_seen.add(mkey)
+                    definition = f"{owner.__module__}.{owner.__qualname__}.{member}"
+                    targets.append({
+                        "public": definition,
+                        "anchor_module": mod.__name__,
+                        "export_name": name,
+                        "kind": "callable",
+                        "qual_name": f"{target_module}.{getattr(t_unwrapped, '__qualname__', '')}",
+                        "reason": None,
+                    })
+        elif obj is None:
+            targets.append({
+                "public": public,
+                "anchor_module": mod.__name__,
+                "export_name": name,
+                "kind": "error",
+                "qual_name": "",
+                "reason": "export unavailable",
+            })
+
+
+def main() -> None:
+    payload_path = sys.argv[1]
+    result_path = sys.argv[2]
+    gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    ack_path = sys.argv[4] if len(sys.argv) > 4 else ""
+    expected_ppid = int(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else 0
+    if gate_path:
+        deadline = time.monotonic() + 5.0
+        while not os.path.exists(gate_path):
+            if expected_ppid and os.name != "nt" and os.getppid() != expected_ppid:
+                sys.exit(2)
+            if time.monotonic() >= deadline:
+                sys.exit(2)
+            time.sleep(0.005)
+
+    with open(payload_path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+
+    harness_token = str(payload.get("harness_token", ""))
+    ipc_dir = os.path.dirname(os.path.abspath(result_path))
+    sys.argv = ["<python-discovery>"]
+    if ack_path:
+        _write_text_atomic(ack_path, "started\n")
+
+    mod = _load_module(payload["module_name"], payload.get("origin_path"))
+    targets: list[dict[str, object]] = []
+    excluded: dict[str, int] = {}
+    _walk_module(
+        mod,
+        payload["module_exports"],
+        payload["root_package"],
+        set(),
+        set(),
+        excluded,
+        targets,
+    )
+    try:
+        _write_json_atomic(result_path, {"targets": targets, "excluded": excluded})
+    except BaseException as exc:
+        _report_harness_failure(
+            ipc_dir,
+            harness_token,
+            f"python discovery failed to publish result: {type(exc).__name__}: {exc}",
+        )
+
+
+if __name__ == "__main__":
+    main()
+"""
+
+
+@dataclass(frozen=True)
+class _ModuleProbeTarget:
+    """Importable module specification for isolated Python export discovery."""
+
+    module_name: str
+    origin_path: str
+
+
+def _resolve_module_probe_target(module: ModuleType) -> _ModuleProbeTarget | None:
+    """Return file-backed module coordinates when ``module`` is subprocess-loadable."""
+    origin = vars(module).get("__file__")
+    if not isinstance(origin, str) or not origin or not Path(origin).is_file():
+        return None
+    return _ModuleProbeTarget(
+        module_name=module.__name__,
+        origin_path=str(Path(origin).resolve()),
+    )
+
+
+def _discover_python_targets_subprocess(
+    revision: Revision,
+    target: _ModuleProbeTarget,
+    root_package: str,
+    timeout: float,
+    python_executable: str | None = None,
+) -> tuple[list[dict[str, object]] | None, dict[str, int], str | None, bool]:
+    """Run Python export discovery in a fresh isolated, timeout-bounded subprocess."""
+    harness_token = secrets.token_hex(16)
+    module_exports = {
+        mod_name: exported_names(tree)
+        for mod_name, (_path, tree, _text) in revision.modules.items()
+    }
+    payload = {
+        "module_name": target.module_name,
+        "origin_path": target.origin_path,
+        "root_package": root_package,
+        "module_exports": module_exports,
+        "harness_token": harness_token,
+    }
+    with (
+        tempfile.TemporaryDirectory(prefix="suews-py-discover-cwd-") as cwd_dir,
+        tempfile.TemporaryDirectory(prefix="suews-py-discover-ipc-") as ipc_dir,
+    ):
+        path_ipc = Path(ipc_dir)
+        path_result = path_ipc / "result.json"
+        (path_ipc / "payload.json").write_text(
+            json.dumps(payload, ensure_ascii=True), encoding="utf-8"
+        )
+        run_outcome = _spawn_isolated_runner(
+            exe=python_executable or sys.executable,
+            path_cwd=Path(cwd_dir),
+            path_ipc=path_ipc,
+            timeout=timeout,
+            runner_source=_PYTHON_DISCOVERY_RUNNER,
+            harness_token=harness_token,
+        )
+        if run_outcome.containment_error is not None:
+            return None, {}, run_outcome.containment_error, True
+        if run_outcome.timed_out:
+            return (
+                None,
+                {},
+                f"Python export discovery timed out after {timeout:.1f}s",
+                False,
+            )
+        if run_outcome.returncode != 0:
+            return (
+                None,
+                {},
+                f"Python export discovery exited with code {run_outcome.returncode}",
+                False,
+            )
+        if not path_result.is_file():
+            return (
+                None,
+                {},
+                "Python export discovery exited without writing a result",
+                False,
+            )
+        data = json.loads(path_result.read_text(encoding="utf-8"))
+        return list(data["targets"]), dict(data["excluded"]), None, False
+
+
+def _iter_python_discovered_targets(
+    revision: Revision,
+    module: ModuleType,
+    excluded_counts: Counter,
+    root_package: str,
+    timeout: float,
+    python_executable: str | None,
+) -> Iterator[tuple[str, Source, Source | None, str | None, bool]]:
+    """Yield ``(public, anchor, resolved_source, failure_reason, operational_failure)``."""
+    probe_target = _resolve_module_probe_target(module)
+    if probe_target is None:
+        for public, obj, anchor, initial_reason in public_targets(
+            revision, module, excluded=excluded_counts, root_package=root_package
+        ):
+            if initial_reason:
+                yield public, anchor, None, initial_reason, False
+            elif isinstance(obj, ModuleType):
+                yield public, anchor, anchor, None, False
+            else:
+                try:
+                    yield public, anchor, revision.locate(obj), None, False
+                except ValueError:
+                    yield (
+                        public,
+                        anchor,
+                        None,
+                        "source declaration cannot be resolved",
+                        False,
+                    )
+        return
+
+    targets, excluded, error_reason, operational_failure = (
+        _discover_python_targets_subprocess(
+            revision,
+            probe_target,
+            root_package=root_package,
+            timeout=timeout,
+            python_executable=python_executable,
+        )
+    )
+    excluded_counts.update(excluded)
+    if targets is None:
+        if module.__name__ in revision.modules:
+            path, tree, text = revision.modules[module.__name__]
+            anchor = Source(path, module.__name__, tree, text)
+        else:
+            anchor = Source(
+                "", module.__name__, ast.Module(body=[], type_ignores=[]), ""
+            )
+        yield module.__name__, anchor, None, error_reason, operational_failure
+        return
+
+    for item in targets:
+        public = str(item["public"])
+        anchor_mod = str(item["anchor_module"])
+        export_name = str(item["export_name"])
+        path, tree, text = revision.modules[anchor_mod]
+        anchor_node = _export_anchor_node(tree, export_name) if export_name else tree
+        anchor = Source(path, anchor_mod, anchor_node, text)
+        reason = item.get("reason")
+        if reason is not None:
+            yield public, anchor, None, str(reason), False
+            continue
+        if item["kind"] == "module":
+            yield public, anchor, anchor, None, False
+            continue
+        try:
+            source = revision.locate_name(str(item["qual_name"]))
+        except ValueError:
+            yield public, anchor, None, "source declaration cannot be resolved", False
+            continue
+        yield public, anchor, source, None, False
+
+
 def python_example_results(
     revision: Revision,
     module: ModuleType,
@@ -1913,44 +2502,44 @@ def python_example_results(
     scanned_counter: Counter | None = None,
 ) -> Iterator[dict]:
     """Run revision-backed ``>>>`` docstring examples across the public Python API."""
+    timeout = _validate_timeout(timeout)
     excluded_counts = Counter() if excluded_counts is None else excluded_counts
     excluded_items = [] if excluded_items is None else excluded_items
     root_package = module.__name__.split(".", 1)[0]
     checked_definitions: set[tuple[str, str]] = set()
 
-    for public, obj, anchor, initial_reason in public_targets(
-        revision, module, excluded=excluded_counts, root_package=root_package
+    for (
+        public,
+        anchor,
+        source,
+        initial_reason,
+        op_fail,
+    ) in _iter_python_discovered_targets(
+        revision,
+        module,
+        excluded_counts=excluded_counts,
+        root_package=root_package,
+        timeout=timeout,
+        python_executable=python_executable,
     ):
         if scanned_counter is not None:
             scanned_counter["python"] += 1
-        if initial_reason:
+        if initial_reason is not None or source is None:
+            detail: dict[str, object] = {
+                "reason": initial_reason or "source declaration cannot be resolved"
+            }
+            if op_fail:
+                detail["operational_failure"] = True
             yield make_result(
                 revision.sha,
                 "python",
                 anchor,
                 public,
                 "docstring-example",
-                "unsupported",
-                {"reason": initial_reason},
+                "error" if op_fail else "unsupported",
+                detail,
             )
             continue
-
-        if isinstance(obj, ModuleType):
-            source = anchor
-        else:
-            try:
-                source = revision.locate(obj)
-            except ValueError:
-                yield make_result(
-                    revision.sha,
-                    "python",
-                    anchor,
-                    public,
-                    "docstring-example",
-                    "unsupported",
-                    {"reason": "source declaration cannot be resolved"},
-                )
-                continue
 
         def_key = (source.file, source.name)
         if def_key in checked_definitions:
@@ -2086,12 +2675,25 @@ def _extract_option_decorator_blocks(
             return
         if hidden_val:
             return
+    if unresolved_spans:
+        for span in unresolved_spans:
+            unsupported.append((
+                "cli-option-help-example",
+                "dynamic option **kwargs",
+                span,
+            ))
+        return
     if "help" in kwargs:
         val_node = kwargs["help"]
         span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
         try:
             value = ast.literal_eval(val_node)
         except (ValueError, TypeError):
+            unsupported.append((
+                "cli-option-help-example",
+                "dynamic option help",
+                span,
+            ))
             return
         if isinstance(value, str) and ">>>" in value:
             blocks.append(
@@ -2103,35 +2705,68 @@ def _extract_option_decorator_blocks(
                     origin="cli-option-help-example",
                 )
             )
-        return
-    for span in unresolved_spans:
-        unsupported.append(("cli-option-help-example", "dynamic option **kwargs", span))
+
+
+def _click_decorator_aliases(
+    tree: ast.Module | None,
+) -> tuple[set[str], set[str], set[str]]:
+    """Collect module-level aliases for Click command, group and option decorators."""
+    cmd_names = {"command", "group"}
+    opt_names = {"option"}
+    click_mods = {"click"}
+    if tree is None:
+        return cmd_names, opt_names, click_mods
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "click":
+                    click_mods.add(alias.asname or "click")
+        elif isinstance(node, ast.ImportFrom) and node.module == "click":
+            for alias in node.names:
+                local = alias.asname or alias.name
+                if alias.name in {"command", "group"}:
+                    cmd_names.add(local)
+                elif alias.name == "option":
+                    opt_names.add(local)
+    return cmd_names, opt_names, click_mods
 
 
 def _cli_help_text_blocks(
     source: Source,
+    module_tree: ast.Module | None = None,
 ) -> tuple[list[TextBlock], list[tuple[str, str, tuple[int, int]]]]:
     """Extract literal Click help/epilog/option strings from revision AST."""
     blocks: list[TextBlock] = []
     unsupported: list[tuple[str, str, tuple[int, int]]] = []
     has_command_help_kw = False
     has_unresolved_command_kwargs = False
+    cmd_names, opt_names, click_mods = _click_decorator_aliases(module_tree)
+    cmd_suffixes = tuple(f".{name}" for name in ("command", "group"))
+    click_cmd_refs = {
+        f"{mod}.{name}" for mod in click_mods for name in ("command", "group")
+    }
+    click_opt_refs = {f"{mod}.option" for mod in click_mods}
 
     for decorator in getattr(source.node, "decorator_list", []):
         if not isinstance(decorator, ast.Call):
             continue
         func_name = ast.unparse(decorator.func)
         kwargs, unresolved_spans = _resolve_decorator_kwargs(decorator)
-        if func_name in {"command", "group"} or func_name.endswith((
-            ".command",
-            ".group",
-        )):
+        if (
+            func_name in cmd_names
+            or func_name in click_cmd_refs
+            or func_name.endswith(cmd_suffixes)
+        ):
             help_kw, unresolved = _extract_command_decorator_blocks(
                 source, kwargs, unresolved_spans, blocks, unsupported
             )
             has_command_help_kw = has_command_help_kw or help_kw
             has_unresolved_command_kwargs = has_unresolved_command_kwargs or unresolved
-        elif func_name == "option" or func_name.endswith(".option"):
+        elif (
+            func_name in opt_names
+            or func_name in click_opt_refs
+            or func_name.endswith(".option")
+        ):
             _extract_option_decorator_blocks(
                 source, kwargs, unresolved_spans, blocks, unsupported
             )
@@ -2149,6 +2784,120 @@ def _cli_help_text_blocks(
                 )
             )
     return blocks, unsupported
+
+
+_CLI_DISCOVERY_RUNNER = r"""
+import importlib
+import importlib.util
+import inspect
+import json
+import os
+import sys
+import time
+
+import click
+
+
+def _write_json_atomic(path: str, data: dict[str, object]) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=True)
+    os.replace(tmp_path, path)
+
+
+def _write_text_atomic(path: str, text: str) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp_path, path)
+
+
+def _report_harness_failure(ipc_dir: str, token: str, message: str) -> None:
+    try:
+        _write_text_atomic(os.path.join(ipc_dir, "harness_error.txt"), message + "\n")
+    except Exception:
+        pass
+    try:
+        sys.stderr.write(f"__SUEWS_HARNESS_ERROR__:{token}:{message}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    sys.exit(124)
+
+
+def _load_cli_root(module_name: str, attr_name: str, origin_path: str | None):
+    try:
+        mod = importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        if not origin_path:
+            raise
+        spec = importlib.util.spec_from_file_location(module_name, origin_path)
+        if spec is None or spec.loader is None:
+            raise
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+    return getattr(mod, attr_name)
+
+
+def _walk_commands(command: click.Command, path: list[str], out: list[dict[str, object]]) -> None:
+    cb = command.callback
+    if cb is not None:
+        unwrapped = inspect.unwrap(cb)
+        cb_name = f"{getattr(unwrapped, '__module__', '')}.{getattr(unwrapped, '__qualname__', '')}"
+    else:
+        cb_name = ""
+    out.append({"path": list(path), "callback_name": cb_name})
+    if isinstance(command, click.Group):
+        with click.Context(command) as ctx:
+            for name in command.list_commands(ctx):
+                sub = command.get_command(ctx, name)
+                if sub is not None:
+                    _walk_commands(sub, [*path, name], out)
+
+
+def main() -> None:
+    payload_path = sys.argv[1]
+    result_path = sys.argv[2]
+    gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    ack_path = sys.argv[4] if len(sys.argv) > 4 else ""
+    expected_ppid = int(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else 0
+    if gate_path:
+        deadline = time.monotonic() + 5.0
+        while not os.path.exists(gate_path):
+            if expected_ppid and os.name != "nt" and os.getppid() != expected_ppid:
+                sys.exit(2)
+            if time.monotonic() >= deadline:
+                sys.exit(2)
+            time.sleep(0.005)
+
+    with open(payload_path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+
+    harness_token = str(payload.get("harness_token", ""))
+    ipc_dir = os.path.dirname(os.path.abspath(result_path))
+    sys.argv = ["<cli-discovery>"]
+    if ack_path:
+        _write_text_atomic(ack_path, "started\n")
+
+    root = _load_cli_root(
+        payload["module_name"], payload["attr_name"], payload.get("origin_path")
+    )
+    found: list[dict[str, object]] = []
+    _walk_commands(root, [], found)
+    try:
+        _write_json_atomic(result_path, {"commands": found})
+    except BaseException as exc:
+        _report_harness_failure(
+            ipc_dir,
+            harness_token,
+            f"CLI discovery failed to publish result: {type(exc).__name__}: {exc}",
+        )
+
+
+if __name__ == "__main__":
+    main()
+"""
 
 
 _CLI_HELP_PROBE_RUNNER = r"""
@@ -2174,6 +2923,19 @@ def _write_text_atomic(path: str, text: str) -> None:
     with open(tmp_path, "w", encoding="utf-8") as fh:
         fh.write(text)
     os.replace(tmp_path, path)
+
+
+def _report_harness_failure(ipc_dir: str, token: str, message: str) -> None:
+    try:
+        _write_text_atomic(os.path.join(ipc_dir, "harness_error.txt"), message + "\n")
+    except Exception:
+        pass
+    try:
+        sys.stderr.write(f"__SUEWS_HARNESS_ERROR__:{token}:{message}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    sys.exit(124)
 
 
 def _load_cli_root(module_name: str, attr_name: str, origin_path: str | None):
@@ -2209,6 +2971,9 @@ def main() -> None:
     with open(payload_path, encoding="utf-8") as fh:
         payload = json.load(fh)
 
+    harness_token = str(payload.get("harness_token", ""))
+    ipc_dir = os.path.dirname(os.path.abspath(result_path))
+    sys.argv = ["<cli-help-probe>"]
     if ack_path:
         _write_text_atomic(ack_path, "started\n")
 
@@ -2218,7 +2983,14 @@ def main() -> None:
     path = payload["command_path"]
     runner = CliRunner()
     invocation = runner.invoke(root, [*path, "--help"], terminal_width=240)
-    _write_json_atomic(result_path, {"exit_code": invocation.exit_code})
+    try:
+        _write_json_atomic(result_path, {"exit_code": invocation.exit_code})
+    except BaseException as exc:
+        _report_harness_failure(
+            ipc_dir,
+            harness_token,
+            f"CLI help probe failed to publish result: {type(exc).__name__}: {exc}",
+        )
 
 
 if __name__ == "__main__":
@@ -2256,8 +3028,8 @@ def _resolve_cli_probe_target(root: click.Command) -> _CliProbeTarget | None:
             candidates.append(mod)
 
     for mod in candidates:
-        origin = getattr(mod, "__file__", None)
-        if not origin or not Path(origin).is_file():
+        origin = vars(mod).get("__file__")
+        if not isinstance(origin, str) or not origin or not Path(origin).is_file():
             continue
         for attr_name, value in vars(mod).items():
             if value is root:
@@ -2269,6 +3041,60 @@ def _resolve_cli_probe_target(root: click.Command) -> _CliProbeTarget | None:
     return None
 
 
+def _discover_cli_commands_subprocess(
+    target: _CliProbeTarget,
+    timeout: float,
+    python_executable: str | None = None,
+) -> tuple[list[tuple[tuple[str, ...], str]] | None, _CliProbeOutcome]:
+    """Discover Click commands in a fresh isolated, timeout-bounded subprocess."""
+    harness_token = secrets.token_hex(16)
+    payload = {
+        "module_name": target.module_name,
+        "attr_name": target.attr_name,
+        "origin_path": target.origin_path,
+        "harness_token": harness_token,
+    }
+    with (
+        tempfile.TemporaryDirectory(prefix="suews-cli-discover-cwd-") as cwd_dir,
+        tempfile.TemporaryDirectory(prefix="suews-cli-discover-ipc-") as ipc_dir,
+    ):
+        path_ipc = Path(ipc_dir)
+        path_result = path_ipc / "result.json"
+        (path_ipc / "payload.json").write_text(
+            json.dumps(payload, ensure_ascii=True), encoding="utf-8"
+        )
+        run_outcome = _spawn_isolated_runner(
+            exe=python_executable or sys.executable,
+            path_cwd=Path(cwd_dir),
+            path_ipc=path_ipc,
+            timeout=timeout,
+            runner_source=_CLI_DISCOVERY_RUNNER,
+            harness_token=harness_token,
+        )
+        if run_outcome.containment_error is not None:
+            return None, _CliProbeOutcome(
+                reason=run_outcome.containment_error, operational_failure=True
+            )
+        if run_outcome.timed_out:
+            return None, _CliProbeOutcome(
+                reason=f"CLI command discovery timed out after {timeout:.1f}s"
+            )
+        if run_outcome.returncode != 0:
+            return None, _CliProbeOutcome(
+                reason=f"CLI command discovery exited with code {run_outcome.returncode}"
+            )
+        if not path_result.is_file():
+            return None, _CliProbeOutcome(
+                reason="CLI command discovery exited without writing a result"
+            )
+        data = json.loads(path_result.read_text(encoding="utf-8"))
+        discovered = [
+            (tuple(str(part) for part in item["path"]), str(item["callback_name"]))
+            for item in data["commands"]
+        ]
+        return discovered, _CliProbeOutcome()
+
+
 def _probe_cli_help_one(
     target: _CliProbeTarget,
     command_path: tuple[str, ...],
@@ -2276,11 +3102,13 @@ def _probe_cli_help_one(
     python_executable: str | None = None,
 ) -> _CliProbeOutcome:
     """Probe one command's ``--help`` in its own fresh contained subprocess."""
+    harness_token = secrets.token_hex(16)
     payload = {
         "module_name": target.module_name,
         "attr_name": target.attr_name,
         "origin_path": target.origin_path,
         "command_path": list(command_path),
+        "harness_token": harness_token,
     }
     with (
         tempfile.TemporaryDirectory(prefix="suews-cli-probe-cwd-") as cwd_dir,
@@ -2297,6 +3125,7 @@ def _probe_cli_help_one(
             path_ipc=path_ipc,
             timeout=timeout,
             runner_source=_CLI_HELP_PROBE_RUNNER,
+            harness_token=harness_token,
         )
         if run_outcome.containment_error is not None:
             return _CliProbeOutcome(
@@ -2341,6 +3170,44 @@ def _probe_cli_help_commands(
         return [future.result() for future in futures]
 
 
+def _module_tree_for_source(revision: Revision, source: Source) -> ast.Module | None:
+    """Return the parsed revision AST of the module owning ``source`` if present."""
+    for _mod_name, (mod_path, tree, _text) in revision.modules.items():
+        if mod_path == source.file:
+            return tree
+    return None
+
+
+def _cli_root_source(revision: Revision, root: click.Command, prog_name: str) -> Source:
+    """Resolve ``root.callback`` in ``revision`` or return an unresolved placeholder."""
+    try:
+        return revision.locate(root.callback)
+    except ValueError:
+        return Source("", prog_name, ast.Module(body=[], type_ignores=[]), "")
+
+
+def _cli_probe_failure_result(
+    revision_sha: str,
+    source: Source,
+    public: str,
+    reason: str,
+    operational_failure: bool = False,
+) -> dict:
+    """Build a CLI finding for a discovery or ``--help`` probe failure."""
+    detail: dict[str, object] = {"reason": reason}
+    if operational_failure:
+        detail["operational_failure"] = True
+    return make_result(
+        revision_sha,
+        "cli",
+        source,
+        public,
+        "cli-help-example",
+        "error" if operational_failure else "unsupported",
+        detail,
+    )
+
+
 def cli_example_results(
     revision: Revision,
     root: click.Command,
@@ -2356,23 +3223,54 @@ def cli_example_results(
     excluded_counts = Counter() if excluded_counts is None else excluded_counts
     excluded_items = [] if excluded_items is None else excluded_items
 
-    discovered: list[tuple[tuple[str, ...], click.Command, str, Source | None]] = []
-    for path, command in commands(root):
+    probe_target = _resolve_cli_probe_target(root)
+    if probe_target is None:
+        if scanned_counter is not None:
+            scanned_counter["cli"] += 1
+        yield _cli_probe_failure_result(
+            revision.sha,
+            _cli_root_source(revision, root, prog_name),
+            prog_name,
+            (
+                "command root cannot be loaded in an isolated subprocess "
+                "for CLI discovery and --help probing"
+            ),
+        )
+        return
+
+    raw_commands, discover_outcome = _discover_cli_commands_subprocess(
+        probe_target,
+        timeout=timeout,
+        python_executable=python_executable,
+    )
+    if raw_commands is None:
+        if scanned_counter is not None:
+            scanned_counter["cli"] += 1
+        yield _cli_probe_failure_result(
+            revision.sha,
+            _cli_root_source(revision, root, prog_name),
+            prog_name,
+            discover_outcome.reason or "CLI command discovery failed",
+            operational_failure=discover_outcome.operational_failure,
+        )
+        return
+
+    discovered: list[tuple[tuple[str, ...], str, Source | None]] = []
+    for path, callback_name in raw_commands:
         if scanned_counter is not None:
             scanned_counter["cli"] += 1
         public = prog_name + (" " + " ".join(path) if path else "")
         try:
-            source: Source | None = revision.locate(command.callback)
+            source: Source | None = revision.locate_name(callback_name)
         except ValueError:
             source = None
-        discovered.append((path, command, public, source))
+        discovered.append((path, public, source))
 
-    probe_target = _resolve_cli_probe_target(root)
     resolved_indices = [
-        idx for idx, item in enumerate(discovered) if item[3] is not None
+        idx for idx, item in enumerate(discovered) if item[2] is not None
     ]
     probe_outcomes: dict[int, _CliProbeOutcome] = {}
-    if probe_target is not None and resolved_indices:
+    if resolved_indices:
         sub_outcomes = _probe_cli_help_commands(
             probe_target,
             [discovered[idx][0] for idx in resolved_indices],
@@ -2382,53 +3280,30 @@ def cli_example_results(
         for pos, disc_idx in enumerate(resolved_indices):
             probe_outcomes[disc_idx] = sub_outcomes[pos]
 
-    for idx, (_path, _command, public, source) in enumerate(discovered):
+    for idx, (_path, public, source) in enumerate(discovered):
         if source is None:
-            yield make_result(
+            yield _cli_probe_failure_result(
                 revision.sha,
-                "cli",
                 Source("", public, ast.Module(body=[], type_ignores=[]), ""),
                 public,
-                "cli-help-example",
-                "unsupported",
-                {"reason": "command callback source declaration cannot be resolved"},
-            )
-            continue
-
-        if probe_target is None:
-            yield make_result(
-                revision.sha,
-                "cli",
-                source,
-                public,
-                "cli-help-example",
-                "unsupported",
-                {
-                    "reason": (
-                        "command root cannot be loaded in an isolated subprocess "
-                        "for --help probing"
-                    )
-                },
+                "command callback source declaration cannot be resolved",
             )
             continue
 
         outcome = probe_outcomes[idx]
         if outcome.reason is not None:
-            detail: dict[str, object] = {"reason": outcome.reason}
-            if outcome.operational_failure:
-                detail["operational_failure"] = True
-            yield make_result(
+            yield _cli_probe_failure_result(
                 revision.sha,
-                "cli",
                 source,
                 public,
-                "cli-help-example",
-                "error" if outcome.operational_failure else "unsupported",
-                detail,
+                outcome.reason,
+                operational_failure=outcome.operational_failure,
             )
             continue
 
-        text_blocks, unsupported = _cli_help_text_blocks(source)
+        text_blocks, unsupported = _cli_help_text_blocks(
+            source, _module_tree_for_source(revision, source)
+        )
         for origin, reason, span in unsupported:
             yield make_result(
                 revision.sha,

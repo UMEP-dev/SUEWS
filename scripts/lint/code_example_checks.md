@@ -27,21 +27,23 @@ version and build commit are recorded separately alongside
 
 ## Scope and extraction
 
-1. **Python docstrings**: starting from `supy.__all__` (or `--module`), walk
+1. **Python docstrings**: starting from `supy.__all__` (or `--module`), discover
    exported modules, functions, classes, and public class callables and
-   `@property` getters defined within `supy`. Members defined outside `supy`
-   are excluded before checks run and summarised by count. Each defining
-   declaration is checked once.
-2. **CLI `--help` text**: walk all registered `suews` Click groups and leaf
-   commands. Verify each command's `--help` exits cleanly in its own fresh,
-   timeout-bounded, isolated, supervised subprocess with an empty working
-   directory and scrubbed environment (non-importable in-memory Click roots are
-   reported as `unsupported` rather than invoked in-process), then extract
-   literal `help=` / `epilog=` decorator strings (or the callback docstring
-   when `help=` is absent, truncated at Click's `\f` marker) and literal
-   visible option `help=` strings containing `>>>` from the Git revision AST.
-   Dynamic non-literal command help is reported as `unsupported` rather than
-   guessed from the installed command.
+   `@property` getters defined within `supy` in an isolated, timeout-bounded,
+   supervised subprocess (never evaluating uncontained `__getattr__` hooks in
+   the checker process). Members defined outside `supy` are excluded before
+   checks run and summarised by count. Each defining declaration is checked
+   once.
+2. **CLI `--help` text**: discover all registered `suews` Click groups and leaf
+   commands in an isolated, timeout-bounded, supervised subprocess, then verify
+   each command's `--help` exits cleanly in its own fresh contained subprocess
+   with an empty working directory and scrubbed environment (non-importable
+   in-memory Click roots are reported as `unsupported` without executing
+   callbacks or discovery hooks in-process). Extract literal `help=` /
+   `epilog=` decorator strings (recognising Click import aliases and truncating
+   at Click's `\f` marker) and literal visible option `help=` strings containing
+   `>>>` from the Git revision AST. Dynamic non-literal command or option help
+   is reported as `unsupported` rather than guessed from the installed command.
 
 Within each extracted text block, `doctest.DocTestParser` parses `>>>`
 examples into contiguous blocks separated by non-blank prose.

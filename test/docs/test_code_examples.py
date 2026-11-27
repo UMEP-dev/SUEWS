@@ -1535,7 +1535,7 @@ def docstring_help():
 
 
 def test_inmemory_cli_root_abstains_without_inprocess_invocation(tmp_path: Path):
-    """Non-importable in-memory Click roots must never run --help in-process."""
+    """Non-importable in-memory Click roots must never run discovery or --help in-process."""
     marker = tmp_path / "invoked_inprocess.txt"
     source = f'''\
 from pathlib import Path
@@ -1544,14 +1544,21 @@ import time
 import click
 
 
+class HostileInMemoryGroup(click.Group):
+    def list_commands(self, ctx):
+        Path({marker.as_posix()!r}).write_text("list_commands", encoding="utf-8")
+        time.sleep(60)
+        return super().list_commands(ctx)
+
+
 class HostileInMemoryCommand(click.Command):
     def format_help(self, ctx, formatter):
-        Path({marker.as_posix()!r}).write_text("ran", encoding="utf-8")
+        Path({marker.as_posix()!r}).write_text("format_help", encoding="utf-8")
         time.sleep(60)
         super().format_help(ctx, formatter)
 
 
-@click.group()
+@click.group(cls=HostileInMemoryGroup)
 def root_cli():
     """Root CLI."""
 
@@ -1574,10 +1581,10 @@ def hostile():
     )
 
     assert not marker.exists()
-    assert report["counts"]["unsupported"] == 2
-    assert all(
-        "cannot be loaded in an isolated subprocess" in r["detail"]["reason"]
-        for r in report["results"]
+    assert report["counts"]["unsupported"] == 1
+    assert (
+        "cannot be loaded in an isolated subprocess"
+        in report["results"][0]["detail"]["reason"]
     )
 
 
@@ -1897,3 +1904,378 @@ def opt_cmd(visible, secret):
         item["object"] == "fixture opt"
         for item in report["excluded_out_of_scope"]["items"]
     )
+
+
+def test_cli_and_python_discovery_hooks_are_contained_and_timed_out(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """CLI list_commands/get_command and Python __getattr__ run isolated with timeout."""
+    caller_cwd = tmp_path / "caller_cwd"
+    caller_cwd.mkdir()
+    cli_child_pid = tmp_path / "cli_disc_child.pid"
+    py_child_pid = tmp_path / "py_disc_child.pid"
+    inmem_marker = tmp_path / "inmem_getattr.txt"
+
+    cli_source = f'''\
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+import click
+
+
+class HangingDiscoveryGroup(click.Group):
+    def list_commands(self, ctx):
+        Path("leaked_cli_discovery.txt").write_text("leaked", encoding="utf-8")
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        Path({cli_child_pid.as_posix()!r}).write_text(str(child.pid), encoding="utf-8")
+        time.sleep(60)
+        return []
+
+
+@click.group(cls=HangingDiscoveryGroup)
+def root_cli():
+    """Group with hostile discovery hook."""
+'''
+    py_source = f"""\
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+__all__ = ["lazy_hang"]
+
+
+def __getattr__(name):
+    if name == "lazy_hang":
+        Path("leaked_py_discovery.txt").write_text("leaked", encoding="utf-8")
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        Path({py_child_pid.as_posix()!r}).write_text(str(child.pid), encoding="utf-8")
+        time.sleep(60)
+    raise AttributeError(name)
+"""
+    sha = _init_git_repo(
+        tmp_path,
+        {
+            "src/supy/cmd/fixture_disc_cli.py": cli_source,
+            "src/supy/fixture_disc_py.py": py_source,
+        },
+    )
+    cli_mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_disc_cli.py",
+        "supy.cmd.fixture_disc_cli",
+        monkeypatch,
+    )
+    py_mod = _load_fixture_module(
+        tmp_path / "src/supy/fixture_disc_py.py",
+        "supy.fixture_disc_py",
+        monkeypatch,
+    )
+
+    monkeypatch.chdir(caller_cwd)
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision,
+        module=py_mod,
+        cli_root=cli_mod.root_cli,
+        prog_name="fixture",
+        timeout=0.8,
+    )
+    by_surface = {r["surface"]: r for r in report["results"]}
+
+    assert not (caller_cwd / "leaked_cli_discovery.txt").exists()
+    assert not (caller_cwd / "leaked_py_discovery.txt").exists()
+
+    assert by_surface["cli"]["status"] == "unsupported"
+    assert "timed out" in by_surface["cli"]["detail"]["reason"]
+    assert cli_child_pid.is_file()
+    _assert_pid_exited(int(cli_child_pid.read_text(encoding="utf-8").strip()))
+
+    assert by_surface["python"]["status"] == "unsupported"
+    assert "timed out" in by_surface["python"]["detail"]["reason"]
+    assert py_child_pid.is_file()
+    _assert_pid_exited(int(py_child_pid.read_text(encoding="utf-8").strip()))
+
+    # Purely in-memory module with __getattr__ must abstain without invoking it.
+    inmem_mod = ModuleType("supy.fixture_disc_py")
+    inmem_mod.__getattr__ = lambda _name: inmem_marker.write_text(
+        "ran", encoding="utf-8"
+    )
+    inmem_report = checks.build_report(revision=revision, module=inmem_mod, timeout=0.5)
+    assert not inmem_marker.exists()
+    assert inmem_report["counts"]["unsupported"] == 1
+    assert "__getattr__" in inmem_report["results"][0]["detail"]["reason"]
+
+
+def test_result_publication_failure_is_operational_while_example_os_exit_is_not(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Distinguish harness result-publication OSError from example os._exit()."""
+    source = '''\
+__all__ = ["exit_one", "exit_reserved_code", "normal_ok"]
+
+
+def exit_one():
+    """Example deliberately calls os._exit(1).
+
+    >>> import os
+    >>> os._exit(1)
+    0
+    """
+
+
+def exit_reserved_code():
+    """Example deliberately calls os._exit(124) without a harness token.
+
+    >>> import os
+    >>> os._exit(124)
+    0
+    """
+
+
+def normal_ok():
+    """Ordinary passing example.
+
+    >>> 2 + 2
+    4
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_pubfail.py", "exec"), module.__dict__)
+    revision = checks.Revision(tmp_path, sha)
+
+    # 1. Example os._exit(1) and os._exit(124) are ordinary example errors (exit 0).
+    monkeypatch.setitem(sys.modules, "fixture_pubfail_mod", module)
+    rc_exit = checks.main([
+        "--revision",
+        sha,
+        "--repo",
+        str(tmp_path),
+        "--module",
+        "fixture_pubfail_mod",
+        "--no-cli",
+    ])
+    capsys.readouterr()
+    assert rc_exit == 0
+
+    exit_report = checks.build_report(revision=revision, module=module)
+    by_obj = {r["object"]: r for r in exit_report["results"]}
+    assert by_obj["supy.exit_one"]["status"] == "error"
+    assert by_obj["supy.exit_reserved_code"]["status"] == "error"
+    assert by_obj["supy.normal_ok"]["status"] == "ok"
+    assert exit_report["operational_failures"] == []
+
+    # 2. Block result.json publication with an existing directory so the real runner
+    #    hits an OSError on os.replace -> authenticated operational failure (exit 2).
+    real_spawn = checks._spawn_isolated_runner
+
+    def _spawn_with_blocked_result(
+        exe,
+        path_cwd,
+        path_ipc,
+        timeout,
+        runner_source=checks._SUBPROCESS_RUNNER,
+        harness_token="",
+    ):
+        (path_ipc / "result.json").mkdir(exist_ok=True)
+        return real_spawn(
+            exe,
+            path_cwd,
+            path_ipc,
+            timeout,
+            runner_source=runner_source,
+            harness_token=harness_token,
+        )
+
+    monkeypatch.setattr(checks, "_spawn_isolated_runner", _spawn_with_blocked_result)
+    rc_pub = checks.main([
+        "--revision",
+        sha,
+        "--repo",
+        str(tmp_path),
+        "--module",
+        "fixture_pubfail_mod",
+        "--no-cli",
+    ])
+    capsys.readouterr()
+    assert rc_pub == checks.OPERATIONAL_FAILURE_EXIT_CODE
+
+    pub_report = checks.build_report(revision=revision, module=module)
+    assert len(pub_report["operational_failures"]) >= 1
+    assert any(
+        "failed to publish result" in f["detail"]["reason"]
+        for f in pub_report["operational_failures"]
+    )
+
+
+def test_ellipsis_clean_imports_argv_future_exc_aliases_options_and_continuations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Cover clean doctest matching, sys.argv reset, future-on-exc, Click aliases, shell \\ and stderr."""
+    py_source = '''\
+__all__ = [
+    "ellipsis_clean_modules",
+    "clean_sys_argv",
+    "future_after_expected_exc",
+    "trailing_sigterm_stderr",
+]
+
+
+def ellipsis_clean_modules():
+    """ELLIPSIS matching must not import doctest into the example interpreter.
+
+    >>> print("abcdef")  # doctest: +ELLIPSIS
+    a...f
+    >>> import sys
+    >>> "doctest" in sys.modules
+    False
+    """
+
+
+def clean_sys_argv():
+    """Examples must not inherit runner IPC paths in sys.argv.
+
+    >>> import argparse
+    >>> argparse.ArgumentParser().parse_args()
+    Namespace()
+    """
+
+
+def future_after_expected_exc():
+    """__future__ flags persist even when the importing statement raises an expected error.
+
+    >>> from __future__ import annotations; 1 / 0
+    Traceback (most recent call last):
+        ...
+    ZeroDivisionError: division by zero
+    >>> def make(x: int) -> LaterType:
+    ...     return LaterType(x)
+    >>> class LaterType:
+    ...     def __init__(self, v):
+    ...         self.v = v
+    >>> make(9).v
+    9
+    """
+
+
+def trailing_sigterm_stderr():
+    r"""Child writing to inherited stderr in SIGTERM handler is preserved after cleanup.
+
+    >>> import subprocess, sys
+    >>> code = (
+    ...     "import signal, sys, time; "
+    ...     "signal.signal(signal.SIGTERM, lambda *a: (sys.stderr.write('cleanup-stderr' + chr(10)), sys.stderr.flush(), sys.exit(0))); "
+    ...     "sys.stdout.write('ready' + chr(10)); sys.stdout.flush(); "
+    ...     "time.sleep(60)"
+    ... )
+    >>> p = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE)
+    >>> p.stdout.readline()
+    b'ready\\n'
+    >>> 1 + 1
+    2
+    """
+'''
+    cli_source = '''\
+import click
+from click import command as cmd, option as opt
+
+OPT_KWARGS = {"hidden": True}
+
+
+def _dyn_help():
+    return ">>> 1 + 1\\n2"
+
+
+@click.group()
+def root_cli():
+    """Root CLI."""
+
+
+@cmd(help="Aliased decorator help.\\n\\n>>> 3 + 4\\n7")
+def aliased():
+    """Callback docstring overridden by aliased @cmd(help=...).
+
+    >>> 1 / 0
+    0
+    """
+
+
+root_cli.add_command(aliased, name="aliased")
+
+
+@root_cli.command()
+@opt("--combo", help=">>> 1 + 1\\n2", **OPT_KWARGS)
+@opt("--dyn", help=_dyn_help())
+def opt_edge(combo, dyn):
+    r"""Shell continuation lines without output are excluded; with output are unsupported.
+
+    Examples:
+
+        $ suews run \\
+            --format json
+
+        $ suews validate \\
+            config.yml
+        {"ok": true}
+    """
+'''
+    sha = _init_git_repo(
+        tmp_path,
+        {
+            "src/supy/__init__.py": py_source,
+            "src/supy/cmd/fixture_r2_cli.py": cli_source,
+        },
+    )
+    py_mod = ModuleType("supy")
+    exec(compile(py_source, "fixture_r2_py.py", "exec"), py_mod.__dict__)
+    cli_mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_r2_cli.py",
+        "supy.cmd.fixture_r2_cli",
+        monkeypatch,
+    )
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision,
+        module=py_mod,
+        cli_root=cli_mod.root_cli,
+        prog_name="fixture",
+        timeout=5.0,
+    )
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    assert by_obj["supy.ellipsis_clean_modules"]["status"] == "ok"
+    assert by_obj["supy.clean_sys_argv"]["status"] == "ok"
+    assert by_obj["supy.future_after_expected_exc"]["status"] == "ok"
+    if os.name != "nt":
+        stderr_res = by_obj["supy.trailing_sigterm_stderr"]
+        assert stderr_res["status"] == "ok"
+        assert "cleanup-stderr" in stderr_res["detail"]["stderr"]
+
+    aliased_findings = [
+        r for r in report["results"] if r["object"] == "fixture aliased"
+    ]
+    assert len(aliased_findings) == 1
+    assert aliased_findings[0]["status"] == "ok"
+
+    opt_edge_findings = [
+        r for r in report["results"] if r["object"] == "fixture opt-edge"
+    ]
+    opt_reasons = [r["detail"]["reason"] for r in opt_edge_findings]
+    assert "dynamic option **kwargs" in opt_reasons
+    assert "dynamic option help" in opt_reasons
+    assert "cli shell example with stated output is not executed" in opt_reasons
+    assert all(r["status"] == "unsupported" for r in opt_edge_findings)
+
+    excluded_shell = [
+        item
+        for item in report["excluded_out_of_scope"]["items"]
+        if item["object"] == "fixture opt-edge"
+        and item["reason"] == "cli shell example has no stated output"
+    ]
+    assert len(excluded_shell) == 1
+    assert "--format json" in excluded_shell[0]["source"]

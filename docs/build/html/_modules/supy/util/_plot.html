@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util._plot &#8212; SUEWS 2026.11.27.dev42 documentation</title>
+    <title>supy.util._plot &#8212; SUEWS 2026.11.27.dev43 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=3e916e66"></script>
+    <script src="../../../_static/documentation_options.js?v=856dec7b"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.27.dev42" />
+  <meta name="docsearch:version" content="2026.11.27.dev43" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.27.dev42, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/06431f60c7861c0860104379c37add72a25a6d46" style="color: #31708f;">06431f6</a>).
+        (2026.11.27.dev43, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5a23aee6f352d89a6e5ff06c91ec09403b9a7325" style="color: #31708f;">5a23aee</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev42 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev42 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev43 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev43 documentation - Home"/>
   
   
 </a></div>
@@ -695,11 +695,7 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">plot_comp</span><span class="p">(</span>
     <span class="n">df_var</span><span class="p">,</span>
     <span class="n">scatter_kws</span><span class="o">=</span><span class="p">{</span><span class="s2">"alpha"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">"s"</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span> <span class="s2">"color"</span><span class="p">:</span> <span class="s2">"k"</span><span class="p">},</span>
-    <span class="n">kde_kws</span><span class="o">=</span><span class="p">{</span>
-        <span class="s2">"shade"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-        <span class="s2">"shade_lowest"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="s2">"levels"</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
-    <span class="p">},</span>
+    <span class="n">kde_kws</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">show_pdf</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">fig</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -715,8 +711,9 @@
 <span class="sd">        keyword arguments passed to `sns.regplot`. By default, `{"alpha": 0.1, "s": 0.3, "color": "k"}`.</span>
 <span class="sd">    show_pdf: bool</span>
 <span class="sd">        if a PDF overlay should be added. By default, `False`.</span>
-<span class="sd">    kde_kws: dict</span>
-<span class="sd">        `kde_kws` passed to `sns.kdeplot` when `show_pdf=True`</span>
+<span class="sd">    kde_kws: dict | None, optional</span>
+<span class="sd">        keyword arguments passed to `sns.kdeplot` when `show_pdf=True`.</span>
+<span class="sd">        By default, `{"fill": True, "thresh": 0.05, "levels": 4}`.</span>
 
 
 <span class="sd">    Returns</span>
@@ -772,13 +769,27 @@
 
     <span class="n">color_last</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_color</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">show_pdf</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">"Obs"</span> <span class="ow">in</span> <span class="n">df_var</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="s2">"Sim"</span> <span class="ow">in</span> <span class="n">df_var</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">kde_x</span> <span class="o">=</span> <span class="n">df_var</span><span class="p">[</span><span class="s2">"Obs"</span><span class="p">]</span>
+            <span class="n">kde_y</span> <span class="o">=</span> <span class="n">df_var</span><span class="p">[</span><span class="s2">"Sim"</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">kde_x</span> <span class="o">=</span> <span class="n">df_var</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">kde_y</span> <span class="o">=</span> <span class="n">df_var</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">kde_defaults</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"fill"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s2">"thresh"</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span>
+            <span class="s2">"levels"</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">kde_call_kws</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="n">color_last</span><span class="p">,</span>
+            <span class="s2">"zorder"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="o">**</span><span class="p">(</span><span class="n">kde_defaults</span> <span class="k">if</span> <span class="n">kde_kws</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">kde_kws</span><span class="p">),</span>
+        <span class="p">}</span>
         <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span>
-            <span class="n">df_var</span><span class="o">.</span><span class="n">Obs</span><span class="p">,</span>
-            <span class="n">df_var</span><span class="o">.</span><span class="n">Sim</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">kde_x</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">kde_y</span><span class="p">,</span>
             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
-            <span class="n">color</span><span class="o">=</span><span class="n">color_last</span><span class="p">,</span>
-            <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">kde_kws</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kde_call_kws</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="c1"># set equal plotting range</span>
@@ -1061,8 +1072,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.27.dev42 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/06431f60c7861c0860104379c37add72a25a6d46">06431f6</a> |
+  <p>Version: 2026.11.27.dev43 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/5a23aee6f352d89a6e5ff06c91ec09403b9a7325">5a23aee</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

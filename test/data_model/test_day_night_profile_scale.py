@@ -899,6 +899,78 @@ def test_reverse_conversion_preserves_user_added_high_code_and_modified_syntheti
     assert "99901" in rev2_by_code
     assert all(float(v) == pytest.approx(1.5) for v in rev2_by_code["99901"])
 
+    # Case 3: user adds uniform-1.0 profile 100001 and points PopProfWD at it
+    # after forward conversion -> 100001 is user-created and survives reverse
+    # while converter-allocated 99901 (still on PopProfWE) is pruned.
+    flat3 = tmp_path / "flat3"
+    rev3 = tmp_path / "rev3"
+    flat3.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat3 / produced.name)
+    prof3 = flat3 / "SUEWS_Profiles.txt"
+    lines3 = prof3.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at3 = next(
+        (i for i, ln in enumerate(lines3) if ln.split() and ln.split()[0] == "-9"),
+        len(lines3),
+    )
+    lines3.insert(insert_at3, "100001\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof3.write_text("".join(lines3), encoding="utf-8")
+    anthro_path = flat3 / "SUEWS_AnthropogenicEmission.txt"
+    a_header, a_rows = R._read_table(anthro_path)
+    pop_wd_idx = a_header.index("PopProfWD")
+    for row in a_rows:
+        row[pop_wd_idx] = "100001"
+    R._write_table(anthro_path, a_header, a_rows)
+
+    R.reverse_convert_table(flat3, rev3, "2016a", extras)
+    _, rev3_rows = R._read_table(rev3 / "SUEWS_Profiles.txt")
+    rev3_by_code = {r[0]: r[1:25] for r in rev3_rows if r}
+    assert "99901" not in rev3_by_code
+    assert "100001" in rev3_by_code
+    assert all(float(v) == pytest.approx(1.0) for v in rev3_by_code["100001"])
+
+    # Case 4: source already has uniform-1.0 99901 (so forward allocates no
+    # synthetic code); user adds uniform-1.0 99902 and references it from
+    # PopProfWD -> both 99901 and 99902 survive reverse.
+    src4 = tmp_path / "src4"
+    shutil.copytree(fixture_2016a, src4)
+    p4 = src4 / "SUEWS_Profiles.txt"
+    p4_lines = p4.read_text(encoding="utf-8").splitlines(keepends=True)
+    ins4 = next(
+        (i for i, ln in enumerate(p4_lines) if ln.split() and ln.split()[0] == "-9"),
+        len(p4_lines),
+    )
+    p4_lines.insert(ins4, "99901\t" + "\t".join(["1.000"] * 24) + "\n")
+    p4.write_text("".join(p4_lines), encoding="utf-8")
+    extras4 = R.capture_legacy_extras(src4, "2016a")
+    assert "synthetic_day_night_code" not in extras4
+    dest4 = tmp_path / "fwd4"
+    convert_table(str(src4), str(dest4), "2016a", "2025a", validate_profiles=False)
+    flat4 = tmp_path / "flat4"
+    rev4 = tmp_path / "rev4"
+    flat4.mkdir()
+    for produced in list(dest4.rglob("SUEWS_*.txt")) + list(dest4.rglob("*.nml")):
+        shutil.copyfile(produced, flat4 / produced.name)
+    prof4 = flat4 / "SUEWS_Profiles.txt"
+    lines4 = prof4.read_text(encoding="utf-8").splitlines(keepends=True)
+    ins4b = next(
+        (i for i, ln in enumerate(lines4) if ln.split() and ln.split()[0] == "-9"),
+        len(lines4),
+    )
+    lines4.insert(ins4b, "99902\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof4.write_text("".join(lines4), encoding="utf-8")
+    a4_path = flat4 / "SUEWS_AnthropogenicEmission.txt"
+    a4_header, a4_rows = R._read_table(a4_path)
+    a4_idx = a4_header.index("PopProfWD")
+    for row in a4_rows:
+        row[a4_idx] = "99902"
+    R._write_table(a4_path, a4_header, a4_rows)
+    R.reverse_convert_table(flat4, rev4, "2016a", extras4)
+    _, rev4_rows = R._read_table(rev4 / "SUEWS_Profiles.txt")
+    rev4_by_code = {r[0]: r[1:25] for r in rev4_rows if r}
+    assert "99901" in rev4_by_code
+    assert "99902" in rev4_by_code
+
 
 def test_dev24_migration_detaches_yaml_aliased_profiles() -> None:
     """Shared YAML anchor dicts across ahprof, popprof, and human activity are detached on upgrade."""

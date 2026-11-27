@@ -7,8 +7,8 @@ use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
-pub const LC_GRASS_PRM_FLAT_LEN: usize = 55;
-pub const LC_GRASS_PRM_SCHEMA_VERSION: u32 = 1;
+pub const LC_GRASS_PRM_FLAT_LEN: usize = 57;
+pub const LC_GRASS_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LcGrassPrmSchema = crate::codec::SimpleSchema;
 
@@ -67,8 +67,8 @@ impl LcGrassPrm {
             wet_threshold: flat[26],
             bioco2: BioCo2Prm::from_flat(&flat[27..35])?,
             max_conductance: flat[35],
-            lai: LaiPrm::from_flat(&flat[36..47])?,
-            waterdist: WaterDistPrm::from_flat(&flat[47..55])?,
+            lai: LaiPrm::from_flat(&flat[36..49])?,
+            waterdist: WaterDistPrm::from_flat(&flat[49..57])?,
         })
     }
 
@@ -204,5 +204,31 @@ mod tests {
         let err = lc_grass_prm_from_values_payload(&bad_payload)
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn nonzero_lai_thresholds_and_waterdist_sentinel_roundtrip() {
+        let mut state = LcGrassPrm::default();
+        state.lai.lai_type = 1;
+        state.lai.gdd_base = 144.75;
+        state.lai.sdd_base = -288.125;
+        state.waterdist.to_paved = 0.375;
+        state.waterdist.to_soilstore = 0.625;
+
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), LC_GRASS_PRM_FLAT_LEN);
+        assert!((flat[47] - 144.75).abs() < 1.0e-12);
+        assert!((flat[48] - (-288.125)).abs() < 1.0e-12);
+        assert!((flat[49] - 0.375).abs() < 1.0e-12);
+        assert!((flat[56] - 0.625).abs() < 1.0e-12);
+
+        let recovered = LcGrassPrm::from_flat(&flat).expect("flat decode should succeed");
+        assert_eq!(recovered, state);
+
+        let mapped = lc_grass_prm_to_map(&state);
+        assert!((mapped["lai.gdd_base"] - 144.75).abs() < 1.0e-12);
+        assert!((mapped["lai.sdd_base"] - (-288.125)).abs() < 1.0e-12);
+        let from_map = lc_grass_prm_from_map(&mapped).expect("map decode should succeed");
+        assert_eq!(from_map, state);
     }
 }

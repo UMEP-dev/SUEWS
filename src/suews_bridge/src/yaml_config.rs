@@ -1738,6 +1738,11 @@ fn apply_waterdist_overrides(
 ///   `calculate_lai` when `laimethod != 0`, across all three vegetated surfaces
 ///   regardless of `sfr`; they may be omitted/null only when `laimethod == 0`,
 ///   while explicit non-null malformed values still fail cleanly (#2002).
+/// - `gdd_base` and `sdd_base` (the degree-day thresholds for the onset of
+///   leaf growth and leaf off) follow the same `laimethod != 0` gate as
+///   `lai_power` in resolved YAML (Python `config_to_engine_yaml` supplies the
+///   `0.0` default for older user YAMLs), and enforce `gdd_base >= 0.0` and
+///   `sdd_base <= 0.0` whenever provided (BR-02 / BR-03).
 fn apply_lai_overrides(
     lai: &mut crate::lai::LaiPrm,
     lc_root: &Value,
@@ -1800,6 +1805,28 @@ fn apply_lai_overrides(
     }
     if let Some(v) = require_if_active_i32(lc_root, &["lai", "laitype"], at, phenology_required)? {
         lai.lai_type = v;
+    }
+    if let Some(v) =
+        require_if_active_numeric(lc_root, &["lai", "gdd_base"], at, phenology_required)?
+    {
+        if v < 0.0 {
+            return Err(format!(
+                "`{}` must be non-negative (>= 0), got {v}",
+                yaml_path_display(at, &["lai", "gdd_base"]),
+            ));
+        }
+        lai.gdd_base = v;
+    }
+    if let Some(v) =
+        require_if_active_numeric(lc_root, &["lai", "sdd_base"], at, phenology_required)?
+    {
+        if v > 0.0 {
+            return Err(format!(
+                "`{}` must be non-positive (<= 0), got {v}",
+                yaml_path_display(at, &["lai", "sdd_base"]),
+            ));
+        }
+        lai.sdd_base = v;
     }
     Ok(())
 }
@@ -11326,6 +11353,8 @@ mod tests {
                 "lai.lai_power.senescence_sdd",
             ),
             (vec!["lai_type"], "lai.lai_type"),
+            (vec!["gdd_base"], "lai.gdd_base"),
+            (vec!["sdd_base"], "lai.sdd_base"),
         ] {
             let mut root: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
@@ -11387,9 +11416,11 @@ mod tests {
                     get_path_mut(site, &["properties", "land_cover", surface, "lai"]).unwrap();
                 remove_key(lc_lai, "lai_power");
                 remove_key(lc_lai, "lai_type");
+                remove_key(lc_lai, "gdd_base");
+                remove_key(lc_lai, "sdd_base");
             }
             load_run_config_from_value(&mut root.clone())
-                .expect("laimethod=0 allows omitted lai_power and lai_type");
+                .expect("laimethod=0 allows omitted lai_power, lai_type, gdd_base and sdd_base");
 
             for required_key in [
                 "base_temperature",
@@ -11455,6 +11486,65 @@ mod tests {
                 err.contains("`sites[gridiv=1].properties.land_cover.evetr.lai.lai_type`"),
                 "{err}"
             );
+        }
+
+        // Sign validation on gdd_base (>= 0) and sdd_base (<= 0), plus non-zero propagation.
+        {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut root).expect("fixture has site");
+            let grass_lai =
+                get_path_mut(site, &["properties", "land_cover", "grass", "lai"]).unwrap();
+            if let Value::Mapping(map) = grass_lai {
+                map.insert(
+                    Value::String("gdd_base".to_string()),
+                    serde_yaml::from_str("{value: 120.5}").unwrap(),
+                );
+                map.insert(
+                    Value::String("sdd_base".to_string()),
+                    serde_yaml::from_str("{value: -240.25}").unwrap(),
+                );
+            }
+            let cfg = load_run_config_from_value(&mut root)
+                .expect("valid non-zero gdd_base/sdd_base should parse");
+            assert!((cfg.site.lc_grass.lai.gdd_base - 120.5).abs() < 1.0e-12);
+            assert!((cfg.site.lc_grass.lai.sdd_base - (-240.25)).abs() < 1.0e-12);
+        }
+        for (field, bad_val, expected_fragment) in [
+            ("gdd_base", "-0.1", "non-negative"),
+            ("sdd_base", "0.1", "non-positive"),
+        ] {
+            for lai_method in [1, 0] {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+                if lai_method == 0 {
+                    let physics = get_path_mut(&mut root, &["model", "physics"]).unwrap();
+                    if let Value::Mapping(map) = physics {
+                        map.insert(
+                            Value::String("laimethod".to_string()),
+                            serde_yaml::from_str("{value: 0}").unwrap(),
+                        );
+                    }
+                }
+                let site = first_site_mut(&mut root).expect("fixture has site");
+                let grass_lai =
+                    get_path_mut(site, &["properties", "land_cover", "grass", "lai"]).unwrap();
+                if let Value::Mapping(map) = grass_lai {
+                    map.insert(
+                        Value::String(field.to_string()),
+                        serde_yaml::from_str(&format!("{{value: {bad_val}}}")).unwrap(),
+                    );
+                }
+                let err = load_run_config_from_value(&mut root).expect_err(&format!(
+                    "{field}={bad_val} must be rejected under laimethod={lai_method}"
+                ));
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.grass.lai.{field}`"
+                    )) && err.contains(expected_fragment),
+                    "{field} (laimethod={lai_method}): {err}"
+                );
+            }
         }
     }
 

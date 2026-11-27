@@ -1,6 +1,6 @@
 //! `LC_EVETR_PRM`: evergreen-tree land-cover parameters, a *composite* type.
 //!
-//! The flat buffer (57 values) is the scalars of this type interleaved with
+//! The flat buffer (59 values) is the scalars of this type interleaved with
 //! whole nested types, in the order of the Fortran facade
 //! `c_api/lc_evetr_prm.f95` (`lc_evetr_prm_pack` / `lc_evetr_prm_unpack`):
 //!
@@ -12,8 +12,8 @@
 //! | 26..29 | `state_limit`, `irrfracevetr`, `wet_threshold` | 3 |
 //! | 29..37 | `bioco2` (`BioCo2Prm`) | 8 |
 //! | 37 | `max_conductance` | 1 |
-//! | 38..49 | `lai` (`LaiPrm`) | 11 |
-//! | 49..57 | `waterdist` (`WaterDistPrm`) | 8 |
+//! | 38..51 | `lai` (`LaiPrm`) | 13 |
+//! | 51..59 | `waterdist` (`WaterDistPrm`) | 8 |
 //!
 //! The slice bounds in `from_flat` are hard-coded. Adding a field to a nested
 //! type (say `OhmPrm`) changes its length, so in **every** parent that embeds
@@ -34,8 +34,8 @@ use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
-pub const LC_EVETR_PRM_FLAT_LEN: usize = 57;
-pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 1;
+pub const LC_EVETR_PRM_FLAT_LEN: usize = 59;
+pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LcEvetrPrmSchema = crate::codec::SimpleSchema;
 
@@ -100,8 +100,8 @@ impl LcEvetrPrm {
             wet_threshold: flat[28],
             bioco2: BioCo2Prm::from_flat(&flat[29..37])?,
             max_conductance: flat[37],
-            lai: LaiPrm::from_flat(&flat[38..49])?,
-            waterdist: WaterDistPrm::from_flat(&flat[49..57])?,
+            lai: LaiPrm::from_flat(&flat[38..51])?,
+            waterdist: WaterDistPrm::from_flat(&flat[51..59])?,
         })
     }
 
@@ -246,5 +246,31 @@ mod tests {
         let err = lc_evetr_prm_from_values_payload(&bad_payload)
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn nonzero_lai_thresholds_and_waterdist_sentinel_roundtrip() {
+        let mut state = LcEvetrPrm::default();
+        state.lai.lai_type = 1;
+        state.lai.gdd_base = 111.25;
+        state.lai.sdd_base = -222.5;
+        state.waterdist.to_paved = 0.125;
+        state.waterdist.to_soilstore = 0.875;
+
+        let flat = state.to_flat();
+        assert_eq!(flat.len(), LC_EVETR_PRM_FLAT_LEN);
+        assert!((flat[49] - 111.25).abs() < 1.0e-12);
+        assert!((flat[50] - (-222.5)).abs() < 1.0e-12);
+        assert!((flat[51] - 0.125).abs() < 1.0e-12);
+        assert!((flat[58] - 0.875).abs() < 1.0e-12);
+
+        let recovered = LcEvetrPrm::from_flat(&flat).expect("flat decode should succeed");
+        assert_eq!(recovered, state);
+
+        let mapped = lc_evetr_prm_to_map(&state);
+        assert!((mapped["lai.gdd_base"] - 111.25).abs() < 1.0e-12);
+        assert!((mapped["lai.sdd_base"] - (-222.5)).abs() < 1.0e-12);
+        let from_map = lc_evetr_prm_from_map(&mapped).expect("map decode should succeed");
+        assert_eq!(from_map, state);
     }
 }

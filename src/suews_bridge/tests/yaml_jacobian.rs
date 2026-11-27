@@ -2274,6 +2274,8 @@ fn build_expected_receivers(
                 ("lai.lai_min", format!("{site_lc}.lai.laimin")),
                 ("lai.lai_max", format!("{site_lc}.lai.laimax")),
                 ("lai.lai_type", format!("{site_lc}.lai.laitype")),
+                ("lai.gdd_base", format!("{site_lc}.lai.gdd_base")),
+                ("lai.sdd_base", format!("{site_lc}.lai.sdd_base")),
                 (
                     "lai.lai_power.growth_lai",
                     format!("{site_lc}.lai.laipower_1"),

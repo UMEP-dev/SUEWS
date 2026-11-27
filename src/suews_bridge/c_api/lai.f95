@@ -15,8 +15,8 @@ MODULE module_c_api_lai
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_LEN = 11_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_SCHEMA_VERSION = 1_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_LEN = 13_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_SCHEMA_VERSION = 2_c_int
 
    TYPE :: lai_prm_shadow
       REAL(c_double) :: base_temperature = 0.0_c_double
@@ -27,6 +27,8 @@ MODULE module_c_api_lai
       REAL(c_double) :: lai_max = 0.0_c_double
       REAL(c_double), DIMENSION(4) :: lai_power = 0.0_c_double
       INTEGER(c_int) :: lai_type = 0_c_int
+      REAL(c_double) :: gdd_base = 0.0_c_double
+      REAL(c_double) :: sdd_base = 0.0_c_double
    END TYPE lai_prm_shadow
 
    PUBLIC :: suews_lai_prm_len
@@ -98,6 +100,8 @@ CONTAINS
       flat(9) = state%lai_power(3)
       flat(10) = state%lai_power(4)
       flat(11) = REAL(state%lai_type, c_double)
+      flat(12) = state%gdd_base
+      flat(13) = state%sdd_base
 
       err = SUEWS_CAPI_OK
 

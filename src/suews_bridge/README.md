@@ -188,7 +188,7 @@ Fortran facades under `c_api/`, and `49` bridged derived types in
 |---|---|
 | `src/suews_bridge/Cargo.toml` | Crate manifest defining `suews_bridge` (`rlib`, `cdylib`), `suews-engine` binary, 5 optional features and `capi_field_observer` test target. |
 | `src/suews_bridge/pyproject.toml` | Separate standalone `maturin` crate build metadata (`python-extension` + `physics`, installing top-level `suews_bridge`); the root SuPy wheel instead uses `meson-python` (`pyproject.toml` -> `src/supy/meson.build` -> `src/supy/build_rust_bridge.py` -> `cargo`, installing `supy.suews_bridge`). |
-| `src/suews_bridge/build.rs` | Build script: embeds git version (`SUEWS_VERSION`/`SUEWS_COMMIT`), compiles `c_api/*.f95` into `libsuews_bridge.a` (and optional `libsuews_capi_observer.a`), links SUEWS static libraries + `libgfortran`, and generates `$OUT_DIR/output_cols.rs` from `suews_ctrl_const.f95`. Supports `SUEWS_BRIDGE_LINT_ONLY=1` and `SUEWS_BUILD_PROFILE=release\|checked`. |
+| `src/suews_bridge/build.rs` | Build script: embeds version metadata (`SUEWS_VERSION`/`SUEWS_COMMIT`, from env overrides, `git describe`, or `_version_scm.py`), compiles `c_api/*.f95` into `libsuews_bridge.a` (and optional `libsuews_capi_observer.a`), links SUEWS static libraries + `libgfortran`, and generates `$OUT_DIR/output_cols.rs` from `suews_ctrl_const.f95`. Supports `SUEWS_BRIDGE_LINT_ONLY=1` and `SUEWS_BUILD_PROFILE=release\|checked`. |
 | `src/suews_bridge/bridge-manifest.json` | Machine-checked inventory of all 49 `TYPE, PUBLIC` derived types in `src/suews/src/*.f95` and their bridge status (`bridged`, `planned`, `excluded`). |
 | `src/supy/build_rust_bridge.py` | Meson build helper invoked by the root `meson-python` build (`pyproject.toml` -> `src/supy/meson.build`): runs `cargo build` for the PyO3 extension and `suews-engine` binary, copies them into package staging paths, and writes a Ninja depfile tracking Rust, C-API and driver sources. |
 | `src/supy/cmd/rust_bridge.py` | Thin Python wrapper locating and invoking the bundled `supy/bin/suews-engine` binary. |
@@ -327,6 +327,10 @@ kernel; validate that mode separately from the physics build.
   `build.rs` while still generating `$OUT_DIR/output_cols.rs`. Useful for
   `cargo clippy` and `cargo doc`, but provides no evidence that a native build
   links or runs (`BR-09`).
+- `SUEWS_VERSION` / `SUEWS_COMMIT`: optional build-time overrides for the
+  version and commit stamp embedded into `suews-engine`. When unset, `build.rs`
+  queries `git describe` (falling back to `src/supy/_version_scm.py`, then crate
+  defaults) without watching `.git/HEAD` or `.git/refs` for Cargo reruns.
 
 ### Common commands (from the repository root)
 

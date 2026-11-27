@@ -898,3 +898,126 @@ def test_reverse_conversion_preserves_user_added_high_code_and_modified_syntheti
     rev2_by_code = {r[0]: r[1:25] for r in rev2_rows if r}
     assert "99901" in rev2_by_code
     assert all(float(v) == pytest.approx(1.5) for v in rev2_by_code["99901"])
+
+
+def test_dev24_migration_detaches_yaml_aliased_profiles() -> None:
+    """Shared YAML anchor dicts across ahprof, popprof, and human activity are detached on upgrade."""
+    shared_661_662 = {
+        "working_day": deepcopy(_LEGACY_661),
+        "holiday": deepcopy(_LEGACY_662),
+    }
+    raw = _load_sample_raw()
+    raw["schema_version"] = "2026.6.dev23"
+    anthro = raw["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro["heat"]["ahprof_24hr"] = shared_661_662
+    anthro["heat"]["popprof_24hr"] = shared_661_662
+    anthro["co2"]["profile_human_activity_24hr"] = shared_661_662
+
+    migrated = SchemaMigrator().migrate(raw, to_version="2026.6.dev24")
+    m_anthro = migrated["sites"][0]["properties"]["anthropogenic_emissions"]
+
+    # Unrelated ahprof_24hr must remain completely untouched (still 661/662).
+    assert m_anthro["heat"]["ahprof_24hr"]["working_day"] == _LEGACY_661
+    assert m_anthro["heat"]["ahprof_24hr"]["holiday"] == _LEGACY_662
+    # popprof_24hr gets 801/802 while profile_human_activity_24hr gets 55663/55664.
+    assert m_anthro["heat"]["popprof_24hr"]["working_day"]["6"] == pytest.approx(1.5)
+    assert m_anthro["heat"]["popprof_24hr"]["working_day"]["7"] == pytest.approx(2.0)
+    assert m_anthro["heat"]["popprof_24hr"]["holiday"]["8"] == pytest.approx(1.0)
+    assert m_anthro["heat"]["popprof_24hr"]["holiday"]["9"] == pytest.approx(1.5)
+    assert m_anthro["co2"]["profile_human_activity_24hr"]["working_day"][
+        "7"
+    ] == pytest.approx(1.0)
+    assert m_anthro["co2"]["profile_human_activity_24hr"]["working_day"][
+        "8"
+    ] == pytest.approx(1.5)
+    assert m_anthro["co2"]["profile_human_activity_24hr"]["holiday"][
+        "9"
+    ] == pytest.approx(1.5)
+    assert m_anthro["heat"]["popprof_24hr"] is not m_anthro["heat"]["ahprof_24hr"]
+    assert (
+        m_anthro["co2"]["profile_human_activity_24hr"]
+        is not m_anthro["heat"]["popprof_24hr"]
+    )
+
+
+def test_pre_dev9_observed_soil_migration_preserves_historical_and_upgrades_dev24() -> (
+    None
+):
+    """Pre-dev9 observed-soil configs with legacy profiles migrate cleanly to dev23 and dev24."""
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext  # noqa: PLC0415
+
+    raw = _load_sample_raw()
+    raw["schema_version"] = "2026.6.dev8"
+    raw["model"]["physics"].pop("soil_moisture", None)
+    raw["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        raw["sites"][0]["properties"]["land_cover"][surface].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    raw["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    anthro = raw["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro["heat"]["popprof_24hr"] = {
+        "working_day": deepcopy(_LEGACY_661),
+        "holiday": deepcopy(_LEGACY_662),
+    }
+    uniform_legacy = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    anthro["co2"]["profile_human_activity_24hr"] = {
+        "working_day": uniform_legacy.copy(),
+        "holiday": uniform_legacy.copy(),
+    }
+
+    def _ctx() -> SoilMigrationContext:
+        return SoilMigrationContext(
+            layer_bounds={0: (0.0, 0.2)},
+            original_method=1,
+            forcing_manifest={
+                "completed": True,
+                "original_method": 1,
+                "source_unit": "m3 m-3",
+                "input_sha256": "a" * 64,
+                "output_sha256": "b" * 64,
+            },
+        )
+
+    # Historical target dev23 preserves legacy 661/662 and 1/24 profiles unchanged.
+    hist = SchemaMigrator().migrate(
+        deepcopy(raw), to_version="2026.6.dev23", migration_context=_ctx()
+    )
+    h_anthro = hist["sites"][0]["properties"]["anthropogenic_emissions"]
+    assert h_anthro["heat"]["popprof_24hr"]["working_day"] == _LEGACY_661
+    assert h_anthro["co2"]["profile_human_activity_24hr"]["working_day"]["1"] == (
+        pytest.approx(1.0 / 24.0)
+    )
+
+    # Current target dev24 upgrades 661/662 -> 801/802 and 1/24 -> uniform 1.0.
+    cur = SchemaMigrator().migrate(
+        deepcopy(raw), to_version="2026.6.dev24", migration_context=_ctx()
+    )
+    c_anthro = cur["sites"][0]["properties"]["anthropogenic_emissions"]
+    assert c_anthro["heat"]["popprof_24hr"]["working_day"]["13"] == pytest.approx(2.0)
+    assert all(
+        v == pytest.approx(1.0)
+        for v in c_anthro["co2"]["profile_human_activity_24hr"]["working_day"].values()
+    )
+
+    # Custom out-of-range profile still fails explicitly at dev24 (and succeeds at dev23).
+    custom = deepcopy(raw)
+    custom["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] = 0.25
+    hist_custom = SchemaMigrator().migrate(
+        deepcopy(custom), to_version="2026.6.dev23", migration_context=_ctx()
+    )
+    assert hist_custom["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] == pytest.approx(0.25)
+    with pytest.raises(YamlUpgradeError, match=r"\[1\.0, 2\.0\]"):
+        SchemaMigrator().migrate(
+            custom, to_version="2026.6.dev24", migration_context=_ctx()
+        )

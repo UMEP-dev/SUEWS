@@ -1643,9 +1643,11 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
     if active:
         # Validate all sites against the current schema using a throwaway copy
         # stripped of legacy radiation, continuation-state placeholders,
-        # pre-dev16 non-finite sdd_id values, pre-dev17 non-integer DOYs, and
-        # pre-dev20 non-canonical 10-minute profile keys; the returned dev9
-        # mapping stays intact for later deltas and single-pass logging.
+        # pre-dev16 non-finite sdd_id values, pre-dev17 non-integer DOYs,
+        # pre-dev20 non-canonical 10-minute profile keys, pre-dev22 vertical
+        # optical keys, and pre-dev24 out-of-scale day/night profiles; the
+        # returned dev9 mapping stays intact for later deltas and single-pass
+        # logging.
         from ...data_model.core.config import SUEWSConfig
         candidate, _ = _drop_legacy_radiation_memory_zeros(result)
         candidate, _ = _drop_legacy_continuation_state_placeholders(candidate)
@@ -1655,6 +1657,7 @@ def _migrate_2026_6_dev8_to_2026_6_dev9(cfg: dict, *, migration_context=None) ->
         candidate = _clear_non_owning_vertical_layer_optical_keys_for_dev9_candidate(
             candidate
         )
+        candidate = _clear_pre_dev24_day_night_profiles_for_dev9_candidate(candidate)
         candidate["schema_version"] = CURRENT_SCHEMA_VERSION
         SUEWSConfig.model_validate(candidate)
         logs.append(f"legacy xsmd conversion confirmed; original method {context.original_method}; "
@@ -3359,6 +3362,78 @@ def _matches_profile_sequence(
     )
 
 
+def _set_detached_day_night_profile_day(
+    sites_list: list,
+    site_idx: int,
+    section_name: str,
+    field_name: str,
+    day_type: str,
+    new_day_map: dict[str, float],
+) -> dict:
+    """Replace one day-type mapping on a detached dict chain (safe under YAML anchors)."""
+    site = dict(sites_list[site_idx])
+    props = dict(site["properties"])
+    anthro = dict(props["anthropogenic_emissions"])
+    section = dict(anthro[section_name])
+    profile = dict(section[field_name])
+    profile[day_type] = new_day_map
+    section[field_name] = profile
+    anthro[section_name] = section
+    props["anthropogenic_emissions"] = anthro
+    site["properties"] = props
+    sites_list[site_idx] = site
+    return profile
+
+
+def _clear_pre_dev24_day_night_profiles_for_dev9_candidate(candidate: dict) -> dict:
+    """Strip pre-dev24 day/night profile fields from the dev9 throwaway validation copy.
+
+    The dev8 -> dev9 observed-soil migration validates a throwaway copy against
+    the current ``SUEWSConfig`` model, which enforces dev24 ``[1.0, 2.0]``
+    bounds on ``popprof_24hr`` and ``profile_human_activity_24hr``. Removing
+    those fields on the throwaway copy lets historical targets (``dev9``..``dev23``)
+    preserve pre-dev24 profiles unchanged while targets ``>= 2026.6.dev24``
+    still run ``_migrate_day_night_hourly_profiles`` on the real result.
+    """
+    sites = candidate.get("sites")
+    if not isinstance(sites, list):
+        return candidate
+    cleaned = dict(candidate)
+    cleaned_sites = list(sites)
+    for idx, site in enumerate(cleaned_sites):
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        anthro = (
+            props.get("anthropogenic_emissions") if isinstance(props, dict) else None
+        )
+        if not isinstance(anthro, dict):
+            continue
+        changed = False
+        new_anthro = dict(anthro)
+        for section_name, field_names in (
+            ("heat", ("popprof_24hr",)),
+            ("co2", ("profile_human_activity_24hr", "humactivity_24hr")),
+        ):
+            section = new_anthro.get(section_name)
+            if not isinstance(section, dict):
+                continue
+            if any(fname in section for fname in field_names):
+                new_section = dict(section)
+                for fname in field_names:
+                    new_section.pop(fname, None)
+                new_anthro[section_name] = new_section
+                changed = True
+        if changed:
+            new_props = dict(props)
+            new_props["anthropogenic_emissions"] = new_anthro
+            new_site = dict(site)
+            new_site["properties"] = new_props
+            cleaned_sites[idx] = new_site
+    cleaned["sites"] = cleaned_sites
+    return cleaned
+
+
 def _migrate_day_night_hourly_profiles(cfg: dict) -> dict:
     """Enforce the kernel's [1.0, 2.0] scale on population and human-activity profiles (#2043).
 
@@ -3402,16 +3477,24 @@ def _migrate_day_night_hourly_profiles(cfg: dict) -> dict:
         ),
     )
 
-    for index, site in enumerate(result["sites"]):
+    for index in range(len(result["sites"])):
+        site = result["sites"][index]
         if not isinstance(site, dict):
             continue
         props = site.get("properties")
-        anthro = props.get("anthropogenic_emissions") if isinstance(props, dict) else None
+        anthro = (
+            props.get("anthropogenic_emissions") if isinstance(props, dict) else None
+        )
         if not isinstance(anthro, dict):
             continue
         site_label = _format_site_label(index, site)
 
         for section_name, field_name, replacements in profile_specs:
+            # Re-read from result["sites"][index] after any detached writes so
+            # subsequent fields see the updated dict chain without mutating
+            # shared YAML anchor/alias targets.
+            site = result["sites"][index]
+            anthro = site["properties"]["anthropogenic_emissions"]
             section = anthro.get(section_name)
             if not isinstance(section, dict):
                 continue
@@ -3451,7 +3534,14 @@ def _migrate_day_night_hourly_profiles(cfg: dict) -> dict:
                 if complete is not None and all(
                     abs(v - (1.0 / 24.0)) <= 1e-5 for v in complete
                 ):
-                    profile[day_type] = {str(h): 1.0 for h in range(1, 25)}
+                    profile = _set_detached_day_night_profile_day(
+                        result["sites"],
+                        index,
+                        section_name,
+                        field_name,
+                        day_type,
+                        {str(h): 1.0 for h in range(1, 25)},
+                    )
                     _log(
                         f"[yaml-upgrade] {site_label}: upgraded "
                         f"anthropogenic_emissions.{section_name}.{field_name}.{day_type} "
@@ -3470,7 +3560,14 @@ def _migrate_day_night_hourly_profiles(cfg: dict) -> dict:
                         if _matches_profile_sequence(complete, _LEGACY_SHIPPED_661)
                         else "662"
                     )
-                    profile[day_type] = _hourly_tuple_to_dict(target_seq)
+                    profile = _set_detached_day_night_profile_day(
+                        result["sites"],
+                        index,
+                        section_name,
+                        field_name,
+                        day_type,
+                        _hourly_tuple_to_dict(target_seq),
+                    )
                     _log(
                         f"[yaml-upgrade] {site_label}: replaced off-scale shipped "
                         f"London QF profile ({source_code}) in "

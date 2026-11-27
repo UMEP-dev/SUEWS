@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util._gap_filler &#8212; SUEWS 2026.11.27.dev46 documentation</title>
+    <title>supy.util._gap_filler &#8212; SUEWS 2026.11.27.dev51 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=bcf06cd1"></script>
+    <script src="../../../_static/documentation_options.js?v=4a587e5b"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.27.dev46" />
+  <meta name="docsearch:version" content="2026.11.27.dev51" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.27.dev46, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4e1df7ab2b13fa189c849db6556b0e1ef5ebb11f" style="color: #31708f;">4e1df7a</a>).
+        (2026.11.27.dev51, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f37f4e3a031ba76f638cceb5310b5b7b6aaf75cd" style="color: #31708f;">f37f4e3</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev46 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev46 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev51 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev51 documentation - Home"/>
   
   
 </a></div>
@@ -562,67 +562,148 @@
                 <article class="bd-article">
                   
   <h1>Source code for supy.util._gap_filler</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_civil_day_start</span><span class="p">(</span><span class="n">ts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">,</span> <span class="n">day_offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the first valid instant of the civil date ``day_offset`` days from ``ts``."""</span>
+    <span class="n">day_naive</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">day_offset</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ts</span><span class="o">.</span><span class="n">tz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">day_naive</span>
+    <span class="k">return</span> <span class="n">day_naive</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span>
+        <span class="n">ts</span><span class="o">.</span><span class="n">tz</span><span class="p">,</span>
+        <span class="n">ambiguous</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">nonexistent</span><span class="o">=</span><span class="s2">"shift_forward"</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_calendar_day_count</span><span class="p">(</span><span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the day count when ``freq`` is a pandas calendar-day offset, else None."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">tseries</span><span class="o">.</span><span class="n">frequencies</span><span class="o">.</span><span class="n">to_offset</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">offsets</span><span class="o">.</span><span class="n">Day</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">offset</span><span class="o">.</span><span class="n">n</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_calendar_day_freq</span><span class="p">(</span><span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return True when ``freq`` is a pandas calendar-day offset (e.g. '1D')."""</span>
+    <span class="k">return</span> <span class="n">_calendar_day_count</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_period_offsets</span><span class="p">(</span>
+    <span class="n">index</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">,</span> <span class="n">loc_key</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">,</span> <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"1D"</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">TimedeltaIndex</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return intra-period offsets from ``loc_key`` within a division of ``freq``."""</span>
+    <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">tz</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">_is_calendar_day_freq</span><span class="p">(</span><span class="n">freq</span><span class="p">):</span>
+        <span class="n">key_naive</span> <span class="o">=</span> <span class="n">loc_key</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">loc_key</span><span class="o">.</span><span class="n">tz</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">loc_key</span>
+        <span class="k">return</span> <span class="n">index</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="o">-</span> <span class="n">key_naive</span>
+    <span class="k">return</span> <span class="n">index</span> <span class="o">-</span> <span class="n">loc_key</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_find_gap_candidates</span><span class="p">(</span>
+    <span class="n">ser_test</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"1D"</span><span class="p">,</span>
+    <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"010"</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span> <span class="o">=</span> <span class="s2">"start_day"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">resample</span><span class="o">.</span><span class="n">Resampler</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">],</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return resampler, all period windows matching ``pattern``, and an empty index."""</span>
+    <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_test</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+    <span class="n">ser_TF_10</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ser</span><span class="p">:</span> <span class="n">ser</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">())</span> <span class="o">*</span> <span class="mi">1</span>
+    <span class="n">n_gap</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ser_TF_10</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">n_total</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">ratio_info</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">n_total</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">(</span><span class="n">n_total</span> <span class="o">-</span> <span class="n">n_gap</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_total</span>
+    <span class="k">if</span> <span class="n">ratio_info</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"too many gaps (n_gap/n_period=</span><span class="si">{</span><span class="n">n_gap</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n_total</span><span class="si">}</span><span class="s2">) to proceed! please enlarge the series to introduce more valid periods."</span>
+        <span class="p">)</span>
+    <span class="n">empty_index</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pattern</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">rsmp</span><span class="p">,</span> <span class="p">[],</span> <span class="n">empty_index</span>
+    <span class="n">str_TF_10</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">cat</span><span class="p">()</span>
+    <span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">pos_gap</span> <span class="o">=</span> <span class="n">str_TF_10</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">start</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pos_gap</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ser_TF_10</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">pos_gap</span> <span class="p">:</span> <span class="n">pos_gap</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">pattern</span><span class="p">)]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">pos_gap</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">rsmp</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">empty_index</span>
 
 
 <span class="c1"># locate the first position of period with in-between gaps</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">loc_gap</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"010"</span><span class="p">):</span>
-    <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_test</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
-    <span class="n">ser_TF_10</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ser</span><span class="p">:</span> <span class="n">ser</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">())</span> <span class="o">*</span> <span class="mi">1</span>
-    <span class="n">n_gap</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_test</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"too many gaps (n_gap/n_period=</span><span class="si">{</span><span class="n">n_gap</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s2">) to proceed! please enlarge the series to introduce more valid periods."</span>
-        <span class="p">)</span>
-    <span class="n">str_TF_10</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">cat</span><span class="p">()</span>
-    <span class="n">pos_gap</span> <span class="o">=</span> <span class="n">str_TF_10</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
-    <span class="n">loc_ser</span> <span class="o">=</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">pos_gap</span> <span class="p">:</span> <span class="n">pos_gap</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">pattern</span><span class="p">)]</span><span class="o">.</span><span class="n">index</span>
-    <span class="k">return</span> <span class="n">loc_ser</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">empty_index</span> <span class="o">=</span> <span class="n">_find_gap_candidates</span><span class="p">(</span>
+        <span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="n">pattern</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">candidates</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_index</span>
+    <span class="k">return</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
 
-<span class="c1"># fill gap with neighbouring days</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_one</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"010"</span><span class="p">):</span>
-    <span class="c1"># resample into daily periods</span>
-    <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_test</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
-    <span class="c1"># locate the gaps according to gap pattern: 0 for NO gap, 1 for gapped</span>
-    <span class="n">loc_ser</span> <span class="o">=</span> <span class="n">loc_gap</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">pattern</span><span class="p">)</span>
-
-    <span class="c1"># generator groups</span>
-    <span class="n">ser_find</span> <span class="o">=</span> <span class="p">(</span><span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">loc_ser</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_ser</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">ser_test</span>
-
+<span class="k">def</span><span class="w"> </span><span class="nf">_fill_gap_at_loc</span><span class="p">(</span>
+    <span class="n">ser_test</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">rsmp</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">resample</span><span class="o">.</span><span class="n">Resampler</span><span class="p">,</span>
+    <span class="n">loc_ser</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">,</span>
+    <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"1D"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fill a single located gap window ``loc_ser`` using its neighbouring periods."""</span>
     <span class="c1"># assign series:</span>
     <span class="c1"># ser_prev: series prior to gapped period</span>
     <span class="c1"># ser_gap: series with gaps</span>
     <span class="c1"># ser_post: series after gapped period</span>
     <span class="k">if</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">"010"</span><span class="p">:</span>
-        <span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_gap</span><span class="p">,</span> <span class="n">ser_post</span> <span class="o">=</span> <span class="n">ser_find</span>
+        <span class="n">loc_prev</span><span class="p">,</span> <span class="n">loc_gap_key</span><span class="p">,</span> <span class="n">loc_post</span> <span class="o">=</span> <span class="n">loc_ser</span>
+        <span class="n">ser_prev</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_prev</span><span class="p">)</span>
+        <span class="n">ser_gap</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_gap_key</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">ser_post</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_post</span><span class="p">)</span>
+        <span class="n">fill_parts</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+                <span class="n">ser_prev</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+                <span class="n">index</span><span class="o">=</span><span class="n">_period_offsets</span><span class="p">(</span><span class="n">ser_prev</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">loc_prev</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+                <span class="n">ser_post</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+                <span class="n">index</span><span class="o">=</span><span class="n">_period_offsets</span><span class="p">(</span><span class="n">ser_post</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">loc_post</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
     <span class="k">elif</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">"01"</span><span class="p">:</span>
-        <span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_gap</span> <span class="o">=</span> <span class="n">ser_find</span>
-        <span class="n">ser_post</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([])</span>
+        <span class="n">loc_prev</span><span class="p">,</span> <span class="n">loc_gap_key</span> <span class="o">=</span> <span class="n">loc_ser</span>
+        <span class="n">ser_prev</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_prev</span><span class="p">)</span>
+        <span class="n">ser_gap</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_gap_key</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">fill_parts</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+                <span class="n">ser_prev</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+                <span class="n">index</span><span class="o">=</span><span class="n">_period_offsets</span><span class="p">(</span><span class="n">ser_prev</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">loc_prev</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
     <span class="k">elif</span> <span class="n">pattern</span> <span class="o">==</span> <span class="s2">"10"</span><span class="p">:</span>
-        <span class="n">ser_gap</span><span class="p">,</span> <span class="n">ser_post</span> <span class="o">=</span> <span class="n">ser_find</span>
-        <span class="n">ser_prev</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([])</span>
+        <span class="n">loc_gap_key</span><span class="p">,</span> <span class="n">loc_post</span> <span class="o">=</span> <span class="n">loc_ser</span>
+        <span class="n">ser_gap</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_gap_key</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">ser_post</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">loc_post</span><span class="p">)</span>
+        <span class="n">fill_parts</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+                <span class="n">ser_post</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+                <span class="n">index</span><span class="o">=</span><span class="n">_period_offsets</span><span class="p">(</span><span class="n">ser_post</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">loc_post</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported gap pattern: </span><span class="si">{</span><span class="n">pattern</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
 
-    <span class="c1"># base series for gap filling</span>
-    <span class="n">ser_fill_base</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_post</span><span class="p">])</span>
+    <span class="c1"># align neighbouring periods by offset within each `freq` division</span>
+    <span class="n">ser_fill_base</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">fill_parts</span><span class="p">)</span>
     <span class="n">ser_fill</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span>
-            <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"hr"</span><span class="p">),</span>
-            <span class="n">ser_fill_base</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">minute</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"min"</span><span class="p">),</span>
-        <span class="p">])</span>
+        <span class="n">ser_fill_base</span>
+        <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="o">.</span><span class="n">median</span><span class="p">()</span>
-        <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">_period_offsets</span><span class="p">(</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">loc_gap_key</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">))</span>
     <span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">ser_fill</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">ser_gap</span><span class="o">.</span><span class="n">index</span>
-    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">ser_test</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">ser_fill_base</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">ser_gap</span><span class="p">)</span>
+    <span class="n">ser_fill</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">ser_gap</span><span class="o">.</span><span class="n">index</span>
 
     <span class="c1"># calculate rescaling factor with enough values to robustly rescale</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">pattern</span> <span class="o">==</span> <span class="s2">"010"</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ser_gap</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">):</span>
@@ -637,24 +718,264 @@
     <span class="n">ser_fill_gap</span> <span class="o">=</span> <span class="n">ser_fill</span> <span class="o">/</span> <span class="n">scale_fill</span>
 
     <span class="c1"># fill in gaps with rescaled values of the filling data</span>
-    <span class="n">ser_gap</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span> <span class="o">=</span> <span class="n">ser_fill_gap</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
-    <span class="n">ser_filled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_prev</span><span class="p">,</span> <span class="n">ser_gap</span><span class="p">,</span> <span class="n">ser_post</span><span class="p">])</span>
+    <span class="n">mask_na</span> <span class="o">=</span> <span class="n">ser_gap</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span>
+    <span class="n">ser_gap</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask_na</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_fill_gap</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask_na</span><span class="p">]</span>
 
     <span class="c1"># fill the original gapped series</span>
     <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_test</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-    <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_filled</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_filled</span>
+    <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_gap</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">ser_gap</span>
     <span class="k">return</span> <span class="n">ser_test_filled</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1d"</span><span class="p">):</span>
-    <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+<span class="c1"># fill gap with neighbouring periods</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_one</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">"010"</span><span class="p">):</span>
+    <span class="c1"># locate the gaps according to gap pattern: 0 for NO gap, 1 for gapped</span>
+    <span class="n">rsmp</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_find_gap_candidates</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="n">pattern</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">candidates</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pattern</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ser_test</span>
+    <span class="k">return</span> <span class="n">_fill_gap_at_loc</span><span class="p">(</span><span class="n">ser_test</span><span class="p">,</span> <span class="n">rsmp</span><span class="p">,</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1d"</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s2">"start_day"</span><span class="p">):</span>
+    <span class="n">rsmp</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
     <span class="n">ser_TF_10</span> <span class="o">=</span> <span class="n">rsmp</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ser</span><span class="p">:</span> <span class="n">ser</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">())</span> <span class="o">*</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span>
+    <span class="k">if</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="n">n_valid</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">ser_TF_10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">n_valid</span> <span class="o">/</span> <span class="n">ser_TF_10</span><span class="o">.</span><span class="n">size</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_infer_step_freq</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Return the index's regular step frequency, inferring it when unset."""</span>
+    <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">index</span><span class="o">.</span><span class="n">freq</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">inferred</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">infer_freq</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">inferred</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">tseries</span><span class="o">.</span><span class="n">frequencies</span><span class="o">.</span><span class="n">to_offset</span><span class="p">(</span><span class="n">inferred</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_chunk_size</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">,</span> <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return timesteps per ``freq`` division, or ``None`` if non-uniform."""</span>
+    <span class="n">step_freq</span> <span class="o">=</span> <span class="n">_infer_step_freq</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">step_freq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ratio</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span> <span class="o">/</span> <span class="n">step_freq</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">n_chunk</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ratio</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">n_chunk</span> <span class="k">if</span> <span class="n">n_chunk</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_bin_boundaries</span><span class="p">(</span>
+    <span class="n">ser</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return resampler bin boundaries for ``ser`` and the count of head bins.</span>
+
+<span class="sd">    Returns ``None`` when the series cannot be partitioned cleanly into uniform</span>
+<span class="sd">    non-empty ``freq`` divisions (e.g. unset/irregular cadence or empty bins).</span>
+<span class="sd">    When the trailing bin is a partial division, ``n_head_bins`` excludes it so</span>
+<span class="sd">    the caller can handle the trailing slice as a residual tail.</span>
+<span class="sd">    """</span>
+    <span class="n">step_freq</span> <span class="o">=</span> <span class="n">_infer_step_freq</span><span class="p">(</span><span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">step_freq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">step_td</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">step_freq</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">step_td</span> <span class="o">&lt;=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">n_days</span> <span class="o">=</span> <span class="n">_calendar_day_count</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+    <span class="n">n_chunk</span> <span class="o">=</span> <span class="n">_chunk_size</span><span class="p">(</span><span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">freq</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_days</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">n_chunk</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">sizes</span> <span class="o">=</span> <span class="n">ser</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">sizes</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">4</span> <span class="ow">or</span> <span class="p">(</span><span class="n">sizes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">sizes</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())))</span>
+    <span class="n">n_bins</span> <span class="o">=</span> <span class="n">sizes</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="c1"># Detect whether the final resampler bin is a partial trailing division.</span>
+    <span class="n">last_bin_start</span> <span class="o">=</span> <span class="n">sizes</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">n_days</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">expected_next_bin</span> <span class="o">=</span> <span class="n">_civil_day_start</span><span class="p">(</span><span class="n">last_bin_start</span><span class="p">,</span> <span class="n">day_offset</span><span class="o">=</span><span class="n">n_days</span><span class="p">)</span>
+        <span class="n">has_residual</span> <span class="o">=</span> <span class="p">(</span><span class="n">ser</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">step_td</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">expected_next_bin</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">has_residual</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sizes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_chunk</span><span class="p">)</span>
+
+    <span class="n">n_head_bins</span> <span class="o">=</span> <span class="n">n_bins</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">has_residual</span> <span class="k">else</span> <span class="n">n_bins</span>
+    <span class="k">return</span> <span class="n">boundaries</span><span class="p">[:</span> <span class="n">n_head_bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="n">n_head_bins</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_find_balanced_split</span><span class="p">(</span>
+    <span class="n">ser_head</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">head_boundaries</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">rinfo_thresh</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span> <span class="o">=</span> <span class="s2">"start_day"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Split ``ser_head`` into two non-empty bin-aligned halves.</span>
+
+<span class="sd">    Starts at the midpoint bin ``n_bins // 2`` and shifts by one bin at a time</span>
+<span class="sd">    when one side falls below ``rinfo_thresh``. Both halves always remain</span>
+<span class="sd">    strictly non-empty (at least one bin each) so recursion terminates, and if</span>
+<span class="sd">    no balanced split exists the midpoint split is returned.</span>
+<span class="sd">    """</span>
+    <span class="n">n_bins</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">k_mid</span> <span class="o">=</span> <span class="n">n_bins</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">k_mid</span>
+    <span class="n">split_pos</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+    <span class="n">ser_left</span> <span class="o">=</span> <span class="n">ser_head</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">split_pos</span><span class="p">]</span>
+    <span class="n">ser_right</span> <span class="o">=</span> <span class="n">ser_head</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">split_pos</span><span class="p">:]</span>
+    <span class="n">rinfo1</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_left</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+    <span class="n">rinfo2</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_right</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+
+    <span class="n">visited_ks</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">}</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="p">(</span><span class="n">rinfo1</span> <span class="o">&gt;=</span> <span class="n">rinfo_thresh</span> <span class="ow">and</span> <span class="n">rinfo2</span> <span class="o">&gt;=</span> <span class="n">rinfo_thresh</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">rinfo1</span> <span class="o">&lt;</span> <span class="n">rinfo_thresh</span> <span class="ow">and</span> <span class="n">rinfo2</span> <span class="o">&lt;</span> <span class="n">rinfo_thresh</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">next_k</span> <span class="o">=</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">rinfo1</span> <span class="o">&lt;</span> <span class="n">rinfo_thresh</span> <span class="k">else</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">next_k</span> <span class="o">&lt;=</span> <span class="n">n_bins</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="n">next_k</span> <span class="ow">in</span> <span class="n">visited_ks</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">next_k</span>
+        <span class="n">visited_ks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">split_pos</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="n">ser_left</span> <span class="o">=</span> <span class="n">ser_head</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">split_pos</span><span class="p">]</span>
+        <span class="n">ser_right</span> <span class="o">=</span> <span class="n">ser_head</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">split_pos</span><span class="p">:]</span>
+        <span class="n">rinfo1</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_left</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+        <span class="n">rinfo2</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_right</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">rinfo1</span> <span class="o">&gt;=</span> <span class="n">rinfo_thresh</span> <span class="ow">and</span> <span class="n">rinfo2</span> <span class="o">&gt;=</span> <span class="n">rinfo_thresh</span><span class="p">):</span>
+        <span class="n">mid_pos</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">[</span><span class="n">k_mid</span><span class="p">])</span>
+        <span class="n">ser_left</span> <span class="o">=</span> <span class="n">ser_head</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">mid_pos</span><span class="p">]</span>
+        <span class="n">ser_right</span> <span class="o">=</span> <span class="n">ser_head</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mid_pos</span><span class="p">:]</span>
+
+    <span class="k">return</span> <span class="n">ser_left</span><span class="p">,</span> <span class="n">ser_right</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fill_gaps_iterative</span><span class="p">(</span>
+    <span class="n">ser_test_filled</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span> <span class="o">=</span> <span class="s2">"start_day"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fill matching gap windows iteratively until complete or a pass makes no progress."""</span>
+    <span class="n">ptn_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"010"</span><span class="p">,</span> <span class="s2">"01"</span><span class="p">,</span> <span class="s2">"10"</span><span class="p">]</span>
+    <span class="k">while</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">made_progress</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">ptn</span> <span class="ow">in</span> <span class="n">ptn_list</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">rsmp</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_find_gap_candidates</span><span class="p">(</span>
+                    <span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="n">ptn</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">ser_test_filled</span>
+            <span class="k">for</span> <span class="n">loc_ser</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_ser</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ptn</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">n_missing_before</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="n">candidate_filled</span> <span class="o">=</span> <span class="n">_fill_gap_at_loc</span><span class="p">(</span>
+                    <span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">rsmp</span><span class="p">,</span> <span class="n">loc_ser</span><span class="p">,</span> <span class="n">ptn</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">candidate_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">n_missing_before</span><span class="p">:</span>
+                    <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">candidate_filled</span>
+                    <span class="n">made_progress</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">made_progress</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">made_progress</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ser_test_filled</span>
+    <span class="k">return</span> <span class="n">ser_test_filled</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fill_residual_tail</span><span class="p">(</span>
+    <span class="n">ser_head_filled</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">ser_residual</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">head_boundaries</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span> <span class="o">=</span> <span class="s2">"start_day"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fill gaps in a trailing partial-bin residual using preceding bin context."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ser_residual</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">ser_residual</span>
+    <span class="n">n_res</span> <span class="o">=</span> <span class="n">ser_residual</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">n_head_bins</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">n_ctx_bins</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">n_head_bins</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">ctx_bins</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_ctx_bins</span><span class="p">,</span> <span class="n">n_head_bins</span><span class="p">)</span>
+        <span class="n">ctx_start</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">[</span><span class="n">n_head_bins</span> <span class="o">-</span> <span class="n">ctx_bins</span><span class="p">])</span>
+        <span class="n">ser_window</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_head_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">ctx_start</span><span class="p">:],</span> <span class="n">ser_residual</span><span class="p">])</span>
+        <span class="n">ser_window_filled</span> <span class="o">=</span> <span class="n">_fill_gaps_iterative</span><span class="p">(</span><span class="n">ser_window</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+        <span class="n">ser_residual</span> <span class="o">=</span> <span class="n">ser_window_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="n">n_res</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ser_residual</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="n">ctx_bins</span> <span class="o">==</span> <span class="n">n_head_bins</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">ser_residual</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fill_gap_all_x_recursive</span><span class="p">(</span>
+    <span class="n">ser_to_fill</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">limit_fill</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fill gaps recursively while preserving a single resampling ``origin``."""</span>
+    <span class="k">if</span> <span class="n">limit_fill</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="n">limit_fill</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">ser_test_filled</span>
+
+    <span class="n">split_info</span> <span class="o">=</span> <span class="n">_split_bin_boundaries</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">split_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">split_info</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">head_boundaries</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">split_info</span>
+        <span class="n">n_total</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">head_boundaries</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ser_residual</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n_total</span><span class="p">:]</span> <span class="k">if</span> <span class="n">n_total</span> <span class="o">&lt;</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">size</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">ser_head</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">n_total</span><span class="p">]</span>
+        <span class="n">ser_test_filled1</span><span class="p">,</span> <span class="n">ser_test_filled2</span> <span class="o">=</span> <span class="n">_find_balanced_split</span><span class="p">(</span>
+            <span class="n">ser_head</span><span class="p">,</span> <span class="n">head_boundaries</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span>
+        <span class="p">)</span>
+        <span class="n">ser_test_filled1</span> <span class="o">=</span> <span class="n">_fill_gap_all_x_recursive</span><span class="p">(</span>
+            <span class="n">ser_test_filled1</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="n">limit_fill</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span>
+        <span class="p">)</span>
+        <span class="n">ser_test_filled2</span> <span class="o">=</span> <span class="n">_fill_gap_all_x_recursive</span><span class="p">(</span>
+            <span class="n">ser_test_filled2</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="n">limit_fill</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span>
+        <span class="p">)</span>
+        <span class="n">ser_head_filled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_test_filled1</span><span class="p">,</span> <span class="n">ser_test_filled2</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">ser_residual</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ser_residual</span> <span class="o">=</span> <span class="n">_fill_residual_tail</span><span class="p">(</span>
+                <span class="n">ser_head_filled</span><span class="p">,</span>
+                <span class="n">ser_residual</span><span class="p">,</span>
+                <span class="n">head_boundaries</span><span class="p">,</span>
+                <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span>
+                <span class="n">origin</span><span class="o">=</span><span class="n">origin</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_head_filled</span><span class="p">,</span> <span class="n">ser_residual</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_head_filled</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">_fill_gaps_iterative</span><span class="p">(</span>
+            <span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ser_test_filled</span>
 
 
 <span class="c1"># fill gaps iteratively</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Fill all gaps in a time series using data from neighbouring divisions of 'freq'</span>
+<span class="w">    </span><span class="sd">"""Fill gaps in a time series using data from neighbouring divisions of ``freq``.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -669,7 +990,10 @@
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    ser_test_filled: pd.Series</span>
-<span class="sd">        Gap-filled time series.</span>
+<span class="sd">        Gap-filled time series. Filling is best-effort: any gaps that cannot be</span>
+<span class="sd">        resolved (for example, clusters whose valid-period ratio stays below 0.5</span>
+<span class="sd">        or offsets absent from neighbouring divisions) remain ``NaN`` so callers</span>
+<span class="sd">        requiring a complete series should check ``not result.isna().any()``.</span>
 
 <span class="sd">    Patterns</span>
 <span class="sd">    --------</span>
@@ -677,75 +1001,12 @@
 <span class="sd">    01:  missing data in division after one with no missing data</span>
 <span class="sd">    10:  division with missing data before one with no missing data</span>
 <span class="sd">    """</span>
-
-    <span class="k">if</span> <span class="n">limit_fill</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="n">limit_fill</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_to_fill</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-
-    <span class="n">ptn_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"010"</span><span class="p">,</span> <span class="s2">"01"</span><span class="p">,</span> <span class="s2">"10"</span><span class="p">]</span>
-
-    <span class="c1"># if ratio_info &gt; 0.5:</span>
-    <span class="n">n_freq</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">size</span>
-    <span class="k">if</span> <span class="n">n_freq</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
-        <span class="n">n_chunk</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span> <span class="o">/</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span><span class="p">)</span>
-        <span class="n">n_freq</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">n_chunk</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">n_chunk</span> <span class="o">*</span> <span class="n">n_freq</span> <span class="o">&lt;</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
-            <span class="n">ser_residual</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n_chunk</span> <span class="o">*</span> <span class="n">n_freq</span> <span class="p">:]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ser_residual</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([])</span>
-        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span> <span class="n">n_chunk</span> <span class="o">*</span> <span class="n">n_freq</span><span class="p">]</span>
-        <span class="c1"># ser_test_filled</span>
-        <span class="c1"># n_freq</span>
-        <span class="k">if</span> <span class="n">n_freq</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
-            <span class="n">n_sep</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_freq</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_chunk</span>
-            <span class="c1">#     offset = pd.Timedelta(freq) * n_sep</span>
-            <span class="c1">#     ind_sep1 = ser_test_filled.index[0] + offset</span>
-            <span class="c1">#     ind_sep2 = ser_test_filled.index[1] + offset</span>
-            <span class="n">ser_test_filled1</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">n_sep</span><span class="p">]</span>
-            <span class="n">ser_test_filled2</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n_sep</span><span class="p">:]</span>
-            <span class="n">rinfo1</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_test_filled1</span><span class="p">)</span>
-            <span class="n">rinfo2</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_test_filled2</span><span class="p">)</span>
-            <span class="n">rinfo_thresh</span> <span class="o">=</span> <span class="mf">0.2</span>
-            <span class="k">while</span> <span class="p">(</span><span class="ow">not</span> <span class="p">(</span><span class="n">rinfo1</span> <span class="o">&gt;=</span> <span class="n">rinfo_thresh</span> <span class="ow">and</span> <span class="n">rinfo2</span> <span class="o">&gt;=</span> <span class="n">rinfo_thresh</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span>
-                <span class="n">n_sep</span> <span class="o">&lt;</span> <span class="n">n_freq</span>
-            <span class="p">):</span>
-                <span class="c1"># print(rinfo1, rinfo2, n_sep)</span>
-                <span class="k">if</span> <span class="n">rinfo1</span> <span class="o">&lt;</span> <span class="n">rinfo_thresh</span><span class="p">:</span>
-                    <span class="n">n_sep</span> <span class="o">+=</span> <span class="n">n_chunk</span>
-                <span class="k">if</span> <span class="n">rinfo2</span> <span class="o">&lt;</span> <span class="n">rinfo_thresh</span><span class="p">:</span>
-                    <span class="n">n_sep</span> <span class="o">-=</span> <span class="n">n_chunk</span>
-                <span class="n">ser_test_filled1</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">n_sep</span><span class="p">]</span>
-                <span class="n">ser_test_filled2</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n_sep</span><span class="p">:]</span>
-                <span class="n">rinfo1</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_test_filled1</span><span class="p">)</span>
-                <span class="n">rinfo2</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_test_filled2</span><span class="p">)</span>
-
-        <span class="c1"># print(rinfo1, rinfo2, ser_test_filled1.size, ser_test_filled2.size)</span>
-        <span class="n">ser_test_filled1</span> <span class="o">=</span> <span class="n">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_test_filled1</span><span class="p">)</span>
-        <span class="n">ser_test_filled2</span> <span class="o">=</span> <span class="n">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_test_filled2</span><span class="p">)</span>
-        <span class="c1"># print(ser_test_filled1.size)</span>
-        <span class="c1"># print(ser_test_filled2.size)</span>
-        <span class="c1"># print()</span>
-        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ser_test_filled1</span><span class="p">,</span> <span class="n">ser_test_filled2</span><span class="p">,</span> <span class="n">ser_residual</span><span class="p">])</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">while</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-            <span class="c1"># print("here")</span>
-            <span class="c1"># try to different gap patterns and fill gaps</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">ptn_gap</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
-                    <span class="n">ptn</span>
-                    <span class="k">for</span> <span class="n">ptn</span> <span class="ow">in</span> <span class="n">ptn_list</span>
-                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loc_gap</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">ptn</span><span class="p">))</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ptn</span><span class="p">)</span>
-                <span class="p">)</span>
-                <span class="c1"># print(ser_test_filled,ptn_gap)</span>
-                <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">fill_gap_one</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">ptn_gap</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
-                <span class="k">pass</span>
-            <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="c1"># print("cannot proceed so can only return the original gapped series!")</span>
-                <span class="k">return</span> <span class="n">ser_test_filled</span>
-
-    <span class="k">return</span> <span class="n">ser_test_filled</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_civil_day_start</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="s2">"start_day"</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">_fill_gap_all_x_recursive</span><span class="p">(</span>
+        <span class="n">ser_to_fill</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="n">limit_fill</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin</span>
+    <span class="p">)</span>
 
 
 <div class="viewcode-block" id="fill_gap_all">
@@ -756,7 +1017,7 @@
     <span class="n">limit_fill</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
     <span class="n">thresh_ratio</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Fill all gaps in a time series using data from neighbouring divisions of 'freq'</span>
+<span class="w">    </span><span class="sd">"""Fill gaps in a time series using data from neighbouring divisions of ``freq``.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -773,7 +1034,12 @@
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    pandas.Series</span>
-<span class="sd">        Gap-filled time series.</span>
+<span class="sd">        Gap-filled time series indexed to ``ser_to_fill.index``. Filling is</span>
+<span class="sd">        best-effort: the retry loop terminates if a full pass makes no progress,</span>
+<span class="sd">        leaving any unresolvable gaps (for example dense gap clusters with</span>
+<span class="sd">        ``limit_fill &lt;= 0`` or offsets missing from neighbouring divisions) as</span>
+<span class="sd">        ``NaN``. Callers requiring a completely gap-free series should check</span>
+<span class="sd">        ``not result.isna().any()``.</span>
 
 <span class="sd">    Patterns</span>
 <span class="sd">    --------</span>
@@ -781,23 +1047,24 @@
 <span class="sd">    01:  missing data in division after one with no missing data</span>
 <span class="sd">    10:  division with missing data before one with no missing data</span>
 <span class="sd">    """</span>
-    <span class="n">ratio_info</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">)</span>
-    <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">norm_ser_dt</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">)</span>
+    <span class="n">ratio_info</span> <span class="o">=</span> <span class="n">cal_ratio_info</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">ratio_info</span> <span class="o">&lt;</span> <span class="n">thresh_ratio</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"input series is too gapped (valid data ratio = </span><span class="si">{</span><span class="n">ratio_info</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">) to proceed with the gap-filling method."</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># normalise into a series with complete diurnal cycles</span>
-        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="p">)</span>
-        <span class="c1"># i = 0</span>
+        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">norm_ser_dt</span><span class="p">(</span><span class="n">ser_to_fill</span><span class="p">)</span>
+        <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">fill_gap_all_x</span><span class="p">(</span>
+            <span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="n">limit_fill</span>
+        <span class="p">)</span>
         <span class="k">while</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-            <span class="c1"># i += 1</span>
-            <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">fill_gap_all_x</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="p">)</span>
-            <span class="n">ser_gap</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">ser_test_filled</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">year</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">n_missing_before</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">fill_gap_all_x</span><span class="p">(</span>
+                <span class="n">ser_test_filled</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">limit_fill</span><span class="o">=</span><span class="n">limit_fill</span>
             <span class="p">)</span>
-            <span class="c1"># print(i, ser_gap)</span>
+            <span class="k">if</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">n_missing_before</span><span class="p">:</span>
+                <span class="k">break</span>
         <span class="n">ser_test_filled</span> <span class="o">=</span> <span class="n">ser_test_filled</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ser_to_fill</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">ser_test_filled</span></div>
 
@@ -817,11 +1084,18 @@
 <span class="sd">    pandas.Series</span>
 <span class="sd">        time series with complete diurnal cycles; missing values may be inserted as np.nan.</span>
 <span class="sd">    """</span>
-    <span class="n">freq</span> <span class="o">=</span> <span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span>
-    <span class="n">dt_start</span><span class="p">,</span> <span class="n">dt_end</span> <span class="o">=</span> <span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">normalize</span><span class="p">()[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-    <span class="n">dt_end</span> <span class="o">=</span> <span class="n">dt_end</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">"1d"</span><span class="p">)</span>
-    <span class="n">dt_end</span>
-    <span class="n">idx_norm</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">dt_start</span><span class="p">,</span> <span class="n">dt_end</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">freq</span> <span class="o">=</span> <span class="n">_infer_step_freq</span><span class="p">(</span><span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">dt_start</span> <span class="o">=</span> <span class="n">_civil_day_start</span><span class="p">(</span><span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">day_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">dt_end</span> <span class="o">=</span> <span class="n">_civil_day_start</span><span class="p">(</span><span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">day_offset</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">step_td</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">step_td</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">step_td</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">step_td</span> <span class="o">&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="p">(</span><span class="n">ser_dt</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">dt_start</span><span class="p">)</span> <span class="o">%</span> <span class="n">step_td</span>
+            <span class="n">dt_start</span> <span class="o">=</span> <span class="n">dt_start</span> <span class="o">+</span> <span class="n">phase</span>
+    <span class="n">idx_norm</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">dt_start</span><span class="p">,</span> <span class="n">dt_end</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">inclusive</span><span class="o">=</span><span class="s2">"left"</span><span class="p">)</span>
     <span class="n">ser_norm</span> <span class="o">=</span> <span class="n">ser_dt</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">idx_norm</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">ser_norm</span>
 </pre></div>
@@ -876,8 +1150,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.27.dev46 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4e1df7ab2b13fa189c849db6556b0e1ef5ebb11f">4e1df7a</a> |
+  <p>Version: 2026.11.27.dev51 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f37f4e3a031ba76f638cceb5310b5b7b6aaf75cd">f37f4e3</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

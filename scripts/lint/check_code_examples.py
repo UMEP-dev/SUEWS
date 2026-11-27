@@ -21,6 +21,7 @@ import argparse
 import ast
 from collections import Counter
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 import contextlib
 import ctypes
 from dataclasses import dataclass
@@ -40,7 +41,6 @@ import time
 from types import ModuleType
 
 import click
-from click.testing import CliRunner
 
 STATUSES = (
     "ok",
@@ -260,11 +260,19 @@ def _write_json_atomic(path: str, data: dict[str, object]) -> None:
     os.replace(tmp_path, path)
 
 
+def _write_text_atomic(path: str, text: str) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp_path, path)
+
+
 def main() -> None:
     payload_path = sys.argv[1]
     result_path = sys.argv[2]
     gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
-    expected_ppid = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else 0
+    ack_path = sys.argv[4] if len(sys.argv) > 4 else ""
+    expected_ppid = int(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else 0
     if gate_path:
         deadline = time.monotonic() + 5.0
         while not os.path.exists(gate_path):
@@ -311,10 +319,13 @@ def main() -> None:
     write_err = open(err_capture_path, "ab")
     read_out = open(out_capture_path, "rb")
     read_err = open(err_capture_path, "rb")
+    captured_stdout_bytes = 0
     try:
         sys.modules["__main__"] = example_mod
         os.dup2(write_out.fileno(), 1)
         os.dup2(write_err.fileno(), 2)
+        if ack_path:
+            _write_text_atomic(ack_path, "started\n")
         for idx, item in enumerate(examples, start=1):
             source = item["source"]
             want = item["want"]
@@ -460,12 +471,14 @@ def main() -> None:
         os.dup2(saved_fd2, 2)
         os.close(saved_fd1)
         os.close(saved_fd2)
+        captured_stdout_bytes = read_out.tell()
         read_out.close()
         read_err.close()
         write_out.close()
         write_err.close()
 
     outcome["stderr"] = "".join(stderr_parts)
+    outcome["captured_stdout_bytes"] = captured_stdout_bytes
     _write_json_atomic(result_path, outcome)
 
 
@@ -1113,9 +1126,10 @@ def main() -> None:
     payload_path = sys.argv[3]
     result_path = sys.argv[4]
     gate_path = Path(sys.argv[5])
-    worker_pgid_path = Path(sys.argv[6])
-    cleanup_done_path = Path(sys.argv[7])
-    cleanup_error_path = Path(sys.argv[8])
+    ack_path = sys.argv[6]
+    worker_pgid_path = Path(sys.argv[7])
+    cleanup_done_path = Path(sys.argv[8])
+    cleanup_error_path = Path(sys.argv[9])
 
     _enable_subreaper()
     stop_requested = False
@@ -1136,6 +1150,7 @@ def main() -> None:
             payload_path,
             result_path,
             str(gate_path),
+            ack_path,
             str(os.getpid()),
         ],
         stdin=subprocess.DEVNULL,
@@ -1228,6 +1243,7 @@ class _ContainedProcess:
     proc: subprocess.Popen[str]
     win_job: _WindowsJobObject | None
     gate_path: Path
+    ack_path: Path
     worker_pgid_path: Path
     cleanup_done_path: Path
     cleanup_error_path: Path
@@ -1366,6 +1382,7 @@ def _start_contained_process(
     )
     win_job = _WindowsJobObject() if os.name == "nt" else None
     gate_path = path_ipc / ("containment.ready" if os.name == "nt" else "worker.ready")
+    ack_path = path_ipc / "execution.started"
     worker_pgid_path = path_ipc / "worker_pgid.txt"
     cleanup_done_path = path_ipc / "cleanup_done.txt"
     cleanup_error_path = path_ipc / "cleanup_error.txt"
@@ -1381,6 +1398,7 @@ def _start_contained_process(
             str(path_ipc / "payload.json"),
             str(path_ipc / "result.json"),
             str(gate_path),
+            str(ack_path),
         ]
     else:
         cmd = [
@@ -1394,6 +1412,7 @@ def _start_contained_process(
             str(path_ipc / "payload.json"),
             str(path_ipc / "result.json"),
             str(gate_path),
+            str(ack_path),
             str(worker_pgid_path),
             str(cleanup_done_path),
             str(cleanup_error_path),
@@ -1419,6 +1438,7 @@ def _start_contained_process(
             proc=proc,
             win_job=win_job,
             gate_path=gate_path,
+            ack_path=ack_path,
             worker_pgid_path=worker_pgid_path,
             cleanup_done_path=cleanup_done_path,
             cleanup_error_path=cleanup_error_path,
@@ -1502,12 +1522,21 @@ def _spawn_isolated_runner(
                 )
                 if cleanup_err is not None:
                     containment_error = cleanup_err
-            started = contained.gate_path.is_file()
+            started = contained.ack_path.is_file()
         containment_error = _collect_cleanup_error(
             contained, timed_out, timeout, containment_error
         )
-        if not started and not timed_out and containment_error is None:
-            containment_error = f"isolated runner failed before execution started (exit code {returncode})"
+        if not started and containment_error is None:
+            if timed_out:
+                containment_error = (
+                    f"isolated runner timed out after {timeout:.1f}s "
+                    "before execution started"
+                )
+            else:
+                containment_error = (
+                    "isolated runner failed before execution started "
+                    f"(exit code {returncode})"
+                )
     return _RunnerOutcome(
         timed_out=timed_out,
         returncode=returncode,
@@ -1599,6 +1628,18 @@ def run_example_block(
 
         outcome = json.loads(path_result.read_text(encoding="utf-8"))
         status = outcome.pop("status")
+        consumed_stdout_bytes = int(outcome.pop("captured_stdout_bytes", 0))
+        trailing_capture_stdout = ""
+        capture_stdout_path = path_ipc / "capture_stdout.bin"
+        if capture_stdout_path.is_file():
+            raw_capture = capture_stdout_path.read_bytes()
+            if len(raw_capture) > consumed_stdout_bytes:
+                trailing_capture_stdout = (
+                    raw_capture[consumed_stdout_bytes:]
+                    .decode("utf-8", errors="replace")
+                    .replace("\r\n", "\n")
+                )
+        trailing_stdout = trailing_capture_stdout + proc_stdout
         outcome["block_index"] = block.block_index
         if proc_stderr:
             outcome["stderr"] = (outcome.get("stderr") or "") + proc_stderr
@@ -1609,10 +1650,10 @@ def run_example_block(
             outcome["reason"] = (
                 f"isolated runner exited with code {run_outcome.returncode}"
             )
-        elif proc_stdout and status == "ok":
+        elif trailing_stdout and status == "ok":
             status = "mismatch"
             outcome["reason"] = "unexpected output written to stdout outside statements"
-            outcome["got"] = proc_stdout
+            outcome["got"] = trailing_stdout
         return status, outcome
 
 
@@ -1627,6 +1668,7 @@ def evaluate_text_block(
     python_executable: str | None = None,
 ) -> Iterator[dict]:
     """Extract and execute ``>>>`` blocks from a revision-backed text block."""
+    doctest_spans: list[tuple[int, int]] = []
     if ">>>" in text_block.text:
         try:
             blocks = extract_doctest_blocks(text_block)
@@ -1643,6 +1685,7 @@ def evaluate_text_block(
             )
             return
 
+        doctest_spans = [block.lines for block in blocks]
         for block in blocks:
             if not block.has_stated_output:
                 reason = "example has no stated output"
@@ -1677,9 +1720,12 @@ def evaluate_text_block(
             )
 
     if surface == "cli":
-        for shell_idx, (span, has_output) in enumerate(
-            extract_cli_shell_examples(text_block), start=1
-        ):
+        shell_examples = [
+            (span, has_output)
+            for span, has_output in extract_cli_shell_examples(text_block)
+            if not any(not (span[1] < ds or span[0] > de) for ds, de in doctest_spans)
+        ]
+        for shell_idx, (span, has_output) in enumerate(shell_examples, start=1):
             if has_output:
                 yield make_result(
                     revision_sha,
@@ -1709,8 +1755,14 @@ def evaluate_text_block(
 def exported_names(tree: ast.Module) -> list[str]:
     """Use explicit __all__, otherwise module-level definitions and re-exports."""
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets
+        if (
+            isinstance(node, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets)
+        ) or (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "__all__"
+            and node.value is not None
         ):
             try:
                 value = ast.literal_eval(node.value)
@@ -1722,8 +1774,10 @@ def exported_names(tree: ast.Module) -> list[str]:
                 return list(value)
     names: list[str] = []
     for node in tree.body:
-        if isinstance(node, ast.ImportFrom):
-            names.extend(alias.asname or alias.name for alias in node.names)
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            names.extend(
+                (alias.asname or alias.name.split(".", 1)[0]) for alias in node.names
+            )
         elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             names.append(node.name)
     return [name for name in names if not name.startswith("_")]
@@ -2015,6 +2069,23 @@ def _extract_option_decorator_blocks(
     unsupported: list[tuple[str, str, tuple[int, int]]],
 ) -> None:
     """Extract literal option help blocks containing ``>>>`` or flag dynamic kwargs."""
+    if "hidden" in kwargs:
+        hidden_node = kwargs["hidden"]
+        hidden_span = (
+            hidden_node.lineno,
+            hidden_node.end_lineno or hidden_node.lineno,
+        )
+        try:
+            hidden_val = ast.literal_eval(hidden_node)
+        except (ValueError, TypeError):
+            unsupported.append((
+                "cli-option-help-example",
+                "dynamic option hidden",
+                hidden_span,
+            ))
+            return
+        if hidden_val:
+            return
     if "help" in kwargs:
         val_node = kwargs["help"]
         span = (val_node.lineno, val_node.end_lineno or val_node.lineno)
@@ -2098,6 +2169,13 @@ def _write_json_atomic(path: str, data: dict[str, object]) -> None:
     os.replace(tmp_path, path)
 
 
+def _write_text_atomic(path: str, text: str) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp_path, path)
+
+
 def _load_cli_root(module_name: str, attr_name: str, origin_path: str | None):
     try:
         mod = importlib.import_module(module_name)
@@ -2117,7 +2195,8 @@ def main() -> None:
     payload_path = sys.argv[1]
     result_path = sys.argv[2]
     gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
-    expected_ppid = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else 0
+    ack_path = sys.argv[4] if len(sys.argv) > 4 else ""
+    expected_ppid = int(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else 0
     if gate_path:
         deadline = time.monotonic() + 5.0
         while not os.path.exists(gate_path):
@@ -2130,43 +2209,16 @@ def main() -> None:
     with open(payload_path, encoding="utf-8") as fh:
         payload = json.load(fh)
 
+    if ack_path:
+        _write_text_atomic(ack_path, "started\n")
+
     root = _load_cli_root(
         payload["module_name"], payload["attr_name"], payload.get("origin_path")
     )
-    commands_list = payload["commands"]
-    start_index = int(payload["start_index"])
-    results_dir = payload["results_dir"]
-    base_cwd = os.getcwd()
+    path = payload["command_path"]
     runner = CliRunner()
-
-    for idx in range(start_index, len(commands_list)):
-        path = commands_list[idx]
-        cmd_cwd = os.path.join(base_cwd, f"cmd_{idx}")
-        os.makedirs(cmd_cwd, exist_ok=True)
-        cmd_env = {
-            "HOME": cmd_cwd,
-            "USERPROFILE": cmd_cwd,
-            "XDG_CONFIG_HOME": cmd_cwd,
-            "XDG_CACHE_HOME": cmd_cwd,
-            "TMPDIR": cmd_cwd,
-            "TEMP": cmd_cwd,
-            "TMP": cmd_cwd,
-        }
-        orig_cwd = os.getcwd()
-        try:
-            os.chdir(cmd_cwd)
-            invocation = runner.invoke(
-                root, [*path, "--help"], terminal_width=240, env=cmd_env
-            )
-            exit_code = invocation.exit_code
-        finally:
-            os.chdir(orig_cwd)
-        _write_json_atomic(
-            os.path.join(results_dir, f"cmd_{idx}.json"),
-            {"index": idx, "exit_code": exit_code},
-        )
-
-    _write_json_atomic(result_path, {"status": "done"})
+    invocation = runner.invoke(root, [*path, "--help"], terminal_width=240)
+    _write_json_atomic(result_path, {"exit_code": invocation.exit_code})
 
 
 if __name__ == "__main__":
@@ -2217,207 +2269,76 @@ def _resolve_cli_probe_target(root: click.Command) -> _CliProbeTarget | None:
     return None
 
 
-def _drain_probe_results(
-    results_dir: Path,
-    next_idx: int,
-    total: int,
-    outcomes: dict[int, _CliProbeOutcome],
-) -> int:
-    """Consume any completed per-command probe result files in order."""
-    while next_idx < total:
-        res_file = results_dir / f"cmd_{next_idx}.json"
-        if not res_file.is_file():
-            break
-        data = json.loads(res_file.read_text(encoding="utf-8"))
-        exit_code = int(data["exit_code"])
-        outcomes[next_idx] = (
-            _CliProbeOutcome()
-            if exit_code == 0
-            else _CliProbeOutcome(reason=f"--help exited with code {exit_code}")
-        )
-        next_idx += 1
-    return next_idx
-
-
-def _run_cli_probe_batch(
-    exe: str,
+def _probe_cli_help_one(
     target: _CliProbeTarget,
-    command_paths: list[tuple[str, ...]],
-    start_index: int,
+    command_path: tuple[str, ...],
     timeout: float,
-    outcomes: dict[int, _CliProbeOutcome],
-) -> tuple[int, _RunnerOutcome]:
-    """Run one contained subprocess batch of CLI ``--help`` probes from ``start_index``."""
-    total = len(command_paths)
+    python_executable: str | None = None,
+) -> _CliProbeOutcome:
+    """Probe one command's ``--help`` in its own fresh contained subprocess."""
+    payload = {
+        "module_name": target.module_name,
+        "attr_name": target.attr_name,
+        "origin_path": target.origin_path,
+        "command_path": list(command_path),
+    }
     with (
         tempfile.TemporaryDirectory(prefix="suews-cli-probe-cwd-") as cwd_dir,
         tempfile.TemporaryDirectory(prefix="suews-cli-probe-ipc-") as ipc_dir,
     ):
-        path_cwd = Path(cwd_dir)
         path_ipc = Path(ipc_dir)
-        results_dir = path_ipc / "help_results"
-        results_dir.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "module_name": target.module_name,
-            "attr_name": target.attr_name,
-            "origin_path": target.origin_path,
-            "commands": [list(p) for p in command_paths],
-            "start_index": start_index,
-            "results_dir": str(results_dir),
-        }
+        path_result = path_ipc / "result.json"
         (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
-
-        next_idx = start_index
-        timed_out = False
-        returncode = 0
-        containment_error: str | None = None
-        started = False
-
-        with _start_contained_process(
-            exe, path_cwd, path_ipc, _CLI_HELP_PROBE_RUNNER
-        ) as contained:
-            if contained.startup_error is not None:
-                _terminate_process_tree(
-                    contained.proc,
-                    contained.win_job,
-                    contained.worker_pgid_path,
-                    contained.cleanup_done_path,
-                )
-                return next_idx, _RunnerOutcome(
-                    timed_out=False,
-                    returncode=contained.proc.returncode or 1,
-                    containment_error=contained.startup_error,
-                    started=False,
-                )
-
-            deadline = time.monotonic() + timeout
-            try:
-                while True:
-                    advanced = _drain_probe_results(
-                        results_dir, next_idx, total, outcomes
-                    )
-                    if advanced > next_idx:
-                        next_idx = advanced
-                        deadline = time.monotonic() + timeout
-                    rc = contained.proc.poll()
-                    if rc is not None:
-                        returncode = rc
-                        break
-                    if time.monotonic() >= deadline:
-                        timed_out = True
-                        break
-                    time.sleep(0.01)
-            finally:
-                cleanup_err = _terminate_process_tree(
-                    contained.proc,
-                    contained.win_job,
-                    contained.worker_pgid_path,
-                    contained.cleanup_done_path,
-                )
-                if cleanup_err is not None:
-                    containment_error = (
-                        f"--help timed out after {timeout:.1f}s; {cleanup_err}"
-                        if timed_out
-                        else cleanup_err
-                    )
-                started = contained.gate_path.is_file()
-            containment_error = _collect_cleanup_error(
-                contained, timed_out, timeout, containment_error
-            )
-
-        next_idx = _drain_probe_results(results_dir, next_idx, total, outcomes)
-        return next_idx, _RunnerOutcome(
-            timed_out=timed_out,
-            returncode=returncode,
-            containment_error=containment_error,
-            started=started,
+        run_outcome = _spawn_isolated_runner(
+            exe=python_executable or sys.executable,
+            path_cwd=Path(cwd_dir),
+            path_ipc=path_ipc,
+            timeout=timeout,
+            runner_source=_CLI_HELP_PROBE_RUNNER,
         )
+        if run_outcome.containment_error is not None:
+            return _CliProbeOutcome(
+                reason=run_outcome.containment_error, operational_failure=True
+            )
+        if run_outcome.timed_out:
+            return _CliProbeOutcome(reason=f"--help timed out after {timeout:.1f}s")
+        if run_outcome.returncode != 0:
+            return _CliProbeOutcome(
+                reason=f"--help exited with code {run_outcome.returncode}"
+            )
+        if not path_result.is_file():
+            return _CliProbeOutcome(
+                reason="--help exited without writing a probe result"
+            )
+        exit_code = int(
+            json.loads(path_result.read_text(encoding="utf-8"))["exit_code"]
+        )
+        if exit_code != 0:
+            return _CliProbeOutcome(reason=f"--help exited with code {exit_code}")
+        return _CliProbeOutcome()
 
 
-def _probe_cli_help_subprocess(
+def _probe_cli_help_commands(
     target: _CliProbeTarget,
     command_paths: list[tuple[str, ...]],
     timeout: float,
     python_executable: str | None = None,
-) -> dict[int, _CliProbeOutcome]:
-    """Probe ``--help`` in an isolated, timeout-bounded, contained subprocess."""
-    outcomes: dict[int, _CliProbeOutcome] = {}
-    exe = python_executable or sys.executable
-    total = len(command_paths)
-    start_index = 0
-
-    while start_index < total:
-        next_idx, batch = _run_cli_probe_batch(
-            exe, target, command_paths, start_index, timeout, outcomes
-        )
-        if next_idx >= total:
-            if batch.containment_error is not None:
-                outcomes[total - 1] = _CliProbeOutcome(
-                    reason=batch.containment_error, operational_failure=True
-                )
-            break
-
-        if batch.containment_error is not None:
-            if not batch.started:
-                for rem in range(next_idx, total):
-                    outcomes[rem] = _CliProbeOutcome(
-                        reason=batch.containment_error, operational_failure=True
-                    )
-                break
-            outcomes[next_idx] = _CliProbeOutcome(
-                reason=batch.containment_error, operational_failure=True
-            )
-            start_index = next_idx + 1
-        elif batch.timed_out:
-            outcomes[next_idx] = _CliProbeOutcome(
-                reason=f"--help timed out after {timeout:.1f}s"
-            )
-            start_index = next_idx + 1
-        elif not batch.started:
-            reason = (
-                "isolated --help probe failed before execution started "
-                f"(exit code {batch.returncode})"
-            )
-            for rem in range(next_idx, total):
-                outcomes[rem] = _CliProbeOutcome(
-                    reason=reason, operational_failure=True
-                )
-            break
-        else:
-            outcomes[next_idx] = _CliProbeOutcome(
-                reason=f"--help exited with code {batch.returncode}"
-            )
-            start_index = next_idx + 1
-
-    return outcomes
-
-
-def _probe_cli_help_inprocess(
-    root: click.Command,
-    path: tuple[str, ...],
-) -> _CliProbeOutcome:
-    """Fallback for purely in-memory Click objects with isolated temporary cwd."""
-    runner = CliRunner()
-    orig_cwd = os.getcwd()
-    with tempfile.TemporaryDirectory(prefix="suews-cli-probe-cwd-") as cwd_dir:
-        path_cwd = Path(cwd_dir)
-        try:
-            os.chdir(cwd_dir)
-            invocation = runner.invoke(
-                root,
-                [*path, "--help"],
-                terminal_width=240,
-                env=_isolated_env(path_cwd),
-            )
-        finally:
-            os.chdir(orig_cwd)
-    if invocation.exit_code != 0:
-        return _CliProbeOutcome(
-            reason=f"--help exited with code {invocation.exit_code}"
-        )
-    return _CliProbeOutcome()
+) -> list[_CliProbeOutcome]:
+    """Probe each command's ``--help`` in its own fresh contained subprocess."""
+    max_workers = min(4, len(command_paths), os.cpu_count() or 1)
+    if max_workers <= 1:
+        return [
+            _probe_cli_help_one(target, path, timeout, python_executable)
+            for path in command_paths
+        ]
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [
+            pool.submit(_probe_cli_help_one, target, path, timeout, python_executable)
+            for path in command_paths
+        ]
+        return [future.result() for future in futures]
 
 
 def cli_example_results(
@@ -2452,7 +2373,7 @@ def cli_example_results(
     ]
     probe_outcomes: dict[int, _CliProbeOutcome] = {}
     if probe_target is not None and resolved_indices:
-        sub_outcomes = _probe_cli_help_subprocess(
+        sub_outcomes = _probe_cli_help_commands(
             probe_target,
             [discovered[idx][0] for idx in resolved_indices],
             timeout=timeout,
@@ -2461,7 +2382,7 @@ def cli_example_results(
         for pos, disc_idx in enumerate(resolved_indices):
             probe_outcomes[disc_idx] = sub_outcomes[pos]
 
-    for idx, (path, _command, public, source) in enumerate(discovered):
+    for idx, (_path, _command, public, source) in enumerate(discovered):
         if source is None:
             yield make_result(
                 revision.sha,
@@ -2474,11 +2395,24 @@ def cli_example_results(
             )
             continue
 
-        outcome = (
-            probe_outcomes[idx]
-            if idx in probe_outcomes
-            else _probe_cli_help_inprocess(root, path)
-        )
+        if probe_target is None:
+            yield make_result(
+                revision.sha,
+                "cli",
+                source,
+                public,
+                "cli-help-example",
+                "unsupported",
+                {
+                    "reason": (
+                        "command root cannot be loaded in an isolated subprocess "
+                        "for --help probing"
+                    )
+                },
+            )
+            continue
+
+        outcome = probe_outcomes[idx]
         if outcome.reason is not None:
             detail: dict[str, object] = {"reason": outcome.reason}
             if outcome.operational_failure:

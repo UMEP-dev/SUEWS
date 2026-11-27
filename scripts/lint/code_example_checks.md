@@ -2,9 +2,9 @@
 
 `check_code_examples.py` reports the second, executable slice of #2168.
 It never edits prose or fails a build because of example findings.
-Operational failures (such as an unreadable Git revision, Windows Job Object
-containment failure, or process-group cleanup failure) still exit non-zero
-while preserving diagnostic details in any requested report files.
+Startup errors (such as an unreadable Git revision) raise and exit non-zero
+immediately; containment or cleanup operational failures during execution also
+exit non-zero while preserving diagnostic details in any requested report files.
 Nothing is wired into CI.
 
 Run in a fresh virtual environment with the package built from the target
@@ -33,15 +33,15 @@ version and build commit are recorded separately alongside
    are excluded before checks run and summarised by count. Each defining
    declaration is checked once.
 2. **CLI `--help` text**: walk all registered `suews` Click groups and leaf
-   commands. Verify `--help` exits cleanly on the installed CLI in a
-   timeout-bounded, isolated, supervised subprocess with per-command empty
-   working directories (falling back to an isolated-cwd `CliRunner` only for
-   non-importable in-memory Click objects), then extract literal `help=` /
-   `epilog=` decorator strings (or the callback docstring when `help=` is
-   absent, truncated at Click's `\f` marker) and literal option `help=` strings
-   containing `>>>` from the Git revision AST. Dynamic non-literal command
-   help is reported as `unsupported` rather than guessed from the installed
-   command.
+   commands. Verify each command's `--help` exits cleanly in its own fresh,
+   timeout-bounded, isolated, supervised subprocess with an empty working
+   directory and scrubbed environment (non-importable in-memory Click roots are
+   reported as `unsupported` rather than invoked in-process), then extract
+   literal `help=` / `epilog=` decorator strings (or the callback docstring
+   when `help=` is absent, truncated at Click's `\f` marker) and literal
+   visible option `help=` strings containing `>>>` from the Git revision AST.
+   Dynamic non-literal command help is reported as `unsupported` rather than
+   guessed from the installed command.
 
 Within each extracted text block, `doctest.DocTestParser` parses `>>>`
 examples into contiguous blocks separated by non-blank prose.

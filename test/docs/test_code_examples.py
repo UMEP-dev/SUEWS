@@ -62,6 +62,18 @@ def _init_git_repo(repo_dir: Path, files: dict[str, str]) -> str:
     ).strip()
 
 
+def _load_fixture_module(
+    file_path: Path, module_name: str, monkeypatch: pytest.MonkeyPatch
+) -> ModuleType:
+    """Load a file-backed fixture module into ``sys.modules`` for subprocess probing."""
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, module_name, mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def test_python_worked_case_outcomes_and_isolation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -548,7 +560,9 @@ def background_descendant_example():
     _assert_pid_exited(int(normal_pid_file.read_text(encoding="utf-8").strip()))
 
 
-def test_cli_worked_case_help_examples_and_exclusions(tmp_path: Path):
+def test_cli_worked_case_help_examples_and_exclusions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Cover CLI --help pass, mismatch, missing prerequisite, help=None and dynamic help."""
     source = '''\
 import click
@@ -630,11 +644,13 @@ def dynamic():
     """Dynamic command help must abstain as unsupported."""
 '''
     sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_cli.py": source})
-    module = ModuleType("supy.cmd.fixture_cli")
-    exec(compile(source, "fixture_cli.py", "exec"), module.__dict__)
-
-    # Mutate installed help text to confirm revision source is used instead.
-    module.root_cli.help = "Installed-only text\n>>> 1 + 1\n999\n"
+    cli_path = tmp_path / "src/supy/cmd/fixture_cli.py"
+    # Mutate installed/working-tree help text to confirm revision source is used instead.
+    cli_path.write_text(
+        source + '\nroot_cli.help = "Installed-only text\\n>>> 1 + 1\\n999\\n"\n',
+        encoding="utf-8",
+    )
+    module = _load_fixture_module(cli_path, "supy.cmd.fixture_cli", monkeypatch)
 
     revision = checks.Revision(tmp_path, sha)
     report = checks.build_report(
@@ -1037,7 +1053,7 @@ def orphan_grandchild_example():
 
 
 def test_cli_unpacked_decorator_kwargs_abstain_without_docstring_fallback(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Dynamic ``**kwargs`` on Click decorators report unsupported instead of guessing."""
     source = '''\
@@ -1072,12 +1088,12 @@ def unpacked_literal():
     """
 '''
     sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_kwargs_cli.py": source})
-    ns: dict[str, object] = {}
-    exec(compile(source, "fixture_kwargs_cli.py", "exec"), ns)
-    root_cli = ns["root_cli"]
-    for cmd in root_cli.commands.values():
-        cmd.callback.__module__ = "supy.cmd.fixture_kwargs_cli"
-    root_cli.callback.__module__ = "supy.cmd.fixture_kwargs_cli"
+    mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_kwargs_cli.py",
+        "supy.cmd.fixture_kwargs_cli",
+        monkeypatch,
+    )
+    root_cli = mod.root_cli
 
     revision = checks.Revision(tmp_path, sha)
     results = list(checks.cli_example_results(revision, root_cli, prog_name="fixture"))
@@ -1410,7 +1426,7 @@ def after_hang():
 
 
 def test_main_module_identity_future_flags_and_click_formfeed_truncation(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Cover dedicated __main__ identity, __future__ flags, and Click \\f truncation."""
     py_source = '''\
@@ -1487,8 +1503,11 @@ def docstring_help():
     py_mod = ModuleType("supy")
     exec(compile(py_source, "fixture_minors_py.py", "exec"), py_mod.__dict__)
 
-    cli_mod = ModuleType("supy.cmd.fixture_ff_cli")
-    exec(compile(cli_source, "fixture_minors_cli.py", "exec"), cli_mod.__dict__)
+    cli_mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_ff_cli.py",
+        "supy.cmd.fixture_ff_cli",
+        monkeypatch,
+    )
 
     revision = checks.Revision(tmp_path, sha)
     report = checks.build_report(
@@ -1513,3 +1532,368 @@ def docstring_help():
     ]
     assert len(doc_findings) == 1
     assert doc_findings[0]["status"] == "ok"
+
+
+def test_inmemory_cli_root_abstains_without_inprocess_invocation(tmp_path: Path):
+    """Non-importable in-memory Click roots must never run --help in-process."""
+    marker = tmp_path / "invoked_inprocess.txt"
+    source = f'''\
+from pathlib import Path
+import time
+
+import click
+
+
+class HostileInMemoryCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        Path({marker.as_posix()!r}).write_text("ran", encoding="utf-8")
+        time.sleep(60)
+        super().format_help(ctx, formatter)
+
+
+@click.group()
+def root_cli():
+    """Root CLI."""
+
+
+@root_cli.command(cls=HostileInMemoryCommand)
+def hostile():
+    """Never invoked in-process.
+
+    >>> 1 + 1
+    2
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_inmem_cli.py": source})
+    mod = ModuleType("supy.cmd.fixture_inmem_cli")
+    exec(compile(source, "fixture_inmem_cli.py", "exec"), mod.__dict__)
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision, cli_root=mod.root_cli, prog_name="fixture", timeout=0.5
+    )
+
+    assert not marker.exists()
+    assert report["counts"]["unsupported"] == 2
+    assert all(
+        "cannot be loaded in an isolated subprocess" in r["detail"]["reason"]
+        for r in report["results"]
+    )
+
+
+def test_cli_help_probes_isolate_state_tempdir_and_descendants_per_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Each CLI --help probe gets a fresh interpreter, tempdir and process group."""
+    child_pid_file = tmp_path / "probe_cmd1_child.pid"
+    source = f'''\
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+import click
+
+MUTATED = False
+
+
+class DirtyCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        global MUTATED
+        MUTATED = True
+        (Path(tempfile.gettempdir()) / "leaked_temp.txt").write_text(
+            "dirty", encoding="utf-8"
+        )
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        Path({child_pid_file.as_posix()!r}).write_text(
+            str(child.pid), encoding="utf-8"
+        )
+        super().format_help(ctx, formatter)
+
+
+class CleanCheckCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        if MUTATED:
+            raise click.ClickException("module global leaked across --help probes")
+        if (Path(tempfile.gettempdir()) / "leaked_temp.txt").exists():
+            raise click.ClickException("tempdir leaked across --help probes")
+        super().format_help(ctx, formatter)
+
+
+@click.group()
+def root_cli():
+    """Root CLI."""
+
+
+@root_cli.command(cls=DirtyCommand)
+def first():
+    """Mutates global state, writes tempdir, and spawns a child.
+
+    >>> 1 + 1
+    2
+    """
+
+
+@root_cli.command(cls=CleanCheckCommand)
+def second():
+    """Verifies clean module globals and tempdir in its own fresh subprocess.
+
+    >>> 2 + 3
+    5
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_iso_cli.py": source})
+    mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_iso_cli.py",
+        "supy.cmd.fixture_iso_cli",
+        monkeypatch,
+    )
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision, cli_root=mod.root_cli, prog_name="fixture", timeout=5.0
+    )
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    assert by_obj["fixture first"]["status"] == "ok"
+    assert by_obj["fixture second"]["status"] == "ok"
+    assert child_pid_file.is_file()
+    _assert_pid_exited(int(child_pid_file.read_text(encoding="utf-8").strip()))
+
+
+def test_cli_help_probe_catches_shutdown_hang_and_atexit_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Help probes require clean process termination, not just a written result file."""
+    source = '''\
+import atexit
+import os
+import threading
+import time
+
+import click
+
+
+class ShutdownHangCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        threading.Thread(target=time.sleep, args=(60,), daemon=False).start()
+        super().format_help(ctx, formatter)
+
+
+class AtexitFailCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        atexit.register(os._exit, 7)
+        super().format_help(ctx, formatter)
+
+
+@click.group()
+def root_cli():
+    """Root CLI."""
+
+
+@root_cli.command(cls=ShutdownHangCommand)
+def shutdown_hang():
+    """Leaves a non-daemon thread alive past --help completion.
+
+    >>> 1 + 1
+    2
+    """
+
+
+@root_cli.command(cls=AtexitFailCommand)
+def atexit_fail():
+    """Registers an atexit hook that terminates abnormally.
+
+    >>> 1 + 1
+    2
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/cmd/fixture_shutdown_cli.py": source})
+    mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_shutdown_cli.py",
+        "supy.cmd.fixture_shutdown_cli",
+        monkeypatch,
+    )
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision, cli_root=mod.root_cli, prog_name="fixture", timeout=0.8
+    )
+    by_obj = {r["object"]: r for r in report["results"]}
+
+    hang = by_obj["fixture shutdown-hang"]
+    assert hang["status"] == "unsupported"
+    assert "timed out" in hang["detail"]["reason"]
+
+    atexit_res = by_obj["fixture atexit-fail"]
+    assert atexit_res["status"] == "unsupported"
+    assert "exited with code 7" in atexit_res["detail"]["reason"]
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX shell script executable used to test post-gate/pre-ack failures",
+)
+def test_pre_acknowledgement_startup_failure_and_timeout_are_operational(
+    tmp_path: Path,
+):
+    """Failures or timeouts before worker acknowledgement are operational failures."""
+    source = '''\
+__all__ = ["simple_example"]
+
+
+def simple_example():
+    """Simple example.
+
+    >>> 1 + 1
+    2
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_ack.py", "exec"), module.__dict__)
+    revision = checks.Revision(tmp_path, sha)
+
+    # 1. Worker crashes AFTER supervisor writes gate file, BEFORE writing ack file.
+    post_gate_crash = tmp_path / "post_gate_crash.sh"
+    post_gate_crash.write_text(
+        "#!/bin/sh\n"
+        'if [ "$3" = "-c" ]; then\n'
+        f'  exec "{sys.executable}" "$@"\n'
+        "fi\n"
+        "exit 19\n",
+        encoding="utf-8",
+    )
+    post_gate_crash.chmod(0o755)
+    crash_report = checks.build_report(
+        revision=revision,
+        module=module,
+        python_executable=str(post_gate_crash),
+        timeout=5.0,
+    )
+    assert crash_report["summary"]["blocks_executed"] == 0
+    assert crash_report["summary"]["operational_failures"] == 1
+    assert crash_report["operational_failures"][0]["detail"]["started"] is False
+    assert (
+        "before execution started"
+        in crash_report["operational_failures"][0]["detail"]["reason"]
+    )
+
+    # 2. Worker hangs BEFORE writing ack file -> operational timeout, not example timeout.
+    pre_ack_hang = tmp_path / "pre_ack_hang.sh"
+    pre_ack_hang.write_text(
+        "#!/bin/sh\n"
+        'if [ "$3" = "-c" ]; then\n'
+        f'  exec "{sys.executable}" "$@"\n'
+        "fi\n"
+        "sleep 60\n",
+        encoding="utf-8",
+    )
+    pre_ack_hang.chmod(0o755)
+    hang_report = checks.build_report(
+        revision=revision,
+        module=module,
+        python_executable=str(pre_ack_hang),
+        timeout=0.5,
+    )
+    assert hang_report["summary"]["blocks_executed"] == 0
+    assert hang_report["summary"]["operational_failures"] == 1
+    assert hang_report["operational_failures"][0]["detail"]["started"] is False
+    assert (
+        "timed out" in hang_report["operational_failures"][0]["detail"]["reason"]
+        and "before execution started"
+        in hang_report["operational_failures"][0]["detail"]["reason"]
+    )
+
+
+def test_annotated_all_hidden_option_shell_overlap_and_cleanup_stdout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Cover annotated __all__, hidden Click options, doctest/shell overlap, and trailing stdout."""
+    py_source = '''\
+__all__: list[str] = ["annotated_export", "trailing_sigterm_stdout"]
+
+
+def annotated_export():
+    """Exported via annotated __all__.
+
+    >>> 5 + 5
+    10
+    """
+
+
+def trailing_sigterm_stdout():
+    r"""Child writes to inherited stdout inside its SIGTERM handler during cleanup.
+
+    >>> import subprocess, sys
+    >>> code = (
+    ...     "import signal, sys, time; "
+    ...     "signal.signal(signal.SIGTERM, lambda *a: (sys.stdout.write('cleanup-leak' + chr(10)), sys.stdout.flush(), sys.exit(0))); "
+    ...     "sys.stderr.write('ready' + chr(10)); sys.stderr.flush(); "
+    ...     "time.sleep(60)"
+    ... )
+    >>> p = subprocess.Popen([sys.executable, "-c", code], stderr=subprocess.PIPE)
+    >>> p.stderr.readline()
+    b'ready\\n'
+    >>> 1 + 1
+    2
+    """
+'''
+    cli_source = '''\
+import click
+
+
+@click.group()
+def root_cli():
+    """Root CLI."""
+
+
+@root_cli.command()
+@click.option("--visible", help="Visible option:\\n\\n>>> 2 + 2\\n4")
+@click.option("--secret", hidden=True, help="Hidden option:\\n\\n>>> 1 / 0\\n0")
+def opt_cmd(visible, secret):
+    """Doctest output containing a shell prompt must not be double-counted.
+
+    >>> print("$ suews run config.yml")
+    $ suews run config.yml
+    """
+'''
+    sha = _init_git_repo(
+        tmp_path,
+        {
+            "src/supy/__init__.py": py_source,
+            "src/supy/cmd/fixture_polish_cli.py": cli_source,
+        },
+    )
+    py_mod = ModuleType("supy")
+    exec(compile(py_source, "fixture_polish_py.py", "exec"), py_mod.__dict__)
+    cli_mod = _load_fixture_module(
+        tmp_path / "src/supy/cmd/fixture_polish_cli.py",
+        "supy.cmd.fixture_polish_cli",
+        monkeypatch,
+    )
+
+    revision = checks.Revision(tmp_path, sha)
+    report = checks.build_report(
+        revision=revision,
+        module=py_mod,
+        cli_root=cli_mod.root_cli,
+        prog_name="fixture",
+        timeout=5.0,
+    )
+    by_key = {(r["object"], r["check"]): r for r in report["results"]}
+
+    assert by_key["supy.annotated_export", "docstring-example:1"]["status"] == "ok"
+
+    if os.name != "nt":
+        trailing = by_key["supy.trailing_sigterm_stdout", "docstring-example:1"]
+        assert trailing["status"] == "mismatch"
+        assert "cleanup-leak" in trailing["detail"]["got"]
+
+    opt_findings = [r for r in report["results"] if r["object"] == "fixture opt"]
+    assert len(opt_findings) == 2
+    assert all(r["status"] == "ok" for r in opt_findings)
+    assert not any(
+        item["object"] == "fixture opt"
+        for item in report["excluded_out_of_scope"]["items"]
+    )

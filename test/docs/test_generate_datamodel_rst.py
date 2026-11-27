@@ -799,7 +799,7 @@ def test_parameter_example_catalogue_covers_reliable_scalar_tables() -> None:
 
     # ASSERT
     assert len(index) == 87
-    assert len(examples) == 483
+    assert len(examples) == 481
     assert sheets == {
         "Albedo",
         "Biogen CO2",
@@ -998,6 +998,53 @@ def test_parameter_example_catalogue_excludes_unreferenced_database_records() ->
         ]
         == "J11"
     )
+    for rid in (45240061, 45240062, 45240063):
+        coef1 = _by_record_id("StorageDrainParams", "drain_coef_1", rid)
+        coef2 = _by_record_id("StorageDrainParams", "drain_coef_2", rid)
+        assert coef1["reference"]["docs_citation_key"] == "J11"
+        assert coef2["reference"]["docs_citation_key"] == "J11"
+        assert coef1["selector"] == {"name": "drain_eq", "value": 2}
+        assert coef2["selector"] == {"name": "drain_eq", "value": 2}
+
+    module = _load_generator_module()
+    drain_fields = {
+        field["name"]: field
+        for field in module.ModelDocExtractor().extract_all_models()["models"][
+            "StorageDrainParams"
+        ]["fields"]
+    }
+    drain_coef_2_rendered = "\n".join(
+        module.RSTGenerator({})._format_parameter_examples(drain_fields["drain_coef_2"])
+    )
+    for surface, desc in (
+        ("evergreen tree", "EvergreenTree - Helsinki, Zurich, Beijing"),
+        ("deciduous tree", "Deciduous Tree - Helsinki, Zurich, Beijing"),
+        ("grass", "Grass - Helsinki, Zurich, Beijing"),
+    ):
+        expected_row = (
+            "      * - ``1.71`` |m^2| |kg^-1|\n"
+            f"        - London; {surface}; {desc}; drain_eq=2\n"
+            "        - :cite:t:`J11`"
+        )
+        assert expected_row in drain_coef_2_rendered
+        assert f"{desc}; drain_eq=3" not in drain_coef_2_rendered
+
+    lai_type_rids = {
+        rid
+        for example in get_parameter_examples("LAIParams", "lai_type")
+        for rid in example["source"]["record_ids"]
+    }
+    assert not lai_type_rids & {31240044, 31240045}
+    for rid, expected_min, expected_max in (
+        (31240044, 4, 5.1),
+        (31240045, 1, 5.5),
+    ):
+        lai_min = _by_record_id("LAIParams", "lai_min", rid)
+        lai_max = _by_record_id("LAIParams", "lai_max", rid)
+        assert lai_min["value"] == pytest.approx(expected_min)
+        assert lai_max["value"] == pytest.approx(expected_max)
+        assert lai_min["reference"]["docs_citation_key"] == "J11"
+        assert lai_max["reference"]["docs_citation_key"] == "J11"
     assert (
         _by_record_id("GrassProperties", "max_conductance", 33240002)["reference"][
             "docs_citation_key"

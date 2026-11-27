@@ -1690,7 +1690,7 @@
           ],
           "reference_id": "90240054",
           "values": {
-            "DrainageEq": 3,
+            "DrainageEq": 2,
             "DrainageCoef1": 0.013,
             "DrainageCoef2": 1.71
           },
@@ -1709,7 +1709,7 @@
           ],
           "reference_id": "90240054",
           "values": {
-            "DrainageEq": 3,
+            "DrainageEq": 2,
             "DrainageCoef1": 0.013,
             "DrainageCoef2": 1.71
           },
@@ -1728,7 +1728,7 @@
           ],
           "reference_id": "90240054",
           "values": {
-            "DrainageEq": 3,
+            "DrainageEq": 2,
             "DrainageCoef1": 0.013,
             "DrainageCoef2": 1.71
           },
@@ -2331,7 +2331,6 @@
           ],
           "reference_id": "90240054",
           "values": {
-            "LAIEq": 1,
             "LAIMin": 4,
             "LAIMax": 5.1
           },
@@ -2350,7 +2349,6 @@
           ],
           "reference_id": "90240054",
           "values": {
-            "LAIEq": 1,
             "LAIMin": 1,
             "LAIMax": 5.5
           },

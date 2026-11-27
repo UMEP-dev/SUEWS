@@ -220,7 +220,7 @@
         },
         "popprof_24hr": {
           "$ref": "#/$defs/HourlyProfile",
-          "description": "24-hour profile of population density",
+          "description": "24-hour population transition profile on the kernel's [1.0, 2.0] scale (1.0 = night, 2.0 = day, values in between = transition; read raw without normalisation). Defaults to uniform 1.0 (night level).",
           "display_name": "Population Profile (24hr)",
           "unit": "1"
         },
@@ -2533,7 +2533,7 @@
               "type": "null"
             }
           ],
-          "description": "24-hour profile of human activity",
+          "description": "24-hour human activity transition profile on the kernel's [1.0, 2.0] scale (1.0 = night, 2.0 = day, values in between = transition; read raw without normalisation). Defaults to uniform 1.0 (night level).",
           "display_name": "Human Activity Profile (24hr)",
           "unit": "1"
         },
@@ -4780,7 +4780,7 @@
       "type": "object"
     },
     "HourlyProfile": {
-      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A profile left out of the\nconfiguration takes a uniform 1/24 in both sets.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.",
+      "description": "24-hour profile for diurnal variations.\n\nHolds two sets of 24 hourly values, one for working days\n(``working_day``) and one for holidays (``holiday``). Each set is a\nmapping keyed by the hour, ``\"1\"`` to ``\"24\"``, where ``\"1\"`` is the\nfirst hour of the day, starting at 00:00; all 24 keys must be present.\nThe two sets are given together. A generic profile left out of the\nconfiguration takes a uniform 1/24 in both sets; ``popprof_24hr`` and\n``profile_human_activity_24hr`` instead default to a uniform 1.0 (night\nlevel) on their ``[1.0, 2.0]`` transition scale.\n\nUsed by the snow, irrigation, anthropogenic-heat, population, traffic\nand human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\nThe 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\nsubclasses instead.\n\nSee :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.",
       "properties": {
         "working_day": {
           "anyOf": [
@@ -14007,7 +14007,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev23. Compute modelled LAI from daily GDD/SDD increments within fixed growth and senescence seasons (reset before accumulation on DOY 15 and DOY 196, swapped in the southern hemisphere), gating leaf-out and leaf-off onset on gdd_base/sdd_base (#2346, #2066, #2078). Legacy compatibility fields gdd_full, sdd_full, and lai_type remain accepted prior to removal but are ignored by the kernel, and the sample configuration adopts retuned daily-increment rates and thresholds (base_temperature=6.5, base_temperature_senescence=22.0, gdd_base=120.0, sdd_base=-240.0, lai_power=(-0.02, 0.04, -1.0, 0.02), initial sdd_id=0.0) while preserving per-surface lai_min/lai_max envelopes. The (2026.6.dev22 -> 2026.6.dev23) migration preserves existing user parameters unchanged and logs an advisory for sites using modelled LAI so users know to retune legacy lai_power coefficients and review initial sdd_id.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev24. Align population (popprof_24hr) and human-activity (profile_human_activity_24hr) 24-hour profiles with the kernel's raw [1.0, 2.0] night-to-day transition scale (1.0 = night, 2.0 = day, values in between = transition; #2043). Omitted fields now default to uniform 1.0 (night level) instead of 1/24, values outside [1.0, 2.0] are rejected by both the Pydantic data model and the Rust bridge, and shipped configurations replace the off-scale London QF profile (legacy 661/662) with the canonical [1.0, 2.0] legacy population (801/802) and UK human-activity (55663/55664) profiles. The (2026.6.dev23 -> 2026.6.dev24) migration preserves profiles already in [1.0, 2.0], upgrades legacy uniform 1/24 defaults to uniform 1.0, replaces the known shipped off-scale 661/662 profiles with 801/802 and 55663/55664 with explicit logs, and raises YamlUpgradeError for custom out-of-range profiles so users rescale them explicitly.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -14060,20 +14060,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev23",
+  "title": "SUEWS Configuration Schema v2026.6.dev24",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev23.json",
-  "version": "2026.6.dev23",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev24.json",
+  "version": "2026.6.dev24",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev23"
+    "schema_version": "2026.6.dev24"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev23",
+      "schema_version": "2026.6.dev24",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

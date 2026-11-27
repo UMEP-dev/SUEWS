@@ -2698,8 +2698,18 @@ class StebbsProperties(DataModelBase):
         json_schema_extra={
             "unit": "m3",
             "display_name": "Hot Water Volume",
-            "default_description": "Missing default explanation.",
-            "range_description": "Missing range explanation.",
+            "default_description": (
+                "Nominal positive baseline (0.05 m3, 50 L) representing domestic hot "
+                "water held in use in building vessels (not derived from a single "
+                "published reference); set according to the modelled building or "
+                "archetype."
+            ),
+            "range_description": (
+                "Value must be strictly greater than zero (> 0.0 m3); STEBBS divides "
+                "by this volume when updating the in-use hot-water temperature from "
+                "vessel heat exchange and tank-water mixing, and no upper bound is "
+                "enforced so it can scale with the modelled building or archetype."
+            ),
         },
         gt=0.0,
     )

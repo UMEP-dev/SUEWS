@@ -1555,3 +1555,47 @@ def test_generated_conditional_unit_rst_and_committed_schema_match(tmp_path) -> 
         assert "unit" not in committed_prop
         assert committed_prop["conditional_unit"] == live_prop["conditional_unit"]
         assert committed_prop["description"] == live_prop["description"]
+
+
+def test_stebbs_volume_hot_water_metadata_has_no_placeholders_and_matches_schema(
+    generated_reference,
+) -> None:
+    """STEBBS volume_hot_water carries real descriptions synced with schema.json."""
+    # ARRANGE
+    output_dir, _ = generated_reference
+    committed_schema = json.loads(
+        (
+            PROJECT_ROOT / "docs" / "source" / "inputs" / "tables" / "schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    live_schema = SUEWSConfig.model_json_schema()
+
+    # ACT
+    live_prop = live_schema["$defs"]["StebbsProperties"]["properties"][
+        "volume_hot_water"
+    ]
+    committed_prop = committed_schema["$defs"]["StebbsProperties"]["properties"][
+        "volume_hot_water"
+    ]
+    stebbs_page = (output_dir / "stebbsproperties.rst").read_text(encoding="utf-8")
+    volume_block = _option_blocks(stebbs_page)["volume_hot_water"]
+
+    # ASSERT: no placeholder explanations remain in live schema or generated RST
+    live_schema_text = json.dumps(live_schema)
+    assert "Missing default explanation." not in live_schema_text
+    assert "Missing range explanation." not in live_schema_text
+    for page in sorted(output_dir.glob("*.rst")):
+        text = page.read_text(encoding="utf-8")
+        assert "Missing default explanation." not in text
+        assert "Missing range explanation." not in text
+
+    # ASSERT: volume_hot_water descriptions are present, ASCII, rendered, and synced
+    for key, label in (
+        ("default_description", ":Default Description:"),
+        ("range_description", ":Range Description:"),
+    ):
+        value = live_prop[key]
+        assert isinstance(value, str) and value.strip()
+        assert value.isascii()
+        assert committed_prop[key] == value
+        assert f"{label} {value}" in volume_block

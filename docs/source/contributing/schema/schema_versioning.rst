@@ -30,7 +30,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev21"`` describes the shape of the configuration
+``schema_version: "2026.6.dev23"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -43,7 +43,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev21"
+   schema_version: "2026.6.dev23"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -61,7 +61,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number -- ``2026.6.dev21`` comes after ``2026.6.dev20``,
+as a floating-point number -- ``2026.6.dev23`` comes after ``2026.6.dev22``,
+which comes after ``2026.6.dev21``, which comes after ``2026.6.dev20``,
 which comes after ``2026.6.dev19``,
 which comes after ``2026.6.dev18``,
 which comes after ``2026.6.dev17``,
@@ -196,7 +197,25 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev22** (current development version)
+**Schema 2026.6.dev23** (current development version)
+
+   Computes modelled LAI from daily GDD/SDD increments within fixed growth and
+   senescence seasons (reset before accumulation on DOY 15 and DOY 196,
+   swapped in the southern hemisphere), gating leaf growth and leaf off on
+   ``gdd_base`` and ``sdd_base`` (#2346, #2066, #2078). Legacy compatibility
+   fields ``gdd_full``, ``sdd_full``, and ``lai_type`` remain accepted prior
+   to removal but are ignored by the kernel, and the sample configuration
+   adopts retuned daily-increment rates and thresholds
+   (``base_temperature: 6.5``, ``base_temperature_senescence: 22.0``,
+   ``gdd_base: 120.0``, ``sdd_base: -240.0``,
+   ``lai_power: (-0.02, 0.04, -1.0, 0.02)``, initial ``sdd_id: 0.0``) while
+   preserving per-surface ``lai_min`` / ``lai_max`` envelopes. Migration
+   preserves existing user values unchanged and logs an advisory for sites
+   using modelled LAI so users know to retune legacy ``lai_power``
+   coefficients and review initial ``sdd_id``. See
+   :ref:`schema_dev23_lai_daily_increment`.
+
+**Schema 2026.6.dev22** (development)
 
    Splits facet-specific SPARTACUS optical properties out of
    ``BuildingLayer`` so ``roof_albedo_dir_mult_fact`` lives exclusively on

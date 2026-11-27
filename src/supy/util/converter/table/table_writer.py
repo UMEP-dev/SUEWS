@@ -423,11 +423,53 @@ def df_state_to_tables(df_state: pd.DataFrame, template_dir, out_dir) -> Path:
         total += _fill_from_df_state(store, df_state, grid)
     store.flush()
 
+    _warn_unrepresentable_lai_thresholds(df_state)
     total += _update_nml_from_df(out_dir, df_state)
     logger_supy.info(
         f"df_state_to_tables: wrote {total} input cells into {table_dir}"
     )
     return table_dir
+
+
+def _warn_unrepresentable_lai_thresholds(df_state: pd.DataFrame) -> None:
+    """Warn explicitly when non-zero gdd_base/sdd_base cannot be exported to legacy tables."""
+    dropped: list[str] = []
+    for var in ("gdd_base", "sdd_base"):
+        non_zero: list[tuple[object, int, float]] = []
+        for grid in df_state.index:
+            for veg_idx in range(3):
+                val = _df_get(df_state, grid, var, f"({veg_idx},)")
+                if val is None:
+                    continue
+                fv = float(val)
+                if fv != 0.0:
+                    non_zero.append((grid, veg_idx, fv))
+        if non_zero:
+            dropped.append(f"{var}={non_zero}")
+    if dropped:
+        logger_supy.warning(
+            "df_state_to_tables: legacy 2025a SUEWS_Veg.txt tables have no "
+            "gdd_base/sdd_base columns; non-zero LAI onset thresholds "
+            f"({'; '.join(dropped)}) cannot be exported and will reload as 0.0 "
+            "(use YAML configuration to preserve daily-increment onset thresholds)."
+        )
+
+
+def _warn_heterogeneous_nml_degree_days(df_state: pd.DataFrame, grid) -> None:
+    """Warn explicitly when per-surface gdd_id/sdd_id collapse into scalar namelist keys."""
+    for var, nml_key in (("gdd_id", "gdd_1_0"), ("sdd_id", "gdd_2_0")):
+        vals = []
+        for veg_idx in range(3):
+            v = _df_get(df_state, grid, var, f"({veg_idx},)")
+            if v is not None:
+                vals.append(float(v))
+        if len(vals) > 1 and any(v != vals[0] for v in vals[1:]):
+            logger_supy.warning(
+                f"df_state_to_tables: legacy InitialConditions namelist stores only "
+                f"scalar {nml_key}; heterogeneous per-surface {var} values {vals} "
+                f"(evetr, dectr, grass) collapse to {vals[0]} on export and broadcast "
+                "to all three vegetation surfaces on reload."
+            )
 
 
 # InitialConditions keys whose df var the name conventions cannot derive:
@@ -439,6 +481,8 @@ _NML_KEY_MAP = {
     "albdectr0": ("albdectr_id", "0"),
     "albevetr0": ("albevetr_id", "0"),
     "albgrass0": ("albgrass_id", "0"),
+    "gdd_1_0": ("gdd_id", "(0,)"),
+    "gdd_2_0": ("sdd_id", "(0,)"),
     "laiinitialevetr": ("lai_id", "(0,)"),
     "laiinitialdectr": ("lai_id", "(1,)"),
     "laiinitialgrass": ("lai_id", "(2,)"),
@@ -456,9 +500,17 @@ _NML_KEY_MAP = {
 # legacy reader accepts them. soilstorewaterstate is deliberately excluded --
 # the 2016a declaration does not include it.
 _NML_ADD_IF_MISSING = {
+    "gdd_1_0": ("gdd_id", "(0,)"),
+    "gdd_2_0": ("sdd_id", "(0,)"),
     "porosity0": ("porosity_id", "0"),
     "snowalb0": ("snowalb", "0"),
 }
+
+
+# Real-valued InitialConditions keys that must never be rounded to int even
+# when a legacy template spells their literal without a decimal point (e.g.
+# ``GDD_1_0=0``, ``GDD_2_0=-450`` in 2016a).
+_NML_FLOAT_KEYS = frozenset(_NML_KEY_MAP) | frozenset(_NML_ADD_IF_MISSING)
 
 
 def _update_nml_from_df(out_dir: Path, df_state: pd.DataFrame) -> int:
@@ -480,6 +532,7 @@ def _update_nml_from_df(out_dir: Path, df_state: pd.DataFrame) -> int:
             "df_state_to_tables: namelists are global; using grid "
             f"{grid} of {len(df_state.index)} for nml-backed values"
         )
+    _warn_heterogeneous_nml_degree_days(df_state, grid)
     written = 0
     for path in out_dir.rglob("*.nml"):
         name = path.name.lower()
@@ -502,7 +555,7 @@ def _update_nml_from_df(out_dir: Path, df_state: pd.DataFrame) -> int:
                     value = _df_get(df_state, grid, cand, index)
                     if value is None:
                         continue
-                    if isinstance(current, int):
+                    if isinstance(current, int) and key not in _NML_FLOAT_KEYS:
                         new = round(float(value))
                     else:
                         new = float(value)

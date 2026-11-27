@@ -166,8 +166,11 @@ For each vegetated surface (``evetr``, ``dectr``, ``grass``):
 
 - ``sites.<site>.properties.land_cover.<surface>.lai.lai_min``
 - ``sites.<site>.properties.land_cover.<surface>.lai.lai_max``
-- ``sites.<site>.properties.land_cover.<surface>.lai.gdd_full``
-- ``sites.<site>.properties.land_cover.<surface>.lai.sdd_full``
+- ``sites.<site>.properties.land_cover.<surface>.lai.base_temperature``
+- ``sites.<site>.properties.land_cover.<surface>.lai.base_temperature_senescence``
+- ``sites.<site>.properties.land_cover.<surface>.lai.gdd_base``
+- ``sites.<site>.properties.land_cover.<surface>.lai.sdd_base``
+- ``sites.<site>.properties.land_cover.<surface>.lai.lai_power``
 
 LAI and phenology sources
 -------------------------
@@ -180,9 +183,18 @@ LAI and phenology derivation
 
 1. Compile multi-year seasonal LAI trajectories for the footprint.
 2. Set ``lai_min`` from dormant-season values and ``lai_max`` from peak values.
-3. Estimate phenology thresholds (``gdd_full``, ``sdd_full``) from local climate
-   and observed green-up/senescence timing.
-4. Check that values are physically consistent for local vegetation types.
+3. Estimate temperature bases (``base_temperature``,
+   ``base_temperature_senescence``) and seasonal onset thresholds
+   (``gdd_base`` >= 0, ``sdd_base`` <= 0) from local climate and observed
+   green-up/senescence timing, then calibrate daily-increment ``lai_power``
+   coefficients for the growth and senescence half-years. Legacy
+   ``gdd_full``, ``sdd_full``, and ``lai_type`` fields do not affect the
+   daily-increment equations, though ``gdd_full`` and ``sdd_full`` remain
+   required compatibility placeholders for active modelled vegetation in
+   configuration validation and engine loading until Stage 3 removes them
+   (see :ref:`schema_dev23_lai_daily_increment`).
+4. Check that initial ``sdd_id`` and values are physically consistent for local
+   vegetation types.
 
 LAI and phenology parameter reference
 -------------------------------------

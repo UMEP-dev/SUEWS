@@ -231,6 +231,42 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+.. _schema_dev23_lai_daily_increment:
+
+Upgrading to Schema 2026.6.dev23
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``2026.6.dev23`` updates modelled leaf area index (LAI) phenology to use daily
+growing/senescence degree-day increments within fixed growth and senescence
+seasons (reset before accumulation on DOY 15 and DOY 196 in the northern
+hemisphere, swapped in the southern hemisphere), gating leaf-out and leaf-off
+onset on ``gdd_base`` and ``sdd_base``:
+
+- **Retune ``lai_power`` and onset thresholds**: coefficients calibrated for
+  the legacy cumulative GDD/SDD formulation (for example
+  ``growth_gdd: 0.001``) will under-drive seasonal canopy growth under the
+  daily-increment equations. Set ``gdd_base`` (positive, K d), ``sdd_base``
+  (negative, K d), ``base_temperature``, ``base_temperature_senescence``, and
+  ``lai_power`` for the daily-increment formulation (the shipped sample uses
+  ``base_temperature: 6.5``, ``base_temperature_senescence: 22.0``,
+  ``gdd_base: 120.0``, ``sdd_base: -240.0``, and
+  ``lai_power: (-0.02, 0.04, -1.0, 0.02)`` while keeping per-surface
+  ``lai_min`` / ``lai_max`` envelopes).
+- **Review initial ``sdd_id``**: legacy configurations starting on 1 January
+  with ``sdd_id: -450.0`` begin below ``sdd_base`` and will trigger immediate
+  early-January senescence before the DOY 15 winter reset unless reset to
+  ``0.0`` (matching the updated sample configuration).
+- **Ignored legacy compatibility fields**: ``gdd_full``, ``sdd_full``, and
+  ``lai_type`` remain accepted for compatibility prior to removal, but are
+  ignored by the model kernel.
+
+``suews schema migrate`` preserves existing user values unchanged and logs an
+advisory for sites using modelled LAI:
+
+.. code-block:: bash
+
+   suews schema migrate site.yml --target-version 2026.6.dev23
+
 .. _schema_dev22_building_layer_split:
 
 Upgrading to Schema 2026.6.dev22

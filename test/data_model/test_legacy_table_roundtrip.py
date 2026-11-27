@@ -860,3 +860,64 @@ def test_irrigation_weekday_slots_sunday_first_through_table_and_yaml_gh2049(
         assert float(rt_row[rt_headers.index(f"DayWatPer({slot})")]) == pytest.approx(
             expected_daywatper[slot - 1]
         )
+
+
+def test_fractional_gdd_sdd_roundtrip_over_integer_literal_template(
+    tmp_path, legacy_tables, forward_converted, caplog
+):
+    """Fractional gdd_id/sdd_id survive integer templates, and lossy legacy collapses warn explicitly."""
+    import logging
+
+    df = _sample_df_state()
+    grid = df.index[0]
+    for veg_idx in range(3):
+        df.loc[grid, ("gdd_id", f"({veg_idx},)")] = 120.25
+        df.loc[grid, ("sdd_id", f"({veg_idx},)")] = -239.75
+
+    # 2016a's InitialConditionsKc1_2011.nml spells GDD_1_0=0 and GDD_2_0=-450 as integers.
+    # Sample config also has non-zero gdd_base=120.0 / sdd_base=-240.0 which legacy tables cannot represent.
+    with caplog.at_level(logging.WARNING, logger="SuPy"):
+        df2 = _mlm_chain(
+            df,
+            "2016a",
+            tmp_path / "uniform",
+            legacy_tables("2016a"),
+            forward_converted("2016a"),
+        )
+    for veg_idx in range(3):
+        assert float(df2.loc[grid, ("gdd_id", f"({veg_idx},)")]) == pytest.approx(120.25)
+        assert float(df2.loc[grid, ("sdd_id", f"({veg_idx},)")]) == pytest.approx(-239.75)
+    # Non-zero gdd_base/sdd_base cannot be stored in legacy SUEWS_Veg.txt and must warn explicitly.
+    assert ("gdd_base", "(0,)") not in df2.columns
+    assert ("sdd_base", "(0,)") not in df2.columns
+    assert any("no gdd_base/sdd_base columns" in rec.message for rec in caplog.records)
+    reconstructed = SUEWSConfig.from_df_state(df2)
+    dectr_lai = reconstructed.sites[0].properties.land_cover.dectr.lai
+    assert float(getattr(dectr_lai.gdd_base, "value", dectr_lai.gdd_base)) == 0.0
+    assert float(getattr(dectr_lai.sdd_base, "value", dectr_lai.sdd_base)) == 0.0
+
+    # Heterogeneous per-surface gdd_id/sdd_id collapse to scalar GDD_1_0/GDD_2_0 and must warn explicitly.
+    caplog.clear()
+    df_het = _sample_df_state()
+    for veg_idx, (gdd_val, sdd_val) in enumerate(
+        ((120.25, -239.75), (80.5, -180.5), (60.75, -120.25))
+    ):
+        df_het.loc[grid, ("gdd_id", f"({veg_idx},)")] = gdd_val
+        df_het.loc[grid, ("sdd_id", f"({veg_idx},)")] = sdd_val
+        df_het.loc[grid, ("gdd_base", f"({veg_idx},)")] = 0.0
+        df_het.loc[grid, ("sdd_base", f"({veg_idx},)")] = 0.0
+
+    with caplog.at_level(logging.WARNING, logger="SuPy"):
+        df_het2 = _mlm_chain(
+            df_het,
+            "2016a",
+            tmp_path / "heterogeneous",
+            legacy_tables("2016a"),
+            forward_converted("2016a"),
+        )
+    assert any("heterogeneous per-surface gdd_id" in rec.message for rec in caplog.records)
+    assert any("heterogeneous per-surface sdd_id" in rec.message for rec in caplog.records)
+    assert not any("no gdd_base/sdd_base columns" in rec.message for rec in caplog.records)
+    for veg_idx in range(3):
+        assert float(df_het2.loc[grid, ("gdd_id", f"({veg_idx},)")]) == pytest.approx(120.25)
+        assert float(df_het2.loc[grid, ("sdd_id", f"({veg_idx},)")]) == pytest.approx(-239.75)

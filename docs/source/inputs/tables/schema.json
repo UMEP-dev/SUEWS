@@ -7175,7 +7175,7 @@
             }
           ],
           "default": null,
-          "description": "Growing degree days (GDD) needed for full capacity of LAI",
+          "description": "Legacy compatibility field retained prior to removal; ignored by the fixed-season daily-increment LAI phenology formulation (see gdd_base).",
           "display_name": "Growing Degree Days for Full LAI",
           "title": "Gdd Full",
           "unit": "K d"
@@ -7211,7 +7211,7 @@
             }
           ],
           "default": null,
-          "description": "Senescence degree days (SDD) needed to initiate leaf off",
+          "description": "Legacy compatibility field retained prior to removal; ignored by the fixed-season daily-increment LAI phenology formulation (see sdd_base).",
           "display_name": "Senescence Degree Days for Leaf Off",
           "title": "Sdd Full",
           "unit": "K d"
@@ -7263,10 +7263,42 @@
             }
           ],
           "default": 0,
-          "description": "LAI calculation choice (0: original, 1: new high latitude)",
+          "description": "Legacy compatibility field retained prior to removal; ignored by the fixed-season daily-increment LAI phenology formulation.",
           "display_name": "LAI Calculation Method",
           "title": "Lai Type",
           "unit": null
+        },
+        "gdd_base": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Growing degree days (GDD) that must accumulate in the growth half of the year before leaf growth starts. The default of 0 means no threshold: growth may start on the first day with positive GDD.",
+          "display_name": "Growing Degree Days to Start Leaf Growth",
+          "ge": 0.0,
+          "title": "Gdd Base",
+          "unit": "K d"
+        },
+        "sdd_base": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Senescence degree days (SDD, negative by convention) that must accumulate in the senescence half of the year before leaf off starts. The default of 0 means no threshold: leaf off may start on the first day with negative SDD.",
+          "display_name": "Senescence Degree Days to Start Leaf Off",
+          "le": 0.0,
+          "title": "Sdd Base",
+          "unit": "K d"
         },
         "ref": {
           "anyOf": [
@@ -13962,7 +13994,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev22. Split SPARTACUS building-layer optical properties by facet: move roof_albedo_dir_mult_fact exclusively to RoofLayer (default 1.0) and wall_specular_frac exclusively to WallLayer (default 0.0) (#2085), removing both fields from BuildingLayer, aligning defaults with the Rust bridge, sample config, and legacy tables, and making each owning field non-optional FlexibleRefValue(float). The (2026.6.dev21 -> 2026.6.dev22) migration drops legacy cross-facet keys (roofs[*].wall_specular_frac and walls[*].roof_albedo_dir_mult_fact) with explicit logs, rejects explicit null or {value: null} on the owning fields with YamlUpgradeError, and runtime loading strips cross-facet keys with a DeprecationWarning while rejecting explicit owning nulls with Pydantic ValidationError.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev23. Compute modelled LAI from daily GDD/SDD increments within fixed growth and senescence seasons (reset before accumulation on DOY 15 and DOY 196, swapped in the southern hemisphere), gating leaf-out and leaf-off onset on gdd_base/sdd_base (#2346, #2066, #2078). Legacy compatibility fields gdd_full, sdd_full, and lai_type remain accepted prior to removal but are ignored by the kernel, and the sample configuration adopts retuned daily-increment rates and thresholds (base_temperature=6.5, base_temperature_senescence=22.0, gdd_base=120.0, sdd_base=-240.0, lai_power=(-0.02, 0.04, -1.0, 0.02), initial sdd_id=0.0) while preserving per-surface lai_min/lai_max envelopes. The (2026.6.dev22 -> 2026.6.dev23) migration preserves existing user parameters unchanged and logs an advisory for sites using modelled LAI so users know to retune legacy lai_power coefficients and review initial sdd_id.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -14015,20 +14047,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6.dev22",
+  "title": "SUEWS Configuration Schema v2026.6.dev23",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev22.json",
-  "version": "2026.6.dev22",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev23.json",
+  "version": "2026.6.dev23",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6.dev22"
+    "schema_version": "2026.6.dev23"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6.dev22",
+      "schema_version": "2026.6.dev23",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

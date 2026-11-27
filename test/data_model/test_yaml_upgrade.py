@@ -2212,3 +2212,61 @@ def test_historical_observed_soil_preserves_optical_null_while_dev22_rejects(
         in_yml.write_text(yaml.safe_dump(null_cfg, sort_keys=False), encoding="utf-8")
         with pytest.raises(YamlUpgradeError, match=rf"{facet}\[0\]\.{field}: explicit null is disallowed"):
             upgrade_yaml(in_yml, out_yml)
+
+
+def test_dev22_to_dev23_advisory_preserves_lai_values_and_stays_silent_for_observed(
+    tmp_path: Path, capsys
+) -> None:
+    """gh#2346: 2026.6.dev22 -> 2026.6.dev23 preserves LAI values, logs advisory for modelled LAI, and is idempotent."""
+    from supy.data_model.configuration.migration import SchemaMigrator
+    from supy.data_model.core import SUEWSConfig
+
+    sample_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    legacy_cfg = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
+    legacy_cfg["schema_version"] = "2026.6.dev22"
+    legacy_cfg["sites"][0]["properties"]["land_cover"]["dectr"]["lai"]["lai_power"][
+        "growth_gdd"
+    ] = {"value": 0.001}
+    legacy_cfg["sites"][0]["initial_states"]["dectr"]["sdd_id"] = {"value": -450.0}
+
+    migrator = SchemaMigrator()
+    capsys.readouterr()
+
+    # Historical target 2026.6.dev22 must not emit the dev23 advisory.
+    stayed_dev22 = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev22")
+    assert "2026.6.dev23" not in capsys.readouterr().err
+    assert stayed_dev22["schema_version"] == "2026.6.dev22"
+
+    # Upgrading dev22 -> dev23 preserves values unchanged and emits the advisory.
+    migrated = migrator.migrate(deepcopy(legacy_cfg), to_version="2026.6.dev23")
+    err = capsys.readouterr().err
+    assert migrated["schema_version"] == "2026.6.dev23"
+    assert (
+        migrated["sites"][0]["properties"]["land_cover"]["dectr"]["lai"]["lai_power"][
+            "growth_gdd"
+        ]
+        == {"value": 0.001}
+    )
+    assert migrated["sites"][0]["initial_states"]["dectr"]["sdd_id"] == {"value": -450.0}
+    assert "2026.6.dev23 computes modelled LAI from daily GDD/SDD increments" in err
+
+    # Re-migrating an already-dev23 config is idempotent and does not repeat the advisory.
+    remigrated = migrator.migrate(deepcopy(migrated), to_version="2026.6.dev23")
+    assert remigrated == migrated
+    assert "2026.6.dev23" not in capsys.readouterr().err
+
+    # Observed LAI mode emits no dev23 advisory (including case/whitespace and wrapped forms).
+    for obs_selector in ("observed", " OBSERVED ", {"value": " Observed "}, {"value": 0}, 0):
+        observed_cfg = deepcopy(legacy_cfg)
+        observed_cfg["model"]["physics"]["leaf_area_index"] = obs_selector
+        migrated_obs = migrator.migrate(observed_cfg, to_version="2026.6.dev23")
+        assert migrated_obs["schema_version"] == "2026.6.dev23"
+        assert "2026.6.dev23" not in capsys.readouterr().err
+
+    # File-level upgrade_yaml produces a valid current-schema SUEWSConfig.
+    in_yml = tmp_path / "dev22_lai.yml"
+    out_yml = tmp_path / "dev23_lai.yml"
+    in_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
+    upgrade_yaml(in_yml, out_yml)
+    loaded = SUEWSConfig.from_yaml(str(out_yml))
+    assert loaded.schema_version == "2026.6.dev23"

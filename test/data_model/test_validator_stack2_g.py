@@ -6,6 +6,7 @@ from collections import deque
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, dataclass
 from enum import Enum, IntEnum, StrEnum
+import functools
 from importlib.resources import files
 import ipaddress
 import math
@@ -13,7 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 import pytest
 import yaml
 
@@ -1585,7 +1586,9 @@ def test_confirm_r2_enum_freezing() -> None:
     with pytest.raises(TypeError, match="Cannot mutate attribute"):
         frozen_safe_enum.extra = "mutated"  # type: ignore[attr-defined]
     assert not hasattr(_SafeEnum.TUP, "extra")
-    assert thaw_copy(frozen_safe_enum) is _SafeEnum.TUP
+    assert thaw_copy(frozen_safe_enum) is frozen_safe_enum
+    with pytest.raises(TypeError, match="Enum singleton"):
+        frozen_safe_enum.unwrap_copy()
     for bad_member in (
         _MutableListEnum.BAD,
         _MutableNestedEnum.BAD,
@@ -2184,3 +2187,238 @@ def test_astra_r3_model_dump_isolation_float_enum_eager_fields_and_copy_payload(
     patch_lbl = ConfigPatch("x", "set", lbl)
     lbl.tags.append("mutated")
     assert patch_lbl.new_value.tags == ["a"]
+
+
+def test_r10_r1_provenance_replay_physics_selector_ledger_numeric_noops_and_single_line_block_scalars() -> (
+    None
+):
+    """Mapping->doc replay never resurrects ref, physics selector ledger refreshes, numeric no-ops & single-line blocks work."""
+    # Major 1: mapping-normalised delete+set does NOT resurrect prior ledger ref on ConfigDocument replay.
+    raw_with_ref = {"a": {"value": 1, "ref": {"ID": "r1"}}}
+    doc_with_ref = ConfigDocument.from_dict(raw_with_ref, normalise=False)
+    del_set = [ConfigPatch("a", "delete"), ConfigPatch("a", "set", 2)]
+    norm_from_map = normalise_patches(del_set, raw_with_ref)
+    assert doc_with_ref.apply_patches(norm_from_map).data == {"a": {"value": 2}}
+    # Re-normalising the mapping-normalised patches against ConfigDocument also keeps ref absent.
+    renorm = doc_with_ref.normalise_patches(norm_from_map)
+    assert doc_with_ref.apply_patches(renorm).data == {"a": {"value": 2}}
+    # Explicit ref: null (write_has_ref=True, write_ref=None) never resurrects ledger ref {"ID": "r1"}.
+    null_ref_replay = doc_with_ref.apply_patches([
+        ConfigPatch("a", "delete"),
+        ConfigPatch("a", "set", 2, write_style="ref_value", write_has_ref=True),
+    ])
+    assert null_ref_replay.data == {"a": {"value": 2, "ref": None}}
+
+    # Major 4: physics normalisation refreshes selector PathStyle entries so delete+reinsert keeps wrapper & provenance.
+    sh_doc = ConfigDocument.from_dict(
+        {
+            "model": {
+                "physics": {
+                    "storage_heat": {
+                        "ohm": {
+                            "include_qf": True,
+                            "ref": {"ID": "ohm-src"},
+                        }
+                    },
+                    "kdown_split_method": {
+                        "constant": {
+                            "sw_dn_direct_frac": {
+                                "value": 0.6,
+                                "ref": {"ID": "frac-src"},
+                            },
+                            "ref": {"ID": "kdown-src"},
+                        }
+                    },
+                }
+            }
+        },
+        normalise=True,
+    )
+    sh_path = "model.physics.storage_heat"
+    kd_path = "model.physics.kdown_split_method"
+    assert sh_doc.style_ledger.wrapper_style(sh_path) == "ref_value"
+    assert sh_doc.style_ledger.ref_metadata(sh_path) == {"ID": "ohm-src"}
+    assert sh_doc.style_ledger.wrapper_style(kd_path) == "ref_value"
+    assert sh_doc.style_ledger.ref_metadata(kd_path) == {"ID": "kdown-src"}
+    rebuilt_phys = sh_doc.apply_patches([
+        ConfigPatch(sh_path, "delete"),
+        ConfigPatch(sh_path, "set", 3),
+        ConfigPatch(kd_path, "delete"),
+        ConfigPatch(kd_path, "set", 1),
+    ])
+    assert rebuilt_phys.data["model"]["physics"]["storage_heat"] == {
+        "value": 3,
+        "ref": {"ID": "ohm-src"},
+    }
+    assert rebuilt_phys.data["model"]["physics"]["kdown_split_method"] == {
+        "value": 1,
+        "ref": {"ID": "kdown-src"},
+    }
+    # Also verify scheme + wrapped ohm_inc_qf form refreshes both selector and relocated sub-option provenance.
+    sh_scheme_doc = ConfigDocument.from_dict(
+        {
+            "model": {
+                "physics": {
+                    "storage_heat": {
+                        "scheme": "ohm",
+                        "ohm_inc_qf": {"value": 1, "ref": {"ID": "qf-src"}},
+                        "ref": {"ID": "scheme-src"},
+                    }
+                }
+            }
+        },
+        normalise=True,
+    )
+    assert sh_scheme_doc.style_ledger.ref_metadata(sh_path) == {"ID": "scheme-src"}
+    assert sh_scheme_doc.style_ledger.ref_metadata("model.physics.ohm_inc_qf") == {
+        "ID": "qf-src"
+    }
+    assert sh_scheme_doc.apply_patches([
+        ConfigPatch(sh_path, "delete"),
+        ConfigPatch(sh_path, "set", 4),
+    ]).data["model"]["physics"]["storage_heat"] == {
+        "value": 4,
+        "ref": {"ID": "scheme-src"},
+    }
+
+    # Minor 1: numeric type and signed-zero changes are NOT dropped as no-ops.
+    num_base = {
+        "i": 1,
+        "z": 0.0,
+        "nz": -0.0,
+        "arr": np.array([0.0, np.nan]),
+        "c": complex(0.0, 0.0),
+    }
+    num_patches = [
+        ConfigPatch("i", "set", 1.0, default_wrapped=False),
+        ConfigPatch("z", "set", -0.0, default_wrapped=False),
+        ConfigPatch("nz", "set", -0.0, default_wrapped=False),  # true no-op
+        ConfigPatch("arr", "set", np.array([-0.0, np.nan]), default_wrapped=False),
+        ConfigPatch("c", "set", complex(-0.0, 0.0), default_wrapped=False),
+    ]
+    norm_num = normalise_patches(num_patches, num_base)
+    assert [p.path for p in norm_num] == ["i", "z", "arr", "c"]
+    replayed_num = deepcopy(num_base)
+    apply_patches_in_place(replayed_num, norm_num)
+    assert type(replayed_num["i"]) is float
+    assert math.copysign(1.0, replayed_num["z"]) == -1.0
+    assert bool(np.signbit(replayed_num["arr"][0])) is True
+    assert math.copysign(1.0, replayed_num["c"].real) == -1.0
+    apply_patches_in_place(replayed_num, invert_patches(norm_num))
+    assert type(replayed_num["i"]) is int
+    assert math.copysign(1.0, replayed_num["z"]) == 1.0
+    assert bool(np.signbit(replayed_num["arr"][0])) is False
+    assert math.copysign(1.0, replayed_num["c"].real) == 1.0
+
+    # Minor 2: valid single-line |- and >- block scalars round-trip with block style preserved.
+    block_yaml = (
+        "lit: |-\n"
+        "  single line literal\n"
+        "fld: >-\n"
+        "  single line folded\n"
+        "wrapped:\n"
+        "  value: |-\n"
+        "    wrapped single line\n"
+    )
+    block_doc = ConfigDocument.from_text(block_yaml, normalise=False)
+    dumped_block = block_doc.dump_yaml(preserve_style=True)
+    assert "lit: |-\n  single line literal" in dumped_block
+    assert "fld: >-\n  single line folded" in dumped_block
+    assert "value: |-\n    wrapped single line" in dumped_block
+    assert yaml.safe_load(dumped_block) == block_doc.data
+    # Control/NEL character in a block-styled scalar falls back cleanly and preserves exact value.
+    nel_doc = block_doc.apply_patches([ConfigPatch("lit", "set", "a\x85b")])
+    dumped_nel = nel_doc.dump_yaml(preserve_style=True)
+    assert yaml.safe_load(dumped_nel)["lit"] == "a\x85b"
+
+
+def test_r10_r1_readonly_export_isolation_bound_methods_and_enums() -> None:
+    """unwrap_copy/model_dump isolate bound methods and prevent mutable Enum singleton leaks."""
+
+    # Major 2a: bound built-in method, MethodWrapperType, and partial are detached on freeze & unwrap_copy / model_dump.
+    class _CallableModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        cb: object
+        setter: object
+        part: object
+
+    caller_list = [1]
+    cm = _CallableModel(
+        cb=caller_list.append,
+        setter=caller_list.__setitem__,
+        part=functools.partial(caller_list.append, 2),
+    )
+    ro_cm = freeze_model(cm)
+    unwrapped_cm = ro_cm.unwrap_copy()
+    unwrapped_cm.cb(99)
+    unwrapped_cm.setter(0, 77)
+    unwrapped_cm.part()
+    dumped_cm = ro_cm.model_dump()
+    dumped_cm["cb"](88)
+    assert caller_list == [1]
+    ro_cm.unwrap_copy().cb(55)
+    assert caller_list == [1]
+
+    # Major 2b: Enum singletons cannot leak mutably via unwrap_copy() or model_dump(mode="python").
+    class _AttrEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "orig"
+
+    @dataclass
+    class _EnumDC:
+        member: _AttrEnum
+
+    class _EnumExportModel(BaseModel):
+        member: _AttrEnum = _AttrEnum.ITEM
+        dc: _EnumDC = Field(default_factory=lambda: _EnumDC(member=_AttrEnum.ITEM))
+
+    ro_enum_model = freeze_model(_EnumExportModel())
+    with pytest.raises(TypeError, match="Enum singleton"):
+        ro_enum_model.unwrap_copy()
+    with pytest.raises(TypeError, match="Enum singleton"):
+        ro_enum_model.member.unwrap_copy()
+    with pytest.raises(TypeError, match="Enum singleton"):
+        ro_enum_model.dc.unwrap_copy()
+
+    _AttrEnum.ITEM.label = "mutated_after_freeze"
+    try:
+        dumped_py = ro_enum_model.model_dump()
+        assert isinstance(dumped_py["member"], ReadOnlyEnumProxy)
+        assert dumped_py["member"] == _AttrEnum.ITEM
+        assert dumped_py["member"].label == "orig"
+        with pytest.raises(TypeError, match="Cannot mutate attribute"):
+            dumped_py["member"].label = "hacked"
+        assert ro_enum_model.model_dump(mode="json")["member"] == 1
+    finally:
+        _AttrEnum.ITEM.label = "orig"
+
+
+def test_r10_r1_mapping_proxy_private_attr_and_cycle_snapshot() -> None:
+    """BaseModel containing MappingProxyType preserves PrivateAttr, model_extra, and cycles."""
+
+    class _ProxyPrivateModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+        ro_map: object
+        self_ref: object = None
+        _secret: list[int] = PrivateAttr(default_factory=lambda: [10, 20])
+
+        @property
+        def secret_sum(self) -> int:
+            return sum(self._secret)
+
+    pm = _ProxyPrivateModel(ro_map=MappingProxyType({"k": [1]}), extra_val=42)
+    pm._secret = [3, 4]
+    pm.self_ref = pm
+    ro_pm = freeze_model(pm)
+    pm._secret.append(999)
+    assert ro_pm.ro_map["k"] == (1,)
+    assert ro_pm.secret_sum == 7
+    assert ro_pm.extra_val == 42
+    unwrapped_pm = ro_pm.unwrap_copy()
+    assert unwrapped_pm._secret == [3, 4]
+    assert unwrapped_pm.self_ref is unwrapped_pm
+    assert unwrapped_pm.model_extra == {"extra_val": 42}
+    unwrapped_pm._secret.append(100)
+    assert ro_pm.secret_sum == 7

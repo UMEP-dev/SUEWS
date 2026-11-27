@@ -671,11 +671,11 @@ def _safe_scalar_style(node: yaml.ScalarNode, recorded: str | None) -> str | Non
         return node.style
     if node.tag != _YAML_STR_TAG:
         return node.style
-    if recorded in {"|", ">"} and (
-        "\n" not in node.value
-        or any(ord(ch) < 0x20 and ch not in {"\n", "\t"} for ch in node.value)
+    if recorded in {"|", ">"} and any(
+        (ord(ch) < 0x20 and ch not in {"\n", "\t"}) or (0x7F <= ord(ch) <= 0x9F)
+        for ch in node.value
     ):
-        return node.style
+        return '"'
     return recorded
 
 

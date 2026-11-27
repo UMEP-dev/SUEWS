@@ -39,7 +39,11 @@ from ...core.field_renames import (
     STEBBS_PHYSICS_LEAF_RENAMES,
     normalise_yaml_renames,
 )
-from ...core.physics_families import flatten_physics_in_config
+from ...core.physics_families import (
+    PHYSICS_PUBLIC_KEY_ALIASES,
+    STEBBS_PUBLIC_KEY_ALIASES,
+    flatten_physics_in_config,
+)
 from ...core.profile import (
     normalise_hourly_profile_key,
     normalise_hourly_profile_keys_in_raw_config,
@@ -587,9 +591,9 @@ def _thaw_non_container(value: Any) -> Any:
         ReadOnlyModelProxy,
     )
 
-    if isinstance(
-        value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy, ReadOnlyEnumProxy)
-    ):
+    if isinstance(value, ReadOnlyEnumProxy):
+        return value
+    if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
         return value.unwrap_copy()
     return deepcopy(value)
 
@@ -692,7 +696,12 @@ def _build_new_entry(
             entry["ref"] = None
         return entry
     if default_wrapped:
-        return {"value": copied}
+        entry = {"value": copied}
+        if ref_metadata is not None:
+            entry["ref"] = thaw_copy(ref_metadata)
+        elif has_ref:
+            entry["ref"] = None
+        return entry
     return copied
 
 
@@ -1021,7 +1030,7 @@ def write_tokens(
     style_ledger: StyleLedger | None = None,
     original_style: WrapperStyle | None = None,
     original_ref: Mapping[str, Any] | None = None,
-    has_ref: bool = False,
+    has_ref: bool | None = None,
     replace_raw: bool = False,
 ) -> bool:
     """Write *new_value* at *tokens* in *data*, preserving style or replacing raw."""
@@ -1044,13 +1053,12 @@ def write_tokens(
 
     effective_style = original_style
     effective_ref = original_ref
-    effective_has_ref = has_ref or effective_ref is not None
+    effective_has_ref = True if effective_ref is not None else bool(has_ref)
     if style_ledger is not None:
         if effective_style is None:
             effective_style = style_ledger.wrapper_style(canon_path)
-        if effective_ref is None:
+        if has_ref is None and effective_ref is None:
             effective_ref = style_ledger.ref_metadata(canon_path)
-        if not effective_has_ref:
             effective_has_ref = style_ledger.has_ref_key(canon_path)
     if _is_list_index_token(leaf):
         assert isinstance(leaf, int)
@@ -1091,6 +1099,7 @@ def write_path(
     style_ledger: StyleLedger | None = None,
     original_style: WrapperStyle | None = None,
     original_ref: Mapping[str, Any] | None = None,
+    has_ref: bool | None = None,
     replace_raw: bool = False,
 ) -> bool:
     """Write *new_value* at *path* in *data*, preserving bare vs ``RefValue`` style."""
@@ -1104,6 +1113,7 @@ def write_path(
         style_ledger=style_ledger,
         original_style=original_style,
         original_ref=original_ref,
+        has_ref=has_ref,
         replace_raw=replace_raw,
     )
 
@@ -1320,15 +1330,15 @@ def apply_patches_in_place(
             ):
                 eff_style = patch.write_style
                 eff_ref = patch.write_ref
-                eff_has_ref = patch.write_has_ref or eff_ref is not None
+                eff_has_ref: bool | None = patch.write_has_ref or eff_ref is not None
             elif patch.had_original is None:
                 eff_style = patch.original_style
                 eff_ref = patch.original_ref
-                eff_has_ref = eff_ref is not None
+                eff_has_ref = True if eff_ref is not None else None
             else:
                 eff_style = None
                 eff_ref = None
-                eff_has_ref = False
+                eff_has_ref = None
             applied = write_tokens(
                 target,
                 tokens,
@@ -1465,6 +1475,7 @@ class ConfigDocument:
             stebbs_relocations = _collect_stebbs_physics_relocations(working, ledger)
             if stebbs_relocations:
                 ledger = ledger.remap_paths(stebbs_relocations)
+            ledger = _refresh_normalised_physics_ledger(working, ledger)
             pre_profile = thaw_copy(working)
             working, profile_changed = normalise_hourly_profile_keys_in_raw_config(
                 working
@@ -1479,6 +1490,10 @@ class ConfigDocument:
                     )
         if flatten_physics:
             flatten_physics_in_config(working)
+            stebbs_relocations = _collect_stebbs_physics_relocations(working, ledger)
+            if stebbs_relocations:
+                ledger = ledger.remap_paths(stebbs_relocations)
+            ledger = _refresh_normalised_physics_ledger(working, ledger)
         return cls(
             working,
             source_path=source_path,
@@ -1590,6 +1605,17 @@ def _collect_stebbs_physics_relocations(
             new_path = f"model.physics.stebbs.{target_leaf}"
             if old_path in ledger and new_path not in ledger:
                 relocations[old_path] = new_path
+    for alias_key, canon_key in PHYSICS_PUBLIC_KEY_ALIASES.items():
+        old_path = f"model.physics.{alias_key}"
+        new_path = f"model.physics.{canon_key}"
+        if canon_key in physics and old_path in ledger and new_path not in ledger:
+            relocations[old_path] = new_path
+    if isinstance(stebbs, Mapping):
+        for alias_key, canon_key in STEBBS_PUBLIC_KEY_ALIASES.items():
+            old_path = f"model.physics.stebbs.{alias_key}"
+            new_path = f"model.physics.stebbs.{canon_key}"
+            if canon_key in stebbs and old_path in ledger and new_path not in ledger:
+                relocations[old_path] = new_path
     orthogonal_moves = (
         (
             "model.physics.kdown_split_method.constant.sw_dn_direct_frac",
@@ -1604,6 +1630,117 @@ def _collect_stebbs_physics_relocations(
         if flat_leaf in physics and old_path in ledger and new_path not in ledger:
             relocations[old_path] = new_path
     return relocations
+
+
+def _sync_normalised_entry_style(
+    ledger: StyleLedger, path: str, entry: Any
+) -> StyleLedger:
+    """Refresh *path* in *ledger* when physics normalisation rewrote its representation."""
+    existing = ledger.get(path)
+    if is_ref_wrapper(entry):
+        raw_ref = entry.get("ref")
+        ref_map = raw_ref if isinstance(raw_ref, Mapping) else None
+        has_ref = "ref" in entry
+        frozen_ref = deep_freeze(ref_map) if ref_map is not None else None
+        if (
+            existing is not None
+            and not existing.is_container
+            and existing.wrapper_style == "ref_value"
+            and existing.has_ref == has_ref
+            and existing.ref == frozen_ref
+        ):
+            return ledger
+        return ledger.with_entry(
+            path,
+            PathStyle(
+                wrapper_style="ref_value",
+                ref=ref_map,
+                flow_style=existing.flow_style if existing is not None else None,
+                value_flow_style=(
+                    existing.value_flow_style
+                    if existing is not None and not existing.is_container
+                    else None
+                ),
+                value_scalar_style=(
+                    existing.value_scalar_style
+                    if existing is not None and not existing.is_container
+                    else None
+                ),
+                key_order=tuple(entry.keys()),
+                source_line=existing.source_line if existing is not None else None,
+                has_ref=has_ref,
+                is_container=False,
+            ),
+        )
+    if is_ref_only(entry):
+        raw_ref = entry.get("ref")
+        ref_map = raw_ref if isinstance(raw_ref, Mapping) else None
+        frozen_ref = deep_freeze(ref_map) if ref_map is not None else None
+        if (
+            existing is not None
+            and not existing.is_container
+            and existing.wrapper_style == "ref_only"
+            and existing.has_ref
+            and existing.ref == frozen_ref
+        ):
+            return ledger
+        return ledger.with_entry(
+            path,
+            PathStyle(
+                wrapper_style="ref_only",
+                ref=ref_map,
+                flow_style=existing.flow_style if existing is not None else None,
+                key_order=tuple(entry.keys()),
+                source_line=existing.source_line if existing is not None else None,
+                has_ref=True,
+                is_container=False,
+            ),
+        )
+    if (
+        not isinstance(entry, (Mapping, list, tuple))
+        and existing is not None
+        and existing.is_container
+    ):
+        return ledger.with_entry(
+            path,
+            PathStyle(
+                wrapper_style="bare",
+                source_line=existing.source_line,
+                is_container=False,
+            ),
+        )
+    return ledger
+
+
+def _refresh_normalised_physics_ledger(
+    working: Mapping[str, Any], ledger: StyleLedger
+) -> StyleLedger:
+    """Keep physics selector ledger entries aligned after nested/orthogonal flattening."""
+    model = working.get("model")
+    if not isinstance(model, Mapping):
+        return ledger
+    physics = model.get("physics")
+    if not isinstance(physics, Mapping):
+        return ledger
+    for key, val in physics.items():
+        if isinstance(key, str) and key == "ref":
+            continue
+        ledger = _sync_normalised_entry_style(
+            ledger, _join_key_path("model.physics", key), val
+        )
+    stebbs = physics.get("stebbs")
+    if (
+        isinstance(stebbs, Mapping)
+        and not is_ref_wrapper(stebbs)
+        and not is_ref_only(stebbs)
+    ):
+        for key, val in stebbs.items():
+            if isinstance(key, str) and key == "ref":
+                continue
+            ledger = _sync_normalised_entry_style(
+                ledger, _join_key_path("model.physics.stebbs", key), val
+            )
+    return ledger
 
 
 def _typed_mapping_key(key: Any) -> tuple[type[Any], Any]:

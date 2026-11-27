@@ -23,6 +23,8 @@ target :class:`ConfigDocument` or raw mapping without mutating the target:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from decimal import Decimal
+from fractions import Fraction
 from typing import Any
 
 import numpy as np
@@ -58,12 +60,41 @@ from .document import (
 from .style_ledger import StyleLedger, WrapperStyle
 
 _CANNOT_MERGE = object()
+_STRICT_NUMERIC_TYPES = (bool, int, float, complex, Decimal, Fraction, np.generic)
+
+
+def _float_strict_equal(left: Any, right: Any) -> bool:
+    """Compare floating-point scalars by exact type, NaN equality, value, and zero sign."""
+    if type(left) is not type(right):
+        return False
+    if bool(np.isnan(left)) and bool(np.isnan(right)):
+        return True
+    if left != right:
+        return False
+    return bool(np.signbit(left)) == bool(np.signbit(right))
+
+
+def _complex_strict_equal(left: Any, right: Any) -> bool:
+    """Compare complex scalars by exact type, real/imag NaN equality, value, and zero sign."""
+    return (
+        type(left) is type(right)
+        and _float_strict_equal(left.real, right.real)
+        and _float_strict_equal(left.imag, right.imag)
+    )
+
+
+def _float_arrays_sign_equal(
+    left: np.ndarray[Any, Any], right: np.ndarray[Any, Any]
+) -> bool:
+    """Compare sign bits for all non-NaN elements of two real floating arrays."""
+    non_nan = ~np.isnan(left)
+    return bool(np.array_equal(np.signbit(left)[non_nan], np.signbit(right)[non_nan]))
 
 
 def _arrays_strict_equal(
     left: np.ndarray[Any, Any], right: np.ndarray[Any, Any]
 ) -> bool:
-    """Compare two NumPy arrays strictly by shape, dtype, NaN-equality, and elements."""
+    """Compare two NumPy arrays strictly by shape, dtype, NaN-equality, sign, and elements."""
     if left.shape != right.shape or left.dtype != right.dtype:
         return False
     if left.dtype.hasobject:
@@ -72,10 +103,16 @@ def _arrays_strict_equal(
         return all(
             _arrays_strict_equal(left[name], right[name]) for name in left.dtype.names
         )
-    if np.issubdtype(left.dtype, np.floating) or np.issubdtype(
-        left.dtype, np.complexfloating
-    ):
-        return bool(np.array_equal(left, right, equal_nan=True))
+    if np.issubdtype(left.dtype, np.floating):
+        return bool(np.array_equal(left, right, equal_nan=True)) and (
+            _float_arrays_sign_equal(left, right)
+        )
+    if np.issubdtype(left.dtype, np.complexfloating):
+        return (
+            bool(np.array_equal(left, right, equal_nan=True))
+            and _float_arrays_sign_equal(left.real, right.real)
+            and _float_arrays_sign_equal(left.imag, right.imag)
+        )
     return bool(np.array_equal(left, right))
 
 
@@ -108,10 +145,12 @@ def _mapping_strict_equal(left: Mapping[Any, Any], right: Mapping[Any, Any]) -> 
 
 
 def _container_strict_equal(left: Any, right: Any) -> bool:
-    """Compare sequences, mappings, or sets strictly while keeping ``bool`` distinct from ``int``."""
+    """Compare sequences, mappings, or sets strictly while keeping element types distinct."""
     if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
-        return len(left) == len(right) and all(
-            _strict_equal(a, b) for a, b in zip(left, right)
+        return (
+            type(left) is type(right)
+            and len(left) == len(right)
+            and all(_strict_equal(a, b) for a, b in zip(left, right))
         )
     if isinstance(left, Mapping) and isinstance(right, Mapping):
         return _mapping_strict_equal(left, right)
@@ -125,18 +164,27 @@ def _container_strict_equal(left: Any, right: Any) -> bool:
     return False
 
 
-def _strict_equal(left: Any, right: Any) -> bool:
-    """Compare two config values strictly, keeping ``bool`` distinct from ``int``/``float``."""
-    if isinstance(left, (bool, np.bool_)) != isinstance(right, (bool, np.bool_)):
+def _numeric_strict_equal(left: Any, right: Any) -> bool:
+    """Compare numeric scalars strictly by exact type, value, NaN-equality, and zero sign."""
+    if type(left) is not type(right):
         return False
+    if isinstance(left, (float, np.floating)):
+        return _float_strict_equal(left, right)
+    if isinstance(left, (complex, np.complexfloating)):
+        return _complex_strict_equal(left, right)
+    return bool(left == right)
+
+
+def _strict_equal(left: Any, right: Any) -> bool:
+    """Compare two config values strictly, keeping scalar types and zero sign distinct."""
     if isinstance(left, (np.ndarray, np.void)) or isinstance(
         right, (np.ndarray, np.void)
     ):
         return _numpy_strict_equal(left, right)
-    if isinstance(left, (float, np.floating)) and isinstance(
-        right, (float, np.floating)
+    if isinstance(left, _STRICT_NUMERIC_TYPES) or isinstance(
+        right, _STRICT_NUMERIC_TYPES
     ):
-        return (bool(np.isnan(left)) and bool(np.isnan(right))) or bool(left == right)
+        return _numeric_strict_equal(left, right)
     if isinstance(left, (list, tuple, Mapping, set, frozenset)) or isinstance(
         right, (list, tuple, Mapping, set, frozenset)
     ):
@@ -383,11 +431,11 @@ def _apply_atomic_set(
     ):
         forward_style = patch.write_style
         forward_ref = patch.write_ref
-        forward_has_ref = patch.write_has_ref or forward_ref is not None
+        forward_has_ref: bool | None = patch.write_has_ref or forward_ref is not None
     else:
         forward_style = patch.original_style
         forward_ref = patch.original_ref
-        forward_has_ref = forward_ref is not None
+        forward_has_ref = True if forward_ref is not None else None
     applied = write_tokens(
         working,
         tokens,
@@ -642,20 +690,31 @@ def _merge_with_delete(
 def _delete_then_set_preserves_style(
     first: ConfigPatch, second: ConfigPatch, style_ledger: StyleLedger | None
 ) -> bool:
+    explicit_write = (
+        second.write_style is not None
+        or second.write_ref is not None
+        or second.write_has_ref
+    )
     ledger_style = (
-        style_ledger.wrapper_style(second.path) if style_ledger is not None else None
+        style_ledger.wrapper_style(second.path)
+        if style_ledger is not None and not explicit_write
+        else None
     )
     eff_style = second.write_style or second.original_style or ledger_style
     if eff_style is None:
         eff_style = "ref_value" if second.default_wrapped else "bare"
-    ledger_ref = (
-        style_ledger.ref_metadata(second.path) if style_ledger is not None else None
-    )
-    eff_ref = (
-        second.write_ref
-        if second.write_ref is not None
-        else (second.original_ref if second.original_ref is not None else ledger_ref)
-    )
+    if explicit_write:
+        eff_ref = second.write_ref
+        eff_has_ref = second.write_has_ref or eff_ref is not None
+    elif second.original_ref is not None:
+        eff_ref = second.original_ref
+        eff_has_ref = True
+    elif style_ledger is not None:
+        eff_ref = style_ledger.ref_metadata(second.path)
+        eff_has_ref = style_ledger.has_ref_key(second.path)
+    else:
+        eff_ref = None
+        eff_has_ref = False
     if eff_style != first.original_style or eff_ref != first.original_ref:
         return False
     # Non-RefValue mappings (e.g. {"value": 1, "unit": "m"}) cannot merge delete+set into an update.
@@ -665,12 +724,10 @@ def _delete_then_set_preserves_style(
         and not is_ref_only(first.original_raw)
     ):
         return False
-    # Explicit null ref key in original_raw (e.g. {"value": 1, "ref": None}) would be dropped.
-    return not (
-        isinstance(first.original_raw, Mapping)
-        and "ref" in first.original_raw
-        and first.original_raw["ref"] is None
+    orig_has_ref = (
+        isinstance(first.original_raw, Mapping) and "ref" in first.original_raw
     )
+    return eff_has_ref == orig_has_ref
 
 
 def _merge_with_set(
@@ -678,12 +735,16 @@ def _merge_with_set(
 ) -> ConfigPatch | object | None:
     if _writes_explicit_wrapper(first) or _writes_explicit_wrapper(second):
         return _CANNOT_MERGE
+    first_orig_has_ref = (
+        isinstance(first.original_raw, Mapping) and "ref" in first.original_raw
+    )
     if (
         first.action == "set"
         and first.had_original is True
         and (
             first.write_style != first.original_style
             or first.write_ref != first.original_ref
+            or first.write_has_ref != first_orig_has_ref
         )
     ):
         return _CANNOT_MERGE

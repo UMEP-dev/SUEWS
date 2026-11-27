@@ -14,7 +14,14 @@ from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
 from dataclasses import dataclass, fields as dc_fields, is_dataclass
 from enum import Enum
-from types import MappingProxyType
+import functools
+from types import (
+    BuiltinMethodType,
+    MappingProxyType,
+    MethodType,
+    MethodWrapperType,
+    ModuleType,
+)
 from typing import Any
 import weakref
 
@@ -62,91 +69,487 @@ _MODEL_EXTRA_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
 })
 
 
-def _detach_mapping_proxy_tree(value: Any, memo: dict[int, Any]) -> Any:
-    """Fallback deep copy that detaches ``MappingProxyType`` inside models and dataclasses."""
-    if value is None or _is_exact_immutable_scalar(value):
-        return value
-    obj_id = id(value)
-    if obj_id in memo:
-        return memo[obj_id]
-    if isinstance(value, MappingProxyType):
-        out_map: dict[Any, Any] = {}
-        memo[obj_id] = out_map
-        for k, v in value.items():
-            out_map[_detach_mapping_proxy_tree(k, memo)] = _detach_mapping_proxy_tree(
-                v, memo
-            )
-        return out_map
-    if isinstance(value, BaseModel):
-        model_cls = type(value)
-        copied_fields = {
-            name: _detach_mapping_proxy_tree(getattr(value, name), memo)
-            for name in model_cls.model_fields
-        }
-        extra = getattr(value, "model_extra", None)
-        if isinstance(extra, Mapping):
-            for k, v in extra.items():
-                copied_fields[k] = _detach_mapping_proxy_tree(v, memo)
-        cloned = model_cls.model_construct(
-            _fields_set=set(value.model_fields_set), **copied_fields
+_PYDANTIC_INTERNAL_SLOTS: frozenset[str] = frozenset({
+    "__dict__",
+    "__weakref__",
+    "__pydantic_fields_set__",
+    "__pydantic_extra__",
+    "__pydantic_private__",
+})
+
+
+def _iter_custom_slots(cls: type[Any], skip: frozenset[str]) -> tuple[str, ...]:
+    """Return unique custom ``__slots__`` attribute names across *cls* MRO."""
+    names: list[str] = []
+    seen: set[str] = set()
+    for base in cls.__mro__:
+        slots = base.__dict__.get("__slots__")
+        if not slots:
+            continue
+        slot_iter = (slots,) if isinstance(slots, str) else slots
+        for slot_name in slot_iter:
+            if slot_name in skip or slot_name in seen:
+                continue
+            seen.add(slot_name)
+            names.append(slot_name)
+    return tuple(names)
+
+
+def _copy_slots(
+    src: Any,
+    dst: Any,
+    memo: dict[int, Any],
+    *,
+    skip: frozenset[str],
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> None:
+    """Copy non-skipped ``__slots__`` values from *src* to *dst* via detached traversal."""
+    for slot_name in _iter_custom_slots(type(src), skip):
+        try:
+            slot_val = object.__getattribute__(src, slot_name)
+        except AttributeError:
+            continue
+        object.__setattr__(
+            dst,
+            slot_name,
+            _detach_snapshot_tree(
+                slot_val,
+                memo,
+                reject_enums=reject_enums,
+                wrap_enums=wrap_enums,
+            ),
         )
-        memo[obj_id] = cloned
-        return cloned
-    if is_dataclass(value) and not isinstance(value, type):
-        dc_cls = type(value)
-        cloned_dc = object.__new__(dc_cls)
-        memo[obj_id] = cloned_dc
-        for dc_field in dc_fields(dc_cls):
-            object.__setattr__(
-                cloned_dc,
-                dc_field.name,
-                _detach_mapping_proxy_tree(getattr(value, dc_field.name), memo),
-            )
-        return cloned_dc
-    return _detach_container_fallback(value, memo)
 
 
-def _detach_container_fallback(value: Any, memo: dict[int, Any]) -> Any:
-    """Detach standard Python containers in the ``MappingProxyType`` fallback path."""
+def _clone_base_model(
+    value: BaseModel,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> BaseModel:
+    """Clone a Pydantic ``BaseModel`` preserving ``PrivateAttr``, extras, and cycles."""
+    model_cls = type(value)
+    cloned = model_cls.__new__(model_cls)
+    memo[id(value)] = cloned
+    src_dict = object.__getattribute__(value, "__dict__")
+    cloned_dict = {
+        k: _detach_snapshot_tree(
+            v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+        for k, v in src_dict.items()
+    }
+    object.__setattr__(cloned, "__dict__", cloned_dict)
+    fields_set = getattr(value, "__pydantic_fields_set__", None)
+    if fields_set is not None:
+        object.__setattr__(cloned, "__pydantic_fields_set__", set(fields_set))
+    extra = getattr(value, "__pydantic_extra__", None)
+    if extra is None:
+        object.__setattr__(cloned, "__pydantic_extra__", None)
+    else:
+        object.__setattr__(
+            cloned,
+            "__pydantic_extra__",
+            _detach_snapshot_tree(
+                extra, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            ),
+        )
+    private = getattr(value, "__pydantic_private__", None)
+    if private is None:
+        object.__setattr__(cloned, "__pydantic_private__", None)
+    else:
+        object.__setattr__(
+            cloned,
+            "__pydantic_private__",
+            {
+                k: _detach_snapshot_tree(
+                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for k, v in private.items()
+            },
+        )
+    _copy_slots(
+        value,
+        cloned,
+        memo,
+        skip=_PYDANTIC_INTERNAL_SLOTS,
+        reject_enums=reject_enums,
+        wrap_enums=wrap_enums,
+    )
+    return cloned
+
+
+def _clone_dataclass(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> Any:
+    """Clone a dataclass instance preserving declared fields, extra state, and cycles."""
+    dc_cls = type(value)
+    cloned_dc = object.__new__(dc_cls)
+    memo[id(value)] = cloned_dc
+    if hasattr(value, "__dict__"):
+        src_dict = object.__getattribute__(value, "__dict__")
+        object.__setattr__(
+            cloned_dc,
+            "__dict__",
+            {
+                k: _detach_snapshot_tree(
+                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for k, v in src_dict.items()
+            },
+        )
+    _copy_slots(
+        value,
+        cloned_dc,
+        memo,
+        skip=frozenset({"__dict__", "__weakref__"}),
+        reject_enums=reject_enums,
+        wrap_enums=wrap_enums,
+    )
+    return cloned_dc
+
+
+def _detach_callable(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach bound methods and ``functools.partial`` objects by rebinding copied targets."""
     obj_id = id(value)
-    result: Any
-    if isinstance(value, dict):
-        out_dict: dict[Any, Any] = {}
-        memo[obj_id] = out_dict
-        for k, v in value.items():
-            out_dict[_detach_mapping_proxy_tree(k, memo)] = _detach_mapping_proxy_tree(
-                v, memo
+    if isinstance(value, (BuiltinMethodType, MethodWrapperType)):
+        bound_self = getattr(value, "__self__", None)
+        if bound_self is None or isinstance(bound_self, (ModuleType, type)):
+            return True, value
+        copied_self = _detach_snapshot_tree(
+            bound_self, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+        rebound = getattr(copied_self, value.__name__)
+        memo[obj_id] = rebound
+        return True, rebound
+    if isinstance(value, MethodType):
+        bound_self = value.__self__
+        if isinstance(bound_self, type):
+            return True, value
+        copied_self = _detach_snapshot_tree(
+            bound_self, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+        rebound = MethodType(value.__func__, copied_self)
+        memo[obj_id] = rebound
+        return True, rebound
+    if isinstance(value, functools.partial):
+        out_partial = functools.partial(
+            _detach_snapshot_tree(
+                value.func, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            ),
+            *(
+                _detach_snapshot_tree(
+                    arg, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for arg in value.args
+            ),
+            **{
+                k: _detach_snapshot_tree(
+                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for k, v in value.keywords.items()
+            },
+        )
+        memo[obj_id] = out_partial
+        return True, out_partial
+    return False, None
+
+
+def _detach_numpy_or_buffer(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach NumPy arrays, structured scalars, and byte buffers."""
+    obj_id = id(value)
+    result: Any = None
+    handled = True
+    if isinstance(value, np.ndarray):
+        if value.dtype.hasobject:
+            out_arr: np.ndarray[Any, Any] = np.empty(
+                value.shape, dtype=deepcopy(value.dtype)
             )
-        result = out_dict
-    elif isinstance(value, list):
+            memo[obj_id] = out_arr
+            for idx, item in enumerate(value.flat):
+                out_arr.flat[idx] = _detach_snapshot_tree(
+                    item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+            return True, out_arr
+        result = value.copy()
+    elif isinstance(value, np.void):
+        if value.dtype.names and value.dtype.hasobject:
+            detached_fields = tuple(
+                _detach_snapshot_tree(
+                    value[name], memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for name in value.dtype.names
+            )
+            result = np.array([detached_fields], dtype=deepcopy(value.dtype))[0]
+        else:
+            result = deepcopy(value)
+    elif type(value) is bytearray:
+        result = bytearray(value)
+    elif type(value) is memoryview:
+        result = memoryview(bytes(value))
+    else:
+        handled = False
+    if handled:
+        memo[obj_id] = result
+    return handled, result
+
+
+def _detach_sequence_or_set(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach list, deque, set, tuple, frozenset, and slice containers."""
+    obj_id = id(value)
+    if isinstance(value, list):
         out_list: list[Any] = []
         memo[obj_id] = out_list
-        out_list.extend(_detach_mapping_proxy_tree(item, memo) for item in value)
-        result = out_list
-    elif isinstance(value, (tuple, set, frozenset)):
-        result = type(value)(_detach_mapping_proxy_tree(item, memo) for item in value)
-    elif isinstance(value, deque):
-        result = deque(
-            (_detach_mapping_proxy_tree(item, memo) for item in value),
-            maxlen=value.maxlen,
+        out_list.extend(
+            _detach_snapshot_tree(
+                item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+            for item in value
+        )
+        return True, out_list
+    if type(value) is deque:
+        out_deque: deque[Any] = deque(maxlen=value.maxlen)
+        memo[obj_id] = out_deque
+        out_deque.extend(
+            _detach_snapshot_tree(
+                item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+            for item in value
+        )
+        return True, out_deque
+    if type(value) is set:
+        out_set: set[Any] = set()
+        memo[obj_id] = out_set
+        for item in value:
+            out_set.add(
+                _detach_snapshot_tree(
+                    item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+            )
+        return True, out_set
+    result: Any = None
+    handled = True
+    if type(value) is tuple:
+        result = tuple(
+            _detach_snapshot_tree(
+                item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+            for item in value
+        )
+    elif isinstance(value, tuple) and hasattr(type(value), "_fields"):
+        result = type(value)(
+            *(
+                _detach_snapshot_tree(
+                    item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for item in value
+            )
+        )
+    elif type(value) is frozenset:
+        result = frozenset(
+            _detach_snapshot_tree(
+                item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+            for item in value
         )
     elif type(value) is slice:
         result = slice(
-            _detach_mapping_proxy_tree(value.start, memo),
-            _detach_mapping_proxy_tree(value.stop, memo),
-            _detach_mapping_proxy_tree(value.step, memo),
+            _detach_snapshot_tree(
+                value.start, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            ),
+            _detach_snapshot_tree(
+                value.stop, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            ),
+            _detach_snapshot_tree(
+                value.step, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            ),
         )
     else:
-        result = deepcopy(value)
-    return result
+        handled = False
+    if handled:
+        memo[obj_id] = result
+    return handled, result
 
 
-def _safe_snapshot_copy(value: Any) -> Any:
-    """Deep-copy *value*, falling back cleanly if it contains ``MappingProxyType``."""
-    try:
-        return deepcopy(value)
-    except TypeError:
-        return _detach_mapping_proxy_tree(value, {})
+def _detach_plain_instance(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach plain Python class instances preserving ``__dict__``, ``__slots__``, and cycles."""
+    skip = frozenset({"__dict__", "__weakref__"})
+    if (
+        isinstance(value, type)
+        or type(value).__new__ is not object.__new__
+        or hasattr(value, "__deepcopy__")
+        or type(value).__reduce_ex__ is not object.__reduce_ex__
+        or not (
+            hasattr(value, "__dict__") or bool(_iter_custom_slots(type(value), skip))
+        )
+    ):
+        return False, None
+    cloned_obj = object.__new__(type(value))
+    memo[id(value)] = cloned_obj
+    if hasattr(value, "__dict__"):
+        src_dict = object.__getattribute__(value, "__dict__")
+        object.__setattr__(
+            cloned_obj,
+            "__dict__",
+            {
+                k: _detach_snapshot_tree(
+                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for k, v in src_dict.items()
+            },
+        )
+    _copy_slots(
+        value,
+        cloned_obj,
+        memo,
+        skip=skip,
+        reject_enums=reject_enums,
+        wrap_enums=wrap_enums,
+    )
+    return True, cloned_obj
+
+
+def _detach_container_or_object(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> Any:
+    """Detach Python containers, callables, NumPy values, and plain Python objects."""
+    if isinstance(value, (MappingProxyType, dict)):
+        out_dict: dict[Any, Any] = {}
+        memo[id(value)] = out_dict
+        for k, v in value.items():
+            out_dict[
+                _detach_snapshot_tree(
+                    k, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+            ] = _detach_snapshot_tree(
+                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+        return out_dict
+    for handler in (
+        _detach_sequence_or_set,
+        _detach_callable,
+        _detach_numpy_or_buffer,
+        _detach_plain_instance,
+    ):
+        handled, result = handler(
+            value, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+        if handled:
+            return result
+    return deepcopy(value)
+
+
+def _detach_enum_value(
+    value: Enum,
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> Any:
+    """Apply export policy to an ``Enum`` member during snapshot detachment."""
+    if reject_enums:
+        raise TypeError(
+            f"Cannot produce an independent copy containing Enum singleton "
+            f"{type(value).__name__}.{value.name}"
+        )
+    if wrap_enums is not None:
+        return (
+            wrap_enums[id(value)]
+            if id(value) in wrap_enums
+            else ReadOnlyEnumProxy(value)
+        )
+    return value
+
+
+def _detach_snapshot_tree(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool = False,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None = None,
+) -> Any:
+    """Recursively detach *value*, isolating ``MappingProxyType``, bound methods, and enums."""
+    if (
+        value is None
+        or _is_exact_immutable_scalar(value)
+        or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES
+        or isinstance(
+            value,
+            (
+                ReadOnlyModelProxy,
+                ReadOnlyDataclassProxy,
+                ReadOnlyEnumProxy,
+                ReadOnlyFieldInfo,
+                _FrozenArraySpec,
+                _FrozenSliceSpec,
+                _ReadOnlyMaterialisingMapping,
+                _ReadOnlyMaterialisingTuple,
+            ),
+        )
+    ):
+        return value
+    if isinstance(value, Enum):
+        return _detach_enum_value(
+            value, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+    obj_id = id(value)
+    if obj_id in memo:
+        return memo[obj_id]
+    if isinstance(value, BaseModel):
+        return _clone_base_model(
+            value, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+    if is_dataclass(value) and not isinstance(value, type):
+        return _clone_dataclass(
+            value, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+    return _detach_container_or_object(
+        value, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+    )
+
+
+def _safe_snapshot_copy(
+    value: Any,
+    *,
+    reject_enums: bool = False,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None = None,
+) -> Any:
+    """Return a detached snapshot copy of *value* isolating bound methods and read-only views."""
+    return _detach_snapshot_tree(
+        value, {}, reject_enums=reject_enums, wrap_enums=wrap_enums
+    )
 
 
 def _snapshot_enum_extra_attrs(member: Enum) -> Mapping[str, Any]:
@@ -214,8 +617,13 @@ class ReadOnlyEnumProxy:
         return _materialise_readonly(_ENUM_STATE[id(self)][1])
 
     def unwrap_copy(self) -> Enum:
-        """Return the underlying ``Enum`` member."""
-        return _ENUM_STATE[id(self)][0]
+        """Reject unwrapping because ``Enum`` members are shared process-wide singletons."""
+        member = _ENUM_STATE[id(self)][0]
+        raise TypeError(
+            f"Cannot produce an independent copy of Enum singleton "
+            f"{type(member).__name__}.{member.name}; inspect the ReadOnlyEnumProxy "
+            "or read .value instead"
+        )
 
     def __getattr__(self, name: str) -> Any:
         """Resolve snapshotted public attributes on the wrapped ``Enum`` member."""
@@ -358,6 +766,45 @@ class ReadOnlyFieldInfo:
         return self
 
 
+def _iter_snapshot_children(
+    obj: Any,
+    field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]],
+) -> list[Any]:
+    """Return child objects reachable from *obj* for eager enum/field snapshotting."""
+    children: list[Any] = []
+    if isinstance(obj, BaseModel):
+        model_cls = type(obj)
+        if model_cls not in field_snapshots:
+            field_snapshots[model_cls] = _freeze_model_fields(model_cls)
+        children.extend(getattr(obj, name) for name in model_cls.model_fields)
+        for attr in ("model_extra", "__pydantic_private__"):
+            mapping = getattr(obj, attr, None)
+            if isinstance(mapping, Mapping):
+                children.append(mapping)
+    elif is_dataclass(obj) and not isinstance(obj, type):
+        children.extend(getattr(obj, f.name) for f in dc_fields(type(obj)))
+        if hasattr(obj, "__dict__"):
+            children.append(object.__getattribute__(obj, "__dict__"))
+    elif isinstance(obj, Mapping):
+        for k, v in obj.items():
+            children.extend((k, v))
+    elif isinstance(obj, (list, tuple, deque, set, frozenset)):
+        children.extend(obj)
+    elif type(obj) is slice:
+        children.extend((obj.start, obj.stop, obj.step))
+    elif isinstance(obj, np.ndarray) and obj.dtype.hasobject:
+        children.extend(obj.flat)
+    elif isinstance(obj, np.void) and obj.dtype.names:
+        children.extend(obj[name] for name in obj.dtype.names)
+    elif isinstance(obj, (BuiltinMethodType, MethodWrapperType, MethodType)):
+        bound_self = getattr(obj, "__self__", None)
+        if bound_self is not None and not isinstance(bound_self, (ModuleType, type)):
+            children.append(bound_self)
+    elif isinstance(obj, functools.partial):
+        children.extend((obj.func, obj.args, obj.keywords))
+    return children
+
+
 def _collect_proxy_snapshots(
     root: Any,
 ) -> tuple[
@@ -368,53 +815,21 @@ def _collect_proxy_snapshots(
     enum_snapshots: dict[int, ReadOnlyEnumProxy] = {}
     field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]] = {}
     visited: set[int] = set()
-
-    def _walk_children(obj: Any) -> None:
-        if isinstance(obj, BaseModel):
-            model_cls = type(obj)
-            if model_cls not in field_snapshots:
-                field_snapshots[model_cls] = _freeze_model_fields(model_cls)
-            for field_name in model_cls.model_fields:
-                _walk(getattr(obj, field_name))
-            extra = getattr(obj, "model_extra", None)
-            if isinstance(extra, Mapping):
-                _walk(extra)
-        elif is_dataclass(obj) and not isinstance(obj, type):
-            for dc_field in dc_fields(type(obj)):
-                _walk(getattr(obj, dc_field.name))
-        elif isinstance(obj, Mapping):
-            for k, v in obj.items():
-                _walk(k)
-                _walk(v)
-        elif isinstance(obj, (list, tuple, deque, set, frozenset)):
-            for item in obj:
-                _walk(item)
-        elif type(obj) is slice:
-            _walk(obj.start)
-            _walk(obj.stop)
-            _walk(obj.step)
-        elif isinstance(obj, np.ndarray) and obj.dtype.hasobject:
-            for item in obj.flat:
-                _walk(item)
-        elif isinstance(obj, np.void) and obj.dtype.names:
-            for field_name in obj.dtype.names:
-                _walk(obj[field_name])
-
-    def _walk(obj: Any) -> None:
+    stack: list[Any] = [root]
+    while stack:
+        obj = stack.pop()
         if obj is None or _is_exact_immutable_scalar(obj):
-            return
+            continue
         if isinstance(obj, Enum):
             obj_id = id(obj)
             if obj_id not in enum_snapshots and _is_immutable_enum(obj):
                 enum_snapshots[obj_id] = ReadOnlyEnumProxy(obj)
-            return
+            continue
         obj_id = id(obj)
         if obj_id in visited:
-            return
+            continue
         visited.add(obj_id)
-        _walk_children(obj)
-
-    _walk(root)
+        stack.extend(_iter_snapshot_children(obj, field_snapshots))
     return enum_snapshots, field_snapshots
 
 
@@ -539,7 +954,7 @@ class ReadOnlyDataclassProxy:
 
     def unwrap_copy(self) -> Any:
         """Return an independent mutable deep copy of the underlying dataclass."""
-        return _safe_snapshot_copy(_DATACLASS_STATE[id(self)][0])
+        return _safe_snapshot_copy(_DATACLASS_STATE[id(self)][0], reject_enums=True)
 
     def __copy__(self) -> ReadOnlyDataclassProxy:
         """Return ``self`` because ``ReadOnlyDataclassProxy`` is deeply immutable."""
@@ -786,12 +1201,14 @@ class ReadOnlyModelProxy:
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return a fresh detached dictionary serialisation of a working model copy."""
-        working_copy = _safe_snapshot_copy(_PROXY_STATE[id(self)][0])
-        return _safe_snapshot_copy(working_copy.model_dump(*args, **kwargs))
+        target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
+        working_copy = _safe_snapshot_copy(target)
+        dumped = working_copy.model_dump(*args, **kwargs)
+        return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
     def unwrap_copy(self) -> BaseModel:
         """Return an independent mutable deep copy of the underlying model."""
-        return _safe_snapshot_copy(_PROXY_STATE[id(self)][0])
+        return _safe_snapshot_copy(_PROXY_STATE[id(self)][0], reject_enums=True)
 
     def to_typed_view(self) -> Any:
         """Convert this read-only model into a deeply frozen :class:`TypedConfigView`."""
@@ -907,6 +1324,11 @@ class ReadOnlyModelProxy:
             "to_typed_view",
         })
         return sorted(names)
+
+
+def _unwrap_model_for_validation(proxy: ReadOnlyModelProxy) -> BaseModel:
+    """Return a detached working model copy for the validation engine."""
+    return _safe_snapshot_copy(_PROXY_STATE[id(proxy)][0])
 
 
 def freeze_model(model: BaseModel | ReadOnlyModelProxy) -> ReadOnlyModelProxy:

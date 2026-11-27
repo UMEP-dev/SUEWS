@@ -36,7 +36,7 @@ from .pipeline.report_schema import (
     PhaseReport,
     ValidationReport,
 )
-from .rules.readonly_model import ReadOnlyModelProxy, freeze_model
+from .rules.readonly_model import ReadOnlyModelProxy, _unwrap_model_for_validation, freeze_model
 
 if TYPE_CHECKING:
     from ..core.config import SUEWSConfig
@@ -600,7 +600,7 @@ def _load_source_in_memory(
     from ..core.config import SUEWSConfig  # noqa: PLC0415
 
     if isinstance(source, ReadOnlyModelProxy):
-        source = source.unwrap_copy()
+        source = _unwrap_model_for_validation(source)
 
     if isinstance(source, SUEWSConfig):
         validated_copy, pre_dump_err = _validate_suews_config_before_dump(
@@ -1166,7 +1166,9 @@ class ValidationEngine:
 
         first_phase = pipeline_norm[0]
         unwrapped_source: Any = (
-            source.unwrap_copy() if isinstance(source, ReadOnlyModelProxy) else source
+            _unwrap_model_for_validation(source)
+            if isinstance(source, ReadOnlyModelProxy)
+            else source
         )
         raw_data, source_path, load_error = _load_source_in_memory(
             unwrapped_source, first_phase=first_phase

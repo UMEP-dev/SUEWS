@@ -517,6 +517,37 @@ def _harvest_moves(d: Path, step) -> dict:
     return out
 
 
+def _parse_profile_code_int(token: object) -> Optional[int]:
+    """Parse an integer or whole-number decimal profile code token."""
+    text = str(token).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        try:
+            fval = float(text)
+        except ValueError:
+            return None
+        if math.isfinite(fval) and fval.is_integer():
+            return int(fval)
+        return None
+
+
+def _is_uniform_one_profile_row(row: list[str]) -> bool:
+    """Return True iff *row* carries 24 finite hourly values all equal to 1.0."""
+    if len(row) < 25:
+        return False
+    for token in row[1:25]:
+        try:
+            fval = float(token)
+        except ValueError:
+            return False
+        if not math.isfinite(fval) or fval != 1.0:
+            return False
+    return True
+
+
 def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     """Undo one forward edge ``from_ver -> to_ver`` in directory ``d``.
 
@@ -555,6 +586,12 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     # whatever the extras donor carried.
     carried = _harvest_moves(d, step)
 
+    from .profile_manager import ProfileManager  # noqa: PLC0415
+
+    day_night_base = int(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+    day_night_sentinel = str(day_night_base)
+    dropped_day_night_codes: set[int] = set()
+
     # 3. Group the column/key actions by their (source-side) file name.
     col_actions = step[step["Action"].isin(["Add", "Delete", "Rename"])]
     for fname in sorted(set(col_actions["File"].astype(str))):
@@ -568,6 +605,15 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             if is_nml:
                 _drop_nml_key(path, var)
             elif path.exists():
+                if str(r["Value"]).strip() == day_night_sentinel:
+                    tbl_header, tbl_rows = _read_table(path)
+                    if var in tbl_header:
+                        col_idx = tbl_header.index(var)
+                        for tbl_row in tbl_rows:
+                            if col_idx < len(tbl_row):
+                                parsed = _parse_profile_code_int(tbl_row[col_idx])
+                                if parsed is not None and parsed >= day_night_base:
+                                    dropped_day_night_codes.add(parsed)
                 _drop_table_column(path, var)
 
         # 3b. Undo Deletes (restore source-present columns/keys; carried
@@ -596,40 +642,23 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             elif path.exists():
                 _rename_table_column(path, new, old)
 
-    # 4. Prune synthetic day/night default profile rows (>= DAY_NIGHT_DEFAULT)
-    # introduced by forward Add rules ONLY when ``profile_codes`` proves the
-    # row was absent from the source table and no remaining table in ``d``
-    # references it. User-owned rows (present in source ``profile_codes``) are
-    # never removed.
-    from .profile_manager import ProfileManager  # noqa: PLC0415
-
-    day_night_base = int(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
-    added_day_night = (
-        (step["Action"] == "Add")
-        & (step["Value"].astype(str).str.strip() == str(day_night_base))
-    ).any()
+    # 4. Prune unchanged synthetic uniform-1.0 day/night default profile rows
+    # actually referenced by the day/night Add columns dropped in step 3a, ONLY
+    # when ``profile_codes`` proves the row was absent from the source table
+    # and no remaining table in ``d`` references it. User-owned rows (present in
+    # source ``profile_codes``), user-created unreferenced rows, and modified
+    # rows are never removed.
     profiles_path = d / "SUEWS_Profiles.txt"
     source_profile_codes = extras.get("profile_codes")
-    if added_day_night and profiles_path.exists() and source_profile_codes is not None:
-        def _parse_code_int(token: object) -> Optional[int]:
-            text = str(token).strip()
-            if not text:
-                return None
-            try:
-                return int(text)
-            except ValueError:
-                try:
-                    fval = float(text)
-                except ValueError:
-                    return None
-                if math.isfinite(fval) and fval.is_integer():
-                    return int(fval)
-                return None
-
+    if (
+        dropped_day_night_codes
+        and profiles_path.exists()
+        and source_profile_codes is not None
+    ):
         source_codes_int = {
             parsed
             for code in source_profile_codes
-            if (parsed := _parse_code_int(code)) is not None
+            if (parsed := _parse_profile_code_int(code)) is not None
         }
         referenced_codes_int: set[int] = set()
         for tbl in d.glob("SUEWS_*.txt"):
@@ -638,7 +667,7 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             _, tbl_rows = _read_table(tbl)
             for row in tbl_rows:
                 for token in row[1:]:
-                    parsed = _parse_code_int(token)
+                    parsed = _parse_profile_code_int(token)
                     if parsed is not None:
                         referenced_codes_int.add(parsed)
         prof_header, prof_rows = _read_table(profiles_path)
@@ -646,12 +675,14 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
         for row in prof_rows:
             if not row:
                 continue
-            code_int = _parse_code_int(row[0])
+            code_int = _parse_profile_code_int(row[0])
             if (
                 code_int is not None
+                and code_int in dropped_day_night_codes
                 and code_int >= day_night_base
                 and code_int not in source_codes_int
                 and code_int not in referenced_codes_int
+                and _is_uniform_one_profile_row(row)
             ):
                 continue
             pruned.append(row)

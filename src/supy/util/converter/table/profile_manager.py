@@ -220,12 +220,14 @@ class ProfileManager:
         terminator, so conversion rules can rely on their default codes even when
         ``validate_profiles=False``.
         """
+        profiles_file = output_path / "SUEWS_Profiles.txt"
+        self._prepare_profiles_df(f"write {profiles_file}")
+
         requested = sorted({int(code) for code in codes if int(code) > 0})
         missing = [code for code in requested if code not in self.available_profiles]
         if not missing:
             return False
 
-        profiles_file = output_path / "SUEWS_Profiles.txt"
         new_lines = [
             f"{code:4d}    " + "    ".join(["1.000"] * 24) + "\n" for code in missing
         ]
@@ -261,6 +263,11 @@ class ProfileManager:
 
         self.profiles_path = profiles_file
         self.load_profiles()
+        if self._load_error is not None:
+            raise ValueError(
+                f"Reloading {profiles_file} failed after writing default profile "
+                f"code(s) {missing}: {self._load_error}"
+            ) from self._load_error
         logger.info(
             f"Materialised conversion default profile code(s) {missing} in {profiles_file}"
         )
@@ -274,6 +281,11 @@ class ProfileManager:
         99901 with different values, allocates the next unused code (>= 99902),
         materialises uniform ``1.0`` there, and leaves the user's 99901 untouched.
         """
+        profiles_file = output_path / "SUEWS_Profiles.txt"
+        self._prepare_profiles_df(
+            f"resolve day/night default profile code for {profiles_file}"
+        )
+
         preferred = int(self.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
         if preferred in self.available_profiles and self.profile_data is not None:
             row = self.profile_data.loc[preferred]

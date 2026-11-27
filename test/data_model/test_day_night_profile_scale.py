@@ -787,3 +787,114 @@ def test_legacy_conversion_preserves_decimal_form_user_99901_code(
     assert 99901 in rev_by_int
     assert all(float(v) == pytest.approx(1.75) for v in rev_by_int[99901])
     assert 99902 not in rev_by_int
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+def test_malformed_profiles_table_rejects_day_night_allocation_without_corruption(
+    tmp_path: Path, validate_profiles: bool
+) -> None:
+    """A failed SUEWS_Profiles.txt load must fail closed instead of appending duplicate 99901."""
+    import shutil  # noqa: PLC0415
+
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    from supy.util.converter.table.profile_manager import ProfileManager  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    src = tmp_path / f"src_bad_{validate_profiles}"
+    shutil.copytree(fixture_2016a, src)
+    prof_file = src / "SUEWS_Profiles.txt"
+    lines = prof_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+        len(lines),
+    )
+    lines.insert(insert_at, "99901\t" + "\t".join(["1.600"] * 24) + "\n")
+    lines.insert(insert_at + 1, "BADCODE\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof_file.write_text("".join(lines), encoding="utf-8")
+    before_bytes = prof_file.read_bytes()
+
+    mgr = ProfileManager(prof_file)
+    with pytest.raises(ValueError, match="failed"):
+        mgr.resolve_day_night_default_code(src)
+    with pytest.raises(ValueError, match="failed"):
+        mgr.ensure_profile_codes(src, [99901])
+    assert prof_file.read_bytes() == before_bytes
+
+    dest = tmp_path / f"fwd_bad_{validate_profiles}"
+    with pytest.raises(ValueError, match="failed"):
+        convert_table(
+            str(src), str(dest), "2016a", "2025a", validate_profiles=validate_profiles
+        )
+
+
+def test_reverse_conversion_preserves_user_added_high_code_and_modified_synthetic_row(
+    tmp_path: Path,
+) -> None:
+    """Reverse conversion keeps user-added unreferenced >=99901 rows and edited synthetic rows."""
+    import shutil  # noqa: PLC0415
+
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    extras = R.capture_legacy_extras(fixture_2016a, "2016a")
+    dest = tmp_path / "fwd"
+    convert_table(str(fixture_2016a), str(dest), "2016a", "2025a", validate_profiles=False)
+
+    # Case 1: user adds unreferenced custom codes 100000 (1.7) and 100001 (1.0)
+    # while leaving converter-created 99901 untouched -> 99901 pruned, both user rows kept.
+    flat1 = tmp_path / "flat1"
+    rev1 = tmp_path / "rev1"
+    flat1.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat1 / produced.name)
+    prof1 = flat1 / "SUEWS_Profiles.txt"
+    lines1 = prof1.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines1) if ln.split() and ln.split()[0] == "-9"),
+        len(lines1),
+    )
+    lines1.insert(insert_at, "100000\t" + "\t".join(["1.700"] * 24) + "\n")
+    lines1.insert(insert_at + 1, "100001\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof1.write_text("".join(lines1), encoding="utf-8")
+
+    R.reverse_convert_table(flat1, rev1, "2016a", extras)
+    _, rev1_rows = R._read_table(rev1 / "SUEWS_Profiles.txt")
+    rev1_by_code = {r[0]: r[1:25] for r in rev1_rows if r}
+    assert "99901" not in rev1_by_code
+    assert "100000" in rev1_by_code
+    assert all(float(v) == pytest.approx(1.7) for v in rev1_by_code["100000"])
+    assert "100001" in rev1_by_code
+    assert all(float(v) == pytest.approx(1.0) for v in rev1_by_code["100001"])
+
+    # Case 2: user edits converter-created 99901 to non-1.0 values -> preserved on reverse.
+    flat2 = tmp_path / "flat2"
+    rev2 = tmp_path / "rev2"
+    flat2.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat2 / produced.name)
+    prof2 = flat2 / "SUEWS_Profiles.txt"
+    lines2 = prof2.read_text(encoding="utf-8").splitlines(keepends=True)
+    lines2 = [
+        ("99901\t" + "\t".join(["1.500"] * 24) + "\n")
+        if (ln.split() and ln.split()[0] == "99901")
+        else ln
+        for ln in lines2
+    ]
+    prof2.write_text("".join(lines2), encoding="utf-8")
+
+    R.reverse_convert_table(flat2, rev2, "2016a", extras)
+    _, rev2_rows = R._read_table(rev2 / "SUEWS_Profiles.txt")
+    rev2_by_code = {r[0]: r[1:25] for r in rev2_rows if r}
+    assert "99901" in rev2_by_code
+    assert all(float(v) == pytest.approx(1.5) for v in rev2_by_code["99901"])

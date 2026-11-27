@@ -10,7 +10,7 @@ SUEWS is a powerful urban climate modelling tool delivered through **SuPy**, a c
 What is SUEWS?
 --------------
 
-SUEWS (Surface Urban Energy and Water balance Scheme) is a physics-based model that simulates urban surface energy and water balance through Python. The model helps researchers understand:
+SUEWS (Surface Urban Energy and Water Balance Scheme) is a physics-based model that simulates urban surface energy and water balance through Python. The model helps researchers understand:
 
 - **Urban heat islands** and energy flux dynamics
 - **Urban hydrology** and surface water balance  
@@ -45,7 +45,7 @@ Installation and Setup
 
    # Verify installation
    print(f"SUEWS version: {sp.__version__}")
-   print("✅ SUEWS is ready to use!")
+   print("[OK] SUEWS is ready to use!")
 
 Quick Start: Sample Data Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -59,28 +59,28 @@ Quick Start: Sample Data Tutorial
    # Create simulation with built-in sample data
    sim = SUEWSSimulation.from_sample_data()
 
-   # Run simulation
-   sim.run()
+   # Run simulation and capture the SUEWSOutput object
+   output = sim.run()
 
-   print("🎉 Congratulations! You've run your first urban climate simulation.")
-   print(f"Generated {len(sim.results)} time steps of urban climate data")
+   print("Congratulations! You have run your first urban climate simulation.")
+   print(f"Generated {len(output.df)} time steps of urban climate data")
 
 **Step 2: Explore your results**
 
 .. code-block:: python
 
    # Quick overview of results structure
-   print("📈 Results structure:")
-   print(f"Time steps: {len(sim.results)}")
-   print(f"Output groups: {sim.results.columns.get_level_values('group').unique().tolist()}")
+   print("Results structure:")
+   print(f"Time steps: {len(output.df)}")
+   print(f"Output groups: {output.groups}")
 
    # Extract key variables using get_variable() helper
    # (Results use MultiIndex columns with levels 'group' and 'var')
    qn = sim.get_variable('QN', group='SUEWS')
    qh = sim.get_variable('QH', group='SUEWS')
    print("\nSample energy flux statistics:")
-   print(f"Net radiation (QN): {qn.mean().values[0]:.1f} W/m²")
-   print(f"Sensible heat (QH): {qh.mean().values[0]:.1f} W/m²")
+   print(f"Net radiation (QN): {qn.mean().values[0]:.1f} W m-2")
+   print(f"Sensible heat (QH): {qh.mean().values[0]:.1f} W m-2")
 
 **Step 3: Create your first urban climate visualisation**
 
@@ -107,13 +107,13 @@ Quick Start: Sample Data Tutorial
     daily_energy = df_energy.resample('D', level='datetime').mean()
 
     daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
-    axes[0,0].set_ylabel('Energy Flux (W/m²)')
+    axes[0,0].set_ylabel('Energy Flux (W m-2)')
     axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
     # Monthly patterns
     monthly_energy = df_energy.groupby(df_energy.index.get_level_values("datetime").month).mean()
     monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
-    axes[0,1].set_ylabel('Energy Flux (W/m²)')
+    axes[0,1].set_ylabel('Energy Flux (W m-2)')
     axes[0,1].set_xlabel('Month')
 
     # Diurnal patterns (summer months)
@@ -122,7 +122,7 @@ Quick Start: Sample Data Tutorial
     summer_temp = t2[summer_mask]
     hourly_temp = summer_temp.groupby(summer_temp.index.get_level_values("datetime").hour).mean()
     hourly_temp.iloc[:, 0].plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
-    axes[1,0].set_ylabel('Air Temperature (°C)')
+    axes[1,0].set_ylabel('Air Temperature (degC)')
     axes[1,0].set_xlabel('Hour of Day')
     axes[1,0].grid(True, alpha=0.3)
 
@@ -154,25 +154,25 @@ The simulation produces comprehensive urban climate data:
      - Units
      - Description
    * - **QN**
-     - W/m²
+     - W |m^-2|
      - Net all-wave radiation (incoming - outgoing)
    * - **QF**  
-     - W/m²
+     - W |m^-2|
      - Anthropogenic heat flux (human activities)
    * - **QS**
-     - W/m²
+     - W |m^-2|
      - Net storage heat flux (thermal mass)
    * - **QE**
-     - W/m²
+     - W |m^-2|
      - Latent heat flux (evaporation/transpiration)
    * - **QH**
-     - W/m²
+     - W |m^-2|
      - Sensible heat flux (air heating)
    * - **RO**
      - mm
      - Surface runoff from precipitation
    * - **T2**
-     - °C
+     - degC
      - Air temperature at 2m height
    * - **RH2**
      - %
@@ -186,11 +186,11 @@ The simulation produces comprehensive urban climate data:
 
 **Working with Results (Important!)**
 
-Results are stored with MultiIndex columns with levels ``group`` and ``var``. Always use ``sim.get_variable()`` to extract data:
+``output = sim.run()`` returns a ``SUEWSOutput`` object (also accessible later as ``sim.output``, with the full MultiIndex DataFrame at ``output.df``). Results are stored with MultiIndex columns with levels ``group`` and ``var``. Always use ``sim.get_variable()`` (or ``output.get_variable()``) to extract variables:
 
 .. code-block:: python
 
-   # ✅ Correct way to access results
+   # Recommended way to access results
    qh = sim.get_variable('QH', group='SUEWS')
    t2 = sim.get_variable('T2', group='SUEWS')
 
@@ -226,11 +226,11 @@ Now that you understand how SUEWS works, let's configure it for your specific re
 Understanding YAML Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Modern SUEWS uses YAML configuration files that organise all model parameters in a clear, hierarchical structure. This replaces the legacy table-based approach with a more intuitive format:
+Modern SUEWS uses YAML configuration files that organise all model parameters in a clear, hierarchical structure. This replaces the legacy table-based approach with a more intuitive format. The abbreviated excerpt below illustrates the layout (use ``suews init`` in the next section to generate a complete starter file):
 
 .. code-block:: yaml
 
-   # Complete SUEWS configuration example
+   # Illustrative SUEWS YAML configuration excerpt (abbreviated)
    model:
      control:
        tstep: 300  # 5-minute time steps
@@ -285,19 +285,22 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
 Validate Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before running simulations, validate your configuration and review any issues:
+Before running simulations, scaffold a starter case (or bring your own YAML configuration), validate it, and review any issues:
 
 .. code-block:: bash
 
-   # Validate your configuration and report suggested updates
-   suews validate config.yml
+   # Create a starter case directory with sample_config.yml and its sample forcing file
+   suews init my_case
 
-   # Output files:
-   # - updated_config.yml (updated configuration)
-   # - report_config.txt (detailed validation report)
-   # - report_config.json (machine-readable validation report)
+   # Validate the starter configuration and report suggested updates
+   suews validate my_case/sample_config.yml
 
-By default, the validator writes recognised parameter-name updates and may add null placeholders for missing parameters. It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.
+   # Output files written in my_case/:
+   # - my_case/updated_sample_config.yml (updated configuration)
+   # - my_case/report_sample_config.txt (detailed validation report)
+   # - my_case/report_sample_config.json (machine-readable validation report)
+
+For any configuration ``<name>.yml``, ``suews validate`` writes ``updated_<name>.yml``, ``report_<name>.txt``, and ``report_<name>.json`` beside the input file. By default, the validator writes recognised parameter-name updates and may add ``null`` placeholders for missing critical parameters (omitted optional fields are not padded). It reports missing values and physics option conflicts for your attention; the output is not necessarily ready to run.
 
 The command prints "Validation failed" and exits with status 1 if any validation check reports an error; suggestions alone exit with status 0. Before running simulations, address the report's **ACTION NEEDED** section and replace any null placeholders listed there with real values.
 
@@ -322,39 +325,40 @@ This comprehensive notebook covers:
 Using Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Once you have a YAML configuration file, use the `SUEWSSimulation` class:
+Once you have a YAML configuration file (for example, ``my_case/sample_config.yml`` created by ``suews init my_case`` above, or your own site configuration), load and run it with :class:`~supy.SUEWSSimulation`:
 
 .. code-block:: python
 
    from supy import SUEWSSimulation
 
-   # Create simulation from YAML configuration
-   sim = SUEWSSimulation("path/to/your/config_suews.yml")
+   # Create simulation from the starter YAML configuration
+   # (replace with the path to your own site YAML file)
+   sim = SUEWSSimulation("my_case/sample_config.yml")
 
    # Run simulation (forcing data loaded from config)
    output = sim.run()
 
-   # Access results
-   print(sim.results)
+   # Access results as a DataFrame
+   print(output.df.head())
 
    # Save outputs
    sim.save("output_directory/")
 
    # Save the typed restart artefact explicitly
    checkpoint_path = output.checkpoint.to_file(
-       "output_directory/{site}_SUEWS_checkpoint.json"
+       "output_directory/KCL_SUEWS_checkpoint.json"
    )
 
-To continue a simulation, pair the same YAML configuration with the checkpoint
-from the previous run and the next forcing period:
+To continue a simulation into a subsequent period, pair the same YAML configuration with the saved checkpoint and your own forcing file for the next contiguous period. The snippet below is a template; replace ``forcing_next_period.txt`` with your next-period forcing file:
 
 .. code-block:: python
 
    from supy import SUEWSSimulation
 
+   # Template: supply your own forcing file for the next contiguous period
    sim_next = SUEWSSimulation.from_checkpoint(
-       "path/to/your/config_suews.yml",
-       "output_directory/{site}_SUEWS_checkpoint.json",
+       "my_case/sample_config.yml",
+       "output_directory/KCL_SUEWS_checkpoint.json",
    )
    sim_next.update_forcing("forcing_next_period.txt")
    output_next = sim_next.run()
@@ -438,6 +442,8 @@ Multi-Site and Comparative Studies
 
 **Parallel Processing for Multiple Sites:**
 
+The template below illustrates parallel execution across multiple site configurations; supply your own YAML files in place of the placeholder filenames:
+
 .. code-block:: python
 
    from supy import SUEWSSimulation
@@ -450,7 +456,7 @@ Multi-Site and Comparative Studies
        output = sim.run()
        return config_file, output
 
-   # Configuration files for different sites
+   # Placeholder paths: supply your own site configuration YAML files
    site_configs = [
        "config_london.yml",
        "config_manchester.yml",
@@ -481,11 +487,14 @@ Climate Change Impact Studies
 
 **Scenario-Based Analysis:**
 
+The template below compares climate scenarios; supply your own scenario YAML files (each pointing to its respective forcing data) in place of the placeholder filenames:
+
 .. code-block:: python
 
+   import pandas as pd
    from supy import SUEWSSimulation
 
-   # Define climate scenarios with different forcing files
+   # Placeholder paths: supply your own scenario configuration YAML files
    scenarios = {
        'baseline': 'config_baseline.yml',
        'rcp45_2050': 'config_rcp45.yml',
@@ -515,7 +524,7 @@ Climate Change Impact Studies
    temp_baseline = baseline.get_variable('T2', group='SUEWS').iloc[:, 0]
    temp_rcp85 = rcp85.get_variable('T2', group='SUEWS').iloc[:, 0]
    temp_change = temp_rcp85.mean() - temp_baseline.mean()
-   print(f"Projected temperature increase: {temp_change:.1f}°C")
+   print(f"Projected temperature increase: {temp_change:.1f} degC")
 
    # Energy flux changes
    baseline_fluxes = get_variables(baseline, ['QH', 'QE', 'QS'])
@@ -551,13 +560,13 @@ SuPy enables integration with other atmospheric and urban models:
        def get_var(name):
            return sim.get_variable(name, group='SUEWS').iloc[:, 0]
 
-       # Extract surface fluxes for WRF
+       # Extract surface fluxes and states for WRF
        wrf_fluxes = pd.DataFrame({
            'sensible_heat': get_var('QH'),
            'latent_heat': get_var('QE'),
            'ground_heat': get_var('QS'),
-           'momentum_flux': get_var('Tau'),
-           'surface_temp': get_var('TSurf')
+           'friction_velocity': get_var('UStar'),
+           'surface_temp': get_var('Tsurf')
        })
 
        return wrf_fluxes
@@ -659,26 +668,29 @@ Migration Process
 
 **Automated Conversion:**
 
+Supply the path to your own legacy ``RunControl.nml`` in place of ``legacy_input_dir/RunControl.nml`` below (see :doc:`/inputs/transition_guide` for full migration instructions):
+
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML
-   suews convert -i legacy_input_dir/RunControl.nml -o modern_config.yml
+   # Convert your legacy table inputs to modern YAML
+   suews convert -i legacy_input_dir/RunControl.nml -o migrated_config.yml
 
 **Testing Your Migration:**
 
 .. code-block:: python
 
+   import pandas as pd
    from supy import SUEWSSimulation
 
-   # Test migrated configuration
+   # Test migrated configuration produced above
    sim = SUEWSSimulation("migrated_config.yml")
 
-   # Short validation run: the whole of the first day (a date-only bound
-   # runs through the end of that day)
+   # Short validation run: the whole of the first day (adjust end_date to match
+   # your forcing period; a date-only bound runs through the end of that day)
    sim.run(end_date="2012-01-01")
 
    # Check energy balance using get_variable()
-   print("✅ Migration validation:")
+   print("[OK] Migration validation:")
    energy_fluxes = pd.DataFrame({
        'QE': sim.get_variable('QE', group='SUEWS').iloc[:, 0],
        'QH': sim.get_variable('QH', group='SUEWS').iloc[:, 0],
@@ -708,7 +720,7 @@ Getting Support and Community
 
 **Recent Applications:**
 
-See `Recent Publications <Recent_publications>`__ for the latest research using SUEWS and SuPy.
+See :ref:`Recent Publications <Recent_publications>` for the latest research using SUEWS and SuPy.
 
 **Training and Workshops:**
 

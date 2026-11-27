@@ -1,14 +1,12 @@
 """Test surface conductance calculation utilities."""
 
-from atmosp import calculate as ac
 from lmfit import Parameters
 from lmfit.model import ModelResult
 import numpy as np
 import pandas as pd
 import pytest
 
-from supy.constants import C2K, CP_AIR
-from supy.util._atm import cal_des_dta
+from supy.util._atm import cal_dq
 from supy.util._gs import (
     cal_g_dq,
     cal_g_dq_noah,
@@ -412,8 +410,9 @@ class TestConductanceFittingAndCalibration:
         for key, val in best_vals.items():
             assert res_dbg.best_values[key] == pytest.approx(val, rel=1e-12)
 
-    def test_calib_g_default_preset_parameters_converges_on_synthetic_data(self):
-        """calib_g(..., prms_init=None) initialises g_dq_base/g_dq_shape and fits cleanly."""
+    @staticmethod
+    def _build_synthetic_calib_dataset():
+        """Build synthetic daytime forcing and exact Jarvis conductance targets."""
         n_obs = 48
         idx = pd.date_range("2023-07-01 06:00", periods=n_obs, freq="h")
         phase = np.linspace(0.0, 2.0 * np.pi, n_obs, endpoint=False)
@@ -427,38 +426,42 @@ class TestConductanceFittingAndCalibration:
         lai = pd.Series(3.0 + 1.2 * np.cos(phase + 0.3), index=idx)
         ser_ra = pd.Series(np.full(n_obs, 50.0), index=idx)
 
-        g_max = 10.0
-        lai_max = 5.0
-        wp_smd = 150.0
-        g_true = (4.0, 90.0, 0.15, 0.72, 23.0, 0.045)
+        g_max, lai_max, wp_smd = 10.0, 5.0, 150.0
+        g_true = {
+            "g_lai": 4.0,
+            "g_kd": 90.0,
+            "g_dq_base": 0.15,
+            "g_dq_shape": 0.72,
+            "g_ta": 23.0,
+            "g_smd": 0.045,
+        }
 
-        # Synthesise exact daytime observations matching cal_gs_suews(g_true).
-        gs_true = cal_gs_suews(
-            kdown,
-            ta_c,
-            rh,
-            pres_pa,
-            xsmd,
-            lai,
-            g_true,
-            g_max=g_max,
-            lai_max=lai_max,
-            wp_smd=wp_smd,
+        # Independent analytical Jarvis conductance oracle (avoids calling cal_gs_suews)
+        # so parameter-slot wiring is verified end-to-end against distinct asymmetric values.
+        dq = cal_dq(rh, ta_c, pres_hpa) * 1000.0
+        f_lai = (lai / lai_max) * g_true["g_lai"]
+        f_kd = (kdown / (g_true["g_kd"] + kdown)) / (1200.0 / (g_true["g_kd"] + 1200.0))
+        f_dq = g_true["g_dq_base"] + (1.0 - g_true["g_dq_base"]) * (
+            g_true["g_dq_shape"] ** dq
         )
+        tl, th = -10.0, 55.0
+        tc = min((th - g_true["g_ta"]) / (g_true["g_ta"] - tl), 20.0)
+        f_ta = ((ta_c - tl) * (th - ta_c) ** tc) / (
+            (g_true["g_ta"] - tl) * (th - g_true["g_ta"]) ** tc
+        )
+        f_smd = (1.0 - np.exp(g_true["g_smd"] * (xsmd - wp_smd))) / (
+            1.0 - np.exp(-g_true["g_smd"] * wp_smd)
+        )
+        gs_true = g_max * f_lai * f_kd * f_dq * f_ta * f_smd
+
+        # Solve for qh using the affine linearity of cal_rs_obs in qh without
+        # duplicating its internal Penman-Monteith implementation.
         rs_true = 1000.0 / gs_true
         qe = pd.Series(np.full(n_obs, 150.0), index=idx)
-        ta_k = ta_c + C2K
-        gamma = 0.665e-3 * pres_pa
-        des_dta = cal_des_dta(ta_k, pres_pa, dta=1.0)
-        vpd = ac("es", p=pres_pa, T=ta_k) - ac("e", p=pres_pa, T=ta_k, RH=rh)
-        qh = qe * (
-            1.0
-            + (rs_true - 1.27 * CP_AIR * vpd / (gamma * qe))
-            * gamma
-            / (des_dta * ser_ra)
-        )
+        rs_at_qh0 = cal_rs_obs(pd.Series(0.0, index=idx), qe, ta_c, rh, pres_pa, ser_ra)
+        rs_at_qh1 = cal_rs_obs(pd.Series(1.0, index=idx), qe, ta_c, rh, pres_pa, ser_ra)
+        qh = (rs_true - rs_at_qh0) / (rs_at_qh1 - rs_at_qh0)
 
-        # Verify the inverted fluxes reproduce gs_true before calibration.
         np.testing.assert_allclose(
             cal_gs_obs(qh, qe, ta_c, rh, pres_pa, ser_ra),
             gs_true,
@@ -480,16 +483,15 @@ class TestConductanceFittingAndCalibration:
         )
         # Drop one observation to exercise NaN filtering on the default-prms path.
         df_fc.loc[idx[-1], "qe"] = np.nan
-        gs_expected = gs_true.iloc[:-1]
+        return df_fc, ser_ra, gs_true.iloc[:-1], g_true, (g_max, lai_max, wp_smd)
 
-        expected_params = {
-            "g_lai",
-            "g_kd",
-            "g_dq_base",
-            "g_dq_shape",
-            "g_ta",
-            "g_smd",
-        }
+    def test_calib_g_default_preset_parameters_converges_on_synthetic_data(self):
+        """calib_g(..., prms_init=None) initialises g_dq_base/g_dq_shape and uses safe bounds."""
+        df_fc, ser_ra, gs_expected, g_true, (g_max, lai_max, wp_smd) = (
+            self._build_synthetic_calib_dataset()
+        )
+        expected_params = set(g_true)
+
         best_vals = calib_g(
             df_fc,
             ser_ra,
@@ -513,7 +515,7 @@ class TestConductanceFittingAndCalibration:
         )
         assert isinstance(res_dbg, ModelResult)
         assert res_dbg.success
-        assert res_dbg.ndata == n_obs - 1
+        assert res_dbg.ndata == len(gs_expected)
         assert set(res_dbg.params) == expected_params
         assert "g_q1" not in res_dbg.params
         assert "g_q2" not in res_dbg.params
@@ -528,7 +530,54 @@ class TestConductanceFittingAndCalibration:
         assert res_dbg.params["g_dq_shape"].max == pytest.approx(1.0)
         assert res_dbg.init_values["g_dq_base"] == pytest.approx(0.1)
         assert res_dbg.init_values["g_dq_shape"] == pytest.approx(0.7)
+
+        # Default bounds must stay away from singular points (g_kd=0 at kd=0; g_ta=tl/th).
+        assert res_dbg.params["g_kd"].min > 0.0
+        assert -10.0 < res_dbg.params["g_ta"].min < res_dbg.params["g_ta"].max < 55.0
+        param_order = ("g_lai", "g_kd", "g_dq_base", "g_dq_shape", "g_ta", "g_smd")
+        for bound_attr in ("min", "max"):
+            g_bound = [
+                getattr(res_dbg.params[name], bound_attr) for name in param_order
+            ]
+            gs_edge = cal_gs_suews(
+                kd=0.0,
+                ta_c=20.0,
+                rh=100.0,
+                pa=101325.0,
+                smd=0.0,
+                lai=2.0,
+                g_cst=g_bound,
+                g_max=g_max,
+                lai_max=lai_max,
+                wp_smd=wp_smd,
+            )
+            assert np.isfinite(gs_edge)
+
+        # Derivative-free COBYLA terminates at its default trust-region tolerance
+        # (~3% max relative residual on this 6-parameter problem); 5% allows minor
+        # platform/SciPy variation while catching misconfigured models.
         np.testing.assert_allclose(res_dbg.best_fit, gs_expected, rtol=5e-2)
+
+    def test_calib_g_default_preset_recovers_all_parameters_via_leastsq(self):
+        """calib_g(..., prms_init=None, method='leastsq') recovers all six asymmetric oracle parameters."""
+        df_fc, ser_ra, gs_expected, g_true, (g_max, lai_max, wp_smd) = (
+            self._build_synthetic_calib_dataset()
+        )
+        res_lsq = calib_g(
+            df_fc,
+            ser_ra,
+            g_max=g_max,
+            lai_max=lai_max,
+            wp_smd=wp_smd,
+            method="leastsq",
+            prms_init=None,
+            debug=True,
+        )
+        assert res_lsq.success
+        assert res_lsq.ndata == len(gs_expected)
+        for name, true_val in g_true.items():
+            assert res_lsq.best_values[name] == pytest.approx(true_val, rel=1e-6)
+        np.testing.assert_allclose(res_lsq.best_fit, gs_expected, rtol=1e-6)
 
 
 class TestNoahParameterisations:

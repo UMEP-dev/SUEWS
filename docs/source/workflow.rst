@@ -349,19 +349,19 @@ Once you have a YAML configuration file (for example, ``my_case/sample_config.ym
        "output_directory/KCL_SUEWS_checkpoint.json"
    )
 
-To continue a simulation into a subsequent period, pair the same YAML configuration with the saved checkpoint and your own forcing file for the next contiguous period. The snippet below is a template; replace ``forcing_next_period.txt`` with your next-period forcing file:
+To continue a simulation into a subsequent period, pair the same YAML configuration with the saved checkpoint, your own forcing file for the next contiguous period, and matching date bounds (because ``my_case/sample_config.yml`` sets ``start_time`` and ``end_time`` to 2012, pass ``start_date`` and ``end_date`` to ``run()`` or update those fields in the configuration). The snippet below is a template; replace ``forcing_next_period.txt`` and the date bounds with your next-period forcing file and period:
 
 .. code-block:: python
 
    from supy import SUEWSSimulation
 
-   # Template: supply your own forcing file for the next contiguous period
+   # Template: supply your own forcing file and matching date bounds for the next period
    sim_next = SUEWSSimulation.from_checkpoint(
        "my_case/sample_config.yml",
        "output_directory/KCL_SUEWS_checkpoint.json",
    )
    sim_next.update_forcing("forcing_next_period.txt")
-   output_next = sim_next.run()
+   output_next = sim_next.run(start_date="2013-01-01", end_date="2013-12-31")
 
 The checkpoint is intentionally only the typed runtime state. To continue a
 run, load the same YAML configuration, attach the next forcing period, and run

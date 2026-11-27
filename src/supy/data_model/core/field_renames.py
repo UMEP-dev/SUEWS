@@ -1664,7 +1664,9 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
     return values
 
 
-def read_physics_key(physics: dict, new_name: str, default: Any = None):
+def read_physics_key(
+    physics: Mapping[str, Any], new_name: str, default: Any = None
+):
     """Read a physics key from raw YAML, accepting either the new name or its legacy alias.
 
     Public-mode gates and other preflight checks inspect the raw user YAML
@@ -1677,7 +1679,7 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     orthogonal physics forms. Returns ``default`` when neither spelling is
     present.
     """
-    if new_name in {"storage_heat", "ohm_inc_qf"} and isinstance(physics, dict):
+    if new_name in {"storage_heat", "ohm_inc_qf"} and isinstance(physics, Mapping):
         physics = dict(physics)
         if "storage_heat" not in physics:
             for alias in ("storage_heat_method", "storageheatmethod"):
@@ -1685,7 +1687,7 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
                     physics["storage_heat"] = physics[alias]
                     break
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
-    if new_name == "kdown_split_method" and isinstance(physics, dict):
+    if new_name == "kdown_split_method" and isinstance(physics, Mapping):
         physics = dict(physics)
         fold_kdown_split_constant_direct_fraction(
             physics, "ModelPhysics", store_fraction=False

@@ -63,6 +63,7 @@ from supy.data_model.validation.rules import (
     LandCoverView,
     PhysicsView,
     ReadOnlyDataclassProxy,
+    ReadOnlyEnumProxy,
     ReadOnlyFieldInfo,
     ReadOnlyModelProxy,
     SiteView,
@@ -1542,8 +1543,8 @@ def test_confirm_r2_aliased_delete_restores_original_key_type() -> None:
     assert type(next(iter(replayed_replace["a"].keys()))) is int
 
 
-def test_confirm_r2_enum_and_slice_freezing() -> None:
-    """Mutable Enum payloads are rejected and slice bounds are deeply frozen on both surfaces."""
+def test_confirm_r2_enum_freezing() -> None:
+    """Enum members are wrapped in ReadOnlyEnumProxy and mutable payloads are rejected."""
 
     class _SafeEnum(Enum):
         TUP = (1, "ok")
@@ -1566,27 +1567,24 @@ def test_confirm_r2_enum_and_slice_freezing() -> None:
         def __init__(self, _val: int) -> None:
             self.extra = [1, 2]
 
-    class _CustomMutable:
-        def __init__(self, x: int) -> None:
-            self.x = x
-
-    class _EnumSliceModel(BaseModel):
+    class _EnumModel(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
         safe_enum: _SafeEnum = _SafeEnum.TUP
         safe_int_enum: _SafeIntEnum = _SafeIntEnum.ONE
         safe_str_enum: _SafeStrEnum = _SafeStrEnum.ALPHA
         bad_enum: object = _MutableListEnum.BAD
         bad_attr_enum: object = _MutableAttrEnum.BAD
-        mut_slice: object = Field(
-            default_factory=lambda: slice([1, 2], {"k": [3]}, None)
-        )
-        arr_slice: object = Field(
-            default_factory=lambda: slice(np.array([1.0, 2.0]), None, None)
-        )
 
-    assert deep_freeze(_SafeEnum.TUP) is _SafeEnum.TUP
-    assert deep_freeze(_SafeIntEnum.ONE) is _SafeIntEnum.ONE
-    assert deep_freeze(_SafeStrEnum.ALPHA) is _SafeStrEnum.ALPHA
+    frozen_safe_enum = deep_freeze(_SafeEnum.TUP)
+    assert isinstance(frozen_safe_enum, ReadOnlyEnumProxy)
+    assert frozen_safe_enum == _SafeEnum.TUP
+    assert deep_freeze(_SafeIntEnum.ONE) == _SafeIntEnum.ONE
+    assert int(deep_freeze(_SafeIntEnum.ONE)) == 1
+    assert deep_freeze(_SafeStrEnum.ALPHA) == _SafeStrEnum.ALPHA
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        frozen_safe_enum.extra = "mutated"  # type: ignore[attr-defined]
+    assert not hasattr(_SafeEnum.TUP, "extra")
+    assert thaw_copy(frozen_safe_enum) is _SafeEnum.TUP
     for bad_member in (
         _MutableListEnum.BAD,
         _MutableNestedEnum.BAD,
@@ -1594,6 +1592,36 @@ def test_confirm_r2_enum_and_slice_freezing() -> None:
     ):
         with pytest.raises(TypeError, match="mutable payload"):
             deep_freeze(bad_member)
+
+    ro = freeze_model(_EnumModel())
+    assert isinstance(ro.safe_enum, ReadOnlyEnumProxy)
+    assert ro.safe_enum == _SafeEnum.TUP
+    assert ro.safe_int_enum == _SafeIntEnum.ONE
+    assert ro.safe_str_enum == _SafeStrEnum.ALPHA
+    with pytest.raises(TypeError, match="Cannot mutate attribute"):
+        ro.safe_enum.extra = "mutated"
+    with pytest.raises(TypeError, match="mutable payload"):
+        _ = ro.bad_enum
+    with pytest.raises(TypeError, match="mutable payload"):
+        _ = ro.bad_attr_enum
+    assert isinstance(ro.model_fields["bad_enum"].default, str)
+
+
+def test_confirm_r2_slice_freezing() -> None:
+    """Slice bounds are deeply frozen, isolate NumPy views, and reject unfreezable objects."""
+
+    class _CustomMutable:
+        def __init__(self, x: int) -> None:
+            self.x = x
+
+    class _SliceModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        mut_slice: object = Field(
+            default_factory=lambda: slice([1, 2], {"k": [3]}, None)
+        )
+        arr_slice: object = Field(
+            default_factory=lambda: slice(np.array([1.0, 2.0]), None, None)
+        )
 
     frozen_mut_slice = deep_freeze(slice([1, 2], {"k": [3]}, None))
     assert isinstance(frozen_mut_slice, slice)
@@ -1613,14 +1641,7 @@ def test_confirm_r2_enum_and_slice_freezing() -> None:
     with pytest.raises(TypeError, match="cannot safely freeze"):
         deep_freeze(slice(_CustomMutable(1), None, None))
 
-    ro = freeze_model(_EnumSliceModel())
-    assert ro.safe_enum is _SafeEnum.TUP
-    assert ro.safe_int_enum is _SafeIntEnum.ONE
-    assert ro.safe_str_enum is _SafeStrEnum.ALPHA
-    with pytest.raises(TypeError, match="mutable payload"):
-        _ = ro.bad_enum
-    with pytest.raises(TypeError, match="mutable payload"):
-        _ = ro.bad_attr_enum
+    ro = freeze_model(_SliceModel())
     assert ro.mut_slice.start == (1, 2)
     assert isinstance(ro.mut_slice.stop, MappingProxyType)
     assert ro.mut_slice.stop["k"] == (3,)
@@ -1629,7 +1650,6 @@ def test_confirm_r2_enum_and_slice_freezing() -> None:
     ro_s1.start.dtype = np.int64
     assert ro.arr_slice.start.shape == (2,)
     assert ro.arr_slice.start.dtype == np.float64
-    assert isinstance(ro.model_fields["bad_enum"].default, str)
 
 
 def test_confirm_r2_proxy_copy_thaw_and_field_default_arrays() -> None:
@@ -1741,3 +1761,153 @@ def test_confirm_r2_reversed_tuple_typed_key_order_and_engine_annotations() -> N
     # Minor 3: ValidationEngine.validate and validate_config type annotations include ReadOnlyModelProxy.
     assert "ReadOnlyModelProxy" in ValidationEngine.validate.__annotations__["source"]
     assert "ReadOnlyModelProxy" in validate_config.__annotations__["source"]
+
+
+def test_astra_r1_physics_view_nested_forms_and_aliased_yaml_anchors() -> None:
+    """PhysicsView reads nested orthogonal forms and normalise_patches preserves aliased mappings."""
+    # Major 1: PhysicsView / TypedConfigView resolve nested storage_heat and kdown_split_method.
+    pv_ohm = PhysicsView({"storage_heat": {"ohm": {"include_qf": True}}})
+    assert pv_ohm.code("storage_heat") == 1
+    assert pv_ohm.read("ohm_inc_qf") == 1
+    tv_kdown = TypedConfigView.from_mapping({
+        "model": {
+            "physics": {"kdown_split_method": {"constant": {"sw_dn_direct_frac": 0.6}}}
+        }
+    })
+    assert tv_kdown.physics.code("kdown_split_method") == 2
+
+    # Major 2: Aliased mappings (e.g. YAML anchors) preserve direct apply_patches_in_place parity.
+    anchor_yaml = "a: &shared\n  x: 0\nb: *shared\n"
+    anchor_base = yaml.safe_load(anchor_yaml)
+    assert anchor_base["a"] is anchor_base["b"]
+    anchor_patches = [
+        ConfigPatch("a.x", "set", 1, default_wrapped=False),
+        ConfigPatch("b.x", "set", 0, default_wrapped=False),
+    ]
+    direct_anchor = deepcopy(anchor_base)
+    apply_patches_in_place(direct_anchor, anchor_patches)
+    norm_anchor = normalise_patches(anchor_patches, anchor_base)
+    replayed_anchor = deepcopy(anchor_base)
+    apply_patches_in_place(replayed_anchor, norm_anchor)
+    assert replayed_anchor == direct_anchor == {"a": {"x": 0}, "b": {"x": 0}}
+    apply_patches_in_place(replayed_anchor, invert_patches(norm_anchor))
+    assert replayed_anchor == {"a": {"x": 0}, "b": {"x": 0}}
+
+
+def test_astra_r1_numpy_patches_and_mutable_subclass_rejection() -> None:
+    """NumPy-valued patches normalise/invert cleanly and mutable primitive subclasses are rejected."""
+    # Major 3: NumPy arrays in patches handle changed, unchanged, dtype, shape, and NaN cleanly.
+    arr_base = {"a": np.array([1, 2]), "b": np.array([1.0, np.nan])}
+    arr_patches = [
+        ConfigPatch("a", "set", np.array([3, 4]), default_wrapped=False),
+        ConfigPatch("b", "set", np.array([1.0, np.nan]), default_wrapped=False),
+    ]
+    norm_arr = normalise_patches(arr_patches, arr_base)
+    assert len(norm_arr) == 1
+    replayed_arr = deepcopy(arr_base)
+    apply_patches_in_place(replayed_arr, norm_arr)
+    assert np.array_equal(replayed_arr["a"], np.array([3, 4]))
+    apply_patches_in_place(replayed_arr, invert_patches(norm_arr))
+    assert np.array_equal(replayed_arr["a"], np.array([1, 2]))
+
+    # Major 4: Mutable str/int subclasses are rejected instead of leaking writable __dict__.
+    class _Label(str):
+        pass
+
+    label = _Label("site")
+    label.tags = []
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        deep_freeze({"label": label})
+
+    class _LabelModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        label: object
+
+    ro_label = freeze_model(_LabelModel(label=label))
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        _ = ro_label.label
+
+
+def test_astra_r1_ledger_immutability_relocations_profile_order_and_null_ref() -> None:
+    """StyleLedger deeply freezes ref metadata, tracks STEBBS/profile relocations, and keeps ref: null."""
+    # Minor 5: StyleLedger.ref_metadata deeply freezes NumPy arrays and bytearrays.
+    ledger_arr = StyleLedger.from_mapping({
+        "a": {"value": 1, "ref": {"samples": np.array([1, 2]), "raw": bytearray(b"ab")}}
+    })
+    ref_meta = ledger_arr.ref_metadata("a")
+    assert ref_meta is not None
+    assert ref_meta["raw"] == b"ab"
+    with pytest.raises(ValueError, match="read-only"):
+        ref_meta["samples"][0] = 99
+    ref_view = ref_meta["samples"]
+    ref_view.shape = (2, 1)
+    assert ledger_arr.ref_metadata("a")["samples"].shape == (2,)  # type: ignore[index]
+
+    # Minor 6: STEBBS flat physics relocation preserves ledger provenance on canonical path.
+    stebbs_doc = ConfigDocument.from_dict(
+        {"model": {"physics": {"rcmethod": {"value": 0, "ref": {"ID": "src-rc"}}}}},
+        normalise=True,
+    )
+    canon_rc = "model.physics.stebbs.capacitance"
+    assert stebbs_doc.style_ledger.ref_metadata(canon_rc) == {"ID": "src-rc"}
+    rebuilt_rc = stebbs_doc.apply_patches([
+        ConfigPatch(canon_rc, "delete"),
+        ConfigPatch(canon_rc, "set", 1),
+    ])
+    assert rebuilt_rc.data["model"]["physics"]["stebbs"]["capacitance"] == {
+        "value": 1,
+        "ref": {"ID": "src-rc"},
+    }
+
+    # Minor 7: Profile-key remapping preserves authored key order on YAML dump.
+    unsorted_prof_yaml = (
+        "sites:\n"
+        "  - properties:\n"
+        "      irrigation:\n"
+        "        wuprofa_24hr:\n"
+        "          working_day:\n"
+        "            2: 0.25\n"
+        "            1: 0.5\n"
+    )
+    prof_doc = ConfigDocument.from_text(unsorted_prof_yaml, normalise=True)
+    dumped_prof = prof_doc.dump_yaml(preserve_style=True)
+    reloaded_wd = yaml.safe_load(dumped_prof)["sites"][0]["properties"]["irrigation"][
+        "wuprofa_24hr"
+    ]["working_day"]
+    assert list(reloaded_wd.keys()) == ["2", "1"]
+
+    # Minor 8: Delete/reinsert preserves explicit ref: null representations.
+    ref_null_only = ConfigDocument.from_dict({"a": {"ref": None}}, normalise=False)
+    assert ref_null_only.apply_patches([
+        ConfigPatch("a", "delete"),
+        ConfigPatch("a", "set", None),
+    ]).data == {"a": {"ref": None}}
+    val_ref_null = ConfigDocument.from_dict(
+        {"a": {"value": 1, "ref": None}}, normalise=False
+    )
+    assert val_ref_null.apply_patches([
+        ConfigPatch("a", "delete"),
+        ConfigPatch("a", "set", 2),
+    ]).data == {"a": {"value": 2, "ref": None}}
+
+
+def test_astra_r1_adjustment_reconcile_and_context_annotation() -> None:
+    """Coalescing an unowned patch reconciles adjustment new_value and ValidationContext accepts BaseModel."""
+    # Minor 9: Owned patch coalesced with trailing unowned patch updates adjustment new_value.
+    plan = PatchPlan()
+    plan.record(
+        PlannedAdjustment(parameter="a", old_value=1, new_value=2, reason="first"),
+        ConfigPatch("a", "set", 2, default_wrapped=False),
+    )
+    plan.patches.append(ConfigPatch("a", "set", 3, default_wrapped=False))
+    norm_plan = plan.normalised({"a": 1})
+    assert len(norm_plan.patches) == 1
+    assert norm_plan.patches[0].new_value == 3
+    assert len(norm_plan.adjustments) == 1
+    assert norm_plan.adjustments[0].old_value == 1
+    assert norm_plan.adjustments[0].new_value == 3
+
+    # Nit 10: ValidationContext.typed_model annotation includes BaseModel and ReadOnlyModelProxy.
+    typed_ann = ValidationContext.__annotations__["typed_model"]
+    assert "BaseModel" in str(typed_ann)
+    assert "ReadOnlyModelProxy" in str(typed_ann)

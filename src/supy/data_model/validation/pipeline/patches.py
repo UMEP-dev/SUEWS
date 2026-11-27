@@ -44,6 +44,7 @@ from .document import (
     unwrap_entry,
 )
 from .patch_normaliser import (
+    _strict_equal,
     collect_nullifiable_values,
     invert_patches,
     normalise_owned_patches,
@@ -197,13 +198,18 @@ class PatchPlan:
             surviving = by_owner.get(adj_idx)
             if not surviving:
                 continue
-            adj_old = (
-                surviving[0].old_value
-                if len(adj.patches) == 1
+            single_set_match = (
+                len(adj.patches) == 1
                 and len(surviving) == 1
                 and adj.patches[0].path == surviving[0].path
                 and surviving[0].action == "set"
-                else adj.old_value
+            )
+            adj_old = surviving[0].old_value if single_set_match else adj.old_value
+            adj_new = (
+                surviving[0].new_value
+                if single_set_match
+                and not _strict_equal(surviving[0].new_value, adj.patches[0].new_value)
+                else adj.new_value
             )
             norm_adjustments.append(
                 PlannedAdjustment(
@@ -211,7 +217,7 @@ class PatchPlan:
                     site_index=adj.site_index,
                     site_gridid=adj.site_gridid,
                     old_value=adj_old,
-                    new_value=adj.new_value,
+                    new_value=adj_new,
                     reason=adj.reason,
                     patches=tuple(surviving),
                 )

@@ -13,21 +13,13 @@ from collections import deque
 from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
 from dataclasses import dataclass, fields as dc_fields, is_dataclass
-import datetime
-from decimal import Decimal
 from enum import Enum
-from fractions import Fraction
-import ipaddress
-from pathlib import PurePath
-import re
 from types import (
     BuiltinFunctionType,
-    FunctionType,
     MappingProxyType,
     MethodDescriptorType,
 )
 from typing import Any
-from uuid import UUID
 import weakref
 
 import numpy as np
@@ -35,11 +27,13 @@ from pydantic import BaseModel
 from pydantic_core import PydanticUndefinedType
 
 from ..pipeline.document import (
+    _ENUM_INTERNAL_ATTRS,
     _freeze_mapping_entries,
     _freeze_sequence_items,
     _freeze_slice_value,
     _FrozenArraySpec,
     _FrozenSliceSpec,
+    _is_exact_immutable_scalar,
     _is_immutable_enum,
     _materialise_frozen,
     _ReadOnlyMaterialisingMapping,
@@ -49,43 +43,155 @@ from ..pipeline.document import (
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
 _PROXY_STATE: dict[int, tuple[BaseModel, dict[str, Any]]] = {}
 _DATACLASS_STATE: dict[int, tuple[Any, dict[str, Any]]] = {}
+_ENUM_STATE: dict[int, tuple[Enum, Any, Mapping[str, Any]]] = {}
 
-_IMMUTABLE_TYPES = (
-    type(None),
-    bool,
-    int,
-    float,
-    complex,
-    str,
-    bytes,
-    range,
-    type,
-    Decimal,
-    Fraction,
-    UUID,
-    PurePath,
-    datetime.datetime,
-    datetime.date,
-    datetime.time,
-    datetime.timedelta,
-    datetime.tzinfo,
-    re.Pattern,
-    ipaddress.IPv4Address,
-    ipaddress.IPv6Address,
-    ipaddress.IPv4Network,
-    ipaddress.IPv6Network,
-    ipaddress.IPv4Interface,
-    ipaddress.IPv6Interface,
+_MODEL_EXTRA_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     PydanticUndefinedType,
-    np.number,
-    np.bool_,
-    np.character,
-    np.datetime64,
-    np.timedelta64,
-    FunctionType,
     BuiltinFunctionType,
     MethodDescriptorType,
-)
+})
+
+
+def _snapshot_enum_extra_attrs(member: Enum) -> Mapping[str, Any]:
+    """Snapshot and freeze non-private custom attributes on *member*."""
+    attrs: dict[str, Any] = {}
+    if hasattr(member, "__dict__"):
+        for attr_name, attr_val in vars(member).items():
+            if attr_name.startswith("_") or attr_name in _ENUM_INTERNAL_ATTRS:
+                continue
+            attrs[attr_name] = _wrap_readonly(attr_val)
+    for cls in type(member).__mro__:
+        slots = cls.__dict__.get("__slots__")
+        if not slots:
+            continue
+        slot_names = (slots,) if isinstance(slots, str) else slots
+        for slot_name in slot_names:
+            if (
+                slot_name.startswith("_")
+                or slot_name in _ENUM_INTERNAL_ATTRS
+                or slot_name in attrs
+            ):
+                continue
+            try:
+                slot_val = getattr(member, slot_name)
+            except AttributeError:
+                continue
+            attrs[slot_name] = _wrap_readonly(slot_val)
+    return _freeze_mapping_entries(attrs)
+
+
+class ReadOnlyEnumProxy:
+    """Deeply immutable proxy over an ``Enum`` member blocking attribute reassignment."""
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, member: Enum) -> None:
+        if not isinstance(member, Enum):
+            raise TypeError(
+                f"ReadOnlyEnumProxy requires an Enum member, got {type(member).__name__}"
+            )
+        if not _is_immutable_enum(member):
+            raise TypeError(
+                f"Cannot safely freeze Enum member {type(member).__name__}.{member.name} "
+                "with mutable payload"
+            )
+        frozen_value = _wrap_readonly(member.value)
+        extra_attrs = _snapshot_enum_extra_attrs(member)
+        key = id(self)
+        _ENUM_STATE[key] = (member, frozen_value, extra_attrs)
+        weakref.finalize(self, _ENUM_STATE.pop, key, None)
+
+    @property
+    def enum_type(self) -> type[Enum]:
+        """Underlying ``Enum`` class."""
+        return type(_ENUM_STATE[id(self)][0])
+
+    @property
+    def name(self) -> str:
+        """Name of the wrapped ``Enum`` member."""
+        return _ENUM_STATE[id(self)][0].name
+
+    @property
+    def value(self) -> Any:
+        """Frozen value of the wrapped ``Enum`` member."""
+        return _materialise_readonly(_ENUM_STATE[id(self)][1])
+
+    def unwrap_copy(self) -> Enum:
+        """Return the underlying ``Enum`` member."""
+        return _ENUM_STATE[id(self)][0]
+
+    def __getattr__(self, name: str) -> Any:
+        """Resolve snapshotted public attributes on the wrapped ``Enum`` member."""
+        if name.startswith("_"):
+            raise AttributeError(
+                f"Read-only enum view {self.enum_type.__name__!r} "
+                f"does not expose private attribute {name!r}"
+            )
+        extra_attrs = _ENUM_STATE[id(self)][2]
+        if name in extra_attrs:
+            return extra_attrs[name]
+        raise AttributeError(
+            f"Read-only enum view {self.enum_type.__name__!r} has no readable attribute {name!r}"
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Reject every attribute assignment on the read-only enum proxy."""
+        raise TypeError(
+            f"Cannot mutate attribute {name!r} on read-only enum view "
+            f"{self.enum_type.__name__!r}"
+        )
+
+    def __delattr__(self, name: str) -> None:
+        """Reject every attribute deletion on the read-only enum proxy."""
+        raise TypeError(
+            f"Cannot delete attribute {name!r} on read-only enum view "
+            f"{self.enum_type.__name__!r}"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        """Compare underlying enum equality against another proxy, member, or scalar."""
+        member = _ENUM_STATE[id(self)][0]
+        if isinstance(other, ReadOnlyEnumProxy):
+            return bool(member == _ENUM_STATE[id(other)][0])
+        return bool(member == other)
+
+    def __hash__(self) -> int:
+        """Delegate hashing to the underlying ``Enum`` member."""
+        return hash(_ENUM_STATE[id(self)][0])
+
+    def __bool__(self) -> bool:
+        """Delegate truthiness to the underlying ``Enum`` member."""
+        return bool(_ENUM_STATE[id(self)][0])
+
+    def __int__(self) -> int:
+        """Support ``int()`` conversion for ``IntEnum`` / ``IntFlag`` proxies."""
+        member = _ENUM_STATE[id(self)][0]
+        if isinstance(member, int):
+            return int(member)
+        raise TypeError(
+            f"int() argument must be an integer Enum proxy, not {type(member).__name__!r}"
+        )
+
+    def __index__(self) -> int:
+        """Support integer indexing for ``IntEnum`` / ``IntFlag`` proxies."""
+        return self.__int__()
+
+    def __str__(self) -> str:
+        """Return the string representation of the underlying ``Enum`` member."""
+        return str(_ENUM_STATE[id(self)][0])
+
+    def __repr__(self) -> str:
+        """Return a readable representation of the wrapped ``Enum`` member."""
+        return f"ReadOnlyEnumProxy({_ENUM_STATE[id(self)][0]!r})"
+
+    def __copy__(self) -> ReadOnlyEnumProxy:
+        """Return ``self`` because ``ReadOnlyEnumProxy`` is deeply immutable."""
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> ReadOnlyEnumProxy:
+        """Return ``self`` because ``ReadOnlyEnumProxy`` is deeply immutable."""
+        return self
+
 
 _FIELD_INFO_ATTRS = (
     "name",
@@ -270,7 +376,9 @@ def _wrap_container_or_object(value: Any) -> Any:
     """Wrap containers, dataclasses, NumPy arrays, or reject unsupported mutable objects."""
     if isinstance(value, Mapping):
         return _freeze_mapping_entries({k: _wrap_readonly(v) for k, v in value.items()})
-    if isinstance(value, (list, tuple, deque, Sequence)):
+    if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
+        value, (str, bytes, bytearray, memoryview)
+    ):
         return _freeze_sequence_items([_wrap_readonly(item) for item in value])
     if isinstance(value, (set, frozenset, AbstractSet)):
         return frozenset(_wrap_readonly(item) for item in value)
@@ -286,28 +394,27 @@ def _wrap_container_or_object(value: Any) -> Any:
 def _wrap_readonly(value: Any) -> Any:
     """Recursively wrap a detached Pydantic/Python value as read-only."""
     if isinstance(value, Enum):
-        if _is_immutable_enum(value):
-            return value
-        raise TypeError(
-            f"ReadOnlyModelProxy cannot safely freeze Enum member "
-            f"{type(value).__name__}.{value.name} with mutable payload"
-        )
-    if isinstance(value, slice):
+        return ReadOnlyEnumProxy(value)
+    if type(value) is slice:
         return _freeze_slice_value(value, _wrap_readonly)
-    if isinstance(
-        value,
-        (
-            ReadOnlyModelProxy,
-            ReadOnlyDataclassProxy,
-            _FrozenArraySpec,
-            _FrozenSliceSpec,
-            _ReadOnlyMaterialisingMapping,
-            _ReadOnlyMaterialisingTuple,
-            *_IMMUTABLE_TYPES,
-        ),
+    if (
+        _is_exact_immutable_scalar(value)
+        or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES
+        or isinstance(
+            value,
+            (
+                ReadOnlyModelProxy,
+                ReadOnlyDataclassProxy,
+                ReadOnlyEnumProxy,
+                _FrozenArraySpec,
+                _FrozenSliceSpec,
+                _ReadOnlyMaterialisingMapping,
+                _ReadOnlyMaterialisingTuple,
+            ),
+        )
     ):
         return value
-    if isinstance(value, (bytearray, memoryview)):
+    if type(value) in {bytearray, memoryview}:
         return bytes(value)
     if isinstance(value, BaseModel):
         return ReadOnlyModelProxy._from_detached(value)
@@ -316,7 +423,7 @@ def _wrap_readonly(value: Any) -> Any:
 
 def _freeze_field_metadata_value(value: Any) -> Any:
     """Safely snapshot and freeze arbitrary Pydantic field metadata values."""
-    if not isinstance(value, Enum) and isinstance(value, _IMMUTABLE_TYPES):
+    if _is_exact_immutable_scalar(value) or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES:
         return value
     try:
         copied = deepcopy(value)

@@ -14,7 +14,6 @@ author's representation instead of silently rewriting bare values into
 from __future__ import annotations
 
 from collections.abc import Mapping
-from copy import deepcopy
 from dataclasses import dataclass
 import io
 from types import MappingProxyType
@@ -32,14 +31,10 @@ _YAML_STR_TAG = "tag:yaml.org,2002:str"
 
 
 def _freeze_value(value: Any) -> Any:
-    """Recursively freeze mappings, sequences, and sets for ledger storage."""
-    if isinstance(value, Mapping):
-        return MappingProxyType({k: _freeze_value(v) for k, v in value.items()})
-    if isinstance(value, (list, tuple)):
-        return tuple(_freeze_value(item) for item in value)
-    if isinstance(value, (set, frozenset)):
-        return frozenset(_freeze_value(item) for item in value)
-    return deepcopy(value)
+    """Recursively freeze ledger metadata using the shared ``deep_freeze`` helper."""
+    from .document import deep_freeze  # noqa: PLC0415
+
+    return deep_freeze(value)
 
 
 def _is_ref_only_mapping(entry: Any) -> bool:
@@ -163,6 +158,7 @@ def _walk_mapping_value(
             entries[prefix] = PathStyle(
                 wrapper_style="ref_only",
                 ref=_freeze_value(ref_val) if isinstance(ref_val, Mapping) else None,
+                has_ref=True,
                 key_order=tuple(_freeze_value(k) for k in node),
             )
         return
@@ -172,6 +168,7 @@ def _walk_mapping_value(
             entries[prefix] = PathStyle(
                 wrapper_style="ref_value",
                 ref=_freeze_value(ref_val) if isinstance(ref_val, Mapping) else None,
+                has_ref="ref" in node,
                 key_order=tuple(_freeze_value(k) for k in node),
             )
         inner = node["value"]
@@ -239,11 +236,14 @@ class PathStyle:
     value_scalar_style: str | None = None
     key_order: tuple[Any, ...] = ()
     source_line: int | None = None
+    has_ref: bool = False
 
     def __post_init__(self) -> None:
         """Freeze ``ref`` metadata and normalise ``key_order`` to a tuple."""
         if self.ref is not None:
             object.__setattr__(self, "ref", _freeze_value(self.ref))
+            if not self.has_ref:
+                object.__setattr__(self, "has_ref", True)
         if not isinstance(self.key_order, tuple):
             object.__setattr__(self, "key_order", tuple(self.key_order))
 
@@ -338,6 +338,11 @@ class StyleLedger:
         entry = self.entries.get(path)
         return entry.ref if entry is not None else None
 
+    def has_ref_key(self, path: str) -> bool:
+        """Return True when *path* explicitly carried a ``"ref"`` key (even if null)."""
+        entry = self.entries.get(path)
+        return entry.has_ref if entry is not None else False
+
     def source_line(self, path: str) -> int | None:
         """Return the 1-based YAML source line recorded for *path*, or ``None``."""
         entry = self.entries.get(path)
@@ -357,9 +362,15 @@ class StyleLedger:
             dominant_wrapper_style=_infer_dominant_wrapper_style(updated),
         )
 
-    def remap_paths(self, renames: Mapping[str, str]) -> StyleLedger:
+    def remap_paths(
+        self,
+        renames: Mapping[str, str],
+        *,
+        parent_key_renames: Mapping[str, Mapping[tuple[type[Any], Any], Any]]
+        | None = None,
+    ) -> StyleLedger:
         """Return a new :class:`StyleLedger` copying styles across renamed path prefixes."""
-        if not renames:
+        if not renames and not parent_key_renames:
             return self
         updated = dict(self.entries)
         for old_prefix, new_prefix in renames.items():
@@ -373,6 +384,28 @@ class StyleLedger:
                 ):
                     remapped = new_prefix + path[len(old_prefix) :]
                     updated.setdefault(remapped, style)
+        if parent_key_renames:
+            for parent_path, key_map in parent_key_renames.items():
+                style = updated.get(parent_path)
+                if style is None or not style.key_order:
+                    continue
+                new_order = tuple(
+                    key_map.get(_typed_key_id(k), k) for k in style.key_order
+                )
+                if tuple(_typed_key_id(k) for k in new_order) != tuple(
+                    _typed_key_id(k) for k in style.key_order
+                ):
+                    updated[parent_path] = PathStyle(
+                        wrapper_style=style.wrapper_style,
+                        ref=style.ref,
+                        flow_style=style.flow_style,
+                        scalar_style=style.scalar_style,
+                        value_flow_style=style.value_flow_style,
+                        value_scalar_style=style.value_scalar_style,
+                        key_order=new_order,
+                        source_line=style.source_line,
+                        has_ref=style.has_ref,
+                    )
         return StyleLedger(
             entries=updated,
             leading_comments=self.leading_comments,
@@ -407,6 +440,7 @@ class StyleLedger:
                     value_scalar_style=style.value_scalar_style,
                     key_order=new_order,
                     source_line=style.source_line,
+                    has_ref=style.has_ref,
                 )
                 if order_changed
                 else style
@@ -484,6 +518,7 @@ def _walk_yaml_ref_value(
             value_scalar_style=val_scalar,
             key_order=key_order,
             source_line=line,
+            has_ref=ref_node is not None,
         )
     inner_prefix = _join_key_path(prefix, "value")
     if isinstance(val_node, yaml.MappingNode):
@@ -543,6 +578,7 @@ def _walk_yaml_mapping(
                 flow_style=node.flow_style,
                 key_order=key_order,
                 source_line=line,
+                has_ref=True,
             )
         return
 

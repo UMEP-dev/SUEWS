@@ -23,8 +23,10 @@ target :class:`ConfigDocument` or raw mapping without mutating the target:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-import math
+from copy import deepcopy
 from typing import Any
+
+import numpy as np
 
 from .document import (
     _MISSING,
@@ -59,25 +61,72 @@ from .style_ledger import StyleLedger, WrapperStyle
 _CANNOT_MERGE = object()
 
 
+def _arrays_strict_equal(
+    left: np.ndarray[Any, Any], right: np.ndarray[Any, Any]
+) -> bool:
+    """Compare two NumPy arrays strictly by shape, dtype, NaN-equality, and elements."""
+    if left.shape != right.shape or left.dtype != right.dtype:
+        return False
+    if left.dtype.hasobject:
+        return all(_strict_equal(a, b) for a, b in zip(left.flat, right.flat))
+    if left.dtype.names:
+        return all(
+            _arrays_strict_equal(left[name], right[name]) for name in left.dtype.names
+        )
+    if np.issubdtype(left.dtype, np.floating) or np.issubdtype(
+        left.dtype, np.complexfloating
+    ):
+        return bool(np.array_equal(left, right, equal_nan=True))
+    return bool(np.array_equal(left, right))
+
+
+def _numpy_strict_equal(left: Any, right: Any) -> bool:
+    """Compare NumPy ``ndarray`` or ``np.void`` values strictly."""
+    if isinstance(left, np.ndarray) or isinstance(right, np.ndarray):
+        return (
+            isinstance(left, np.ndarray)
+            and isinstance(right, np.ndarray)
+            and _arrays_strict_equal(left, right)
+        )
+    if not (isinstance(left, np.void) and isinstance(right, np.void)):
+        return False
+    if left.dtype != right.dtype:
+        return False
+    if left.dtype.names:
+        return all(_strict_equal(left[name], right[name]) for name in left.dtype.names)
+    return bytes(left) == bytes(right)
+
+
+def _mapping_strict_equal(left: Mapping[Any, Any], right: Mapping[Any, Any]) -> bool:
+    """Compare two mappings strictly while distinguishing key types (e.g. ``1`` vs ``True``)."""
+    if len(left) != len(right):
+        return False
+    left_typed = {MappingKey(k): v for k, v in left.items()}
+    right_typed = {MappingKey(k): v for k, v in right.items()}
+    return left_typed.keys() == right_typed.keys() and all(
+        _strict_equal(left_typed[k], right_typed[k]) for k in left_typed
+    )
+
+
 def _strict_equal(left: Any, right: Any) -> bool:
     """Compare two config values strictly, keeping ``bool`` distinct from ``int``/``float``."""
-    if isinstance(left, bool) != isinstance(right, bool):
+    if isinstance(left, (bool, np.bool_)) != isinstance(right, (bool, np.bool_)):
         return False
-    if isinstance(left, float) and isinstance(right, float):
-        return (math.isnan(left) and math.isnan(right)) or left == right
+    if isinstance(left, (np.ndarray, np.void)) or isinstance(
+        right, (np.ndarray, np.void)
+    ):
+        return _numpy_strict_equal(left, right)
+    if isinstance(left, (float, np.floating)) and isinstance(
+        right, (float, np.floating)
+    ):
+        return (bool(np.isnan(left)) and bool(np.isnan(right))) or bool(left == right)
     if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
         return len(left) == len(right) and all(
             _strict_equal(a, b) for a, b in zip(left, right)
         )
     if isinstance(left, Mapping) and isinstance(right, Mapping):
-        if len(left) != len(right):
-            return False
-        left_typed = {MappingKey(k): v for k, v in left.items()}
-        right_typed = {MappingKey(k): v for k, v in right.items()}
-        return left_typed.keys() == right_typed.keys() and all(
-            _strict_equal(left_typed[k], right_typed[k]) for k in left_typed
-        )
-    return left == right
+        return _mapping_strict_equal(left, right)
+    return bool(left == right)
 
 
 def _classify_raw_entry(
@@ -645,9 +694,59 @@ def _merge_same_path(
     return _CANNOT_MERGE
 
 
+def _thaw_copy_preserving_aliases(value: Any) -> tuple[Any, bool]:
+    """Thaw *value* while preserving shared mapping/list aliases (e.g. YAML anchors).
+
+    Returns ``(thawed, has_aliases)`` where ``has_aliases`` is ``True`` when
+    any mapping or list appears at more than one position in the container graph.
+    """
+    memo: dict[int, Any] = {}
+    in_progress: set[int] = set()
+    has_aliases = False
+
+    def _walk_container(node: Mapping[Any, Any] | list[Any] | tuple[Any, ...]) -> Any:
+        nonlocal has_aliases
+        obj_id = id(node)
+        if obj_id in in_progress:
+            raise ValueError(
+                "Cannot normalise patches against cyclic container references"
+            )
+        if obj_id in memo:
+            has_aliases = True
+            return memo[obj_id]
+        in_progress.add(obj_id)
+        if isinstance(node, Mapping):
+            out_map: dict[Any, Any] = {}
+            memo[obj_id] = out_map
+            for k, v in node.items():
+                out_map[k] = _walk(v)
+            in_progress.remove(obj_id)
+            return out_map
+        out_list: list[Any] = []
+        memo[obj_id] = out_list
+        out_list.extend(_walk(item) for item in node)
+        in_progress.remove(obj_id)
+        return out_list
+
+    def _walk(node: Any) -> Any:
+        if node is None or type(node) in {bool, int, float, str, bytes}:
+            return node
+        if isinstance(node, (Mapping, list, tuple)):
+            return _walk_container(node)
+        if isinstance(node, set):
+            return {_walk(item) for item in node}
+        if isinstance(node, frozenset):
+            return frozenset(_walk(item) for item in node)
+        return deepcopy(node)
+
+    return _walk(value), has_aliases
+
+
 def _coalesce_owned_patches(
     owned_patches: list[tuple[int | None, ConfigPatch, Any]],
     style_ledger: StyleLedger | None,
+    *,
+    has_aliases: bool = False,
 ) -> list[tuple[int | None, ConfigPatch, Any]]:
     """Coalesce sequential same-path patches without crossing ancestor/descendant barriers."""
     result: list[tuple[int | None, ConfigPatch, Any]] = []
@@ -667,7 +766,7 @@ def _coalesce_owned_patches(
             if prev_tokens == tokens and prev.action != "nullify_tree":
                 merge_idx = idx
                 break
-            if _tokens_overlap(prev_tokens, tokens):
+            if has_aliases or _tokens_overlap(prev_tokens, tokens):
                 break
 
         if merge_idx is None:
@@ -709,7 +808,7 @@ def normalise_owned_patches(
         base_data = target
         style_ledger = None
 
-    working = thaw_copy(base_data)
+    working, has_aliases = _thaw_copy_preserving_aliases(base_data)
     recorded: list[tuple[int | None, ConfigPatch, Any]] = []
 
     for owner_idx, patch in owned_patches:
@@ -743,7 +842,9 @@ def normalise_owned_patches(
             )
 
     if coalesce:
-        recorded = _coalesce_owned_patches(recorded, style_ledger)
+        recorded = _coalesce_owned_patches(
+            recorded, style_ledger, has_aliases=has_aliases
+        )
     if drop_noops:
         recorded = [
             (owner, p, raw_after)

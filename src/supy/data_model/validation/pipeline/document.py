@@ -23,18 +23,23 @@ from decimal import Decimal
 from enum import Enum
 from fractions import Fraction
 import ipaddress
-from pathlib import Path, PurePath
+from pathlib import Path, PosixPath, PurePosixPath, PureWindowsPath, WindowsPath
 import re
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 import weakref
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from pydantic import BaseModel
 
 from ...core._yaml_io import safe_load_yaml
-from ...core.field_renames import RAW_YAML_FIELD_RENAMES, normalise_yaml_renames
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    STEBBS_PHYSICS_LEAF_RENAMES,
+    normalise_yaml_renames,
+)
 from ...core.physics_families import flatten_physics_in_config
 from ...core.profile import (
     normalise_hourly_profile_key,
@@ -112,7 +117,7 @@ def canonicalise_token(token: PathToken) -> PathToken:
     return token
 
 
-_FREEZE_IMMUTABLE_TYPES = (
+_EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     type(None),
     bool,
     int,
@@ -121,16 +126,19 @@ _FREEZE_IMMUTABLE_TYPES = (
     str,
     bytes,
     range,
-    type,
     Decimal,
     Fraction,
     UUID,
-    PurePath,
+    PurePosixPath,
+    PureWindowsPath,
+    PosixPath,
+    WindowsPath,
     datetime.datetime,
     datetime.date,
     datetime.time,
     datetime.timedelta,
-    datetime.tzinfo,
+    datetime.timezone,
+    ZoneInfo,
     re.Pattern,
     ipaddress.IPv4Address,
     ipaddress.IPv6Address,
@@ -138,6 +146,9 @@ _FREEZE_IMMUTABLE_TYPES = (
     ipaddress.IPv6Network,
     ipaddress.IPv4Interface,
     ipaddress.IPv6Interface,
+})
+
+_NUMPY_IMMUTABLE_SCALARS = (
     np.number,
     np.bool_,
     np.character,
@@ -156,6 +167,16 @@ _ENUM_INTERNAL_ATTRS = frozenset({
 _FROZEN_ARRAY_STATE: dict[int, tuple[bytes, np.dtype[Any], tuple[int, ...]]] = {}
 _FROZEN_SLICE_STATE: dict[int, tuple[Any, Any, Any]] = {}
 _FROZEN_MAP_STATE: dict[int, dict[Any, Any]] = {}
+
+
+def _is_exact_immutable_scalar(value: Any) -> bool:
+    """Return True only for exact immutable primitive/stdlib/NumPy scalar types."""
+    value_type = type(value)
+    if value_type in _EXACT_IMMUTABLE_TYPES:
+        return True
+    return (
+        isinstance(value, _NUMPY_IMMUTABLE_SCALARS) and value_type.__module__ == "numpy"
+    )
 
 
 def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
@@ -196,14 +217,14 @@ def _is_deeply_immutable_payload(value: Any, seen: set[int]) -> bool:
         return _is_deeply_immutable_payload(
             value.value, seen
         ) and _enum_extra_attrs_immutable(value, seen)
-    if isinstance(value, _FREEZE_IMMUTABLE_TYPES):
+    if _is_exact_immutable_scalar(value):
         return True
-    if isinstance(value, slice):
+    if type(value) is slice:
         return all(
             _is_deeply_immutable_payload(bound, seen)
             for bound in (value.start, value.stop, value.step)
         )
-    if isinstance(value, (tuple, frozenset)):
+    if type(value) in {tuple, frozenset}:
         obj_id = id(value)
         if obj_id in seen:
             return True
@@ -493,15 +514,18 @@ def _freeze_numpy_value(value: np.ndarray[Any, Any] | np.void) -> Any:
 
 def _freeze_model_or_object(value: Any) -> Any:
     """Freeze byte buffers, models, dataclasses, or already-frozen proxies, or reject."""
-    if isinstance(value, (bytearray, memoryview)):
+    if type(value) in {bytearray, memoryview}:
         return bytes(value)
     from ..rules.readonly_model import (  # noqa: PLC0415
         ReadOnlyDataclassProxy,
+        ReadOnlyEnumProxy,
         ReadOnlyModelProxy,
         freeze_model,
     )
 
-    if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
+    if isinstance(
+        value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy, ReadOnlyEnumProxy)
+    ):
         return value
     if isinstance(value, BaseModel):
         return freeze_model(value)
@@ -518,7 +542,9 @@ def _freeze_container_value(value: Any) -> Any:
         return _freeze_mapping_entries({
             k: _deep_freeze_internal(v) for k, v in value.items()
         })
-    if isinstance(value, (list, tuple, deque, Sequence)):
+    if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
+        value, (str, bytes, bytearray, memoryview)
+    ):
         return _freeze_sequence_items([_deep_freeze_internal(item) for item in value])
     if isinstance(value, (set, frozenset, AbstractSet)):
         return frozenset(_deep_freeze_internal(item) for item in value)
@@ -530,21 +556,17 @@ def _freeze_container_value(value: Any) -> Any:
 def _deep_freeze_internal(value: Any) -> Any:
     """Recursively freeze values, keeping NumPy arrays as lazy :class:`_FrozenArraySpec`."""
     if isinstance(value, Enum):
-        if _is_immutable_enum(value):
-            return value
-        raise TypeError(
-            f"deep_freeze cannot safely freeze Enum member "
-            f"{type(value).__name__}.{value.name} with mutable payload"
-        )
-    if isinstance(value, slice):
+        from ..rules.readonly_model import ReadOnlyEnumProxy  # noqa: PLC0415
+
+        return ReadOnlyEnumProxy(value)
+    if type(value) is slice:
         return _freeze_slice_value(value, _deep_freeze_internal)
-    if isinstance(
+    if _is_exact_immutable_scalar(value) or isinstance(
         value,
         (
             *_LAZY_FROZEN_SPECS,
             _ReadOnlyMaterialisingMapping,
             _ReadOnlyMaterialisingTuple,
-            *_FREEZE_IMMUTABLE_TYPES,
         ),
     ):
         return value
@@ -560,7 +582,7 @@ def _thaw_non_container(value: Any) -> Any:
     """Thaw slices, lazy frozen specs, read-only proxies, or fall back to ``deepcopy``."""
     if isinstance(value, _LAZY_FROZEN_SPECS):
         return thaw_copy(value.materialise())
-    if isinstance(value, slice):
+    if type(value) is slice:
         return slice(
             thaw_copy(value.start),
             thaw_copy(value.stop),
@@ -568,10 +590,13 @@ def _thaw_non_container(value: Any) -> Any:
         )
     from ..rules.readonly_model import (  # noqa: PLC0415
         ReadOnlyDataclassProxy,
+        ReadOnlyEnumProxy,
         ReadOnlyModelProxy,
     )
 
-    if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
+    if isinstance(
+        value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy, ReadOnlyEnumProxy)
+    ):
         return value.unwrap_copy()
     return deepcopy(value)
 
@@ -654,17 +679,24 @@ def _build_new_entry(
     default_wrapped: bool,
     wrapper_style: WrapperStyle | None = None,
     ref_metadata: Mapping[str, Any] | None = None,
+    has_ref: bool = False,
 ) -> Any:
     """Construct a new YAML entry honouring recorded authoring style and ``ref`` metadata."""
     copied = thaw_copy(new_value)
     if wrapper_style == "bare":
         return copied
-    if wrapper_style == "ref_only" and copied is None and ref_metadata is not None:
-        return {"ref": thaw_copy(ref_metadata)}
+    if (
+        wrapper_style == "ref_only"
+        and copied is None
+        and (ref_metadata is not None or has_ref)
+    ):
+        return {"ref": thaw_copy(ref_metadata) if ref_metadata is not None else None}
     if wrapper_style in {"ref_value", "ref_only"}:
         entry: dict[str, Any] = {"value": copied}
         if ref_metadata is not None:
             entry["ref"] = thaw_copy(ref_metadata)
+        elif has_ref:
+            entry["ref"] = None
         return entry
     if default_wrapped:
         return {"value": copied}
@@ -677,6 +709,7 @@ def _update_existing_entry(
     *,
     original_style: WrapperStyle | None = None,
     original_ref: Mapping[str, Any] | None = None,
+    has_ref: bool = False,
 ) -> Any:
     """Update an existing bare, ``RefValue``, or ref-only entry preserving metadata."""
     copied = thaw_copy(new_value)
@@ -686,8 +719,10 @@ def _update_existing_entry(
     ):
         if isinstance(existing, Mapping) and "ref" in existing:
             return {"ref": thaw_copy(existing["ref"])}
-        if original_ref is not None:
-            return {"ref": thaw_copy(original_ref)}
+        if original_ref is not None or has_ref:
+            return {
+                "ref": thaw_copy(original_ref) if original_ref is not None else None
+            }
     if isinstance(existing, dict) and (
         is_ref_wrapper(existing) or is_ref_only(existing)
     ):
@@ -713,6 +748,7 @@ def write_scalar(
     default_wrapped: bool = True,
     wrapper_style: WrapperStyle | None = None,
     ref_metadata: Mapping[str, Any] | None = None,
+    has_ref: bool = False,
 ) -> None:
     """Update ``container[key]`` while preserving ``RefValue`` metadata or bare style.
 
@@ -734,6 +770,7 @@ def write_scalar(
             new_value,
             original_style=wrapper_style,
             original_ref=ref_metadata,
+            has_ref=has_ref,
         )
         if updated is not existing:
             container[key] = updated
@@ -743,6 +780,7 @@ def write_scalar(
             default_wrapped=default_wrapped,
             wrapper_style=wrapper_style,
             ref_metadata=ref_metadata,
+            has_ref=has_ref,
         )
 
 
@@ -1012,11 +1050,14 @@ def write_tokens(
 
     effective_style = original_style
     effective_ref = original_ref
+    effective_has_ref = effective_ref is not None
     if style_ledger is not None:
         if effective_style is None:
             effective_style = style_ledger.wrapper_style(canon_path)
         if effective_ref is None:
             effective_ref = style_ledger.ref_metadata(canon_path)
+        if not effective_has_ref:
+            effective_has_ref = style_ledger.has_ref_key(canon_path)
     if _is_list_index_token(leaf):
         assert isinstance(leaf, int)
         if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
@@ -1027,6 +1068,7 @@ def write_tokens(
             new_value,
             original_style=effective_style,
             original_ref=effective_ref,
+            has_ref=effective_has_ref,
         )
         if updated is not existing:
             parent[leaf] = updated
@@ -1040,6 +1082,7 @@ def write_tokens(
         default_wrapped=default_wrapped,
         wrapper_style=effective_style,
         ref_metadata=effective_ref,
+        has_ref=effective_has_ref,
     )
     return True
 
@@ -1414,14 +1457,21 @@ class ConfigDocument:
         if normalise:
             working = normalise_yaml_renames(working)
             ledger = ledger.remap_leaf_keys(RAW_YAML_FIELD_RENAMES)
+            stebbs_relocations = _collect_stebbs_physics_relocations(working, ledger)
+            if stebbs_relocations:
+                ledger = ledger.remap_paths(stebbs_relocations)
             pre_profile = thaw_copy(working)
             working, profile_changed = normalise_hourly_profile_keys_in_raw_config(
                 working
             )
             if profile_changed:
-                profile_renames = _collect_mapping_key_renames(pre_profile, working)
-                if profile_renames:
-                    ledger = ledger.remap_paths(profile_renames)
+                profile_renames, parent_key_renames = (
+                    _collect_mapping_key_renames_with_orders(pre_profile, working)
+                )
+                if profile_renames or parent_key_renames:
+                    ledger = ledger.remap_paths(
+                        profile_renames, parent_key_renames=parent_key_renames
+                    )
         if flatten_physics:
             flatten_physics_in_config(working)
         return cls(
@@ -1515,6 +1565,30 @@ class ConfigDocument:
         )
 
 
+def _collect_stebbs_physics_relocations(
+    working: Mapping[str, Any], ledger: StyleLedger
+) -> dict[str, str]:
+    """Map folded flat STEBBS physics keys onto their canonical ``model.physics.stebbs.*`` paths."""
+    model = working.get("model")
+    if not isinstance(model, Mapping):
+        return {}
+    physics = model.get("physics")
+    if not isinstance(physics, Mapping):
+        return {}
+    stebbs = physics.get("stebbs")
+    if not isinstance(stebbs, Mapping):
+        return {}
+    relocations: dict[str, str] = {}
+    for flat_key, target_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if target_leaf not in stebbs:
+            continue
+        old_path = f"model.physics.{flat_key}"
+        new_path = f"model.physics.stebbs.{target_leaf}"
+        if old_path in ledger and new_path not in ledger:
+            relocations[old_path] = new_path
+    return relocations
+
+
 def _typed_mapping_key(key: Any) -> tuple[type[Any], Any]:
     return (type(key), key)
 
@@ -1538,11 +1612,12 @@ def _match_profile_key_renames(
     return matched
 
 
-def _collect_mapping_key_renames(
+def _collect_mapping_key_renames_with_orders(
     before: Any, after: Any, prefix: str = ""
-) -> dict[str, str]:
-    """Collect path renames produced by profile-key normalisation (e.g. ``1``/``"01"`` -> ``"1"``)."""
+) -> tuple[dict[str, str], dict[str, dict[tuple[type[Any], Any], Any]]]:
+    """Collect path and parent-container key-order renames produced by profile normalisation."""
     renames: dict[str, str] = {}
+    parent_orders: dict[str, dict[tuple[type[Any], Any], Any]] = {}
     if isinstance(before, Mapping) and isinstance(after, Mapping):
         if len(before) == len(after):
             before_by_typed = {_typed_mapping_key(k): k for k in before}
@@ -1551,22 +1626,26 @@ def _collect_mapping_key_renames(
                 for typed_k, old_k in before_by_typed.items():
                     new_k = after_by_typed[typed_k]
                     child_path = _join_key_path(prefix, new_k)
-                    renames.update(
-                        _collect_mapping_key_renames(
-                            before[old_k], after[new_k], child_path
-                        )
+                    sub_ren, sub_ord = _collect_mapping_key_renames_with_orders(
+                        before[old_k], after[new_k], child_path
                     )
+                    renames.update(sub_ren)
+                    parent_orders.update(sub_ord)
             else:
                 for old_k, new_k in _match_profile_key_renames(before, after_by_typed):
                     old_path = _join_key_path(prefix, old_k)
                     new_path = _join_key_path(prefix, new_k)
                     if old_path != new_path:
                         renames[old_path] = new_path
-                    renames.update(
-                        _collect_mapping_key_renames(
-                            before[old_k], after[new_k], new_path
-                        )
+                    if type(old_k) is not type(new_k) or old_k != new_k:
+                        parent_orders.setdefault(prefix, {})[
+                            _typed_mapping_key(old_k)
+                        ] = new_k
+                    sub_ren, sub_ord = _collect_mapping_key_renames_with_orders(
+                        before[old_k], after[new_k], new_path
                     )
+                    renames.update(sub_ren)
+                    parent_orders.update(sub_ord)
     elif (
         isinstance(before, list)
         and isinstance(after, list)
@@ -1574,7 +1653,19 @@ def _collect_mapping_key_renames(
     ):
         for idx, (b_item, a_item) in enumerate(zip(before, after)):
             child_prefix = f"{prefix}[{idx}]" if prefix else f"[{idx}]"
-            renames.update(_collect_mapping_key_renames(b_item, a_item, child_prefix))
+            sub_ren, sub_ord = _collect_mapping_key_renames_with_orders(
+                b_item, a_item, child_prefix
+            )
+            renames.update(sub_ren)
+            parent_orders.update(sub_ord)
+    return renames, parent_orders
+
+
+def _collect_mapping_key_renames(
+    before: Any, after: Any, prefix: str = ""
+) -> dict[str, str]:
+    """Collect path renames produced by profile-key normalisation (e.g. ``1``/``"01"`` -> ``"1"``)."""
+    renames, _orders = _collect_mapping_key_renames_with_orders(before, after, prefix)
     return renames
 
 

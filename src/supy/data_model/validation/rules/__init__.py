@@ -22,6 +22,7 @@ from .hard_invariants import (
 )
 from .readonly_model import (
     ReadOnlyDataclassProxy,
+    ReadOnlyEnumProxy,
     ReadOnlyFieldInfo,
     ReadOnlyModelProxy,
     freeze_model,
@@ -44,6 +45,7 @@ __all__ = [
     "LandCoverView",
     "PhysicsView",
     "ReadOnlyDataclassProxy",
+    "ReadOnlyEnumProxy",
     "ReadOnlyFieldInfo",
     "ReadOnlyModelProxy",
     "SiteView",

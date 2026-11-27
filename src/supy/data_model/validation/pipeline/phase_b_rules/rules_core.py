@@ -167,7 +167,7 @@ class ValidationContext:
     start_date: Optional[str] = None
     model_year: Optional[int] = None
     effective_fixes: str = "suggest"
-    typed_model: Optional[ReadOnlyModelProxy] = None
+    typed_model: BaseModel | ReadOnlyModelProxy | None = None
 
     def __post_init__(self):
         for f in fields(self):

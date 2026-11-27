@@ -27,6 +27,7 @@ import ctypes
 from dataclasses import dataclass
 import doctest
 import importlib
+import importlib.machinery
 import inspect
 import json
 import math
@@ -34,6 +35,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -83,6 +85,7 @@ import ctypes
 import errno
 import json
 import os
+import re
 import sys
 import time
 
@@ -97,6 +100,7 @@ PREREQUISITE_TYPES = (
     PermissionError,
     EOFError,
     ConnectionError,
+    TimeoutError,
 )
 
 _NETWORK_EXC_QUALNAMES = frozenset({
@@ -170,15 +174,16 @@ def _check_doctest_output(
     optionflags: int,
     dt_flags: dict[str, int],
 ) -> bool:
+    got = got.encode("ascii", "backslashreplace").decode("ascii")
+    want = want.encode("ascii", "backslashreplace").decode("ascii")
     if got == want:
         return True
     if not (optionflags & dt_flags["DONT_ACCEPT_TRUE_FOR_1"]):
         if (got, want) in (("True\n", "1\n"), ("False\n", "0\n")):
             return True
     if not (optionflags & dt_flags["DONT_ACCEPT_BLANKLINE"]):
-        want = "\n".join(
-            "" if line.strip() == "<BLANKLINE>" else line for line in want.split("\n")
-        )
+        want = re.sub(r"(?m)^<BLANKLINE>[ \t]*$", "", want)
+        got = re.sub(r"(?m)^[^\S\n]+$", "", got)
         if got == want:
             return True
     if optionflags & dt_flags["NORMALIZE_WHITESPACE"]:
@@ -227,10 +232,23 @@ def _classify_exception(exc: BaseException) -> tuple[str, str]:
     return "error", type(exc).__name__
 
 
+def _safe_str(obj: object) -> str:
+    try:
+        text = str(obj)
+    except BaseException as exc:
+        return f"<unprintable {type(obj).__name__}: {type(exc).__name__}>"
+    if isinstance(text, str):
+        return text
+    return f"<non-string __str__ from {type(obj).__name__}>"
+
+
 def _format_doctest_exc_only(exc: BaseException) -> str:
     import traceback
 
-    formatted_ex = traceback.format_exception_only(type(exc), exc)
+    try:
+        formatted_ex = traceback.format_exception_only(type(exc), exc)
+    except BaseException:
+        return f"{type(exc).__name__}: {_safe_str(exc)}\n"
     if issubclass(type(exc), SyntaxError):
         prefixes = (
             f"{type(exc).__qualname__}:",
@@ -299,7 +317,10 @@ def _execute_capturing_fds(
             import traceback
 
             raised = exc
-            raised_tb = traceback.format_exc()
+            try:
+                raised_tb = traceback.format_exc()
+            except BaseException:
+                raised_tb = f"{type(exc).__name__}: {_safe_str(exc)}\n"
     finally:
         sys.displayhook = orig_displayhook
         try:
@@ -504,7 +525,7 @@ def main() -> None:
                     "prerequisite_type": (
                         root_type if status == "prerequisite-missing" else None
                     ),
-                    "exception_message": str(raised),
+                    "exception_message": _safe_str(raised),
                     "traceback": raised_tb,
                 })
                 break
@@ -1593,9 +1614,14 @@ def _start_contained_process(
                     "failed to assign Windows Job Object containment"
                 )
             else:
-                gate_tmp = gate_path.with_suffix(".tmp")
-                gate_tmp.write_text("ready\n", encoding="utf-8")
-                os.replace(gate_tmp, gate_path)
+                try:
+                    gate_tmp = gate_path.with_suffix(".tmp")
+                    gate_tmp.write_text("ready\n", encoding="utf-8")
+                    os.replace(gate_tmp, gate_path)
+                except OSError as exc:
+                    contained.startup_error = (
+                        f"failed to publish Windows startup gate: {exc}"
+                    )
         yield contained
 
 
@@ -1727,6 +1753,92 @@ def _read_trailing_capture(path: Path, consumed_bytes: int) -> str:
     )
 
 
+def _cleanup_tempdirs(*paths: Path) -> str | None:
+    """Remove temporary working/IPC directories and report any cleanup failure."""
+    errors: list[str] = []
+    for path in paths:
+        try:
+            shutil.rmtree(path)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            errors.append(f"failed to clean temporary directory {path.name}: {exc}")
+    return "; ".join(errors) if errors else None
+
+
+def _parse_block_result(
+    block: ExampleBlock,
+    path_ipc: Path,
+    run_outcome: _RunnerOutcome,
+    timeout: float,
+) -> tuple[str, dict[str, object]]:
+    """Convert raw runner output files into a structured ``(status, detail)`` pair."""
+    if run_outcome.containment_error is not None:
+        return "error", {
+            "block_index": block.block_index,
+            "statements": len(block.examples),
+            "executed": 0,
+            "started": run_outcome.started,
+            "operational_failure": True,
+            "reason": run_outcome.containment_error,
+        }
+    if run_outcome.timed_out:
+        return "error", {
+            "block_index": block.block_index,
+            "statements": len(block.examples),
+            "started": run_outcome.started,
+            "reason": f"timed out after {timeout:.1f}s",
+        }
+
+    proc_stdout = (
+        (path_ipc / "proc_stdout.txt")
+        .read_text(encoding="utf-8", errors="replace")
+        .replace("\r\n", "\n")
+    )
+    proc_stderr = (
+        (path_ipc / "proc_stderr.txt")
+        .read_text(encoding="utf-8", errors="replace")
+        .replace("\r\n", "\n")
+    )
+    path_result = path_ipc / "result.json"
+    if not path_result.is_file():
+        return "error", {
+            "block_index": block.block_index,
+            "statements": len(block.examples),
+            "started": run_outcome.started,
+            "reason": (
+                "isolated runner exited with code "
+                f"{run_outcome.returncode} without a result"
+            ),
+            "stdout": proc_stdout,
+            "stderr": proc_stderr,
+        }
+
+    outcome = json.loads(path_result.read_text(encoding="utf-8"))
+    status = str(outcome.pop("status"))
+    consumed_stdout_bytes = int(outcome.pop("captured_stdout_bytes", 0))
+    consumed_stderr_bytes = int(outcome.pop("captured_stderr_bytes", 0))
+    trailing_stdout = (
+        _read_trailing_capture(path_ipc / "capture_stdout.bin", consumed_stdout_bytes)
+        + proc_stdout
+    )
+    trailing_stderr = (
+        _read_trailing_capture(path_ipc / "capture_stderr.bin", consumed_stderr_bytes)
+        + proc_stderr
+    )
+    outcome["block_index"] = block.block_index
+    if trailing_stderr:
+        outcome["stderr"] = (outcome.get("stderr") or "") + trailing_stderr
+    if run_outcome.returncode != 0 and (status == "ok" or run_outcome.returncode < 0):
+        status = "error"
+        outcome["reason"] = f"isolated runner exited with code {run_outcome.returncode}"
+    elif trailing_stdout and status == "ok":
+        status = "mismatch"
+        outcome["reason"] = "unexpected output written to stdout outside statements"
+        outcome["got"] = trailing_stdout
+    return status, outcome
+
+
 def run_example_block(
     block: ExampleBlock,
     name: str,
@@ -1755,94 +1867,37 @@ def run_example_block(
         ],
     }
 
-    with (
-        tempfile.TemporaryDirectory(prefix="suews-doctest-cwd-") as cwd_dir,
-        tempfile.TemporaryDirectory(prefix="suews-doctest-ipc-") as ipc_dir,
-    ):
-        path_ipc = Path(ipc_dir)
-        path_result = path_ipc / "result.json"
+    path_cwd = Path(tempfile.mkdtemp(prefix="suews-doctest-cwd-"))
+    path_ipc = Path(tempfile.mkdtemp(prefix="suews-doctest-ipc-"))
+    status = "error"
+    outcome: dict[str, object] = {}
+    started = False
+    try:
         (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
         run_outcome = _spawn_isolated_runner(
             exe=python_executable or sys.executable,
-            path_cwd=Path(cwd_dir),
+            path_cwd=path_cwd,
             path_ipc=path_ipc,
             timeout=timeout,
             harness_token=harness_token,
         )
-        if run_outcome.containment_error is not None:
-            return "error", {
-                "block_index": block.block_index,
-                "statements": len(block.examples),
-                "executed": 0,
-                "started": run_outcome.started,
-                "operational_failure": True,
-                "reason": run_outcome.containment_error,
-            }
-        if run_outcome.timed_out:
-            return "error", {
-                "block_index": block.block_index,
-                "statements": len(block.examples),
-                "started": run_outcome.started,
-                "reason": f"timed out after {timeout:.1f}s",
-            }
+        started = run_outcome.started
+        status, outcome = _parse_block_result(block, path_ipc, run_outcome, timeout)
+    finally:
+        cleanup_err = _cleanup_tempdirs(path_cwd, path_ipc)
 
-        proc_stdout = (
-            (path_ipc / "proc_stdout.txt")
-            .read_text(encoding="utf-8", errors="replace")
-            .replace("\r\n", "\n")
-        )
-        proc_stderr = (
-            (path_ipc / "proc_stderr.txt")
-            .read_text(encoding="utf-8", errors="replace")
-            .replace("\r\n", "\n")
-        )
-
-        if not path_result.is_file():
-            return "error", {
-                "block_index": block.block_index,
-                "statements": len(block.examples),
-                "started": run_outcome.started,
-                "reason": (
-                    "isolated runner exited with code "
-                    f"{run_outcome.returncode} without a result"
-                ),
-                "stdout": proc_stdout,
-                "stderr": proc_stderr,
-            }
-
-        outcome = json.loads(path_result.read_text(encoding="utf-8"))
-        status = outcome.pop("status")
-        consumed_stdout_bytes = int(outcome.pop("captured_stdout_bytes", 0))
-        consumed_stderr_bytes = int(outcome.pop("captured_stderr_bytes", 0))
-        trailing_stdout = (
-            _read_trailing_capture(
-                path_ipc / "capture_stdout.bin", consumed_stdout_bytes
-            )
-            + proc_stdout
-        )
-        trailing_stderr = (
-            _read_trailing_capture(
-                path_ipc / "capture_stderr.bin", consumed_stderr_bytes
-            )
-            + proc_stderr
-        )
-        outcome["block_index"] = block.block_index
-        if trailing_stderr:
-            outcome["stderr"] = (outcome.get("stderr") or "") + trailing_stderr
-        if run_outcome.returncode != 0 and (
-            status == "ok" or run_outcome.returncode < 0
-        ):
-            status = "error"
-            outcome["reason"] = (
-                f"isolated runner exited with code {run_outcome.returncode}"
-            )
-        elif trailing_stdout and status == "ok":
-            status = "mismatch"
-            outcome["reason"] = "unexpected output written to stdout outside statements"
-            outcome["got"] = trailing_stdout
-        return status, outcome
+    if cleanup_err is not None and not outcome.get("operational_failure"):
+        return "error", {
+            "block_index": block.block_index,
+            "statements": len(block.examples),
+            "executed": outcome.get("executed", 0),
+            "started": started,
+            "operational_failure": True,
+            "reason": cleanup_err,
+        }
+    return status, outcome
 
 
 def evaluate_text_block(
@@ -2340,17 +2395,52 @@ class _ModuleProbeTarget:
     """Importable module specification for isolated Python export discovery."""
 
     module_name: str
-    origin_path: str
+    origin_path: str | None
 
 
-def _resolve_module_probe_target(module: ModuleType) -> _ModuleProbeTarget | None:
-    """Return file-backed module coordinates when ``module`` is subprocess-loadable."""
+def _find_top_level_origin_without_import(module_name: str) -> str | None:
+    """Locate a top-level module file on ``sys.path`` without executing any code."""
+    if "." in module_name or not module_name:
+        return None
+    spec = importlib.machinery.PathFinder.find_spec(module_name)
+    if spec is None or not spec.origin or not Path(spec.origin).is_file():
+        return None
+    return str(Path(spec.origin).resolve())
+
+
+def _resolve_module_probe_target(
+    module: ModuleType | str,
+) -> tuple[_ModuleProbeTarget | None, ModuleType | None]:
+    """Return ``(subprocess_target, in_memory_module)`` without importing target code."""
+    if isinstance(module, str):
+        existing = sys.modules.get(module)
+        if isinstance(existing, ModuleType):
+            origin = vars(existing).get("__file__")
+            if isinstance(origin, str) and origin and Path(origin).is_file():
+                return (
+                    _ModuleProbeTarget(
+                        module_name=existing.__name__,
+                        origin_path=str(Path(origin).resolve()),
+                    ),
+                    None,
+                )
+            return None, existing
+        return (
+            _ModuleProbeTarget(
+                module_name=module,
+                origin_path=_find_top_level_origin_without_import(module),
+            ),
+            None,
+        )
     origin = vars(module).get("__file__")
     if not isinstance(origin, str) or not origin or not Path(origin).is_file():
-        return None
-    return _ModuleProbeTarget(
-        module_name=module.__name__,
-        origin_path=str(Path(origin).resolve()),
+        return None, module
+    return (
+        _ModuleProbeTarget(
+            module_name=module.__name__,
+            origin_path=str(Path(origin).resolve()),
+        ),
+        None,
     )
 
 
@@ -2374,63 +2464,74 @@ def _discover_python_targets_subprocess(
         "module_exports": module_exports,
         "harness_token": harness_token,
     }
-    with (
-        tempfile.TemporaryDirectory(prefix="suews-py-discover-cwd-") as cwd_dir,
-        tempfile.TemporaryDirectory(prefix="suews-py-discover-ipc-") as ipc_dir,
-    ):
-        path_ipc = Path(ipc_dir)
+    path_cwd = Path(tempfile.mkdtemp(prefix="suews-py-discover-cwd-"))
+    path_ipc = Path(tempfile.mkdtemp(prefix="suews-py-discover-ipc-"))
+    result: tuple[list[dict[str, object]] | None, dict[str, int], str | None, bool]
+    try:
         path_result = path_ipc / "result.json"
         (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
         run_outcome = _spawn_isolated_runner(
             exe=python_executable or sys.executable,
-            path_cwd=Path(cwd_dir),
+            path_cwd=path_cwd,
             path_ipc=path_ipc,
             timeout=timeout,
             runner_source=_PYTHON_DISCOVERY_RUNNER,
             harness_token=harness_token,
         )
         if run_outcome.containment_error is not None:
-            return None, {}, run_outcome.containment_error, True
-        if run_outcome.timed_out:
-            return (
+            result = (None, {}, run_outcome.containment_error, True)
+        elif run_outcome.timed_out:
+            result = (
                 None,
                 {},
                 f"Python export discovery timed out after {timeout:.1f}s",
                 False,
             )
-        if run_outcome.returncode != 0:
-            return (
+        elif run_outcome.returncode != 0:
+            result = (
                 None,
                 {},
                 f"Python export discovery exited with code {run_outcome.returncode}",
                 False,
             )
-        if not path_result.is_file():
-            return (
+        elif not path_result.is_file():
+            result = (
                 None,
                 {},
                 "Python export discovery exited without writing a result",
                 False,
             )
-        data = json.loads(path_result.read_text(encoding="utf-8"))
-        return list(data["targets"]), dict(data["excluded"]), None, False
+        else:
+            data = json.loads(path_result.read_text(encoding="utf-8"))
+            result = (list(data["targets"]), dict(data["excluded"]), None, False)
+    finally:
+        cleanup_err = _cleanup_tempdirs(path_cwd, path_ipc)
+    if cleanup_err is not None and not result[3]:
+        return None, {}, cleanup_err, True
+    return result
 
 
 def _iter_python_discovered_targets(
     revision: Revision,
-    module: ModuleType,
+    module: ModuleType | str,
     excluded_counts: Counter,
-    root_package: str,
     timeout: float,
     python_executable: str | None,
 ) -> Iterator[tuple[str, Source, Source | None, str | None, bool]]:
     """Yield ``(public, anchor, resolved_source, failure_reason, operational_failure)``."""
-    probe_target = _resolve_module_probe_target(module)
+    probe_target, inmem_module = _resolve_module_probe_target(module)
+    effective_name = (
+        probe_target.module_name
+        if probe_target is not None
+        else (inmem_module.__name__ if inmem_module is not None else str(module))
+    )
+    root_package = effective_name.split(".", 1)[0]
     if probe_target is None:
+        assert inmem_module is not None
         for public, obj, anchor, initial_reason in public_targets(
-            revision, module, excluded=excluded_counts, root_package=root_package
+            revision, inmem_module, excluded=excluded_counts, root_package=root_package
         ):
             if initial_reason:
                 yield public, anchor, None, initial_reason, False
@@ -2460,14 +2561,13 @@ def _iter_python_discovered_targets(
     )
     excluded_counts.update(excluded)
     if targets is None:
-        if module.__name__ in revision.modules:
-            path, tree, text = revision.modules[module.__name__]
-            anchor = Source(path, module.__name__, tree, text)
+        mod_name = probe_target.module_name
+        if mod_name in revision.modules:
+            path, tree, text = revision.modules[mod_name]
+            anchor = Source(path, mod_name, tree, text)
         else:
-            anchor = Source(
-                "", module.__name__, ast.Module(body=[], type_ignores=[]), ""
-            )
-        yield module.__name__, anchor, None, error_reason, operational_failure
+            anchor = Source("", mod_name, ast.Module(body=[], type_ignores=[]), "")
+        yield mod_name, anchor, None, error_reason, operational_failure
         return
 
     for item in targets:
@@ -2494,7 +2594,7 @@ def _iter_python_discovered_targets(
 
 def python_example_results(
     revision: Revision,
-    module: ModuleType,
+    module: ModuleType | str,
     excluded_counts: Counter | None = None,
     excluded_items: list[dict] | None = None,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
@@ -2505,7 +2605,6 @@ def python_example_results(
     timeout = _validate_timeout(timeout)
     excluded_counts = Counter() if excluded_counts is None else excluded_counts
     excluded_items = [] if excluded_items is None else excluded_items
-    root_package = module.__name__.split(".", 1)[0]
     checked_definitions: set[tuple[str, str]] = set()
 
     for (
@@ -2518,7 +2617,6 @@ def python_example_results(
         revision,
         module,
         excluded_counts=excluded_counts,
-        root_package=root_package,
         timeout=timeout,
         python_executable=python_executable,
     ):
@@ -3054,45 +3152,65 @@ def _discover_cli_commands_subprocess(
         "origin_path": target.origin_path,
         "harness_token": harness_token,
     }
-    with (
-        tempfile.TemporaryDirectory(prefix="suews-cli-discover-cwd-") as cwd_dir,
-        tempfile.TemporaryDirectory(prefix="suews-cli-discover-ipc-") as ipc_dir,
-    ):
-        path_ipc = Path(ipc_dir)
+    path_cwd = Path(tempfile.mkdtemp(prefix="suews-cli-discover-cwd-"))
+    path_ipc = Path(tempfile.mkdtemp(prefix="suews-cli-discover-ipc-"))
+    result: tuple[list[tuple[tuple[str, ...], str]] | None, _CliProbeOutcome]
+    try:
         path_result = path_ipc / "result.json"
         (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
         run_outcome = _spawn_isolated_runner(
             exe=python_executable or sys.executable,
-            path_cwd=Path(cwd_dir),
+            path_cwd=path_cwd,
             path_ipc=path_ipc,
             timeout=timeout,
             runner_source=_CLI_DISCOVERY_RUNNER,
             harness_token=harness_token,
         )
         if run_outcome.containment_error is not None:
-            return None, _CliProbeOutcome(
-                reason=run_outcome.containment_error, operational_failure=True
+            result = (
+                None,
+                _CliProbeOutcome(
+                    reason=run_outcome.containment_error, operational_failure=True
+                ),
             )
-        if run_outcome.timed_out:
-            return None, _CliProbeOutcome(
-                reason=f"CLI command discovery timed out after {timeout:.1f}s"
+        elif run_outcome.timed_out:
+            result = (
+                None,
+                _CliProbeOutcome(
+                    reason=f"CLI command discovery timed out after {timeout:.1f}s"
+                ),
             )
-        if run_outcome.returncode != 0:
-            return None, _CliProbeOutcome(
-                reason=f"CLI command discovery exited with code {run_outcome.returncode}"
+        elif run_outcome.returncode != 0:
+            result = (
+                None,
+                _CliProbeOutcome(
+                    reason=(
+                        "CLI command discovery exited with code "
+                        f"{run_outcome.returncode}"
+                    )
+                ),
             )
-        if not path_result.is_file():
-            return None, _CliProbeOutcome(
-                reason="CLI command discovery exited without writing a result"
+        elif not path_result.is_file():
+            result = (
+                None,
+                _CliProbeOutcome(
+                    reason="CLI command discovery exited without writing a result"
+                ),
             )
-        data = json.loads(path_result.read_text(encoding="utf-8"))
-        discovered = [
-            (tuple(str(part) for part in item["path"]), str(item["callback_name"]))
-            for item in data["commands"]
-        ]
-        return discovered, _CliProbeOutcome()
+        else:
+            data = json.loads(path_result.read_text(encoding="utf-8"))
+            discovered = [
+                (tuple(str(part) for part in item["path"]), str(item["callback_name"]))
+                for item in data["commands"]
+            ]
+            result = (discovered, _CliProbeOutcome())
+    finally:
+        cleanup_err = _cleanup_tempdirs(path_cwd, path_ipc)
+    if cleanup_err is not None and not result[1].operational_failure:
+        return None, _CliProbeOutcome(reason=cleanup_err, operational_failure=True)
+    return result
 
 
 def _probe_cli_help_one(
@@ -3110,43 +3228,49 @@ def _probe_cli_help_one(
         "command_path": list(command_path),
         "harness_token": harness_token,
     }
-    with (
-        tempfile.TemporaryDirectory(prefix="suews-cli-probe-cwd-") as cwd_dir,
-        tempfile.TemporaryDirectory(prefix="suews-cli-probe-ipc-") as ipc_dir,
-    ):
-        path_ipc = Path(ipc_dir)
+    path_cwd = Path(tempfile.mkdtemp(prefix="suews-cli-probe-cwd-"))
+    path_ipc = Path(tempfile.mkdtemp(prefix="suews-cli-probe-ipc-"))
+    try:
         path_result = path_ipc / "result.json"
         (path_ipc / "payload.json").write_text(
             json.dumps(payload, ensure_ascii=True), encoding="utf-8"
         )
         run_outcome = _spawn_isolated_runner(
             exe=python_executable or sys.executable,
-            path_cwd=Path(cwd_dir),
+            path_cwd=path_cwd,
             path_ipc=path_ipc,
             timeout=timeout,
             runner_source=_CLI_HELP_PROBE_RUNNER,
             harness_token=harness_token,
         )
         if run_outcome.containment_error is not None:
-            return _CliProbeOutcome(
+            outcome = _CliProbeOutcome(
                 reason=run_outcome.containment_error, operational_failure=True
             )
-        if run_outcome.timed_out:
-            return _CliProbeOutcome(reason=f"--help timed out after {timeout:.1f}s")
-        if run_outcome.returncode != 0:
-            return _CliProbeOutcome(
+        elif run_outcome.timed_out:
+            outcome = _CliProbeOutcome(reason=f"--help timed out after {timeout:.1f}s")
+        elif run_outcome.returncode != 0:
+            outcome = _CliProbeOutcome(
                 reason=f"--help exited with code {run_outcome.returncode}"
             )
-        if not path_result.is_file():
-            return _CliProbeOutcome(
+        elif not path_result.is_file():
+            outcome = _CliProbeOutcome(
                 reason="--help exited without writing a probe result"
             )
-        exit_code = int(
-            json.loads(path_result.read_text(encoding="utf-8"))["exit_code"]
-        )
-        if exit_code != 0:
-            return _CliProbeOutcome(reason=f"--help exited with code {exit_code}")
-        return _CliProbeOutcome()
+        else:
+            exit_code = int(
+                json.loads(path_result.read_text(encoding="utf-8"))["exit_code"]
+            )
+            outcome = (
+                _CliProbeOutcome(reason=f"--help exited with code {exit_code}")
+                if exit_code != 0
+                else _CliProbeOutcome()
+            )
+    finally:
+        cleanup_err = _cleanup_tempdirs(path_cwd, path_ipc)
+    if cleanup_err is not None and not outcome.operational_failure:
+        return _CliProbeOutcome(reason=cleanup_err, operational_failure=True)
+    return outcome
 
 
 def _probe_cli_help_commands(
@@ -3178,12 +3302,30 @@ def _module_tree_for_source(revision: Revision, source: Source) -> ast.Module | 
     return None
 
 
-def _cli_root_source(revision: Revision, root: click.Command, prog_name: str) -> Source:
+def _cli_root_source(
+    revision: Revision, root: click.Command | str, prog_name: str
+) -> Source:
     """Resolve ``root.callback`` in ``revision`` or return an unresolved placeholder."""
+    if isinstance(root, str):
+        return Source("", prog_name, ast.Module(body=[], type_ignores=[]), "")
     try:
         return revision.locate(root.callback)
     except ValueError:
         return Source("", prog_name, ast.Module(body=[], type_ignores=[]), "")
+
+
+def _resolve_cli_spec_or_object(root: click.Command | str) -> _CliProbeTarget | None:
+    """Resolve a ``module:attr`` CLI string or file-backed Click command object."""
+    if isinstance(root, str):
+        if ":" not in root:
+            return None
+        mod_name, attr_name = root.split(":", 1)
+        return _CliProbeTarget(
+            module_name=mod_name,
+            attr_name=attr_name,
+            origin_path=_find_top_level_origin_without_import(mod_name),
+        )
+    return _resolve_cli_probe_target(root)
 
 
 def _cli_probe_failure_result(
@@ -3210,7 +3352,7 @@ def _cli_probe_failure_result(
 
 def cli_example_results(
     revision: Revision,
-    root: click.Command,
+    root: click.Command | str,
     prog_name: str = "suews",
     excluded_counts: Counter | None = None,
     excluded_items: list[dict] | None = None,
@@ -3223,7 +3365,7 @@ def cli_example_results(
     excluded_counts = Counter() if excluded_counts is None else excluded_counts
     excluded_items = [] if excluded_items is None else excluded_items
 
-    probe_target = _resolve_cli_probe_target(root)
+    probe_target = _resolve_cli_spec_or_object(root)
     if probe_target is None:
         if scanned_counter is not None:
             scanned_counter["cli"] += 1
@@ -3385,8 +3527,8 @@ def _summarise(
 
 def build_report(
     revision: Revision,
-    module: ModuleType | None = None,
-    cli_root: click.Command | None = None,
+    module: ModuleType | str | None = None,
+    cli_root: click.Command | str | None = None,
     installed_version: str = "unknown",
     installed_commit: str | None = "unknown",
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
@@ -3549,6 +3691,135 @@ def _positive_finite_timeout(raw: str) -> float:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+_INSTALLED_METADATA_RUNNER = r"""
+import importlib
+import json
+import os
+import sys
+import time
+
+
+def _write_json_atomic(path: str, data: dict[str, object]) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=True)
+    os.replace(tmp_path, path)
+
+
+def _write_text_atomic(path: str, text: str) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp_path, path)
+
+
+def _report_harness_failure(ipc_dir: str, token: str, message: str) -> None:
+    try:
+        _write_text_atomic(os.path.join(ipc_dir, "harness_error.txt"), message + "\n")
+    except Exception:
+        pass
+    try:
+        sys.stderr.write(f"__SUEWS_HARNESS_ERROR__:{token}:{message}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    sys.exit(124)
+
+
+def main() -> None:
+    payload_path = sys.argv[1]
+    result_path = sys.argv[2]
+    gate_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    ack_path = sys.argv[4] if len(sys.argv) > 4 else ""
+    expected_ppid = int(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else 0
+    if gate_path:
+        deadline = time.monotonic() + 5.0
+        while not os.path.exists(gate_path):
+            if expected_ppid and os.name != "nt" and os.getppid() != expected_ppid:
+                sys.exit(2)
+            if time.monotonic() >= deadline:
+                sys.exit(2)
+            time.sleep(0.005)
+    with open(payload_path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+    harness_token = str(payload.get("harness_token", ""))
+    ipc_dir = os.path.dirname(os.path.abspath(result_path))
+    sys.argv = ["<installed-metadata>"]
+    if ack_path:
+        _write_text_atomic(ack_path, "started\n")
+
+    installed_version = "unknown"
+    installed_commit = "unknown"
+    try:
+        supy_mod = importlib.import_module("supy")
+        installed_version = str(getattr(supy_mod, "__version__", "unknown"))
+    except Exception:
+        pass
+    try:
+        version_mod = importlib.import_module("supy._version_scm")
+        installed_commit = str(getattr(version_mod, "__commit_hash__", "unknown"))
+    except Exception:
+        pass
+
+    try:
+        _write_json_atomic(
+            result_path,
+            {
+                "installed_version": installed_version,
+                "installed_commit": installed_commit,
+            },
+        )
+    except BaseException as exc:
+        _report_harness_failure(
+            ipc_dir,
+            harness_token,
+            f"installed metadata failed to publish result: {type(exc).__name__}: {exc}",
+        )
+
+
+if __name__ == "__main__":
+    main()
+"""
+
+
+def _read_installed_metadata_subprocess(
+    timeout: float,
+    python_executable: str | None = None,
+) -> tuple[str, str]:
+    """Read installed supy version and commit hash inside a contained subprocess."""
+    harness_token = secrets.token_hex(16)
+    path_cwd = Path(tempfile.mkdtemp(prefix="suews-meta-cwd-"))
+    path_ipc = Path(tempfile.mkdtemp(prefix="suews-meta-ipc-"))
+    try:
+        (path_ipc / "payload.json").write_text(
+            json.dumps({"harness_token": harness_token}, ensure_ascii=True),
+            encoding="utf-8",
+        )
+        run_outcome = _spawn_isolated_runner(
+            exe=python_executable or sys.executable,
+            path_cwd=path_cwd,
+            path_ipc=path_ipc,
+            timeout=timeout,
+            runner_source=_INSTALLED_METADATA_RUNNER,
+            harness_token=harness_token,
+        )
+        path_result = path_ipc / "result.json"
+        if (
+            run_outcome.containment_error is None
+            and not run_outcome.timed_out
+            and run_outcome.returncode == 0
+            and path_result.is_file()
+        ):
+            data = json.loads(path_result.read_text(encoding="utf-8"))
+            return (
+                str(data.get("installed_version", "unknown")),
+                str(data.get("installed_commit", "unknown")),
+            )
+    finally:
+        _cleanup_tempdirs(path_cwd, path_ipc)
+    return "unknown", "unknown"
+
+
 def main(argv: list[str] | None = None) -> int:
     """Write machine-readable JSON and readable ASCII text reports; exit 0 on findings."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -3582,20 +3853,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     revision = Revision(args.repo, args.revision)
-    supy = importlib.import_module("supy")
-    version_mod = importlib.import_module("supy._version_scm")
-    installed_commit = getattr(version_mod, "__commit_hash__", "unknown")
-
-    target_module = None if args.no_python else importlib.import_module(args.module)
-    target_cli = (
-        None if args.no_cli else importlib.import_module("supy.cmd.suews_cli").cli
+    installed_version, installed_commit = _read_installed_metadata_subprocess(
+        timeout=args.timeout
     )
+
+    target_module: str | None = None if args.no_python else args.module
+    target_cli: str | None = None if args.no_cli else "supy.cmd.suews_cli:cli"
 
     report = build_report(
         revision=revision,
         module=target_module,
         cli_root=target_cli,
-        installed_version=getattr(supy, "__version__", "unknown"),
+        installed_version=installed_version,
         installed_commit=installed_commit,
         timeout=args.timeout,
     )

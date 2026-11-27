@@ -21,9 +21,11 @@ exclusively from `git show` at the resolved full commit SHA. Dirty worktree
 edits and installed docstrings or installed `command.help` strings are never
 read as source evidence.
 
-The installed package is treated solely as the code under execution. Its
-version and build commit are recorded separately alongside
-`installed_matches_revision`.
+The installed package is treated solely as the code under execution; `main()`
+reads its version and build commit and discovers target Python/CLI surfaces
+inside isolated, timeout-bounded subprocesses rather than importing target
+modules in the checker process. Its version and build commit are recorded
+separately alongside `installed_matches_revision`.
 
 ## Scope and extraction
 

@@ -2279,3 +2279,185 @@ def opt_edge(combo, dyn):
     ]
     assert len(excluded_shell) == 1
     assert "--format json" in excluded_shell[0]["source"]
+
+
+def test_main_isolates_target_module_import_side_effects_and_hangs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """main() must never import target modules in-process; import hangs stay contained."""
+    caller_cwd = tmp_path / "caller_cwd"
+    caller_cwd.mkdir()
+    ext_pkg = tmp_path / "ext_pkg"
+    ext_pkg.mkdir()
+    child_pid_file = tmp_path / "import_child.pid"
+
+    mod_source = f"""\
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+Path("leaked_at_import.txt").write_text("leaked", encoding="utf-8")
+_child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+Path({child_pid_file.as_posix()!r}).write_text(str(_child.pid), encoding="utf-8")
+time.sleep(60)
+"""
+    (ext_pkg / "hostile_import_mod.py").write_text(mod_source, encoding="utf-8")
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": "__all__ = []\n"})
+
+    monkeypatch.syspath_prepend(str(ext_pkg))
+    monkeypatch.chdir(caller_cwd)
+    assert "hostile_import_mod" not in sys.modules
+
+    json_out = tmp_path / "hostile_import.json"
+    rc = checks.main([
+        "--revision",
+        sha,
+        "--repo",
+        str(tmp_path),
+        "--module",
+        "hostile_import_mod",
+        "--no-cli",
+        "--timeout",
+        "0.8",
+        "--output",
+        str(json_out),
+    ])
+    capsys.readouterr()
+
+    assert rc == 0
+    assert "hostile_import_mod" not in sys.modules
+    assert not (caller_cwd / "leaked_at_import.txt").exists()
+    assert child_pid_file.is_file()
+    _assert_pid_exited(int(child_pid_file.read_text(encoding="utf-8").strip()))
+
+    saved = json.loads(json_out.read_text(encoding="utf-8"))
+    assert saved["operational_failures"] == []
+    assert saved["counts"]["unsupported"] == 1
+    assert "timed out" in saved["results"][0]["detail"]["reason"]
+
+
+def test_broken_exception_str_timeout_prereq_blankline_and_tempdir_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Cover broken exception __str__, socket TimeoutError, BLANKLINE semantics, and rmtree failure."""
+    source = '''\
+__all__ = [
+    "broken_str_exc",
+    "non_string_str_exc",
+    "timeout_error_prereq",
+    "whitespace_blankline_ok",
+]
+
+
+def broken_str_exc():
+    """An exception whose __str__ raises must remain an example error (exit 0).
+
+    >>> class BrokenStrError(Exception):
+    ...     def __str__(self):
+    ...         raise RuntimeError("boom in __str__")
+    >>> raise BrokenStrError()
+    1
+    """
+
+
+def non_string_str_exc():
+    """An exception whose __str__ returns a non-string must remain an example error.
+
+    >>> class NonStringStrError(Exception):
+    ...     def __str__(self):
+    ...         return 123
+    >>> raise NonStringStrError()
+    1
+    """
+
+
+def timeout_error_prereq():
+    """Socket/builtin TimeoutError with errno=None classifies as prerequisite-missing.
+
+    >>> raise TimeoutError("timed out")
+    1
+    """
+
+
+def whitespace_blankline_ok():
+    r"""Whitespace-only output line matches <BLANKLINE> just like stdlib doctest.
+
+    >>> print("top\\n   \\nbottom")
+    top
+    <BLANKLINE>
+    bottom
+    """
+'''
+    sha = _init_git_repo(tmp_path, {"src/supy/__init__.py": source})
+    module = ModuleType("supy")
+    exec(compile(source, "fixture_r3.py", "exec"), module.__dict__)
+    monkeypatch.setitem(sys.modules, "fixture_r3_mod", module)
+
+    json_out = tmp_path / "r3.json"
+    rc = checks.main([
+        "--revision",
+        sha,
+        "--repo",
+        str(tmp_path),
+        "--module",
+        "fixture_r3_mod",
+        "--no-cli",
+        "--output",
+        str(json_out),
+    ])
+    capsys.readouterr()
+
+    assert rc == 0
+    saved = json.loads(json_out.read_text(encoding="utf-8"))
+    assert saved["operational_failures"] == []
+    by_obj = {r["object"]: r for r in saved["results"]}
+
+    assert by_obj["supy.broken_str_exc"]["status"] == "error"
+    assert by_obj["supy.broken_str_exc"]["detail"]["exception_type"] == "BrokenStrError"
+    assert by_obj["supy.non_string_str_exc"]["status"] == "error"
+    assert (
+        by_obj["supy.non_string_str_exc"]["detail"]["exception_type"]
+        == "NonStringStrError"
+    )
+    assert by_obj["supy.timeout_error_prereq"]["status"] == "prerequisite-missing"
+    assert (
+        by_obj["supy.timeout_error_prereq"]["detail"]["prerequisite_type"]
+        == "TimeoutError"
+    )
+    assert by_obj["supy.whitespace_blankline_ok"]["status"] == "ok"
+
+    # Teardown rmtree failure becomes a reportable operational failure (exit 2).
+    real_rmtree = checks.shutil.rmtree
+
+    def _failing_rmtree(path, *args, **kwargs):
+        real_rmtree(path, *args, **kwargs)
+        if "suews-doctest-ipc-" in str(path):
+            raise OSError("simulated tempdir teardown failure")
+
+    monkeypatch.setattr(checks.shutil, "rmtree", _failing_rmtree)
+    rc_fail = checks.main([
+        "--revision",
+        sha,
+        "--repo",
+        str(tmp_path),
+        "--module",
+        "fixture_r3_mod",
+        "--no-cli",
+        "--output",
+        str(tmp_path / "r3_cleanup_fail.json"),
+    ])
+    capsys.readouterr()
+    assert rc_fail == checks.OPERATIONAL_FAILURE_EXIT_CODE
+    saved_fail = json.loads(
+        (tmp_path / "r3_cleanup_fail.json").read_text(encoding="utf-8")
+    )
+    assert len(saved_fail["operational_failures"]) >= 1
+    assert any(
+        "failed to clean temporary directory" in f["detail"]["reason"]
+        for f in saved_fail["operational_failures"]
+    )

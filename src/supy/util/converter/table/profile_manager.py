@@ -90,6 +90,13 @@ class ProfileManager:
             # Convert index to integers to ensure type consistency
             self.profile_data.index = self.profile_data.index.astype(int)
 
+            # Drop legacy Fortran EOF footer rows (-9 sentinel with no hourly values)
+            footer_mask = (
+                self.profile_data.index == -9
+            ) & self.profile_data.isna().all(axis=1)
+            if footer_mask.any():
+                self.profile_data = self.profile_data.loc[~footer_mask]
+
             self.available_profiles = set(self.profile_data.index)
             logger.info(f"Loaded {len(self.available_profiles)} profiles")
         except Exception as e:
@@ -175,6 +182,10 @@ class ProfileManager:
                     f"Refusing to {action_desc} because loading "
                     f"{self.profiles_path} failed: {self._load_error}"
                 ) from self._load_error
+            if self.profiles_path is not None:
+                raise FileNotFoundError(
+                    f"Profile table not found at {self.profiles_path}"
+                )
             return pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
 
         n_cols = len(self.profile_data.columns)
@@ -187,7 +198,17 @@ class ProfileManager:
         if n_cols < 24:
             raise ValueError(f"Expected at least 24 profile columns, got {n_cols}")
 
-        return self.profile_data.copy()
+        profiles_df = self.profile_data.copy()
+        footer_mask = (profiles_df.index == -9) & profiles_df.iloc[:, :24].isna().all(
+            axis=1
+        )
+        if footer_mask.any():
+            profiles_df = profiles_df.loc[~footer_mask]
+
+        for col_idx in range(24):
+            pd.to_numeric(profiles_df.iloc[:, col_idx], errors="raise")
+
+        return profiles_df
 
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.
@@ -219,18 +240,19 @@ class ProfileManager:
         # Sort by index
         profiles_df = profiles_df.sort_index()
 
+        # Format output in memory before opening profiles_file so formatting errors
+        # never truncate an existing SUEWS_Profiles.txt.
+        lines = [
+            "    ".join([str(i) for i in range(1, 26)]),
+            "Code    " + "    ".join([str(i) for i in range(24)]),
+        ]
+        for code, row in profiles_df.iterrows():
+            values = "    ".join([f"{float(v):.3f}" for v in row.iloc[:24]])
+            lines.append(f"{code:4d}    {values}")
+
         # Write to file with proper header (matching legacy column naming 0-23)
         with open(profiles_file, "w", encoding="utf-8") as f:
-            # Write first line: column numbers (load_SUEWS_table skips this line)
-            f.write("    ".join([str(i) for i in range(1, 26)]) + "\n")
-
-            # Write second line: header with Code and hour columns
-            f.write("Code    " + "    ".join([str(i) for i in range(24)]) + "\n")
-
-            # Write profiles
-            for code, row in profiles_df.iterrows():
-                values = "    ".join([f"{v:.3f}" for v in row.iloc[:24]])
-                f.write(f"{code:4d}    {values}\n")
+            f.write("\n".join(lines) + "\n")
 
         logger.info(f"Wrote {len(profiles_df)} profiles to {profiles_file}")
 

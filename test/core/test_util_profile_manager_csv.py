@@ -8,12 +8,15 @@ existing profile rows untouched.
 """
 
 from pathlib import Path
+import shutil
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from supy._load import load_SUEWS_table
+from supy.util.converter import convert_table
+from supy.util.converter.table.legacy import read_legacy_table
 from supy.util.converter.table.profile_manager import (
     ProfileManager,
     validate_and_fix_profiles,
@@ -28,6 +31,9 @@ _FIXTURE_PROFILES_2025A = (
     / "2025a"
     / "Input"
     / "SUEWS_Profiles.txt"
+)
+_FIXTURE_LEGACY_2020A = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2020a"
 )
 
 
@@ -294,6 +300,11 @@ def test_ensure_required_profiles_preserves_real_fixture_and_int_valued_csv(
         rtol=0.0,
         atol=1e-3,
     )
+    # Strict legacy table parser also succeeds (no -9 footer rows sorted to the top)
+    legacy_table = read_legacy_table(fixture_out / "SUEWS_Profiles.txt")
+    legacy_codes = {int(row[0]) for row in legacy_table.rows}
+    assert {10, 612}.issubset(legacy_codes)
+    assert -9 not in legacy_codes
 
     # ARRANGE: integer-valued CSV (int64 columns) upcasts cleanly on float default row
     int_csv = tmp_path / "int_profiles.txt"
@@ -446,3 +457,100 @@ def test_truncated_23_column_table_preserves_files_in_validate_and_fix_profiles(
     assert profiles_path.read_bytes() == original_profiles_bytes
     assert rules_path.read_bytes() == original_rules_bytes
     assert not (tmp_path / "rules.csv.bak").exists()
+
+
+def test_corrupt_non_numeric_hourly_token_preserves_files(tmp_path: Path) -> None:
+    """A 24-column table with a non-numeric hourly value fails before modifying files."""
+    # ARRANGE: 24-column table with one corrupt hourly token "bad"
+    profiles_path = tmp_path / "SUEWS_Profiles.txt"
+    tokens = ["0.500"] * 24
+    tokens[3] = "bad"
+    profiles_path.write_text(
+        " ".join(str(i) for i in range(1, 26))
+        + "\nCode "
+        + " ".join(str(h) for h in range(24))
+        + "\n10 "
+        + " ".join(tokens)
+        + "\n",
+        encoding="utf-8",
+    )
+    rules_path = tmp_path / "rules.csv"
+    pd.DataFrame({
+        "Action": ["Add"],
+        "Variable": ["ActivityProfWD"],
+        "Value": ["404"],
+    }).to_csv(rules_path, index=False)
+
+    original_profiles_bytes = profiles_path.read_bytes()
+    original_rules_bytes = rules_path.read_bytes()
+
+    # ACT & ASSERT: both validate_and_fix_profiles and ensure_required_profiles reject
+    # before mutating rules.csv or truncating SUEWS_Profiles.txt
+    with pytest.raises(ValueError, match="Unable to parse string"):
+        validate_and_fix_profiles(tmp_path, rules_path)
+    assert profiles_path.read_bytes() == original_profiles_bytes
+    assert rules_path.read_bytes() == original_rules_bytes
+    assert not (tmp_path / "rules.csv.bak").exists()
+
+    pm = ProfileManager(profiles_path)
+    with pytest.raises(ValueError, match="Unable to parse string"):
+        pm.ensure_required_profiles(tmp_path)
+    assert profiles_path.read_bytes() == original_profiles_bytes
+
+
+def test_convert_table_with_precreated_input_dir_validates_real_profiles(
+    tmp_path: Path,
+) -> None:
+    """convert_table falls back to toDir/SUEWS_Profiles.txt when toDir/input/ pre-exists."""
+    # ARRANGE: copy 2020a fixture using lowercase ./input/ and strip default codes 1 & 999
+    src_dir = tmp_path / "src_run"
+    src_input = src_dir / "input"
+    src_input.mkdir(parents=True)
+    for item in _FIXTURE_LEGACY_2020A.iterdir():
+        if item.is_file() and item.name != "RunControl.nml":
+            shutil.copyfile(item, src_input / item.name)
+    rc_text = (_FIXTURE_LEGACY_2020A / "RunControl.nml").read_text(encoding="utf-8")
+    (src_dir / "RunControl.nml").write_text(
+        rc_text.replace('FileInputPath="./Input/"', 'FileInputPath="./input/"'),
+        encoding="utf-8",
+    )
+
+    # Rewrite SUEWS_Profiles.txt without default codes 1 or 999
+    src_profiles = src_input / "SUEWS_Profiles.txt"
+    df_orig = load_SUEWS_table(src_profiles)
+    kept_rows = {
+        int(code): row.iloc[:24].to_numpy(dtype=float).tolist()
+        for code, row in df_orig.iterrows()
+        if int(code) not in (1, 999)
+    }
+    _write_profiles_csv(src_profiles, kept_rows, legacy_two_line=True)
+
+    # Pre-create an empty toDir/input/ directory so table.py hits the missing-file path
+    out_dir = tmp_path / "out_run"
+    (out_dir / "input").mkdir(parents=True)
+
+    # ACT
+    convert_table(
+        str(src_dir),
+        str(out_dir),
+        "2020a",
+        "2021a",
+        validate_profiles=True,
+    )
+
+    # ASSERT: final SUEWS_Profiles.txt in out_dir/input/ keeps original rows AND has finite 1 & 999
+    final_profiles = out_dir / "input" / "SUEWS_Profiles.txt"
+    df_final = load_SUEWS_table(final_profiles)
+    assert {1, 10, 999}.issubset(set(df_final.index))
+    np.testing.assert_allclose(
+        df_final.loc[10].to_numpy(dtype=float),
+        kept_rows[10],
+        rtol=0.0,
+        atol=1e-3,
+    )
+    for code in (1, 999):
+        vals = df_final.loc[code].to_numpy(dtype=float)
+        assert np.all(np.isfinite(vals))
+        np.testing.assert_allclose(vals, np.ones(24), rtol=0.0, atol=1e-6)
+    legacy_table = read_legacy_table(final_profiles)
+    assert {1, 10, 999}.issubset({int(row[0]) for row in legacy_table.rows})

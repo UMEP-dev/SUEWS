@@ -33,4 +33,4 @@ When `hostname === 'localhost' || '127.0.0.1'`, `index.html` injects a "LOCAL DE
 
 ## Deployment
 
-`pages-deploy.yml` watches the `master` branch and publishes this directory alongside the generated `contracts/` tree (preserving previously published contract versions) to https://suews.io/. Any merge to `master` that touches `site/**`, `docs/**`, `src/supy/data_model/**`, `scripts/suews/publish_contracts.py`, or `.github/workflows/pages-deploy.yml` triggers a deploy.
+`pages-deploy.yml` watches the `master` branch and publishes this directory alongside the generated `contracts/` tree (fetching and preserving previously published contract versions from `https://suews.io/contracts/`, and failing closed on missing root indices unless initial bootstrap is authorised via `workflow_dispatch` with `allow_contracts_bootstrap=true`) to https://suews.io/. Any merge to `master` that touches `site/**`, `docs/**`, `src/supy/data_model/**`, `scripts/suews/publish_contracts.py`, or `.github/workflows/pages-deploy.yml` triggers a deploy.

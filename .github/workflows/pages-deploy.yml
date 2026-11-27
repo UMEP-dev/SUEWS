@@ -32,6 +32,12 @@ on:
       - '.github/workflows/pages-deploy.yml'
 
   workflow_dispatch:
+    inputs:
+      allow_contracts_bootstrap:
+        description: 'Authorise fresh /contracts/ publication when all contract index URLs return HTTP 404 (initial bootstrap or explicit recovery only)'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: pages-deploy
@@ -154,6 +160,7 @@ jobs:
         env:
           CONTRACTS_BASE_URL: https://suews.io
           PREV_CONTRACTS_DIR: _prev_contracts
+          ALLOW_CONTRACTS_BOOTSTRAP: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_contracts_bootstrap && 'true' || 'false' }}
           CONTRACTS_FETCH_RETRIES: "3"
           CONTRACTS_FETCH_RETRY_DELAY: "2"
           CONTRACTS_FETCH_TIMEOUT: "30"
@@ -182,6 +189,7 @@ jobs:
 
           base_url = os.environ["CONTRACTS_BASE_URL"].strip().rstrip("/")
           dest = Path(os.environ["PREV_CONTRACTS_DIR"])
+          allow_bootstrap = os.environ.get("ALLOW_CONTRACTS_BOOTSTRAP", "false").strip().lower() == "true"
           max_retries = max(1, int(os.environ.get("CONTRACTS_FETCH_RETRIES", "3")))
           retry_delay = max(0.0, float(os.environ.get("CONTRACTS_FETCH_RETRY_DELAY", "2")))
           timeout_s = max(1.0, float(os.environ.get("CONTRACTS_FETCH_TIMEOUT", "30")))
@@ -276,9 +284,38 @@ jobs:
               raise SystemExit(1)
 
           if root_raw is None:
+              if not allow_bootstrap:
+                  print(
+                      f"[contracts] FAILED: {root_url} returned HTTP 404 and "
+                      "ALLOW_CONTRACTS_BOOTSTRAP is not 'true'. Refusing to publish "
+                      "without prior history; trigger workflow_dispatch with "
+                      "allow_contracts_bootstrap=true for initial publication or "
+                      "verified recovery.",
+                      file=sys.stderr,
+                  )
+                  raise SystemExit(1)
+              for iface in INTERFACES:
+                  probe_url = f"{base_url}/contracts/{iface}/index.json"
+                  try:
+                      probe_raw = fetch_bytes(probe_url, allow_not_found=True)
+                  except RuntimeError as exc:
+                      print(
+                          f"[contracts] FAILED: bootstrap probe failed for {probe_url}: {exc}",
+                          file=sys.stderr,
+                      )
+                      raise SystemExit(1)
+                  if probe_raw is not None:
+                      print(
+                          f"[contracts] FAILED: {root_url} returned HTTP 404 but "
+                          f"{probe_url} still exists; refusing bootstrap to avoid "
+                          "discarding published history.",
+                          file=sys.stderr,
+                      )
+                      raise SystemExit(1)
               print(
-                  f"[contracts] No prior published contracts at {root_url} (HTTP 404); "
-                  "proceeding with fresh first deployment."
+                  f"[contracts] No prior published contracts at {root_url} or "
+                  "interface indices (HTTP 404) and ALLOW_CONTRACTS_BOOTSTRAP=true; "
+                  "proceeding with authorised bootstrap publication."
               )
               raise SystemExit(0)
 

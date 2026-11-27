@@ -192,6 +192,12 @@ def test_pages_and_audit_workflows_wire_contracts_with_least_privilege() -> None
         "pull-requests": "write",
     }
 
+    # Explicit bootstrap input defaults to false so push deploys fail closed on 404.
+    dispatch_inputs = triggers["workflow_dispatch"]["inputs"]
+    bootstrap_input = dispatch_inputs["allow_contracts_bootstrap"]
+    assert bootstrap_input["type"] == "boolean"
+    assert bootstrap_input["default"] is False
+
     # Push triggers include data_model and publish_contracts.py; PR triggers stay bounded.
     push_paths = triggers["push"]["paths"]
     assert "src/supy/data_model/**" in push_paths
@@ -217,6 +223,11 @@ def test_pages_and_audit_workflows_wire_contracts_with_least_privilege() -> None
         if str(s.get("uses", "")).startswith("actions/upload-pages-artifact@")
     )
     assert build_site_idx < fetch_idx < publish_idx < upload_idx
+
+    fetch_step = _get_step(steps, "Fetch previous published contracts")
+    assert "inputs.allow_contracts_bootstrap" in str(
+        fetch_step.get("env", {}).get("ALLOW_CONTRACTS_BOOTSTRAP", "")
+    )
 
     for step_name in (
         "Build site",
@@ -261,10 +272,31 @@ def test_pages_workflow_steps_first_deploy_and_historical_preservation(
     fetch_run = str(_get_step(steps, "Fetch previous published contracts")["run"])
     publish_run = str(_get_step(steps, "Build and validate data contracts")["run"])
 
-    # 1. First deploy: /contracts/index.json returns 404 -> fresh build & validation.
+    # 1. Authorised initial bootstrap: all indices return 404 + bootstrap=true -> fresh build.
     prev_dir_1 = tmp_path / "prev_first"
     out_dir_1 = tmp_path / "site_first" / "contracts"
     with _serve_responses({}) as base_url:
+        # Without explicit bootstrap authorisation, root 404 must fail closed.
+        unauthorised_res = subprocess.run(
+            ["bash", "-c", fetch_run],
+            cwd=REPO_ROOT,
+            env={
+                **os.environ,
+                "CONTRACTS_BASE_URL": base_url,
+                "PREV_CONTRACTS_DIR": str(prev_dir_1),
+                "ALLOW_CONTRACTS_BOOTSTRAP": "false",
+                "CONTRACTS_FETCH_RETRIES": "1",
+                "CONTRACTS_FETCH_RETRY_DELAY": "0",
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert unauthorised_res.returncode == 1
+        assert "ALLOW_CONTRACTS_BOOTSTRAP" in unauthorised_res.stderr
+        assert not prev_dir_1.exists()
+
+        # With explicit bootstrap authorisation and all indices absent, proceed cleanly.
         fetch_res = subprocess.run(
             ["bash", "-c", fetch_run],
             cwd=REPO_ROOT,
@@ -272,6 +304,7 @@ def test_pages_workflow_steps_first_deploy_and_historical_preservation(
                 **os.environ,
                 "CONTRACTS_BASE_URL": base_url,
                 "PREV_CONTRACTS_DIR": str(prev_dir_1),
+                "ALLOW_CONTRACTS_BOOTSTRAP": "true",
                 "CONTRACTS_FETCH_RETRIES": "1",
                 "CONTRACTS_FETCH_RETRY_DELAY": "0",
             },
@@ -280,7 +313,7 @@ def test_pages_workflow_steps_first_deploy_and_historical_preservation(
             check=False,
         )
         assert fetch_res.returncode == 0, fetch_res.stdout + fetch_res.stderr
-        assert "HTTP 404" in fetch_res.stdout
+        assert "ALLOW_CONTRACTS_BOOTSTRAP=true" in fetch_res.stdout
         assert not prev_dir_1.exists()
 
         pub_res = subprocess.run(
@@ -375,7 +408,12 @@ def test_pages_fetch_step_fails_closed_on_outage_partial_tree_traversal_and_redi
     )
     fetch_run = str(fetch_step["run"])
 
-    def _run_fetch(base_url: str, dest: Path) -> subprocess.CompletedProcess[str]:
+    def _run_fetch(
+        base_url: str,
+        dest: Path,
+        *,
+        allow_bootstrap: str = "false",
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["bash", "-c", fetch_run],
             cwd=REPO_ROOT,
@@ -383,6 +421,7 @@ def test_pages_fetch_step_fails_closed_on_outage_partial_tree_traversal_and_redi
                 **os.environ,
                 "CONTRACTS_BASE_URL": base_url,
                 "PREV_CONTRACTS_DIR": str(dest),
+                "ALLOW_CONTRACTS_BOOTSTRAP": allow_bootstrap,
                 "CONTRACTS_FETCH_RETRIES": "1",
                 "CONTRACTS_FETCH_RETRY_DELAY": "0",
             },
@@ -390,6 +429,25 @@ def test_pages_fetch_step_fails_closed_on_outage_partial_tree_traversal_and_redi
             text=True,
             check=False,
         )
+
+    # Case 0: Root index 404 while interface index still exists must fail closed
+    # even when ALLOW_CONTRACTS_BOOTSTRAP=true (lost root index on established site).
+    seed = tmp_path / "seed_contracts"
+    contracts = _load_contracts_module()
+    contracts.publish_contracts_site(seed, base_url="https://suews.io")
+    missing_root_routes = _tree_to_routes(seed)
+    missing_root_routes.pop("/contracts/index.json")
+    dest_missing_root = tmp_path / "prev_missing_root"
+    with _serve_responses(missing_root_routes) as base_url:
+        res_default = _run_fetch(base_url, dest_missing_root, allow_bootstrap="false")
+        assert res_default.returncode == 1
+        assert "ALLOW_CONTRACTS_BOOTSTRAP" in res_default.stderr
+        assert not dest_missing_root.exists()
+
+        res_boot = _run_fetch(base_url, dest_missing_root, allow_bootstrap="true")
+        assert res_boot.returncode == 1
+        assert "still exists" in res_boot.stderr
+        assert not dest_missing_root.exists()
 
     # Case 1: HTTP 500 on root index must fail closed rather than silently dropping history.
     dest_500 = tmp_path / "prev_500"
@@ -400,9 +458,6 @@ def test_pages_fetch_step_fails_closed_on_outage_partial_tree_traversal_and_redi
         assert not dest_500.exists()
 
     # Case 2: Root index present, but indexed bundle file returns 404 -> must fail closed.
-    seed = tmp_path / "seed_contracts"
-    contracts = _load_contracts_module()
-    contracts.publish_contracts_site(seed, base_url="https://suews.io")
     partial_routes = _tree_to_routes(seed)
     partial_routes.pop("/contracts/forcing/1.0.0/manifest.json")
     dest_partial = tmp_path / "prev_partial"

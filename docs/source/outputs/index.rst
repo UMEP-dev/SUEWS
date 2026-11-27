@@ -14,8 +14,9 @@ See :doc:`../inputs/yaml/index` for configuration details.
 For automated tooling, machine-readable output contract artefacts can be
 inspected or exported locally with ``suews contracts info output`` and
 ``suews contracts export output``, or retrieved from the published static
-artefacts at ``https://suews.io/contracts/output/`` (reproducible locally with
-``make contracts-site``; see :ref:`data_interface_versioning`).
+artefacts at `https://suews.io/contracts/output/ <https://suews.io/contracts/output/>`_
+(build packaged releases locally with ``make contracts-site``; see
+:ref:`data_interface_versioning`).
 
 .. toctree::
    :maxdepth: 1

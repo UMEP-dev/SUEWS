@@ -60,6 +60,7 @@ from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
 from .suews_output import (
     SUEWSOutput,
+    _configured_site_grids,
     _select_variable_grid,
     _variable_groups,
     streamed_output_error,
@@ -150,6 +151,7 @@ class SUEWSSimulation:
         self._config_identity = None
         self._forcing_sources = None
         self._run_metadata = None
+        self._run_site_grids: tuple[tuple[str, int], ...] = ()
 
         if config is not None:
             self.update_config(config, units=units)
@@ -1152,6 +1154,7 @@ class SUEWSSimulation:
 
         run_metadata["ended_at"] = now_utc_iso()
         self._run_metadata = run_metadata
+        self._run_site_grids = tuple(_configured_site_grids(self._config))
         self._run_completed = True
 
         if save_settings is not None:
@@ -1175,6 +1178,7 @@ class SUEWSSimulation:
             kernel_warnings=self._kernel_warnings.to_frame(),
             streamed_paths=self._streamed_paths,
             metadata=copy.deepcopy(self._run_metadata or {}),
+            site_grids=self._run_site_grids,
         )
 
     def save(
@@ -1903,6 +1907,7 @@ class SUEWSSimulation:
         self._run_period = None
         self._run_completed = False
         self._run_metadata = None
+        self._run_site_grids = ()
         self._streamed_paths = None
         return self
 
@@ -2468,7 +2473,10 @@ class SUEWSSimulation:
         # Filter by site if requested
         if site is not None:
             result = _select_variable_grid(
-                result, site, config=self._config, param_name="site"
+                result,
+                site,
+                site_grids=self._run_site_grids,
+                param_name="site",
             )
 
         return result
@@ -2596,6 +2604,7 @@ class SUEWSSimulation:
             kernel_warnings=self._kernel_warnings.to_frame(),
             streamed_paths=self._streamed_paths,
             metadata=copy.deepcopy(self._run_metadata or {}),
+            site_grids=self._run_site_grids,
         )
 
     @property

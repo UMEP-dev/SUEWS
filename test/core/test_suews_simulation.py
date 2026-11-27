@@ -1472,6 +1472,80 @@ class TestGetVariableMultiGrid:
         with pytest.raises(ValueError, match="no 'grid' level"):
             out.get_variable("QH", group="SUEWS", grid=1)
 
+    def test_site_name_mapping_survives_config_replacement_and_mutation(
+        self, sample_config_loaded, sample_forcing_parsed
+    ):
+        """Post-run config mutation or ``update_config`` cannot remap existing output site names."""
+        cfg = sample_config_loaded.model_copy(deep=True)
+        site_north = cfg.sites[0].model_copy(deep=True)
+        site_north.name = "North"
+        site_north.gridiv = 1
+
+        site_south = cfg.sites[0].model_copy(deep=True)
+        site_south.name = "South"
+        site_south.gridiv = 2
+        lc = site_south.properties.land_cover
+        lc.paved.sfr = 0.05
+        lc.bldgs.sfr = 0.05
+        lc.evetr.sfr = 0.05
+        lc.dectr.sfr = 0.05
+        lc.grass.sfr = 0.70
+        lc.bsoil.sfr = 0.05
+        lc.water.sfr = 0.05
+        cfg.sites = [site_north, site_south]
+
+        _, df_forcing = sample_forcing_parsed(12)
+        sim = SUEWSSimulation()
+        sim.update_config(cfg, auto_load_forcing=False)
+        sim.update_forcing(df_forcing)
+        output = sim.run(
+            start_date=df_forcing.index[0],
+            end_date=df_forcing.index[-1],
+            n_jobs=1,
+        )
+
+        expected_north = output.get_variable("QH", group="SUEWS", grid=1)
+        expected_south = output.get_variable("QH", group="SUEWS", grid=2)
+        assert not expected_north.equals(expected_south)
+
+        # 1. In-place mutation of the config object referenced by sim and output
+        sim.config.sites[0].gridiv = 2
+        sim.config.sites[1].gridiv = 1
+        pd.testing.assert_frame_equal(
+            output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            output.to_units({"QH": "W m-2"}).get_variable(
+                "QH", group="SUEWS", grid="North"
+            ),
+            expected_north,
+        )
+        pd.testing.assert_frame_equal(
+            output.resample("h").get_variable("QH", group="SUEWS", grid="North"),
+            output.resample("h").get_variable("QH", group="SUEWS", grid=1),
+        )
+        pd.testing.assert_frame_equal(
+            sim.get_variable("QH", group="SUEWS", site="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            sim.output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+
+        # 2. Replacing config via update_config without rerunning keeps the run's mapping
+        swapped_cfg = cfg.model_copy(deep=True)
+        swapped_cfg.sites[0].name = "South"
+        swapped_cfg.sites[1].name = "North"
+        sim.update_config(swapped_cfg, auto_load_forcing=False)
+        pd.testing.assert_frame_equal(
+            sim.get_variable("QH", group="SUEWS", site="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            sim.output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+        pd.testing.assert_frame_equal(
+            output.get_variable("QH", group="SUEWS", grid="North"), expected_north
+        )
+
 
 class TestPathResolution:
     """Test forcing file path resolution."""

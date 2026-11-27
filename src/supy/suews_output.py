@@ -57,14 +57,15 @@ def _select_variable_grid(
     selector: int | str,
     config: Any = None,
     *,
+    site_grids: tuple[tuple[str, int], ...] | list[tuple[str, int]] | None = None,
     param_name: str = "grid",
 ) -> pd.DataFrame:
     """Filter a single-variable output frame to one grid/site row slice.
 
     An integer *selector* matches the ``grid`` index level (``gridiv``), not a
     column position. A string *selector* resolves a unique configured site name
-    from *config*, a literal string label in the ``grid`` level, or an integer
-    grid ID string.
+    from *site_grids* (or *config* when *site_grids* is not provided), a
+    literal string label in the ``grid`` level, or an integer grid ID string.
     """
     if isinstance(selector, bool) or not isinstance(selector, (int, np.integer, str)):
         raise TypeError(
@@ -78,7 +79,9 @@ def _select_variable_grid(
         )
 
     available_grids = df_var.index.get_level_values("grid").unique().tolist()
-    site_pairs = _configured_site_grids(config)
+    site_pairs = (
+        list(site_grids) if site_grids is not None else _configured_site_grids(config)
+    )
     site_names = [name for name, _ in site_pairs]
     avail_hint = f"Available grid IDs: {available_grids}"
     if site_names:
@@ -297,6 +300,7 @@ class SUEWSOutput:
         kernel_warnings: Optional[pd.DataFrame] = None,
         streamed_paths: list[str | Path] | None = None,
         units: Optional[Dict] = None,
+        site_grids: tuple[tuple[str, int], ...] | list[tuple[str, int]] | None = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -323,6 +327,11 @@ class SUEWSOutput:
             given, *df_output* carries the column layout only, and every
             accessor that reads output rows raises ``RuntimeError`` naming
             the output folder instead of returning an empty frame.
+        site_grids : sequence of (str, int), optional
+            Snapshot of ``(site_name, grid_id)`` pairs from the run that
+            produced *df_output*. When omitted, derived once from *config* at
+            construction time so later mutations to *config* cannot remap site
+            names on existing output.
         """
         self._streamed_paths = (
             [str(p) for p in streamed_paths] if streamed_paths is not None else None
@@ -360,6 +369,11 @@ class SUEWSOutput:
             df_state_final.copy() if df_state_final is not None else None
         )
         self._config = config
+        self._site_grids: tuple[tuple[str, int], ...] = (
+            tuple((str(name), int(gid)) for name, gid in site_grids)
+            if site_grids is not None
+            else tuple(_configured_site_grids(config))
+        )
         self._checkpoint = checkpoint
         self._metadata = metadata or {}
         self._kernel_warnings = (
@@ -715,7 +729,10 @@ class SUEWSOutput:
         # Filter by grid if requested
         if grid is not None:
             result = _select_variable_grid(
-                result, grid, config=self._config, param_name="grid"
+                result,
+                grid,
+                site_grids=self._site_grids,
+                param_name="grid",
             )
 
         return result
@@ -841,6 +858,7 @@ class SUEWSOutput:
             config=self._config,
             metadata={**self._metadata, "resampled_to": freq},
             checkpoint=self._checkpoint,
+            site_grids=self._site_grids,
         )
 
     # =========================================================================
@@ -865,6 +883,7 @@ class SUEWSOutput:
             self._df_output, self._df_state_final, config=self._config,
             metadata=copy.deepcopy(self._metadata), checkpoint=self._checkpoint,
             kernel_warnings=self._kernel_warnings, units=units,
+            site_grids=self._site_grids,
         )
 
     def save(

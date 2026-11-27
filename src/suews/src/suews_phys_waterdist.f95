@@ -807,17 +807,17 @@ CONTAINS
 
 
    SUBROUTINE SUEWS_update_SoilMoist( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HYDRO_STATE, SUEWS_STATE
 
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -1206,7 +1206,7 @@ CONTAINS
 
    !===================================================================================
    SUBROUTINE SUEWS_cal_WaterUse( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState) ! input/output:
       ! anthroEmisState, hydroState) ! INout:
       ! Conversion of water use (irrigation)
@@ -1227,17 +1227,17 @@ CONTAINS
       !        - Add functionality for water on paved surfaces (street cleaning, fountains)
       !------------------------------------------------------------------------------
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, SUEWS_STATE
-      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index, SUEWS_cal_interval_day_st
+      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
       USE module_ctrl_input_profile, ONLY: get_Prof_SpecTime_sum
       USE module_ctrl_const_physconst, ONLY: sec_per_hour
       IMPLICIT NONE
 
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
@@ -1264,8 +1264,6 @@ CONTAINS
       REAL(KIND(1D0)) :: wu !Water use for the model timestep [mm]
       INTEGER :: ih !Hour corrected for Daylight savings
       INTEGER :: iu !1=weekday OR 2=weekend
-      INTEGER :: irr_year, irr_month, irr_day, irr_doy, irr_dow
-      LOGICAL :: irrig_new_day_Q
       INTEGER :: tstep ! timestep in second
       REAL(KIND(1D0)), PARAMETER :: NAN = -999.
       REAL(KIND(1D0)) :: OverUse
@@ -1305,11 +1303,11 @@ CONTAINS
                wu_surf => hydroState%wu_surf, &
                wu_int => hydroState%wu_int, &
                wu_ext => hydroState%wu_ext, &
-               it => timer%it_st, &
-               nsh_real => timer%nsh_real, &
-               NSH => timer%NSH, &
-               DLS => timer%DLS, &
-               imin => timer%imin_st &
+               it => clock%it_st, &
+               nsh_real => clock%nsh_real, &
+               NSH => clock%NSH, &
+               DLS => clock%DLS, &
+               imin => clock%imin_st &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -1376,12 +1374,10 @@ CONTAINS
                ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled
 
                   ! Profile-hour (daylight saving) and delivery-day weekday/weekend index
-                  ! (GH#1559, GH#2381: centralised in module_util_time so the closing
-                  ! 00:00 interval uses the same delivery day as WUDay_id).
+                  ! (GH#1559, GH#2381, GH#2333: derived once per step in SUEWS_cal_clock
+                  ! so the closing 00:00 interval uses the same delivery day as WUDay_id).
                   ih = cal_profile_hour(it, DLS)
-                  CALL SUEWS_cal_interval_day_st( &
-                     timer, irr_year, irr_month, irr_day, irr_doy, irr_dow, irrig_new_day_Q)
-                  iu = cal_weekday_index(irr_dow)
+                  iu = cal_weekday_index(clock%deliv_dow_st)
 
                   WUDay_A_id = 0
                   WUDay_A_id(ConifSurf) = WUDay_id(2)

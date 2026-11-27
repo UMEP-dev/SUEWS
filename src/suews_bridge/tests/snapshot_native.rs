@@ -182,7 +182,7 @@ fn run_stage_observer(
     let scalars = encode_site_scalars_flat(&run.site_scalars);
     let (site, site_toc) = encode_site_members_flat(&run.site).unwrap();
     let (state, state_toc) = encode_state_members_flat(&run.state).unwrap();
-    assert_eq!((config.len(), timer.len(), scalars.len()), (29, 18, 24));
+    assert_eq!((config.len(), timer.len(), scalars.len()), (29, 8, 24));
     assert_eq!((site_toc.len(), state_toc.len()), (36, 26));
 
     let forcing_flat = flatten_forcing_rows(rows);
@@ -248,7 +248,7 @@ fn run_lumps_first_iter_observer(
     let scalars = encode_site_scalars_flat(&run.site_scalars);
     let (site, site_toc) = encode_site_members_flat(&run.site).unwrap();
     let (state, state_toc) = encode_state_members_flat(&run.state).unwrap();
-    assert_eq!((config.len(), timer.len(), scalars.len()), (29, 18, 24));
+    assert_eq!((config.len(), timer.len(), scalars.len()), (29, 8, 24));
     assert_eq!((site_toc.len(), state_toc.len()), (36, 26));
 
     let forcing_flat = flatten_forcing_rows(rows);
@@ -302,7 +302,7 @@ fn run_multiline_observer(run: &RunConfig, rows: &[MetRow; 3]) -> MultilineObser
     let scalars = encode_site_scalars_flat(&run.site_scalars);
     let (site, site_toc) = encode_site_members_flat(&run.site).unwrap();
     let (state, state_toc) = encode_state_members_flat(&run.state).unwrap();
-    assert_eq!((config.len(), timer.len(), scalars.len()), (29, 18, 24));
+    assert_eq!((config.len(), timer.len(), scalars.len()), (29, 8, 24));
     assert_eq!((site_toc.len(), state_toc.len()), (36, 26));
 
     let nlayer = usize::try_from(run.nlayer).unwrap();

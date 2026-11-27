@@ -4,7 +4,7 @@ MODULE module_phys_ohm
       DIAG_ON, SHM_DYOHM, SHM_DYOHM_BUILDING, SHM_STEBBS
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
-   USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
+   USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_CLOCK
    USE module_ctrl_const_physconst, ONLY: sec_per_hour
    IMPLICIT NONE
 
@@ -28,7 +28,7 @@ CONTAINS
                   ws_rav, qn_rav, &
                   dz_surf, cp_surf, k_surf, &
                   lambda_c, &
-                  StorageHeatMethod, DiagQS, timer, &
+                  StorageHeatMethod, DiagQS, clock, &
                   a1_bldg, a2_bldg, a3_bldg, &
                   a1_paved, a2_paved, a3_paved, &
                   a1_evetr, a2_evetr, a3_evetr, &
@@ -63,20 +63,14 @@ CONTAINS
       !========================================================================================
 
       USE module_ctrl_const_allocate, ONLY: ndepth
-      USE module_util_datetime, ONLY: datetime, timedelta
-      USE module_ctrl_type, ONLY: SUEWS_TIMER
+      USE module_ctrl_type, ONLY: SUEWS_CLOCK
       USE module_ctrl_const_physconst, ONLY: sec_per_day
       IMPLICIT NONE
-      TYPE(SUEWS_TIMER), INTENT(inout) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(in) :: clock
       INTEGER, INTENT(in) :: StorageHeatMethod !
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
 
-      !INTEGER :: iy, id, it, imin, isec
-      !new_day
-      TYPE(datetime) :: time_now, time_prev, time_next
-      LOGICAL :: first_tstep_Q, last_tstep_Q
-      !INTEGER :: tstep_prev
 
       REAL(KIND(1D0)), INTENT(in) :: qn1 ! net all-wave radiation
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: qn1_surf ! net all-wave radiation for each surface
@@ -179,96 +173,75 @@ CONTAINS
       IF (dyohm_active) THEN
          ! MP 14/04/2025
          ! YL 16/10/2025 test using DyOHM for all surface types
-         ! get timestamps
-         ASSOCIATE ( &
-            iy => timer%iy, &
-            id => timer%id, &
-            it => timer%it, &
-            imin => timer%imin, &
-            isec => timer%isec, &
-            tstep_prev => timer%tstep_prev, &
-            new_day => timer%new_day, &
-            dt_since_start_prev => timer%dt_since_start_prev &
-            )
-            time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
-            ! WRF-SUEWS COUPLING: tstep_prev allows for adaptive timesteps in WRF
-            ! In standalone SUEWS, tstep_prev always equals tstep
-            time_prev = time_now - timedelta(seconds=tstep_prev)
-            time_next = time_now + timedelta(seconds=tstep)
+         ! Running means update on every call. Each inner surface-temperature
+         ! pass restarts from the timestep-start OHM_STATE (iter_safe = .FALSE.),
+         ! so no guard against repeated updates is needed (gh#2333).
+         IF (dt_since_start < sec_per_day) THEN
+            ws_rav = ws_rav + (ws - ws_rav)/(dt_since_start/tstep)
+            DO i_surf = 1, nsurf
+               qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
+            END DO
+         ELSE
+            ws_rav = ws_rav + (ws - ws_rav)/(INT(sec_per_day)/tstep)
+            DO i_surf = 1, nsurf
+               qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(INT(sec_per_day)/tstep)
+            END DO
+         END IF
 
-            ! test if time at now is the first/last tstep of today
-            first_tstep_Q = time_now%getDay() /= time_prev%getDay()
-            last_tstep_Q = time_now%getDay() /= time_next%getDay()
-
-            IF (dt_since_start /= dt_since_start_prev) THEN
-               IF (dt_since_start < sec_per_day) THEN
-                  ws_rav = ws_rav + (ws - ws_rav)/(dt_since_start/tstep)
-                  DO i_surf = 1, nsurf
-                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
-                  END DO
-               ELSE
-                  ws_rav = ws_rav + (ws - ws_rav)/(INT(sec_per_day)/tstep)
-                  DO i_surf = 1, nsurf
-                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(INT(sec_per_day)/tstep)
-                  END DO
-               END IF
+         ! Daily coefficient update at the first step of each new calendar day
+         ! (00:00 on midnight-aligned grids). The first step of a run has no
+         ! completed previous day to average over, so it is skipped; a run
+         ! resumed from a checkpoint carries dt_since_start on and is therefore
+         ! not a first step (gh#2333).
+         IF (clock%first_step_of_calendar_day .AND. .NOT. clock%first_step_of_run) THEN
+            IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN
+               ! The building DyOHM coefficients use the building surface,
+               ! not a SPARTACUS wall layer.
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws_rav, T_half_bldg_C, T_prev, qn_rav(BldgSurf), & ! Input
+                               dz_surf(BldgSurf, 1), cp_surf(BldgSurf, 1), &
+                               k_surf(BldgSurf, 1), lambda_c, &
+                               a1_bldg, a2_bldg, a3_bldg & ! Output
+                               )
             END IF
-
-            IF (first_tstep_Q .AND. new_day == 1) THEN
-               IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN
-                  ! The building DyOHM coefficients use the building surface,
-                  ! not a SPARTACUS wall layer.
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws_rav, T_half_bldg_C, T_prev, qn_rav(BldgSurf), & ! Input
-                                  dz_surf(BldgSurf, 1), cp_surf(BldgSurf, 1), &
-                                  k_surf(BldgSurf, 1), lambda_c, &
-                                  a1_bldg, a2_bldg, a3_bldg & ! Output
-                                  )
-               END IF
-               IF (.NOT. dyohm_building_only) THEN
-                  ! Fully coupled DyOHM modes update dynamic coefficients for
-                  ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
-                  ! For non-building surfaces, assume WS=0 at ground level and lambda_c=1.
-                  ws0 = 0.0D0
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
-                                  dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
-                                  a1_paved, a2_paved, a3_paved & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
-                                  dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
-                                  a1_evetr, a2_evetr, a3_evetr & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
-                                  dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
-                                  a1_dectr, a2_dectr, a3_dectr & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
-                                  dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
-                                  a1_grass, a2_grass, a3_grass & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
-                                  dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
-                                  a1_bsoil, a2_bsoil, a3_bsoil & ! Output
-                                  )
-                  CALL OHM_yl_cal(dt_since_start, &
-                                  ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
-                                  dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
-                                  a1_water, a2_water, a3_water & ! Output
-                                  )
-               END IF
-               new_day = 0
-               T_prev = T_half_bldg_C
-            ELSE IF (last_tstep_Q) THEN
-               new_day = 1
+            IF (.NOT. dyohm_building_only) THEN
+               ! Fully coupled DyOHM modes update dynamic coefficients for
+               ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
+               ! For non-building surfaces, assume WS=0 at ground level and lambda_c=1.
+               ws0 = 0.0D0
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
+                               dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
+                               a1_paved, a2_paved, a3_paved & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
+                               dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
+                               a1_evetr, a2_evetr, a3_evetr & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
+                               dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
+                               a1_dectr, a2_dectr, a3_dectr & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
+                               dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
+                               a1_grass, a2_grass, a3_grass & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
+                               dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
+                               a1_bsoil, a2_bsoil, a3_bsoil & ! Output
+                               )
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
+                               dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
+                               a1_water, a2_water, a3_water & ! Output
+                               )
             END IF
-
-            dt_since_start_prev = dt_since_start
-         END ASSOCIATE
+            T_prev = T_half_bldg_C
+         END IF
 
          IF (dyohm_all_surfaces .OR. dyohm_with_stebbs) THEN
             IF (dyohm_all_surfaces) THEN ! buildings use DyOHM coefficients

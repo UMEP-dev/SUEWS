@@ -62,7 +62,7 @@ implicit none
 
 private
 
-integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
+integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 8_c_int
 ! Must equal SUEWS_CAPI_SITE_SCALARS_LEN in src/sim.rs (not checked at run
 ! time). The layout is encode_site_scalars (Rust) / unpack_site_scalars here.
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
@@ -1272,16 +1272,6 @@ subroutine unpack_timer(flat, n_flat, timer, err)
    timer%tstep = int(nint(flat(6)))
    timer%tstep_prev = int(nint(flat(7)))
    timer%dt_since_start = int(nint(flat(8)))
-   timer%dt_since_start_prev = int(nint(flat(9)))
-   timer%nsh = int(nint(flat(10)))
-   timer%nsh_real = flat(11)
-   timer%tstep_real = flat(12)
-   timer%dectime = flat(13)
-   timer%dayofWeek_id(1) = int(nint(flat(14)))
-   timer%dayofWeek_id(2) = int(nint(flat(15)))
-   timer%dayofWeek_id(3) = int(nint(flat(16)))
-   timer%DLS = int(nint(flat(17)))
-   timer%new_day = int(nint(flat(18)))
 
    err = SUEWS_CAPI_OK
 
@@ -1308,16 +1298,6 @@ subroutine pack_timer(timer, flat, n_flat, err)
    flat(6) = real(timer%tstep, c_double)
    flat(7) = real(timer%tstep_prev, c_double)
    flat(8) = real(timer%dt_since_start, c_double)
-   flat(9) = real(timer%dt_since_start_prev, c_double)
-   flat(10) = real(timer%nsh, c_double)
-   flat(11) = timer%nsh_real
-   flat(12) = timer%tstep_real
-   flat(13) = timer%dectime
-   flat(14) = real(timer%dayofWeek_id(1), c_double)
-   flat(15) = real(timer%dayofWeek_id(2), c_double)
-   flat(16) = real(timer%dayofWeek_id(3), c_double)
-   flat(17) = real(timer%DLS, c_double)
-   flat(18) = real(timer%new_day, c_double)
 
    err = SUEWS_CAPI_OK
 

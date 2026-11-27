@@ -33,19 +33,19 @@ MODULE module_phys_beers
 CONTAINS
 
    SUBROUTINE BEERS_cal_main( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataOutLineBEERS) ! output
 
       USE module_ctrl_const_physconst, ONLY: C2K, SBConst
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, SUEWS_SITE, &
                                PHENOLOGY_STATE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                ROUGHNESS_STATE, HEAT_STATE, solar_State, &
                                SUEWS_STATE, BldgSurf, STEBBS_STATE
 
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -136,7 +136,7 @@ CONTAINS
             alt => siteInfo%alt, &
             timezone => siteInfo%timezone, &
             conductancePrm => siteInfo%conductance, &
-            tstep_real => timer%tstep_real, &
+            tstep_real => clock%tstep_real, &
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             Temp_C => forcing%Temp_C, &
@@ -151,10 +151,10 @@ CONTAINS
             TSfc_C => heatState%TSfc_C, &
             zenith_deg => solarState%zenith_deg, &
             azimuth_deg => solarState%azimuth_deg, &
-            iy => timer%iy_st, &
-            it => timer%it_st, &
-            id => timer%id_st, &
-            dectime => timer%dectime_st, &
+            iy => clock%iy_st, &
+            it => clock%it_st, &
+            id => clock%id_st, &
+            dectime => clock%dectime_st, &
             SMDMethod => config%SMDMethod, &
             storageheatmethod => config%StorageHeatMethod, &
             RSLMethod => config%RSLMethod, &

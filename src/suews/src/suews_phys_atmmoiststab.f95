@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
    USE module_ctrl_const_mathconst, ONLY: pi
-   USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
+   USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_CLOCK, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp, C2K, sec_per_day
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_error_state, ONLY: set_supy_error
@@ -86,8 +86,8 @@ CONTAINS
    END FUNCTION relax_free_convection
 
 
-   SUBROUTINE SUEWS_update_atmState(timer, forcing, modState)
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+   SUBROUTINE SUEWS_update_atmState(clock, forcing, modState)
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
       ! TYPE(atm_state), INTENT(inout) :: atmState
@@ -97,9 +97,9 @@ CONTAINS
             Temp_C => forcing%Temp_C, &
             pres => forcing%pres, &
             RH => forcing%RH, &
-            dectime => timer%dectime, &
-            dt_since_start => timer%dt_since_start, &
-            tstep => timer%tstep, &
+            dectime => clock%dectime, &
+            dt_since_start => clock%timer%dt_since_start, &
+            tstep => clock%timer%tstep, &
             Tair_av => atmState%Tair_av, &
             lv_J_kg => atmState%lv_J_kg, &
             lvS_J_kg => atmState%lv_s_j_kg, &

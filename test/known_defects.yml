@@ -237,12 +237,6 @@ mappings:
     classification: "accepted_exception"
   - selector:
       ledger: "O"
-      id_prefix: "suews_timer."
-    contract: "C-CAPI"
-    issue: 2083
-    classification: "accepted_exception"
-  - selector:
-      ledger: "O"
       id_prefix: "suews_site."
     contract: "C-CAPI"
     issue: 2083

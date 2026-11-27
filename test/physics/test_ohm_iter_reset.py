@@ -5,9 +5,9 @@ histories (``OHM_dqndt_cal``) and daily running averages/coefficients in
 AnOHM and DyOHM advance once per converged timestep rather than once per inner
 surface-temperature pass. Companion fixes remove illegal Fortran 2018
 ``INTENT(IN)``/``INTENT(OUT)`` aliasing at ``CALL OHM`` and ``CALL AnOHM``,
-pass ``dqndt_next`` into ``OHM_QS_cal`` inside ``AnOHM``, and restore
-``timer%dt_since_start_prev`` and ``timer%new_day`` alongside ``ohmState`` on
-inner retry passes.
+and pass ``dqndt_next`` into ``OHM_QS_cal`` inside ``AnOHM``. DyOHM derives
+its midnight update from the timer and keeps no step-to-step flag of its own
+(gh#2333).
 """
 
 from __future__ import annotations
@@ -467,3 +467,54 @@ def test_resume_from_old_style_checkpoint_ignores_stored_ohm_iter_safe():
     )
     pd.testing.assert_frame_equal(df_old, df_current)
     assert _decode_ohm_checkpoint(sim_old)["iter_safe"] == pytest.approx(0.0)
+
+
+
+DYOHM_BLDG_COEFFS = ("dyn_a1.bldg", "dyn_a2.bldg", "dyn_a3.bldg")
+
+
+@pytest.mark.core
+def test_dyohm_midnight_update_survives_restart_at_midnight():
+    """DyOHM recomputes its daily coefficients at a midnight that starts a resumed run.
+
+    The run is split so that the last step of a day ends the first segment and
+    the following midnight starts the second. The update reads the day boundary
+    from the elapsed timer alone (gh#2333), so the resumed run recomputes the
+    building coefficients and matches an uninterrupted run.
+    """
+    sim_template = sp.SUEWSSimulation.from_sample_data()
+    cfg = copy.deepcopy(sim_template.config)
+    cfg.model.physics.storage_heat = StorageHeatMethod.DyOHM
+    df_forcing = sim_template.forcing.df.iloc[: TIMESTEPS_PER_DAY * 3].copy()
+    midnights = np.flatnonzero(
+        (df_forcing.index.hour == 0) & (df_forcing.index.minute == 0)
+    )
+    # Split at the second midnight so the first segment holds a full day.
+    cut = int(midnights[1])
+    df_first = df_forcing.iloc[:cut]
+    df_second = df_forcing.iloc[cut : cut + 2]
+
+    sim_first, _ = _run_config(cfg, df_first)
+    ohm_before = _decode_ohm_checkpoint(sim_first)
+
+    sim_resumed = sp.SUEWSSimulation.from_checkpoint(cfg, sim_first.checkpoint)
+    sim_resumed.update_forcing(df_second)
+    df_resumed = sim_resumed.run(
+        start_date=df_second.index[0], end_date=df_second.index[-1], n_jobs=1
+    ).df
+    ohm_resumed = _decode_ohm_checkpoint(sim_resumed)
+    sim_whole, df_whole = _run_config(cfg, df_forcing.iloc[: cut + 2])
+    ohm_whole = _decode_ohm_checkpoint(sim_whole)
+
+    for name in (*DYOHM_BLDG_COEFFS, "ws_rav", "qn_rav.bldg"):
+        assert ohm_resumed[name] == pytest.approx(
+            ohm_whole[name], rel=1.0e-12, abs=1.0e-12
+        ), name
+    for name in DYOHM_BLDG_COEFFS:
+        assert ohm_resumed[name] != pytest.approx(ohm_before[name]), name
+    np.testing.assert_allclose(
+        df_resumed.loc[1, ("SUEWS", "QS")].to_numpy(dtype=float),
+        df_whole.loc[1, ("SUEWS", "QS")].to_numpy(dtype=float)[-len(df_second) :],
+        rtol=1.0e-12,
+        atol=1.0e-12,
+    )

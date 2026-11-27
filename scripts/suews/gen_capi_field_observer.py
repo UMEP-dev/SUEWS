@@ -602,34 +602,6 @@ REVIEWED_NON_NUMERIC_LEAF_COMPONENTS: dict[tuple[str, str], str] = {
 # Reviewed derived-only components inside driver-private types.
 REVIEWED_DRIVER_EXCLUDED_COMPONENTS: dict[tuple[str, str], str] = {
     (
-        "suews_timer",
-        "iy_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "id_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "it_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "imin_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "dectime_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "dayofweek_id_st",
-    ): "Derived local-standard-time field excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
-        "suews_timer",
-        "tz_solar",
-    ): "Derived solar timezone offset excluded from C timer ABI (suews_ctrl_type.f95).",
-    (
         "suews_site",
         "vegfraction",
     ): "Derived by site%cal_surf(config) after unpack (driver.f95).",

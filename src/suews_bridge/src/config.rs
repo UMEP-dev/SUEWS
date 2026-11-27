@@ -443,12 +443,12 @@ mod tests {
         // checks: a full config reaches BAD_STATE, a short one must not.
         // All backing buffers are valid; the early guard reads none of them.
         for config_len in 25..=SUEWS_CONFIG_FLAT_LEN {
-            let timer = [0.0; 18];
+            let timer = [0.0; crate::timer::SUEWS_TIMER_FLAT_LEN];
             let config = SuewsConfig::default().to_flat();
             let scalars = [0.0; 24];
             let flat = [0.0];
             let toc = [0];
-            let mut timer_out = [0.0; 18];
+            let mut timer_out = [0.0; crate::timer::SUEWS_TIMER_FLAT_LEN];
             let mut state_out = [0.0];
             let mut output = [0.0];
             let mut datetime = [0.0];
@@ -462,7 +462,7 @@ mod tests {
             unsafe {
                 ffi::suews_cal_multitsteps_c(
                     timer.as_ptr(),
-                    18,
+                    timer.len() as i32,
                     config.as_ptr(),
                     config_len as i32,
                     scalars.as_ptr(),
@@ -483,7 +483,7 @@ mod tests {
                     0,
                     5,
                     timer_out.as_mut_ptr(),
-                    18,
+                    timer_out.len() as i32,
                     state_out.as_mut_ptr(),
                     1,
                     toc.as_ptr(),

@@ -564,7 +564,7 @@ MODULE module_phys_stebbs
 CONTAINS
 
    SUBROUTINE stebbsonlinecouple( &
-      timer, config, forcing, siteInfo, &
+      clock, config, forcing, siteInfo, &
       modState, & ! Input/Output
       datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
@@ -573,7 +573,7 @@ CONTAINS
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       USE module_phys_rslprof, ONLY: interp_z
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
@@ -583,7 +583,7 @@ CONTAINS
       USE module_ctrl_const_physconst, ONLY: C2K
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
@@ -709,12 +709,12 @@ CONTAINS
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
-         timestep => timer%tstep, &
-         dt_start => timer%dt_since_start, &
-         it => timer%it_st, &!local-standard hour for profiles
-         id => timer%id_st, & !local-standard day of year
-         imin => timer%imin_st, & !local-standard minute for profiles
-         dayofWeek_id => timer%dayofWeek_id_st, & !local-standard weekday/month/season
+         timestep => clock%timer%tstep, &
+         dt_start => clock%timer%dt_since_start, &
+         it => clock%it_st, &!local-standard hour for profiles
+         id => clock%id_st, & !local-standard day of year
+         imin => clock%imin_st, & !local-standard minute for profiles
+         dayofWeek_id => clock%dayofWeek_id_st, & !local-standard weekday/month/season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
@@ -735,7 +735,7 @@ CONTAINS
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
             buildings => stebbsState%buildings, &
-            dt_start => timer%dt_since_start, &
+            dt_start => clock%timer%dt_since_start, &
             !ws => atmState%U10_ms, &
             !Tair_sout => atmState%t2_C, &
             !Tsurf_sout => heatState%Tsurf, &

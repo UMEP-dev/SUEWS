@@ -551,12 +551,12 @@ def test_offset_timestep_grid_resamples_and_saves_consistently_across_groups(
 
 
 def test_legacy_v2_checkpoint_rejected_at_python_and_rust_boundaries(tmp_path):
-    """Pre-migration schema-v2 checkpoints are refused by both Python and Rust."""
+    """Pre-migration schema-v2 and v3 checkpoints are refused by both Python and Rust."""
     sim, df_forcing = _make_sim_and_forcing("2012-01-01 00:05", TIMESTEPS_PER_DAY)
     sim.update_forcing(df_forcing.iloc[:-1])
     out = sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-2])
 
-    assert out.checkpoint.checkpoint_schema_version == 3
+    assert out.checkpoint.checkpoint_schema_version == 4
 
     downgraded_states = {}
     for grid_id, state_json in out.checkpoint.grid_states.items():
@@ -568,7 +568,7 @@ def test_legacy_v2_checkpoint_rejected_at_python_and_rust_boundaries(tmp_path):
         downgraded_states,
         last_timestamp=out.checkpoint.last_timestamp,
     )
-    with pytest.raises(ValueError, match=r"schema version 2.*DailyState.*version 3"):
+    with pytest.raises(ValueError, match=r"schema version 2.*DailyState.*version 4"):
         SUEWSSimulation.from_checkpoint(sim.config, legacy_ckpt)
 
     rust_module = importlib.import_module("supy._run_rust")
@@ -578,11 +578,33 @@ def test_legacy_v2_checkpoint_rejected_at_python_and_rust_boundaries(tmp_path):
     yaml_str = cfg_path.read_text(encoding="utf-8")
     # Direct Rust boundary call with v2 JSON must also fail with version mismatch
     with pytest.raises(
-        RuntimeError, match=r"unsupported checkpoint schema version 2; expected version 3"
+        RuntimeError, match=r"unsupported checkpoint schema version 2; expected version 4"
     ):
         bridge.run_suews_with_state(
             yaml_str,
             [0.0] * 32,
             1,
             next(iter(downgraded_states.values())),
+        )
+
+    # Schema-v3 checkpoints (legacy DyOHM timer latch) must also fail at both boundaries
+    v3_states = {}
+    for grid_id, state_json in out.checkpoint.grid_states.items():
+        payload = json.loads(state_json)
+        payload["checkpoint_schema_version"] = 3
+        v3_states[grid_id] = json.dumps(payload)
+    v3_ckpt = SUEWSCheckpoint.from_grid_states(
+        v3_states,
+        last_timestamp=out.checkpoint.last_timestamp,
+    )
+    with pytest.raises(ValueError, match=r"schema version 3.*gh#2333.*version 4"):
+        SUEWSSimulation.from_checkpoint(sim.config, v3_ckpt)
+    with pytest.raises(
+        RuntimeError, match=r"unsupported checkpoint schema version 3; expected version 4"
+    ):
+        bridge.run_suews_with_state(
+            yaml_str,
+            [0.0] * 32,
+            1,
+            next(iter(v3_states.values())),
         )

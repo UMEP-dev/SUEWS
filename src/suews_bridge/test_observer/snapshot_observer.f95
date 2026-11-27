@@ -16,7 +16,7 @@ CONTAINS
          unpack_site_members, unpack_state_members
       IMPLICIT NONE
 
-      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
+      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(8), scalars(24)
       INTEGER(c_int), VALUE :: site_len, state_len, nlayer, ndepth_in
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
@@ -51,7 +51,7 @@ CONTAINS
       CALL reset_supy_error()
       CALL unpack_config(config_flat, 29_c_int, config, err)
       IF (err /= 0_c_int) RETURN
-      CALL unpack_timer(timer_flat, 18_c_int, timer, err)
+      CALL unpack_timer(timer_flat, 8_c_int, timer, err)
       IF (err /= 0_c_int) RETURN
       CALL init_site_and_state( &
          site, state, INT(nlayer), INT(ndepth_in), config, &
@@ -231,7 +231,7 @@ CONTAINS
       USE module_c_api_driver, ONLY: unpack_config, unpack_timer
       IMPLICIT NONE
 
-      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
+      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(8), scalars(24)
       INTEGER(c_int), VALUE :: site_len, state_len, nlayer, ndepth_in
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
@@ -241,7 +241,8 @@ CONTAINS
       INTEGER(c_int), INTENT(OUT) :: err
 
       TYPE(SUEWS_CONFIG) :: config
-      TYPE(SUEWS_TIMER) :: timer, timer_internal
+      TYPE(SUEWS_TIMER) :: timer
+      TYPE(SUEWS_CLOCK) :: timer_internal
       TYPE(SUEWS_SITE) :: site
       TYPE(SUEWS_STATE) :: state, control_state, st_iter1
       TYPE(SUEWS_FORCING) :: forcing, control_forcing, forcing_iter1
@@ -271,7 +272,7 @@ CONTAINS
       CALL reset_supy_error()
       CALL unpack_config(config_flat, 29_c_int, config, err)
       IF (err /= 0_c_int) RETURN
-      CALL unpack_timer(timer_flat, 18_c_int, timer, err)
+      CALL unpack_timer(timer_flat, 8_c_int, timer, err)
       IF (err /= 0_c_int) RETURN
       CALL init_site_and_state( &
          site, state, INT(nlayer), INT(ndepth_in), config, &
@@ -289,9 +290,8 @@ CONTAINS
          ! Prepare exact i_iter == 1 pre-LUMPS state matching SUEWS_cal_Main_impl.
          st_iter1 = state
          forcing_iter1 = forcing
-         timer_internal = timer
-         CALL SUEWS_cal_timer( &
-            timer_internal, site, site%anthroemis, config%ForcingTimestampReference)
+         CALL SUEWS_cal_clock( &
+            timer, site, site%anthroemis, config%ForcingTimestampReference, timer_internal)
 
          IF (config%snowuse == 0) THEN
             st_iter1%snowState%snow_density = 0.0D0
@@ -452,7 +452,7 @@ CONTAINS
       USE module_c_api_driver, ONLY: unpack_config, unpack_timer
       IMPLICIT NONE
 
-      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(18), scalars(24)
+      REAL(c_double), INTENT(IN) :: config_flat(29), timer_flat(8), scalars(24)
       INTEGER(c_int), VALUE :: site_len, state_len, nlayer, ndepth_in
       REAL(c_double), INTENT(IN) :: site_flat(site_len), state_flat(state_len)
       INTEGER(c_int), INTENT(IN) :: site_toc(36), state_toc(26)
@@ -498,7 +498,7 @@ CONTAINS
       CALL reset_supy_error()
       CALL unpack_config(config_flat, 29_c_int, cfg_base, err)
       IF (err /= 0_c_int) RETURN
-      CALL unpack_timer(timer_flat, 18_c_int, tmr_base, err)
+      CALL unpack_timer(timer_flat, 8_c_int, tmr_base, err)
       IF (err /= 0_c_int) RETURN
       CALL init_site_and_state( &
          site, state_init, INT(nlayer), INT(ndepth_in), cfg_base, &
@@ -937,7 +937,7 @@ CONTAINS
       INTEGER(c_int), INTENT(OUT) :: status
 
       INTEGER, PARAMETER :: max_iter = 60
-      TYPE(SUEWS_TIMER) :: tmr
+      TYPE(SUEWS_CLOCK) :: tmr
       TYPE(SUEWS_FORCING) :: frc
       TYPE(SUEWS_STATE) :: st_tstepstart
       TYPE(dts_ehc_diagnostics) :: ehcDiag
@@ -953,16 +953,15 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)) :: w_f_pass_prev, zl_pass_start, w_f_pass_start
-      INTEGER :: nl, timer_dt_since_start_prev_start, timer_new_day_start
+      INTEGER :: nl
 
       status = 0_c_int
-      tmr = timer_in
       frc = forcing_in
       oracle_state = state_in
       nl = siteInfo%nlayer
 
-      CALL SUEWS_cal_timer( &
-         tmr, siteInfo, siteInfo%anthroemis, config_in%ForcingTimestampReference)
+      CALL SUEWS_cal_clock( &
+         timer_in, siteInfo, siteInfo%anthroemis, config_in%ForcingTimestampReference, tmr)
 
       CALL st_tstepstart%ALLOCATE(nl, ndepth)
       CALL oracle_debug%init(nl, ndepth)
@@ -986,7 +985,7 @@ CONTAINS
 
       IF (config_in%StorageHeatMethod == 5 .AND. config_in%EHCSurfaceCoupling == 1 &
           .AND. config_in%control_ehc_initial_profile .AND. config_in%NetRadiationMethod > 1000 &
-          .AND. tmr%dt_since_start == tmr%tstep) THEN
+          .AND. tmr%timer%dt_since_start == tmr%timer%tstep) THEN
          CALL ehc_init_envelope(config_in, tmr, frc, siteInfo, oracle_state)
          IF (supy_error_flag()) THEN
             status = 400_c_int
@@ -995,8 +994,6 @@ CONTAINS
       END IF
 
       st_tstepstart = oracle_state
-      timer_dt_since_start_prev_start = tmr%dt_since_start_prev
-      timer_new_day_start = tmr%new_day
 
       oracle_state%snowState%swe = 0.0D0
       oracle_state%snowState%mwh = 0.0D0
@@ -1056,10 +1053,6 @@ CONTAINS
          IF (((.NOT. oracle_state%flagState%flag_converge) .AND. oracle_state%flagState%i_iter > 1) .OR. &
              (oracle_state%flagState%flag_converge .AND. oracle_state%flagState%i_iter == 2)) THEN
             CALL oracle_state%check_and_reset_states(st_tstepstart)
-            IF (.NOT. oracle_state%ohmState%iter_safe) THEN
-               tmr%dt_since_start_prev = timer_dt_since_start_prev_start
-               tmr%new_day = timer_new_day_start
-            END IF
             IF (config_in%StorageHeatMethod == 5) THEN
                CALL reset_ehc_heat_state_for_tsurf_iteration( &
                   oracle_state%heatState, st_tstepstart%heatState)
@@ -1230,7 +1223,7 @@ CONTAINS
 
       CALL update_DailyStateLine(tmr, config_in, frc, siteInfo, oracle_state, dataOutLineDailyState)
       CALL update_debug_info(tmr, config_in, frc, siteInfo, st_tstepstart, oracle_state, dataOutLineDebug)
-      CALL sync_error_to_state(oracle_state, tmr)
+      CALL sync_error_to_state(oracle_state, tmr%timer)
    END SUBROUTINE replay_timestep_stages
 
    ! Verify nested allocatable thermal and building-hydro arrays across all 15
@@ -1366,15 +1359,6 @@ CONTAINS
       alloc_mat_equal = mat_equal(a, b)
    END FUNCTION alloc_mat_equal
 
-   LOGICAL FUNCTION int_vec_equal(a, b)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: a(:), b(:)
-
-      int_vec_equal = .FALSE.
-      IF (SIZE(a) /= SIZE(b)) RETURN
-      int_vec_equal = ALL(a == b)
-   END FUNCTION int_vec_equal
-
    LOGICAL FUNCTION timers_equal(a, b)
       IMPLICIT NONE
       TYPE(SUEWS_TIMER), INTENT(IN) :: a, b
@@ -1382,18 +1366,7 @@ CONTAINS
       timers_equal = .FALSE.
       IF (a%id /= b%id .OR. a%imin /= b%imin .OR. a%isec /= b%isec .OR. &
           a%it /= b%it .OR. a%iy /= b%iy .OR. a%tstep /= b%tstep .OR. &
-          a%tstep_prev /= b%tstep_prev .OR. a%dt_since_start /= b%dt_since_start .OR. &
-          a%dt_since_start_prev /= b%dt_since_start_prev .OR. a%nsh /= b%nsh .OR. &
-          a%DLS /= b%DLS .OR. a%new_day /= b%new_day .OR. &
-          a%iy_st /= b%iy_st .OR. a%id_st /= b%id_st .OR. &
-          a%it_st /= b%it_st .OR. a%imin_st /= b%imin_st) RETURN
-      IF (.NOT. int_vec_equal(a%dayofWeek_id, b%dayofWeek_id) .OR. &
-          .NOT. int_vec_equal(a%dayofWeek_id_st, b%dayofWeek_id_st)) RETURN
-      IF (.NOT. reals_eq(a%nsh_real, b%nsh_real) .OR. &
-          .NOT. reals_eq(a%tstep_real, b%tstep_real) .OR. &
-          .NOT. reals_eq(a%dectime, b%dectime) .OR. &
-          .NOT. reals_eq(a%dectime_st, b%dectime_st) .OR. &
-          .NOT. reals_eq(a%tz_solar, b%tz_solar)) RETURN
+          a%tstep_prev /= b%tstep_prev .OR. a%dt_since_start /= b%dt_since_start) RETURN
       timers_equal = .TRUE.
    END FUNCTION timers_equal
 

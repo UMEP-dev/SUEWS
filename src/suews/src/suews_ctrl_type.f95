@@ -232,32 +232,59 @@ MODULE module_ctrl_type
    END TYPE SUEWS_FORCING
 
    TYPE, PUBLIC :: SUEWS_TIMER
-      ! Timer type containing temporal information for SUEWS calculations
-      ! Note: tstep_prev is retained for WRF-SUEWS coupling where adaptive timesteps are used
-      INTEGER :: id = 0 !
-      INTEGER :: imin = 0 !
-      INTEGER :: isec = 0 !
-      INTEGER :: it = 0 ! Hour of day
-      INTEGER :: iy = 0 !
-      INTEGER :: tstep = 0 ! Current timestep [s]
-      INTEGER :: tstep_prev = 0 ! Previous timestep [s] - for WRF adaptive stepping (equals tstep in standalone)
-      INTEGER :: dt_since_start = 0 !
-      INTEGER :: dt_since_start_prev = 0 !
+      ! Caller-supplied temporal input for one timestep (gh#2333).
+      ! The caller (driver loop, Rust bridge, WRF coupling) owns these values;
+      ! the kernel never writes them. Everything derived from them lives in
+      ! SUEWS_CLOCK. tstep_prev is retained for WRF-SUEWS coupling with
+      ! adaptive timesteps (it equals tstep in standalone runs).
+      INTEGER :: id = 0 ! day of year [-]
+      INTEGER :: imin = 0 ! minute of hour [-]
+      INTEGER :: isec = 0 ! second of minute [-]
+      INTEGER :: it = 0 ! hour of day [-]
+      INTEGER :: iy = 0 ! year [-]
+      INTEGER :: tstep = 0 ! current timestep [s]
+      INTEGER :: tstep_prev = 0 ! previous timestep [s]
+      INTEGER :: dt_since_start = 0 ! elapsed time at the end of this timestep [s]
+   END TYPE SUEWS_TIMER
 
-      ! values that are derived from tstep
-      INTEGER :: nsh = 0 ! number of timesteps per hour
+   TYPE, PUBLIC :: SUEWS_CLOCK
+      ! Per-step view of time used by the physics (gh#2333).
+      ! Produced afresh every timestep by SUEWS_cal_clock (timer IN, clock OUT)
+      ! and passed INTENT(IN) to the physics. Every other component is a pure
+      ! function of the caller's timer and the site, so a clock carries no
+      ! memory between timesteps and never crosses the C ABI or a checkpoint.
+
+      TYPE(SUEWS_TIMER) :: timer ! the caller-supplied inputs, copied unchanged
+
+      ! values derived from tstep
+      INTEGER :: nsh = 0 ! number of timesteps per hour [-]
       REAL(KIND(1D0)) :: nsh_real = 0.0D0 ! nsh in type real [-]
-      REAL(KIND(1D0)) :: tstep_real = 0.0D0 ! tstep in type real
-      REAL(KIND(1D0)) :: dectime = 0.0D0 !decimal time [-]
+      REAL(KIND(1D0)) :: tstep_real = 0.0D0 ! tstep in type real [s]
+      REAL(KIND(1D0)) :: dectime = 0.0D0 ! decimal time [-]
 
       INTEGER, DIMENSION(3) :: dayofWeek_id = 0 ! 1 - day of week; 2 - month; 3 - season
 
-      INTEGER :: DLS = 0 !daylight saving time offset [h]
+      INTEGER :: DLS = 0 ! daylight saving time offset [h]
 
-      INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
+      ! Day-boundary predicates on the main (forcing) clock.
+      ! DailyState uses the right-closed day (D 00:00, D+1 00:00] defined by
+      ! date(t - 1 s) (gh#2382), counting the first step of a run as a new day.
+      ! DyOHM preserves calendar-day midnight updates (gh#2333) and skips the
+      ! first step of a run.
+      LOGICAL :: first_step_of_run = .FALSE. ! dt_since_start == tstep
+      LOGICAL :: first_step_of_day = .FALSE. ! right-closed day opened on this step
+      LOGICAL :: last_step_of_day = .FALSE. ! right-closed day closes on this step
+      LOGICAL :: prev_step_closed_day = .FALSE. ! previous step closed its right-closed day under tstep_prev
+      LOGICAL :: first_step_of_calendar_day = .FALSE. ! calendar day changed since (t - tstep)
+
+      ! Calendar identity and elapsed duration of the right-closed accumulated
+      ! day date(time_now - 1 s) (gh#2382). At closing midnight D+1 00:00:00
+      ! these belong to day D rather than D+1.
+      INTEGER :: id_day = 0 ! day of year of accumulated day [-]
+      INTEGER, DIMENSION(3) :: dayofWeek_day = 0 ! 1 - day of week; 2 - month; 3 - season of accumulated day
+      INTEGER :: elapsed_sec_of_day = 0 ! seconds elapsed in accumulated day up to time_now [s]
 
       ! Fixed-offset local-standard-time fields for solar and profile consumers.
-      ! They are derived internally and intentionally excluded from the C timer ABI.
       INTEGER :: iy_st = 0
       INTEGER :: id_st = 0
       INTEGER :: it_st = 0
@@ -266,7 +293,15 @@ MODULE module_ctrl_type
       INTEGER, DIMENSION(3) :: dayofWeek_id_st = 0
       REAL(KIND(1D0)) :: tz_solar = 0.0D0
 
-   END TYPE SUEWS_TIMER
+      ! Right-closed local-standard delivery day (D 00:00, D+1 00:00] for
+      ! modelled irrigation budgeting and weekday-profile selection (gh#2381).
+      INTEGER :: deliv_year_st = 0
+      INTEGER :: deliv_month_st = 0
+      INTEGER :: deliv_day_st = 0
+      INTEGER :: deliv_doy_st = 0
+      INTEGER :: deliv_dow_st = 0
+      LOGICAL :: first_step_of_deliv_day_st = .FALSE.
+   END TYPE SUEWS_CLOCK
 
    ! Single error/warning log entry
    TYPE, PUBLIC :: error_entry

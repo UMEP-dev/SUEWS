@@ -6161,7 +6161,7 @@ contains
       pos = 0_c_int
       unpack_err = SUEWS_CAPI_OK
       err = SUEWS_CAPI_OK
-      if (n_meta < 23_c_int) then
+      if (n_meta < 8_c_int) then
          err = SUEWS_CAPI_BAD_BUFFER
          return
       end if
@@ -6179,21 +6179,6 @@ contains
       call obs_emit_int_scalar(6_c_int, actual%tstep, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_int_scalar(7_c_int, actual%tstep_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
       call obs_emit_int_scalar(8_c_int, actual%dt_since_start, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(9_c_int, actual%dt_since_start_prev, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(10_c_int, actual%nsh, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(11_c_int, actual%nsh_real, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(12_c_int, actual%tstep_real, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(13_c_int, actual%dectime, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_1d(14_c_int, actual%dayofWeek_id, int(lbound(actual%dayofWeek_id, 1), c_int), int(ubound(actual%dayofWeek_id, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(15_c_int, actual%DLS, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(16_c_int, actual%new_day, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(17_c_int, actual%iy_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(18_c_int, actual%id_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(19_c_int, actual%it_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_scalar(20_c_int, actual%imin_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(21_c_int, actual%dectime_st, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_int_1d(22_c_int, actual%dayofWeek_id_st, int(lbound(actual%dayofWeek_id_st, 1), c_int), int(ubound(actual%dayofWeek_id_st, 1), c_int), out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
-      call obs_emit_real_scalar(23_c_int, actual%tz_solar, out_fid, out_kind, out_i1, out_i2, out_f64, out_i64, out_meta, n_meta, cap, pos, err)
 
       n_out = pos
    end subroutine suews_obs_unpack_suews_timer
@@ -18969,56 +18954,6 @@ contains
             return
          end if
          actual%dt_since_start = int(val_i64)
-      case (9_c_int)
-         if (fkind /= OBS_KIND_INT) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%dt_since_start_prev = int(val_i64)
-      case (10_c_int)
-         if (fkind /= OBS_KIND_INT) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%nsh = int(val_i64)
-      case (11_c_int)
-         if (fkind /= OBS_KIND_REAL) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%nsh_real = real(val_f64, kind(1d0))
-      case (12_c_int)
-         if (fkind /= OBS_KIND_REAL) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%tstep_real = real(val_f64, kind(1d0))
-      case (13_c_int)
-         if (fkind /= OBS_KIND_REAL) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%dectime = real(val_f64, kind(1d0))
-      case (14_c_int)
-         if (fkind /= OBS_KIND_INT .or. &
-             i1 < int(lbound(actual%dayofWeek_id, 1), c_int) .or. &
-             i1 > int(ubound(actual%dayofWeek_id, 1), c_int)) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%dayofWeek_id(i1) = int(val_i64)
-      case (15_c_int)
-         if (fkind /= OBS_KIND_INT) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%DLS = int(val_i64)
-      case (16_c_int)
-         if (fkind /= OBS_KIND_INT) then
-            err = SUEWS_CAPI_BAD_BUFFER
-            return
-         end if
-         actual%new_day = int(val_i64)
       case default
          err = SUEWS_CAPI_BAD_BUFFER
       end select

@@ -8,7 +8,7 @@ use crate::timer::{
 };
 use std::os::raw::c_char;
 
-pub const ERROR_ENTRY_SCHEMA_VERSION: u32 = 1;
+pub const ERROR_ENTRY_SCHEMA_VERSION: u32 = 2;
 pub const ERROR_ENTRY_MESSAGE_LEN: usize = 256;
 pub const ERROR_ENTRY_LOCATION_LEN: usize = 64;
 
@@ -31,15 +31,13 @@ pub struct ErrorEntryValuesPayload {
     pub is_fatal: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ErrorEntry {
     pub timer: SuewsTimer,
     pub message: String,
     pub location: String,
     pub is_fatal: bool,
 }
-
 
 pub(crate) fn validate_text_field(value: &str, max_len: usize) -> Result<(), BridgeError> {
     if value.as_bytes().contains(&0) {

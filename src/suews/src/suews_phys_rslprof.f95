@@ -138,7 +138,7 @@ CONTAINS
    END SUBROUTINE setup_RSL_heights
 
    SUBROUTINE RSLProfile( &
-      timer, config, forcing, siteInfo, & ! input
+      clock, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataoutLineRSL) ! output
       !-----------------------------------------------------
@@ -151,7 +151,7 @@ CONTAINS
       ! TODO how to improve the speed of this code
       !
       !-----------------------------------------------------
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
@@ -160,7 +160,7 @@ CONTAINS
       IMPLICIT NONE
 
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_CLOCK), INTENT(IN) :: clock
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
@@ -262,7 +262,7 @@ CONTAINS
             zMeas => siteInfo%z, &
             z0m_in => siteInfo%z0m_in, &
             zdm_in => siteInfo%zdm_in, &
-            tstep_real => timer%tstep_real, &
+            tstep_real => clock%tstep_real, &
             ! tsfc_surf => heatState_out%tsfc_surf, &
             ! tsfc_roof => heatState_out%tsfc_roof, &
             ! tsfc_wall => heatState_out%tsfc_wall, &

@@ -49,7 +49,7 @@ use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, &
    ieee_positive_inf, ieee_negative_inf, ieee_is_finite
 use module_phys_rslprof, only: RSL_cal_prms, RSLProfile, setup_RSL_heights
 use module_ctrl_const_allocate, only: nsurf, ncolumnsDataOutRSL
-use module_ctrl_type, only: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
+use module_ctrl_type, only: SUEWS_CONFIG, SUEWS_CLOCK, SUEWS_FORCING, &
    SUEWS_SITE, SUEWS_STATE
 use module_ctrl_error_state, only: reset_supy_error, get_supy_error, supy_error_flag
 implicit none
@@ -64,7 +64,7 @@ real(kind(1d0)) :: sfr_surf(nsurf)
 real(kind(1d0)) :: zH_RSL, L_MOD_RSL, Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx
 real(kind(1d0)) :: dataoutLineRSL(ncolumnsDataOutRSL - 5)
 type(SUEWS_CONFIG) :: config
-type(SUEWS_TIMER) :: timer
+type(SUEWS_CLOCK) :: clock
 type(SUEWS_FORCING) :: forcing
 type(SUEWS_SITE) :: siteInfo
 type(SUEWS_STATE) :: modState
@@ -132,7 +132,7 @@ do
     config%Diagnose = 0
     config%SMDMethod = 0
     config%StorageHeatMethod = 1
-    timer%tstep_real = 300.0d0
+    clock%tstep_real = 300.0d0
     forcing%Temp_C = 15.0d0
     forcing%U = 3.0d0
     forcing%RH = 60.0d0
@@ -159,7 +159,7 @@ do
     modState%heatState%qh = 50.0d0
     modState%heatState%qe = 30.0d0
     dataoutLineRSL = 0.0d0
-    call RSLProfile(timer, config, forcing, siteInfo, modState, dataoutLineRSL)
+    call RSLProfile(clock, config, forcing, siteInfo, modState, dataoutLineRSL)
     L_MOD_RSL = dataoutLineRSL(121)
     Lc = dataoutLineRSL(123)
     beta = dataoutLineRSL(124)

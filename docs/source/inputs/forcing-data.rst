@@ -765,6 +765,8 @@ See Also
 --------
 
 - :ref:`df_forcing_var` - Canonical variables, units, ranges, and conditions
+- :ref:`data_interface_versioning` - Versioned forcing and output data contracts
+- Machine-readable forcing contract export via ``suews contracts export forcing`` (target Pages layout at ``https://suews.io/contracts/forcing/`` once Pages deployment wiring lands)
 - :doc:`/inputs/yaml/index` - YAML configuration including forcing file specification
 - :doc:`/inputs/yaml/validation` - Complete validation system documentation
 - :doc:`/inputs/tables/RunControl/RunControl` - Legacy model physics options reference

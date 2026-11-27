@@ -25,6 +25,7 @@ import sys
 import click
 
 from .compare_runs import compare_runs_cmd as _compare_cmd
+from .contracts_cli import contracts_group as _contracts_group
 from .diagnose_run import diagnose_run_cmd as _diagnose_cmd
 from .init_case import init_case_cmd as _init_cmd
 from .inspect_config import inspect_config_cmd as _inspect_cmd
@@ -67,6 +68,7 @@ cli.add_command(_summarise_cmd, name="summarise")
 cli.add_command(_compare_cmd, name="compare")
 cli.add_command(_diagnose_cmd, name="diagnose")
 cli.add_command(_knowledge_group, name="knowledge")
+cli.add_command(_contracts_group, name="contracts")
 
 
 # ---------------------------------------------------------------------------

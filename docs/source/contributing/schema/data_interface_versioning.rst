@@ -147,7 +147,13 @@ For a new forcing release:
 
 3. Append the version and digest to ``FORCING_VERSIONS``, then move
    ``CURRENT_FORCING_VERSION`` to the new last entry.
-4. Run the forcing artefact, reference, and history audits::
+4. Generate the immutable schema and manifest snapshot for static publication
+   and append the printed manifest digest to
+   ``FORCING_PUBLISHED_MANIFEST_DIGESTS`` in ``src/supy/data_model/contracts.py``::
+
+      python scripts/suews/publish_contracts.py --write-forcing-snapshot <version>
+
+5. Run the forcing artefact, reference, and history audits::
 
       python scripts/lint/check_forcing_contract_artefacts.py
       python docs/generate_forcing_variable_rst.py --check
@@ -169,11 +175,68 @@ For a new output release:
       python scripts/lint/check_data_interface_version_history.py --base origin/master
 
 The writers refuse to replace different bytes in an existing release. Never
-edit or regenerate a released artefact in place. Public URLs,
-``latest`` aliases, and Pages publication are separate work tracked in #1657.
+edit or regenerate a released artefact in place. After updating the version
+registry and running the audits above, verify the static contract publication
+layout locally::
 
-Never rewrite a released entry. Shared mechanical helpers may be extracted only
-after the configuration, forcing, and output policies are concrete (#1664).
+   make contracts-site
+
+This builds both versioned and ``latest`` artefacts under
+``build/contracts-site/contracts/``, validates every catalogue against its
+JSON Schema, verifies SHA-256 digests and ``latest`` byte-for-byte parity, and
+checks every generated relative link. Pass
+``CONTRACTS_PRESERVE_FROM=<previous-contracts-dir>`` to verify preservation of
+historical releases across deployments without overwriting existing bytes.
+
+Never rewrite a released entry.
+
+CLI discovery and published URLs
+--------------------------------
+
+Users and automated clients can inspect and export any published forcing or
+output contract release directly through the ``suews contracts`` CLI:
+
+.. code-block:: bash
+
+   # List available interfaces, current versions, digests and published URLs
+   suews contracts info
+   suews contracts info --format json
+
+   # Inspect a contract catalogue, JSON Schema or manifest
+   suews contracts show forcing --format json
+   suews contracts show output --version 2.1.0 --artefact schema --format json
+
+   # Export raw canonical JSON to stdout or files, or write a full release bundle
+   suews contracts export forcing > forcing-catalogue.json
+   suews contracts export output --artefact bundle -o ./output-contract
+
+Static site builds materialise deterministic, version-addressed directories
+alongside moving ``latest`` aliases for the target GitHub Pages layout under
+``https://suews.io/contracts/`` (workflow deployment to live GitHub Pages is
+pending the companion Pages workflow update; until that workflow change lands,
+build and inspect the same tree locally with ``make contracts-site`` or export
+directly through ``suews contracts``):
+
+- ``https://suews.io/contracts/index.json`` and ``index.html``: top-level
+  machine-readable and HTML discovery indices.
+- ``https://suews.io/contracts/forcing/<version>/`` and
+  ``https://suews.io/contracts/output/<version>/``: immutable release bundles
+  containing ``catalogue.json``, ``catalogue.schema.json`` and
+  ``manifest.json``. Frozen forcing schema and manifest snapshots live under
+  ``src/supy/data_model/contract_artefacts/forcing/<version>/`` alongside the
+  canonical forcing catalogues under ``src/supy/data_model/forcing/artefacts/``.
+  Previously published versions are preserved across deployments and never
+  modified in place.
+- ``https://suews.io/contracts/forcing/latest/`` and
+  ``https://suews.io/contracts/output/latest/``: moving aliases that mirror the
+  current release bundle byte-for-byte.
+
+To reproduce publication and validation outside ``make``:
+
+.. code-block:: bash
+
+   python scripts/suews/publish_contracts.py --output-dir build/contracts-site/contracts
+   suews contracts validate build/contracts-site/contracts --base-url https://suews.io
 
 YAML audit boundary
 -------------------

@@ -10,6 +10,7 @@ Static site served at https://suews.io/. Sphinx-built documentation lives separa
 - `dependencies/index.html` — Fortran libraries used by the SUEWS core, with sources and licence notes. Python deps are tracked in `pyproject.toml`.
 - `brand/index.html` — brand showcase (palette, typography, logo). Self-contained page with light theme.
 - `brand/brand-workshop.html` — interactive logo customiser; self-contained dark workshop UI.
+- `contracts/` (generated, not committed) -- versioned and `latest` forcing and output data-contract catalogues, JSON Schemas, manifests, and index pages built locally by `make contracts-site` / `scripts/suews/publish_contracts.py` (target layout for `https://suews.io/contracts/`, pending Pages workflow wiring).
 
 ## Stylesheets
 

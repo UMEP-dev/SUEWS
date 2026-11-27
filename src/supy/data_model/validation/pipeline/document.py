@@ -28,6 +28,7 @@ import re
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
+import weakref
 
 import numpy as np
 from pydantic import BaseModel
@@ -35,7 +36,10 @@ from pydantic import BaseModel
 from ...core._yaml_io import safe_load_yaml
 from ...core.field_renames import RAW_YAML_FIELD_RENAMES, normalise_yaml_renames
 from ...core.physics_families import flatten_physics_in_config
-from ...core.profile import normalise_hourly_profile_keys_in_raw_config
+from ...core.profile import (
+    normalise_hourly_profile_key,
+    normalise_hourly_profile_keys_in_raw_config,
+)
 from .style_ledger import (
     PathStyle,
     StyleLedger,
@@ -76,16 +80,16 @@ class MappingKey:
     key: Any
 
     def __eq__(self, other: object) -> bool:
-        """Compare key identity while keeping ``bool`` distinct from ``int``."""
+        """Compare key identity while keeping distinct Python key types separate."""
         if not isinstance(other, MappingKey):
             return NotImplemented
-        if isinstance(self.key, bool) != isinstance(other.key, bool):
+        if type(self.key) is not type(other.key):
             return False
         return self.key == other.key
 
     def __hash__(self) -> int:
         """Hash key identity consistently with :meth:`__eq__`."""
-        return hash((type(self.key) is bool, self.key))
+        return hash((type(self.key), self.key))
 
 
 PathToken = str | int | MappingKey
@@ -144,6 +148,152 @@ _FREEZE_IMMUTABLE_TYPES = (
 )
 
 
+_FROZEN_ARRAY_STATE: dict[int, tuple[bytes, np.dtype[Any], tuple[int, ...]]] = {}
+_FROZEN_MAP_STATE: dict[int, dict[Any, Any]] = {}
+
+
+class _FrozenArraySpec:
+    """Immutable byte-backed specification materialised as fresh read-only views."""
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, array: np.ndarray[Any, Any]) -> None:
+        key = id(self)
+        _FROZEN_ARRAY_STATE[key] = (
+            array.tobytes(),
+            deepcopy(array.dtype),
+            tuple(array.shape),
+        )
+        weakref.finalize(self, _FROZEN_ARRAY_STATE.pop, key, None)
+
+    def materialise(self) -> np.ndarray[Any, Any]:
+        """Return a fresh zero-copy read-only NumPy view over immutable bytes."""
+        buf, dtype, shape = _FROZEN_ARRAY_STATE[id(self)]
+        return np.frombuffer(buf, dtype=deepcopy(dtype)).reshape(shape)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise TypeError("Cannot mutate _FrozenArraySpec")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError("Cannot mutate _FrozenArraySpec")
+
+
+def _materialise_frozen(value: Any) -> Any:
+    """Materialise a :class:`_FrozenArraySpec` into a fresh read-only NumPy view."""
+    if isinstance(value, _FrozenArraySpec):
+        return value.materialise()
+    return value
+
+
+class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
+    """Read-only mapping that materialises fresh NumPy views on every lookup."""
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, entries: dict[Any, Any]) -> None:
+        key = id(self)
+        _FROZEN_MAP_STATE[key] = entries
+        weakref.finalize(self, _FROZEN_MAP_STATE.pop, key, None)
+
+    def __getitem__(self, key: Any) -> Any:
+        return _materialise_frozen(_FROZEN_MAP_STATE[id(self)][key])
+
+    def __iter__(self) -> Any:
+        return iter(_FROZEN_MAP_STATE[id(self)])
+
+    def __len__(self) -> int:
+        return len(_FROZEN_MAP_STATE[id(self)])
+
+    def __contains__(self, key: object) -> bool:
+        return key in _FROZEN_MAP_STATE[id(self)]
+
+    def __repr__(self) -> str:
+        return repr({
+            k: _materialise_frozen(v) for k, v in _FROZEN_MAP_STATE[id(self)].items()
+        })
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise TypeError(f"Cannot mutate read-only mapping attribute {name!r}")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError(f"Cannot delete read-only mapping attribute {name!r}")
+
+
+class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
+    """Tuple subclass that materialises fresh NumPy views on every access."""
+
+    __slots__ = ()
+    __hash__ = None  # type: ignore[assignment]
+
+    def __getitem__(self, index: Any) -> Any:
+        if isinstance(index, slice):
+            sliced = super().__getitem__(index)
+            if any(isinstance(item, _FrozenArraySpec) for item in sliced):
+                return _ReadOnlyMaterialisingTuple(sliced)
+            return sliced
+        return _materialise_frozen(super().__getitem__(index))
+
+    def __iter__(self) -> Any:
+        for item in super().__iter__():
+            yield _materialise_frozen(item)
+
+    def __reversed__(self) -> Any:
+        for item in super().__reversed__():
+            yield _materialise_frozen(item)
+
+    def __contains__(self, value: object) -> bool:
+        return any(item == value for item in self)
+
+    def __repr__(self) -> str:
+        return repr(tuple(self))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, tuple):
+            return NotImplemented
+        if len(self) != len(other):
+            return False
+        return all(a == b for a, b in zip(self, other))
+
+    def __ne__(self, other: object) -> bool:
+        eq = self.__eq__(other)
+        return NotImplemented if eq is NotImplemented else not eq
+
+    def __add__(self, other: Any) -> Any:
+        if not isinstance(other, tuple):
+            return NotImplemented
+        return tuple(self) + tuple(other)
+
+    def __radd__(self, other: Any) -> Any:
+        if not isinstance(other, tuple):
+            return NotImplemented
+        return tuple(other) + tuple(self)
+
+    def __mul__(self, count: Any) -> Any:
+        if not isinstance(count, int):
+            return NotImplemented
+        return tuple(self) * count
+
+    def __rmul__(self, count: Any) -> Any:
+        return self.__mul__(count)
+
+    def index(self, value: Any, start: int = 0, stop: int | None = None) -> int:
+        materialised = tuple(self)
+        return (
+            materialised.index(value, start)
+            if stop is None
+            else materialised.index(value, start, stop)
+        )
+
+    def count(self, value: Any) -> int:
+        return tuple(self).count(value)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise TypeError(f"Cannot mutate read-only sequence attribute {name!r}")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError(f"Cannot delete read-only sequence attribute {name!r}")
+
+
 def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
     if value is None or isinstance(value, (bool, int, float, str, bytes)):
@@ -161,45 +311,81 @@ def _copy_payload(value: Any) -> Any:
     return deepcopy(value)
 
 
+def _freeze_mapping_entries(entries: dict[Any, Any]) -> Mapping[Any, Any]:
+    if any(isinstance(v, _FrozenArraySpec) for v in entries.values()):
+        return _ReadOnlyMaterialisingMapping(entries)
+    return MappingProxyType(entries)
+
+
+def _freeze_sequence_items(items: list[Any]) -> tuple[Any, ...]:
+    if any(isinstance(item, _FrozenArraySpec) for item in items):
+        return _ReadOnlyMaterialisingTuple(items)
+    return tuple(items)
+
+
 def _freeze_numpy_value(value: np.ndarray[Any, Any] | np.void) -> Any:
     if isinstance(value, np.void):
         if value.dtype.names:
-            return MappingProxyType({
-                name: deep_freeze(value[name]) for name in value.dtype.names
+            return _freeze_mapping_entries({
+                name: _deep_freeze_internal(value[name]) for name in value.dtype.names
             })
         return bytes(value)
     if value.dtype.hasobject:
         if value.ndim == 0:
-            return deep_freeze(deepcopy(value.item()))
-        return deep_freeze(deepcopy(value.tolist()))
-    return np.frombuffer(value.tobytes(), dtype=value.dtype).reshape(value.shape)
+            return _deep_freeze_internal(deepcopy(value.item()))
+        return _deep_freeze_internal(deepcopy(value.tolist()))
+    return _FrozenArraySpec(value)
 
 
-def deep_freeze(value: Any) -> Any:
-    """Recursively freeze mappings, sequences, sets, arrays, and models into read-only objects."""
-    if isinstance(value, _FREEZE_IMMUTABLE_TYPES):
-        return value
-    if isinstance(value, Mapping):
-        return MappingProxyType({k: deep_freeze(v) for k, v in value.items()})
+def _freeze_model_or_object(value: Any) -> Any:
+    """Freeze byte buffers, models, dataclasses, or already-frozen proxies, or reject."""
     if isinstance(value, (bytearray, memoryview)):
         return bytes(value)
-    if isinstance(value, (list, tuple, deque, Sequence)):
-        return tuple(deep_freeze(item) for item in value)
-    if isinstance(value, (set, frozenset, AbstractSet)):
-        return frozenset(deep_freeze(item) for item in value)
-    if isinstance(value, (np.ndarray, np.void)):
-        return _freeze_numpy_value(value)
-    if isinstance(value, BaseModel):
-        from ..rules.readonly_model import freeze_model  # noqa: PLC0415
+    from ..rules.readonly_model import (  # noqa: PLC0415
+        ReadOnlyDataclassProxy,
+        ReadOnlyModelProxy,
+        freeze_model,
+    )
 
+    if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
+        return value
+    if isinstance(value, BaseModel):
         return freeze_model(value)
     if is_dataclass(value) and not isinstance(value, type):
-        from ..rules.readonly_model import ReadOnlyDataclassProxy  # noqa: PLC0415
-
         return ReadOnlyDataclassProxy(value)
     raise TypeError(
         f"deep_freeze cannot safely freeze mutable object of type {type(value).__name__!r}"
     )
+
+
+def _deep_freeze_internal(value: Any) -> Any:
+    """Recursively freeze values, keeping NumPy arrays as lazy :class:`_FrozenArraySpec`."""
+    if isinstance(
+        value,
+        (
+            _FrozenArraySpec,
+            _ReadOnlyMaterialisingMapping,
+            _ReadOnlyMaterialisingTuple,
+            *_FREEZE_IMMUTABLE_TYPES,
+        ),
+    ):
+        return value
+    if isinstance(value, Mapping):
+        return _freeze_mapping_entries({
+            k: _deep_freeze_internal(v) for k, v in value.items()
+        })
+    if isinstance(value, (list, tuple, deque, Sequence)):
+        return _freeze_sequence_items([_deep_freeze_internal(item) for item in value])
+    if isinstance(value, (set, frozenset, AbstractSet)):
+        return frozenset(_deep_freeze_internal(item) for item in value)
+    if isinstance(value, (np.ndarray, np.void)):
+        return _freeze_numpy_value(value)
+    return _freeze_model_or_object(value)
+
+
+def deep_freeze(value: Any) -> Any:
+    """Recursively freeze mappings, sequences, sets, arrays, and models into read-only objects."""
+    return _materialise_frozen(_deep_freeze_internal(value))
 
 
 def thaw_copy(value: Any) -> Any:
@@ -312,10 +498,14 @@ def _update_existing_entry(
             return {"ref": thaw_copy(existing["ref"])}
         if original_ref is not None:
             return {"ref": thaw_copy(original_ref)}
-    if isinstance(existing, dict) and (is_ref_wrapper(existing) or is_ref_only(existing)):
+    if isinstance(existing, dict) and (
+        is_ref_wrapper(existing) or is_ref_only(existing)
+    ):
         existing["value"] = copied
         return existing
-    if isinstance(existing, Mapping) and (is_ref_wrapper(existing) or is_ref_only(existing)):
+    if isinstance(existing, Mapping) and (
+        is_ref_wrapper(existing) or is_ref_only(existing)
+    ):
         return {**thaw_copy(existing), "value": copied}
     if isinstance(existing, dict) and "value" in existing:
         existing["value"] = copied
@@ -562,7 +752,9 @@ def find_first_created_ancestor(
     for pos, token in enumerate(tokens[:-1]):
         if _is_list_index_token(token):
             assert isinstance(token, int)
-            if not isinstance(current, (list, tuple)) or not (0 <= token < len(current)):
+            if not isinstance(current, (list, tuple)) or not (
+                0 <= token < len(current)
+            ):
                 return None
             current = current[token]
             continue
@@ -741,7 +933,9 @@ def nullify_tree_in_place(
                 _nullify_wrapper(cur, prefix)
                 return
             for key, val in cur.items():
-                if key == "ref" or (key in skip_keys and (is_root or not skip_at_root_only)):
+                if key == "ref" or (
+                    key in skip_keys and (is_root or not skip_at_root_only)
+                ):
                     continue
                 child_path = f"{prefix}.{key}" if prefix else str(key)
                 if isinstance(val, (dict, list)):
@@ -909,13 +1103,9 @@ def apply_patches_in_place(
                 replace_raw=patch.replace_raw,
             )
             if not applied:
-                raise ValueError(
-                    f"Failed to apply 'set' patch at path {patch.path!r}"
-                )
+                raise ValueError(f"Failed to apply 'set' patch at path {patch.path!r}")
         elif patch.action == "delete":
-            located = _ensure_parent_container(
-                target, tokens, create_missing=False
-            )
+            located = _ensure_parent_container(target, tokens, create_missing=False)
             if located is None:
                 raise ValueError(
                     f"Failed to apply 'delete' patch at path {patch.path!r}: "
@@ -1104,9 +1294,7 @@ class ConfigDocument:
         normalise: bool = False,
     ) -> ConfigDocument:
         """Return a new :class:`ConfigDocument` with *patches* applied in order."""
-        effective_patches = (
-            self.normalise_patches(patches) if normalise else patches
-        )
+        effective_patches = self.normalise_patches(patches) if normalise else patches
         target = self.clone()
         apply_patches_in_place(
             target.data, effective_patches, style_ledger=self.style_ledger
@@ -1137,6 +1325,29 @@ class ConfigDocument:
         )
 
 
+def _typed_mapping_key(key: Any) -> tuple[type[Any], Any]:
+    return (type(key), key)
+
+
+def _match_profile_key_renames(
+    before: Mapping[Any, Any],
+    after_by_typed: dict[tuple[type[Any], Any], Any],
+) -> list[tuple[Any, str]]:
+    """Pair raw profile keys in *before* with their canonical string keys in *after*."""
+    matched: list[tuple[Any, str]] = []
+    seen_new: set[str] = set()
+    for old_k in before:
+        try:
+            new_k = normalise_hourly_profile_key(old_k)
+        except ValueError:
+            return []
+        if _typed_mapping_key(new_k) not in after_by_typed or new_k in seen_new:
+            return []
+        seen_new.add(new_k)
+        matched.append((old_k, new_k))
+    return matched
+
+
 def _collect_mapping_key_renames(
     before: Any, after: Any, prefix: str = ""
 ) -> dict[str, str]:
@@ -1144,17 +1355,33 @@ def _collect_mapping_key_renames(
     renames: dict[str, str] = {}
     if isinstance(before, Mapping) and isinstance(after, Mapping):
         if len(before) == len(after):
-            before_keys = list(before.keys())
-            after_keys = list(after.keys())
-            for old_k, new_k in zip(before_keys, after_keys):
-                old_path = _join_key_path(prefix, old_k)
-                new_path = _join_key_path(prefix, new_k)
-                if old_path != new_path:
-                    renames[old_path] = new_path
-                renames.update(
-                    _collect_mapping_key_renames(before[old_k], after[new_k], new_path)
-                )
-    elif isinstance(before, list) and isinstance(after, list) and len(before) == len(after):
+            before_by_typed = {_typed_mapping_key(k): k for k in before}
+            after_by_typed = {_typed_mapping_key(k): k for k in after}
+            if before_by_typed.keys() == after_by_typed.keys():
+                for typed_k, old_k in before_by_typed.items():
+                    new_k = after_by_typed[typed_k]
+                    child_path = _join_key_path(prefix, new_k)
+                    renames.update(
+                        _collect_mapping_key_renames(
+                            before[old_k], after[new_k], child_path
+                        )
+                    )
+            else:
+                for old_k, new_k in _match_profile_key_renames(before, after_by_typed):
+                    old_path = _join_key_path(prefix, old_k)
+                    new_path = _join_key_path(prefix, new_k)
+                    if old_path != new_path:
+                        renames[old_path] = new_path
+                    renames.update(
+                        _collect_mapping_key_renames(
+                            before[old_k], after[new_k], new_path
+                        )
+                    )
+    elif (
+        isinstance(before, list)
+        and isinstance(after, list)
+        and len(before) == len(after)
+    ):
         for idx, (b_item, a_item) in enumerate(zip(before, after)):
             child_prefix = f"{prefix}[{idx}]" if prefix else f"[{idx}]"
             renames.update(_collect_mapping_key_renames(b_item, a_item, child_prefix))

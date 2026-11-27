@@ -105,11 +105,23 @@ def _classify_raw_entry(
     return True, thaw_copy(raw_entry), "bare", None
 
 
+def _token_dict_aliases(left: PathToken, right: PathToken) -> bool:
+    """Return True when two path tokens address the same container slot at runtime."""
+    left_is_idx = _is_list_index_token(left)
+    right_is_idx = _is_list_index_token(right)
+    if left_is_idx or right_is_idx:
+        return left_is_idx and right_is_idx and left == right
+    left_key = _mapping_key_from_token(left)
+    right_key = _mapping_key_from_token(right)
+    return left_key is right_key or left_key == right_key
+
+
 def _tokens_overlap(left: Sequence[PathToken], right: Sequence[PathToken]) -> bool:
-    """Return True when *left* and *right* are equal or one is an ancestor of the other."""
+    """Return True when *left* and *right* alias the same slot or an ancestor/descendant."""
     min_len = min(len(left), len(right))
-    return tuple(canonicalise_token(t) for t in left[:min_len]) == tuple(
-        canonicalise_token(t) for t in right[:min_len]
+    return all(
+        _token_dict_aliases(canonicalise_token(a), canonicalise_token(b))
+        for a, b in zip(left[:min_len], right[:min_len])
     )
 
 
@@ -258,7 +270,7 @@ def _apply_atomic_set(
     tokens: tuple[PathToken, ...],
     canon_path: str,
     style_ledger: StyleLedger,
-) -> ConfigPatch:
+) -> tuple[ConfigPatch, Any]:
     raw_before = read_raw_tokens(working, tokens, default=_MISSING)
     had_original, old_val, orig_style, orig_ref = _classify_raw_entry(raw_before)
     raw_snapshot = _copy_payload(raw_before) if had_original else _UNSET
@@ -283,7 +295,7 @@ def _apply_atomic_set(
         raise ValueError(f"Failed to apply 'set' patch at path {patch.path!r}")
     raw_after = read_raw_tokens(working, tokens, default=_MISSING)
     _, _, written_style, written_ref = _classify_raw_entry(raw_after)
-    return ConfigPatch(
+    recorded = ConfigPatch(
         path=canon_path,
         action="set",
         new_value=patch.new_value,
@@ -307,6 +319,7 @@ def _apply_atomic_set(
         write_style=written_style,
         write_ref=written_ref,
     )
+    return recorded, _copy_payload(raw_after)
 
 
 def _apply_atomic_delete(
@@ -314,7 +327,7 @@ def _apply_atomic_delete(
     patch: ConfigPatch,
     tokens: tuple[PathToken, ...],
     canon_path: str,
-) -> ConfigPatch:
+) -> tuple[ConfigPatch, Any]:
     located = _ensure_parent_container(working, tokens, create_missing=False)
     if located is None:
         raise ValueError(
@@ -332,7 +345,7 @@ def _apply_atomic_delete(
     had_original, old_val, orig_style, orig_ref = _classify_raw_entry(raw_before)
     raw_snapshot = _copy_payload(raw_before) if had_original else _UNSET
     parent.pop(raw_key, None)
-    return ConfigPatch(
+    recorded = ConfigPatch(
         path=canon_path,
         action="delete",
         new_value=None,
@@ -350,6 +363,7 @@ def _apply_atomic_delete(
         path_tokens=tokens,
         original_raw=raw_snapshot,
     )
+    return recorded, _MISSING
 
 
 def _apply_atomic_nullify(
@@ -360,7 +374,7 @@ def _apply_atomic_nullify(
     style_ledger: StyleLedger,
     *,
     expand_nullify_tree: bool,
-) -> list[ConfigPatch]:
+) -> list[tuple[ConfigPatch, Any]]:
     raw_before = read_raw_tokens(working, tokens, default=_MISSING)
     if raw_before is _MISSING:
         raise ValueError(f"Failed to apply 'nullify_tree' patch at path {patch.path!r}")
@@ -373,7 +387,7 @@ def _apply_atomic_nullify(
             skip_keys=skip_set,
             skip_at_root_only=True,
         )
-        expanded: list[ConfigPatch] = []
+        expanded: list[tuple[ConfigPatch, Any]] = []
         for leaf_tokens, leaf_path, _old_val, new_null_val in token_entries:
             cur_leaf = read_raw_tokens(working, leaf_tokens, default=_MISSING)
             preserve_wrapper: WrapperStyle | None = (
@@ -413,42 +427,51 @@ def _apply_atomic_nullify(
     if not rel_snapshot:
         return []
     return [
-        ConfigPatch(
-            path=canon_path,
-            action="nullify_tree",
-            new_value=None,
-            old_value=rel_snapshot,
-            reason=patch.reason,
-            parameter=patch.parameter,
-            site_index=patch.site_index,
-            site_gridid=patch.site_gridid,
-            source=patch.source,
-            skip_keys=patch.skip_keys,
-            default_wrapped=patch.default_wrapped,
-            had_original=True,
-            path_tokens=tokens,
-            original_raw=raw_snapshot,
+        (
+            ConfigPatch(
+                path=canon_path,
+                action="nullify_tree",
+                new_value=None,
+                old_value=rel_snapshot,
+                reason=patch.reason,
+                parameter=patch.parameter,
+                site_index=patch.site_index,
+                site_gridid=patch.site_gridid,
+                source=patch.source,
+                skip_keys=patch.skip_keys,
+                default_wrapped=patch.default_wrapped,
+                had_original=True,
+                path_tokens=tokens,
+                original_raw=raw_snapshot,
+            ),
+            _UNSET,
         )
     ]
 
 
-def _is_noop_set_patch(patch: ConfigPatch) -> bool:
+def _is_noop_set_patch(patch: ConfigPatch, *, raw_after: Any = _UNSET) -> bool:
     if patch.created_ancestor is not None or patch.had_original is not True:
         return False
+    if raw_after is not _UNSET and patch.original_raw is not _UNSET:
+        return _strict_equal(patch.original_raw, raw_after)
     if patch.replace_raw:
         return patch.original_raw is not _UNSET and _strict_equal(
             patch.original_raw, patch.new_value
         )
-    if patch.original_style == "ref_only" and patch.new_value is None:
-        return patch.write_style != "ref_value"
+    if patch.write_style is not None and patch.original_style != patch.write_style:
+        return False
+    if (patch.original_ref is not None or patch.write_ref is not None) and (
+        patch.original_ref != patch.write_ref
+    ):
+        return False
     return _strict_equal(patch.old_value, patch.new_value)
 
 
-def _is_noop_patch(patch: ConfigPatch) -> bool:
+def _is_noop_patch(patch: ConfigPatch, *, raw_after: Any = _UNSET) -> bool:
     if patch.action == "delete":
         return patch.had_original is False
     if patch.action == "set":
-        return _is_noop_set_patch(patch)
+        return _is_noop_set_patch(patch, raw_after=raw_after)
     if patch.action == "nullify_tree":
         return isinstance(patch.old_value, Mapping) and not patch.old_value
     return False
@@ -539,12 +562,6 @@ def _merge_with_set(
             return second
         if not _delete_then_set_preserves_style(first, second, style_ledger):
             return _CANNOT_MERGE
-    merged_write_style = (
-        first.write_style if first.had_original is False else second.write_style
-    )
-    merged_write_ref = (
-        first.write_ref if first.had_original is False else second.write_ref
-    )
     return ConfigPatch(
         path=first.path,
         action="set",
@@ -560,15 +577,15 @@ def _merge_with_set(
         else first.site_gridid,
         source=second.source or first.source,
         skip_keys=second.skip_keys,
-        default_wrapped=first.default_wrapped,
+        default_wrapped=second.default_wrapped,
         had_original=first.had_original,
         original_style=first.original_style,
         original_ref=first.original_ref,
         path_tokens=first.path_tokens,
         original_raw=first.original_raw,
         created_ancestor=first.created_ancestor,
-        write_style=merged_write_style,
-        write_ref=merged_write_ref,
+        write_style=second.write_style,
+        write_ref=second.write_ref,
     )
 
 
@@ -584,23 +601,23 @@ def _merge_same_path(
 
 
 def _coalesce_owned_patches(
-    owned_patches: list[tuple[int | None, ConfigPatch]],
+    owned_patches: list[tuple[int | None, ConfigPatch, Any]],
     style_ledger: StyleLedger,
-) -> list[tuple[int | None, ConfigPatch]]:
+) -> list[tuple[int | None, ConfigPatch, Any]]:
     """Coalesce sequential same-path patches without crossing ancestor/descendant barriers."""
-    result: list[tuple[int | None, ConfigPatch]] = []
+    result: list[tuple[int | None, ConfigPatch, Any]] = []
     result_tokens: list[tuple[PathToken, ...]] = []
 
-    for owner_idx, patch in owned_patches:
+    for owner_idx, patch, raw_after in owned_patches:
         tokens = _resolve_patch_tokens(patch)
         if patch.action == "nullify_tree":
-            result.append((owner_idx, patch))
+            result.append((owner_idx, patch, raw_after))
             result_tokens.append(tokens)
             continue
 
         merge_idx: int | None = None
         for idx in range(len(result) - 1, -1, -1):
-            _prev_owner, prev = result[idx]
+            _prev_owner, prev, _prev_raw_after = result[idx]
             prev_tokens = result_tokens[idx]
             if prev_tokens == tokens and prev.action != "nullify_tree":
                 merge_idx = idx
@@ -609,21 +626,21 @@ def _coalesce_owned_patches(
                 break
 
         if merge_idx is None:
-            result.append((owner_idx, patch))
+            result.append((owner_idx, patch, raw_after))
             result_tokens.append(tokens)
             continue
 
-        prev_owner, prev_patch = result[merge_idx]
+        prev_owner, prev_patch, _prev_raw_after = result[merge_idx]
         merged = _merge_same_path(prev_patch, patch, style_ledger)
         if merged is _CANNOT_MERGE:
-            result.append((owner_idx, patch))
+            result.append((owner_idx, patch, raw_after))
             result_tokens.append(tokens)
             continue
 
         if isinstance(merged, ConfigPatch):
             # Replace in place so any created_ancestor stays ordered before sibling writes.
             merged_owner = owner_idx if owner_idx is not None else prev_owner
-            result[merge_idx] = (merged_owner, merged)
+            result[merge_idx] = (merged_owner, merged, raw_after)
         else:
             result.pop(merge_idx)
             result_tokens.pop(merge_idx)
@@ -648,7 +665,7 @@ def normalise_owned_patches(
         style_ledger = StyleLedger.from_mapping(target)
 
     working = thaw_copy(base_data)
-    recorded: list[tuple[int | None, ConfigPatch]] = []
+    recorded: list[tuple[int | None, ConfigPatch, Any]] = []
 
     for owner_idx, patch in owned_patches:
         if patch.action not in _VALID_PATCH_ACTIONS:
@@ -658,15 +675,15 @@ def normalise_owned_patches(
         tokens = _resolve_patch_tokens(patch)
         canon_path = format_path_tokens(tokens)
         if patch.action == "set":
-            recorded.append((
-                owner_idx,
-                _apply_atomic_set(working, patch, tokens, canon_path, style_ledger),
-            ))
+            rec_patch, raw_after = _apply_atomic_set(
+                working, patch, tokens, canon_path, style_ledger
+            )
+            recorded.append((owner_idx, rec_patch, raw_after))
         elif patch.action == "delete":
-            recorded.append((
-                owner_idx,
-                _apply_atomic_delete(working, patch, tokens, canon_path),
-            ))
+            rec_patch, raw_after = _apply_atomic_delete(
+                working, patch, tokens, canon_path
+            )
+            recorded.append((owner_idx, rec_patch, raw_after))
         elif patch.action == "nullify_tree":
             expanded = _apply_atomic_nullify(
                 working,
@@ -676,13 +693,19 @@ def normalise_owned_patches(
                 style_ledger,
                 expand_nullify_tree=expand_nullify_tree,
             )
-            recorded.extend((owner_idx, item) for item in expanded)
+            recorded.extend(
+                (owner_idx, item, raw_after) for item, raw_after in expanded
+            )
 
     if coalesce:
         recorded = _coalesce_owned_patches(recorded, style_ledger)
     if drop_noops:
-        recorded = [(owner, p) for owner, p in recorded if not _is_noop_patch(p)]
-    return recorded
+        recorded = [
+            (owner, p, raw_after)
+            for owner, p, raw_after in recorded
+            if not _is_noop_patch(p, raw_after=raw_after)
+        ]
+    return [(owner, p) for owner, p, _raw_after in recorded]
 
 
 def normalise_patches(

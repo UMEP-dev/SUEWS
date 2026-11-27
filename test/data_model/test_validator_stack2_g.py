@@ -1289,3 +1289,162 @@ def test_round3_deep_freeze_surfaces_yaml_keys_profile_ledger_and_proxy_edge_cas
     assert _FrozenChild(code=1) in ro_em.model_set
     assert isinstance(ro_em.dc_set, frozenset)
     assert _FrozenDC(tag="a") in ro_em.dc_set
+
+
+def test_confirm_round_array_metadata_and_idempotent_refreeze() -> None:
+    """Frozen array views resist metadata mutation and deep_freeze accepts already-frozen proxies."""
+    arr_raw = {
+        "a": np.array([1.0, 2.0]),
+        "nested": [np.array([3.0, 4.0])],
+        "struct": np.array([(1, [5.0, 6.0])], dtype=[("x", "i4"), ("y", "f8", (2,))]),
+    }
+    ctx_arr = ValidationContext(yaml_data=arr_raw)
+    surfaces = (
+        ctx_arr.view.raw,
+        ctx_arr.yaml_data,
+        TypedConfigView.from_mapping(arr_raw).raw,
+        ConfigDocument(arr_raw).frozen_data(),
+    )
+    for surface in surfaces:
+        v_a = surface["a"]
+        v_a.dtype = np.int64
+        v_a.shape = (2, 1)
+        assert surface["a"].dtype == np.float64
+        assert surface["a"].shape == (2,)
+        assert np.array_equal(surface["a"], np.array([1.0, 2.0]))
+
+        v_nested = surface["nested"][0]
+        v_nested.dtype = np.int64
+        v_nested.shape = (1, 2)
+        assert surface["nested"][0].dtype == np.float64
+        assert surface["nested"][0].shape == (2,)
+
+        v_struct = surface["struct"]
+        v_struct.dtype.names = ("bad_x", "bad_y")
+        assert surface["struct"].dtype.names == ("x", "y")
+
+    class _MapArrayModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        arr_map: dict[str, np.ndarray]
+
+    ro_map = freeze_model(_MapArrayModel(arr_map={"a": np.array([1.0, 2.0])}))
+    held_map = ro_map.arr_map
+    held_map["a"].dtype = np.int64
+    held_map["a"].shape = (2, 1)
+    assert held_map["a"].dtype == np.float64
+    assert held_map["a"].shape == (2,)
+
+    class _NestedModel(BaseModel):
+        value: int
+
+    @dataclass
+    class _NestedDC:
+        items: list[int]
+
+    child_m = _NestedModel(value=42)
+    child_dc = _NestedDC(items=[1, 2])
+    frozen_m = deep_freeze(child_m)
+    frozen_dc = deep_freeze(child_dc)
+    assert deep_freeze(frozen_m) is frozen_m
+    assert deep_freeze(frozen_dc) is frozen_dc
+
+    nested_raw = {"extra": child_m, "dc": child_dc}
+    tv_nested = TypedConfigView.from_mapping(nested_raw)
+    assert isinstance(tv_nested.raw["extra"], ReadOnlyModelProxy)
+    assert tv_nested.raw["extra"].value == 42
+    assert isinstance(tv_nested.raw["dc"], ReadOnlyDataclassProxy)
+    assert tv_nested.raw["dc"].items == (1, 2)
+
+    ctx_nested = ValidationContext(yaml_data=nested_raw)
+    assert isinstance(ctx_nested.view.raw["extra"], ReadOnlyModelProxy)
+    assert ctx_nested.view.raw["extra"].value == 42
+    assert isinstance(ctx_nested.view.raw["dc"], ReadOnlyDataclassProxy)
+    assert ctx_nested.view.raw["dc"].items == (1, 2)
+
+
+def test_confirm_round_unsorted_profile_alias_barriers_and_representation_noops() -> (
+    None
+):
+    """Unsorted profile ledger alignment, dict-key alias barriers, and style-changing writes hold."""
+    unsorted_yaml = (
+        "sites:\n"
+        "  - properties:\n"
+        "      irrigation:\n"
+        "        wuprofa_24hr:\n"
+        "          working_day:\n"
+        "            2:\n"
+        "              value: 0.25\n"
+        "              ref:\n"
+        "                ID: hour-two\n"
+        "            '01':\n"
+        "              value: 0.5\n"
+        "              ref:\n"
+        "                ID: hour-one\n"
+    )
+    unsorted_doc = ConfigDocument.from_text(unsorted_yaml, normalise=True)
+    p1 = "sites[0].properties.irrigation.wuprofa_24hr.working_day.1"
+    p2 = "sites[0].properties.irrigation.wuprofa_24hr.working_day.2"
+    assert unsorted_doc.style_ledger.ref_metadata(p1) == {"ID": "hour-one"}
+    assert unsorted_doc.style_ledger.ref_metadata(p2) == {"ID": "hour-two"}
+    rebuilt = unsorted_doc.apply_patches([
+        ConfigPatch(p1, "delete"),
+        ConfigPatch(p1, "set", 0.9),
+        ConfigPatch(p2, "delete"),
+        ConfigPatch(p2, "set", 0.1),
+    ])
+    wd = rebuilt.data["sites"][0]["properties"]["irrigation"]["wuprofa_24hr"][
+        "working_day"
+    ]
+    assert wd["1"] == {"value": 0.9, "ref": {"ID": "hour-one"}}
+    assert wd["2"] == {"value": 0.1, "ref": {"ID": "hour-two"}}
+
+    alias_base = {"a": {1: 0}}
+    alias_patches = [
+        ConfigPatch(
+            "a[1]", "set", 1, path_tokens=("a", MappingKey(1)), default_wrapped=False
+        ),
+        ConfigPatch(
+            "a[True]",
+            "set",
+            2,
+            path_tokens=("a", MappingKey(True)),
+            default_wrapped=False,
+        ),
+        ConfigPatch(
+            "a[1]", "set", 3, path_tokens=("a", MappingKey(1)), default_wrapped=False
+        ),
+    ]
+    direct_alias = deepcopy(alias_base)
+    apply_patches_in_place(direct_alias, alias_patches)
+    norm_alias = normalise_patches(alias_patches, alias_base)
+    replayed_alias = deepcopy(alias_base)
+    apply_patches_in_place(replayed_alias, norm_alias)
+    assert replayed_alias == direct_alias == {"a": {1: 3}}
+    apply_patches_in_place(replayed_alias, invert_patches(norm_alias))
+    assert replayed_alias == alias_base
+
+    for rep_base, rep_patch, expected in (
+        (
+            {"a": {"value": None, "ref": {"ID": "r"}}},
+            [ConfigPatch("a", "set", None, write_style="ref_only")],
+            {"a": {"ref": {"ID": "r"}}},
+        ),
+        (
+            {"a": None},
+            [
+                ConfigPatch(
+                    "a", "set", None, write_style="ref_only", write_ref={"ID": "r"}
+                )
+            ],
+            {"a": {"ref": {"ID": "r"}}},
+        ),
+    ):
+        direct_rep = deepcopy(rep_base)
+        apply_patches_in_place(direct_rep, rep_patch)
+        norm_rep = normalise_patches(rep_patch, rep_base)
+        assert len(norm_rep) == 1
+        replayed_rep = deepcopy(rep_base)
+        apply_patches_in_place(replayed_rep, norm_rep)
+        assert replayed_rep == direct_rep == expected
+        apply_patches_in_place(replayed_rep, invert_patches(norm_rep))
+        assert replayed_rep == rep_base

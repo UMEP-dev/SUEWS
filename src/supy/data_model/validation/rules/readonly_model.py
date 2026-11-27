@@ -34,6 +34,15 @@ import numpy as np
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefinedType
 
+from ..pipeline.document import (
+    _freeze_mapping_entries,
+    _freeze_sequence_items,
+    _FrozenArraySpec,
+    _materialise_frozen,
+    _ReadOnlyMaterialisingMapping,
+    _ReadOnlyMaterialisingTuple,
+)
+
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
 _PROXY_STATE: dict[int, tuple[BaseModel, dict[str, Any]]] = {}
 _DATACLASS_STATE: dict[int, tuple[Any, dict[str, Any]]] = {}
@@ -76,19 +85,6 @@ _IMMUTABLE_TYPES = (
     BuiltinFunctionType,
     MethodDescriptorType,
 )
-
-
-@dataclass(frozen=True)
-class _FrozenArraySpec:
-    """Immutable byte-backed specification materialised as fresh read-only views."""
-
-    buf: bytes
-    dtype: np.dtype[Any]
-    shape: tuple[int, ...]
-
-    def materialise(self) -> np.ndarray[Any, Any]:
-        """Return a fresh zero-copy read-only NumPy view over immutable bytes."""
-        return np.frombuffer(self.buf, dtype=self.dtype).reshape(self.shape)
 
 
 @dataclass(frozen=True)
@@ -198,7 +194,7 @@ def _freeze_ndarray_spec(value: np.ndarray[Any, Any] | np.void) -> Any:
     """Wrap *value* using immutable backing storage or frozen nested containers."""
     if isinstance(value, np.void):
         if value.dtype.names:
-            return MappingProxyType({
+            return _freeze_mapping_entries({
                 name: _wrap_readonly(deepcopy(value[name]))
                 for name in value.dtype.names
             })
@@ -207,43 +203,20 @@ def _freeze_ndarray_spec(value: np.ndarray[Any, Any] | np.void) -> Any:
         if value.ndim == 0:
             return _wrap_readonly(deepcopy(value.item()))
         return _wrap_readonly(deepcopy(value.tolist()))
-    return _FrozenArraySpec(
-        buf=value.tobytes(),
-        dtype=value.dtype,
-        shape=value.shape,
-    )
-
-
-def _contains_array_spec(value: Any) -> bool:
-    """Return True if *value* is or contains a :class:`_FrozenArraySpec`."""
-    if isinstance(value, _FrozenArraySpec):
-        return True
-    if isinstance(value, Mapping):
-        return any(_contains_array_spec(v) for v in value.values())
-    if isinstance(value, (tuple, frozenset)):
-        return any(_contains_array_spec(item) for item in value)
-    return False
+    return _FrozenArraySpec(value)
 
 
 def _materialise_readonly(value: Any) -> Any:
-    """Materialise any :class:`_FrozenArraySpec` into fresh zero-copy read-only views."""
-    if isinstance(value, _FrozenArraySpec):
-        return value.materialise()
-    if not _contains_array_spec(value):
-        return value
-    if isinstance(value, Mapping):
-        return MappingProxyType({k: _materialise_readonly(v) for k, v in value.items()})
-    if isinstance(value, tuple):
-        return tuple(_materialise_readonly(item) for item in value)
-    return value
+    """Materialise any top-level :class:`_FrozenArraySpec` into a fresh read-only view."""
+    return _materialise_frozen(value)
 
 
 def _wrap_container_or_object(value: Any) -> Any:
     """Wrap containers, dataclasses, NumPy arrays, or reject unsupported mutable objects."""
     if isinstance(value, Mapping):
-        return MappingProxyType({k: _wrap_readonly(v) for k, v in value.items()})
+        return _freeze_mapping_entries({k: _wrap_readonly(v) for k, v in value.items()})
     if isinstance(value, (list, tuple, deque, Sequence)):
-        return tuple(_wrap_readonly(item) for item in value)
+        return _freeze_sequence_items([_wrap_readonly(item) for item in value])
     if isinstance(value, (set, frozenset, AbstractSet)):
         return frozenset(_wrap_readonly(item) for item in value)
     if isinstance(value, (np.ndarray, np.void)):
@@ -263,6 +236,8 @@ def _wrap_readonly(value: Any) -> Any:
             ReadOnlyModelProxy,
             ReadOnlyDataclassProxy,
             _FrozenArraySpec,
+            _ReadOnlyMaterialisingMapping,
+            _ReadOnlyMaterialisingTuple,
             *_IMMUTABLE_TYPES,
         ),
     ):

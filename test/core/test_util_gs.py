@@ -1,11 +1,14 @@
 """Test surface conductance calculation utilities."""
 
+from atmosp import calculate as ac
 from lmfit import Parameters
 from lmfit.model import ModelResult
 import numpy as np
 import pandas as pd
 import pytest
 
+from supy.constants import C2K, CP_AIR
+from supy.util._atm import cal_des_dta
 from supy.util._gs import (
     cal_g_dq,
     cal_g_dq_noah,
@@ -408,6 +411,124 @@ class TestConductanceFittingAndCalibration:
         assert res_dbg.ndata == 12
         for key, val in best_vals.items():
             assert res_dbg.best_values[key] == pytest.approx(val, rel=1e-12)
+
+    def test_calib_g_default_preset_parameters_converges_on_synthetic_data(self):
+        """calib_g(..., prms_init=None) initialises g_dq_base/g_dq_shape and fits cleanly."""
+        n_obs = 48
+        idx = pd.date_range("2023-07-01 06:00", periods=n_obs, freq="h")
+        phase = np.linspace(0.0, 2.0 * np.pi, n_obs, endpoint=False)
+
+        kdown = pd.Series(500.0 + 350.0 * np.sin(phase), index=idx)
+        ta_c = pd.Series(22.0 + 9.0 * np.sin(2.0 * phase + 0.4), index=idx)
+        rh = pd.Series(60.0 + 22.0 * np.cos(3.0 * phase + 0.2), index=idx)
+        pres_hpa = pd.Series(np.full(n_obs, 1013.25), index=idx)
+        pres_pa = pres_hpa * 100.0
+        xsmd = pd.Series(50.0 + 40.0 * np.sin(phase / 2.0 + 0.7), index=idx)
+        lai = pd.Series(3.0 + 1.2 * np.cos(phase + 0.3), index=idx)
+        ser_ra = pd.Series(np.full(n_obs, 50.0), index=idx)
+
+        g_max = 10.0
+        lai_max = 5.0
+        wp_smd = 150.0
+        g_true = (4.0, 90.0, 0.15, 0.72, 23.0, 0.045)
+
+        # Synthesise exact daytime observations matching cal_gs_suews(g_true).
+        gs_true = cal_gs_suews(
+            kdown,
+            ta_c,
+            rh,
+            pres_pa,
+            xsmd,
+            lai,
+            g_true,
+            g_max=g_max,
+            lai_max=lai_max,
+            wp_smd=wp_smd,
+        )
+        rs_true = 1000.0 / gs_true
+        qe = pd.Series(np.full(n_obs, 150.0), index=idx)
+        ta_k = ta_c + C2K
+        gamma = 0.665e-3 * pres_pa
+        des_dta = cal_des_dta(ta_k, pres_pa, dta=1.0)
+        vpd = ac("es", p=pres_pa, T=ta_k) - ac("e", p=pres_pa, T=ta_k, RH=rh)
+        qh = qe * (
+            1.0
+            + (rs_true - 1.27 * CP_AIR * vpd / (gamma * qe))
+            * gamma
+            / (des_dta * ser_ra)
+        )
+
+        # Verify the inverted fluxes reproduce gs_true before calibration.
+        np.testing.assert_allclose(
+            cal_gs_obs(qh, qe, ta_c, rh, pres_pa, ser_ra),
+            gs_true,
+            rtol=1e-10,
+        )
+
+        df_fc = pd.DataFrame(
+            {
+                "qh": qh,
+                "qe": qe,
+                "Tair": ta_c,
+                "RH": rh,
+                "pres": pres_hpa,
+                "kdown": kdown,
+                "xsmd": xsmd,
+                "lai": lai,
+            },
+            index=idx,
+        )
+        # Drop one observation to exercise NaN filtering on the default-prms path.
+        df_fc.loc[idx[-1], "qe"] = np.nan
+        gs_expected = gs_true.iloc[:-1]
+
+        expected_params = {
+            "g_lai",
+            "g_kd",
+            "g_dq_base",
+            "g_dq_shape",
+            "g_ta",
+            "g_smd",
+        }
+        best_vals = calib_g(
+            df_fc,
+            ser_ra,
+            g_max=g_max,
+            lai_max=lai_max,
+            wp_smd=wp_smd,
+            prms_init=None,
+            debug=False,
+        )
+        assert isinstance(best_vals, dict)
+        assert set(best_vals) == expected_params
+
+        res_dbg = calib_g(
+            df_fc,
+            ser_ra,
+            g_max=g_max,
+            lai_max=lai_max,
+            wp_smd=wp_smd,
+            prms_init=None,
+            debug=True,
+        )
+        assert isinstance(res_dbg, ModelResult)
+        assert res_dbg.success
+        assert res_dbg.ndata == n_obs - 1
+        assert set(res_dbg.params) == expected_params
+        assert "g_q1" not in res_dbg.params
+        assert "g_q2" not in res_dbg.params
+
+        for name, val in best_vals.items():
+            prm = res_dbg.params[name]
+            assert prm.min <= val <= prm.max
+            assert res_dbg.best_values[name] == pytest.approx(val, rel=1e-12)
+        assert res_dbg.params["g_dq_base"].min == pytest.approx(0.0)
+        assert res_dbg.params["g_dq_base"].max == pytest.approx(1.0)
+        assert res_dbg.params["g_dq_shape"].min == pytest.approx(0.0)
+        assert res_dbg.params["g_dq_shape"].max == pytest.approx(1.0)
+        assert res_dbg.init_values["g_dq_base"] == pytest.approx(0.1)
+        assert res_dbg.init_values["g_dq_shape"] == pytest.approx(0.7)
+        np.testing.assert_allclose(res_dbg.best_fit, gs_expected, rtol=5e-2)
 
 
 class TestNoahParameterisations:

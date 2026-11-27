@@ -240,7 +240,7 @@ def cal_g_kd(kd, g_kd, kd_max=1200.0):
     ----------
     kd : float
         Incoming solar radiation [W m-2]
-    g2 : float
+    g_kd : float
         Solar radiation-related correction parameter [-]
     kd_max : float, optional
         Maximum incoming solar radiation [W m-2], by default 1200.
@@ -377,14 +377,14 @@ def cal_gs_suews(
 
     # broadcast g_lai – g_smd
     # print('g_cst', g_cst)
-    g_lai, g2, g_dq_base, g_dq_shape, g_ta, g_smd = g_cst
-    # print(g_lai, g2, g_dq_base, g_dq_shape, g_ta, g_smd)
+    g_lai, g_kd, g_dq_base, g_dq_shape, g_ta, g_smd = g_cst
+    # print(g_lai, g_kd, g_dq_base, g_dq_shape, g_ta, g_smd)
     # lai related
     g_lai = cal_g_lai(lai, g_lai, lai_max)
     # print('g_lai', g_lai)
 
     # kdown related
-    g_kd = cal_g_kd(kd, g2)
+    g_kd = cal_g_kd(kd, g_kd)
     # print('g_kd', g_kd)
     # dq related
     ta_k = ta_c + C2K
@@ -461,7 +461,7 @@ def calib_g(
 
         Note:
             Parameters for surface conductance:
-            g_lai (LAI related), g2 (solar radiation related),
+            g_lai (LAI related), g_kd (solar radiation related),
             g_dq_base (humidity related), g_dq_shape (humidity related),
             g_ta (air temperature related),
             g_smd (soil moisture related)
@@ -513,8 +513,8 @@ def calib_g(
         dict_prms_init = {
             "lai": 3.5,
             "kd": 50,
-            "q1": 0.1,
-            "q2": 0.7,
+            "dq_base": 0.1,
+            "dq_shape": 0.7,
             "ta": 25,
             "smd": 0.05,
         }

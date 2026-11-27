@@ -61,6 +61,7 @@ from supy.data_model.configuration import (
     increment_schema_version,
     update_yaml_schema_version,
 )
+from supy.data_model.configuration.migration import get_older_target_warning
 
 
 class TestSchemaVersioning:
@@ -330,6 +331,80 @@ class TestSchemaMigration:
         assert arch["RoofOuterCapFrac"] == {"value": 0.25}
         assert "DHWVesselEmissivity" not in stebbs
         assert migrated["schema_version"] == "2026.4"
+
+    def test_migrate_warns_when_target_version_older_than_current(self):
+        """Explicitly targeting a schema older than CURRENT_SCHEMA_VERSION emits a UserWarning."""
+        migrator = SchemaMigrator()
+
+        # Cross-version migration to an older historical schema warns.
+        cfg_dev17 = {"schema_version": "2026.6.dev17", "name": "site", "sites": []}
+        with pytest.warns(
+            UserWarning,
+            match=rf"Target schema version '2026\.6\.dev18' is older than.*'{CURRENT_SCHEMA_VERSION}'",
+        ) as record:
+            migrated = migrator.migrate(cfg_dev17, to_version="2026.6.dev18")
+        assert migrated["schema_version"] == "2026.6.dev18"
+        assert any("--target-version" in str(item.message) for item in record)
+
+        # Same-version migration pinned to an older historical schema also warns.
+        cfg_dev18 = {"schema_version": "2026.6.dev18", "name": "site", "sites": []}
+        with pytest.warns(
+            UserWarning,
+            match=rf"Target schema version '2026\.6\.dev18' is older than.*'{CURRENT_SCHEMA_VERSION}'",
+        ):
+            same = migrator.migrate(cfg_dev18, to_version="2026.6.dev18")
+        assert same["schema_version"] == "2026.6.dev18"
+
+        # Failed migration (no registered path) raises without emitting the older-target warning.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", UserWarning)
+            with pytest.raises(ValueError, match="No migration path available"):
+                migrator.migrate(
+                    {"schema_version": "2025.12"},
+                    from_version="2025.12",
+                    to_version="2026.1",
+                )
+        assert not [
+            w for w in caught if "older than the current installed schema" in str(w.message)
+        ]
+
+    def test_migrate_silent_when_target_version_omitted_or_current(self):
+        """Omitting to_version or matching CURRENT_SCHEMA_VERSION emits no older-target warning."""
+        migrator = SchemaMigrator()
+        older_cfg = {"schema_version": "2026.6.dev18", "name": "site", "sites": []}
+        current_cfg = {
+            "schema_version": CURRENT_SCHEMA_VERSION,
+            "name": "site",
+            "sites": [],
+        }
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", UserWarning)
+            upgraded_default = migrator.migrate(older_cfg)
+            upgraded_explicit = migrator.migrate(
+                older_cfg, to_version=CURRENT_SCHEMA_VERSION
+            )
+            same_current = migrator.migrate(
+                current_cfg, to_version=CURRENT_SCHEMA_VERSION
+            )
+
+        assert upgraded_default["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert upgraded_explicit["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert same_current["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert not [
+            w for w in caught if "older than the current installed schema" in str(w.message)
+        ]
+
+    def test_get_older_target_warning_edge_cases(self):
+        """Unparseable, current, and future targets return None; older targets warn."""
+        assert get_older_target_warning(CURRENT_SCHEMA_VERSION) is None
+        assert get_older_target_warning("9999.1") is None
+        assert get_older_target_warning("not-a-version") is None
+
+        msg = get_older_target_warning("2026.4")
+        assert msg is not None
+        assert "2026.4" in msg
+        assert CURRENT_SCHEMA_VERSION in msg
 
 
 class TestSchemaVersionUtility:

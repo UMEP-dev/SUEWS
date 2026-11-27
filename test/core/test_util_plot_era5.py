@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from pathlib import Path
 import sys
@@ -57,6 +58,29 @@ def _close_figures():
     """Close all matplotlib figures after each test to prevent resource leaks."""
     yield
     plt.close("all")
+
+
+@pytest.fixture(autouse=True)
+def _restore_supy_logger_level():
+    """Preserve process-wide SuPy logger level across ERA5 helper calls."""
+    supy_logger = logging.getLogger("SuPy")
+    orig_level = supy_logger.level
+    try:
+        yield
+    finally:
+        supy_logger.setLevel(orig_level)
+
+
+@pytest.fixture
+def supy_caplog(caplog):
+    """Capture SuPy logger records even though SuPy defaults to propagate=False."""
+    supy_logger = logging.getLogger("SuPy")
+    original = supy_logger.propagate
+    supy_logger.propagate = True
+    try:
+        yield caplog
+    finally:
+        supy_logger.propagate = original
 
 
 def _make_synthetic_rsl_output(n_times: int = 2) -> pd.DataFrame:
@@ -116,6 +140,22 @@ class TestPlotUtilities:
         np.testing.assert_allclose(line_map["Obs"], expected_obs_median, rtol=1e-12)
         np.testing.assert_allclose(
             line_map["Sim"], expected_obs_median + 5.0, rtol=1e-12
+        )
+        # Verify IQR shading polygons (Q25 = median - 5, Q75 = median + 5 for offsets -10/0/+10).
+        assert len(ax.collections) == 2
+        obs_verts_y = ax.collections[0].get_paths()[0].vertices[:, 1]
+        sim_verts_y = ax.collections[1].get_paths()[0].vertices[:, 1]
+        assert np.min(obs_verts_y) == pytest.approx(
+            np.min(expected_obs_median - 5.0), abs=1e-9
+        )
+        assert np.max(obs_verts_y) == pytest.approx(
+            np.max(expected_obs_median + 5.0), abs=1e-9
+        )
+        assert np.min(sim_verts_y) == pytest.approx(
+            np.min(expected_obs_median), abs=1e-9
+        )
+        assert np.max(sim_verts_y) == pytest.approx(
+            np.max(expected_obs_median + 10.0), abs=1e-9
         )
 
         # Pre-existing ax (fig=None) and pre-existing fig (ax=None) branches.
@@ -180,9 +220,12 @@ class TestPlotUtilities:
 
         grad = gradient_color(["#000000", "#808080", "#FFFFFF"], color_sum=10)
         assert len(grad) == 10
+        assert len(set(grad)) == 10
         assert grad[0] == "#000000"
+        assert grad[5] == "#808080"
         reds = [Hex_to_RGB(c)[1][0] for c in grad]
-        assert reds == sorted(reds)
+        assert all(b > a for a, b in itertools.pairwise(reds))
+        assert reds[-1] > 200
 
         palette = {"red": "#FF0000", "green": "#00FF00", "blue": "#0000FF"}
         fig_sorted = plot_colortable(palette, title="Sorted Palette", sort_colors=True)
@@ -198,9 +241,13 @@ class TestPlotUtilities:
             palette.keys()
         )
 
-    def test_plot_rsl_all_single_injected_and_invalid_var(self, caplog):
+    def test_plot_rsl_all_single_injected_and_invalid_var(self, supy_caplog):
         """plot_rsl plots all 3 profiles, single profiles with fig/ax, and logs bad var."""
         df_rsl = _make_synthetic_rsl_output(n_times=2)
+        expected_z = np.linspace(1.0, 60.0, 30)
+        expected_u0 = 1.0 + 0.1 * expected_z
+        expected_t0 = 20.0 - 0.01 * expected_z
+        expected_q0 = 8.0 - 0.02 * expected_z
 
         # var=None: 3-panel figure for U, T, q.
         fig_all, axes_all = plot_rsl(df_rsl, var=None)
@@ -212,26 +259,49 @@ class TestPlotUtilities:
         assert xlabels[2].startswith("q ")
         assert all(a.get_ylabel() == "z (m)" for a in axes_all)
 
+        # Verify actual plotted profile coordinates and horizontal diagnostic/RSL lines.
+        for ax_panel, expected_x0, expected_diag_z in zip(
+            axes_all, [expected_u0, expected_t0, expected_q0], [10.0, 2.0, 2.0]
+        ):
+            profile_lines = [
+                ln for ln in ax_panel.get_lines() if len(ln.get_xdata()) == 30
+            ]
+            assert len(profile_lines) == 2
+            np.testing.assert_allclose(profile_lines[0].get_ydata(), expected_z)
+            np.testing.assert_allclose(profile_lines[0].get_xdata(), expected_x0)
+            hline_ys = {
+                float(ln.get_ydata()[0])
+                for ln in ax_panel.get_lines()
+                if len(ln.get_ydata()) == 2 and ln.get_ydata()[0] == ln.get_ydata()[1]
+            }
+            assert expected_diag_z in hline_ys
+            assert 25.0 in hline_ys
+
         # Single variable: default, existing ax, existing fig.
         fig_u, ax_u = plot_rsl(df_rsl, var="U")
         assert isinstance(fig_u, plt.Figure)
         assert ax_u.get_xlabel().startswith("U ")
+        assert len(ax_u.get_lines()) == 2
+        np.testing.assert_allclose(ax_u.get_lines()[0].get_xdata(), expected_u0)
+        np.testing.assert_allclose(ax_u.get_lines()[0].get_ydata(), expected_z)
 
         fig_t_in, ax_t_in = plt.subplots()
         fig_t_out, ax_t_out = plot_rsl(df_rsl, var="T", fig=None, ax=ax_t_in)
         assert fig_t_out is fig_t_in
         assert ax_t_out is ax_t_in
+        assert len(ax_t_out.get_lines()) == 2
 
         fig_q_in, _ = plt.subplots()
         fig_q_out, ax_q_out = plot_rsl(df_rsl, var="q", fig=fig_q_in, ax=None)
         assert fig_q_out is fig_q_in
         assert ax_q_out.get_xlabel().startswith("q ")
+        assert len(ax_q_out.get_lines()) == 2
 
         # Invalid variable logs an error and returns None.
-        with caplog.at_level(logging.ERROR, logger="SuPy"):
+        with supy_caplog.at_level(logging.ERROR, logger="SuPy"):
             res_bad = plot_rsl(df_rsl, var="invalid_var")
         assert res_bad is None
-        assert any("invalid_var" in rec.message for rec in caplog.records)
+        assert any("invalid_var" in rec.message for rec in supy_caplog.records)
 
 
 class TestEra5OfflineUtilities:

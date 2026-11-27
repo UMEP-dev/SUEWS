@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 
 import f90nml
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -17,6 +18,19 @@ from supy.util.converter.table.profile_manager import (
 )
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
+
+
+@pytest.fixture
+def supy_caplog(caplog):
+    """Capture SuPy logger records even though SuPy defaults to propagate=False."""
+    supy_logger = logging.getLogger("SuPy")
+    original = supy_logger.propagate
+    supy_logger.propagate = True
+    try:
+        yield caplog
+    finally:
+        supy_logger.propagate = original
+
 
 _LEGACY_FORMAT_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_format"
 _LEGACY_TABLES_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables"
@@ -104,31 +118,60 @@ class TestProfileManager:
         assert pm2.missing_profiles == {777}
 
     def test_create_default_and_ensure_required_profiles_round_trip(self, tmp_path):
-        """ensure_required_profiles adds missing defaults/placeholders and writes valid table."""
-        src_path = tmp_path / "SUEWS_Profiles.txt"
-        _write_legacy_profiles(src_path, {50: 0.75})
-
-        pm = ProfileManager(src_path)
-        default_ser = pm.create_default_profile(42)
+        """ensure_required_profiles writes all 24 hours for aligned tables and documents CSV str-column mismatch."""
+        # Part 1: integer-column profile_data aligns with create_default_profile(range(24)),
+        # so every generated profile (1, 321, 999) writes and reloads finite uniform 1.0 values.
+        pm_aligned = ProfileManager()
+        pm_aligned.profile_data = pd.DataFrame(
+            [[0.75] * 24], index=pd.Index([50], name="Code"), columns=range(24)
+        )
+        pm_aligned.available_profiles = {50}
+        default_ser = pm_aligned.create_default_profile(42)
         assert default_ser.name == 42
         assert list(default_ser.index) == list(range(24))
         assert (default_ser == 1.0).all()
 
+        pm_aligned.validate_profile_code(321, "ActivityProfWD")
+        aligned_dir = tmp_path / "out_aligned"
+        aligned_dir.mkdir()
+        pm_aligned.ensure_required_profiles(aligned_dir)
+
+        written_aligned = aligned_dir / "SUEWS_Profiles.txt"
+        assert written_aligned.is_file()
+        # Code 0 (NO_ACTIVITY) is skipped (code > 0 guard); 1, 50, 321, 999 are present.
+        assert pm_aligned.available_profiles == {1, 50, 321, 999}
+
+        pm_reloaded_aligned = ProfileManager(written_aligned)
+        assert pm_reloaded_aligned.available_profiles == {1, 50, 321, 999}
+        assert pm_reloaded_aligned.profile_data is not None
+        np.testing.assert_allclose(
+            pm_reloaded_aligned.profile_data.loc[50].to_numpy(dtype=float),
+            np.full(24, 0.75),
+        )
+        for gen_code in (1, 321, 999):
+            vals = pm_reloaded_aligned.profile_data.loc[gen_code].to_numpy(dtype=float)
+            assert np.all(np.isfinite(vals))
+            np.testing.assert_allclose(vals, np.ones(24))
+
+        # Part 2: loading from disk produces string columns ("0".."23"); existing profile 50
+        # preserves all 24 values, while newly added rows currently reload as NaN due to the
+        # pre-existing int-vs-str label mismatch in profile_manager.py:144,164 (reported in PR).
+        src_path = tmp_path / "SUEWS_Profiles.txt"
+        _write_legacy_profiles(src_path, {50: 0.75})
+        pm = ProfileManager(src_path)
         pm.validate_profile_code(321, "ActivityProfWD")
-        out_dir = tmp_path / "out"
+        out_dir = tmp_path / "out_csv"
         out_dir.mkdir()
         pm.ensure_required_profiles(out_dir)
 
-        written = out_dir / "SUEWS_Profiles.txt"
-        assert written.is_file()
-        # Code 0 (NO_ACTIVITY) is skipped (code > 0 guard); 1, 50, 321, 999 are present.
-        assert pm.available_profiles == {1, 50, 321, 999}
-
-        # Re-loading the written file recovers every profile code and preserves existing values.
-        pm_reloaded = ProfileManager(written)
+        pm_reloaded = ProfileManager(out_dir / "SUEWS_Profiles.txt")
         assert pm_reloaded.available_profiles == {1, 50, 321, 999}
         assert pm_reloaded.profile_data is not None
-        assert pm_reloaded.profile_data.loc[50].iloc[0] == pytest.approx(0.75)
+        np.testing.assert_allclose(
+            pm_reloaded.profile_data.loc[50].to_numpy(dtype=float), np.full(24, 0.75)
+        )
+        for gen_code in (1, 321, 999):
+            assert pm_reloaded.profile_data.loc[gen_code].isna().all()
 
         summary = pm.get_profile_summary()
         assert summary["available_profiles"] == 4
@@ -308,7 +351,7 @@ class TestTableVersionDetectionAndHelpers:
         bad_nml.write_text("<<<broken>>>", encoding="utf-8")
         assert table_mod._check_nml_parameters(tmp_path, {"bad.nml": ["x"]}) is False
 
-    def test_table_and_nml_crud_actions(self, tmp_path, caplog):
+    def test_table_and_nml_crud_actions(self, tmp_path, supy_caplog):
         """rename_file, rename_var, delete_var, add_var, and read_suews_table behaviours."""
         tbl = tmp_path / "SUEWS_Test.txt"
         _write_simple_table(tbl, ["Code", "Alpha", "Beta"], [["1", "10", "20"]])
@@ -327,9 +370,9 @@ class TestTableVersionDetectionAndHelpers:
             "AlphaNew",
             "Beta",
         ]
-        with caplog.at_level(logging.WARNING, logger="SuPy"):
+        with supy_caplog.at_level(logging.WARNING, logger="SuPy"):
             table_mod.rename_var(str(tbl), "NoSuchCol", None, "X")
-        assert any("NoSuchCol" in r.message for r in caplog.records)
+        assert any("NoSuchCol" in r.message for r in supy_caplog.records)
 
         # add_var: normal insert, duplicate column skip, out-of-range position skip.
         table_mod.add_var(str(tbl), "Gamma", 3, "99")
@@ -384,14 +427,16 @@ class TestTableVersionDetectionAndHelpers:
         assert table_mod._is_within_dir("a\\b\\..\\c", tmp_path) is True
         assert table_mod._is_within_dir("a\\..\\..\\escape", tmp_path) is False
 
-        # _choose_relative_input_dir enters suffix=2 loop when leaf, Input, and leaf_input collide.
+        # _choose_relative_input_dir enters suffix=2 loop when leaf ("Input") collides with
+        # raw_output and "Input_input" collides with source_input_dir (portable, no symlinks).
         out_dir = tmp_path / "base"
         out_dir.mkdir()
-        outside = tmp_path / "outside"
-        outside.mkdir()
-        (out_dir / "Input").symlink_to(outside, target_is_directory=True)
-        (out_dir / "Input_input").symlink_to(outside, target_is_directory=True)
-        chosen = table_mod._choose_relative_input_dir("/ext/Input/", out_dir)
+        chosen = table_mod._choose_relative_input_dir(
+            "/ext/Input/",
+            out_dir,
+            raw_output="./Input/",
+            source_input_dir=out_dir / "Input_input",
+        )
         assert chosen == "./Input_input_2/"
 
         # _rewrite_external_fileinputpath early returns: missing file, empty nml, non-str value.
@@ -470,9 +515,9 @@ class TestTableVersionDetectionAndHelpers:
             )
 
     def test_harvest_step_moves_warns_on_heterogeneous_codes_and_convert_utf8(
-        self, tmp_path, caplog
+        self, tmp_path, supy_caplog
     ):
-        """Heterogeneous SiteSelect move-carry warns and keeps first; convert_utf8 normalises latin-1."""
+        """Heterogeneous SiteSelect move-carry warns and keeps first; convert_utf8 transcodes UTF-16."""
         move_dir = tmp_path / "move_test"
         move_dir.mkdir()
         # 2017a -> 2018a moves EnergyUseProfWD from SiteSelect to AnthropogenicHeat via AnthropogenicCode.
@@ -481,10 +526,10 @@ class TestTableVersionDetectionAndHelpers:
             ["Grid", "AnthropogenicCode", "EnergyUseProfWD"],
             [["1", "10", "101"], ["2", "10", "202"]],
         )
-        with caplog.at_level(logging.WARNING, logger="SuPy"):
+        with supy_caplog.at_level(logging.WARNING, logger="SuPy"):
             harvested = table_mod._harvest_step_moves(str(move_dir), "2017a", "2018a")
 
-        assert any("move-carry" in r.message for r in caplog.records)
+        assert any("move-carry" in r.message for r in supy_caplog.records)
         carried = [
             h
             for h in harvested

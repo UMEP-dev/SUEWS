@@ -31,6 +31,18 @@ def _close_figures():
     plt.close("all")
 
 
+@pytest.fixture
+def supy_caplog(caplog):
+    """Capture SuPy logger records even though SuPy defaults to propagate=False."""
+    supy_logger = logging.getLogger("SuPy")
+    original = supy_logger.propagate
+    supy_logger.propagate = True
+    try:
+        yield caplog
+    finally:
+        supy_logger.propagate = original
+
+
 def _make_neutral_series(
     n_neutral: int = 20,
     z_meas: float = 30.0,
@@ -118,11 +130,11 @@ class TestRoughnessUtilities:
         )
 
     def test_cal_neutral_logs_when_displacement_exceeds_measurement_height(
-        self, caplog
+        self, supy_caplog
     ):
         """When 0.7*h_sfc >= z_meas, cal_neutral logs an exception warning."""
         data = _make_neutral_series(n_neutral=4, z_meas=10.0)
-        with caplog.at_level(logging.ERROR, logger="SuPy"):
+        with supy_caplog.at_level(logging.ERROR, logger="SuPy"):
             ser_ws_n, ser_ustar_n = cal_neutral(
                 data["qh"],
                 data["ustar"],
@@ -136,7 +148,7 @@ class TestRoughnessUtilities:
 
         assert any(
             "vegetation height is greater than measuring height" in rec.message
-            for rec in caplog.records
+            for rec in supy_caplog.records
         )
         assert len(ser_ws_n) == len(ser_ustar_n)
 

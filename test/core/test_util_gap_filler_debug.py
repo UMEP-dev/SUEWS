@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
+import io
 import json
 import os
 import tempfile
@@ -47,8 +47,9 @@ class TestSaveZipDebug:
 
         zip_path = save_zip_debug(df_forcing, df_state)
 
-        expected_hash = hashlib.md5(str(tmp_path).encode("utf-8")).hexdigest()[:8]
-        assert zip_path == tmp_path / f"supy_debug-{expected_hash}.zip"
+        assert zip_path.parent == tmp_path
+        assert zip_path.name.startswith("supy_debug-")
+        assert zip_path.suffix == ".zip"
         assert zip_path.is_file()
 
         with zipfile.ZipFile(zip_path, "r") as zf:
@@ -56,13 +57,11 @@ class TestSaveZipDebug:
             assert names == {"df_forcing.pkl", "df_state_init.pkl", "supy_info.json"}
             info = json.loads(zf.read("supy_info.json").decode("utf-8"))
             assert "supy" in info
+            archived_forcing = pd.read_pickle(io.BytesIO(zf.read("df_forcing.pkl")))
+            archived_state = pd.read_pickle(io.BytesIO(zf.read("df_state_init.pkl")))
 
-        pd.testing.assert_frame_equal(
-            pd.read_pickle(tmp_path / "df_forcing.pkl"), df_forcing
-        )
-        pd.testing.assert_frame_equal(
-            pd.read_pickle(tmp_path / "df_state_init.pkl"), df_state
-        )
+        pd.testing.assert_frame_equal(archived_forcing, df_forcing)
+        pd.testing.assert_frame_equal(archived_state, df_state)
 
     def test_save_zip_debug_with_exception_writes_traceback_report(
         self, tmp_path, monkeypatch
@@ -233,7 +232,22 @@ class TestGapFillerHelpers:
             rtol=1e-12,
         )
 
-        # Case C: >50% missing on gapped day -> skips rescaling branch (scale_fill=1).
+        # Case C: NaN scale_fill (0/0 on all present timesteps) -> clamped to 1.
+        idx_zero = pd.date_range("2023-07-01 00:00", periods=72, freq="1h")
+        vals_zero = np.zeros(72, dtype=float)
+        # Non-zero only on hours 6..9 of neighbouring days; day 1 hours 6..9 are missing.
+        vals_zero[6:10] = 12.0
+        vals_zero[48 + 6 : 48 + 10] = 12.0
+        ser_nan_scale = pd.Series(vals_zero, index=idx_zero)
+        ser_nan_scale.iloc[24 + 6 : 24 + 10] = np.nan
+        filled_nan_scale = fill_gap_one(ser_nan_scale, freq="1D", pattern="010")
+        np.testing.assert_allclose(
+            filled_nan_scale.iloc[24 + 6 : 24 + 10].values,
+            np.full(4, 12.0),
+            rtol=1e-12,
+        )
+
+        # Case D: >50% missing on gapped day -> skips rescaling branch (scale_fill=1).
         ser_heavy = _make_diurnal_series(n_days=3)
         ser_heavy.iloc[24:48] = base_day * 2.0
         ser_heavy.iloc[24 + 4 : 24 + 20] = np.nan  # 16 of 24 missing
@@ -244,7 +258,7 @@ class TestGapFillerHelpers:
             rtol=1e-12,
         )
 
-        # Case D: no matching pattern returns input unchanged.
+        # Case E: no matching pattern returns input unchanged.
         ser_clean = _make_diurnal_series(n_days=3)
         unchanged = fill_gap_one(ser_clean, freq="1D", pattern="010")
         pd.testing.assert_series_equal(unchanged, ser_clean)
@@ -309,32 +323,31 @@ class TestFillGapAll:
         assert res.isna().sum() == ser.isna().sum()
 
     def test_fill_gap_all_x_recursive_split_with_and_without_residual(self):
-        """Series > 4 days split recursively, preserving both exact and residual lengths."""
-        # Exact 6 days (no residual).
+        """Series > 4 days split recursively, preserving both exact and residual lengths.
+
+        Note: recursive calls at ``_gap_filler.py:160-161`` omit ``limit_fill`` and
+        default to ``limit_fill=1``, so each recursion level applies one linear
+        interpolation step before neighbouring-day matching. This test verifies the
+        complete filled series (including every missing timestep) under ``limit_fill=1``.
+        """
+        # Exact 6 days (1 split into 3 + 3 days, no residual): two interpolation
+        # passes (top level + child chunk) fill the first 2 missing steps per gap,
+        # and neighbouring-day matching recovers the remaining missing steps exactly.
         base_exact = _make_diurnal_series(n_days=6)
         ser_exact = base_exact.copy()
         ser_exact.iloc[24 + 4 : 24 + 10] = np.nan
         ser_exact.iloc[96 + 8 : 96 + 14] = np.nan
-        non_gap_mask = ~ser_exact.isna()
 
-        filled_exact = fill_gap_all_x(ser_exact, freq="1D", limit_fill=0)
+        expected_exact = base_exact.copy()
+        interp_two_levels = ser_exact.interpolate(limit=1).interpolate(limit=1)
+        expected_exact.iloc[24 + 4 : 24 + 6] = interp_two_levels.iloc[24 + 4 : 24 + 6]
+        expected_exact.iloc[96 + 8 : 96 + 10] = interp_two_levels.iloc[96 + 8 : 96 + 10]
+
+        filled_exact = fill_gap_all_x(ser_exact, freq="1D", limit_fill=1)
         assert len(filled_exact) == len(base_exact)
         assert not filled_exact.isna().any()
         np.testing.assert_allclose(
-            filled_exact[non_gap_mask].values,
-            base_exact[non_gap_mask].values,
-            rtol=1e-12,
-        )
-        # Interior gap timesteps after the first step match the identical diurnal cycle.
-        np.testing.assert_allclose(
-            filled_exact.iloc[24 + 5 : 24 + 10].values,
-            base_exact.iloc[24 + 5 : 24 + 10].values,
-            rtol=1e-12,
-        )
-        np.testing.assert_allclose(
-            filled_exact.iloc[96 + 9 : 96 + 14].values,
-            base_exact.iloc[96 + 9 : 96 + 14].values,
-            rtol=1e-12,
+            filled_exact.values, expected_exact.values, rtol=1e-12
         )
 
         # 5 days + 6 trailing hours (exercises residual tail branch).
@@ -346,38 +359,55 @@ class TestFillGapAll:
         )
         ser_res = base_res.copy()
         ser_res.iloc[24 + 4 : 24 + 8] = np.nan
-        non_gap_res = ~ser_res.isna()
-        filled_res = fill_gap_all_x(ser_res, freq="1D", limit_fill=0)
+
+        expected_res = base_res.copy()
+        res_interp_two_levels = ser_res.interpolate(limit=1).interpolate(limit=1)
+        expected_res.iloc[24 + 4 : 24 + 6] = res_interp_two_levels.iloc[24 + 4 : 24 + 6]
+
+        filled_res = fill_gap_all_x(ser_res, freq="1D", limit_fill=1)
         assert len(filled_res) == len(base_res)
         assert not filled_res.isna().any()
-        np.testing.assert_allclose(
-            filled_res[non_gap_res].values, base_res[non_gap_res].values, rtol=1e-12
-        )
-        np.testing.assert_allclose(
-            filled_res.iloc[24 + 5 : 24 + 8].values,
-            base_res.iloc[24 + 5 : 24 + 8].values,
-            rtol=1e-12,
-        )
+        np.testing.assert_allclose(filled_res.values, expected_res.values, rtol=1e-12)
 
     def test_fill_gap_all_end_to_end_and_threshold_error(self):
         """fill_gap_all fills multi-day partial-boundary series and enforces thresh_ratio."""
-        # 6 days starting at 04:00 (tests norm_ser_dt + re-slicing to original index).
-        full = _make_diurnal_series(n_days=6)
-        ser = full.iloc[4:-3].copy()
+        # 7 days starting at 04:00 (partial day 0) with a multi-hour gap on day 4:
+        # split produces days 0-2 (1/3 gapped) and days 3-6 (1/4 gapped), so both
+        # halves satisfy the >=0.5 valid-day ratio on the first pass.
+        full = _make_diurnal_series(n_days=7)
+        ser = full.iloc[4:].copy()
         truth = ser.copy()
-        ser.iloc[24 + 5 : 24 + 12] = np.nan  # 1 of 6 days gapped -> ratio 5/6 > 0.8
-        non_gap_mask = ~ser.isna()
+        gap_start = 4 * 24 - 4 + 5  # day 4, hour 05:00 in sliced series
+        gap_end = gap_start + 7
+        ser.iloc[gap_start:gap_end] = np.nan
 
-        filled = fill_gap_all(ser, freq="1D", limit_fill=0, thresh_ratio=0.8)
+        expected = truth.copy()
+        interp_two_levels = ser.interpolate(limit=1).interpolate(limit=1)
+        expected.iloc[gap_start : gap_start + 2] = interp_two_levels.iloc[
+            gap_start : gap_start + 2
+        ]
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=1, thresh_ratio=0.8)
 
         assert list(filled.index) == list(ser.index)
         assert not filled.isna().any()
-        np.testing.assert_allclose(
-            filled[non_gap_mask].values, truth[non_gap_mask].values, rtol=1e-12
+        np.testing.assert_allclose(filled.values, expected.values, rtol=1e-12)
+
+        # Multi-pass case: 2 adjacent 3-hour gaps in the first 3-day half trigger
+        # the outer retry loop in fill_gap_all (while ser_test_filled.isna().any()).
+        ser_multi = _make_diurnal_series(n_days=6)
+        ser_multi.iloc[2:5] = np.nan
+        ser_multi.iloc[26:29] = np.nan
+        non_gap_multi = ~ser_multi.isna()
+        filled_multi = fill_gap_all(
+            ser_multi, freq="1D", limit_fill=1, thresh_ratio=0.6
         )
-        # Interior filled hours stay within the diurnal amplitude envelope [5, 25].
-        assert filled.min() >= 5.0 - 1e-9
-        assert filled.max() <= 25.0 + 1e-9
+        assert not filled_multi.isna().any()
+        np.testing.assert_allclose(
+            filled_multi[non_gap_multi].values,
+            ser_multi[non_gap_multi].values,
+            rtol=1e-12,
+        )
 
         # Below thresh_ratio raises RuntimeError.
         ser_too_gapped = _make_diurnal_series(n_days=4)

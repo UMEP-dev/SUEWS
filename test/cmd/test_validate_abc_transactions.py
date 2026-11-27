@@ -102,10 +102,12 @@ def _invoke_standalone_click(
     ``Aborted!`` handling match standalone CLI execution without spawning a
     subprocess.
     """
-    from supy.cmd.suews_cli import cli as suews_cli
-    from supy.cmd.validate_config import cli as standalone_cli
+    from rich.console import Console
 
-    command = standalone_cli if route == "suews-validate" else suews_cli
+    from supy.cmd import validate_config as validate_config_mod
+    from supy.cmd.suews_cli import cli as suews_cli
+
+    command = validate_config_mod.cli if route == "suews-validate" else suews_cli
     argv = list(map(str, args))
     if route == "suews":
         argv = ["validate", *argv]
@@ -123,6 +125,7 @@ def _invoke_standalone_click(
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     old_argv = sys.argv
+    old_console = validate_config_mod.console
     saved_env: dict[str, str | None] = {}
     for key in unset_env:
         saved_env[key] = os.environ.get(key)
@@ -138,6 +141,7 @@ def _invoke_standalone_click(
         sys.stdout = out_stream
         sys.stderr = err_stream
         sys.argv = [route, *argv]
+        validate_config_mod.console = Console()
         try:
             command.main(args=argv, prog_name=route, standalone_mode=True)
         except SystemExit as exc:
@@ -150,6 +154,7 @@ def _invoke_standalone_click(
     finally:
         out_stream.flush()
         err_stream.flush()
+        validate_config_mod.console = old_console
         sys.stdout = old_stdout
         sys.stderr = old_stderr
         sys.argv = old_argv

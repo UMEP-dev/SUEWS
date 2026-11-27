@@ -60,18 +60,51 @@ def _invoke_validate_inprocess(
     *,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
-    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> _CliResult:
-    """Invoke ``suews validate`` or ``suews-validate`` Click entry point in-process."""
-    from supy.cmd.suews_cli import cli as suews_cli
-    from supy.cmd.validate_config import cli as standalone_cli
+    """Invoke ``suews validate`` or ``suews-validate`` Click entry point in-process.
 
-    command = standalone_cli if route == "suews-validate" else suews_cli
+    Rebuilds ``validate_config.console`` inside the isolated environment so a
+    cached ``COLUMNS`` or ``FORCE_COLOR`` from before module import cannot leak
+    into in-process Rich rendering.
+    """
+    from rich.console import Console
+
+    from supy.cmd import validate_config as validate_config_mod
+    from supy.cmd.suews_cli import cli as suews_cli
+
+    command = validate_config_mod.cli if route == "suews-validate" else suews_cli
     full_args = list(args) if route == "suews-validate" else ["validate", *args]
     runner = _make_cli_runner()
-    if cwd is not None and monkeypatch is not None:
-        monkeypatch.chdir(cwd)
-    result = runner.invoke(command, full_args, env=env)
+
+    saved_env: dict[str, str | None] = {}
+    old_console = validate_config_mod.console
+    old_cwd = Path.cwd()
+    try:
+        if env is not None:
+            for key in {"FORCE_COLOR", "CLICOLOR_FORCE"}:
+                saved_env[key] = os.environ.get(key)
+                if key in env:
+                    os.environ[key] = env[key]
+                else:
+                    os.environ.pop(key, None)
+            for key in ("COLUMNS", "NO_COLOR"):
+                if key in env:
+                    saved_env[key] = os.environ.get(key)
+                    os.environ[key] = env[key]
+        validate_config_mod.console = Console()
+        if cwd is not None:
+            os.chdir(cwd)
+        result = runner.invoke(command, full_args, env=env)
+    finally:
+        validate_config_mod.console = old_console
+        if cwd is not None:
+            os.chdir(old_cwd)
+        for key, prev in saved_env.items():
+            if prev is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prev
+
     return _CliResult(
         returncode=result.exit_code,
         stdout=result.stdout,
@@ -328,7 +361,6 @@ def test_site_longitude_normal_pipeline(
             route,
             [str(path), "--pipeline", pipeline, "--mode", mode, "--format", "json"],
             cwd=tmp_path,
-            monkeypatch=monkeypatch,
         )
         exit_code = result.returncode
         diagnostics = result.stdout + result.stderr
@@ -777,9 +809,7 @@ def _source_file_snapshot(root):
     return snapshot
 
 
-def _run_public_validation(
-    path, pipeline, out_format, cwd, *, dry_run=False, monkeypatch=None
-):
+def _run_public_validation(path, pipeline, out_format, cwd, *, dry_run=False):
     args = [str(path), "-p", pipeline]
     if dry_run:
         args.append("--dry-run")
@@ -792,9 +822,7 @@ def _run_public_validation(
         if k not in {"FORCE_COLOR", "CLICOLOR_FORCE"}
     }
     env.update({"COLUMNS": "240", "NO_COLOR": "1"})
-    return _invoke_validate_inprocess(
-        "suews", args, cwd=cwd, env=env, monkeypatch=monkeypatch
-    )
+    return _invoke_validate_inprocess("suews", args, cwd=cwd, env=env)
 
 
 def _run_installed_validate_subprocess(route, args, cwd):
@@ -864,7 +892,7 @@ def test_installed_validate_cli_subprocess_smoke(
 @pytest.mark.parametrize("out_format", [pytest.param(None, id="default"), "json"])
 @pytest.mark.parametrize("case", ["valid", "bad-tstep", "unknown-property"])
 def test_public_validate_dry_run_reports_field_reason_without_writes(
-    tmp_path, monkeypatch, public_validator_sample, pipeline, out_format, case
+    tmp_path, public_validator_sample, pipeline, out_format, case
 ):
     """Exercise the public command in-process, including its ordinary renderer."""
     path = public_validator_sample
@@ -888,7 +916,7 @@ def test_public_validate_dry_run_reports_field_reason_without_writes(
     before = _source_file_snapshot(tmp_path)
     entries_before = set(tmp_path.rglob("*"))
     result = _run_public_validation(
-        path, pipeline, out_format, tmp_path, dry_run=True, monkeypatch=monkeypatch,
+        path, pipeline, out_format, tmp_path, dry_run=True,
     )
     valid = case == "valid"
     assert result.returncode == (0 if valid else 1), result.stdout + result.stderr
@@ -941,14 +969,12 @@ def test_public_validate_dry_run_reports_field_reason_without_writes(
 @pytest.mark.parametrize("pipeline", ["C", "ABC"])
 @pytest.mark.parametrize("out_format", [pytest.param(None, id="default"), "json"])
 def test_public_validate_normal_sample_preserves_sources(
-    tmp_path, monkeypatch, public_validator_sample, pipeline, out_format
+    tmp_path, public_validator_sample, pipeline, out_format
 ):
     """The dry-run control must also be valid with real config-relative forcing."""
     path = public_validator_sample
     before = _source_file_snapshot(tmp_path)
-    result = _run_public_validation(
-        path, pipeline, out_format, tmp_path, monkeypatch=monkeypatch
-    )
+    result = _run_public_validation(path, pipeline, out_format, tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Traceback" not in result.stdout + result.stderr
     after = _source_file_snapshot(tmp_path)

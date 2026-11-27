@@ -171,9 +171,9 @@ or unit.
 | Configuration | `src/yaml_config.rs`, `src/field_renames.rs`, `src/config.rs` | Resolved input, aliases, required paths and option conditions |
 | Parameter transport | `src/*_prm.rs`, `src/bioco2.rs`, `src/conductance.rs`, `src/soil.rs`, `src/lai.rs`, `src/water_dist.rs`, corresponding `c_api/` files | Field order, nested offsets and unpack destination |
 | Site and orchestration | `src/suews_site.rs`, `src/sim.rs`, `src/timer.rs`, `c_api/driver.f95` | Member table of contents, dimensions, call lifetime and diagnostics |
-| State and restart | `src/*_state.rs`, `src/suews_state_block.rs`, `src/checkpoint.rs`, `src/core.rs`, `src/atm.rs`, `src/solar.rs`, `src/phenology.rs`, `src/roughness.rs`, `src/snow.rs`, `src/anthroemis.rs`, `src/flag.rs` | Full member set, timer continuity and restart compatibility |
+| State and restart | `src/*_state.rs`, `src/checkpoint.rs`, `src/core.rs`, `src/atm.rs`, `src/solar.rs`, `src/phenology.rs`, `src/roughness.rs`, `src/snow.rs`, `src/anthroemis.rs`, `src/flag.rs` | Full member set, timer continuity and restart compatibility |
 | Forcing | `src/forcing.rs`, `src/forcing_io.rs`, `src/forcing_time.rs` | Columns, time, units, optional values and interpolation |
-| Outputs | `src/output_line.rs`, `src/output_block.rs`, `src/output_io.rs` | Widths, names, group order, dimensions and memory layout |
+| Outputs | `src/output_line.rs`, `src/output_io.rs` | Widths, names, group order, dimensions and memory layout |
 | Shared representation | `src/codec.rs`, `src/ffi.rs`, `src/error.rs`, `c_api/` | Length/version checks, unsafe preconditions and error transfer |
 | Build and packaging | `build.rs`, `Cargo.toml`, `pyproject.toml` | Feature-specific sources, native linking and extension ABI |
 

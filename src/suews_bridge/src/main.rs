@@ -74,9 +74,7 @@ use suews_bridge::{
     ohm_prm_to_map, ohm_prm_to_values_payload, ohm_state_default_from_fortran,
     ohm_state_field_names, ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version,
     ohm_state_schema_version_runtime, ohm_state_to_map, ohm_state_to_values_payload,
-    output_block_default_from_fortran, output_block_field_names, output_block_schema,
-    output_block_schema_info, output_block_schema_version, output_block_schema_version_runtime,
-    output_block_to_rows_map, output_block_to_values_payload, output_line_default_from_fortran,
+    output_line_default_from_fortran,
     output_line_schema, output_line_schema_info, output_line_schema_version,
     output_line_schema_version_runtime, output_line_to_map, output_line_to_values_payload,
     phenology_state_default_from_fortran, phenology_state_schema, phenology_state_schema_info,
@@ -462,11 +460,6 @@ enum SchemaOutputType {
         #[command(subcommand)]
         action: StandardSchemaAction,
     },
-    /// output_block.
-    Block {
-        #[command(subcommand)]
-        action: StandardSchemaAction,
-    },
     /// error_entry.
     ErrorEntry {
         #[command(subcommand)]
@@ -573,12 +566,6 @@ enum FlatCommand {
     OutputLineSampleJson,
     /// Print sample output_line as JSON ordered values payload.
     OutputLineSampleValuesJson,
-    /// Print output_block schema as JSON for programmatic tooling.
-    OutputBlockSchemaJson,
-    /// Print sample output_block as JSON state payload.
-    OutputBlockSampleJson,
-    /// Print sample output_block as JSON ordered values payload with dims.
-    OutputBlockSampleValuesJson,
     /// Print error_entry schema as JSON for programmatic tooling.
     ErrorEntrySchemaJson,
     /// Print sample error_entry as JSON state payload.
@@ -956,7 +943,6 @@ fn run_schema_param(command: SchemaParamType) -> Result<(), String> {
 fn run_schema_output(command: SchemaOutputType) -> Result<(), String> {
     match command {
         SchemaOutputType::Line { action } => handle_simple_schema!(action, OutputLine),
-        SchemaOutputType::Block { action } => handle_simple_schema!(action, OutputBlock),
         SchemaOutputType::ErrorEntry { action } => handle_simple_schema!(action, ErrorEntry),
         SchemaOutputType::ErrorState { action } => handle_simple_schema!(action, ErrorState),
     }
@@ -1348,49 +1334,6 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": output_line_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OutputBlockSchemaJson => {
-            let schema = output_block_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": output_block_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-                "allocatable_dims": schema.allocatable_dims,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OutputBlockSampleJson => {
-            let flat_len = output_block_schema().map_err(|e| e.to_string())?;
-            let state = output_block_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload_values = output_block_to_values_payload(&state);
-            let rows_map = output_block_to_rows_map(&state).map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": output_block_schema_version(),
-                "schema_version_runtime": output_block_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "fields": output_block_field_names(),
-                "state": rows_map,
-                "dims": payload_values.dims,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OutputBlockSampleValuesJson => {
-            let state = output_block_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = output_block_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": output_block_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-                "dims": payload.dims,
             });
             let text = serde_json::to_string_pretty(&out)
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
@@ -1970,7 +1913,6 @@ mod tests {
 
     // --- Output group ---
     test_simple_schema_all!(output_line, Output, SchemaOutputType, Line);
-    test_simple_schema_all!(output_block, Output, SchemaOutputType, Block);
     test_simple_schema_all!(error_entry, Output, SchemaOutputType, ErrorEntry);
     test_simple_schema_all!(error_state, Output, SchemaOutputType, ErrorState);
 }

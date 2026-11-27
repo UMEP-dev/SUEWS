@@ -146,7 +146,6 @@ fn main() {
         manifest_dir.join("c_api/stebbs_prm.f95"),
         manifest_dir.join("c_api/stebbs_state.f95"),
         manifest_dir.join("c_api/output_line.f95"),
-        manifest_dir.join("c_api/output_block.f95"),
         manifest_dir.join("c_api/error_entry.f95"),
         manifest_dir.join("c_api/error_state.f95"),
         manifest_dir.join("c_api/surf_store.f95"),

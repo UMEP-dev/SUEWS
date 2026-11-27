@@ -65,15 +65,15 @@ def test_generated_fortran_has_zero_implicitly_saved_locals() -> None:
     assert hits == [], f"unexpected implicit SAVE hits in generated observer: {hits}"
 
 
-def test_manifest_classification_covers_all_49_types() -> None:
-    """All 49 bridge-manifest types are parsed, classified, and audited."""
+def test_manifest_classification_covers_all_47_types() -> None:
+    """All 47 bridge-manifest types are parsed, classified, and audited."""
     _, types_by_lower = gen.load_kernel_types(gen.KERNEL_SRC_DIR)
     manifest_entries, leaves_by_type = gen.audit_manifest_and_inventory(
         gen.MANIFEST_PATH,
         types_by_lower,
         gen.CAPI_DIR,
     )
-    assert len(manifest_entries) == 49
+    assert len(manifest_entries) == 47
     assert set(leaves_by_type) == (
         set(gen.DIRECT_UNPACK_SPECS)
         | set(gen.DRIVER_PRIVATE_UNPACK_SPECS)
@@ -82,7 +82,7 @@ def test_manifest_classification_covers_all_49_types() -> None:
     assert len(gen.DIRECT_UNPACK_SPECS) == 30
     assert len(gen.NESTED_IN_PARENT_SPECS) == 8
     assert len(gen.DRIVER_PRIVATE_UNPACK_SPECS) == 4
-    assert len(gen.NON_UNPACKED_SPECS) == 7
+    assert len(gen.NON_UNPACKED_SPECS) == 5
 
 
 def test_parser_handles_valid_kernel_syntax_features() -> None:

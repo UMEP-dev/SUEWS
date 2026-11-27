@@ -67,7 +67,7 @@ pub struct ValuesPayload {
 }
 
 /// Per-field axis lengths for allocatable / variable-dimension payloads
-/// (for example `hydro_state`, `heat_state`, `ehc_prm`, `output_block`).
+/// (for example `hydro_state`, `heat_state`, `ehc_prm`).
 pub type PayloadDims = BTreeMap<String, Vec<usize>>;
 
 /// Versioned flat `f64` payload augmented with runtime dimensions for
@@ -116,7 +116,7 @@ pub trait StateCodec: Sized {
 }
 
 /// JSON nested-payload codec for composite containers (`SuewsSite`,
-/// `SuewsState`, `SuewsStateBlock`, `SuewsDebug`) that hold heterogeneous
+/// `SuewsState`, `SuewsDebug`) that hold heterogeneous
 /// child members rather than a single fixed flat slice.
 pub trait CompositeCodec: Sized {
     /// Serialise this composite container into its versioned nested JSON value.

@@ -4,7 +4,7 @@
 Parses canonical Fortran kernel ``TYPE`` declarations directly from
 ``src/suews/src/suews_type_*.f95`` and ``src/suews/src/suews_ctrl_type.f95``,
 resolves symbolic array-bound ``PARAMETER`` constants from kernel sources,
-verifies static coverage across all 49 bridged types in
+verifies static coverage across all 47 bridged types in
 ``src/suews_bridge/bridge-manifest.json``, and emits two deterministic,
 ASCII-only test artefacts outside ``src/suews_bridge/c_api/``:
 
@@ -548,7 +548,7 @@ DRIVER_PRIVATE_UNPACK_SPECS: dict[str, str] = {
     ),
 }
 
-# 7 manifest types that have no Fortran ``*_unpack`` routine because they are
+# 5 manifest types that have no Fortran ``*_unpack`` routine because they are
 # output-only, error-output-only, raw-matrix forcing, or Rust-side composites.
 NON_UNPACKED_SPECS: dict[str, str] = {
     "error_entry": (
@@ -563,10 +563,6 @@ NON_UNPACKED_SPECS: dict[str, str] = {
         "Single-timestep output row written by kernel and packed output-only; "
         "no unpack entry point (gh#1849, gh#2096)."
     ),
-    "output_block": (
-        "Multi-timestep output matrix block written directly by kernel; "
-        "no unpack entry point (gh#1849, gh#2096)."
-    ),
     "suews_debug": (
         "Diagnostic container of 15 SUEWS_STATE snapshots; Rust CompositeCodec "
         "only with no c_api unpack routine (gh#2096)."
@@ -574,10 +570,6 @@ NON_UNPACKED_SPECS: dict[str, str] = {
     "suews_forcing": (
         "No C-API flat unpacker. The typed forcing-row observer exercises the production "
         "module_ctrl_driver::SUEWS_load_forcing_row matrix reader (gh#2096)."
-    ),
-    "suews_state_block": (
-        "Sequence of SUEWS_STATE snapshots; Rust CompositeCodec only with no "
-        "c_api unpack routine (gh#2096)."
     ),
 }
 
@@ -1877,7 +1869,7 @@ def audit_manifest_and_inventory(
     capi_dir: Path,
     kernel_src_dir: Path = KERNEL_SRC_DIR,
 ) -> tuple[list[dict[str, str]], dict[str, list[LeafField]]]:
-    """Validate 100% manifest coverage across all 49 bridged types and their leaves."""
+    """Validate 100% manifest coverage across all 47 bridged types and their leaves."""
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest_entries: list[dict[str, str]] = [
         entry for entry in manifest["types"] if entry.get("status") != "excluded"

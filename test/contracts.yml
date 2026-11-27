@@ -105,7 +105,7 @@ contracts:
     title: Output meaning
     definition: Output arrays, columns, groups, dimensions, missing values and metadata retain their declared meanings.
     stages: [bridge, capi, kernel, output]
-    implementation: [src/supy/_run_rust.py, src/supy/suews_output.py, src/supy/data_model/output/, src/suews_bridge/src/output_block.rs, src/suews_bridge/src/output_line.rs, src/suews_bridge/src/output_io.rs]
+    implementation: [src/supy/_run_rust.py, src/supy/suews_output.py, src/supy/data_model/output/, src/suews_bridge/src/output_line.rs, src/suews_bridge/src/output_io.rs]
   - id: C-SAVE
     title: Output persistence
     definition: Saving honours destination, format, group and provenance choices while preserving the represented output.

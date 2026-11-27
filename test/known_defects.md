@@ -72,10 +72,22 @@ does not resolve arbitrary dynamic Python aliases (such as `getattr`, container
 indirection, or cross-module re-exports) or Rust macros.
 
 The closing rule is detection only, as decided by Ting Sun on 21 November 2026.
-The separate `Recorded test debt` workflow checks on pull requests and daily on
-the default branch that every owner exists, is an issue rather than a pull
-request, and is open.
-Closed, missing and unverifiable owners fail that workflow and appear in its job
+The separate `Recorded test debt` workflow splits owner auditing into two
+categories on pull requests and daily on the default branch:
+
+- **Active owners** (`active_issues` in the JSON report): any issue referenced
+  by at least one `defect` or `coverage_gap` record (including issues that also
+  own `accepted_exception` records). Each active owner must exist in this
+  repository as an issue (not a pull request or redirect) and remain `open`.
+- **Rationale owners** (`rationale_issues` in the JSON report): issues whose
+  records are exclusively `accepted_exception`. Each rationale owner records a
+  historical disposition decision; it must exist in this repository as an issue
+  (not a pull request or redirect), and may be `closed`.
+
+`issues` in the JSON report remains the sorted union of `active_issues` and
+`rationale_issues`.
+Closed active owners, as well as missing, pull-request, redirected, transferred,
+or unverifiable owners of either kind, fail that workflow and appear in its job
 summary.
 It has read permissions only, does not reopen issues, and is not connected to
 an existing required check.

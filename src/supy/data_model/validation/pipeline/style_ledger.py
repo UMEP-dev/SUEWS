@@ -140,6 +140,8 @@ def _infer_dominant_wrapper_style(
     bare_count = 0
     wrapped_count = 0
     for style in entries.values():
+        if style.is_container:
+            continue
         if style.wrapper_style == "bare":
             bare_count += 1
         elif style.wrapper_style in {"ref_value", "ref_only"}:
@@ -182,7 +184,11 @@ def _walk_mapping_value(
         return
 
     keys = tuple(_freeze_value(k) for k in node)
-    entries[prefix] = PathStyle(key_order=keys)
+    entries[prefix] = PathStyle(
+        wrapper_style="bare" if prefix else None,
+        key_order=keys,
+        is_container=bool(prefix),
+    )
     for key, val in node.items():
         if isinstance(key, str) and key == "ref":
             continue
@@ -203,6 +209,8 @@ def _walk_python_data(node: Any, prefix: str, entries: dict[str, PathStyle]) -> 
             if prefix and prefix not in entries:
                 entries[prefix] = PathStyle(wrapper_style="bare")
             return
+        if prefix and prefix not in entries:
+            entries[prefix] = PathStyle(wrapper_style="bare", is_container=True)
         for idx, item in enumerate(node):
             child_path = _join_index_path(prefix, idx)
             if isinstance(item, (Mapping, list, tuple)):
@@ -238,6 +246,7 @@ class PathStyle:
     key_order: tuple[Any, ...] = ()
     source_line: int | None = None
     has_ref: bool = False
+    is_container: bool = False
 
     def __post_init__(self) -> None:
         """Freeze ``ref`` metadata and normalise ``key_order`` to a tuple."""
@@ -406,6 +415,7 @@ class StyleLedger:
                         key_order=new_order,
                         source_line=style.source_line,
                         has_ref=style.has_ref,
+                        is_container=style.is_container,
                     )
         return StyleLedger(
             entries=updated,
@@ -442,6 +452,7 @@ class StyleLedger:
                     key_order=new_order,
                     source_line=style.source_line,
                     has_ref=style.has_ref,
+                    is_container=style.is_container,
                 )
                 if order_changed
                 else style
@@ -595,9 +606,11 @@ def _walk_yaml_mapping(
         return
 
     entries[prefix] = PathStyle(
+        wrapper_style="bare" if prefix else None,
         flow_style=node.flow_style,
         key_order=key_order,
         source_line=line,
+        is_container=bool(prefix),
     )
     for key_node, child_node in node.value:
         typed_key = _node_typed_key(key_node, val_loader)
@@ -632,7 +645,12 @@ def _walk_yaml_node(
             _record_scalar_sequence_elements(node, prefix, entries)
             return
         if prefix and prefix not in entries:
-            entries[prefix] = PathStyle(flow_style=node.flow_style, source_line=line)
+            entries[prefix] = PathStyle(
+                wrapper_style="bare",
+                flow_style=node.flow_style,
+                source_line=line,
+                is_container=True,
+            )
         for idx, child_node in enumerate(node.value):
             _walk_yaml_node(
                 child_node, _join_index_path(prefix, idx), entries, val_loader

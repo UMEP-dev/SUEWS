@@ -107,6 +107,24 @@ def _mapping_strict_equal(left: Mapping[Any, Any], right: Mapping[Any, Any]) -> 
     )
 
 
+def _container_strict_equal(left: Any, right: Any) -> bool:
+    """Compare sequences, mappings, or sets strictly while keeping ``bool`` distinct from ``int``."""
+    if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+        return len(left) == len(right) and all(
+            _strict_equal(a, b) for a, b in zip(left, right)
+        )
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        return _mapping_strict_equal(left, right)
+    if isinstance(left, (set, frozenset)) and isinstance(right, (set, frozenset)):
+        return (
+            type(left) is type(right)
+            and len(left) == len(right)
+            and {MappingKey(item) for item in left}
+            == {MappingKey(item) for item in right}
+        )
+    return False
+
+
 def _strict_equal(left: Any, right: Any) -> bool:
     """Compare two config values strictly, keeping ``bool`` distinct from ``int``/``float``."""
     if isinstance(left, (bool, np.bool_)) != isinstance(right, (bool, np.bool_)):
@@ -119,12 +137,10 @@ def _strict_equal(left: Any, right: Any) -> bool:
         right, (float, np.floating)
     ):
         return (bool(np.isnan(left)) and bool(np.isnan(right))) or bool(left == right)
-    if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
-        return len(left) == len(right) and all(
-            _strict_equal(a, b) for a, b in zip(left, right)
-        )
-    if isinstance(left, Mapping) and isinstance(right, Mapping):
-        return _mapping_strict_equal(left, right)
+    if isinstance(left, (list, tuple, Mapping, set, frozenset)) or isinstance(
+        right, (list, tuple, Mapping, set, frozenset)
+    ):
+        return _container_strict_equal(left, right)
     return bool(left == right)
 
 
@@ -392,10 +408,18 @@ def _apply_atomic_set(
         and isinstance(raw_after, Mapping)
         and "ref" in raw_after
     )
+    recorded_replace_raw = (
+        patch.replace_raw
+        or is_ref_wrapper(patch.new_value)
+        or is_ref_only(patch.new_value)
+    )
+    recorded_new_value = (
+        _copy_payload(raw_after) if recorded_replace_raw else patch.new_value
+    )
     recorded = ConfigPatch(
         path=canon_path,
         action="set",
-        new_value=patch.new_value,
+        new_value=recorded_new_value,
         old_value=old_val,
         reason=patch.reason,
         parameter=patch.parameter,
@@ -411,7 +435,7 @@ def _apply_atomic_set(
         original_ref=orig_ref,
         path_tokens=tokens,
         original_raw=raw_snapshot,
-        replace_raw=patch.replace_raw,
+        replace_raw=recorded_replace_raw,
         created_ancestor=created_ancestor,
         write_style=written_style,
         write_ref=written_ref,

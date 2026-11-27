@@ -2032,3 +2032,155 @@ def test_astra_r2_null_ref_replay_numpy_plan_ownership_and_yaml_merge_keys() -> 
     assert "'hello'" in dumped_merge
     assert '"world"' in dumped_merge
     assert "[1, 2, 3]" in dumped_merge
+
+
+def test_astra_r3_double_wrap_bare_containers_and_set_equality() -> None:
+    """Wrapped insertions do not double-wrap, bare compound containers survive delete+set, and sets distinguish bool/int."""
+    # Major 1: absent-key insertion of explicit RefValue / ref-only payload never double-wraps.
+    for payload in (
+        {"value": 1},
+        {"value": 1, "ref": {"ID": "r"}},
+        {"ref": {"ID": "r"}},
+    ):
+        patches = [ConfigPatch("a", "set", payload, default_wrapped=False)]
+        direct: dict[str, object] = {}
+        apply_patches_in_place(direct, patches)
+        norm = normalise_patches(patches, {})
+        replayed: dict[str, object] = {}
+        apply_patches_in_place(replayed, norm)
+        assert replayed == direct == {"a": payload}
+        apply_patches_in_place(replayed, invert_patches(norm))
+        assert replayed == {}
+
+    # Major 2: bare compound sequences and section mappings stay bare after delete + set.
+    doc_sites = ConfigDocument.from_dict({"sites": [{"gridiv": 1}]}, normalise=False)
+    updated_sites = doc_sites.apply_patches([
+        ConfigPatch("sites", "delete"),
+        ConfigPatch("sites", "set", [{"gridiv": 2}]),
+    ])
+    assert updated_sites.data == {"sites": [{"gridiv": 2}]}
+    yaml_sites = ConfigDocument.from_text("sites:\n  - gridiv: 1\n", normalise=False)
+    assert yaml_sites.apply_patches([
+        ConfigPatch("sites", "delete"),
+        ConfigPatch("sites", "set", [{"gridiv": 2}]),
+    ]).data == {"sites": [{"gridiv": 2}]}
+
+    # Minor 4: set-valued patches distinguish bool from int ({1} vs {True}).
+    set_base = {"x": {1}}
+    set_norm = normalise_patches(
+        [ConfigPatch("x", "set", {True}, default_wrapped=False)], set_base
+    )
+    assert len(set_norm) == 1
+    replayed_set = deepcopy(set_base)
+    apply_patches_in_place(replayed_set, set_norm)
+    assert type(next(iter(replayed_set["x"]))) is bool
+
+    # Minor 5: orthogonal physics relocation preserves ledger provenance on canonical path.
+    ortho_doc = ConfigDocument.from_dict(
+        {
+            "model": {
+                "physics": {
+                    "kdown_split_method": {
+                        "constant": {
+                            "sw_dn_direct_frac": {
+                                "value": 0.6,
+                                "ref": {"ID": "frac-src"},
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        normalise=True,
+    )
+    frac_path = "model.physics.sw_dn_direct_frac"
+    assert ortho_doc.style_ledger.ref_metadata(frac_path) == {"ID": "frac-src"}
+    rebuilt_frac = ortho_doc.apply_patches([
+        ConfigPatch(frac_path, "delete"),
+        ConfigPatch(frac_path, "set", 0.7),
+    ])
+    assert rebuilt_frac.data["model"]["physics"]["sw_dn_direct_frac"] == {
+        "value": 0.7,
+        "ref": {"ID": "frac-src"},
+    }
+
+
+def test_astra_r3_model_dump_isolation_float_enum_eager_fields_and_copy_payload() -> (
+    None
+):
+    """model_dump/property isolation, float-valued enums, eager field/array-enum snapshots, MappingProxyType, and _copy_payload hold."""
+    from supy.data_model.core.timezone_enum import TimezoneOffset  # noqa: PLC0415
+
+    # Major 3: model_dump(fallback=...) and @property cannot mutate the stored model snapshot.
+    class _Payload:
+        def __init__(self, items: list[int]) -> None:
+            self.items = items
+
+    class _DumpModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: _Payload
+        val: int = 1
+
+        @property
+        def mutating_prop(self) -> int:
+            self.payload.items.append(999)
+            return self.val
+
+    dm = _DumpModel(payload=_Payload([1]))
+    ro_dm = freeze_model(dm)
+
+    def _mutating_fallback(obj: object) -> str:
+        if isinstance(obj, _Payload):
+            obj.items.append(42)
+        return "ok"
+
+    dumped = ro_dm.model_dump(mode="json", fallback=_mutating_fallback)
+    assert dumped["payload"] == "ok"
+    assert ro_dm.mutating_prop == 1
+    assert ro_dm.unwrap_copy().payload.items == [1]
+
+    # Minor 6: float-derived enum (TimezoneOffset) preserves numeric reads via SiteView.
+    sv = SiteView(
+        index=0,
+        raw={"properties": {"timezone": TimezoneOffset.UTC_PLUS_5_30}},
+        name="s",
+    )
+    assert sv.timezone == pytest.approx(5.5)
+
+    # Minor 7 & 8: model_fields metadata and object-array enums are snapshotted at freeze_model() time.
+    class _ArrEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "before"
+
+    class _MetaModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        x: int = Field(default=1, description="before")
+        arr: np.ndarray = Field(
+            default_factory=lambda: np.array([_ArrEnum.ITEM], dtype=object)
+        )
+        ro_map: object = Field(default_factory=lambda: MappingProxyType({"k": 1}))
+
+    ro_meta = freeze_model(_MetaModel())
+    orig_desc = _MetaModel.model_fields["x"].description
+    _MetaModel.model_fields["x"].description = "after"
+    _ArrEnum.ITEM.label = "after"
+    try:
+        assert ro_meta.model_fields["x"].description == "before"
+        assert ro_meta.arr[0].label == "before"
+        # Minor 9: MappingProxyType inside a model freezes without deepcopy TypeError.
+        assert ro_meta.ro_map["k"] == 1
+    finally:
+        _MetaModel.model_fields["x"].description = orig_desc
+        _ArrEnum.ITEM.label = "before"
+
+    # Minor 10: _copy_payload detaches mutable primitive subclasses on ConfigPatch.
+    class _MutLabel(str):
+        pass
+
+    lbl = _MutLabel("orig")
+    lbl.tags = ["a"]
+    patch_lbl = ConfigPatch("x", "set", lbl)
+    lbl.tags.append("mutated")
+    assert patch_lbl.new_value.tags == ["a"]

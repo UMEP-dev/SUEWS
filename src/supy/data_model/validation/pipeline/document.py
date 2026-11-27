@@ -464,10 +464,10 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
 
 def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
-    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+    if value is None or type(value) in {bool, int, float, str, bytes}:
         return value
     if isinstance(value, Mapping):
-        return {k: _copy_payload(v) for k, v in value.items()}
+        return {_copy_payload(k): _copy_payload(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_copy_payload(item) for item in value]
     if isinstance(value, tuple):
@@ -1573,23 +1573,35 @@ class ConfigDocument:
 def _collect_stebbs_physics_relocations(
     working: Mapping[str, Any], ledger: StyleLedger
 ) -> dict[str, str]:
-    """Map folded flat STEBBS physics keys onto their canonical ``model.physics.stebbs.*`` paths."""
+    """Map folded STEBBS and orthogonal physics paths onto their canonical paths."""
     model = working.get("model")
     if not isinstance(model, Mapping):
         return {}
     physics = model.get("physics")
     if not isinstance(physics, Mapping):
         return {}
-    stebbs = physics.get("stebbs")
-    if not isinstance(stebbs, Mapping):
-        return {}
     relocations: dict[str, str] = {}
-    for flat_key, target_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
-        if target_leaf not in stebbs:
-            continue
-        old_path = f"model.physics.{flat_key}"
-        new_path = f"model.physics.stebbs.{target_leaf}"
-        if old_path in ledger and new_path not in ledger:
+    stebbs = physics.get("stebbs")
+    if isinstance(stebbs, Mapping):
+        for flat_key, target_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+            if target_leaf not in stebbs:
+                continue
+            old_path = f"model.physics.{flat_key}"
+            new_path = f"model.physics.stebbs.{target_leaf}"
+            if old_path in ledger and new_path not in ledger:
+                relocations[old_path] = new_path
+    orthogonal_moves = (
+        (
+            "model.physics.kdown_split_method.constant.sw_dn_direct_frac",
+            "sw_dn_direct_frac",
+        ),
+        ("model.physics.storage_heat.ohm.include_qf", "ohm_inc_qf"),
+        ("model.physics.storage_heat.ohm_inc_qf", "ohm_inc_qf"),
+        ("model.physics.storage_heat.ohmincqf", "ohm_inc_qf"),
+    )
+    for old_path, flat_leaf in orthogonal_moves:
+        new_path = f"model.physics.{flat_leaf}"
+        if flat_leaf in physics and old_path in ledger and new_path not in ledger:
             relocations[old_path] = new_path
     return relocations
 

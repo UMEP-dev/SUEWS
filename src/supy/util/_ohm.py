@@ -115,7 +115,7 @@ def replace_ohm_coeffs(df_state, coefs, land_cover_type):
     if isinstance(land_cover_type, str):
         lc_index = land_cover_type_dict.get(land_cover_type.lower())
     elif isinstance(land_cover_type, (int, np.integer)) and not isinstance(
-        land_cover_type, (bool, np.bool_)
+        land_cover_type, (bool, np.bool_, np.timedelta64)
     ):
         candidate = int(land_cover_type)
         if 0 <= candidate < len(land_cover_type_dict):
@@ -125,7 +125,7 @@ def replace_ohm_coeffs(df_state, coefs, land_cover_type):
         list_lc = list(land_cover_type_dict.keys())
         max_lc_index = len(land_cover_type_dict) - 1
         msg = (
-            f"Invalid land_cover_type {land_cover_type!r}: "
+            f"Invalid land_cover_type {land_cover_type!a}: "
             f"must be one of {list_lc} or an integer between 0 and {max_lc_index}."
         )
         logger_supy.error("%s", msg)

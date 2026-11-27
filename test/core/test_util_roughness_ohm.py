@@ -374,12 +374,16 @@ class TestOhmUtilities:
             "",
             "snow",
             " paved ",
+            "pav\u00e9",
             -1,
             -999,
             7,
             8,
             np.int64(-1),
             np.int64(7),
+            np.timedelta64(1, "ns"),
+            np.timedelta64(1, "D"),
+            np.timedelta64("NaT"),
             True,
             False,
             np.bool_(True),
@@ -391,7 +395,7 @@ class TestOhmUtilities:
     def test_replace_ohm_coeffs_rejects_invalid_land_cover_type(
         self, bad_lc, supy_caplog
     ):
-        """Invalid land-cover names, out-of-range indices, booleans, and missing values raise ValueError."""
+        """Invalid land-cover names, out-of-range indices, timedeltas, booleans, and missing values raise ValueError."""
         df_orig = _make_state_with_ohm(n_grids=2)
         orig_snapshot = df_orig.copy(deep=True)
         expected_names = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
@@ -403,14 +407,18 @@ class TestOhmUtilities:
             public_replace_ohm_coeffs(df_orig, (0.4, 0.2, -10.0), bad_lc)
 
         msg = str(exc_info.value)
-        assert repr(bad_lc) in msg
+        assert msg.isascii()
+        assert ascii(bad_lc) in msg
         for valid_name in expected_names:
             assert valid_name in msg
         assert "0 and 6" in msg
 
-        # Error is also recorded on the SuPy logger and input DataFrame is never mutated.
+        # Error is also recorded on the SuPy logger (ASCII-only) and input DataFrame is never mutated.
         assert any(
-            rec.levelno == logging.ERROR and msg in rec.getMessage()
+            rec.name == "SuPy"
+            and rec.levelno == logging.ERROR
+            and msg in rec.getMessage()
+            and rec.getMessage().isascii()
             for rec in supy_caplog.records
         )
         pd.testing.assert_frame_equal(df_orig, orig_snapshot)

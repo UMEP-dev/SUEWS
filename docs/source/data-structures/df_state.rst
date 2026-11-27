@@ -1771,7 +1771,7 @@
 .. option:: snowlimbldg
 
     :Description:
-        Limit of the snow water equivalent for snow removal from roads and roofs [mm]
+        Limit of the snow water equivalent for snow removal from building roofs [mm]
     :Dimensionality:
         0
     :Dimensionality Remarks:
@@ -1783,7 +1783,7 @@
 .. option:: snowlimpaved
 
     :Description:
-        Limit of the snow water equivalent for snow removal from roads and roofs [mm]
+        Limit of the snow water equivalent for snow removal from paved surfaces (roads) [mm]
     :Dimensionality:
         0
     :Dimensionality Remarks:

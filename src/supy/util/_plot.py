@@ -126,11 +126,7 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
 def plot_comp(
     df_var,
     scatter_kws={"alpha": 0.1, "s": 0.3, "color": "k"},
-    kde_kws={
-        "shade": True,
-        "shade_lowest": False,
-        "levels": 4,
-    },
+    kde_kws=None,
     show_pdf=False,
     fig=None,
     ax=None,
@@ -146,8 +142,9 @@ def plot_comp(
         keyword arguments passed to `sns.regplot`. By default, `{"alpha": 0.1, "s": 0.3, "color": "k"}`.
     show_pdf: bool
         if a PDF overlay should be added. By default, `False`.
-    kde_kws: dict
-        `kde_kws` passed to `sns.kdeplot` when `show_pdf=True`
+    kde_kws: dict | None, optional
+        keyword arguments passed to `sns.kdeplot` when `show_pdf=True`.
+        By default, `{"fill": True, "thresh": 0.05, "levels": 4}`.
 
 
     Returns
@@ -203,13 +200,21 @@ def plot_comp(
 
     color_last = ax.lines[0].get_color()
     if show_pdf:
+        kde_defaults = {
+            "fill": True,
+            "thresh": 0.05,
+            "levels": 4,
+        }
+        kde_call_kws = {
+            "color": color_last,
+            "zorder": 0,
+            **(kde_defaults if kde_kws is None else kde_kws),
+        }
         sns.kdeplot(
-            df_var.Obs,
-            df_var.Sim,
+            x=val_x,
+            y=val_y,
             ax=ax,
-            color=color_last,
-            zorder=0,
-            **kde_kws,
+            **kde_call_kws,
         )
 
     # set equal plotting range

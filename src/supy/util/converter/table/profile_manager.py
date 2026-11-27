@@ -7,10 +7,12 @@ This module provides a robust profile management system that:
 4. Maintains a registry of available profiles
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-import pandas as pd
+from collections.abc import Sequence
 import logging
+from pathlib import Path
+from typing import ClassVar
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class ProfileManager:
     """Manages SUEWS profiles during conversion."""
 
     # Default profile codes for common cases
-    DEFAULT_PROFILES = {
+    DEFAULT_PROFILES: ClassVar[dict[str, int]] = {
         "DEFAULT": 999,  # Generic default
         "NO_ACTIVITY": 0,  # No activity profile
         "UNIFORM": 1,  # Uniform distribution
@@ -27,7 +29,7 @@ class ProfileManager:
     }
 
     # Profile types that need to exist in SUEWS_Profiles.txt
-    PROFILE_TYPES = [
+    PROFILE_TYPES: ClassVar[list[str]] = [
         "EnergyUseProfWD",
         "EnergyUseProfWE",
         "ActivityProfWD",
@@ -44,16 +46,16 @@ class ProfileManager:
         "SnowClearingProfWE",
     ]
 
-    def __init__(self, profiles_path: Optional[Path] = None):
+    def __init__(self, profiles_path: Path | None = None):
         """Initialize profile manager.
 
         Args:
             profiles_path: Path to SUEWS_Profiles.txt file
         """
         self.profiles_path = profiles_path
-        self.available_profiles: Set[int] = set()
-        self.profile_data: Optional[pd.DataFrame] = None
-        self.missing_profiles: Set[int] = set()
+        self.available_profiles: set[int] = set()
+        self.profile_data: pd.DataFrame | None = None
+        self.missing_profiles: set[int] = set()
 
         if profiles_path and profiles_path.exists():
             self.load_profiles()
@@ -95,7 +97,7 @@ class ProfileManager:
 
     def validate_profile_code(
         self, code: int, field_name: str = ""
-    ) -> Tuple[bool, Optional[int]]:
+    ) -> tuple[bool, int | None]:
         """Validate a profile code and return replacement if needed.
 
         Args:
@@ -130,19 +132,37 @@ class ProfileManager:
         # Return default replacement
         return False, replacement_code
 
-    def create_default_profile(self, code: int) -> pd.Series:
+    def create_default_profile(
+        self,
+        code: int,
+        columns: pd.Index | Sequence[object] | None = None,
+    ) -> pd.Series:
         """Create a default profile with uniform distribution.
 
-        Args:
-            code: Profile code to create
+        Parameters
+        ----------
+        code : int
+            Profile code to create.
+        columns : pd.Index | Sequence[object] | None, optional
+            Target DataFrame column labels to align the 24 hourly values with.
+            When ``None``, uses integer hour labels ``range(24)``.
 
-        Returns:
-            Profile data as pandas Series
+        Returns
+        -------
+        pd.Series
+            Profile data as a pandas Series with 24 uniform ``1.0`` entries.
         """
         # Create uniform distribution (same value for all 24 hours)
-        profile_data = pd.Series([1.0] * 24, name=code)
-        profile_data.index = range(24)
-        return profile_data
+        if columns is None:
+            index: pd.Index | range = range(24)
+        else:
+            target_cols = pd.Index(columns)
+            if len(target_cols) < 24:
+                raise ValueError(
+                    f"Expected at least 24 profile columns, got {len(target_cols)}"
+                )
+            index = target_cols[:24]
+        return pd.Series([1.0] * 24, index=index, name=code, dtype=float)
 
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.
@@ -152,22 +172,26 @@ class ProfileManager:
         """
         profiles_file = output_path / "SUEWS_Profiles.txt"
 
-        # Start with existing profiles or create new DataFrame
-        if self.profile_data is not None:
+        # Start with existing profiles or create new DataFrame with 24 hour columns
+        if self.profile_data is not None and len(self.profile_data.columns) > 0:
             profiles_df = self.profile_data.copy()
         else:
-            profiles_df = pd.DataFrame()
+            profiles_df = pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
 
         # Add default profiles if they don't exist
         for name, code in self.DEFAULT_PROFILES.items():
             if code not in profiles_df.index and code > 0:
-                profiles_df.loc[code] = self.create_default_profile(code)
+                profiles_df.loc[code] = self.create_default_profile(
+                    code, columns=profiles_df.columns
+                )
                 logger.info(f"Created default profile {code} ({name})")
 
         # Add any other missing profiles that were referenced
-        for code in self.missing_profiles:
+        for code in sorted(self.missing_profiles):
             if code not in profiles_df.index and code > 0:
-                profiles_df.loc[code] = self.create_default_profile(code)
+                profiles_df.loc[code] = self.create_default_profile(
+                    code, columns=profiles_df.columns
+                )
                 logger.info(f"Created placeholder profile {code}")
 
         # Sort by index
@@ -183,7 +207,7 @@ class ProfileManager:
 
             # Write profiles
             for code, row in profiles_df.iterrows():
-                values = "    ".join([f"{v:.3f}" for v in row[:24]])
+                values = "    ".join([f"{v:.3f}" for v in row.iloc[:24]])
                 f.write(f"{code:4d}    {values}\n")
 
         logger.info(f"Wrote {len(profiles_df)} profiles to {profiles_file}")
@@ -192,7 +216,7 @@ class ProfileManager:
         self.available_profiles = set(profiles_df.index)
         self.profile_data = profiles_df
 
-    def get_profile_summary(self) -> Dict:
+    def get_profile_summary(self) -> dict:
         """Get summary of profile status.
 
         Returns:
@@ -201,7 +225,7 @@ class ProfileManager:
         return {
             "available_profiles": len(self.available_profiles),
             "missing_profiles": len(self.missing_profiles),
-            "missing_codes": sorted(list(self.missing_profiles)),
+            "missing_codes": sorted(self.missing_profiles),
             "default_profiles": self.DEFAULT_PROFILES,
         }
 
@@ -214,7 +238,7 @@ class ProfileManager:
         Returns:
             Updated rules DataFrame with validated profile codes
         """
-        profile_fields = [col for col in self.PROFILE_TYPES]
+        profile_fields = list(self.PROFILE_TYPES)
 
         for idx, row in rules_df.iterrows():
             # Check if this rule involves a profile field

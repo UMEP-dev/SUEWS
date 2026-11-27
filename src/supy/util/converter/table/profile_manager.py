@@ -167,6 +167,28 @@ class ProfileManager:
             index = target_cols[:24]
         return pd.Series([1.0] * 24, index=index, name=code, dtype=float)
 
+    def _prepare_profiles_df(self, action_desc: str) -> pd.DataFrame:
+        """Return a validated working copy of profile data or an empty 24-hour frame."""
+        if self.profile_data is None:
+            if self._load_error is not None:
+                raise ValueError(
+                    f"Refusing to {action_desc} because loading "
+                    f"{self.profiles_path} failed: {self._load_error}"
+                ) from self._load_error
+            return pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
+
+        n_cols = len(self.profile_data.columns)
+        n_rows = len(self.profile_data.index)
+        if n_cols == 0 and n_rows == 0:
+            if self.profiles_path is not None and self.profiles_path.exists():
+                raise ValueError("Expected at least 24 profile columns, got 0")
+            return pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
+
+        if n_cols < 24:
+            raise ValueError(f"Expected at least 24 profile columns, got {n_cols}")
+
+        return self.profile_data.copy()
+
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.
 
@@ -175,17 +197,8 @@ class ProfileManager:
         """
         profiles_file = output_path / "SUEWS_Profiles.txt"
 
-        if self.profile_data is None and self._load_error is not None:
-            raise ValueError(
-                f"Refusing to write {profiles_file} because loading "
-                f"{self.profiles_path} failed: {self._load_error}"
-            ) from self._load_error
-
-        # Start with existing profiles or create new DataFrame with 24 hour columns
-        if self.profile_data is not None and len(self.profile_data.columns) > 0:
-            profiles_df = self.profile_data.copy()
-        else:
-            profiles_df = pd.DataFrame(columns=[str(i) for i in range(24)], dtype=float)
+        # Validate existing profile table or initialise a 24-hour DataFrame before writing
+        profiles_df = self._prepare_profiles_df(f"write {profiles_file}")
 
         # Add default profiles if they don't exist
         for name, code in self.DEFAULT_PROFILES.items():
@@ -290,11 +303,8 @@ def validate_and_fix_profiles(
     profiles_path = conversion_dir / "SUEWS_Profiles.txt"
     manager = ProfileManager(profiles_path)
 
-    if manager.profile_data is None and manager._load_error is not None:
-        raise ValueError(
-            f"Refusing to update profiles or rules because loading "
-            f"{profiles_path} failed: {manager._load_error}"
-        ) from manager._load_error
+    # Validate load status and column shape before modifying rules.csv or SUEWS_Profiles.txt
+    manager._prepare_profiles_df("update profiles or rules")
 
     # Load and process conversion rules
     if rules_path.exists():

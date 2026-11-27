@@ -381,3 +381,68 @@ def test_failed_profile_load_preserves_original_file_and_rules(tmp_path: Path) -
     assert profiles_path.read_bytes() == original_profiles_bytes
     assert rules_path.read_bytes() == original_rules_bytes
     assert not (tmp_path / "rules.csv.bak").exists()
+
+
+def test_code_only_zero_column_table_rejected_without_data_loss(tmp_path: Path) -> None:
+    """Zero-column tables with existing profile codes are rejected without overwriting files."""
+    # ARRANGE: code-only SUEWS_Profiles.txt (index [10], 0 hourly columns)
+    profiles_path = tmp_path / "SUEWS_Profiles.txt"
+    profiles_path.write_text("Code\n10\n", encoding="utf-8")
+    rules_path = tmp_path / "rules.csv"
+    pd.DataFrame({
+        "Action": ["Add"],
+        "Variable": ["ActivityProfWD"],
+        "Value": ["404"],
+    }).to_csv(rules_path, index=False)
+
+    original_profiles_bytes = profiles_path.read_bytes()
+    original_rules_bytes = rules_path.read_bytes()
+
+    # ACT & ASSERT: validate_and_fix_profiles rejects before modifying either file
+    with pytest.raises(ValueError, match="Expected at least 24 profile columns, got 0"):
+        validate_and_fix_profiles(tmp_path, rules_path)
+    assert profiles_path.read_bytes() == original_profiles_bytes
+    assert rules_path.read_bytes() == original_rules_bytes
+    assert not (tmp_path / "rules.csv.bak").exists()
+
+    # ACT & ASSERT: in-memory zero-column DataFrame with existing index is also rejected
+    pm_mem = ProfileManager()
+    pm_mem.profile_data = pd.DataFrame(index=pd.Index([10], name="Code"))
+    pm_mem.available_profiles = {10}
+    out_dir = tmp_path / "mem_out"
+    out_dir.mkdir()
+    with pytest.raises(ValueError, match="Expected at least 24 profile columns, got 0"):
+        pm_mem.ensure_required_profiles(out_dir)
+    assert not (out_dir / "SUEWS_Profiles.txt").exists()
+
+
+def test_truncated_23_column_table_preserves_files_in_validate_and_fix_profiles(
+    tmp_path: Path,
+) -> None:
+    """Truncated <24-column tables are rejected before rules.csv or SUEWS_Profiles.txt change."""
+    # ARRANGE: 23-column profile table + rule referencing missing code 404
+    profiles_path = tmp_path / "SUEWS_Profiles.txt"
+    _write_profiles_csv(
+        profiles_path,
+        {10: [0.5] * 23},
+        legacy_two_line=True,
+        hour_labels=[str(h) for h in range(23)],
+    )
+    rules_path = tmp_path / "rules.csv"
+    pd.DataFrame({
+        "Action": ["Add"],
+        "Variable": ["SnowClearingProfWD"],
+        "Value": ["404"],
+    }).to_csv(rules_path, index=False)
+
+    original_profiles_bytes = profiles_path.read_bytes()
+    original_rules_bytes = rules_path.read_bytes()
+
+    # ACT & ASSERT: fails before rules.csv backup/rewrite or SUEWS_Profiles.txt write
+    with pytest.raises(
+        ValueError, match="Expected at least 24 profile columns, got 23"
+    ):
+        validate_and_fix_profiles(tmp_path, rules_path)
+    assert profiles_path.read_bytes() == original_profiles_bytes
+    assert rules_path.read_bytes() == original_rules_bytes
+    assert not (tmp_path / "rules.csv.bak").exists()

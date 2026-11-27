@@ -15,11 +15,6 @@ mappings:
     issue: 2083
     classification: "accepted_exception"
   - selector:
-      ledger: "L"
-    contract: "C-TOOLING"
-    issue: 1953
-    classification: "defect"
-  - selector:
       ledger: "S"
       group: "derived_run_bounds"
     contract: "C-SCHEMA"

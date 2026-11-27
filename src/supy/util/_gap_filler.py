@@ -2,13 +2,32 @@ import numpy as np
 import pandas as pd
 
 
-def _is_calendar_day_freq(freq: str) -> bool:
-    """Return True when ``freq`` is a pandas calendar-day offset (e.g. '1D')."""
+def _civil_day_start(ts: pd.Timestamp, day_offset: int = 0) -> pd.Timestamp:
+    """Return the first valid instant of the civil date ``day_offset`` days from ``ts``."""
+    day_naive = ts.tz_localize(None).normalize() + pd.Timedelta(days=day_offset)
+    if ts.tz is None:
+        return day_naive
+    return day_naive.tz_localize(
+        ts.tz,
+        ambiguous=True,
+        nonexistent="shift_forward",
+    )
+
+
+def _calendar_day_count(freq: str) -> int | None:
+    """Return the day count when ``freq`` is a pandas calendar-day offset, else None."""
     try:
         offset = pd.tseries.frequencies.to_offset(freq)
     except (TypeError, ValueError):
-        return False
-    return isinstance(offset, pd.offsets.Day)
+        return None
+    if isinstance(offset, pd.offsets.Day):
+        return int(offset.n)
+    return None
+
+
+def _is_calendar_day_freq(freq: str) -> bool:
+    """Return True when ``freq`` is a pandas calendar-day offset (e.g. '1D')."""
+    return _calendar_day_count(freq) is not None
 
 
 def _period_offsets(
@@ -187,47 +206,94 @@ def _chunk_size(index: pd.DatetimeIndex, freq: str) -> int | None:
     return n_chunk if n_chunk > 0 else None
 
 
+def _split_bin_boundaries(
+    ser: pd.Series,
+    freq: str,
+    origin: str | pd.Timestamp,
+) -> tuple[np.ndarray, int] | None:
+    """Return resampler bin boundaries for ``ser`` and the count of head bins.
+
+    Returns ``None`` when the series cannot be partitioned cleanly into uniform
+    non-empty ``freq`` divisions (e.g. unset/irregular cadence or empty bins).
+    When the trailing bin is a partial division, ``n_head_bins`` excludes it so
+    the caller can handle the trailing slice as a residual tail.
+    """
+    step_freq = _infer_step_freq(ser.index)
+    if step_freq is None:
+        return None
+    try:
+        step_td = pd.Timedelta(step_freq)
+    except (TypeError, ValueError):
+        return None
+    if step_td <= pd.Timedelta(0):
+        return None
+
+    n_days = _calendar_day_count(freq)
+    n_chunk = _chunk_size(ser.index, freq)
+    if n_days is None and n_chunk is None:
+        return None
+
+    sizes = ser.resample(freq, origin=origin).size()
+    if sizes.size <= 4 or (sizes == 0).any():
+        return None
+
+    boundaries = np.concatenate(([0], np.cumsum(sizes.to_numpy())))
+    n_bins = sizes.size
+
+    # Detect whether the final resampler bin is a partial trailing division.
+    last_bin_start = sizes.index[-1]
+    if n_days is not None:
+        expected_next_bin = _civil_day_start(last_bin_start, day_offset=n_days)
+        has_residual = (ser.index[-1] + step_td) < expected_next_bin
+    else:
+        has_residual = int(sizes.iloc[-1]) < int(n_chunk)
+
+    n_head_bins = n_bins - 1 if has_residual else n_bins
+    return boundaries[: n_head_bins + 1], n_head_bins
+
+
 def _find_balanced_split(
     ser_head: pd.Series,
-    n_freq: int,
-    n_chunk: int,
+    head_boundaries: np.ndarray,
     freq: str,
     rinfo_thresh: float = 0.2,
     origin: str | pd.Timestamp = "start_day",
 ) -> tuple[pd.Series, pd.Series]:
-    """Split ``ser_head`` into two non-empty chunk-aligned halves.
+    """Split ``ser_head`` into two non-empty bin-aligned halves.
 
-    Starts at the midpoint ``(n_freq // 2) * n_chunk`` and shifts by one
-    ``n_chunk`` period at a time when one side falls below ``rinfo_thresh``.
-    Both halves always remain strictly non-empty (at least ``n_chunk``
-    timesteps each) so recursion terminates, and if no balanced split exists
-    the midpoint split is returned.
+    Starts at the midpoint bin ``n_bins // 2`` and shifts by one bin at a time
+    when one side falls below ``rinfo_thresh``. Both halves always remain
+    strictly non-empty (at least one bin each) so recursion terminates, and if
+    no balanced split exists the midpoint split is returned.
     """
-    n_total = n_chunk * n_freq
-    n_sep_mid = (n_freq // 2) * n_chunk
-    n_sep = n_sep_mid
-    ser_left = ser_head.iloc[:n_sep]
-    ser_right = ser_head.iloc[n_sep:]
+    n_bins = len(head_boundaries) - 1
+    k_mid = n_bins // 2
+    k = k_mid
+    split_pos = int(head_boundaries[k])
+    ser_left = ser_head.iloc[:split_pos]
+    ser_right = ser_head.iloc[split_pos:]
     rinfo1 = cal_ratio_info(ser_left, freq=freq, origin=origin)
     rinfo2 = cal_ratio_info(ser_right, freq=freq, origin=origin)
 
-    visited_seps = {n_sep}
+    visited_ks = {k}
     while not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh):
         if rinfo1 < rinfo_thresh and rinfo2 < rinfo_thresh:
             break
-        next_sep = n_sep + n_chunk if rinfo1 < rinfo_thresh else n_sep - n_chunk
-        if not (n_chunk <= next_sep <= n_total - n_chunk) or next_sep in visited_seps:
+        next_k = k + 1 if rinfo1 < rinfo_thresh else k - 1
+        if not (1 <= next_k <= n_bins - 1) or next_k in visited_ks:
             break
-        n_sep = next_sep
-        visited_seps.add(n_sep)
-        ser_left = ser_head.iloc[:n_sep]
-        ser_right = ser_head.iloc[n_sep:]
+        k = next_k
+        visited_ks.add(k)
+        split_pos = int(head_boundaries[k])
+        ser_left = ser_head.iloc[:split_pos]
+        ser_right = ser_head.iloc[split_pos:]
         rinfo1 = cal_ratio_info(ser_left, freq=freq, origin=origin)
         rinfo2 = cal_ratio_info(ser_right, freq=freq, origin=origin)
 
     if not (rinfo1 >= rinfo_thresh and rinfo2 >= rinfo_thresh):
-        ser_left = ser_head.iloc[:n_sep_mid]
-        ser_right = ser_head.iloc[n_sep_mid:]
+        mid_pos = int(head_boundaries[k_mid])
+        ser_left = ser_head.iloc[:mid_pos]
+        ser_right = ser_head.iloc[mid_pos:]
 
     return ser_left, ser_right
 
@@ -269,22 +335,24 @@ def _fill_gaps_iterative(
 def _fill_residual_tail(
     ser_head_filled: pd.Series,
     ser_residual: pd.Series,
-    n_chunk: int,
+    head_boundaries: np.ndarray,
     freq: str,
     origin: str | pd.Timestamp = "start_day",
 ) -> pd.Series:
-    """Fill gaps in a trailing partial-chunk residual using preceding context."""
+    """Fill gaps in a trailing partial-bin residual using preceding bin context."""
     if not ser_residual.isna().any():
         return ser_residual
     n_res = ser_residual.size
-    for mult in (1, 2):
-        context_len = min(mult * n_chunk, ser_head_filled.size)
-        if context_len == 0:
+    n_head_bins = len(head_boundaries) - 1
+    for n_ctx_bins in (1, 2):
+        if n_head_bins == 0:
             break
-        ser_window = pd.concat([ser_head_filled.iloc[-context_len:], ser_residual])
+        ctx_bins = min(n_ctx_bins, n_head_bins)
+        ctx_start = int(head_boundaries[n_head_bins - ctx_bins])
+        ser_window = pd.concat([ser_head_filled.iloc[ctx_start:], ser_residual])
         ser_window_filled = _fill_gaps_iterative(ser_window, freq=freq, origin=origin)
         ser_residual = ser_window_filled.iloc[-n_res:]
-        if not ser_residual.isna().any() or context_len == ser_head_filled.size:
+        if not ser_residual.isna().any() or ctx_bins == n_head_bins:
             break
     return ser_residual
 
@@ -304,18 +372,16 @@ def _fill_gap_all_x_recursive(
     if not ser_test_filled.isna().any():
         return ser_test_filled
 
-    n_freq_rsmp = ser_test_filled.resample(freq, origin=origin).size().size
-    n_chunk = _chunk_size(ser_test_filled.index, freq) if n_freq_rsmp > 4 else None
-    n_freq = ser_test_filled.size // n_chunk if n_chunk is not None else 0
-
-    if n_freq > 4:
-        n_total = n_chunk * n_freq
+    split_info = _split_bin_boundaries(ser_test_filled, freq=freq, origin=origin)
+    if split_info is not None and split_info[1] > 4:
+        head_boundaries, _ = split_info
+        n_total = int(head_boundaries[-1])
         ser_residual = (
             ser_test_filled.iloc[n_total:] if n_total < ser_test_filled.size else None
         )
         ser_head = ser_test_filled.iloc[:n_total]
         ser_test_filled1, ser_test_filled2 = _find_balanced_split(
-            ser_head, n_freq, n_chunk, freq=freq, origin=origin
+            ser_head, head_boundaries, freq=freq, origin=origin
         )
         ser_test_filled1 = _fill_gap_all_x_recursive(
             ser_test_filled1, freq=freq, limit_fill=limit_fill, origin=origin
@@ -326,7 +392,11 @@ def _fill_gap_all_x_recursive(
         ser_head_filled = pd.concat([ser_test_filled1, ser_test_filled2])
         if ser_residual is not None:
             ser_residual = _fill_residual_tail(
-                ser_head_filled, ser_residual, n_chunk, freq=freq, origin=origin
+                ser_head_filled,
+                ser_residual,
+                head_boundaries,
+                freq=freq,
+                origin=origin,
             )
             ser_test_filled = pd.concat([ser_head_filled, ser_residual])
         else:
@@ -368,7 +438,7 @@ def fill_gap_all_x(ser_to_fill: pd.Series, freq="1D", limit_fill=1) -> pd.Series
     10:  division with missing data before one with no missing data
     """
     origin: str | pd.Timestamp = (
-        ser_to_fill.index[0].normalize() if len(ser_to_fill) > 0 else "start_day"
+        _civil_day_start(ser_to_fill.index[0]) if len(ser_to_fill) > 0 else "start_day"
     )
     return _fill_gap_all_x_recursive(
         ser_to_fill, freq=freq, limit_fill=limit_fill, origin=origin
@@ -448,8 +518,8 @@ def norm_ser_dt(ser_dt):
         time series with complete diurnal cycles; missing values may be inserted as np.nan.
     """
     freq = _infer_step_freq(ser_dt.index)
-    dt_start = ser_dt.index[0].normalize()
-    dt_end = ser_dt.index[-1].normalize() + pd.DateOffset(days=1)
+    dt_start = _civil_day_start(ser_dt.index[0], day_offset=0)
+    dt_end = _civil_day_start(ser_dt.index[-1], day_offset=1)
     if freq is not None:
         try:
             step_td = pd.Timedelta(freq)

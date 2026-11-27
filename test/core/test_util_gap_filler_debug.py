@@ -647,6 +647,57 @@ class TestFillGapAll:
         assert not filled.isna().any()
         np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
 
+    def test_fill_gap_all_recursive_split_respects_dst_calendar_day_boundaries(self):
+        """Recursive splits align to actual resampler bins across 23h/25h DST days."""
+        # 6 days starting on spring DST (143 hourly obs: 23h + 5*24h): positional
+        # 24-row chunking previously bisected 2 April across the midpoint split,
+        # filling 00:00 from 1 April (1.0) and 01:00..23:00 from 3 April (3.0).
+        idx = pd.date_range(
+            "2024-03-31 00:00",
+            "2024-04-05 23:00",
+            freq="1h",
+            tz="Europe/London",
+        )
+        ser = pd.Series(1.0, index=idx, dtype=float)
+        ser.loc["2024-04-03"] = 3.0
+        ser.loc["2024-04-02"] = np.nan
+
+        filled = fill_gap_all(ser, freq="1D", limit_fill=0)
+
+        assert not filled.isna().any()
+        # All 24 hours of 2 April stay in the same left-child bin and are filled
+        # uniformly from 1 April (1.0) without an artificial midnight jump to 3.0.
+        np.testing.assert_allclose(
+            filled.loc["2024-04-02"].values,
+            np.ones(24, dtype=float),
+            rtol=1e-12,
+        )
+
+    def test_fill_gap_all_handles_midnight_dst_transition_without_nonexistent_error(
+        self,
+    ):
+        """norm_ser_dt and fill_gap_all handle timezones where DST skips 00:00."""
+        # In America/Sao_Paulo, 2018-11-04 00:00 does not exist (clocks jump
+        # 23:59:59 -> 01:00:00). Ending on 2018-11-03 23:00 must not raise
+        # NonExistentTimeError when computing the next civil-day boundary.
+        idx = pd.date_range(
+            "2018-11-01 00:00",
+            "2018-11-03 23:00",
+            freq="1h",
+            tz="America/Sao_Paulo",
+        )
+        truth = pd.Series(1.0, index=idx, dtype=float)
+        ser = truth.copy()
+        ser.iloc[14:17] = np.nan
+
+        ser_norm = norm_ser_dt(truth)
+        assert list(ser_norm.index) == list(idx)
+
+        filled = fill_gap_all(ser, freq="12h", limit_fill=0)
+        assert list(filled.index) == list(idx)
+        assert not filled.isna().any()
+        np.testing.assert_allclose(filled.values, truth.values, rtol=1e-12)
+
     def test_fill_gap_all_end_to_end_and_threshold_error(self):
         """fill_gap_all fills multi-day partial-boundary series and enforces thresh_ratio."""
         # 7 days starting at 04:00 (partial day 0) with a multi-hour gap on day 4:

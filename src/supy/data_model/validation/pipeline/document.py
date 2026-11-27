@@ -136,13 +136,17 @@ _EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     PureWindowsPath,
     PosixPath,
     WindowsPath,
-    datetime.datetime,
     datetime.date,
-    datetime.time,
     datetime.timedelta,
     datetime.timezone,
     ZoneInfo,
     re.Pattern,
+})
+
+_SAFE_TZINFO_TYPES: frozenset[type[Any]] = frozenset({
+    type(None),
+    datetime.timezone,
+    ZoneInfo,
 })
 
 _NUMPY_IMMUTABLE_SCALARS = (
@@ -171,6 +175,8 @@ def _is_exact_immutable_scalar(value: Any) -> bool:
     value_type = type(value)
     if value_type in _EXACT_IMMUTABLE_TYPES:
         return True
+    if value_type in {datetime.datetime, datetime.time}:
+        return type(value.tzinfo) in _SAFE_TZINFO_TYPES
     return (
         isinstance(value, _NUMPY_IMMUTABLE_SCALARS) and value_type.__module__ == "numpy"
     )
@@ -488,6 +494,31 @@ def _copy_numpy_payload(value: np.ndarray[Any, Any] | np.void) -> Any:
     return arr_tmp[()]
 
 
+def _copy_non_container_payload(value: Any) -> Any:
+    """Copy slices, NumPy values, lazy frozen specs, or proxies while keeping representations."""
+    if isinstance(value, _LAZY_FROZEN_SPECS):
+        return _copy_payload(value.materialise())
+    if type(value) is slice:
+        return slice(
+            _copy_payload(value.start),
+            _copy_payload(value.stop),
+            _copy_payload(value.step),
+        )
+    if isinstance(value, (np.ndarray, np.void)):
+        return _copy_numpy_payload(value)
+    from ..rules.readonly_model import (  # noqa: PLC0415
+        ReadOnlyDataclassProxy,
+        ReadOnlyEnumProxy,
+        ReadOnlyModelProxy,
+    )
+
+    if isinstance(value, ReadOnlyEnumProxy):
+        return value
+    if isinstance(value, (ReadOnlyModelProxy, ReadOnlyDataclassProxy)):
+        return value.unwrap_copy()
+    return deepcopy(value)
+
+
 def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
     if value is None or type(value) in {bool, int, float, str, bytes}:
@@ -502,9 +533,7 @@ def _copy_payload(value: Any) -> Any:
         return {_copy_payload(item) for item in value}
     if isinstance(value, frozenset):
         return frozenset(_copy_payload(item) for item in value)
-    if isinstance(value, (np.ndarray, np.void)):
-        return _copy_numpy_payload(value)
-    return deepcopy(value)
+    return _copy_non_container_payload(value)
 
 
 def _freeze_mapping_entries(entries: dict[Any, Any]) -> Mapping[Any, Any]:

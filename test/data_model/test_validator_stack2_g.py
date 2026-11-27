@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import deque
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, dataclass
+import datetime
 from enum import Enum, IntEnum, StrEnum
 import functools
 from importlib.resources import files
@@ -12,9 +13,17 @@ import ipaddress
 import math
 from pathlib import Path
 from types import MappingProxyType
+from zoneinfo import ZoneInfo
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_serializer
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    computed_field,
+    field_serializer,
+)
 import pytest
 import yaml
 
@@ -2485,41 +2494,6 @@ def test_r10_r2_stebbs_master_ledger_complex_nan_arrays_property_enum_and_numpy_
         == []
     )
 
-    # Major 3: @property and @field_serializer see snapshotted ReadOnlyEnumProxy and cannot mutate live Enum.
-    class _PropEnum(Enum):
-        ITEM = 1
-
-        def __init__(self, _val: int) -> None:
-            self.label = "before"
-
-    class _PropEnumModel(BaseModel):
-        member: _PropEnum = _PropEnum.ITEM
-
-        @property
-        def read_label(self) -> str:
-            return self.member.label
-
-        @property
-        def mutate_label(self) -> str:
-            self.member.label = "hacked"  # type: ignore[misc]
-            return "bad"
-
-        @field_serializer("member")
-        def _ser_member(self, val: _PropEnum) -> str:
-            return val.label
-
-    ro_pe = freeze_model(_PropEnumModel())
-    _PropEnum.ITEM.label = "after"
-    try:
-        assert ro_pe.read_label == "before"
-        assert ro_pe.model_dump()["member"] == "before"
-        assert ro_pe.model_dump(mode="json")["member"] == "before"
-        with pytest.raises(TypeError, match="Cannot mutate attribute"):
-            _ = ro_pe.mutate_label
-        assert _PropEnum.ITEM.label == "after"
-    finally:
-        _PropEnum.ITEM.label = "before"
-
     # Major 4: NumPy structured array and np.void snapshot copies detach mutable dtype.names.
     class _StructArrModel(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -2536,3 +2510,141 @@ def test_r10_r2_stebbs_master_ledger_complex_nan_arrays_property_enum_and_numpy_
     unwrapped_sa = ro_sa.unwrap_copy()
     unwrapped_sa.arr.dtype.names = ("unwrapped_x",)
     assert ro_sa.arr.dtype.names == ("x",)
+
+
+def test_r10_r2_property_serializer_enum_rejection() -> None:
+    """Properties, computed fields, and custom serializers on models with Enums are rejected explicitly."""
+
+    class _PropEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "before"
+
+    class _PropEnumModel(BaseModel):
+        member: _PropEnum = _PropEnum.ITEM
+
+        @property
+        def read_label(self) -> str:
+            return self.member.label
+
+        @property
+        def is_item(self) -> bool:
+            return self.member is _PropEnum.ITEM
+
+        @property
+        def mutate_label(self) -> str:
+            self.member.label = "hacked"  # type: ignore[misc]
+            return "bad"
+
+        @field_serializer("member")
+        def _ser_member(self, val: _PropEnum) -> str:
+            return val.label
+
+    ro_pe = freeze_model(_PropEnumModel())
+    _PropEnum.ITEM.label = "after"
+    try:
+        assert ro_pe.member.label == "before"
+        with pytest.raises(TypeError, match="Enum singletons"):
+            _ = ro_pe.read_label
+        with pytest.raises(TypeError, match="Enum singletons"):
+            _ = ro_pe.is_item
+        with pytest.raises(TypeError, match="Enum singletons"):
+            _ = ro_pe.mutate_label
+        with pytest.raises(TypeError, match="Enum singletons"):
+            ro_pe.model_dump()
+        with pytest.raises(TypeError, match="Enum singletons"):
+            ro_pe.model_dump(mode="json")
+        assert _PropEnum.ITEM.label == "after"
+    finally:
+        _PropEnum.ITEM.label = "before"
+
+
+def test_r10_r3_tuple_baseline_nullify_bare_closures_repr_suews_int_enum_and_tzinfo() -> (
+    None
+):
+    """Tuple baselines preserve type, nullify never resurrects removed ref, closures rejected, repr pure, SUEWS int enums & tzinfo hardened."""
+    from supy.data_model.core.model import NetRadiationMethod  # noqa: PLC0415
+
+    # R2 Major 1: baseline tuple replaced by list is NOT dropped as a no-op and inverts back to tuple.
+    tup_base = {"a": (1, 2)}
+    tup_patch = [ConfigPatch("a", "set", [1, 2], default_wrapped=False)]
+    direct_tup = deepcopy(tup_base)
+    apply_patches_in_place(direct_tup, tup_patch)
+    norm_tup = normalise_patches(tup_patch, tup_base)
+    assert len(norm_tup) == 1
+    replayed_tup = deepcopy(tup_base)
+    apply_patches_in_place(replayed_tup, norm_tup)
+    assert replayed_tup == direct_tup == {"a": [1, 2]}
+    assert type(replayed_tup["a"]) is list
+    apply_patches_in_place(replayed_tup, invert_patches(norm_tup))
+    assert replayed_tup == {"a": (1, 2)}
+    assert type(replayed_tup["a"]) is tuple
+
+    # R2 Major 2: raw replacement of ref_only -> bare followed by nullify_tree stays bare None.
+    ref_doc = ConfigDocument.from_dict({"a": {"ref": {"ID": "src"}}}, normalise=False)
+    seq = [
+        ConfigPatch("a", "set", 1, replace_raw=True),
+        ConfigPatch("a", "nullify_tree"),
+    ]
+    direct_null = ref_doc.apply_patches(seq)
+    norm_null = ref_doc.normalise_patches(seq, expand_nullify_tree=True)
+    replayed_null = ref_doc.apply_patches(norm_null)
+    assert direct_null.data == replayed_null.data == {"a": None}
+    assert replayed_null.apply_patches(invert_patches(norm_null)).data == ref_doc.data
+
+    # R2 Major 3: closures capturing caller state are rejected rather than passed through by deepcopy.
+    captured: list[int] = []
+
+    class _ClosureModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        fn: object
+
+    def _record_item(item: int) -> None:
+        captured.append(item)
+
+    with pytest.raises(TypeError, match="Cannot safely detach function/closure"):
+        freeze_model(_ClosureModel(fn=_record_item))
+    assert captured == []
+
+    # R2 Major 4: SUEWS ordinary Enum with custom __int__ converts via int() on ReadOnlyEnumProxy.
+    frozen_nrad = deep_freeze(NetRadiationMethod.LDOWN_AIR)
+    assert isinstance(frozen_nrad, ReadOnlyEnumProxy)
+    assert int(frozen_nrad) == 3
+
+    # R2 Major 5: repr(ro) does not execute mutating computed_field against the stored snapshot.
+    class _ReprMutModel(BaseModel):
+        items: list[int] = Field(default_factory=lambda: [1])
+
+        @computed_field(repr=True)
+        @property
+        def sneaky(self) -> int:
+            self.items.append(999)
+            return len(self.items)
+
+    ro_repr = freeze_model(_ReprMutModel())
+    rendered = repr(ro_repr)
+    assert "items=(1,)" in rendered
+    assert ro_repr.items == (1,)
+
+    # R2 Minor 6: aware datetime with mutable custom tzinfo is rejected, while UTC/ZoneInfo remain allowed.
+    class _MutableTZ(datetime.tzinfo):
+        def __init__(self, hours: int) -> None:
+            self.hours = hours
+
+        def utcoffset(self, dt: datetime.datetime | None) -> datetime.timedelta:
+            return datetime.timedelta(hours=self.hours)
+
+        def dst(self, dt: datetime.datetime | None) -> datetime.timedelta:
+            return datetime.timedelta(0)
+
+        def tzname(self, dt: datetime.datetime | None) -> str:
+            return f"UTC+{self.hours}"
+
+    safe_dt = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
+    safe_zi = datetime.datetime(2025, 1, 1, tzinfo=ZoneInfo("UTC"))
+    assert deep_freeze(safe_dt) is safe_dt
+    assert deep_freeze(safe_zi) is safe_zi
+    mut_dt = datetime.datetime(2025, 1, 1, tzinfo=_MutableTZ(1))
+    with pytest.raises(TypeError, match="cannot safely freeze"):
+        deep_freeze({"when": mut_dt})

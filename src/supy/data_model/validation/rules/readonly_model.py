@@ -13,17 +13,18 @@ from collections import deque
 from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
 from dataclasses import dataclass, fields as dc_fields, is_dataclass
+import datetime
 from enum import Enum
 import functools
 from types import (
     BuiltinMethodType,
+    FunctionType,
     MappingProxyType,
     MethodType,
     MethodWrapperType,
     ModuleType,
 )
 from typing import Any
-import warnings
 import weakref
 
 import numpy as np
@@ -32,6 +33,7 @@ from pydantic_core import PydanticUndefinedType
 
 from ..pipeline.document import (
     _ENUM_INTERNAL_ATTRS,
+    _LAZY_FROZEN_SPECS,
     _freeze_mapping_entries,
     _freeze_sequence_items,
     _freeze_slice_value,
@@ -222,12 +224,23 @@ def _detach_callable(
     reject_enums: bool,
     wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
 ) -> tuple[bool, Any]:
-    """Detach bound methods and ``functools.partial`` objects by rebinding copied targets."""
+    """Detach bound methods/partials or reject callables that cannot be safely isolated."""
     obj_id = id(value)
+    if isinstance(value, FunctionType):
+        raise TypeError(
+            f"Cannot safely detach function/closure {value.__qualname__!r} without "
+            "sharing closure, default, or global state"
+        )
     if isinstance(value, (BuiltinMethodType, MethodWrapperType)):
         bound_self = getattr(value, "__self__", None)
-        if bound_self is None or isinstance(bound_self, (ModuleType, type)):
+        if bound_self is None or isinstance(bound_self, ModuleType):
             return True, value
+        if isinstance(bound_self, type):
+            if bound_self.__module__ == "builtins":
+                return True, value
+            raise TypeError(
+                f"Cannot safely detach class-bound builtin method on {bound_self.__name__!r}"
+            )
         copied_self = _detach_snapshot_tree(
             bound_self, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
         )
@@ -237,7 +250,9 @@ def _detach_callable(
     if isinstance(value, MethodType):
         bound_self = value.__self__
         if isinstance(bound_self, type):
-            return True, value
+            raise TypeError(
+                f"Cannot safely detach classmethod bound to class {bound_self.__name__!r}"
+            )
         copied_self = _detach_snapshot_tree(
             bound_self, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
         )
@@ -442,6 +457,15 @@ def _detach_plain_instance(
     return True, cloned_obj
 
 
+def _is_safe_identity_copy(value: Any) -> bool:
+    """Return True only when returning *value* unchanged from ``deepcopy`` is deeply safe."""
+    if value is Ellipsis or value is NotImplemented:
+        return True
+    return (
+        isinstance(value, np.dtype) and value.names is None and value.metadata is None
+    )
+
+
 def _detach_container_or_object(
     value: Any,
     memo: dict[int, Any],
@@ -450,6 +474,13 @@ def _detach_container_or_object(
     wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
 ) -> Any:
     """Detach Python containers, callables, NumPy values, and plain Python objects."""
+    if type(value) in {datetime.datetime, datetime.time} and value.tzinfo is not None:
+        detached_tz = _detach_snapshot_tree(
+            value.tzinfo, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+        replaced = value.replace(tzinfo=detached_tz)
+        memo[id(value)] = replaced
+        return replaced
     if isinstance(value, (MappingProxyType, dict)):
         out_dict: dict[Any, Any] = {}
         memo[id(value)] = out_dict
@@ -473,7 +504,13 @@ def _detach_container_or_object(
         )
         if handled:
             return result
-    return deepcopy(value)
+    copied = deepcopy(value)
+    if copied is value and not _is_safe_identity_copy(value):
+        raise TypeError(
+            f"Cannot safely detach object of type {type(value).__name__!r} "
+            "because deepcopy preserves shared identity"
+        )
+    return copied
 
 
 def _detach_enum_value(
@@ -673,34 +710,60 @@ class ReadOnlyEnumProxy:
         return bool(_ENUM_STATE[id(self)][0])
 
     def __int__(self) -> int:
-        """Support ``int()`` conversion for ``IntEnum`` / ``IntFlag`` proxies."""
-        member = _ENUM_STATE[id(self)][0]
-        if isinstance(member, int):
+        """Support ``int()`` conversion for integer and ``__int__``-defining ``Enum`` proxies."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        if isinstance(member, int) and not isinstance(member, bool):
             return int(member)
+        if (
+            hasattr(type(member), "__int__")
+            and isinstance(frozen_value, int)
+            and not isinstance(frozen_value, bool)
+        ):
+            return int(frozen_value)
         raise TypeError(
             f"int() argument must be an integer Enum proxy, not {type(member).__name__!r}"
         )
 
     def __index__(self) -> int:
         """Support integer indexing for ``IntEnum`` / ``IntFlag`` proxies."""
-        return self.__int__()
+        member = _ENUM_STATE[id(self)][0]
+        if isinstance(member, int) and not isinstance(member, bool):
+            return int(member)
+        raise TypeError(
+            f"'{type(member).__name__}' object cannot be interpreted as an integer"
+        )
 
     def __float__(self) -> float:
         """Support ``float()`` conversion for numeric ``Enum`` proxies (e.g. ``TimezoneOffset``)."""
-        member = _ENUM_STATE[id(self)][0]
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
         if isinstance(member, (int, float)) and not isinstance(member, bool):
             return float(member)
+        if (
+            hasattr(type(member), "__float__")
+            and isinstance(frozen_value, (int, float))
+            and not isinstance(frozen_value, bool)
+        ):
+            return float(frozen_value)
         raise TypeError(
             f"float() argument must be a numeric Enum proxy, not {type(member).__name__!r}"
         )
 
     def __str__(self) -> str:
-        """Return the string representation of the underlying ``Enum`` member."""
-        return str(_ENUM_STATE[id(self)][0])
+        """Return a pure string representation built from snapshotted enum state."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        if isinstance(member, str):
+            return str(frozen_value)
+        if isinstance(member, int) and not isinstance(member, bool):
+            return str(int(frozen_value))
+        return f"{type(member).__name__}.{member.name}"
 
     def __repr__(self) -> str:
-        """Return a readable representation of the wrapped ``Enum`` member."""
-        return f"ReadOnlyEnumProxy({_ENUM_STATE[id(self)][0]!r})"
+        """Return a pure representation built from snapshotted enum metadata."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        return (
+            f"ReadOnlyEnumProxy(<{type(member).__name__}.{member.name}: "
+            f"{_safe_repr_value(frozen_value, set())}>)"
+        )
 
     def __copy__(self) -> ReadOnlyEnumProxy:
         """Return ``self`` because ``ReadOnlyEnumProxy`` is deeply immutable."""
@@ -807,6 +870,201 @@ def _iter_snapshot_children(
     elif isinstance(obj, functools.partial):
         children.extend((obj.func, obj.args, obj.keywords))
     return children
+
+
+def _contains_enum(root: Any) -> bool:
+    """Return True if any ``Enum`` member is reachable from *root*."""
+    visited: set[int] = set()
+    stack: list[Any] = [root]
+    dummy_fields: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]] = {}
+    while stack:
+        obj = stack.pop()
+        if obj is None or _is_exact_immutable_scalar(obj):
+            continue
+        if isinstance(obj, Enum):
+            return True
+        obj_id = id(obj)
+        if obj_id in visited:
+            continue
+        visited.add(obj_id)
+        if isinstance(obj, BaseModel):
+            model_cls = type(obj)
+            stack.extend(getattr(obj, name) for name in model_cls.model_fields)
+            for attr in ("model_extra", "__pydantic_private__"):
+                mapping = getattr(obj, attr, None)
+                if isinstance(mapping, Mapping):
+                    stack.append(mapping)
+        else:
+            stack.extend(_iter_snapshot_children(obj, dummy_fields))
+    return False
+
+
+def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -> None:
+    """Reject ``model_dump`` when user serializers, computed fields, or fallback can see live enums."""
+    if not _contains_enum(root):
+        return
+    if has_user_fallback:
+        raise TypeError(
+            "Cannot safely run custom fallback serializer on a model containing "
+            "live Enum singletons without exposing writable singleton state"
+        )
+    from ...core.type import RefValue  # noqa: PLC0415
+
+    allowed_model_ser = getattr(
+        RefValue._serialize_with_value_key,
+        "__func__",
+        RefValue._serialize_with_value_key,
+    )
+    visited: set[int] = set()
+    stack: list[Any] = [root]
+    dummy_fields: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]] = {}
+    while stack:
+        obj = stack.pop()
+        if obj is None or _is_exact_immutable_scalar(obj):
+            continue
+        if isinstance(obj, Enum):
+            if not _is_immutable_enum(obj):
+                raise TypeError(
+                    f"Cannot safely serialize Enum member "
+                    f"{type(obj).__name__}.{obj.name} with mutable payload"
+                )
+            continue
+        obj_id = id(obj)
+        if obj_id in visited:
+            continue
+        visited.add(obj_id)
+        if isinstance(obj, BaseModel):
+            model_cls = type(obj)
+            decorators = model_cls.__pydantic_decorators__
+            has_disallowed_model_ser = any(
+                getattr(dec.func, "__func__", dec.func) is not allowed_model_ser
+                for dec in decorators.model_serializers.values()
+            )
+            if (
+                decorators.field_serializers
+                or has_disallowed_model_ser
+                or model_cls.model_computed_fields
+            ) and _contains_enum(obj):
+                raise TypeError(
+                    f"Cannot safely run custom serializer or computed field on "
+                    f"{model_cls.__name__!r} containing live Enum singletons without "
+                    "exposing writable singleton state or altering Enum semantics"
+                )
+            stack.extend(getattr(obj, name) for name in model_cls.model_fields)
+            for attr in ("model_extra", "__pydantic_private__"):
+                mapping = getattr(obj, attr, None)
+                if isinstance(mapping, Mapping):
+                    stack.append(mapping)
+        else:
+            stack.extend(_iter_snapshot_children(obj, dummy_fields))
+
+
+def _safe_repr_container(value: Any, seen: set[int]) -> str | None:
+    """Format frozen mapping, tuple, or frozenset containers with cycle protection."""
+    obj_id = id(value)
+    if obj_id in seen:
+        return "..."
+    if isinstance(value, Mapping):
+        seen.add(obj_id)
+        try:
+            items = ", ".join(
+                f"{_safe_repr_value(k, seen)}: {_safe_repr_value(v, seen)}"
+                for k, v in value.items()
+            )
+            return f"{{{items}}}"
+        finally:
+            seen.discard(obj_id)
+    if isinstance(value, tuple):
+        seen.add(obj_id)
+        try:
+            items = ", ".join(_safe_repr_value(v, seen) for v in value)
+            suffix = "," if len(value) == 1 else ""
+            return f"({items}{suffix})"
+        finally:
+            seen.discard(obj_id)
+    if isinstance(value, frozenset):
+        seen.add(obj_id)
+        try:
+            items = ", ".join(_safe_repr_value(v, seen) for v in value)
+            return f"frozenset({{{items}}})"
+        finally:
+            seen.discard(obj_id)
+    return None
+
+
+def _safe_repr_value(value: Any, seen: set[int]) -> str:
+    """Format a frozen value without invoking user-defined ``__repr__`` or properties."""
+    if (
+        value is None
+        or _is_exact_immutable_scalar(value)
+        or isinstance(value, (ReadOnlyEnumProxy, np.ndarray))
+    ):
+        return repr(value)
+    if isinstance(value, _LAZY_FROZEN_SPECS):
+        return repr(value.materialise())
+    if isinstance(value, ReadOnlyModelProxy):
+        return _format_model_proxy_repr(value, seen)
+    if isinstance(value, ReadOnlyDataclassProxy):
+        return _format_dataclass_proxy_repr(value, seen)
+    container_repr = _safe_repr_container(value, seen)
+    return container_repr if container_repr is not None else f"<{type(value).__name__}>"
+
+
+def _format_raw_field_repr(
+    raw_value: Any,
+    enum_snapshots: dict[int, ReadOnlyEnumProxy],
+    field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]],
+    seen: set[int],
+) -> str:
+    """Safely format one declared field value for proxy ``__repr__``."""
+    try:
+        frozen = _wrap_readonly(raw_value, enum_snapshots, field_snapshots)
+    except TypeError:
+        return f"<unfreezable {type(raw_value).__name__}>"
+    return _safe_repr_value(frozen, seen)
+
+
+def _format_dataclass_proxy_repr(proxy: ReadOnlyDataclassProxy, seen: set[int]) -> str:
+    """Build ``ReadOnlyDataclassProxy.__repr__`` strictly from declared fields."""
+    target, _cache, enum_snapshots, field_snapshots = _DATACLASS_STATE[id(proxy)]
+    target_id = id(target)
+    if target_id in seen:
+        return f"ReadOnlyDataclassProxy({type(target).__name__}(...))"
+    seen.add(target_id)
+    try:
+        parts = [
+            f"{dc_field.name}="
+            f"{_format_raw_field_repr(getattr(target, dc_field.name), enum_snapshots, field_snapshots, seen)}"
+            for dc_field in dc_fields(type(target))
+        ]
+        return f"ReadOnlyDataclassProxy({type(target).__name__}({', '.join(parts)}))"
+    finally:
+        seen.discard(target_id)
+
+
+def _format_model_proxy_repr(proxy: ReadOnlyModelProxy, seen: set[int]) -> str:
+    """Build ``ReadOnlyModelProxy.__repr__`` strictly from declared fields without computed fields."""
+    target, _cache, enum_snapshots, field_snapshots = _PROXY_STATE[id(proxy)]
+    target_id = id(target)
+    if target_id in seen:
+        return f"ReadOnlyModelProxy({type(target).__name__}(...))"
+    seen.add(target_id)
+    try:
+        model_cls = type(target)
+        parts = [
+            f"{name}="
+            f"{_format_raw_field_repr(getattr(target, name), enum_snapshots, field_snapshots, seen)}"
+            for name in model_cls.model_fields
+        ]
+        extra = getattr(target, "model_extra", None)
+        if isinstance(extra, Mapping):
+            parts.extend(
+                f"{k}={_format_raw_field_repr(v, enum_snapshots, field_snapshots, seen)}"
+                for k, v in extra.items()
+            )
+        return f"ReadOnlyModelProxy({model_cls.__name__}({', '.join(parts)}))"
+    finally:
+        seen.discard(target_id)
 
 
 def _collect_proxy_snapshots(
@@ -916,11 +1174,15 @@ class ReadOnlyDataclassProxy:
         for cls_in_mro in dc_type.__mro__:
             if name in cls_in_mro.__dict__:
                 if isinstance(cls_in_mro.__dict__[name], property):
-                    working_copy = _safe_snapshot_copy(
-                        target, wrap_enums=enum_snapshots
-                    )
+                    if _contains_enum(target):
+                        raise TypeError(
+                            f"Cannot safely evaluate property {name!r} on "
+                            f"{dc_type.__name__!r} containing live Enum singletons "
+                            "without exposing writable singleton state or altering "
+                            "Enum semantics; inspect declared fields directly"
+                        )
                     wrapped = _wrap_readonly(
-                        getattr(working_copy, name),
+                        getattr(_safe_snapshot_copy(target), name),
                         enum_snapshots,
                         field_snapshots,
                     )
@@ -972,8 +1234,8 @@ class ReadOnlyDataclassProxy:
         return self
 
     def __repr__(self) -> str:
-        """Return a readable representation of the wrapped dataclass."""
-        return f"ReadOnlyDataclassProxy({_DATACLASS_STATE[id(self)][0]!r})"
+        """Return a pure representation of the wrapped dataclass without user hooks."""
+        return _format_dataclass_proxy_repr(self, set())
 
 
 def _freeze_ndarray_spec(
@@ -1209,40 +1471,11 @@ class ReadOnlyModelProxy:
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return a fresh detached dictionary serialisation of a working model copy."""
         target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
-        working_copy = _safe_snapshot_copy(target, wrap_enums=enum_snapshots)
-        dump_kwargs = dict(kwargs)
-        user_fallback = dump_kwargs.get("fallback")
-        is_json_mode = dump_kwargs.get("mode") == "json" or (
-            bool(args) and args[0] == "json"
+        _validate_enum_dump_isolation(
+            target, has_user_fallback=kwargs.get("fallback") is not None
         )
-        if is_json_mode:
-
-            def _json_enum_fallback(obj: Any) -> Any:
-                if isinstance(obj, ReadOnlyEnumProxy):
-                    return obj.value
-                if user_fallback is not None:
-                    return user_fallback(obj)
-                raise TypeError(f"Unable to serialize unknown type: {type(obj)}")
-
-            dump_kwargs["fallback"] = _json_enum_fallback
-        elif user_fallback is not None:
-
-            def _py_enum_fallback(obj: Any) -> Any:
-                if isinstance(obj, ReadOnlyEnumProxy):
-                    return obj
-                return user_fallback(obj)
-
-            dump_kwargs["fallback"] = _py_enum_fallback
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            dumped = working_copy.model_dump(*args, **dump_kwargs)
-        for rec in caught:
-            if issubclass(rec.category, UserWarning) and "ReadOnlyEnumProxy" in str(
-                rec.message
-            ):
-                continue
-            warnings.warn(rec.message, rec.category, stacklevel=2)
+        working_copy = _safe_snapshot_copy(target)
+        dumped = working_copy.model_dump(*args, **kwargs)
         return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
     def unwrap_copy(self) -> BaseModel:
@@ -1275,9 +1508,14 @@ class ReadOnlyModelProxy:
             return _materialise_readonly(wrapped)
 
         if name in model_cls.model_computed_fields:
-            working_copy = _safe_snapshot_copy(target, wrap_enums=enum_snapshots)
+            if _contains_enum(target):
+                raise TypeError(
+                    f"Cannot safely evaluate computed field {name!r} on "
+                    f"{model_cls.__name__!r} containing live Enum singletons without "
+                    "exposing writable singleton state or altering Enum semantics"
+                )
             wrapped = _wrap_readonly(
-                getattr(working_copy, name),
+                getattr(_safe_snapshot_copy(target), name),
                 enum_snapshots,
                 field_snapshots,
             )
@@ -1288,11 +1526,15 @@ class ReadOnlyModelProxy:
             if name in cls_in_mro.__dict__:
                 descriptor = cls_in_mro.__dict__[name]
                 if isinstance(descriptor, property):
-                    working_copy = _safe_snapshot_copy(
-                        target, wrap_enums=enum_snapshots
-                    )
+                    if _contains_enum(target):
+                        raise TypeError(
+                            f"Cannot safely evaluate property {name!r} on "
+                            f"{model_cls.__name__!r} containing live Enum singletons "
+                            "without exposing writable singleton state or altering "
+                            "Enum semantics; inspect declared fields directly"
+                        )
                     wrapped = _wrap_readonly(
-                        getattr(working_copy, name),
+                        getattr(_safe_snapshot_copy(target), name),
                         enum_snapshots,
                         field_snapshots,
                     )
@@ -1349,8 +1591,8 @@ class ReadOnlyModelProxy:
         return self
 
     def __repr__(self) -> str:
-        """Return a readable representation of the wrapped model."""
-        return f"ReadOnlyModelProxy({_PROXY_STATE[id(self)][0]!r})"
+        """Return a pure representation of the wrapped model without computed fields."""
+        return _format_model_proxy_repr(self, set())
 
     def __dir__(self) -> list[str]:
         """List readable fields and inspection helpers exposed by the proxy."""

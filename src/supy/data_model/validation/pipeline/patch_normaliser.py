@@ -208,11 +208,11 @@ def _classify_raw_entry(
         ref_val = raw_entry.get("ref")
         return (
             True,
-            thaw_copy(raw_entry["value"]),
+            _copy_payload(raw_entry["value"]),
             "ref_value",
             deep_freeze(ref_val) if isinstance(ref_val, Mapping) else None,
         )
-    return True, thaw_copy(raw_entry), "bare", None
+    return True, _copy_payload(raw_entry), "bare", None
 
 
 def _token_dict_aliases(left: PathToken, right: PathToken) -> bool:
@@ -558,9 +558,8 @@ def _apply_atomic_nullify(
         expanded: list[tuple[ConfigPatch, Any]] = []
         for leaf_tokens, leaf_path, _old_val, new_null_val in token_entries:
             cur_leaf = read_raw_tokens(working, leaf_tokens, default=_MISSING)
-            preserve_wrapper: WrapperStyle | None = (
-                "ref_value" if is_ref_wrapper(cur_leaf) else None
-            )
+            _, _, cur_style, cur_ref = _classify_raw_entry(cur_leaf)
+            cur_has_ref = isinstance(cur_leaf, Mapping) and "ref" in cur_leaf
             leaf_patch = ConfigPatch(
                 path=leaf_path,
                 action="set",
@@ -572,12 +571,12 @@ def _apply_atomic_nullify(
                 source=patch.source,
                 default_wrapped=patch.default_wrapped,
                 path_tokens=leaf_tokens,
-                write_style=preserve_wrapper,
+                write_style=cur_style,
+                write_ref=cur_ref,
+                write_has_ref=cur_has_ref,
             )
             expanded.append(
-                _apply_atomic_set(
-                    working, leaf_patch, leaf_tokens, leaf_path, style_ledger
-                )
+                _apply_atomic_set(working, leaf_patch, leaf_tokens, leaf_path, None)
             )
         return expanded
 
@@ -882,7 +881,7 @@ def normalise_owned_patches(
         style_ledger = None
 
     _assert_no_aliased_containers(base_data)
-    working = thaw_copy(base_data)
+    working = _copy_payload(base_data)
     recorded: list[tuple[int | None, ConfigPatch, Any]] = []
 
     for owner_idx, patch in owned_patches:

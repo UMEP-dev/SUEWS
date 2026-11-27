@@ -354,7 +354,7 @@ CONTAINS
                ! First generate RSL height array
                zH_RSL = MAX(Zh, ZH_MIN) ! minimum canyon height
                IF (ieee_is_finite(Zh) .AND. (.NOT. ieee_is_finite(zMeas) .OR. zMeas <= zH_RSL)) THEN
-                  CALL set_supy_error(114, &
+                  CALL set_supy_error(119, &
                      'RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL')
                   dataoutLineRSL = -999.0D0
                   RETURN
@@ -378,7 +378,7 @@ CONTAINS
                   RETURN
                END IF
                IF (zMeas <= zd_RSL .OR. ANY(zarray(nz_can:nz) <= zd_RSL)) THEN
-                  CALL set_supy_error(114, &
+                  CALL set_supy_error(119, &
                      'RSLProfile: forcing height and above-canopy levels must exceed RSL displacement height zd_RSL')
                   dataoutLineRSL = -999.0D0
                   RETURN

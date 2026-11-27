@@ -348,7 +348,7 @@ def test_forced_rsl_low_canopy_uses_consistent_zh_floor(canopy_height):
 @pytest.mark.core
 @pytest.mark.parametrize("forcing_height", [1.1, 2.0])
 def test_forced_rsl_rejects_forcing_height_not_above_zh_floor(forcing_height):
-    """Forced RSL must fail with code 114 when zMeas <= ZH_MIN (2 m) instead of NaN."""
+    """Forced RSL must fail with code 119 when zMeas <= ZH_MIN (2 m) instead of NaN."""
     df_state_init, df_forcing = load_sample_frames()
     df_state = df_state_init.iloc[[0]].copy()
     df_forcing_short = df_forcing.iloc[:2]
@@ -363,6 +363,42 @@ def test_forced_rsl_rejects_forcing_height_not_above_zh_floor(forcing_height):
 
     with pytest.raises(
         RuntimeError,
-        match=r"code 114.*RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL",
+        match=r"code 119.*RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL",
     ):
         run_simulation(df_forcing_short, df_state)
+
+
+@pytest.mark.core
+def test_forced_rsl_accepts_forcing_height_just_above_zh_floor():
+    """Forced RSL succeeds cleanly when zMeas exceeds ZH_MIN (2 m) over a low canopy."""
+    df_state_init, df_forcing = load_sample_frames()
+    df_state = df_state_init.iloc[[0]].copy()
+    df_forcing_short = df_forcing.iloc[:2]
+
+    df_state.loc[:, ("rslmethod", "0")] = 1
+    df_state.loc[:, ("bldgh", "0")] = 0.5
+    df_state.loc[:, ("evetreeh", "0")] = 0.5
+    df_state.loc[:, ("dectreeh", "0")] = 0.5
+    df_state.loc[:, ("z", "0")] = 2.5
+    df_state.loc[:, ("zdm_in", "0")] = 0.3
+    df_state.loc[:, ("z0m_in", "0")] = 0.05
+
+    df_output, _ = run_simulation(df_forcing_short, df_state)
+    diag = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        ["flag_RSL", "z_20", "z_30", "zH_RSL"],
+    )
+    assert (diag[:, 0] == 1).all()
+    np.testing.assert_allclose(diag[:, 3], 2.0, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(diag[:, 1], 2.0, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(diag[:, 2], 2.5, rtol=0, atol=1e-9)
+    _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        [f"{var}_{i}" for var in ("U", "T", "q") for i in PROFILE_LEVELS],
+    )

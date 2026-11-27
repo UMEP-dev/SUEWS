@@ -14,7 +14,10 @@ import pandas as pd
 import pytest
 
 from supy._load import load_SUEWS_table
-from supy.util.converter.table.profile_manager import ProfileManager
+from supy.util.converter.table.profile_manager import (
+    ProfileManager,
+    validate_and_fix_profiles,
+)
 
 pytestmark = [pytest.mark.api, pytest.mark.contract("C-MIGRATE")]
 
@@ -339,3 +342,42 @@ def test_create_default_profile_columns_contract() -> None:
     # Fewer than 24 columns raises ValueError
     with pytest.raises(ValueError, match="Expected at least 24 profile columns"):
         pm.create_default_profile(44, columns=["0", "1", "2"])
+
+
+def test_failed_profile_load_preserves_original_file_and_rules(tmp_path: Path) -> None:
+    """Failed load_profiles refuses to overwrite SUEWS_Profiles.txt or rewrite rules.csv."""
+    # ARRANGE: table with one valid row and one malformed profile code
+    profiles_path = tmp_path / "SUEWS_Profiles.txt"
+    valid_vals = " ".join(["0.500"] * 24)
+    malformed_vals = " ".join(["0.200"] * 24)
+    profiles_path.write_text(
+        " ".join(str(i) for i in range(1, 26))
+        + "\nCode "
+        + " ".join(str(h) for h in range(24))
+        + f"\n10 {valid_vals}\nbad_code {malformed_vals}\n",
+        encoding="utf-8",
+    )
+    rules_path = tmp_path / "rules.csv"
+    pd.DataFrame({
+        "Action": ["Add"],
+        "Variable": ["ActivityProfWD"],
+        "Value": ["10"],
+    }).to_csv(rules_path, index=False)
+
+    original_profiles_bytes = profiles_path.read_bytes()
+    original_rules_bytes = rules_path.read_bytes()
+
+    # ACT & ASSERT: direct ProfileManager preserves existing file on ensure_required_profiles
+    pm = ProfileManager(profiles_path)
+    assert pm.profile_data is None
+    assert pm.available_profiles == set()
+    with pytest.raises(ValueError, match="Refusing to write"):
+        pm.ensure_required_profiles(tmp_path)
+    assert profiles_path.read_bytes() == original_profiles_bytes
+
+    # ACT & ASSERT: validate_and_fix_profiles preserves both SUEWS_Profiles.txt and rules.csv
+    with pytest.raises(ValueError, match="Refusing to update"):
+        validate_and_fix_profiles(tmp_path, rules_path)
+    assert profiles_path.read_bytes() == original_profiles_bytes
+    assert rules_path.read_bytes() == original_rules_bytes
+    assert not (tmp_path / "rules.csv.bak").exists()

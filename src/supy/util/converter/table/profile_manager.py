@@ -56,12 +56,14 @@ class ProfileManager:
         self.available_profiles: set[int] = set()
         self.profile_data: pd.DataFrame | None = None
         self.missing_profiles: set[int] = set()
+        self._load_error: Exception | None = None
 
         if profiles_path and profiles_path.exists():
             self.load_profiles()
 
     def load_profiles(self):
         """Load existing profiles from SUEWS_Profiles.txt."""
+        self._load_error = None
         try:
             # Try reading with first row as header
             self.profile_data = pd.read_csv(
@@ -92,6 +94,7 @@ class ProfileManager:
             logger.info(f"Loaded {len(self.available_profiles)} profiles")
         except Exception as e:
             logger.warning(f"Could not load profiles: {e}")
+            self._load_error = e
             self.profile_data = None
             self.available_profiles = set()
 
@@ -171,6 +174,12 @@ class ProfileManager:
             output_path: Directory to write SUEWS_Profiles.txt
         """
         profiles_file = output_path / "SUEWS_Profiles.txt"
+
+        if self.profile_data is None and self._load_error is not None:
+            raise ValueError(
+                f"Refusing to write {profiles_file} because loading "
+                f"{self.profiles_path} failed: {self._load_error}"
+            ) from self._load_error
 
         # Start with existing profiles or create new DataFrame with 24 hour columns
         if self.profile_data is not None and len(self.profile_data.columns) > 0:
@@ -280,6 +289,12 @@ def validate_and_fix_profiles(
     # Initialize profile manager
     profiles_path = conversion_dir / "SUEWS_Profiles.txt"
     manager = ProfileManager(profiles_path)
+
+    if manager.profile_data is None and manager._load_error is not None:
+        raise ValueError(
+            f"Refusing to update profiles or rules because loading "
+            f"{profiles_path} failed: {manager._load_error}"
+        ) from manager._load_error
 
     # Load and process conversion rules
     if rules_path.exists():

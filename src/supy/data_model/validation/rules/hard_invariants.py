@@ -23,6 +23,7 @@ from typing import Any
 
 import numpy as np
 
+from ....constants import C2K
 from ..required_fields import (
     BUILDING_PRESENT_SFR_TOL,
     SPARTACUS_BUILDING_STORAGE_METHODS,
@@ -56,7 +57,7 @@ _SHADING_MISSING_SUGGESTIONS: dict[str, str] = {
 }
 
 _SHADING_THRESHOLD_SPECS: tuple[tuple[str, float, bool, str], ...] = (
-    ("temperature_threshold_shading", -273.15, False, "degC"),
+    ("temperature_threshold_shading", -C2K, False, "degC"),
     ("radiation_threshold_shading", 0.0, True, "W m-2"),
 )
 

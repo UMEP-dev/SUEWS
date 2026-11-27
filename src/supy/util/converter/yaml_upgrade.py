@@ -24,6 +24,7 @@ from typing import Callable, Optional, Union
 
 import yaml
 
+from ...constants import C2K
 from ...data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
@@ -2291,7 +2292,7 @@ def _drop_legacy_continuation_state_placeholders(cfg: dict) -> tuple[dict, list[
         if "tair_av" in states:
             path = f"sites[{index}].initial_states.tair_av"
             val = states["tair_av"]
-            if not (_is_real_zero(val) or _is_real_equal(val, 273.15)):
+            if not (_is_real_zero(val) or _is_real_equal(val, C2K)):
                 raise YamlUpgradeError(
                     f"{path} cannot initialise continuation state for a fresh run. "
                     "Only legacy cold-start placeholders (0 or 273.15) can be migrated. "

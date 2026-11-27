@@ -10,6 +10,7 @@ import f90nml
 
 from ..._load import load_InitialCond_grid_df
 from ..._misc import path_insensitive
+from ...constants import SEC_PER_HOUR
 from ...data_model.core import SUEWSConfig
 from ...data_model.core.model import OutputControl
 from .table import convert_table
@@ -145,7 +146,7 @@ def _configure_forcing_and_output(
         )
 
     # Set proper output configuration
-    resolutionfilesout = runcontrol.get("resolutionfilesout", 3600)
+    resolutionfilesout = runcontrol.get("resolutionfilesout", SEC_PER_HOUR)
 
     # Create OutputControl based on RunControl settings
     output_path_setting = runcontrol.get("fileoutputpath", "./Output/")
@@ -163,7 +164,7 @@ def _configure_forcing_and_output(
 
     output_control = OutputControl(
         format="txt",  # Default to txt format for compatibility
-        freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
+        freq=resolutionfilesout if resolutionfilesout > 0 else SEC_PER_HOUR,
         groups=["SUEWS", "DailyState"],  # Default groups
         dir=output_path_relative,
     )

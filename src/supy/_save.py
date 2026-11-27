@@ -32,6 +32,7 @@ from ._run_output import (
     _OUTPUT_TIMESTAMP_SUFFIXES,
     _STREAMED_PARQUET_PART_RE as _PART_NAME,
 )
+from .constants import SEC_PER_DAY, SEC_PER_HOUR
 from .data_model.output import PROVISIONAL_OUTPUT_GROUPS
 
 _OUTPUT_TIMESTAMP_REFERENCES = {
@@ -121,12 +122,14 @@ def _dls_mask(
 ) -> np.ndarray:
     """Return the daylight-saving mask on the local-standard clock."""
     seconds = (
-        idx_standard.hour * 3600
+        idx_standard.hour * SEC_PER_HOUR
         + idx_standard.minute * 60
         + idx_standard.second
         + idx_standard.microsecond / 1_000_000
     )
-    decimal_doy = idx_standard.day_of_year.to_numpy(dtype=float) + seconds / 86400
+    decimal_doy = (
+        idx_standard.day_of_year.to_numpy(dtype=float) + seconds / SEC_PER_DAY
+    )
     if startdls <= enddls:
         return (decimal_doy >= startdls) & (decimal_doy < enddls)
     return (decimal_doy >= startdls) | (decimal_doy < enddls)
@@ -355,7 +358,7 @@ def _output_group_frequencies(
         ).drop_duplicates()
         if len(idx_group) < 2:
             dict_group_frequency_s[group] = (
-                86400 if group == "DailyState" else fallback_frequency_s
+                SEC_PER_DAY if group == "DailyState" else fallback_frequency_s
             )
             continue
         ser_deltas = idx_group.to_series().diff().dropna()
@@ -384,7 +387,7 @@ def _gen_df_datetime(idx_dt: pd.DatetimeIndex) -> pd.DataFrame:
     )
     # "D" not "d": pandas 3 deprecates the lowercase day alias.
     dt_delta = idx_dt - idx_dt.to_period("D").to_timestamp()
-    df_datetime["Dectime"] = ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
+    df_datetime["Dectime"] = ser_DOY - 1 + dt_delta.total_seconds() / SEC_PER_DAY
     return df_datetime
 
 
@@ -1076,7 +1079,7 @@ def _save_groups(
                         fallback_freq_s=step_s if step_s is not None else 300,
                         streamed_files=streamed_files,
                         year=year,
-                        metadata_interval_s=86400
+                        metadata_interval_s=SEC_PER_DAY
                         if group == "DailyState"
                         else metadata_interval_s,
                     )
@@ -1133,7 +1136,7 @@ def check_provisional_groups(output_groups, include_provisional: bool = False) -
 
 def save_df_output(
     df_output: pd.DataFrame,
-    freq_s: int = 3600,
+    freq_s: int = SEC_PER_HOUR,
     site: str = "",
     path_dir_save: Path = Path("."),
     save_tstep=False,
@@ -1235,7 +1238,7 @@ def save_df_output(
         _check_dailystate_interval(held_s)
         df_daily_rsmp = _resample_output(
             df_output,
-            pd.Timedelta(86400, "s"),
+            pd.Timedelta(SEC_PER_DAY, "s"),
             groups=["DailyState"],
             freq_source=freq_from_state,
         )
@@ -1272,7 +1275,7 @@ def save_df_output(
             # native cadence cannot be inferred from more than one timestamp.
             list_df_save.append((df_output, list_group_no_daily, 300))
         if df_dailystate is not None:
-            list_df_save.append((df_dailystate, ["DailyState"], 86400))
+            list_df_save.append((df_dailystate, ["DailyState"], SEC_PER_DAY))
         # At the native timestep the "resampled" table is the native table and
         # its groups are among the ones the first pass saves, so saving it
         # again would only rewrite the same files and list them twice
@@ -1286,7 +1289,7 @@ def save_df_output(
         # resampled data with DailyState (if it exists)
         list_df_save = []
         if df_dailystate is not None:
-            list_df_save.append((df_dailystate, ["DailyState"], 86400))
+            list_df_save.append((df_dailystate, ["DailyState"], SEC_PER_DAY))
         if df_rsmp is not None:
             list_df_save.append((df_rsmp, list_group_rsmp, freq_s))
 
@@ -1608,7 +1611,7 @@ def _check_dailystate_interval(held_s, freq_s=None) -> None:
     period longer than a day is refused there too.
     """
     span_s = max(held_s or 0, freq_s or 0)
-    if span_s > 86400:
+    if span_s > SEC_PER_DAY:
         raise ValueError(
             f"DailyState rows resampled to more than one day ({int(span_s)} s) "
             "cannot be saved: the files describe each DailyState row as one "
@@ -1799,7 +1802,7 @@ def _write_parquet_sidecars(
 def save_df_output_parquet(
     df_output: pd.DataFrame,
     df_state_final: pd.DataFrame,
-    freq_s: int = 3600,
+    freq_s: int = SEC_PER_HOUR,
     site: str = "",
     path_dir_save: Path = Path("."),
     save_tstep=False,

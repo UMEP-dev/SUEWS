@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 
+from ..constants import C2K, CP_AIR
 from ._atm import cal_des_dta, cal_dq
 
 
@@ -79,10 +80,10 @@ def cal_rs_iPM(qh, qe, ta, rh, pa, ra):
     val_rho = 1.27
 
     # heat capacity of air [J kg-1 K-1]
-    val_cp = 1005
+    val_cp = CP_AIR
 
     # convert temp from C to K
-    ta_K = ta + 273.15
+    ta_K = ta + C2K
 
     # slope of es(Ta) curve at Ta
     ser_des_dTa = cal_des_dta(ta_K, pa, dta=1.0)
@@ -135,10 +136,10 @@ def cal_rs_FG(qh, qe, ta, rh, pa, ra):
     val_rho = 1.27
 
     # heat capacity of air [J kg-1 K-1]
-    val_cp = 1005
+    val_cp = CP_AIR
 
     # convert temp from C to K
-    ta_K = ta + 273.15
+    ta_K = ta + C2K
 
     # canopy bulk surface temperature
     tc_K = qh / (val_rho * val_cp) * ra + ta_K
@@ -386,12 +387,12 @@ def cal_gs_suews(
     g_kd = cal_g_kd(kd, g2)
     # print('g_kd', g_kd)
     # dq related
-    ta_k = ta_c + 273.15
+    ta_k = ta_c + C2K
     dq = cal_dq(rh, ta_c, pa / 100) * 1000 + rh * 0
     g_dq = cal_g_dq(dq, g_dq_base, g_dq_shape)
     # print('g_dq', g_dq)
     # ta related
-    ta_c = ta_k - 273.15
+    ta_c = ta_k - C2K
     g_ta = cal_g_ta(ta_c, g_ta)
     # print('g_ta', g_ta)
     # smd related
@@ -687,7 +688,7 @@ def cal_g_swc_noah(swc, q_wilt, q_ref):
     return g_swc
 
 
-def cal_g_ta_noah(ta_c, b1=0.0016, tref=298 - 273.15):
+def cal_g_ta_noah(ta_c, b1=0.0016, tref=298 - C2K):
     """Calculate air temperature-related correction coefficient for surface conductance.
 
     Parameters

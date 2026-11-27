@@ -13,6 +13,7 @@ import pandas as pd
 from numpy import cos, deg2rad, sin, sqrt
 
 from .._env import logger_supy
+from ..constants import C2K, SEC_PER_HOUR
 
 warnings.filterwarnings(
     action="ignore",
@@ -542,7 +543,7 @@ def format_df_forcing(df_forcing_raw):
     df_forcing_grid = df_forcing_raw.copy()
 
     # convert energy fluxes: [J m-2] to [W m-2]
-    df_forcing_grid.loc[:, ["ssrd", "strd", "sshf", "slhf"]] /= 3600
+    df_forcing_grid.loc[:, ["ssrd", "strd", "sshf", "slhf"]] /= SEC_PER_HOUR
 
     # reverse the sign of qh and qe
     df_forcing_grid.loc[:, ["sshf", "slhf"]] *= -1
@@ -551,7 +552,7 @@ def format_df_forcing(df_forcing_raw):
     df_forcing_grid.loc[:, "tp"] *= 1000
 
     # convert bulb temperature from K to degC
-    df_forcing_grid = df_forcing_grid.assign(Tair=df_forcing_grid.t_z - 273.15)
+    df_forcing_grid = df_forcing_grid.assign(Tair=df_forcing_grid.t_z - C2K)
 
     # convert atmospheric pressure: [Pa] to [kPa]
     df_forcing_grid.loc[:, "p_z"] /= 1000

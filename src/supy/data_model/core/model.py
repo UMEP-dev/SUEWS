@@ -9,6 +9,7 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 import yaml
 
 from ..._env import _user_warning_stacklevel
+from ...constants import SEC_PER_DAY
 from ..output.contract import PROVISIONAL_OUTPUT_GROUPS
 from .field_renames import (
     MODELPHYSICS_RENAMES,
@@ -1732,7 +1733,7 @@ def check_stream_chunk(
     Shared by the YAML validators and :meth:`SUEWSSimulation.run`, which
     checks again in case the config was changed by attribute assignment.
     """
-    if freq_s is not None and (freq_s <= 0 or 86400 % freq_s != 0):
+    if freq_s is not None and (freq_s <= 0 or SEC_PER_DAY % freq_s != 0):
         raise ValueError(
             "output.stream_chunk needs an output frequency that divides "
             f"one day (86400 s); output.freq is {freq_s} s."

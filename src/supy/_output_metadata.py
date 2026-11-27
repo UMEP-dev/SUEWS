@@ -11,6 +11,7 @@ import pandas as pd
 
 from . import units as unit_conversion
 from ._misc import infer_freq_offset
+from .constants import SEC_PER_DAY, SEC_PER_HOUR
 from .data_model.output.registry import get_output_contract_catalogue
 from .data_model.output.version import CURRENT_OUTPUT_VERSION
 
@@ -154,8 +155,8 @@ def _interval(seconds: Optional[int]) -> Optional[str]:
     if seconds <= 0:
         raise ValueError("Output interval must be positive.")
     for divisor, label in (
-        (86400, "day"),
-        (3600, "hour"),
+        (SEC_PER_DAY, "day"),
+        (SEC_PER_HOUR, "hour"),
         (60, "minute"),
         (1, "second"),
     ):
@@ -418,7 +419,11 @@ def project_output_metadata(
             dict_result[column] = {"status": "unknown"}
             continue
         daily_water = identity in daily_water_variables()
-        interval = "covered day" if daily_water else _interval(86400 if identity[0] == "DailyState" else interval_s)
+        interval = (
+            "covered day"
+            if daily_water
+            else _interval(SEC_PER_DAY if identity[0] == "DailyState" else interval_s)
+        )
         unit = (units or {}).get(identity[0], {}).get(identity[1])
         if unit is None:
             unit = "mm" if native and identity in water_flux_variables() else entry.unit

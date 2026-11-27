@@ -13,6 +13,7 @@ from ._output_metadata import (
     water_flux_variables,
     with_daily_coverage,
 )
+from .constants import SEC_PER_DAY
 from .data_model.output import OUTPUT_REGISTRY
 from .data_model.output.variables import _agg_last
 
@@ -482,7 +483,7 @@ def _resample_output(
             )
             daily_unaligned = (
                 held.source == "index"
-                and target_s == 86400
+                and target_s == SEC_PER_DAY
                 and "DailyState" in df_output.columns.get_level_values("group")
                 and bool((idx_dt != idx_dt.normalize()).any())
             )

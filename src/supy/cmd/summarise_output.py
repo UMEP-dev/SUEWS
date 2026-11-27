@@ -307,12 +307,11 @@ def _build_text_message(data: dict[str, Any]) -> str:
 @click.option(
     "--variables",
     default="",
-    show_default=False,
+    show_default="every numeric column",
     help=(
         "Comma-separated variable names (e.g. QH,QE,QN) or group-qualified "
         "names (e.g. SUEWS.QS,ESTM.QS). A bare name that appears in multiple "
-        "groups summarises all matching groups with a note. Empty (default) "
-        "means every numeric column."
+        "groups summarises all matching groups with a note."
     ),
 )
 @click.option(

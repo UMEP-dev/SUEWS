@@ -293,14 +293,14 @@ def _run_with_namelist(path_runcontrol):
 
 # run the whole supy workflow mimicking SUEWS binary
 @click.command(
+    name="run",
     short_help="Run SUEWS simulation using YAML or namelist configuration",
     help="""
 Run SUEWS simulation using YAML (recommended) or namelist configuration.
 
-YAML Configuration (Recommended):
+YAML Configuration (Recommended)::
 
     $ suews run config.yml
-
     $ suews run /path/to/config.yml
 
 Set model.control.output.dir to choose where results are written. If the
@@ -309,17 +309,17 @@ If the selected directory is missing, null or an empty string, results go to
 the directory where you invoke this command. A non-empty relative path starts
 from the source YAML file's directory. Use . to write beside that file.
 
-Namelist Configuration (Deprecated):
+Namelist Configuration (Deprecated)::
 
     $ suews run -p RunControl.nml
-
     $ suews run -p /path/to/RunControl.nml
 
 The format is auto-detected based on file extension:
+
 - .yml, .yaml: YAML format (modern, recommended)
 - .nml: Namelist format (legacy, deprecated)
 
-To migrate from namelist to YAML:
+To migrate from namelist to YAML::
 
     $ suews convert -i RunControl.nml -o config.yml
     $ suews run config.yml

@@ -51,10 +51,11 @@ def _fail(
 
 
 @click.group(
+    name="contracts",
     help=(
         "Inspect, export, publish, and validate versioned SUEWS forcing and "
         "output data contracts."
-    )
+    ),
 )
 def contracts_group() -> None:
     """Data-contract command group."""
@@ -125,7 +126,8 @@ def info_cmd(
     "--version",
     "contract_version",
     default=None,
-    help="Contract version to inspect. Defaults to the current version.",
+    show_default="current version",
+    help="Contract version to inspect.",
 )
 @click.option(
     "--artefact",
@@ -216,7 +218,8 @@ def show_cmd(
     "--version",
     "contract_version",
     default=None,
-    help="Contract version to export. Defaults to the current version.",
+    show_default="current version",
+    help="Contract version to export.",
 )
 @click.option(
     "--artefact",

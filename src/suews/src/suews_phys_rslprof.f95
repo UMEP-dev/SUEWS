@@ -377,7 +377,7 @@ CONTAINS
                   dataoutLineRSL = -999.0D0
                   RETURN
                END IF
-               IF (zMeas <= zd_RSL .OR. ANY(zarray(nz_can:nz) <= zd_RSL)) THEN
+               IF (.NOT. ieee_is_finite(zd_RSL) .OR. zMeas <= zd_RSL .OR. ANY(zarray(nz_can:nz) <= zd_RSL)) THEN
                   CALL set_supy_error(119, &
                      'RSLProfile: forcing height and above-canopy levels must exceed RSL displacement height zd_RSL')
                   dataoutLineRSL = -999.0D0

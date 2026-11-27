@@ -402,3 +402,58 @@ def test_forced_rsl_accepts_forcing_height_just_above_zh_floor():
         "RSL",
         [f"{var}_{i}" for var in ("U", "T", "q") for i in PROFILE_LEVELS],
     )
+
+
+@pytest.mark.core
+@pytest.mark.parametrize("rsl_method", [0, 2])
+@pytest.mark.parametrize("forcing_height", [1.5, 2.0])
+def test_most_and_auto_low_canopy_accept_low_forcing_height(rsl_method, forcing_height):
+    """MOST (0) and auto-RSL (2) over Zh <= 2 m use MOST and accept zMeas <= 2 m."""
+    df_state_init, df_forcing = load_sample_frames()
+    df_state = df_state_init.iloc[[0]].copy()
+    df_forcing_short = df_forcing.iloc[:2]
+
+    df_state.loc[:, ("rslmethod", "0")] = rsl_method
+    df_state.loc[:, ("bldgh", "0")] = 0.5
+    df_state.loc[:, ("evetreeh", "0")] = 0.5
+    df_state.loc[:, ("dectreeh", "0")] = 0.5
+    df_state.loc[:, ("z", "0")] = forcing_height
+    df_state.loc[:, ("zdm_in", "0")] = 0.3
+    df_state.loc[:, ("z0m_in", "0")] = 0.05
+
+    df_output, _ = run_simulation(df_forcing_short, df_state)
+    diag = _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        ["flag_RSL", "z_30"],
+    )
+    assert (diag[:, 0] == 0).all()
+    np.testing.assert_allclose(diag[:, 1], forcing_height, rtol=0, atol=1e-9)
+    _required_output(
+        df_output,
+        df_state,
+        df_forcing_short,
+        "RSL",
+        [f"{var}_{i}" for var in ("U", "T", "q") for i in PROFILE_LEVELS],
+    )
+
+
+@pytest.mark.core
+def test_auto_rsl_rejects_forcing_height_below_canopy_height():
+    """Auto-RSL (2) selecting RST over tall canopies rejects zMeas <= zH_RSL with code 119."""
+    df_state_init, df_forcing = load_sample_frames()
+    df_state = df_state_init.iloc[[0]].copy()
+    df_forcing_short = df_forcing.iloc[:2]
+
+    # Sample site has bldgh = 22 m (Zh ~ 21.9 m > 2 m) and zdm_in = 14.2 m;
+    # zMeas = 18 m lies above zdm_in but below the canopy top.
+    df_state.loc[:, ("rslmethod", "0")] = 2
+    df_state.loc[:, ("z", "0")] = 18.0
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"code 119.*RSLProfile: forcing height zMeas must exceed effective RSL canopy height zH_RSL",
+    ):
+        run_simulation(df_forcing_short, df_state)

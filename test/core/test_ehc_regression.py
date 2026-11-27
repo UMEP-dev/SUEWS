@@ -118,7 +118,7 @@ def test_ehc_spartacus_facet_storage_is_sensitive_to_building_rho_cp():
 def test_ehc_building_facets_evap_matches_qe(coupling):
     """Regression test for GH#1883: EHC building-facet Evap must match QE."""
     sim = sp.SUEWSSimulation.from_sample_data()
-    cfg = sim._config.model_dump(exclude_none=True, mode="json")
+    cfg = sim.config.model_dump(exclude_none=True, mode="json")
     land_cover = cfg["sites"][0]["properties"]["land_cover"]
     vertical_layers = cfg["sites"][0]["properties"]["vertical_layers"]
     vertical_layers["building_frac"]["value"][0] = land_cover["bldgs"]["sfr"]["value"]
@@ -136,7 +136,7 @@ def test_ehc_building_facets_evap_matches_qe(coupling):
     sim.update_config(cfg, auto_load_forcing=False)
     # Use a 24-hour summer window with precipitation so roof/wall facets wet
     # and evaporate, exercising the building-facet water balance.
-    forcing = sim._df_forcing.copy()
+    forcing = sim.forcing.df.copy()
     forcing_win = forcing.loc["2012-07-01 00:05:00":"2012-07-02 00:00:00"].copy()
     forcing_win.iloc[12:18, forcing_win.columns.get_loc("rain")] = 1.0
     sim.update_forcing(forcing_win)
@@ -147,7 +147,7 @@ def test_ehc_building_facets_evap_matches_qe(coupling):
         n_jobs=1,
     )
     df = output.df
-    tstep = float(sim._config.model.control.tstep)
+    tstep = float(sim.config.model.control.tstep)
     tlv = df["debug", "lv_J_kg"].to_numpy(dtype=float) / tstep
 
     qe_bldgs = df["debug", "QE_Bldgs"].to_numpy(dtype=float)
@@ -155,6 +155,8 @@ def test_ehc_building_facets_evap_matches_qe(coupling):
     qe_grid = df["SUEWS", "QE"].to_numpy(dtype=float)
     ev_grid = df["SUEWS", "Evap"].to_numpy(dtype=float)
 
+    for arr in (tlv, qe_bldgs, ev_bldgs, qe_grid, ev_grid):
+        assert np.all(np.isfinite(arr))
     # Confirm the building-facet latent heat path was actively exercised.
     assert np.max(np.abs(qe_bldgs)) > 1.0
     np.testing.assert_allclose(qe_bldgs, tlv * ev_bldgs, rtol=1e-12, atol=1e-10)

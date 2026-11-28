@@ -30,6 +30,7 @@ set is a single column, ``FcEF_v_kgkm`` in ``SUEWS_AnthropogenicHeat.txt``;
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from shutil import copyfile
 from typing import Optional
@@ -241,7 +242,59 @@ def capture_legacy_extras(src_dir, from_ver: str) -> dict:
             if header:
                 headers[fname] = header
 
-    return {"from_ver": from_ver, "deleted": deleted, "headers": headers}
+    # Capture the original SUEWS_Profiles.txt code set and the single exact
+    # synthetic day/night default code (if any) that forward conversion will
+    # allocate, so reverse conversion prunes only that converter-owned row and
+    # never deletes user-owned or user-added profile rows.
+    from .profile_manager import ProfileManager  # noqa: PLC0415
+
+    day_night_base = int(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+    day_night_sentinel = str(day_night_base)
+    path_rules = _path_rules(from_ver)
+    walk_adds_day_night = bool(
+        (
+            (path_rules["Action"] == "Add")
+            & (path_rules["Value"].astype(str).str.strip() == day_night_sentinel)
+        ).any()
+    )
+    profiles_path = src_dir / "SUEWS_Profiles.txt"
+    profile_codes: Optional[list[str]] = None
+    synthetic_day_night_code: Optional[int] = None
+    if profiles_path.exists():
+        _, prof_rows = _read_table(profiles_path)
+        profile_codes = [r[0] for r in prof_rows if r]
+        if walk_adds_day_night:
+            source_codes_int = {
+                parsed
+                for r in prof_rows
+                if r and (parsed := _parse_profile_code_int(r[0])) is not None
+            }
+            existing_preferred = next(
+                (
+                    r
+                    for r in prof_rows
+                    if r and _parse_profile_code_int(r[0]) == day_night_base
+                ),
+                None,
+            )
+            if existing_preferred is None:
+                synthetic_day_night_code = day_night_base
+            elif not _is_uniform_one_profile_row(existing_preferred):
+                candidate = day_night_base + 1
+                while candidate in source_codes_int:
+                    candidate += 1
+                synthetic_day_night_code = candidate
+
+    extras_out: dict = {
+        "from_ver": from_ver,
+        "deleted": deleted,
+        "headers": headers,
+    }
+    if profile_codes is not None:
+        extras_out["profile_codes"] = profile_codes
+    if synthetic_day_night_code is not None:
+        extras_out["synthetic_day_night_code"] = synthetic_day_night_code
+    return extras_out
 
 
 # --------------------------------------------------------------------------- #
@@ -500,6 +553,37 @@ def _harvest_moves(d: Path, step) -> dict:
     return out
 
 
+def _parse_profile_code_int(token: object) -> Optional[int]:
+    """Parse an integer or whole-number decimal profile code token."""
+    text = str(token).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        try:
+            fval = float(text)
+        except ValueError:
+            return None
+        if math.isfinite(fval) and fval.is_integer():
+            return int(fval)
+        return None
+
+
+def _is_uniform_one_profile_row(row: list[str]) -> bool:
+    """Return True iff *row* carries 24 finite hourly values all equal to 1.0."""
+    if len(row) < 25:
+        return False
+    for token in row[1:25]:
+        try:
+            fval = float(token)
+        except ValueError:
+            return False
+        if not math.isfinite(fval) or fval != 1.0:
+            return False
+    return True
+
+
 def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     """Undo one forward edge ``from_ver -> to_ver`` in directory ``d``.
 
@@ -538,6 +622,12 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     # whatever the extras donor carried.
     carried = _harvest_moves(d, step)
 
+    from .profile_manager import ProfileManager  # noqa: PLC0415
+
+    day_night_base = int(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+    day_night_sentinel = str(day_night_base)
+    dropped_day_night_codes: set[int] = set()
+
     # 3. Group the column/key actions by their (source-side) file name.
     col_actions = step[step["Action"].isin(["Add", "Delete", "Rename"])]
     for fname in sorted(set(col_actions["File"].astype(str))):
@@ -551,6 +641,15 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             if is_nml:
                 _drop_nml_key(path, var)
             elif path.exists():
+                if str(r["Value"]).strip() == day_night_sentinel:
+                    tbl_header, tbl_rows = _read_table(path)
+                    if var in tbl_header:
+                        col_idx = tbl_header.index(var)
+                        for tbl_row in tbl_rows:
+                            if col_idx < len(tbl_row):
+                                parsed = _parse_profile_code_int(tbl_row[col_idx])
+                                if parsed is not None and parsed >= day_night_base:
+                                    dropped_day_night_codes.add(parsed)
                 _drop_table_column(path, var)
 
         # 3b. Undo Deletes (restore source-present columns/keys; carried
@@ -578,6 +677,59 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
                 _rename_nml_key(path, new, old)
             elif path.exists():
                 _rename_table_column(path, new, old)
+
+    # 4. Prune the single unchanged synthetic uniform-1.0 day/night default
+    # profile row allocated by forward conversion (``synthetic_day_night_code``),
+    # ONLY when it was referenced by the day/night Add columns dropped in
+    # step 3a, absent from source ``profile_codes``, and unreferenced in any
+    # remaining table. User-owned rows, user-added rows (even uniform 1.0 and
+    # referenced by a dropped column), and modified rows are never removed.
+    profiles_path = d / "SUEWS_Profiles.txt"
+    source_profile_codes = extras.get("profile_codes")
+    raw_synthetic_code = extras.get("synthetic_day_night_code")
+    synthetic_code = (
+        _parse_profile_code_int(raw_synthetic_code)
+        if raw_synthetic_code is not None
+        else None
+    )
+    if (
+        synthetic_code is not None
+        and synthetic_code >= day_night_base
+        and synthetic_code in dropped_day_night_codes
+        and profiles_path.exists()
+        and source_profile_codes is not None
+    ):
+        source_codes_int = {
+            parsed
+            for code in source_profile_codes
+            if (parsed := _parse_profile_code_int(code)) is not None
+        }
+        referenced_codes_int: set[int] = set()
+        for tbl in d.glob("SUEWS_*.txt"):
+            if tbl.name == "SUEWS_Profiles.txt":
+                continue
+            _, tbl_rows = _read_table(tbl)
+            for row in tbl_rows:
+                for token in row[1:]:
+                    parsed = _parse_profile_code_int(token)
+                    if parsed is not None:
+                        referenced_codes_int.add(parsed)
+        prof_header, prof_rows = _read_table(profiles_path)
+        pruned: list[list[str]] = []
+        for row in prof_rows:
+            if not row:
+                continue
+            code_int = _parse_profile_code_int(row[0])
+            if (
+                code_int == synthetic_code
+                and code_int not in source_codes_int
+                and code_int not in referenced_codes_int
+                and _is_uniform_one_profile_row(row)
+            ):
+                continue
+            pruned.append(row)
+        if len(pruned) != len(prof_rows):
+            _write_table(profiles_path, prof_header, pruned)
 
 
 def reverse_convert_table(

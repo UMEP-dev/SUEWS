@@ -2269,4 +2269,4 @@ def test_dev22_to_dev23_advisory_preserves_lai_values_and_stays_silent_for_obser
     in_yml.write_text(yaml.safe_dump(legacy_cfg, sort_keys=False), encoding="utf-8")
     upgrade_yaml(in_yml, out_yml)
     loaded = SUEWSConfig.from_yaml(str(out_yml))
-    assert loaded.schema_version == "2026.6.dev23"
+    assert loaded.schema_version == CURRENT_SCHEMA_VERSION

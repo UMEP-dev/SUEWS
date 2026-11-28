@@ -148,6 +148,7 @@ class SchemaMigrator:
                     _advise_land_cover_and_dst_policy,
                     _check_and_normalise_integer_doys,
                     _check_and_normalise_ten_minute_profile_keys,
+                    _migrate_day_night_hourly_profiles,
                     _strip_non_owning_vertical_layer_optical_keys,
                     validate_active_soil_depth_raw,
                     validate_vegetation_sdd_raw,
@@ -166,6 +167,8 @@ class SchemaMigrator:
                     config = _advise_land_cover_and_dst_policy(config)
                 if target_ver >= Version("2026.6.dev22"):
                     config = _strip_non_owning_vertical_layer_optical_keys(config)
+                if target_ver >= Version("2026.6.dev24"):
+                    config = _migrate_day_night_hourly_profiles(config)
             logger.info(f"Configuration already at schema version {to_version}")
             if older_warning is not None:
                 warnings.warn(older_warning, UserWarning, stacklevel=2)

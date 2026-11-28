@@ -1,0 +1,1095 @@
+"""Validation, default-scale, and schema-migration tests for #2043.
+
+Population (``popprof_24hr``) and human-activity
+(``profile_human_activity_24hr``) 24-hour profiles are read raw by the
+anthropogenic emissions kernel on a fixed ``[1.0, 2.0]`` scale
+(``1.0`` = night, ``2.0`` = day, values in between = transition).
+"""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from importlib.resources import files
+from pathlib import Path
+
+from pydantic import ValidationError
+import pytest
+import yaml
+
+from supy._run_rust import config_to_engine_yaml  # ruff: ignore[import-private-name]
+from supy.data_model import SUEWSConfig
+from supy.data_model.configuration import CURRENT_SCHEMA_VERSION, SchemaMigrator
+from supy.data_model.core.human_activity import AnthropogenicHeat, CO2Params
+from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.cfg,
+    pytest.mark.core,
+    pytest.mark.contract("C-VALID", "C-MIGRATE", "C-EMIT"),
+]
+
+_EXPECTED_POP_801 = [1.0] * 5 + [1.5] + [2.0] * 15 + [1.5] + [1.0] * 2
+_EXPECTED_POP_802 = [1.0] * 8 + [1.5] + [2.0] * 13 + [1.5] + [1.0]
+_EXPECTED_ACT_55663 = [1.0] * 7 + [1.5] + [2.0] * 14 + [1.5] + [1.0]
+_EXPECTED_ACT_55664 = [1.0] * 8 + [1.5] + [2.0] * 13 + [1.5] + [1.0]
+
+_LEGACY_661 = {
+    str(h): v
+    for h, v in enumerate(
+        (
+            0.57, 0.45, 0.43, 0.4, 0.4, 0.45, 0.71, 1.2,
+            1.44, 1.29, 1.28, 1.31, 1.3, 1.32, 1.35, 1.44,
+            1.51, 1.41, 1.14, 0.99, 0.86, 0.85, 0.8, 0.7,
+        ),
+        start=1,
+    )
+}
+_LEGACY_662 = {
+    str(h): v
+    for h, v in enumerate(
+        (
+            0.65, 0.49, 0.46, 0.47, 0.47, 0.53, 0.7, 1.13,
+            1.37, 1.37, 1.3, 1.37, 1.33, 1.3, 1.27, 1.36,
+            1.44, 1.3, 1.1, 0.98, 0.84, 0.9, 0.87, 0.74,
+        ),
+        start=1,
+    )
+}
+
+
+def _uniform_profile(value: float) -> dict[str, dict[str, float]]:
+    hours = {str(h): value for h in range(1, 25)}
+    return {"working_day": hours.copy(), "holiday": hours.copy()}
+
+
+def _load_sample_raw() -> dict:
+    text = (
+        files("supy")
+        .joinpath("sample_data", "sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
+    return yaml.safe_load(text)
+
+
+def test_omitted_day_night_profiles_default_to_uniform_one() -> None:
+    """Omitted popprof_24hr and profile_human_activity_24hr default to uniform 1.0."""
+    heat = AnthropogenicHeat()
+    co2 = CO2Params()
+
+    for profile in (heat.popprof_24hr, co2.profile_human_activity_24hr):
+        assert profile is not None
+        for day_type in ("working_day", "holiday"):
+            day_map = getattr(profile, day_type)
+            assert len(day_map) == 24
+            assert all(day_map[str(h)] == pytest.approx(1.0) for h in range(1, 25))
+
+    # Non-day-night hourly profiles retain the generic 1/24 uniform default.
+    for day_type in ("working_day", "holiday"):
+        ah_map = getattr(heat.ahprof_24hr, day_type)
+        tr_map = getattr(co2.profile_traffic_24hr, day_type)
+        assert all(ah_map[str(h)] == pytest.approx(1.0 / 24.0) for h in range(1, 25))
+        assert all(tr_map[str(h)] == pytest.approx(1.0 / 24.0) for h in range(1, 25))
+
+    # Engine YAML emission preserves uniform 1.0 when omitted from raw YAML.
+    raw = _load_sample_raw()
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["heat"].pop(
+        "popprof_24hr", None
+    )
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["co2"].pop(
+        "profile_human_activity_24hr", None
+    )
+    cfg = SUEWSConfig.from_dict(raw)
+    resolved = yaml.safe_load(config_to_engine_yaml(cfg, for_file_output=False))
+    anthro = resolved["sites"][0]["properties"]["anthropogenic_emissions"]
+    for prof in (
+        anthro["heat"]["popprof_24hr"],
+        anthro["co2"]["profile_human_activity_24hr"],
+    ):
+        for day_type in ("working_day", "holiday"):
+            assert all(
+                prof[day_type][str(h)] == pytest.approx(1.0) for h in range(1, 25)
+            )
+
+
+def test_shipped_sample_config_carries_canonical_day_night_profiles() -> None:
+    """Shipped sample_config.yml uses legacy 801/802 and 55663/55664 on [1.0, 2.0]."""
+    raw = _load_sample_raw()
+    assert raw["schema_version"] == CURRENT_SCHEMA_VERSION
+    anthro = raw["sites"][0]["properties"]["anthropogenic_emissions"]
+    pop = anthro["heat"]["popprof_24hr"]
+    act = anthro["co2"]["profile_human_activity_24hr"]
+
+    assert [pop["working_day"][str(h)] for h in range(1, 25)] == _EXPECTED_POP_801
+    assert [pop["holiday"][str(h)] for h in range(1, 25)] == _EXPECTED_POP_802
+    assert [act["working_day"][str(h)] for h in range(1, 25)] == _EXPECTED_ACT_55663
+    assert [act["holiday"][str(h)] for h in range(1, 25)] == _EXPECTED_ACT_55664
+
+
+@pytest.mark.parametrize("valid_value", [1.0, 1.5, 2.0])
+def test_day_night_profiles_accept_boundary_and_transition_values(
+    valid_value: float,
+) -> None:
+    """Values across [1.0, 2.0] inclusive are accepted on both profile fields."""
+    heat = AnthropogenicHeat(popprof_24hr=_uniform_profile(valid_value))
+    co2 = CO2Params(profile_human_activity_24hr=_uniform_profile(valid_value))
+    assert heat.popprof_24hr.working_day["1"] == pytest.approx(valid_value)
+    assert co2.profile_human_activity_24hr.holiday["24"] == pytest.approx(valid_value)
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    [1.0 / 24.0, 0.4, 0.9999, 0.0, -1.0, 2.0001, 2.5, float("nan"), float("inf")],
+)
+def test_day_night_profiles_reject_out_of_range_values(bad_value: float) -> None:
+    """Values outside [1.0, 2.0] or non-finite raise ValidationError."""
+    bad = _uniform_profile(1.5)
+    bad["holiday"]["12"] = bad_value
+
+    with pytest.raises(ValidationError, match=r"(?s)popprof_24hr.*\[1\.0, 2\.0\]"):
+        AnthropogenicHeat(popprof_24hr=bad)
+
+    with pytest.raises(
+        ValidationError, match=r"(?s)profile_human_activity_24hr.*\[1\.0, 2\.0\]"
+    ):
+        CO2Params(profile_human_activity_24hr=bad)
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "bad_value"),
+    [
+        ("heat", "popprof_24hr", 0.4),
+        ("heat", "popprof_24hr", 2.2),
+        ("co2", "profile_human_activity_24hr", 1.0 / 24.0),
+        ("co2", "profile_human_activity_24hr", True),
+    ],
+)
+def test_live_mutation_caught_by_config_validation(
+    section: str, field: str, bad_value: object
+) -> None:
+    """Post-construction mutations outside [1.0, 2.0] fail validate_hourly_profile_hours."""
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    anthro = cfg.sites[0].properties.anthropogenic_emissions
+    profile = getattr(getattr(anthro, section), field)
+    profile.working_day["8"] = bad_value
+
+    with pytest.raises(ValueError, match=r"\[1\.0, 2\.0\]"):
+        cfg.validate_hourly_profile_hours()
+
+
+def test_dev23_to_dev24_migration_handles_valid_default_shipped_and_custom(
+    tmp_path: Path, capsys
+) -> None:
+    """Schema migration 2026.6.dev23 -> 2026.6.dev24 covers all four cases cleanly."""
+    migrator = SchemaMigrator()
+    base_dev23 = _load_sample_raw()
+    base_dev23["schema_version"] = "2026.6.dev23"
+    capsys.readouterr()
+
+    # 1. Valid [1.0, 2.0] profiles remain untouched and emit no profile rewrite logs.
+    migrated_valid = migrator.migrate(deepcopy(base_dev23), to_version="2026.6.dev24")
+    err_valid = capsys.readouterr().err
+    assert "popprof_24hr" not in err_valid
+    assert "profile_human_activity_24hr" not in err_valid
+    assert migrated_valid["schema_version"] == "2026.6.dev24"
+    assert (
+        migrated_valid["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+            "popprof_24hr"
+        ]
+        == base_dev23["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+            "popprof_24hr"
+        ]
+    )
+
+    # Re-migrating an already-dev24 config is idempotent and silent.
+    remigrated = migrator.migrate(deepcopy(migrated_valid), to_version="2026.6.dev24")
+    assert remigrated == migrated_valid
+    assert capsys.readouterr().err == ""
+
+    # 2. Legacy uniform 1/24 default upgrades to uniform 1.0 with an explicit log.
+    cfg_uniform = deepcopy(base_dev23)
+    anthro_u = cfg_uniform["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro_u["heat"]["popprof_24hr"] = _uniform_profile(1.0 / 24.0)
+    anthro_u["co2"]["profile_human_activity_24hr"] = _uniform_profile(1.0 / 24.0)
+
+    # Historical target 2026.6.dev23 leaves values unchanged.
+    stayed_dev23 = migrator.migrate(deepcopy(cfg_uniform), to_version="2026.6.dev23")
+    assert stayed_dev23["schema_version"] == "2026.6.dev23"
+    assert stayed_dev23["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] == pytest.approx(1.0 / 24.0)
+    capsys.readouterr()
+
+    upgraded_u = migrator.migrate(deepcopy(cfg_uniform), to_version="2026.6.dev24")
+    err_u = capsys.readouterr().err
+    assert "legacy uniform 1/24 default to uniform 1.0" in err_u
+    for prof in (
+        upgraded_u["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+            "popprof_24hr"
+        ],
+        upgraded_u["sites"][0]["properties"]["anthropogenic_emissions"]["co2"][
+            "profile_human_activity_24hr"
+        ],
+    ):
+        for day_type in ("working_day", "holiday"):
+            assert all(prof[day_type][str(h)] == 1.0 for h in range(1, 25))
+
+    # 3. Known shipped London QF profile (661/662) upgrades to 801/802 and 55663/55664.
+    cfg_shipped = deepcopy(base_dev23)
+    anthro_s = cfg_shipped["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro_s["heat"]["popprof_24hr"] = {
+        "working_day": _LEGACY_661.copy(),
+        "holiday": _LEGACY_662.copy(),
+    }
+    anthro_s["co2"]["profile_human_activity_24hr"] = {
+        "working_day": _LEGACY_661.copy(),
+        "holiday": _LEGACY_661.copy(),
+    }
+    in_path = tmp_path / "shipped_dev23.yml"
+    out_path = tmp_path / "shipped_dev24.yml"
+    in_path.write_text(yaml.safe_dump(cfg_shipped, sort_keys=False), encoding="utf-8")
+    upgrade_yaml(in_path, out_path)
+    err_s = capsys.readouterr().err
+    assert "legacy profile 801" in err_s
+    assert "legacy profile 802" in err_s
+    assert "legacy profile 55663" in err_s
+    assert "legacy profile 55664" in err_s
+    loaded = SUEWSConfig.from_yaml(str(out_path))
+    assert loaded.schema_version == CURRENT_SCHEMA_VERSION
+    pop_loaded = loaded.sites[0].properties.anthropogenic_emissions.heat.popprof_24hr
+    act_loaded = (
+        loaded.sites[0].properties.anthropogenic_emissions.co2.profile_human_activity_24hr
+    )
+    assert [pop_loaded.working_day[str(h)] for h in range(1, 25)] == _EXPECTED_POP_801
+    assert [pop_loaded.holiday[str(h)] for h in range(1, 25)] == _EXPECTED_POP_802
+    assert [act_loaded.working_day[str(h)] for h in range(1, 25)] == _EXPECTED_ACT_55663
+    assert [act_loaded.holiday[str(h)] for h in range(1, 25)] == _EXPECTED_ACT_55664
+
+    # 4. Arbitrary custom out-of-range user profile raises YamlUpgradeError.
+    cfg_custom = deepcopy(base_dev23)
+    cfg_custom["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["4"] = 0.5
+    with pytest.raises(YamlUpgradeError, match=r"outside the kernel's \[1\.0, 2\.0\]"):
+        migrator.migrate(cfg_custom, to_version="2026.6.dev24")
+
+
+@pytest.mark.parametrize("bad_bool", [True, False])
+def test_ordinary_construction_rejects_booleans(bad_bool: bool) -> None:
+    """Booleans are rejected at HourlyProfile construction before float coercion."""
+    bad = _uniform_profile(1.0)
+    bad["working_day"]["1"] = bad_bool
+
+    with pytest.raises(ValidationError, match="not bool"):
+        AnthropogenicHeat(popprof_24hr=bad)
+
+    with pytest.raises(ValidationError, match="not bool"):
+        CO2Params(profile_human_activity_24hr=bad)
+
+
+def test_migration_accepts_quoted_numeric_strings_and_rejects_colliding_keys() -> None:
+    """Migration accepts quoted in-range numeric strings and rejects colliding hour keys."""
+    migrator = SchemaMigrator()
+    base_dev23 = _load_sample_raw()
+    base_dev23["schema_version"] = "2026.6.dev23"
+
+    # Quoted numeric strings in [1.0, 2.0] match HourlyProfile's coercion contract.
+    cfg_quoted = deepcopy(base_dev23)
+    quoted_profile = {
+        "working_day": {str(h): "1.5" for h in range(1, 25)},
+        "holiday": {str(h): "1.25" for h in range(1, 25)},
+    }
+    anthro_q = cfg_quoted["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro_q["heat"]["popprof_24hr"] = deepcopy(quoted_profile)
+    anthro_q["co2"]["profile_human_activity_24hr"] = deepcopy(quoted_profile)
+    migrated_q = migrator.migrate(cfg_quoted, to_version="2026.6.dev24")
+    loaded_q = SUEWSConfig.from_dict(migrated_q)
+    assert loaded_q.sites[0].properties.anthropogenic_emissions.heat.popprof_24hr.working_day[
+        "1"
+    ] == pytest.approx(1.5)
+
+    # Colliding hour keys ("1" and "01") must fail loudly rather than overwriting.
+    cfg_collide = deepcopy(base_dev23)
+    colliding_day = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    colliding_day["1"] = 0.5
+    colliding_day["01"] = 1.0 / 24.0
+    cfg_collide["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"] = colliding_day
+    with pytest.raises(YamlUpgradeError, match="invalid or colliding hour keys"):
+        migrator.migrate(cfg_collide, to_version="2026.6.dev24")
+
+
+def test_schema_migrate_cli_validates_already_dev24_config(tmp_path: Path) -> None:
+    """Public ``suews schema migrate`` checks day/night bounds on already-dev24 files."""
+    from click.testing import CliRunner  # noqa: PLC0415
+
+    from supy.cmd.schema_cli import cli as schema_cli  # noqa: PLC0415
+
+    bad_dev24 = _load_sample_raw()
+    bad_dev24["schema_version"] = CURRENT_SCHEMA_VERSION
+    bad_dev24["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] = 0.5
+    bad_path = tmp_path / "bad_dev24.yml"
+    bad_path.write_text(yaml.safe_dump(bad_dev24, sort_keys=False), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        schema_cli,
+        [
+            "--quiet",
+            "migrate",
+            str(bad_path),
+            "--target-version",
+            CURRENT_SCHEMA_VERSION,
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "outside the kernel's [1.0, 2.0]" in result.output
+
+
+@pytest.mark.parametrize("var_name", ["popprof_24hr", "humactivity_24hr"])
+@pytest.mark.parametrize("bad_val", [-999.0, float("nan"), float("-inf"), float("inf"), 0.5, 2.5])
+def test_check_state_enforces_finite_day_night_bounds(
+    var_name: str, bad_val: float
+) -> None:
+    """check_state rejects missing/sentinel/non-finite/out-of-range values when active."""
+    import numpy as np  # noqa: PLC0415
+
+    from supy._check import check_state  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    df_state = cfg.to_df_state()
+    baseline_issues = check_state(df_state, fix=False) or []
+    assert not any(var_name in msg for msg in baseline_issues)
+
+    df_bad = df_state.copy()
+    df_bad[(var_name, "(0, 0)")] = bad_val
+    issues = check_state(df_bad, fix=False) or []
+    assert any(var_name in msg for msg in issues)
+
+    # When emissionsmethod == 0 (inactive), exact -999 and NaN are permitted,
+    # whereas +/-inf and finite out-of-range values remain rejected.
+    df_inactive = df_bad.copy()
+    df_inactive[("emissionsmethod", "0")] = 0
+    inactive_issues = check_state(df_inactive, fix=False) or []
+    if bad_val == -999.0 or np.isnan(bad_val):
+        assert not any(var_name in msg for msg in inactive_issues)
+    else:
+        assert any(var_name in msg for msg in inactive_issues)
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+def test_legacy_2016a_conversion_materialises_day_night_default_profile(
+    tmp_path: Path, validate_profiles: bool
+) -> None:
+    """Legacy 2016a->2025a conversion materialises finite 1.0 profile 99901 under both flags."""
+    import numpy as np  # noqa: PLC0415
+
+    from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_format" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a fixture not available")
+
+    dest = tmp_path / f"converted_vp_{validate_profiles}"
+    convert_table(
+        str(fixture_2016a),
+        str(dest),
+        "2016a",
+        "2025a",
+        validate_profiles=validate_profiles,
+    )
+
+    profiles_path = dest / "Input" / "SUEWS_Profiles.txt"
+    if not profiles_path.exists():
+        profiles_path = dest / "SUEWS_Profiles.txt"
+    profiles_text = profiles_path.read_text(encoding="utf-8")
+    assert "99901" in profiles_text
+    assert "nan" not in profiles_text.lower()
+
+    df_state = load_InitialCond_grid_df(dest / "RunControl.nml")
+    for var_name in ("popprof_24hr", "humactivity_24hr"):
+        vals = df_state[var_name].to_numpy(dtype=float)
+        assert np.all(np.isfinite(vals))
+        assert np.all((vals >= 1.0) & (vals <= 2.0))
+
+
+@pytest.mark.parametrize("var_name", ["popprof_24hr", "humactivity_24hr"])
+@pytest.mark.parametrize("sentinel", [-999.0, float("nan")])
+def test_inactive_legacy_state_sentinels_reconstruct_and_run(
+    var_name: str, sentinel: float
+) -> None:
+    """Inactive emissionsmethod=0 states with -999/NaN reconstruct and run cleanly; active rejects."""
+    import supy as sp  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    df_state = cfg.to_df_state()
+
+    # Active emissions (emissionsmethod=2) rejects -999/NaN at reconstruction.
+    df_active_bad = df_state.copy()
+    df_active_bad[(var_name, "(0, 0)")] = sentinel
+    with pytest.raises(ValidationError, match=r"\[1\.0, 2\.0\]"):
+        SUEWSConfig.from_df_state(df_active_bad)
+
+    # Inactive emissions (emissionsmethod=0) accepts -999/NaN as conditional absence
+    # (None) during reconstruction and runs cleanly through the engine.
+    df_inactive = df_active_bad.copy()
+    df_inactive[("emissionsmethod", "0")] = 0
+    reconstructed = SUEWSConfig.from_df_state(df_inactive)
+    anthro = reconstructed.sites[0].properties.anthropogenic_emissions
+    prof = (
+        anthro.heat.popprof_24hr
+        if var_name == "popprof_24hr"
+        else anthro.co2.profile_human_activity_24hr
+    )
+    assert prof.working_day["1"] is None
+
+    df_forcing = sp.SUEWSSimulation.from_sample_data().forcing.df.iloc[:6].copy()
+    # emissionsmethod=0 reads prescribed QF directly from the forcing table.
+    df_forcing["qf"] = 20.0
+    sim = sp.SUEWSSimulation.from_state(df_inactive)
+    sim.update_forcing(df_forcing)
+    df_out = sim.run()
+    assert not df_out.empty
+
+
+@pytest.mark.parametrize("bad_em", [float("inf"), float("-inf")])
+def test_check_state_reports_non_finite_emissionsmethod_without_crashing(
+    bad_em: float,
+) -> None:
+    """Non-finite emissionsmethod yields checker issues rather than OverflowError."""
+    from supy._check import check_state  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    df_state = cfg.to_df_state()
+    df_state[("emissionsmethod", "0")] = bad_em
+    issues = check_state(df_state, fix=False) or []
+    assert any("emissionsmethod" in msg for msg in issues)
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+@pytest.mark.parametrize("existing_val", [2.0, 0.5])
+def test_legacy_conversion_preserves_user_99901_and_allocates_unused_code(
+    tmp_path: Path, validate_profiles: bool, existing_val: float
+) -> None:
+    """An existing non-1.0 user row at 99901 is preserved; conversion allocates 99902."""
+    import shutil  # noqa: PLC0415
+
+    import numpy as np  # noqa: PLC0415
+
+    from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    src = tmp_path / "src_2016a"
+    shutil.copytree(fixture_2016a, src)
+    prof_file = src / "SUEWS_Profiles.txt"
+    text = prof_file.read_text(encoding="utf-8")
+    custom_row = "99901\t" + "\t".join([f"{existing_val:.3f}"] * 24) + "\n"
+    lines = text.splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+        len(lines),
+    )
+    lines.insert(insert_at, custom_row)
+    prof_file.write_text("".join(lines), encoding="utf-8")
+
+    extras = R.capture_legacy_extras(src, "2016a")
+    assert "99901" in extras["profile_codes"]
+
+    dest = tmp_path / f"fwd_{validate_profiles}_{existing_val}"
+    convert_table(
+        str(src), str(dest), "2016a", "2025a", validate_profiles=validate_profiles
+    )
+
+    fwd_profiles = next(dest.rglob("SUEWS_Profiles.txt"))
+    _, fwd_rows = R._read_table(fwd_profiles)
+    rows_by_code = {r[0]: r[1:25] for r in fwd_rows if r}
+    # User's 99901 row is preserved verbatim; conversion allocated 99902 with 1.0.
+    assert "99901" in rows_by_code
+    assert all(float(v) == pytest.approx(existing_val) for v in rows_by_code["99901"])
+    assert "99902" in rows_by_code
+    assert all(float(v) == pytest.approx(1.0) for v in rows_by_code["99902"])
+
+    df_state = load_InitialCond_grid_df(dest / "RunControl.nml")
+    for var_name in ("popprof_24hr", "humactivity_24hr"):
+        vals = df_state[var_name].to_numpy(dtype=float)
+        assert np.allclose(vals, 1.0)
+
+    # Reverse conversion restores user's 99901 and prunes synthetic 99902.
+    flat = tmp_path / f"flat_{validate_profiles}_{existing_val}"
+    rev = tmp_path / f"rev_{validate_profiles}_{existing_val}"
+    flat.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat / produced.name)
+    R.reverse_convert_table(flat, rev, "2016a", extras)
+    _, rev_rows = R._read_table(rev / "SUEWS_Profiles.txt")
+    rev_by_code = {r[0]: r[1:25] for r in rev_rows if r}
+    assert "99901" in rev_by_code
+    assert all(float(v) == pytest.approx(existing_val) for v in rev_by_code["99901"])
+    assert "99902" not in rev_by_code
+
+
+def test_legacy_conversion_zero_padded_owner_and_sub_bound_99901(
+    tmp_path: Path,
+) -> None:
+    """Zero-padded user code '099901' survives reverse conversion, and 0.9999995 is never reused."""
+    import shutil  # noqa: PLC0415
+
+    import numpy as np  # noqa: PLC0415
+
+    from supy._load import load_InitialCond_grid_df  # noqa: PLC0415
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    def _inject_row(src_dir: Path, code_token: str, val_str: str) -> None:
+        prof_file = src_dir / "SUEWS_Profiles.txt"
+        lines = prof_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        insert_at = next(
+            (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+            len(lines),
+        )
+        lines.insert(
+            insert_at, code_token + "\t" + "\t".join([val_str] * 24) + "\n"
+        )
+        prof_file.write_text("".join(lines), encoding="utf-8")
+
+    # 1. Zero-padded user code "099901" with validate_profiles=True must survive reverse.
+    src_zp = tmp_path / "src_zero_padded"
+    shutil.copytree(fixture_2016a, src_zp)
+    _inject_row(src_zp, "099901", "1.700")
+    extras_zp = R.capture_legacy_extras(src_zp, "2016a")
+    dest_zp = tmp_path / "fwd_zero_padded"
+    convert_table(str(src_zp), str(dest_zp), "2016a", "2025a", validate_profiles=True)
+    flat_zp = tmp_path / "flat_zero_padded"
+    rev_zp = tmp_path / "rev_zero_padded"
+    flat_zp.mkdir()
+    for produced in list(dest_zp.rglob("SUEWS_*.txt")) + list(dest_zp.rglob("*.nml")):
+        shutil.copyfile(produced, flat_zp / produced.name)
+    R.reverse_convert_table(flat_zp, rev_zp, "2016a", extras_zp)
+    _, rev_rows = R._read_table(rev_zp / "SUEWS_Profiles.txt")
+    rev_by_int = {int(r[0]): r[1:25] for r in rev_rows if r}
+    assert 99901 in rev_by_int
+    assert all(float(v) == pytest.approx(1.7) for v in rev_by_int[99901])
+    assert 99902 not in rev_by_int
+
+    # 2. Sub-bound 0.9999995 at 99901 with validate_profiles=False must NOT be reused.
+    src_sub = tmp_path / "src_sub_bound"
+    shutil.copytree(fixture_2016a, src_sub)
+    _inject_row(src_sub, "99901", "0.9999995")
+    dest_sub = tmp_path / "fwd_sub_bound"
+    convert_table(
+        str(src_sub), str(dest_sub), "2016a", "2025a", validate_profiles=False
+    )
+    fwd_profiles = next(dest_sub.rglob("SUEWS_Profiles.txt"))
+    _, fwd_rows = R._read_table(fwd_profiles)
+    fwd_by_code = {r[0]: r[1:25] for r in fwd_rows if r}
+    assert "99901" in fwd_by_code
+    assert all(float(v) == pytest.approx(0.9999995) for v in fwd_by_code["99901"])
+    assert "99902" in fwd_by_code
+    df_state = load_InitialCond_grid_df(dest_sub / "RunControl.nml")
+    for var_name in ("popprof_24hr", "humactivity_24hr"):
+        vals = df_state[var_name].to_numpy(dtype=float)
+        assert np.all(vals == 1.0)
+    # Reconstruct through SUEWSConfig to prove strict [1.0, 2.0] validation passes.
+    SUEWSConfig.from_df_state(df_state)
+
+
+@pytest.mark.parametrize(
+    ("section", "field"),
+    [("heat", "popprof_24hr"), ("co2", "profile_human_activity_24hr")],
+)
+@pytest.mark.parametrize("day_type", ["working_day", "holiday"])
+def test_exported_json_schema_enforces_day_night_profile_bounds(
+    section: str, field: str, day_type: str
+) -> None:
+    """docs/source/inputs/tables/schema.json enforces [1.0, 2.0] on both fields and day types."""
+    import json  # noqa: PLC0415
+
+    import jsonschema  # noqa: PLC0415
+
+    schema_path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "source"
+        / "inputs"
+        / "tables"
+        / "schema.json"
+    )
+    schema_doc = json.loads(schema_path.read_text(encoding="utf-8"))
+    validator = jsonschema.Draft202012Validator(schema_doc)
+
+    # Generic HourlyProfile stays unconstrained while DayNightHourlyProfile enforces [1.0, 2.0].
+    generic_day = schema_doc["$defs"]["HourlyProfile"]["properties"][day_type]
+    assert "minimum" not in json.dumps(generic_day)
+    assert "maximum" not in json.dumps(generic_day)
+
+    def _field_errors(doc: dict) -> list:
+        matched = []
+        for err in validator.iter_errors(doc):
+            if field not in err.absolute_path:
+                continue
+            if day_type in err.absolute_path or any(
+                day_type in sub.absolute_path for sub in err.context
+            ):
+                matched.append(err)
+        return matched
+
+    # Valid sample config conforms on both fields.
+    base_raw = _load_sample_raw()
+    assert _field_errors(base_raw) == []
+
+    for bad_val in (0.5, 2.5):
+        mutated = deepcopy(base_raw)
+        mutated["sites"][0]["properties"]["anthropogenic_emissions"][section][field][
+            day_type
+        ]["8"] = bad_val
+        errors = _field_errors(mutated)
+        assert errors, (
+            f"Expected JSON Schema error for {section}.{field}.{day_type}={bad_val}"
+        )
+
+
+def test_historical_json_schema_before_dev24_restores_unbounded_hourly_profile() -> (
+    None
+):
+    """generate_json_schema('2026.6.dev23') restores pre-dev24 HourlyProfile refs and accepts 1/24."""
+    import jsonschema  # noqa: PLC0415
+
+    from supy.data_model.configuration.publisher import (  # noqa: PLC0415
+        generate_json_schema,
+    )
+
+    schema_dev23 = generate_json_schema("2026.6.dev23")
+    defs = schema_dev23["$defs"]
+    assert "DayNightHourlyProfile" not in defs
+    assert (
+        defs["AnthropogenicHeat"]["properties"]["popprof_24hr"]["$ref"]
+        == "#/$defs/HourlyProfile"
+    )
+    assert defs["CO2Params"]["properties"]["profile_human_activity_24hr"]["anyOf"] == [
+        {"$ref": "#/$defs/HourlyProfile"},
+        {"type": "null"},
+    ]
+
+    validator = jsonschema.Draft202012Validator(schema_dev23)
+    raw = _load_sample_raw()
+    raw["schema_version"] = "2026.6.dev23"
+    uniform_legacy = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["heat"]["popprof_24hr"] = {
+        "working_day": uniform_legacy.copy(),
+        "holiday": uniform_legacy.copy(),
+    }
+    raw["sites"][0]["properties"]["anthropogenic_emissions"]["co2"][
+        "profile_human_activity_24hr"
+    ] = {
+        "working_day": uniform_legacy.copy(),
+        "holiday": uniform_legacy.copy(),
+    }
+    profile_errors = [
+        err
+        for err in validator.iter_errors(raw)
+        if "popprof_24hr" in err.absolute_path
+        or "profile_human_activity_24hr" in err.absolute_path
+    ]
+    assert profile_errors == []
+
+
+def test_in_place_numpy_scalar_mutation_accepted_and_bool_rejected() -> None:
+    """In-place mutation accepts finite NumPy real scalars in [1.0, 2.0] and rejects np.bool_."""
+    import numpy as np  # noqa: PLC0415
+
+    cfg = SUEWSConfig.from_dict(_load_sample_raw())
+    anthro = cfg.sites[0].properties.anthropogenic_emissions
+    anthro.heat.popprof_24hr.working_day["8"] = np.float32(1.5)
+    anthro.co2.profile_human_activity_24hr.holiday["12"] = np.int64(2)
+    df_state = cfg.to_df_state()
+    assert float(df_state.loc[df_state.index[0], ("popprof_24hr", "(7, 0)")]) == (
+        pytest.approx(1.5)
+    )
+    assert float(df_state.loc[df_state.index[0], ("humactivity_24hr", "(11, 1)")]) == (
+        pytest.approx(2.0)
+    )
+
+    anthro.heat.popprof_24hr.working_day["8"] = np.bool_(True)
+    with pytest.raises(ValueError, match="popprof_24hr"):
+        cfg.to_df_state()
+
+    anthro.heat.popprof_24hr.working_day["8"] = np.float32(0.5)
+    with pytest.raises(ValueError, match="popprof_24hr"):
+        cfg.to_df_state()
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+def test_legacy_conversion_preserves_decimal_form_user_99901_code(
+    tmp_path: Path, validate_profiles: bool
+) -> None:
+    """Decimal-form original user code '99901.0' survives forward and reverse conversion."""
+    import shutil  # noqa: PLC0415
+
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    src = tmp_path / f"src_dec_{validate_profiles}"
+    shutil.copytree(fixture_2016a, src)
+    prof_file = src / "SUEWS_Profiles.txt"
+    lines = prof_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+        len(lines),
+    )
+    lines.insert(insert_at, "99901.0\t" + "\t".join(["1.750"] * 24) + "\n")
+    prof_file.write_text("".join(lines), encoding="utf-8")
+
+    extras = R.capture_legacy_extras(src, "2016a")
+    assert "99901.0" in extras["profile_codes"]
+
+    dest = tmp_path / f"fwd_dec_{validate_profiles}"
+    convert_table(
+        str(src), str(dest), "2016a", "2025a", validate_profiles=validate_profiles
+    )
+    flat = tmp_path / f"flat_dec_{validate_profiles}"
+    rev = tmp_path / f"rev_dec_{validate_profiles}"
+    flat.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat / produced.name)
+    R.reverse_convert_table(flat, rev, "2016a", extras)
+    _, rev_rows = R._read_table(rev / "SUEWS_Profiles.txt")
+    rev_by_int = {
+        int(float(r[0])): r[1:25]
+        for r in rev_rows
+        if r and r[0].replace(".", "", 1).lstrip("-").isdigit()
+    }
+    assert 99901 in rev_by_int
+    assert all(float(v) == pytest.approx(1.75) for v in rev_by_int[99901])
+    assert 99902 not in rev_by_int
+
+
+@pytest.mark.parametrize("validate_profiles", [False, True])
+def test_malformed_profiles_table_rejects_day_night_allocation_without_corruption(
+    tmp_path: Path, validate_profiles: bool
+) -> None:
+    """A failed SUEWS_Profiles.txt load must fail closed instead of appending duplicate 99901."""
+    import shutil  # noqa: PLC0415
+
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    from supy.util.converter.table.profile_manager import ProfileManager  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    src = tmp_path / f"src_bad_{validate_profiles}"
+    shutil.copytree(fixture_2016a, src)
+    prof_file = src / "SUEWS_Profiles.txt"
+    lines = prof_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines) if ln.split() and ln.split()[0] == "-9"),
+        len(lines),
+    )
+    lines.insert(insert_at, "99901\t" + "\t".join(["1.600"] * 24) + "\n")
+    lines.insert(insert_at + 1, "BADCODE\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof_file.write_text("".join(lines), encoding="utf-8")
+    before_bytes = prof_file.read_bytes()
+
+    mgr = ProfileManager(prof_file)
+    with pytest.raises(ValueError, match="failed"):
+        mgr.resolve_day_night_default_code(src)
+    with pytest.raises(ValueError, match="failed"):
+        mgr.ensure_profile_codes(src, [99901])
+    assert prof_file.read_bytes() == before_bytes
+
+    dest = tmp_path / f"fwd_bad_{validate_profiles}"
+    with pytest.raises(ValueError, match="failed"):
+        convert_table(
+            str(src), str(dest), "2016a", "2025a", validate_profiles=validate_profiles
+        )
+
+
+def test_reverse_conversion_preserves_user_added_high_code_and_modified_synthetic_row(
+    tmp_path: Path,
+) -> None:
+    """Reverse conversion keeps user-added unreferenced >=99901 rows and edited synthetic rows."""
+    import shutil  # noqa: PLC0415
+
+    from supy.util.converter.table import convert_table  # noqa: PLC0415
+    import supy.util.converter.table.reverse as R  # noqa: PLC0415
+
+    fixture_2016a = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables" / "2016a"
+    )
+    if not (fixture_2016a / "RunControl.nml").exists():
+        pytest.skip("legacy 2016a table fixture not available")
+
+    extras = R.capture_legacy_extras(fixture_2016a, "2016a")
+    dest = tmp_path / "fwd"
+    convert_table(str(fixture_2016a), str(dest), "2016a", "2025a", validate_profiles=False)
+
+    # Case 1: user adds unreferenced custom codes 100000 (1.7) and 100001 (1.0)
+    # while leaving converter-created 99901 untouched -> 99901 pruned, both user rows kept.
+    flat1 = tmp_path / "flat1"
+    rev1 = tmp_path / "rev1"
+    flat1.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat1 / produced.name)
+    prof1 = flat1 / "SUEWS_Profiles.txt"
+    lines1 = prof1.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at = next(
+        (i for i, ln in enumerate(lines1) if ln.split() and ln.split()[0] == "-9"),
+        len(lines1),
+    )
+    lines1.insert(insert_at, "100000\t" + "\t".join(["1.700"] * 24) + "\n")
+    lines1.insert(insert_at + 1, "100001\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof1.write_text("".join(lines1), encoding="utf-8")
+
+    R.reverse_convert_table(flat1, rev1, "2016a", extras)
+    _, rev1_rows = R._read_table(rev1 / "SUEWS_Profiles.txt")
+    rev1_by_code = {r[0]: r[1:25] for r in rev1_rows if r}
+    assert "99901" not in rev1_by_code
+    assert "100000" in rev1_by_code
+    assert all(float(v) == pytest.approx(1.7) for v in rev1_by_code["100000"])
+    assert "100001" in rev1_by_code
+    assert all(float(v) == pytest.approx(1.0) for v in rev1_by_code["100001"])
+
+    # Case 2: user edits converter-created 99901 to non-1.0 values -> preserved on reverse.
+    flat2 = tmp_path / "flat2"
+    rev2 = tmp_path / "rev2"
+    flat2.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat2 / produced.name)
+    prof2 = flat2 / "SUEWS_Profiles.txt"
+    lines2 = prof2.read_text(encoding="utf-8").splitlines(keepends=True)
+    lines2 = [
+        ("99901\t" + "\t".join(["1.500"] * 24) + "\n")
+        if (ln.split() and ln.split()[0] == "99901")
+        else ln
+        for ln in lines2
+    ]
+    prof2.write_text("".join(lines2), encoding="utf-8")
+
+    R.reverse_convert_table(flat2, rev2, "2016a", extras)
+    _, rev2_rows = R._read_table(rev2 / "SUEWS_Profiles.txt")
+    rev2_by_code = {r[0]: r[1:25] for r in rev2_rows if r}
+    assert "99901" in rev2_by_code
+    assert all(float(v) == pytest.approx(1.5) for v in rev2_by_code["99901"])
+
+    # Case 3: user adds uniform-1.0 profile 100001 and points PopProfWD at it
+    # after forward conversion -> 100001 is user-created and survives reverse
+    # while converter-allocated 99901 (still on PopProfWE) is pruned.
+    flat3 = tmp_path / "flat3"
+    rev3 = tmp_path / "rev3"
+    flat3.mkdir()
+    for produced in list(dest.rglob("SUEWS_*.txt")) + list(dest.rglob("*.nml")):
+        shutil.copyfile(produced, flat3 / produced.name)
+    prof3 = flat3 / "SUEWS_Profiles.txt"
+    lines3 = prof3.read_text(encoding="utf-8").splitlines(keepends=True)
+    insert_at3 = next(
+        (i for i, ln in enumerate(lines3) if ln.split() and ln.split()[0] == "-9"),
+        len(lines3),
+    )
+    lines3.insert(insert_at3, "100001\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof3.write_text("".join(lines3), encoding="utf-8")
+    anthro_path = flat3 / "SUEWS_AnthropogenicEmission.txt"
+    a_header, a_rows = R._read_table(anthro_path)
+    pop_wd_idx = a_header.index("PopProfWD")
+    for row in a_rows:
+        row[pop_wd_idx] = "100001"
+    R._write_table(anthro_path, a_header, a_rows)
+
+    R.reverse_convert_table(flat3, rev3, "2016a", extras)
+    _, rev3_rows = R._read_table(rev3 / "SUEWS_Profiles.txt")
+    rev3_by_code = {r[0]: r[1:25] for r in rev3_rows if r}
+    assert "99901" not in rev3_by_code
+    assert "100001" in rev3_by_code
+    assert all(float(v) == pytest.approx(1.0) for v in rev3_by_code["100001"])
+
+    # Case 4: source already has uniform-1.0 99901 (so forward allocates no
+    # synthetic code); user adds uniform-1.0 99902 and references it from
+    # PopProfWD -> both 99901 and 99902 survive reverse.
+    src4 = tmp_path / "src4"
+    shutil.copytree(fixture_2016a, src4)
+    p4 = src4 / "SUEWS_Profiles.txt"
+    p4_lines = p4.read_text(encoding="utf-8").splitlines(keepends=True)
+    ins4 = next(
+        (i for i, ln in enumerate(p4_lines) if ln.split() and ln.split()[0] == "-9"),
+        len(p4_lines),
+    )
+    p4_lines.insert(ins4, "99901\t" + "\t".join(["1.000"] * 24) + "\n")
+    p4.write_text("".join(p4_lines), encoding="utf-8")
+    extras4 = R.capture_legacy_extras(src4, "2016a")
+    assert "synthetic_day_night_code" not in extras4
+    dest4 = tmp_path / "fwd4"
+    convert_table(str(src4), str(dest4), "2016a", "2025a", validate_profiles=False)
+    flat4 = tmp_path / "flat4"
+    rev4 = tmp_path / "rev4"
+    flat4.mkdir()
+    for produced in list(dest4.rglob("SUEWS_*.txt")) + list(dest4.rglob("*.nml")):
+        shutil.copyfile(produced, flat4 / produced.name)
+    prof4 = flat4 / "SUEWS_Profiles.txt"
+    lines4 = prof4.read_text(encoding="utf-8").splitlines(keepends=True)
+    ins4b = next(
+        (i for i, ln in enumerate(lines4) if ln.split() and ln.split()[0] == "-9"),
+        len(lines4),
+    )
+    lines4.insert(ins4b, "99902\t" + "\t".join(["1.000"] * 24) + "\n")
+    prof4.write_text("".join(lines4), encoding="utf-8")
+    a4_path = flat4 / "SUEWS_AnthropogenicEmission.txt"
+    a4_header, a4_rows = R._read_table(a4_path)
+    a4_idx = a4_header.index("PopProfWD")
+    for row in a4_rows:
+        row[a4_idx] = "99902"
+    R._write_table(a4_path, a4_header, a4_rows)
+    R.reverse_convert_table(flat4, rev4, "2016a", extras4)
+    _, rev4_rows = R._read_table(rev4 / "SUEWS_Profiles.txt")
+    rev4_by_code = {r[0]: r[1:25] for r in rev4_rows if r}
+    assert "99901" in rev4_by_code
+    assert "99902" in rev4_by_code
+
+
+def test_dev24_migration_detaches_yaml_aliased_profiles() -> None:
+    """Shared YAML anchor dicts across ahprof, popprof, and human activity are detached on upgrade."""
+    shared_661_662 = {
+        "working_day": deepcopy(_LEGACY_661),
+        "holiday": deepcopy(_LEGACY_662),
+    }
+    raw = _load_sample_raw()
+    raw["schema_version"] = "2026.6.dev23"
+    anthro = raw["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro["heat"]["ahprof_24hr"] = shared_661_662
+    anthro["heat"]["popprof_24hr"] = shared_661_662
+    anthro["co2"]["profile_human_activity_24hr"] = shared_661_662
+
+    migrated = SchemaMigrator().migrate(raw, to_version="2026.6.dev24")
+    m_anthro = migrated["sites"][0]["properties"]["anthropogenic_emissions"]
+
+    # Unrelated ahprof_24hr must remain completely untouched (still 661/662).
+    assert m_anthro["heat"]["ahprof_24hr"]["working_day"] == _LEGACY_661
+    assert m_anthro["heat"]["ahprof_24hr"]["holiday"] == _LEGACY_662
+    # popprof_24hr gets 801/802 while profile_human_activity_24hr gets 55663/55664.
+    assert m_anthro["heat"]["popprof_24hr"]["working_day"]["6"] == pytest.approx(1.5)
+    assert m_anthro["heat"]["popprof_24hr"]["working_day"]["7"] == pytest.approx(2.0)
+    assert m_anthro["heat"]["popprof_24hr"]["holiday"]["8"] == pytest.approx(1.0)
+    assert m_anthro["heat"]["popprof_24hr"]["holiday"]["9"] == pytest.approx(1.5)
+    assert m_anthro["co2"]["profile_human_activity_24hr"]["working_day"][
+        "7"
+    ] == pytest.approx(1.0)
+    assert m_anthro["co2"]["profile_human_activity_24hr"]["working_day"][
+        "8"
+    ] == pytest.approx(1.5)
+    assert m_anthro["co2"]["profile_human_activity_24hr"]["holiday"][
+        "9"
+    ] == pytest.approx(1.5)
+    assert m_anthro["heat"]["popprof_24hr"] is not m_anthro["heat"]["ahprof_24hr"]
+    assert (
+        m_anthro["co2"]["profile_human_activity_24hr"]
+        is not m_anthro["heat"]["popprof_24hr"]
+    )
+
+
+def test_pre_dev9_observed_soil_migration_preserves_historical_and_upgrades_dev24() -> (
+    None
+):
+    """Pre-dev9 observed-soil configs with legacy profiles migrate cleanly to dev23 and dev24."""
+    from supy.util.converter.yaml_upgrade import SoilMigrationContext  # noqa: PLC0415
+
+    raw = _load_sample_raw()
+    raw["schema_version"] = "2026.6.dev8"
+    raw["model"]["physics"].pop("soil_moisture", None)
+    raw["model"]["physics"]["soil_moisture_deficit"] = 1
+    for surface in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+        raw["sites"][0]["properties"]["land_cover"][surface].update(
+            soil_depth=200.0,
+            soil_store_capacity=80.0,
+            soil_field_capacity=0.6,
+        )
+    raw["sites"][0]["properties"]["soil_observation"] = {
+        "depth": 200.0,
+        "bulk_density": 1.25,
+        "soil_not_rocks": 0.8,
+    }
+    anthro = raw["sites"][0]["properties"]["anthropogenic_emissions"]
+    anthro["heat"]["popprof_24hr"] = {
+        "working_day": deepcopy(_LEGACY_661),
+        "holiday": deepcopy(_LEGACY_662),
+    }
+    uniform_legacy = {str(h): 1.0 / 24.0 for h in range(1, 25)}
+    anthro["co2"]["profile_human_activity_24hr"] = {
+        "working_day": uniform_legacy.copy(),
+        "holiday": uniform_legacy.copy(),
+    }
+
+    def _ctx() -> SoilMigrationContext:
+        return SoilMigrationContext(
+            layer_bounds={0: (0.0, 0.2)},
+            original_method=1,
+            forcing_manifest={
+                "completed": True,
+                "original_method": 1,
+                "source_unit": "m3 m-3",
+                "input_sha256": "a" * 64,
+                "output_sha256": "b" * 64,
+            },
+        )
+
+    # Historical target dev23 preserves legacy 661/662 and 1/24 profiles unchanged.
+    hist = SchemaMigrator().migrate(
+        deepcopy(raw), to_version="2026.6.dev23", migration_context=_ctx()
+    )
+    h_anthro = hist["sites"][0]["properties"]["anthropogenic_emissions"]
+    assert h_anthro["heat"]["popprof_24hr"]["working_day"] == _LEGACY_661
+    assert h_anthro["co2"]["profile_human_activity_24hr"]["working_day"]["1"] == (
+        pytest.approx(1.0 / 24.0)
+    )
+
+    # Current target dev24 upgrades 661/662 -> 801/802 and 1/24 -> uniform 1.0.
+    cur = SchemaMigrator().migrate(
+        deepcopy(raw), to_version="2026.6.dev24", migration_context=_ctx()
+    )
+    c_anthro = cur["sites"][0]["properties"]["anthropogenic_emissions"]
+    assert c_anthro["heat"]["popprof_24hr"]["working_day"]["13"] == pytest.approx(2.0)
+    assert all(
+        v == pytest.approx(1.0)
+        for v in c_anthro["co2"]["profile_human_activity_24hr"]["working_day"].values()
+    )
+
+    # Custom out-of-range profile still fails explicitly at dev24 (and succeeds at dev23).
+    custom = deepcopy(raw)
+    custom["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] = 0.25
+    hist_custom = SchemaMigrator().migrate(
+        deepcopy(custom), to_version="2026.6.dev23", migration_context=_ctx()
+    )
+    assert hist_custom["sites"][0]["properties"]["anthropogenic_emissions"]["heat"][
+        "popprof_24hr"
+    ]["working_day"]["1"] == pytest.approx(0.25)
+    with pytest.raises(YamlUpgradeError, match=r"\[1\.0, 2\.0\]"):
+        SchemaMigrator().migrate(
+            custom, to_version="2026.6.dev24", migration_context=_ctx()
+        )

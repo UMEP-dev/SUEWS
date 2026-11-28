@@ -193,14 +193,23 @@ def test_data_model_emits_required_snow_and_anthro_heat_defaults(
     )
 
     resolved_co2 = resolved_props["anthropogenic_emissions"]["co2"]
-    for profile_node, label in (
-        (resolved_props["snow"]["snow_profile_24hr"], "snow.snow_profile_24hr"),
-        (resolved_heat["ahprof_24hr"], "heat.ahprof_24hr"),
-        (resolved_heat["popprof_24hr"], "heat.popprof_24hr"),
-        (resolved_co2["profile_traffic_24hr"], "co2.profile_traffic_24hr"),
+    for profile_node, label, expected_val in (
+        (
+            resolved_props["snow"]["snow_profile_24hr"],
+            "snow.snow_profile_24hr",
+            1.0 / 24.0,
+        ),
+        (resolved_heat["ahprof_24hr"], "heat.ahprof_24hr", 1.0 / 24.0),
+        (resolved_heat["popprof_24hr"], "heat.popprof_24hr", 1.0),
+        (
+            resolved_co2["profile_traffic_24hr"],
+            "co2.profile_traffic_24hr",
+            1.0 / 24.0,
+        ),
         (
             resolved_co2["profile_human_activity_24hr"],
             "co2.profile_human_activity_24hr",
+            1.0,
         ),
     ):
         for day_key in ("working_day", "holiday"):
@@ -209,7 +218,7 @@ def test_data_model_emits_required_snow_and_anthro_heat_defaults(
             )
             assert len(profile_node[day_key]) == 24
             for hour in range(1, 25):
-                assert profile_node[day_key][str(hour)] == pytest.approx(1.0 / 24.0)
+                assert profile_node[day_key][str(hour)] == pytest.approx(expected_val)
 
     forcing_name = _anthro_snow_base["forcing_name"]
     (tmp_path / forcing_name).write_text(

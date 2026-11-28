@@ -1147,8 +1147,12 @@ def check_costs(
     invalid advisory options or non-finite advisory metrics are isolated into
     ``report.advisory_errors`` rather than raising or altering ``report.ok``.
     """
+    if not (math.isfinite(medium_seconds) and math.isfinite(slow_seconds)):
+        raise ValueError("thresholds must be finite numbers")
     if not medium_seconds < slow_seconds:
         raise ValueError("the medium threshold must be below the slow threshold")
+    if not math.isfinite(band):
+        raise ValueError("the band must be a finite number")
     if band < 1.0:
         raise ValueError("the band must be at least 1")
 
@@ -1442,19 +1446,32 @@ def main(argv: list[str] | None = None) -> int:
         budget_warn_arg = None
     if baseline_err is not None:
         extra_advisory_errors.append(baseline_err)
-    report = check_costs(
-        tests,
-        medium_seconds=args.medium_seconds,
-        slow_seconds=args.slow_seconds,
-        band=args.band,
-        phase=args.phase,
-        sources=sources,
-        test_files=args.test_files,
-        explosion_seconds=args.parametrize_budget_seconds,
-        baseline_tests=baseline_tests,
-        budget_warn_seconds=budget_warn_arg,
-    )
+    try:
+        report = check_costs(
+            tests,
+            medium_seconds=args.medium_seconds,
+            slow_seconds=args.slow_seconds,
+            band=args.band,
+            phase=args.phase,
+            sources=sources,
+            test_files=args.test_files,
+            explosion_seconds=args.parametrize_budget_seconds,
+            baseline_tests=baseline_tests,
+            budget_warn_seconds=budget_warn_arg,
+        )
+    except ValueError as exc:
+        print(f"[X] {exc}")
+        return 2
     report.advisory_errors.extend(extra_advisory_errors)
+    serialized_json: str | None = None
+    if args.json_path:
+        try:
+            serialized_json = (
+                json.dumps(report.to_dict(), indent=2, allow_nan=False) + "\n"
+            )
+        except ValueError as exc:
+            print(f"[X] cannot serialise non-finite metrics payload to JSON: {exc}")
+            return 2
     print(report.message())
     if args.histogram:
         print()
@@ -1463,12 +1480,9 @@ def main(argv: list[str] | None = None) -> int:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         with args.markdown.open("a", encoding="utf-8") as handle:
             handle.write(report.markdown())
-    if args.json_path:
+    if args.json_path and serialized_json is not None:
         args.json_path.parent.mkdir(parents=True, exist_ok=True)
-        args.json_path.write_text(
-            json.dumps(report.to_dict(), indent=2, allow_nan=False) + "\n",
-            encoding="utf-8",
-        )
+        args.json_path.write_text(serialized_json, encoding="utf-8")
     return 0 if report.ok else 1
 
 

@@ -89,7 +89,8 @@
     ]
   },
   "e2e_command_caps": {
+    "suews": 14,
     "suews-engine": 235,
-    "suews-validate": 19
+    "suews-validate": 28
   }
 }

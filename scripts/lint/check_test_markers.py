@@ -2823,6 +2823,21 @@ def _expand_iterable_in_state(
     return (collected, overflowed)
 
 
+def _clear_for_target(
+    target: ast.AST,
+    state: _BindingState,
+    *,
+    iter_overflowed: bool,
+) -> None:
+    """Clear outer bindings shadowed by a ``for`` or comprehension target."""
+    for name in _iter_assigned_names(target):
+        state.env.pop(name, None)
+        if iter_overflowed:
+            state.overflowed.add(name)
+        else:
+            state.overflowed.discard(name)
+
+
 def _bind_for_target(
     target: ast.AST,
     elements: list[ast.AST],
@@ -2832,6 +2847,7 @@ def _bind_for_target(
 ) -> None:
     """Bind ``for`` loop target variable(s) to statically expanded iterable elements."""
     if not elements:
+        _clear_for_target(target, state, iter_overflowed=iter_overflowed)
         return
     if isinstance(target, ast.Name):
         kept, cap_ov = _compact_ast_candidates(elements)
@@ -2852,18 +2868,146 @@ def _bind_for_target(
             _bind_for_target(
                 sub_target, col_vals, state, iter_overflowed=iter_overflowed
             )
+        return
+    _clear_for_target(target, state, iter_overflowed=iter_overflowed)
+
+
+def _args_param_names(args: ast.arguments) -> set[str]:
+    """Return all parameter names bound by ``args``."""
+    names = {
+        *(arg.arg for arg in args.posonlyargs),
+        *(arg.arg for arg in args.args),
+        *(arg.arg for arg in args.kwonlyargs),
+    }
+    if args.vararg is not None:
+        names.add(args.vararg.arg)
+    if args.kwarg is not None:
+        names.add(args.kwarg.arg)
+    return names
+
+
+def _extract_args_defaults(
+    args: ast.arguments,
+    def_state: _BindingState,
+) -> dict[str, list[ast.AST]]:
+    """Extract eagerly substituted default-argument expressions for ``args``."""
+    pos_args = [
+        *(arg.arg for arg in args.posonlyargs),
+        *(arg.arg for arg in args.args),
+    ]
+    defaults: dict[str, list[ast.AST]] = {}
+    if args.defaults:
+        offset = len(pos_args) - len(args.defaults)
+        for idx, default_expr in enumerate(args.defaults):
+            vals, _ = _substitute_expr_values(default_expr, def_state)
+            defaults[pos_args[offset + idx]] = vals
+    for kwarg, default_expr in zip(args.kwonlyargs, args.kw_defaults):
+        if default_expr is not None:
+            vals, _ = _substitute_expr_values(default_expr, def_state)
+            defaults[kwarg.arg] = vals
+    return defaults
+
+
+def _record_calls_in_comp(
+    comp: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp,
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+    enclosing_state: _BindingState | None,
+) -> None:
+    """Record calls inside a comprehension with generator-scoped target bindings."""
+    walrus_target = state if enclosing_state is None else enclosing_state
+    inner = state.clone()
+    for idx, gen in enumerate(comp.generators):
+        iter_state = state if idx == 0 else inner
+        _record_calls_in_expr(
+            gen.iter, iter_state, recorded, enclosing_state=walrus_target
+        )
+        elements, iter_ov = _expand_iterable_in_state(gen.iter, iter_state)
+        _bind_for_target(gen.target, elements, inner, iter_overflowed=iter_ov)
+        for cond in gen.ifs:
+            _record_calls_in_expr(
+                cond, inner, recorded, enclosing_state=walrus_target
+            )
+    if isinstance(comp, ast.DictComp):
+        _record_calls_in_expr(
+            comp.key, inner, recorded, enclosing_state=walrus_target
+        )
+        _record_calls_in_expr(
+            comp.value, inner, recorded, enclosing_state=walrus_target
+        )
+    else:
+        _record_calls_in_expr(
+            comp.elt, inner, recorded, enclosing_state=walrus_target
+        )
+
+
+def _record_calls_in_lambda(
+    expr: ast.Lambda,
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+    enclosing_state: _BindingState | None,
+) -> None:
+    """Record calls inside a ``lambda`` with parameter shadowing and defaults."""
+    for default_expr in expr.args.defaults:
+        _record_calls_in_expr(
+            default_expr, state, recorded, enclosing_state=enclosing_state
+        )
+    for default_expr in expr.args.kw_defaults:
+        if default_expr is not None:
+            _record_calls_in_expr(
+                default_expr, state, recorded, enclosing_state=enclosing_state
+            )
+    inner = state.clone()
+    for name in _args_param_names(expr.args):
+        inner.env.pop(name, None)
+        inner.overflowed.discard(name)
+    for p_name, p_vals in _extract_args_defaults(expr.args, state).items():
+        inner.env[p_name] = p_vals
+    _record_calls_in_expr(expr.body, inner, recorded, enclosing_state=None)
 
 
 def _record_calls_in_expr(
     expr: ast.AST,
     state: _BindingState,
     recorded: list[tuple[ast.Call, _BindingState]],
+    *,
+    enclosing_state: _BindingState | None = None,
 ) -> None:
-    """Record every ``ast.Call`` inside expression ``expr`` with current ``state``."""
-    snap = state.clone()
-    for node in ast.walk(expr):
-        if isinstance(node, ast.Call):
-            recorded.append((node, snap))
+    """Record every ``ast.Call`` inside ``expr`` with expression-scoped bindings."""
+    if isinstance(expr, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+        _record_calls_in_comp(expr, state, recorded, enclosing_state)
+        return
+    if isinstance(expr, ast.Lambda):
+        _record_calls_in_lambda(expr, state, recorded, enclosing_state)
+        return
+    if isinstance(expr, ast.NamedExpr):
+        _record_calls_in_expr(
+            expr.value, state, recorded, enclosing_state=enclosing_state
+        )
+        _assign_eager_target(expr.target, expr.value, state)
+        if enclosing_state is not None:
+            _assign_eager_target(expr.target, expr.value, enclosing_state)
+        return
+    if isinstance(expr, ast.IfExp):
+        _record_calls_in_expr(
+            expr.test, state, recorded, enclosing_state=enclosing_state
+        )
+        body_state = state.clone()
+        else_state = state.clone()
+        _record_calls_in_expr(
+            expr.body, body_state, recorded, enclosing_state=enclosing_state
+        )
+        _record_calls_in_expr(
+            expr.orelse, else_state, recorded, enclosing_state=enclosing_state
+        )
+        merged = _merge_binding_states(body_state, else_state)
+        state.env = merged.env
+        state.overflowed = merged.overflowed
+        return
+    for child in ast.iter_child_nodes(expr):
+        _record_calls_in_expr(child, state, recorded, enclosing_state=enclosing_state)
+    if isinstance(expr, ast.Call):
+        recorded.append((expr, state.clone()))
 
 
 _MAX_LOOP_FIXPOINT_ITERS: int = 6
@@ -2886,12 +3030,18 @@ def _record_calls_in_stmt_order(
     *,
     exc_accum: list[_BindingState] | None = None,
     descend_defs: bool = True,
+    returns: list[tuple[ast.AST, _BindingState]] | None = None,
 ) -> _BindingState:
     """Walk statements in execution order, recording calls with point-in-time bindings."""
     cur = state.clone()
     for stmt in stmts:
         cur = _step_single_stmt(
-            stmt, cur, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+            stmt,
+            cur,
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+            returns=returns,
         )
         if exc_accum is not None:
             exc_accum[0] = _merge_binding_states(exc_accum[0], cur)
@@ -2905,6 +3055,7 @@ def _step_loop_stmt(
     *,
     exc_accum: list[_BindingState] | None,
     descend_defs: bool,
+    returns: list[tuple[ast.AST, _BindingState]] | None = None,
 ) -> _BindingState:
     """Compute bounded loop-entry convergence so loop-carried bindings reach calls."""
     header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
@@ -2959,6 +3110,7 @@ def _step_loop_stmt(
         recorded,
         exc_accum=exc_accum,
         descend_defs=descend_defs,
+        returns=returns,
     )
     merged = _merge_binding_states(state, _merge_binding_states(cur_entry, body_state))
     if stmt.orelse:
@@ -2968,6 +3120,7 @@ def _step_loop_stmt(
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
+            returns=returns,
         )
         merged = _merge_binding_states(merged, else_state)
     return merged
@@ -2980,6 +3133,7 @@ def _step_try_stmt(
     *,
     exc_accum: list[_BindingState] | None,
     descend_defs: bool,
+    returns: list[tuple[ast.AST, _BindingState]] | None = None,
 ) -> _BindingState:
     """Preserve intermediate bindings from ``try.body`` for ``except``/``finally`` handlers."""
     try_exc: list[_BindingState] = [state.clone()]
@@ -2989,6 +3143,7 @@ def _step_try_stmt(
         recorded,
         exc_accum=try_exc,
         descend_defs=descend_defs,
+        returns=returns,
     )
     handler_entry = try_exc[0]
     if exc_accum is not None:
@@ -3001,6 +3156,7 @@ def _step_try_stmt(
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
+            returns=returns,
         )
         if stmt.orelse
         else body_end
@@ -3013,6 +3169,7 @@ def _step_try_stmt(
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
+            returns=returns,
         )
         merged = _merge_binding_states(merged, h_state)
     if stmt.finalbody:
@@ -3023,6 +3180,7 @@ def _step_try_stmt(
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
+            returns=returns,
         )
     return merged
 
@@ -3034,6 +3192,7 @@ def _step_compound_stmt(
     *,
     exc_accum: list[_BindingState] | None = None,
     descend_defs: bool = True,
+    returns: list[tuple[ast.AST, _BindingState]] | None = None,
 ) -> _BindingState:
     """Handle control-flow compound statements while preserving branch bindings."""
     if isinstance(stmt, ast.If):
@@ -3044,6 +3203,7 @@ def _step_compound_stmt(
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
+            returns=returns,
         )
         else_state = (
             _record_calls_in_stmt_order(
@@ -3052,6 +3212,7 @@ def _step_compound_stmt(
                 recorded,
                 exc_accum=exc_accum,
                 descend_defs=descend_defs,
+                returns=returns,
             )
             if stmt.orelse
             else state
@@ -3059,7 +3220,12 @@ def _step_compound_stmt(
         return _merge_binding_states(then_state, else_state)
     if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
         return _step_loop_stmt(
-            stmt, state, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+            stmt,
+            state,
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+            returns=returns,
         )
     if isinstance(stmt, (ast.With, ast.AsyncWith)):
         for item in stmt.items:
@@ -3070,10 +3236,16 @@ def _step_compound_stmt(
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
+            returns=returns,
         )
     if isinstance(stmt, ast.Try):
         return _step_try_stmt(
-            stmt, state, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+            stmt,
+            state,
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+            returns=returns,
         )
     if isinstance(stmt, ast.Match):
         _record_calls_in_expr(stmt.subject, state, recorded)
@@ -3085,6 +3257,7 @@ def _step_compound_stmt(
                 recorded,
                 exc_accum=exc_accum,
                 descend_defs=descend_defs,
+                returns=returns,
             )
             merged = _merge_binding_states(merged, c_state)
         return merged
@@ -3151,6 +3324,7 @@ def _step_single_stmt(
     *,
     exc_accum: list[_BindingState] | None = None,
     descend_defs: bool = True,
+    returns: list[tuple[ast.AST, _BindingState]] | None = None,
 ) -> _BindingState:
     """Process one statement in order, eagerly substituting assignment-time values."""
     if isinstance(stmt, ast.Assign):
@@ -3176,6 +3350,11 @@ def _step_single_stmt(
                 state.env[stmt.target.id] = kept
                 if rhs_ov or cap_ov:
                     state.overflowed.add(stmt.target.id)
+    elif isinstance(stmt, ast.Return):
+        if stmt.value is not None:
+            _record_calls_in_expr(stmt.value, state, recorded)
+            if returns is not None:
+                returns.append((stmt.value, state.clone()))
     elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
         if descend_defs:
             _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
@@ -3193,11 +3372,23 @@ def _step_single_stmt(
         ),
     ):
         return _step_compound_stmt(
-            stmt, state, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+            stmt,
+            state,
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+            returns=returns,
         )
     else:
         _record_calls_in_expr(stmt, state, recorded)
     return state
+
+
+def _is_pytest_collected_function(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Return True when pytest's default ``python_functions = ('test',)`` collects ``fn``."""
+    return fn.name.startswith("test") and not any(
+        _is_fixture_decorator(dec) for dec in fn.decorator_list
+    )
 
 
 def _build_module_binding_state(
@@ -3210,7 +3401,7 @@ def _build_module_binding_state(
     for stmt in tree.body:
         if isinstance(
             stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
-        ) and not stmt.name.startswith("test_"):
+        ) and not _is_pytest_collected_function(stmt):
             helper_def_states[stmt.name] = cur.clone()
         cur = _step_single_stmt(stmt, cur, discarded_calls, descend_defs=False)
     return (cur, helper_def_states)
@@ -3264,69 +3455,353 @@ def _extract_forwarded_param_names(
     return forwarded
 
 
-def _collect_helper_return_exprs(tree: ast.Module) -> dict[str, ast.AST]:
-    """Return single-return expressions of non-test top-level helper functions."""
-    return_exprs: dict[str, ast.AST] = {}
+def _collect_helper_defs(
+    tree: ast.Module,
+) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """Return top-level non-test helper function definitions in ``tree``."""
+    helpers: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
     for stmt in tree.body:
         if isinstance(
             stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
-        ) and not stmt.name.startswith("test_"):
-            returns = [
-                n.value
-                for n in ast.walk(stmt)
-                if isinstance(n, ast.Return) and n.value is not None
-            ]
-            if len(returns) == 1:
-                return_exprs[stmt.name] = returns[0]
-    return return_exprs
+        ) and not _is_pytest_collected_function(stmt):
+            helpers[stmt.name] = stmt
+    return helpers
+
+
+def _bind_helper_positional_args(
+    pos_args: list[str],
+    call_args: list[ast.expr],
+    caller_state: _BindingState,
+    callee_state: _BindingState,
+) -> tuple[set[str], bool, bool]:
+    """Bind positional and starred call arguments into ``callee_state``."""
+    bound: set[str] = set()
+    has_unknown_starred = False
+    starred_overflow = False
+    pos_idx = 0
+    for arg in call_args:
+        if isinstance(arg, ast.Starred):
+            items, star_ov = _expand_iterable_in_state(arg.value, caller_state)
+            starred_overflow = (
+                starred_overflow
+                or star_ov
+                or _expr_references_overflowed(arg.value, caller_state.overflowed)
+            )
+            if not items:
+                has_unknown_starred = True
+                break
+            for item in items:
+                if pos_idx >= len(pos_args):
+                    break
+                p_name = pos_args[pos_idx]
+                callee_state.env[p_name] = [item]
+                if starred_overflow:
+                    callee_state.overflowed.add(p_name)
+                bound.add(p_name)
+                pos_idx += 1
+            continue
+        if pos_idx < len(pos_args):
+            p_name = pos_args[pos_idx]
+            vals, arg_ov = _substitute_expr_values(arg, caller_state)
+            callee_state.env[p_name] = vals
+            if arg_ov or _expr_references_overflowed(arg, caller_state.overflowed):
+                callee_state.overflowed.add(p_name)
+            bound.add(p_name)
+            pos_idx += 1
+    return (bound, has_unknown_starred, starred_overflow)
+
+
+def _bind_helper_keyword_args(
+    kw_bindable: set[str],
+    call_keywords: list[ast.keyword],
+    caller_state: _BindingState,
+    callee_state: _BindingState,
+) -> tuple[set[str], bool, bool]:
+    """Bind keyword call arguments into ``callee_state``."""
+    bound: set[str] = set()
+    has_kwargs_unpack = False
+    kwargs_overflow = False
+    for kw in call_keywords:
+        if kw.arg is None:
+            has_kwargs_unpack = True
+            kwargs_overflow = kwargs_overflow or _expr_references_overflowed(
+                kw.value, caller_state.overflowed
+            )
+        elif kw.arg in kw_bindable:
+            vals, kw_ov = _substitute_expr_values(kw.value, caller_state)
+            callee_state.env[kw.arg] = vals
+            if kw_ov or _expr_references_overflowed(kw.value, caller_state.overflowed):
+                callee_state.overflowed.add(kw.arg)
+            bound.add(kw.arg)
+    return (bound, has_kwargs_unpack, kwargs_overflow)
+
+
+def _bind_helper_call_state(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    call: ast.Call,
+    caller_state: _BindingState,
+    mod_state: _BindingState,
+    def_state: _BindingState,
+) -> _BindingState:
+    """Build callee binding state with parameters shadowed and bound from ``call``."""
+    callee_state = mod_state.clone()
+    pos_args = [
+        *(arg.arg for arg in fn.args.posonlyargs),
+        *(arg.arg for arg in fn.args.args),
+    ]
+    kw_bindable = {
+        *(arg.arg for arg in fn.args.args),
+        *(arg.arg for arg in fn.args.kwonlyargs),
+    }
+    for p_name in _args_param_names(fn.args):
+        callee_state.env.pop(p_name, None)
+        callee_state.overflowed.discard(p_name)
+
+    pos_bound, has_unknown_star, star_ov = _bind_helper_positional_args(
+        pos_args, call.args, caller_state, callee_state
+    )
+    kw_bound, has_kw_unpack, kw_ov = _bind_helper_keyword_args(
+        kw_bindable, call.keywords, caller_state, callee_state
+    )
+    bound_params = pos_bound | kw_bound
+
+    for p_name, def_vals in _extract_args_defaults(fn.args, def_state).items():
+        if p_name in bound_params:
+            continue
+        blocked_star = has_unknown_star and p_name in pos_args
+        blocked_kw = has_kw_unpack and p_name in kw_bindable
+        if blocked_star or blocked_kw:
+            if (blocked_star and star_ov) or (blocked_kw and kw_ov):
+                callee_state.overflowed.add(p_name)
+            continue
+        callee_state.env[p_name] = list(def_vals)
+    return callee_state
+
+
+def _expand_bound_helper_args(
+    param_names: set[str],
+    callee_state: _BindingState,
+    caller_state: _BindingState,
+    mod_state: _BindingState,
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    helper_def_states: Mapping[str, _BindingState],
+    *,
+    seen_helpers: frozenset[str],
+    depth: int,
+) -> None:
+    """Expand nested helper calls inside arguments already bound into ``callee_state``."""
+    for p_name in param_names:
+        p_vals = callee_state.env.get(p_name)
+        if not p_vals:
+            continue
+        exp_arg_vals: list[ast.AST] = []
+        arg_ov = p_name in callee_state.overflowed
+        for val in p_vals:
+            exp_v, v_ov = _expand_helper_returns_in_expr(
+                val,
+                caller_state,
+                mod_state,
+                helper_defs,
+                helper_def_states,
+                seen_helpers=seen_helpers,
+                depth=depth + 1,
+            )
+            exp_arg_vals.extend(exp_v)
+            arg_ov = arg_ov or v_ov
+        kept_args, cap_ov = _compact_ast_candidates(exp_arg_vals)
+        callee_state.env[p_name] = kept_args
+        if arg_ov or cap_ov:
+            callee_state.overflowed.add(p_name)
+
+
+def _evaluate_helper_call_returns(
+    call: ast.Call,
+    caller_state: _BindingState,
+    mod_state: _BindingState,
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    helper_def_states: Mapping[str, _BindingState],
+    *,
+    seen_helpers: frozenset[str],
+    depth: int,
+) -> tuple[list[ast.AST], bool]:
+    """Evaluate return expressions of a module helper call in its callee scope."""
+    callee = call.func.id if isinstance(call.func, ast.Name) else ""
+    fn = helper_defs.get(callee)
+    if fn is None or callee in seen_helpers or depth > 4:
+        return ([call], False)
+
+    callee_state = _bind_helper_call_state(
+        fn, call, caller_state, mod_state, helper_def_states.get(callee, mod_state)
+    )
+    _expand_bound_helper_args(
+        _args_param_names(fn.args),
+        callee_state,
+        caller_state,
+        mod_state,
+        helper_defs,
+        helper_def_states,
+        seen_helpers=seen_helpers,
+        depth=depth,
+    )
+
+    collected_returns: list[tuple[ast.AST, _BindingState]] = []
+    _record_calls_in_stmt_order(
+        fn.body,
+        callee_state,
+        [],
+        descend_defs=False,
+        returns=collected_returns,
+    )
+    if not collected_returns:
+        return ([call], False)
+
+    expanded: list[ast.AST] = []
+    ov = False
+    next_seen = seen_helpers | {callee}
+    for ret_expr, ret_state in collected_returns:
+        sub_vals, sub_ov = _substitute_expr_values(ret_expr, ret_state)
+        ov = ov or sub_ov or _expr_references_overflowed(ret_expr, ret_state.overflowed)
+        for val in sub_vals:
+            inner, inner_ov = _expand_helper_returns_in_expr(
+                val,
+                ret_state,
+                mod_state,
+                helper_defs,
+                helper_def_states,
+                seen_helpers=next_seen,
+                depth=depth + 1,
+            )
+            expanded.extend(inner)
+            ov = ov or inner_ov
+    kept, cap_ov = _compact_ast_candidates(expanded)
+    return (kept, ov or cap_ov)
+
+
+def _expand_helper_seq_expr(
+    expr: ast.List | ast.Tuple,
+    caller_state: _BindingState,
+    mod_state: _BindingState,
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    helper_def_states: Mapping[str, _BindingState],
+    *,
+    seen_helpers: frozenset[str],
+    shadowed_names: frozenset[str],
+    depth: int,
+) -> tuple[list[ast.AST], bool]:
+    """Expand module helper calls inside list/tuple elements with bounded combinations."""
+    elt_lists: list[list[ast.AST]] = [[]]
+    ov = False
+    for elt in expr.elts:
+        elt_vals, elt_ov = _expand_helper_returns_in_expr(
+            elt,
+            caller_state,
+            mod_state,
+            helper_defs,
+            helper_def_states,
+            seen_helpers=seen_helpers,
+            shadowed_names=shadowed_names,
+            depth=depth + 1,
+        )
+        ov = ov or elt_ov
+        next_lists = [[*prefix, ev] for prefix in elt_lists for ev in elt_vals]
+        if len(next_lists) > _MAX_BRANCH_BINDINGS:
+            ov = True
+            next_lists = next_lists[:_MAX_BRANCH_BINDINGS]
+        elt_lists = next_lists
+    cls = ast.List if isinstance(expr, ast.List) else ast.Tuple
+    rebuilt = [cls(elts=elts, ctx=ast.Load()) for elts in elt_lists]
+    kept, cap_ov = _compact_ast_candidates(rebuilt)
+    return (kept, ov or cap_ov)
 
 
 def _expand_helper_returns_in_expr(
     expr: ast.AST,
+    caller_state: _BindingState,
     mod_state: _BindingState,
-    helper_return_exprs: Mapping[str, ast.AST],
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    helper_def_states: Mapping[str, _BindingState],
     *,
     seen_helpers: frozenset[str] = frozenset(),
+    shadowed_names: frozenset[str] = frozenset(),
     depth: int = 0,
 ) -> tuple[list[ast.AST], bool]:
-    """Expand calls to single-return module helpers inside ``expr`` with recursion bounds."""
+    """Expand calls to module helpers inside ``expr`` using each callee's own scope."""
     if depth > 4:
         return ([expr], False)
     if (
         isinstance(expr, ast.Call)
         and isinstance(expr.func, ast.Name)
-        and expr.func.id in helper_return_exprs
+        and expr.func.id in helper_defs
         and expr.func.id not in seen_helpers
+        and expr.func.id not in shadowed_names
     ):
-        ret_expr = helper_return_exprs[expr.func.id]
-        sub_vals, sub_ov = _substitute_expr_values(ret_expr, mod_state)
-        expanded: list[ast.AST] = []
-        ov = sub_ov or _expr_references_overflowed(ret_expr, mod_state.overflowed)
-        for val in sub_vals:
-            inner, inner_ov = _expand_helper_returns_in_expr(
-                val,
-                mod_state,
-                helper_return_exprs,
-                seen_helpers=seen_helpers | {expr.func.id},
-                depth=depth + 1,
-            )
-            expanded.extend(inner)
-            ov = ov or inner_ov
-        kept, cap_ov = _compact_ast_candidates(expanded)
-        return (kept, ov or cap_ov)
-    if isinstance(expr, (ast.List, ast.Tuple)) and expr.elts:
-        first_vals, first_ov = _expand_helper_returns_in_expr(
-            expr.elts[0],
+        return _evaluate_helper_call_returns(
+            expr,
+            caller_state,
             mod_state,
-            helper_return_exprs,
+            helper_defs,
+            helper_def_states,
             seen_helpers=seen_helpers,
+            depth=depth,
+        )
+    if isinstance(expr, (ast.List, ast.Tuple)) and expr.elts:
+        return _expand_helper_seq_expr(
+            expr,
+            caller_state,
+            mod_state,
+            helper_defs,
+            helper_def_states,
+            seen_helpers=seen_helpers,
+            shadowed_names=shadowed_names,
+            depth=depth,
+        )
+    if isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Add):
+        l_vals, l_ov = _expand_helper_returns_in_expr(
+            expr.left,
+            caller_state,
+            mod_state,
+            helper_defs,
+            helper_def_states,
+            seen_helpers=seen_helpers,
+            shadowed_names=shadowed_names,
             depth=depth + 1,
         )
-        cls = ast.List if isinstance(expr, ast.List) else ast.Tuple
-        rebuilt = [
-            cls(elts=[fv, *expr.elts[1:]], ctx=ast.Load()) for fv in first_vals
+        r_vals, r_ov = _expand_helper_returns_in_expr(
+            expr.right,
+            caller_state,
+            mod_state,
+            helper_defs,
+            helper_def_states,
+            seen_helpers=seen_helpers,
+            shadowed_names=shadowed_names,
+            depth=depth + 1,
+        )
+        rebuilt_bin = [
+            ast.BinOp(left=lv, op=expr.op, right=rv) for lv in l_vals for rv in r_vals
         ]
-        return (rebuilt, first_ov)
+        kept_bin, cap_ov = _compact_ast_candidates(rebuilt_bin)
+        return (kept_bin, l_ov or r_ov or cap_ov)
+    if (
+        isinstance(expr, ast.Call)
+        and expr.args
+        and _unwrap_path_conversion(expr) is not expr
+    ):
+        inner_vals, inner_ov = _expand_helper_returns_in_expr(
+            expr.args[0],
+            caller_state,
+            mod_state,
+            helper_defs,
+            helper_def_states,
+            seen_helpers=seen_helpers,
+            shadowed_names=shadowed_names,
+            depth=depth + 1,
+        )
+        rebuilt_wrap = [
+            ast.Call(func=expr.func, args=[iv, *expr.args[1:]], keywords=expr.keywords)
+            for iv in inner_vals
+        ]
+        kept_wrap, cap_ov = _compact_ast_candidates(rebuilt_wrap)
+        return (kept_wrap, inner_ov or cap_ov)
     return ([expr], False)
 
 
@@ -3334,29 +3809,35 @@ def _resolve_subprocess_clis(
     cmd_arg: ast.AST,
     call_state: _BindingState,
     mod_state: _BindingState,
-    helper_return_exprs: Mapping[str, ast.AST],
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    helper_def_states: Mapping[str, _BindingState],
+    *,
+    shadowed_names: frozenset[str] = frozenset(),
 ) -> tuple[set[str], bool]:
     """Resolve canonical SUEWS CLI command(s) invoked by ``cmd_arg`` and overflow flag."""
     ov_flag = [_expr_references_overflowed(cmd_arg, call_state.overflowed)]
     clis = _detect_suews_clis_in_expr(
         cmd_arg, call_state.env, overflow_flag=ov_flag
     )
-    if clis or not helper_return_exprs:
+    if clis or not helper_defs:
         return (clis, ov_flag[0])
 
     subst_cands, subst_ov = _substitute_expr_values(cmd_arg, call_state)
     ov = ov_flag[0] or subst_ov
     for cand in subst_cands:
         expanded_cands, exp_ov = _expand_helper_returns_in_expr(
-            cand, mod_state, helper_return_exprs
+            cand,
+            call_state,
+            mod_state,
+            helper_defs,
+            helper_def_states,
+            shadowed_names=shadowed_names,
         )
         ov = ov or exp_ov
         for exp in expanded_cands:
             exp_flag = [False]
             clis.update(
-                _detect_suews_clis_in_expr(
-                    exp, call_state.env, overflow_flag=exp_flag
-                )
+                _detect_suews_clis_in_expr(exp, {}, overflow_flag=exp_flag)
             )
             ov = ov or exp_flag[0]
     return (clis, ov)
@@ -3367,21 +3848,7 @@ def _extract_param_defaults(
     mod_state: _BindingState,
 ) -> dict[str, list[ast.AST]]:
     """Extract eagerly substituted default-argument expressions for ``fn``."""
-    pos_args = [
-        *(arg.arg for arg in fn.args.posonlyargs),
-        *(arg.arg for arg in fn.args.args),
-    ]
-    defaults: dict[str, list[ast.AST]] = {}
-    if fn.args.defaults:
-        offset = len(pos_args) - len(fn.args.defaults)
-        for idx, default_expr in enumerate(fn.args.defaults):
-            vals, _ = _substitute_expr_values(default_expr, mod_state)
-            defaults[pos_args[offset + idx]] = vals
-    for kwarg, default_expr in zip(fn.args.kwonlyargs, fn.args.kw_defaults):
-        if default_expr is not None:
-            vals, _ = _substitute_expr_values(default_expr, mod_state)
-            defaults[kwarg.arg] = vals
-    return defaults
+    return _extract_args_defaults(fn.args, mod_state)
 
 
 def _scan_single_helper(
@@ -3390,7 +3857,8 @@ def _scan_single_helper(
     def_state: _BindingState,
     subproc_aliases: set[str],
     subproc_funcs: set[str],
-    helper_return_exprs: Mapping[str, ast.AST],
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    helper_def_states: Mapping[str, _BindingState],
 ) -> tuple[
     dict[str, int],
     dict[str, list[ast.AST]],
@@ -3420,13 +3888,19 @@ def _scan_single_helper(
     forwarded: set[str] = set()
     helper_overflow = False
     helper_calls: list[tuple[ast.Call, _BindingState]] = []
+    shadowed = frozenset(_args_param_names(stmt.args))
     for call, call_state in recorded:
         if _is_subprocess_call(call, subproc_aliases, subproc_funcs):
             cmd_arg = _extract_subprocess_cmd_arg(call)
             if cmd_arg is None:
                 continue
             found_clis, ov = _resolve_subprocess_clis(
-                cmd_arg, call_state, mod_state, helper_return_exprs
+                cmd_arg,
+                call_state,
+                mod_state,
+                helper_defs,
+                helper_def_states,
+                shadowed_names=shadowed,
             )
             clis.update(found_clis)
             helper_overflow = helper_overflow or ov
@@ -3547,7 +4021,7 @@ def _analyse_module_helpers(
     helper_def_states: Mapping[str, _BindingState],
     subproc_aliases: set[str],
     subproc_funcs: set[str],
-    helper_return_exprs: Mapping[str, ast.AST],
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
 ) -> tuple[
     dict[str, set[str]],
     dict[str, dict[str, int]],
@@ -3571,7 +4045,7 @@ def _analyse_module_helpers(
     for stmt in tree.body:
         if isinstance(
             stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
-        ) and not stmt.name.startswith("test_"):
+        ) and not _is_pytest_collected_function(stmt):
             (
                 param_pos,
                 param_defs,
@@ -3586,7 +4060,8 @@ def _analyse_module_helpers(
                 helper_def_states.get(stmt.name, mod_state),
                 subproc_aliases,
                 subproc_funcs,
-                helper_return_exprs,
+                helper_defs,
+                helper_def_states,
             )
             helper_param_positions[stmt.name] = param_pos
             helper_param_defaults[stmt.name] = param_defs
@@ -3844,29 +4319,93 @@ class _NonSimState:
         self.shadowed.update(other.shadowed)
 
 
+def _count_sim_calls_in_comp(
+    comp: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp,
+    state: _NonSimState,
+    enclosing_state: _NonSimState | None,
+) -> int:
+    """Count simulation calls in a comprehension while shadowing generator targets."""
+    walrus_target = state if enclosing_state is None else enclosing_state
+    inner = state.clone()
+    count = 0
+    for idx, gen in enumerate(comp.generators):
+        iter_state = state if idx == 0 else inner
+        count += _count_sim_calls_in_expr(gen.iter, iter_state, walrus_target)
+        inner.kill(set(_iter_assigned_names(gen.target)))
+        for cond in gen.ifs:
+            count += _count_sim_calls_in_expr(cond, inner, walrus_target)
+    if isinstance(comp, ast.DictComp):
+        count += _count_sim_calls_in_expr(comp.key, inner, walrus_target)
+        count += _count_sim_calls_in_expr(comp.value, inner, walrus_target)
+    else:
+        count += _count_sim_calls_in_expr(comp.elt, inner, walrus_target)
+    return count
+
+
 def _count_sim_calls_in_expr(
     expr: ast.AST,
     state: _NonSimState,
+    enclosing_state: _NonSimState | None = None,
 ) -> int:
-    """Count simulation ``from_sample_data`` and ``.run`` calls in an expression."""
-    count = 0
-    for node in ast.walk(expr):
-        if isinstance(node, ast.NamedExpr):
-            state.kill({node.target.id})
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-            continue
-        if node.func.attr == "from_sample_data" or (
-            node.func.attr == "run"
-            and not _is_non_simulation_run_receiver(
-                node.func.value,
-                frozenset(state.mods),
-                frozenset(state.classes),
-                frozenset(state.local_vars),
-                frozenset(state.shadowed),
+    """Count simulation ``from_sample_data`` and ``.run`` calls in ``expr``."""
+    if isinstance(expr, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+        return _count_sim_calls_in_comp(expr, state, enclosing_state)
+    if isinstance(expr, ast.Lambda):
+        count = sum(
+            _count_sim_calls_in_expr(d, state, enclosing_state)
+            for d in expr.args.defaults
+        )
+        count += sum(
+            _count_sim_calls_in_expr(d, state, enclosing_state)
+            for d in expr.args.kw_defaults
+            if d is not None
+        )
+        inner = state.clone()
+        inner.kill(_args_param_names(expr.args))
+        return count + _count_sim_calls_in_expr(expr.body, inner, None)
+    if isinstance(expr, ast.NamedExpr):
+        count = _count_sim_calls_in_expr(expr.value, state, enclosing_state)
+        state.kill({expr.target.id})
+        if enclosing_state is not None:
+            enclosing_state.kill({expr.target.id})
+        return count
+    if isinstance(expr, ast.IfExp):
+        count = _count_sim_calls_in_expr(expr.test, state, enclosing_state)
+        b_state = state.clone()
+        e_state = state.clone()
+        count += _count_sim_calls_in_expr(expr.body, b_state, enclosing_state)
+        count += _count_sim_calls_in_expr(expr.orelse, e_state, enclosing_state)
+        b_state.intersect_with(e_state)
+        state.mods = b_state.mods
+        state.classes = b_state.classes
+        state.local_vars = b_state.local_vars
+        state.shadowed = b_state.shadowed
+        return count
+    if isinstance(expr, ast.Call):
+        count = _count_sim_calls_in_expr(expr.func, state, enclosing_state)
+        if isinstance(expr.func, ast.Attribute) and (
+            expr.func.attr == "from_sample_data"
+            or (
+                expr.func.attr == "run"
+                and not _is_non_simulation_run_receiver(
+                    expr.func.value,
+                    frozenset(state.mods),
+                    frozenset(state.classes),
+                    frozenset(state.local_vars),
+                    frozenset(state.shadowed),
+                )
             )
         ):
             count += 1
-    return count
+        for arg in expr.args:
+            count += _count_sim_calls_in_expr(arg, state, enclosing_state)
+        for kw in expr.keywords:
+            count += _count_sim_calls_in_expr(kw.value, state, enclosing_state)
+        return count
+    return sum(
+        _count_sim_calls_in_expr(child, state, enclosing_state)
+        for child in ast.iter_child_nodes(expr)
+    )
 
 
 def _apply_local_non_sim_import(
@@ -3916,16 +4455,7 @@ def _apply_local_non_sim_assign(
 
 def _func_param_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     """Return all parameter names bound by ``fn``."""
-    names = {
-        *(arg.arg for arg in fn.args.posonlyargs),
-        *(arg.arg for arg in fn.args.args),
-        *(arg.arg for arg in fn.args.kwonlyargs),
-    }
-    if fn.args.vararg is not None:
-        names.add(fn.args.vararg.arg)
-    if fn.args.kwarg is not None:
-        names.add(fn.args.kwarg.arg)
-    return names
+    return _args_param_names(fn.args)
 
 
 def _walk_sim_calls_in_block(
@@ -4194,12 +4724,18 @@ def _collect_test_subprocess_clis(
 
     found: set[str] = set()
     overflowed = False
+    shadowed = frozenset(_func_param_names(fn))
     for call, call_state in recorded:
         if _is_subprocess_call(call, ctx.subproc_aliases, ctx.subproc_funcs):
             cmd_arg = _extract_subprocess_cmd_arg(call)
             if cmd_arg is not None:
                 clis, ov = _resolve_subprocess_clis(
-                    cmd_arg, call_state, ctx.mod_state, ctx.helper_return_exprs
+                    cmd_arg,
+                    call_state,
+                    ctx.mod_state,
+                    ctx.helper_defs,
+                    ctx.helper_def_states,
+                    shadowed_names=shadowed,
                 )
                 found.update(clis)
                 if ov or (
@@ -4257,7 +4793,7 @@ class _FileAstGuardContext:
         self.rel_posix = rel_posix
         self.mod_env = _build_single_assign_env(tree)
         self.ast_value_env = _build_ast_value_env(tree)
-        self.mod_state, helper_def_states = _build_module_binding_state(tree)
+        self.mod_state, self.helper_def_states = _build_module_binding_state(tree)
         mod_markers, _ = _extract_scope_pytestmark(tree.body)
         self.mod_pm_exprs = _extract_scope_pytestmark_exprs(tree.body)
         self.file_e2e = ("e2e" in mod_markers) or (
@@ -4270,7 +4806,7 @@ class _FileAstGuardContext:
             self.non_sim_classes,
             self.mod_non_sim_vars,
         ) = _collect_module_non_sim_bindings(tree)
-        self.helper_return_exprs = _collect_helper_return_exprs(tree)
+        self.helper_defs = _collect_helper_defs(tree)
         (
             self.helper_clis,
             self.helper_param_positions,
@@ -4280,10 +4816,10 @@ class _FileAstGuardContext:
         ) = _analyse_module_helpers(
             tree,
             self.mod_state,
-            helper_def_states,
+            self.helper_def_states,
             self.subproc_aliases,
             self.subproc_funcs,
-            self.helper_return_exprs,
+            self.helper_defs,
         )
         self.per_node_e2e_counts: dict[tuple[str, str], int] = {}
 
@@ -4417,9 +4953,7 @@ def _visit_ast_guard_function(
     inherited_e2e: bool,
 ) -> None:
     """Record AST guard hits for a single test function or method."""
-    if not fn.name.startswith("test_") or any(
-        _is_fixture_decorator(dec) for dec in fn.decorator_list
-    ):
+    if not _is_pytest_collected_function(fn):
         return
     fn_marks: set[str] = set()
     for dec in fn.decorator_list:

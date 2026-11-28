@@ -2995,3 +2995,93 @@ def test_ast_guards_expansion_overflow_tuple_unpacking_and_explicit_test_flag(
     assert "CliChecks::test_direct" in proc.stdout
     assert "InheritedChecks::test_inherited" in proc.stdout
     assert "ExplicitWithInit::test_skipped" not in proc.stdout
+
+
+def test_ast_guards_test_prefix_expression_scopes_and_helper_return_scope(
+    tmp_path: Path, capsys
+) -> None:
+    """Pytest ``test*`` names, comprehension/lambda scopes, and callee-scoped helper returns."""
+    src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "CMD = 'echo'\n"
+        "def command(CMD):\n"
+        "    return CMD\n\n"
+        "CMD_SUEWS = 'suews'\n"
+        "def command_rev(CMD_SUEWS):\n"
+        "    return CMD_SUEWS\n\n"
+        "DEF_CLI = 'suews-mcp'\n"
+        "def build_local(exe=DEF_CLI):\n"
+        "    cmd = [exe, '--version']\n"
+        "    return cmd\n"
+        "DEF_CLI = 'echo'\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def testSimNoUnderscore(x, sim):\n"
+        "    sim.run()\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize('i', range(11))\n"
+        "def testCliCap(i):\n"
+        "    subprocess.run(['suews-schema', 'export'])\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_comp_shadows_subprocess(x, sim):\n"
+        "    _ = [subprocess.run() for subprocess in [sim]]\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_lambda_shadows_subprocess(x, sim):\n"
+        "    fn = lambda subprocess: subprocess.run()\n"
+        "    fn(sim)\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_comp_subprocess_exempt(x):\n"
+        "    _ = [subprocess.run(['git', '--version']) for _ in range(1)]\n\n"
+        "def test_comp_binds_suews_cli():\n"
+        "    _ = [subprocess.run([cmd]) for cmd in ['suews']]\n\n"
+        "def test_lambda_default_binds_suews_cli():\n"
+        "    fn = lambda cmd='suews-validate': subprocess.run([cmd])\n"
+        "    fn()\n\n"
+        "def test_comp_shadows_outer_suews_harmless():\n"
+        "    cmd = 'suews'\n"
+        "    _ = [subprocess.run([cmd]) for cmd in ['git']]\n\n"
+        "def test_lambda_shadows_outer_suews_harmless():\n"
+        "    cmd = 'suews'\n"
+        "    fn = lambda cmd: subprocess.run([cmd])\n"
+        "    fn('git')\n\n"
+        "def test_helper_return_binds_argument():\n"
+        "    subprocess.run([command('suews')])\n\n"
+        "def test_helper_return_shadows_global_harmless():\n"
+        "    subprocess.run([command_rev('echo')])\n\n"
+        "def test_helper_return_local_and_default():\n"
+        "    subprocess.run(build_local())\n"
+    )
+    repo = _make_repo(
+        tmp_path / "repo_r7",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r7_edges.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "parametrised-simulation: test/core/test_r7_edges.py::testSimNoUnderscore" in err
+    assert "e2e-subprocess-cap: `suews-schema`" in err
+    assert "parametrised-simulation: test/core/test_r7_edges.py::test_comp_shadows_subprocess" in err
+    assert "parametrised-simulation: test/core/test_r7_edges.py::test_lambda_shadows_subprocess" in err
+    assert "test_comp_subprocess_exempt" not in err
+    assert "missing-e2e-marker: test/core/test_r7_edges.py::test_comp_binds_suews_cli" in err
+    assert "missing-e2e-marker: test/core/test_r7_edges.py::test_lambda_default_binds_suews_cli" in err
+    assert "test_comp_shadows_outer_suews_harmless" not in err
+    assert "test_lambda_shadows_outer_suews_harmless" not in err
+    assert "missing-e2e-marker: test/core/test_r7_edges.py::test_helper_return_binds_argument" in err
+    assert "test_helper_return_shadows_global_harmless" not in err
+    assert "missing-e2e-marker: test/core/test_r7_edges.py::test_helper_return_local_and_default" in err
+
+    # Differential check confirming pytest collects non-underscore test* functions.
+    probe = tmp_path / "test_prefix_probe.py"
+    probe.write_text("def testCli():\n    assert True\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts=", str(probe)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert "test_prefix_probe.py::testCli" in proc.stdout

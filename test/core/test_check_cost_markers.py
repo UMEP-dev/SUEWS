@@ -1286,3 +1286,30 @@ def test_setup_phase_isolates_null_call_and_deduplicates_explosions_by_call_cpu(
     assert len(parsed_dual["parametrize_explosion_warnings"]) == 1
     assert parsed_dual["parametrize_explosion_warnings"][0]["total_call_cpu"] == pytest.approx(22.0)
     assert parsed_dual["axis_cpu_summary"][0]["total_cpu_seconds"] == pytest.approx(22.0)
+
+
+def test_nonfinite_legacy_thresholds_rejected_cleanly_on_cli(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Non-finite legacy CLI thresholds exit 2 with diagnostics and write no invalid JSON."""
+    metrics_path = _artefact(
+        tmp_path / "unit-fast.json",
+        [_record("test/core/test_fast.py::test_ok", call=0.2, markers=("unit",))],
+    )
+    for flag, val in (
+        ("--slow-seconds", "inf"),
+        ("--medium-seconds", "nan"),
+        ("--band", "inf"),
+    ):
+        out_json = tmp_path / f"out_{flag.strip('-')}.json"
+        rc = checker.main([str(metrics_path), flag, val, "--json", str(out_json)])
+        assert rc == 2
+        out = capsys.readouterr().out
+        assert "[X]" in out
+        assert "finite" in out
+        assert not out_json.exists()
+
+    with pytest.raises(ValueError, match="finite"):
+        checker.check_costs([], slow_seconds=float("inf"))
+    with pytest.raises(ValueError, match="finite"):
+        checker.check_costs([], band=float("nan"))

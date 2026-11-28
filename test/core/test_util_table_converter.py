@@ -20,6 +20,7 @@ from supy.util.converter.table.profile_manager import (
     ProfileManager,
     validate_and_fix_profiles,
 )
+import supy.util.converter.table.reverse as reverse_mod
 
 pytestmark = [pytest.mark.unit, pytest.mark.contract("C-MIGRATE")]
 
@@ -527,8 +528,8 @@ class TestTableVersionDetectionAndHelpers:
         assert "diagmethod" not in loaded
         assert "localclimatemethod" not in loaded
 
-        # Same precedence in _normalise_legacy_runcontrol_keys.
-        changed = table_mod._normalise_legacy_runcontrol_keys(rc_both)
+        # Same precedence in _migrate_legacy_runcontrol_keys.
+        changed = table_mod._migrate_legacy_runcontrol_keys(rc_both)
         assert changed is True
         patched = f90nml.read(str(rc_both))["runcontrol"]
         assert patched["rslmethod"] == 1
@@ -555,12 +556,140 @@ class TestTableVersionDetectionAndHelpers:
 
         # Absent or empty namelist returns False cleanly.
         assert (
-            table_mod._normalise_legacy_runcontrol_keys(tmp_path / "absent.nml")
-            is False
+            table_mod._migrate_legacy_runcontrol_keys(tmp_path / "absent.nml") is False
         )
         empty_nml = tmp_path / "empty.nml"
         empty_nml.write_text("", encoding="utf-8")
-        assert table_mod._normalise_legacy_runcontrol_keys(empty_nml) is False
+        assert table_mod._migrate_legacy_runcontrol_keys(empty_nml) is False
+
+    @pytest.mark.parametrize(
+        "variant_name",
+        [
+            pytest.param("gridlayoutkc.nml", id="lowercase-gridlayout"),
+            pytest.param("GRIDLAYOUTKC.NML", id="uppercase-gridlayout-ext"),
+        ],
+    )
+    def test_cli_auto_detect_2024a_preserves_case_variant_gridlayout_geometry(
+        self, tmp_path, variant_name
+    ):
+        """Case-variant GridLayout*.nml geometry survives auto-detected CLI conversion without placeholder substitution."""
+        fixture_2024 = _LEGACY_FORMAT_ROOT / "2024a"
+        assert fixture_2024.is_dir(), f"Missing vendored fixture: {fixture_2024}"
+
+        site_dir = tmp_path / "site_case_variant"
+        shutil.copytree(fixture_2024, site_dir)
+        orig_grid = site_dir / "Input" / "GridLayoutKc.nml"
+        grid_text = orig_grid.read_text(encoding="utf-8")
+        assert "height = 0., 11., 15., 22." in grid_text
+        distinctive_text = grid_text.replace(
+            "height = 0., 11., 15., 22.",
+            "height = 0., 13., 21., 34.",
+        )
+        orig_grid.unlink()
+        (site_dir / "Input" / variant_name).write_text(
+            distinctive_text, encoding="utf-8"
+        )
+
+        out_yml = tmp_path / "converted_case_variant.yml"
+        runner = CliRunner()
+        res = runner.invoke(
+            convert_table_cmd,
+            ["-i", str(site_dir / "RunControl.nml"), "-o", str(out_yml)],
+        )
+        assert res.exit_code == 0, res.output
+        assert "Detected version: 2024a" in res.output
+
+        cfg = SUEWSConfig.from_yaml(str(out_yml))
+        heights = cfg.sites[0].properties.vertical_layers.height.value
+        assert heights == pytest.approx([0.0, 13.0, 21.0, 34.0])
+        assert int(cfg.model.physics.roughness_sublayer.value) == 2
+
+    @pytest.mark.parametrize(
+        ("mode", "rc_replacements", "expected_fwd", "expected_rev"),
+        [
+            pytest.param(
+                "historical",
+                {},
+                {"rslmethod": 2, "rsllevel": 0},
+                {"diagmethod": 2, "localclimatemethod": 0},
+                id="historical-2024a-roundtrip",
+            ),
+            pytest.param(
+                "canonical",
+                {
+                    "diagMethod            = 2": "rslmethod             = 2",
+                    "LocalClimateMethod    = 0": "rsllevel              = 1",
+                },
+                {"rslmethod": 2, "rsllevel": 1},
+                {"rslmethod": 2, "rsllevel": 1},
+                id="canonical-2024a-roundtrip",
+            ),
+            pytest.param(
+                "mixed",
+                {
+                    "diagMethod            = 2": "diagMethod            = 2\nrslmethod             = 1",
+                    "LocalClimateMethod    = 0": "LocalClimateMethod    = 1\nrsllevel              = 0",
+                },
+                {"rslmethod": 1, "rsllevel": 0},
+                {
+                    "diagmethod": 2,
+                    "rslmethod": 1,
+                    "localclimatemethod": 1,
+                    "rsllevel": 0,
+                },
+                id="mixed-2024a-roundtrip",
+            ),
+        ],
+    )
+    def test_2024a_runcontrol_roundtrip_preserves_spellings_and_values(
+        self, tmp_path, mode, rc_replacements, expected_fwd, expected_rev
+    ):
+        """2024a -> 2025a -> 2024a preserves RunControl keys and values for historical, canonical, and mixed inputs."""
+        fixture_2024 = _LEGACY_FORMAT_ROOT / "2024a"
+        assert fixture_2024.is_dir(), f"Missing vendored fixture: {fixture_2024}"
+
+        src_dir = tmp_path / f"src_{mode}"
+        shutil.copytree(fixture_2024, src_dir)
+        rc_path = src_dir / "RunControl.nml"
+        rc_text = rc_path.read_text(encoding="utf-8")
+        for old, new in rc_replacements.items():
+            assert old in rc_text
+            rc_text = rc_text.replace(old, new)
+        rc_path.write_text(rc_text, encoding="utf-8")
+
+        src_rc = f90nml.read(str(rc_path))["runcontrol"]
+        extras = reverse_mod.capture_legacy_extras(src_dir, "2024a")
+
+        fwd_dir = tmp_path / f"fwd_{mode}"
+        table_mod.convert_table(
+            str(src_dir), str(fwd_dir), "2024a", "2025a", validate_profiles=False
+        )
+        fwd_rc = f90nml.read(str(fwd_dir / "RunControl.nml"))["runcontrol"]
+        for key, val in expected_fwd.items():
+            assert fwd_rc[key] == val
+        assert "diagmethod" not in fwd_rc
+        assert "localclimatemethod" not in fwd_rc
+
+        flat_dir = tmp_path / f"flat_{mode}"
+        flat_dir.mkdir()
+        for produced in list(fwd_dir.rglob("SUEWS_*.txt")) + list(
+            fwd_dir.rglob("*.nml")
+        ):
+            shutil.copyfile(produced, flat_dir / produced.name)
+
+        rev_dir = tmp_path / f"rev_{mode}"
+        reverse_mod.reverse_convert_table(flat_dir, rev_dir, "2024a", extras)
+        rev_rc = f90nml.read(str(rev_dir / "RunControl.nml"))["runcontrol"]
+
+        assert set(rev_rc) == set(src_rc)
+        for key, val in expected_rev.items():
+            assert rev_rc[key] == val
+        diffs = {
+            k: (src_rc[k], rev_rc[k])
+            for k in src_rc
+            if str(src_rc[k]) != str(rev_rc[k])
+        }
+        assert not diffs, f"{mode} 2024a RunControl round-trip diffs: {diffs}"
 
     def test_detect_table_version_synthetic_2024a_2023a_2017a_empty_and_absolute_path(
         self, tmp_path

@@ -192,16 +192,25 @@ def _check_required_files(input_path, required_files):
     return all((input_path / f).exists() for f in required_files)
 
 
+def _iter_matching_files(directory: Path, *patterns: str) -> list[Path]:
+    """Return sorted files directly inside ``directory`` matching any glob case-insensitively."""
+    if not directory.is_dir():
+        return []
+    patterns_lower = tuple(pattern.lower() for pattern in patterns)
+    return sorted(
+        path
+        for path in directory.iterdir()
+        if path.is_file()
+        and any(fnmatch(path.name.lower(), pattern) for pattern in patterns_lower)
+    )
+
+
 def _has_matching_file(directory: Path, pattern: str) -> bool:
     """Return True when ``pattern`` matches a file directly inside ``directory``."""
     if not directory.is_dir():
         return False
     if any(ch in pattern for ch in "*?["):
-        pattern_lower = pattern.lower()
-        return any(
-            path.is_file() and fnmatch(path.name.lower(), pattern_lower)
-            for path in directory.iterdir()
-        )
+        return bool(_iter_matching_files(directory, pattern))
     return (directory / pattern).is_file()
 
 
@@ -1076,14 +1085,17 @@ def _prepare_output_dirs(
 
 
 def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
-    """Copy files matching patterns and optionally clean text files."""
+    """Copy files matching patterns (case-insensitively) and optionally clean text files."""
+    patterns_lower = tuple(p.lower() for p in file_patterns)
     for fileX in sorted(os.listdir(fromDir)):
-        if any(fnmatch(fileX, p) for p in file_patterns):
+        if any(fnmatch(fileX.lower(), p) for p in patterns_lower):
             file_src = os.path.join(fromDir, fileX)
+            if not os.path.isfile(file_src):
+                continue
             file_dst = os.path.join(toDir, fileX)
             copyfile(file_src, file_dst)
             convert_utf8(file_dst)
-            if clean_txt and fnmatch(fileX, "*.txt"):
+            if clean_txt and fnmatch(fileX.lower(), "*.txt"):
                 clean_legacy_table(file_dst)
 
 
@@ -1130,8 +1142,12 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
 
     # Move table files to Input directory
     list_table_input = sorted(
-        list(Path(toDir).glob("SUEWS*.txt"))
-        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+        _iter_matching_files(Path(toDir), "SUEWS*.txt")
+        + [
+            x
+            for x in _iter_matching_files(Path(toDir), "*.nml")
+            if x.name.lower() != "runcontrol.nml"
+        ]
     )
     for fileX in list_table_input:
         move(fileX.resolve(), path_input / fileX.name)
@@ -1181,13 +1197,13 @@ def _build_file_list(fromDir, fromVer):
             subdir = ""
 
         for fileX in sorted(os.listdir(input_dir)):
-            if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
+            if fnmatch(fileX.lower(), "suews_*.txt") or fnmatch(fileX.lower(), "*.nml"):
                 fileList.append((subdir, fileX))
                 logger_supy.debug(f"Found file in {subdir}: {fileX}")
 
     # Also check root for .nml files and txt files
     for fileX in sorted(os.listdir(fromDir)):
-        if fnmatch(fileX, "*.nml") or fnmatch(fileX, "*.txt"):
+        if fnmatch(fileX.lower(), "*.nml") or fnmatch(fileX.lower(), "*.txt"):
             fileList.append(("", fileX))
             logger_supy.debug(f"Found file in root: {fileX}")
 
@@ -1418,8 +1434,8 @@ def _apply_step_moves(toDir, harvested, fromVer, toVer):
             _write_table(path, header, rows)
 
 
-def _normalise_legacy_runcontrol_keys(path_runcontrol: Path) -> bool:
-    """Normalise pre-#864 RunControl aliases to canonical keys in place.
+def _migrate_legacy_runcontrol_keys(path_runcontrol: Path) -> bool:
+    """Migrate pre-#864 RunControl aliases to canonical keys in place.
 
     Preserves the legacy value when the canonical key is absent and gives
     the canonical spelling precedence when both appear.
@@ -1712,10 +1728,10 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     # Re-apply harvested cross-file moves over the Add defaults.
     _apply_step_moves(toDir, moved_values, fromVer, toVer)
 
-    # Normalise historical 2024a RunControl aliases (diagmethod/localclimatemethod)
+    # Migrate historical 2024a RunControl aliases (diagmethod/localclimatemethod)
     # to canonical 2025a keys (rslmethod/rsllevel), preserving user values.
     if fromVer == "2024a" and toVer == "2025a":
-        _normalise_legacy_runcontrol_keys(Path(toDir) / "RunControl.nml")
+        _migrate_legacy_runcontrol_keys(Path(toDir) / "RunControl.nml")
 
 
 def SUEWS_Converter_file(fileX, actionList):
@@ -1969,14 +1985,8 @@ def convert_table(
         # flatten all file structures in tempDir_1
         path_input = source_input_dir
         list_table_input = sorted(
-            list(
-                path_input.glob("SUEWS_*.txt")
-            )  # Fixed: Added underscore to match SUEWS_*.txt files
-            + list(path_input.glob("*.nml"))
-            + list(Path(fromDir).resolve().glob("*.nml"))
-            + list(
-                Path(fromDir).resolve().glob("SUEWS_*.txt")
-            )  # Also check root for SUEWS_*.txt files
+            _iter_matching_files(path_input, "SUEWS_*.txt", "*.nml")
+            + _iter_matching_files(Path(fromDir).resolve(), "SUEWS_*.txt", "*.nml")
         )
         # copy flattened files into tempDir_1 for later processing
         # also convert all files to UTF-8 encoding in case inconsistent encoding exists
@@ -2153,8 +2163,12 @@ def convert_table(
     )
 
     list_table_input = sorted(
-        list(Path(toDir).glob("SUEWS*.txt"))
-        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+        _iter_matching_files(Path(toDir), "SUEWS*.txt")
+        + [
+            x
+            for x in _iter_matching_files(Path(toDir), "*.nml")
+            if x.name.lower() != "runcontrol.nml"
+        ]
     )
 
     for fileX in list_table_input:
@@ -2181,7 +2195,7 @@ def convert_table(
         expected_grid = f"GridLayout{ser_nml['filecode']}.nml"
         path_expected_grid = path_input / expected_grid
         if not path_expected_grid.exists():
-            grid_candidates = sorted(path_input.glob("GridLayout*.nml"))
+            grid_candidates = _iter_matching_files(path_input, "GridLayout*.nml")
             normalized = expected_grid.lower()
             matched_candidate = next(
                 (

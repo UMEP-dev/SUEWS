@@ -428,24 +428,36 @@ fn validate_optional_mapping(root: &Value, path: &[&str], at: &str) -> Result<()
 }
 
 /// Read a finite numeric field that is required when `required` is true.
-/// When inactive (`!required`), an omitted or explicit `null` value returns
-/// `Ok(None)` so the caller keeps the inactive Fortran default, while any
-/// explicit non-null value is still validated via `require_numeric` so
-/// malformed input never passes silently (BR-02 / BR-03).
+/// When inactive (`!required`):
+/// - An omitted, `null`, `{value: null}`, or `{ref: ...}` entry returns
+///   `Ok(None)` so the caller keeps the inactive Fortran default.
+/// - A valid finite number returns `Ok(Some(v))`.
+/// - A non-finite number (`NaN`/`Inf`) still returns an error naming the
+///   canonical YAML path, preserving Python/Rust lockstep (#2363, #2426) and
+///   preventing non-finite leakage into codecs/checkpoints.
+/// - Any other non-numeric placeholder or malformed value (string, boolean,
+///   sequence, or non-RefValue mapping) returns `Ok(None)` so inactive-scheme
+///   placeholders do not fail a run when the owning physics scheme is off
+///   (#2363, BR-03).
 fn require_if_active_numeric(
     root: &Value,
     path: &[&str],
     at: &str,
     required: bool,
 ) -> Result<Option<f64>, String> {
-    if required
-        || get_path(root, path)
-            .and_then(given_value)
-            .is_some_and(|v| !v.is_null())
-    {
-        require_numeric(root, path, at).map(Some)
-    } else {
-        Ok(None)
+    if required {
+        return require_numeric(root, path, at).map(Some);
+    }
+    match get_path(root, path).and_then(given_value) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Number(n)) => match n.as_f64() {
+            Some(v) if v.is_finite() => Ok(Some(v)),
+            _ => Err(format!(
+                "`{}` is non-finite; it must be a finite number",
+                yaml_path_display(at, path)
+            )),
+        },
+        Some(_) => Ok(None),
     }
 }
 
@@ -2394,20 +2406,41 @@ fn read_lumps(site_root: &Value) -> Result<crate::lumps::LumpsPrm, String> {
 }
 
 /// Integer counterpart of `require_if_active_numeric`.
+///
+/// When `required` is true, enforces an exact `i32` via `require_i32`.
+/// When inactive (`!required`):
+/// - Omitted, `null`, `{value: null}`, or `{ref: ...}` returns `Ok(None)`.
+/// - An exact finite `i32` returns `Ok(Some(v))`.
+/// - A non-finite number (`NaN`/`Inf`) still returns an error naming the
+///   canonical YAML path.
+/// - Any other placeholder or malformed value (string, boolean, sequence,
+///   mapping, fractional float, or out-of-range finite number) returns
+///   `Ok(None)` so inactive-scheme placeholders do not fail a run (#2363).
 fn require_if_active_i32(
     root: &Value,
     path: &[&str],
     at: &str,
     required: bool,
 ) -> Result<Option<i32>, String> {
-    if required
-        || get_path(root, path)
-            .and_then(given_value)
-            .is_some_and(|v| !v.is_null())
-    {
-        require_i32(root, path, at).map(Some)
-    } else {
-        Ok(None)
+    if required {
+        return require_i32(root, path, at).map(Some);
+    }
+    match get_path(root, path).and_then(given_value) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Number(n)) => match n.as_f64() {
+            Some(v) if v.is_finite() => {
+                if v.fract() == 0.0 && v >= i32::MIN as f64 && v <= i32::MAX as f64 {
+                    Ok(Some(v as i32))
+                } else {
+                    Ok(None)
+                }
+            }
+            _ => Err(format!(
+                "`{}` is non-finite; it must be a finite number",
+                yaml_path_display(at, path)
+            )),
+        },
+        Some(_) => Ok(None),
     }
 }
 
@@ -3629,22 +3662,22 @@ fn apply_config_overrides(
     config.lai_method = require_i32(root, &["model", "physics", "laimethod"], "")?;
     config.rsl_level = require_i32(root, &["model", "physics", "rsllevel"], "")?;
     config.stebbs_method = require_i32(root, &["model", "physics", "stebbsmethod"], "")?;
-    if config.stebbs_method != StebbsMethod::None.as_i32() {
-        config.rc_method =
-            require_i32(root, &["model", "physics", "rcmethod"], "").map_err(&map_stebbs_err)?;
-        config.setpoint_method = require_i32(root, &["model", "physics", "setpointmethod"], "")
-            .map_err(&map_stebbs_err)?;
-    } else {
-        if let Some(v) = parse_optional_i32(root, &["model", "physics", "rcmethod"], "")
+    let stebbs_active = config.stebbs_method != StebbsMethod::None.as_i32();
+    if let Some(v) =
+        require_if_active_i32(root, &["model", "physics", "rcmethod"], "", stebbs_active)
             .map_err(&map_stebbs_err)?
-        {
-            config.rc_method = v;
-        }
-        if let Some(v) = parse_optional_i32(root, &["model", "physics", "setpointmethod"], "")
-            .map_err(&map_stebbs_err)?
-        {
-            config.setpoint_method = v;
-        }
+    {
+        config.rc_method = v;
+    }
+    if let Some(v) = require_if_active_i32(
+        root,
+        &["model", "physics", "setpointmethod"],
+        "",
+        stebbs_active,
+    )
+    .map_err(&map_stebbs_err)?
+    {
+        config.setpoint_method = v;
     }
     config.flag_test = require_i32(root, &["model", "control", "flag_test"], "")? != 0;
     config.diag_qs = require_i32(root, &["model", "control", "diag_qs"], "")?;
@@ -4177,10 +4210,22 @@ fn apply_ehc_overrides(
     Ok(())
 }
 
+/// Apply `properties.building_archetype` parameter and 10-minute profile
+/// overrides to `site.building_archtype` when STEBBS is active
+/// (`STEBBSmethod != 0`).
+///
+/// When STEBBS is inactive (`!stebbs_active`), the Fortran kernel does not
+/// invoke `stebbsonlinecouple` or `gen_building`, so inactive archetype
+/// overrides are skipped without rejecting missing, null, partial, or
+/// placeholder entries (#2363, BR-03).
 fn apply_building_archetype_overrides(
     site: &mut SuewsSite,
     site_root: &Value,
+    stebbs_active: bool,
 ) -> Result<(), String> {
+    if !stebbs_active {
+        return Ok(());
+    }
     let Some(archetype_root) = get_path(site_root, &["properties", "building_archetype"]) else {
         return Ok(());
     };
@@ -4242,7 +4287,22 @@ fn apply_building_archetype_overrides(
     Ok(())
 }
 
-fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+/// Apply `properties.stebbs` parameter and 10-minute profile overrides to
+/// `site.stebbs` (and `lighting_power_density` / `appliance_profile` onto
+/// `site.building_archtype`) when STEBBS is active (`STEBBSmethod != 0`).
+///
+/// When STEBBS is inactive (`!stebbs_active`), the Fortran kernel does not
+/// invoke `stebbsonlinecouple` or `gen_building`, so inactive STEBBS
+/// parameter overrides are skipped without rejecting missing, null, partial,
+/// or placeholder entries (#2363, BR-03).
+fn apply_stebbs_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+    stebbs_active: bool,
+) -> Result<(), String> {
+    if !stebbs_active {
+        return Ok(());
+    }
     let Some(stebbs_root) = get_path(site_root, &["properties", "stebbs"]) else {
         return Ok(());
     };
@@ -4361,9 +4421,10 @@ fn apply_site_overrides(
         spartacus_on,
         use_sw_direct_albedo,
     )?;
+    let stebbs_active = config.stebbs_method != StebbsMethod::None.as_i32();
     apply_anthro_emis_overrides(site, site_root, config.emissions_method)?;
-    apply_building_archetype_overrides(site, site_root)?;
-    apply_stebbs_overrides(site, site_root)?;
+    apply_building_archetype_overrides(site, site_root, stebbs_active)?;
+    apply_stebbs_overrides(site, site_root, stebbs_active)?;
     apply_ehc_overrides(
         site,
         site_root,
@@ -5131,9 +5192,10 @@ fn apply_site_scalar_overrides(
 
     // `narp_trans_site` is only read in `suews_phys_narp.f95` under
     // `ldown_option == 4 || 5`, which `RadMethod` does not currently emit.
-    // Validate finiteness when supplied and forward verbatim.
+    // Permit omission/null while preserving the BR-02 malformed-input witness
+    // (`test_engine_landcover_sitescalars_guards.py`, `br02_guard_matrix.rs`).
     if let Some(v) =
-        require_if_active_numeric(site_root, &["properties", "narp_trans_site"], &at, false)?
+        parse_optional_numeric(site_root, &["properties", "narp_trans_site"], &at)?
     {
         site_scalars.narp_trans_site = v;
     }
@@ -7499,16 +7561,46 @@ mod tests {
             assert!(err.contains("mapping"), "{err}");
         }
 
-        // Malformed/non-finite optional or inactive leaf values fail with canonical paths.
-        for field in [
-            "store_min",
-            "drain_eq",
-            "drain_coef_1",
-            "drain_coef_2",
-            "store_max",
-            "store_cap",
+        // Inactive placeholder strings on sfr=0 drainage fields do not fail
+        // (#2363), while non-finite IEEE inputs still fail with canonical paths.
+        for (slot_idx, field) in [
+            (0, "store_min"),
+            (1, "drain_eq"),
+            (2, "drain_coef_1"),
+            (3, "drain_coef_2"),
+            (4, "store_max"),
+            (5, "store_cap"),
         ] {
-            for bad in ["\"bad\"", ".nan", ".inf"] {
+            let mut placeholder = stebbs_fixture_root();
+            let site = first_site_mut(&mut placeholder).unwrap();
+            let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            evetr.insert(
+                Value::String("sfr".into()),
+                serde_yaml::from_str("0.0").unwrap(),
+            );
+            evetr
+                .get_mut(Value::String("storage_drain_params".into()))
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap()
+                .insert(
+                    Value::String(field.into()),
+                    serde_yaml::from_str("\"bad\"").unwrap(),
+                );
+            rebalance_sfr(site, "paved");
+            let parsed = load_run_config_from_value(&mut placeholder)
+                .unwrap_or_else(|e| panic!("placeholder inactive {field} must not fail (#2363): {e}"));
+            if field != "store_min" {
+                assert_eq!(
+                    parsed.state.phenology_state.store_drain_prm[2][slot_idx], 0.0,
+                    "placeholder inactive {field} should keep default 0.0"
+                );
+            }
+
+            for bad in [".nan", ".inf"] {
                 let mut root = stebbs_fixture_root();
                 let site = first_site_mut(&mut root).unwrap();
                 let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"])
@@ -9919,10 +10011,11 @@ mod tests {
         load_run_config_from_value(&mut inactive.clone())
             .expect("inactive land-cover fields should be omissible");
 
-        // Malformed inactive field still fails with canonical path.
-        let mut malformed_inactive = inactive;
+        // Inactive placeholder non-numeric value is ignored (#2363), while
+        // non-finite IEEE input still fails with the canonical path.
+        let mut placeholder_inactive = inactive.clone();
         get_path_mut(
-            first_site_mut(&mut malformed_inactive).unwrap(),
+            first_site_mut(&mut placeholder_inactive).unwrap(),
             &["properties", "land_cover", "paved"],
         )
         .unwrap()
@@ -9932,8 +10025,24 @@ mod tests {
             Value::String("state_limit".to_string()),
             serde_yaml::from_str("\"bad\"").unwrap(),
         );
-        let err = load_run_config_from_value(&mut malformed_inactive)
-            .expect_err("malformed inactive land-cover scalar must be rejected");
+        let parsed = load_run_config_from_value(&mut placeholder_inactive)
+            .expect("placeholder inactive land-cover scalar must not fail (#2363)");
+        assert_eq!(parsed.site.lc_paved.state_limit, 0.0);
+
+        let mut non_finite_inactive = inactive;
+        get_path_mut(
+            first_site_mut(&mut non_finite_inactive).unwrap(),
+            &["properties", "land_cover", "paved"],
+        )
+        .unwrap()
+        .as_mapping_mut()
+        .unwrap()
+        .insert(
+            Value::String("state_limit".to_string()),
+            serde_yaml::from_str(".nan").unwrap(),
+        );
+        let err = load_run_config_from_value(&mut non_finite_inactive)
+            .expect_err("non-finite inactive land-cover scalar must still be rejected");
         assert!(
             err.contains("`sites[gridiv=1].properties.land_cover.paved.state_limit`"),
             "{err}"
@@ -10465,15 +10574,26 @@ mod tests {
             load_run_config_from_value(&mut root)
                 .expect("snow_use=0 with zero initial snowpack allows omitting snow scalars");
 
-            let mut bad_scalar: Value =
+            let mut placeholder_scalar: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
             *get_path_mut(
-                first_site_mut(&mut bad_scalar).unwrap(),
+                first_site_mut(&mut placeholder_scalar).unwrap(),
                 &["properties", "snow", "tau_cold_snow"],
             )
             .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
-            let err = load_run_config_from_value(&mut bad_scalar)
-                .expect_err("malformed inactive snow scalar must fail");
+            let parsed = load_run_config_from_value(&mut placeholder_scalar)
+                .expect("placeholder inactive snow scalar must not fail (#2363)");
+            assert_eq!(parsed.site.snow.tau_cold_snow, 0.0);
+
+            let mut nan_scalar: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            *get_path_mut(
+                first_site_mut(&mut nan_scalar).unwrap(),
+                &["properties", "snow", "tau_cold_snow"],
+            )
+            .unwrap() = serde_yaml::from_str(".nan").unwrap();
+            let err = load_run_config_from_value(&mut nan_scalar)
+                .expect_err("non-finite inactive snow scalar must still fail");
             assert!(
                 err.contains("`sites[gridiv=1].properties.snow.tau_cold_snow`"),
                 "{err}"
@@ -11206,16 +11326,28 @@ mod tests {
             load_run_config_from_value(&mut root)
                 .expect("paved/bldgs/water may omit ohm_threshold_wet_dry");
 
-            let mut bad_root: Value =
+            let mut placeholder_root: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
-            let site = first_site_mut(&mut bad_root).expect("fixture has site");
+            let site = first_site_mut(&mut placeholder_root).expect("fixture has site");
             *get_path_mut(
                 site,
                 &["properties", "land_cover", "paved", "ohm_threshold_wet_dry"],
             )
             .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
-            let err = load_run_config_from_value(&mut bad_root)
-                .expect_err("malformed inactive ohm_threshold_wet_dry must fail");
+            let parsed = load_run_config_from_value(&mut placeholder_root)
+                .expect("placeholder inactive ohm_threshold_wet_dry must not fail (#2363)");
+            assert_eq!(parsed.site.lc_paved.ohm.ohm_threshold_wet_dry, 0.0);
+
+            let mut nan_root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut nan_root).expect("fixture has site");
+            *get_path_mut(
+                site,
+                &["properties", "land_cover", "paved", "ohm_threshold_wet_dry"],
+            )
+            .unwrap() = serde_yaml::from_str(".nan").unwrap();
+            let err = load_run_config_from_value(&mut nan_root)
+                .expect_err("non-finite inactive ohm_threshold_wet_dry must still fail");
             assert!(
                 err.contains("`sites[gridiv=1].properties.land_cover.paved.ohm_threshold_wet_dry`"),
                 "{err}"
@@ -11522,10 +11654,11 @@ mod tests {
                 );
             }
 
-            // Explicit malformed lai_type under laimethod=0 must still fail cleanly.
-            let mut bad = root;
+            // Placeholder lai_type under laimethod=0 is skipped (#2363), while
+            // non-finite input still fails cleanly.
+            let mut placeholder = root.clone();
             let grass_lai = get_path_mut(
-                first_site_mut(&mut bad).unwrap(),
+                first_site_mut(&mut placeholder).unwrap(),
                 &["properties", "land_cover", "grass", "lai"],
             )
             .unwrap();
@@ -11535,8 +11668,24 @@ mod tests {
                     serde_yaml::from_str("\"bad\"").unwrap(),
                 );
             }
+            let parsed = load_run_config_from_value(&mut placeholder)
+                .expect("placeholder inactive lai_type under laimethod=0 must not fail (#2363)");
+            assert_eq!(parsed.site.lc_grass.lai.lai_type, 0);
+
+            let mut bad = root;
+            let grass_lai = get_path_mut(
+                first_site_mut(&mut bad).unwrap(),
+                &["properties", "land_cover", "grass", "lai"],
+            )
+            .unwrap();
+            if let Value::Mapping(map) = grass_lai {
+                map.insert(
+                    Value::String("lai_type".to_string()),
+                    serde_yaml::from_str(".nan").unwrap(),
+                );
+            }
             let err = load_run_config_from_value(&mut bad)
-                .expect_err("malformed inactive lai_type under laimethod=0 must be rejected");
+                .expect_err("non-finite inactive lai_type under laimethod=0 must still be rejected");
             assert!(
                 err.contains("`sites[gridiv=1].properties.land_cover.grass.lai.lai_type`"),
                 "{err}"
@@ -11648,13 +11797,22 @@ mod tests {
             load_run_config_from_value(&mut root)
                 .expect("EmissionsMethod=2 allows omitting all biogenic CO2 fields");
 
+            let mut placeholder: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
+            let site = first_site_mut(&mut placeholder).expect("fixture has site");
+            *get_path_mut(site, &["properties", "land_cover", "grass", "resp_a"]).unwrap() =
+                serde_yaml::from_str("\"bad\"").unwrap();
+            let parsed = load_run_config_from_value(&mut placeholder)
+                .expect("placeholder inactive biogenic CO2 field must not fail (#2363)");
+            assert_eq!(parsed.site.lc_grass.bioco2.resp_a, 0.0);
+
             let mut bad: Value =
                 serde_yaml::from_str(sample_fixture_yaml()).expect("fixture should parse");
             let site = first_site_mut(&mut bad).expect("fixture has site");
             *get_path_mut(site, &["properties", "land_cover", "grass", "resp_a"]).unwrap() =
-                serde_yaml::from_str("\"bad\"").unwrap();
+                serde_yaml::from_str(".nan").unwrap();
             let err = load_run_config_from_value(&mut bad)
-                .expect_err("malformed inactive biogenic CO2 field must be rejected");
+                .expect_err("non-finite inactive biogenic CO2 field must still be rejected");
             assert!(
                 err.contains("`sites[gridiv=1].properties.land_cover.grass.resp_a`"),
                 "{err}"
@@ -12349,8 +12507,8 @@ mod tests {
             }
         }
 
-        // Per-day gate: tuesday has daywat=0.0, so daywatper.tuesday permits omission/null
-        // while still rejecting non-finite or non-numeric values.
+        // Per-day gate: tuesday has daywat=0.0, so daywatper.tuesday permits omission,
+        // null, or non-numeric placeholder (#2363), while still rejecting non-finite values.
         let mut tuesday_omitted = root.clone();
         remove_key(
             get_path_mut(
@@ -12362,20 +12520,29 @@ mod tests {
         );
         load_run_config_from_value(&mut tuesday_omitted)
             .expect("omitted daywatper on inactive weekday (daywat=0.0) must pass");
-        for bad in [".nan", "\"bad\""] {
-            let mut tuesday_bad = root.clone();
-            *get_path_mut(
-                first_site_mut(&mut tuesday_bad).unwrap(),
-                &["properties", "irrigation", "daywatper", "tuesday"],
-            )
-            .unwrap() = serde_yaml::from_str(bad).unwrap();
-            let err = load_run_config_from_value(&mut tuesday_bad)
-                .expect_err("malformed inactive daywatper must fail");
-            assert!(
-                err.contains("sites[gridiv=53].properties.irrigation.daywatper.tuesday"),
-                "malformed inactive daywatper: {err}"
-            );
-        }
+
+        let mut tuesday_placeholder = root.clone();
+        *get_path_mut(
+            first_site_mut(&mut tuesday_placeholder).unwrap(),
+            &["properties", "irrigation", "daywatper", "tuesday"],
+        )
+        .unwrap() = serde_yaml::from_str("\"bad\"").unwrap();
+        let parsed = load_run_config_from_value(&mut tuesday_placeholder)
+            .expect("placeholder inactive daywatper must not fail (#2363)");
+        assert_eq!(parsed.site.irrigation.irr_daywater.tuesday_percent, 0.0);
+
+        let mut tuesday_bad = root.clone();
+        *get_path_mut(
+            first_site_mut(&mut tuesday_bad).unwrap(),
+            &["properties", "irrigation", "daywatper", "tuesday"],
+        )
+        .unwrap() = serde_yaml::from_str(".nan").unwrap();
+        let err = load_run_config_from_value(&mut tuesday_bad)
+            .expect_err("non-finite inactive daywatper must still fail");
+        assert!(
+            err.contains("sites[gridiv=53].properties.irrigation.daywatper.tuesday"),
+            "non-finite inactive daywatper: {err}"
+        );
 
         // Inactive modelled irrigation (water_use=0 with all daywat=0.0, matching
         // compact_valid_dict): h_maintain, faut, internalwateruse_h, ie_a, ie_m,
@@ -13520,5 +13687,349 @@ mod tests {
         .unwrap() = Value::from(paved_sfr + 5.0e-5);
         load_run_config_from_value(&mut drift_ok)
             .expect("drift within 1e-4 should remain accepted at native boundary");
+    }
+
+    #[test]
+    fn require_if_active_numeric_and_i32_relax_inactive_placeholders_and_keep_active_strict() {
+        let root: Value = serde_yaml::from_str(
+            "\
+valid_f: 3.5
+wrapped_f: {value: -999.0}
+valid_i: 2
+wrapped_i: {value: 4.0}
+frac_i: 1.5
+huge_i: 1.0e12
+null_bare: null
+null_wrapped: {value: null}
+ref_only: {ref: {desc: omitted}}
+placeholder_str: TBD
+wrapped_placeholder: {value: 'N/A'}
+empty_str: ''
+bool_val: true
+seq_val: [1, 2]
+map_val: {nested: 1}
+nan_val: .nan
+inf_val: .inf
+ninf_val: -.inf
+wrapped_nan: {value: .nan}
+",
+        )
+        .expect("test YAML must parse");
+
+        // Inactive (`required = false`): finite values pass through, while missing,
+        // null, ref-only, and non-numeric placeholder values return Ok(None).
+        assert_eq!(
+            require_if_active_numeric(&root, &["valid_f"], "s", false),
+            Ok(Some(3.5))
+        );
+        assert_eq!(
+            require_if_active_numeric(&root, &["wrapped_f"], "s", false),
+            Ok(Some(-999.0))
+        );
+        for key in [
+            "missing_key",
+            "null_bare",
+            "null_wrapped",
+            "ref_only",
+            "placeholder_str",
+            "wrapped_placeholder",
+            "empty_str",
+            "bool_val",
+            "seq_val",
+            "map_val",
+        ] {
+            assert_eq!(
+                require_if_active_numeric(&root, &[key], "s", false),
+                Ok(None),
+                "inactive require_if_active_numeric must accept {key} as None"
+            );
+        }
+        // Inactive non-finite IEEE values are still rejected naming the path.
+        for key in ["nan_val", "inf_val", "ninf_val", "wrapped_nan"] {
+            let err = require_if_active_numeric(&root, &[key], "s", false)
+                .expect_err(&format!("inactive {key} must still reject non-finite"));
+            assert!(
+                err.contains(&format!("`s.{key}`")) && err.contains("non-finite"),
+                "{key}: {err}"
+            );
+        }
+
+        // Active (`required = true`): only valid finite numbers pass; every missing,
+        // null, placeholder, or non-finite value fails with its canonical path.
+        assert_eq!(
+            require_if_active_numeric(&root, &["valid_f"], "s", true),
+            Ok(Some(3.5))
+        );
+        for key in [
+            "missing_key",
+            "null_bare",
+            "null_wrapped",
+            "ref_only",
+            "placeholder_str",
+            "wrapped_placeholder",
+            "empty_str",
+            "bool_val",
+            "seq_val",
+            "map_val",
+            "nan_val",
+            "inf_val",
+            "ninf_val",
+            "wrapped_nan",
+        ] {
+            let err = require_if_active_numeric(&root, &[key], "s", true)
+                .expect_err(&format!("active require_if_active_numeric must reject {key}"));
+            assert!(err.contains(&format!("`s.{key}`")), "{key}: {err}");
+        }
+
+        // Integer counterpart: inactive accepts exact integers as Some, and
+        // relaxes missing, null, placeholders, fractional, and out-of-range finite
+        // values to Ok(None), while still rejecting non-finite IEEE values.
+        assert_eq!(
+            require_if_active_i32(&root, &["valid_i"], "s", false),
+            Ok(Some(2))
+        );
+        assert_eq!(
+            require_if_active_i32(&root, &["wrapped_i"], "s", false),
+            Ok(Some(4))
+        );
+        for key in [
+            "missing_key",
+            "null_bare",
+            "null_wrapped",
+            "ref_only",
+            "placeholder_str",
+            "wrapped_placeholder",
+            "empty_str",
+            "bool_val",
+            "seq_val",
+            "map_val",
+            "frac_i",
+            "huge_i",
+        ] {
+            assert_eq!(
+                require_if_active_i32(&root, &[key], "s", false),
+                Ok(None),
+                "inactive require_if_active_i32 must accept {key} as None"
+            );
+        }
+        for key in ["nan_val", "inf_val", "ninf_val", "wrapped_nan"] {
+            let err = require_if_active_i32(&root, &[key], "s", false)
+                .expect_err(&format!("inactive i32 {key} must still reject non-finite"));
+            assert!(
+                err.contains(&format!("`s.{key}`")) && err.contains("non-finite"),
+                "{key}: {err}"
+            );
+        }
+        assert_eq!(
+            require_if_active_i32(&root, &["valid_i"], "s", true),
+            Ok(Some(2))
+        );
+        for key in [
+            "missing_key",
+            "null_bare",
+            "null_wrapped",
+            "placeholder_str",
+            "frac_i",
+            "huge_i",
+            "nan_val",
+        ] {
+            let err = require_if_active_i32(&root, &[key], "s", true)
+                .expect_err(&format!("active require_if_active_i32 must reject {key}"));
+            assert!(err.contains(&format!("`s.{key}`")), "{key}: {err}");
+        }
+    }
+
+    #[test]
+    fn inactive_stebbs_skips_stebbs_and_archetype_overrides_and_keeps_active_strict() {
+        let default_site =
+            suews_site_default_from_fortran().expect("default Fortran site should load");
+        let default_stebbs = stebbs_prm_to_map(&default_site.stebbs);
+        let default_archetype = building_archetype_prm_to_map(&default_site.building_archtype);
+
+        // 1. Both nested (`stebbs.enabled: false`) and flat (`stebbsmethod: 0`,
+        //    `stebbs: {value: 0}`) disable STEBBS and skip STEBBS/archetype
+        //    overrides even when blocks are omitted, null, malformed, carry
+        //    broken 10-minute profiles, or hold distinct numeric overrides.
+        for mode in ["nested_false", "flat_stebbsmethod_0", "legacy_stebbs_0"] {
+            let make_inactive = || -> Value {
+                let mut root: Value =
+                    serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+                let physics = get_path_mut(&mut root, &["model", "physics"])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                physics.remove(Value::String("stebbs".to_string()));
+                physics.remove(Value::String("stebbsmethod".to_string()));
+                match mode {
+                    "nested_false" => {
+                        physics.insert(
+                            Value::String("stebbs".to_string()),
+                            serde_yaml::from_str(
+                                "{enabled: {value: false}, capacitance: {value: ''}, setpoint: null}",
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    "flat_stebbsmethod_0" => {
+                        physics.insert(
+                            Value::String("stebbsmethod".to_string()),
+                            serde_yaml::from_str("{value: 0}").unwrap(),
+                        );
+                        physics.insert(
+                            Value::String("rcmethod".to_string()),
+                            serde_yaml::from_str("1.5").unwrap(),
+                        );
+                        physics.insert(
+                            Value::String("setpointmethod".to_string()),
+                            Value::Null,
+                        );
+                    }
+                    "legacy_stebbs_0" => {
+                        physics.insert(
+                            Value::String("stebbs".to_string()),
+                            serde_yaml::from_str("{value: 0}").unwrap(),
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+                root
+            };
+
+            // 1a. Complete fixture values are ignored (site.stebbs & site.building_archtype stay default).
+            let mut untouched = make_inactive();
+            let parsed = load_run_config_from_value(&mut untouched)
+                .unwrap_or_else(|e| panic!("{mode}: inactive STEBBS run must load: {e}"));
+            assert_eq!(parsed.config.stebbs_method, 0, "{mode}");
+            assert_eq!(
+                stebbs_prm_to_map(&parsed.site.stebbs),
+                default_stebbs,
+                "{mode}: inactive STEBBS must keep default stebbs params"
+            );
+            assert_eq!(
+                building_archetype_prm_to_map(&parsed.site.building_archtype),
+                default_archetype,
+                "{mode}: inactive STEBBS must keep default building_archtype params"
+            );
+
+            // 1b. Broken/incomplete 10-minute profiles and placeholder scalars in
+            //     properties.stebbs and properties.building_archetype do not fail.
+            let mut broken_profiles = make_inactive();
+            let site = first_site_mut(&mut broken_profiles).unwrap();
+            *get_path_mut(site, &["properties", "stebbs"]).unwrap() = serde_yaml::from_str(
+                "\
+profile_flow_hot_water: {working_day: {'1': 'bad'}}
+profile_appliance: null
+power_density_lighting: 'TBD'
+convection_coefficient_wall_internal: .nan
+",
+            )
+            .unwrap();
+            *get_path_mut(site, &["properties", "building_archetype"]).unwrap() =
+                serde_yaml::from_str(
+                    "\
+profile_metabolism: {working_day: {'999': 1.0}}
+profile_setpoint_temperature_heating_air: 'not-a-profile'
+profile_setpoint_temperature_cooling_air: {holiday: {}}
+thickness_wall: .nan
+",
+                )
+                .unwrap();
+            let parsed_broken = load_run_config_from_value(&mut broken_profiles)
+                .unwrap_or_else(|e| panic!("{mode}: inactive broken STEBBS/archetype must pass: {e}"));
+            assert_eq!(
+                stebbs_prm_to_map(&parsed_broken.site.stebbs),
+                default_stebbs,
+                "{mode}: broken inactive STEBBS must keep defaults"
+            );
+            assert_eq!(
+                building_archetype_prm_to_map(&parsed_broken.site.building_archtype),
+                default_archetype,
+                "{mode}: broken inactive archetype must keep defaults"
+            );
+
+            // 1c. Missing or null properties.stebbs / properties.building_archetype pass.
+            let mut omitted_and_null = make_inactive();
+            let props = get_path_mut(first_site_mut(&mut omitted_and_null).unwrap(), &["properties"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            props.remove(Value::String("stebbs".to_string()));
+            props.insert(Value::String("building_archetype".to_string()), Value::Null);
+            load_run_config_from_value(&mut omitted_and_null)
+                .unwrap_or_else(|e| panic!("{mode}: omitted/null inactive STEBBS/archetype must pass: {e}"));
+        }
+
+        // 2. Malformed `model.physics.stebbs.enabled` and malformed/missing
+        //    `model.physics.stebbsmethod` are STILL strictly rejected.
+        for bad_enabled in ["{value: 2}", "{value: maybe}", "null", "[true]"] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+            *get_path_mut(&mut root, &["model", "physics", "stebbs", "enabled"]).unwrap() =
+                serde_yaml::from_str(bad_enabled).unwrap();
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("malformed stebbs.enabled={bad_enabled} must fail"));
+            assert!(
+                err.contains("stebbs.enabled"),
+                "bad_enabled={bad_enabled}: {err}"
+            );
+        }
+        for bad_method in ["null", "1.5", ".nan", "\"bad\""] {
+            let mut root: Value =
+                serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
+            let physics = get_path_mut(&mut root, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            physics.remove(Value::String("stebbs".to_string()));
+            physics.insert(
+                Value::String("stebbsmethod".to_string()),
+                serde_yaml::from_str(bad_method).unwrap(),
+            );
+            let err = load_run_config_from_value(&mut root)
+                .expect_err(&format!("malformed stebbsmethod={bad_method} must fail"));
+            assert!(
+                err.contains("stebbs") || err.contains("stebbsmethod"),
+                "bad_method={bad_method}: {err}"
+            );
+        }
+
+        // 3. When STEBBS is active (`STEBBSmethod != 0`), overrides are applied
+        //    and broken 10-minute profiles in both stebbs and building_archetype
+        //    remain strictly rejected.
+        let active: Value =
+            serde_yaml::from_str(stebbs_fixture_yaml()).expect("stebbs fixture parses");
+        let parsed_active = load_run_config_from_value(&mut active.clone())
+            .expect("active STEBBS fixture must load");
+        assert_eq!(parsed_active.config.stebbs_method, 1);
+        assert_ne!(
+            stebbs_prm_to_map(&parsed_active.site.stebbs),
+            default_stebbs,
+            "active STEBBS must apply stebbs overrides"
+        );
+        assert_ne!(
+            building_archetype_prm_to_map(&parsed_active.site.building_archtype),
+            default_archetype,
+            "active STEBBS must apply building_archetype overrides"
+        );
+
+        let mut active_bad_stebbs_prof = active.clone();
+        *get_path_mut(
+            first_site_mut(&mut active_bad_stebbs_prof).unwrap(),
+            &["properties", "stebbs", "profile_flow_hot_water"],
+        )
+        .unwrap() = serde_yaml::from_str("{working_day: {'1': 0.5}}").unwrap();
+        let err = load_run_config_from_value(&mut active_bad_stebbs_prof)
+            .expect_err("active STEBBS must reject incomplete hot_water_flow_profile");
+        assert!(err.contains("HotWaterFlowProfile"), "{err}");
+
+        let mut active_bad_arch_prof = active;
+        *get_path_mut(
+            first_site_mut(&mut active_bad_arch_prof).unwrap(),
+            &["properties", "building_archetype", "profile_metabolism"],
+        )
+        .unwrap() = serde_yaml::from_str("{working_day: {'1': 1.0}}").unwrap();
+        let err = load_run_config_from_value(&mut active_bad_arch_prof)
+            .expect_err("active STEBBS must reject incomplete metabolism_profile");
+        assert!(err.contains("MetabolismProfile"), "{err}");
     }
 }

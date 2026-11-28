@@ -202,6 +202,7 @@ struct SweepReport {
     nlayer: usize,
     ndepth: usize,
     nspec: usize,
+    stebbs_active: bool,
     batch_fallbacks: usize,
     base_non_finite: Vec<(String, f64)>,
     dead_keys: BTreeSet<String>,
@@ -1347,12 +1348,16 @@ fn probe_waterdist_simplex_group(
         .collect()
 }
 
-fn build_probe_jobs<'a>(leaves: &'a [NumericLeaf]) -> Vec<ProbeJob<'a>> {
+fn build_probe_jobs<'a>(
+    leaves: &'a [NumericLeaf],
+    inactive_scheme_keys: &BTreeSet<String>,
+) -> Vec<ProbeJob<'a>> {
     let known_dead: BTreeSet<&str> = KNOWN_DEAD_KEYS
         .iter()
         .chain(NON_OWNING_FACET_KEYS.iter())
         .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .copied()
+        .chain(inactive_scheme_keys.iter().map(String::as_str))
         .collect();
     let known_non_unit: BTreeSet<&str> = KNOWN_NON_UNIT_DELTAS.iter().map(|(k, _)| *k).collect();
 
@@ -1457,7 +1462,14 @@ fn run_jacobian_sweep(orig_root: &Value, expected_opts: Option<ExpectedOptions>)
     let leaves_tested = leaves.len();
     let wrapped_array_leaves_tested = leaves.iter().filter(|l| l.in_wrapped_array).count();
     let profile_leaves_tested = leaves.iter().filter(|l| l.in_long_profile).count();
-    let jobs = build_probe_jobs(&leaves);
+    let stebbs_active = base_rc.config.stebbs_method != 0;
+    let (_, inactive_stebbs_keys) = build_expected_receivers(
+        base_rc.nlayer as usize,
+        base_rc.ndepth as usize,
+        base_rc.site.spartacus_layer.nspec,
+        stebbs_active,
+    );
+    let jobs = build_probe_jobs(&leaves, &inactive_stebbs_keys);
 
     let job_results: Vec<(Vec<LeafOutcome>, usize)> = jobs
         .par_iter()
@@ -1538,6 +1550,7 @@ fn run_jacobian_sweep(orig_root: &Value, expected_opts: Option<ExpectedOptions>)
         nlayer: base_rc.nlayer as usize,
         ndepth: base_rc.ndepth as usize,
         nspec: base_rc.site.spartacus_layer.nspec,
+        stebbs_active,
         batch_fallbacks,
         base_non_finite,
         dead_keys,
@@ -1553,21 +1566,40 @@ fn run_jacobian_sweep(orig_root: &Value, expected_opts: Option<ExpectedOptions>)
 /// resolved anchor YAML (`validate_sweep_report` merges
 /// `build_expected_clobbered_receivers` into this map so 100% of live keys,
 /// including pinned `#2085` displaced owners, are verified by exact slot set).
+///
+/// Also returns the set of STEBBS/building-archetype keys that are gated
+/// inactive (`!stebbs_active`, i.e. `STEBBSmethod == 0`, `#2363`) so check 1a
+/// verifies every one of them leaves `RunConfig` strictly invariant while
+/// active STEBBS anchors (`stebbs_active == true`) verify 100% 1:1 wiring.
 fn build_expected_receivers(
     nlayer: usize,
     ndepth: usize,
     nspec: usize,
-) -> BTreeMap<String, BTreeSet<String>> {
-    struct ReceiverBuilder(BTreeMap<String, BTreeSet<String>>);
+    stebbs_active: bool,
+) -> (BTreeMap<String, BTreeSet<String>>, BTreeSet<String>) {
+    struct ReceiverBuilder {
+        live: BTreeMap<String, BTreeSet<String>>,
+        inactive_stebbs: BTreeSet<String>,
+    }
     impl ReceiverBuilder {
         fn expect_many(&mut self, yaml_key: String, slots: &[String]) {
-            self.0.insert(yaml_key, slots.iter().cloned().collect());
+            self.live.insert(yaml_key, slots.iter().cloned().collect());
         }
         fn expect_one(&mut self, yaml_key: String, slot: String) {
-            self.0.insert(yaml_key, BTreeSet::from([slot]));
+            self.live.insert(yaml_key, BTreeSet::from([slot]));
+        }
+        fn expect_stebbs_one(&mut self, stebbs_active: bool, yaml_key: String, slot: String) {
+            if stebbs_active {
+                self.expect_one(yaml_key, slot);
+            } else {
+                self.inactive_stebbs.insert(yaml_key);
+            }
         }
     }
-    let mut b = ReceiverBuilder(BTreeMap::new());
+    let mut b = ReceiverBuilder {
+        live: BTreeMap::new(),
+        inactive_stebbs: BTreeSet::new(),
+    };
 
     // 1. Model-level, grid, site scalars, and LUMPS.
     b.expect_one(
@@ -1969,12 +2001,14 @@ fn build_expected_receivers(
             "hot_water_heating_efficiency",
         ),
     ] {
-        b.expect_one(
+        b.expect_stebbs_one(
+            stebbs_active,
             format!("sites[0].properties.stebbs.{yaml_field}"),
             format!("site.stebbs.{codec_field}"),
         );
     }
-    b.expect_one(
+    b.expect_stebbs_one(
+        stebbs_active,
         "sites[0].properties.stebbs.power_density_lighting".into(),
         "site.building_archtype.lightingpowerdensity".into(),
     );
@@ -2016,25 +2050,38 @@ fn build_expected_receivers(
             "state.stebbs_state.external_wall_dhw_vessel_temperature".into(),
         ],
     );
-    b.expect_many(
-        "sites[0].properties.stebbs.setpoint_temperature_heating_water".into(),
-        &[
-            "site.stebbs.hot_water_heating_setpoint_temperature".into(),
-            "state.stebbs_state.water_tank_temperature".into(),
-            "state.stebbs_state.internal_wall_water_tank_temperature".into(),
-            "state.stebbs_state.external_wall_water_tank_temperature".into(),
-        ],
-    );
+    if stebbs_active {
+        b.expect_many(
+            "sites[0].properties.stebbs.setpoint_temperature_heating_water".into(),
+            &[
+                "site.stebbs.hot_water_heating_setpoint_temperature".into(),
+                "state.stebbs_state.water_tank_temperature".into(),
+                "state.stebbs_state.internal_wall_water_tank_temperature".into(),
+                "state.stebbs_state.external_wall_water_tank_temperature".into(),
+            ],
+        );
+    } else {
+        b.expect_many(
+            "sites[0].properties.stebbs.setpoint_temperature_heating_water".into(),
+            &[
+                "state.stebbs_state.water_tank_temperature".into(),
+                "state.stebbs_state.internal_wall_water_tank_temperature".into(),
+                "state.stebbs_state.external_wall_water_tank_temperature".into(),
+            ],
+        );
+    }
     for (yaml_day, day_num) in [("working_day", 1_usize), ("holiday", 2_usize)] {
         for step in 1..=144_usize {
-            b.expect_one(
+            b.expect_stebbs_one(
+                stebbs_active,
                 format!("sites[0].properties.stebbs.profile_flow_hot_water.{yaml_day}.{step}"),
                 format!(
                     "site.stebbs.hot_water_flow_profile.{:03}.{day_num}",
                     step - 1
                 ),
             );
-            b.expect_one(
+            b.expect_stebbs_one(
+                stebbs_active,
                 format!("sites[0].properties.stebbs.profile_appliance.{yaml_day}.{step}"),
                 format!(
                     "site.building_archtype.applianceprofile.{:03}.{day_num}",
@@ -2122,7 +2169,8 @@ fn build_expected_receivers(
         ("age_19_64", "age_19_64"),
         ("age_65plus", "age_65plus"),
     ] {
-        b.expect_one(
+        b.expect_stebbs_one(
+            stebbs_active,
             format!("sites[0].properties.building_archetype.{yaml_field}"),
             format!("site.building_archtype.{codec_field}"),
         );
@@ -2140,7 +2188,8 @@ fn build_expected_receivers(
     ] {
         for (yaml_day, day_num) in [("working_day", 1_usize), ("holiday", 2_usize)] {
             for step in 1..=144_usize {
-                b.expect_one(
+                b.expect_stebbs_one(
+                    stebbs_active,
                     format!("sites[0].properties.building_archetype.{yaml_prof}.{yaml_day}.{step}"),
                     format!(
                         "site.building_archtype.{codec_prof}.{:03}.{day_num}",
@@ -2630,7 +2679,7 @@ fn build_expected_receivers(
         );
     }
 
-    b.0
+    (b.live, b.inactive_stebbs)
 }
 
 /// Expand exact `#2085` displaced SPARTACUS layer pins `(owner, layer_1based)`
@@ -2750,11 +2799,18 @@ fn validate_sweep_report(
     // 1a. Non-owning SPARTACUS facet & inactive scheme-gated invariance:
     //     keys outside the active owning facet/scheme must leave every
     //     RunConfig slot strictly invariant (zero moved slots).
+    let (mut expected, inactive_stebbs_keys) = build_expected_receivers(
+        report.nlayer,
+        report.ndepth,
+        report.nspec,
+        report.stebbs_active,
+    );
     let non_owning_keys: BTreeSet<String> = allowlist
         .non_owning_facet_keys
         .iter()
         .chain(INACTIVE_SCHEME_GATED_KEYS.iter())
         .map(|s| (*s).to_string())
+        .chain(inactive_stebbs_keys)
         .collect();
     let mut non_owning_violations = Vec::new();
     for key in &non_owning_keys {
@@ -2872,7 +2928,6 @@ fn validate_sweep_report(
     // 3. Complete named receiver-identity and unaffected-neighbour verification
     //    across 100% of live YAML keys (including pinned displaced owners so
     //    layer swaps, missing bands, or extra bleed fail immediately).
-    let mut expected = build_expected_receivers(report.nlayer, report.ndepth, report.nspec);
     for (owner, slots) in expected_clobbers {
         let prev = expected.insert(owner.clone(), slots);
         assert!(
@@ -4713,7 +4768,7 @@ fn make_clean_synthetic_report() -> SweepReport {
     let nlayer = 3;
     let ndepth = 5;
     let nspec = 1;
-    let mut key_targets = build_expected_receivers(nlayer, ndepth, nspec);
+    let (mut key_targets, _) = build_expected_receivers(nlayer, ndepth, nspec, true);
     let mut slot_owners: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for (key, slots) in &key_targets {
@@ -4761,6 +4816,7 @@ fn make_clean_synthetic_report() -> SweepReport {
         nlayer,
         ndepth,
         nspec,
+        stebbs_active: true,
         batch_fallbacks: 0,
         base_non_finite: Vec::new(),
         dead_keys,
@@ -5186,15 +5242,16 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     // 9. Live equivalence self-test: two-pass 2D batched probing produces
     //    exact identical target sets to 1-leaf-at-a-time probing across
     //    scalars, wrapped-array elements, 24-hour holiday/working profile
-    //    slots, and 144-step profile slots.
-    let sample_root = strip_inert_yaml_raw(
-        &serde_yaml::from_str::<Value>(SAMPLE_YAML).expect("sample YAML must parse"),
+    //    slots, and 144-step STEBBS profile slots (using `STEBBS_YAML` where
+    //    STEBBS is active).
+    let stebbs_root = strip_inert_yaml_raw(
+        &serde_yaml::from_str::<Value>(STEBBS_YAML).expect("stebbs YAML must parse"),
     );
-    let mut base_mut = sample_root.clone();
-    let base_rc = load_run_config_from_value(&mut base_mut).expect("load sample");
+    let mut base_mut = stebbs_root.clone();
+    let base_rc = load_run_config_from_value(&mut base_mut).expect("load stebbs");
     let layout = flatten_run_config_layout(&base_rc);
     let base_map = flatten_run_config_map(&base_rc);
-    let all_leaves = collect_anchor_leaves(&sample_root);
+    let all_leaves = collect_anchor_leaves(&stebbs_root);
     let subset: Vec<&NumericLeaf> = all_leaves
         .iter()
         .filter(|l| {
@@ -5219,14 +5276,14 @@ fn jacobian_negative_controls_and_batch_equivalence() {
     );
 
     let (batched_outcomes, fell_back) =
-        probe_float_batch(&sample_root, &layout, &base_map, &subset);
+        probe_float_batch(&stebbs_root, &layout, &base_map, &subset);
     assert!(
         !fell_back,
         "clean live equivalence slice must decode without fallback"
     );
     let single_outcomes: Vec<LeafOutcome> = subset
         .par_iter()
-        .map(|leaf| probe_single_leaf(&sample_root, &layout, &base_map, leaf))
+        .map(|leaf| probe_single_leaf(&stebbs_root, &layout, &base_map, leaf))
         .collect();
 
     for ((b_key, b_res), (s_key, s_res)) in batched_outcomes.into_iter().zip(single_outcomes) {
@@ -5254,7 +5311,7 @@ fn jacobian_negative_controls_and_batch_equivalence() {
         .find(|l| l.display == "sites[0].properties.lumps.raincover")
         .expect("raincover leaf present");
     let (mixed_outcomes, mixed_fell_back) =
-        probe_dead_batch(&sample_root, &layout, &base_map, &[dead_leaf, live_leaf]);
+        probe_dead_batch(&stebbs_root, &layout, &base_map, &[dead_leaf, live_leaf]);
     assert!(
         mixed_fell_back,
         "dead batch containing a wired leaf must fall back to 1-at-a-time"

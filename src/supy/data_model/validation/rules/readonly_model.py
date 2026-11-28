@@ -35,6 +35,7 @@ from ..pipeline.document import (
     _ENUM_INTERNAL_ATTRS,
     _LAZY_FROZEN_SPECS,
     _clone_copy_on_read_scalar,
+    _enum_has_standard_accessors,
     _freeze_mapping_entries,
     _freeze_sequence_items,
     _freeze_set_items,
@@ -46,6 +47,7 @@ from ..pipeline.document import (
     _is_exact_immutable_scalar,
     _is_immutable_enum,
     _materialise_frozen,
+    _read_enum_raw_name_value,
     _ReadOnlyMaterialisingFrozenSet,
     _ReadOnlyMaterialisingMapping,
     _ReadOnlyMaterialisingTuple,
@@ -523,6 +525,7 @@ def _detach_sequence_or_set(
     elif (
         isinstance(value, tuple)
         and hasattr(type(value), "_fields")
+        and type(value).__iter__ is tuple.__iter__
         and not hasattr(value, "__dict__")
         and not _iter_custom_slots(type(value), frozenset({"__dict__", "__weakref__"}))
     ):
@@ -777,6 +780,17 @@ def _detach_container_or_object(
     )
 
 
+def _safe_enum_label(member: Enum) -> str:
+    """Format an Enum member label for error messages without invoking custom properties."""
+    if _enum_has_standard_accessors(member):
+        try:
+            raw_name, _raw_val = _read_enum_raw_name_value(member)
+            return f"{type(member).__name__}.{raw_name}"
+        except (AttributeError, TypeError):
+            pass
+    return type(member).__name__
+
+
 def _detach_enum_value(
     value: Enum,
     *,
@@ -787,7 +801,7 @@ def _detach_enum_value(
     if reject_enums:
         raise TypeError(
             f"Cannot produce an independent copy containing Enum singleton "
-            f"{type(value).__name__}.{value.name}"
+            f"{_safe_enum_label(value)}"
         )
     if wrap_enums is not None:
         return (
@@ -873,10 +887,14 @@ def _safe_snapshot_copy(
 
 
 def _snapshot_enum_extra_attrs(member: Enum) -> Mapping[str, Any]:
-    """Snapshot and freeze non-private custom attributes on *member*."""
+    """Snapshot and freeze non-private custom attributes on *member* without custom hooks."""
     attrs: dict[str, Any] = {}
-    if hasattr(member, "__dict__"):
-        for attr_name, attr_val in vars(member).items():
+    try:
+        inst_dict = object.__getattribute__(member, "__dict__")
+    except AttributeError:
+        inst_dict = None
+    if isinstance(inst_dict, dict):
+        for attr_name, attr_val in inst_dict.items():
             if attr_name.startswith("_") or attr_name in _ENUM_INTERNAL_ATTRS:
                 continue
             attrs[attr_name] = _wrap_readonly(attr_val)
@@ -892,8 +910,11 @@ def _snapshot_enum_extra_attrs(member: Enum) -> Mapping[str, Any]:
                 or slot_name in attrs
             ):
                 continue
+            slot_desc = cls.__dict__.get(slot_name)
+            if not isinstance(slot_desc, MemberDescriptorType):
+                continue
             try:
-                slot_val = getattr(member, slot_name)
+                slot_val = slot_desc.__get__(member, cls)
             except AttributeError:
                 continue
             attrs[slot_name] = _wrap_readonly(slot_val)
@@ -957,10 +978,11 @@ def _enum_proxy_equals(
         if member is other:
             result = not _single_enum_drifted(proxy)
         else:
+            _, other_raw_val = _read_enum_raw_name_value(other)
             result = (
                 False
                 if (member_eq is object.__eq__ or other_eq is object.__eq__)
-                else bool(_materialise_frozen(frozen_value) == other.value)
+                else bool(_materialise_frozen(frozen_value) == other_raw_val)
             )
     elif _is_exact_immutable_scalar(other) or _is_copy_on_read_scalar(other):
         result = (
@@ -1012,15 +1034,24 @@ class ReadOnlyEnumProxy:
             raise TypeError(
                 f"ReadOnlyEnumProxy requires an Enum member, got {type(member).__name__}"
             )
+        raw_name, raw_value = _read_enum_raw_name_value(member)
         if not _is_immutable_enum(member):
             raise TypeError(
-                f"Cannot safely freeze Enum member {type(member).__name__}.{member.name} "
+                f"Cannot safely freeze Enum member {_safe_enum_label(member)} "
                 "with mutable payload"
             )
         frozen_name: str | None = (
-            member.name if member.name is None else str(member.name)
+            raw_name
+            if raw_name is None
+            else (
+                raw_name
+                if type(raw_name) is str
+                else str.__str__(raw_name)
+                if isinstance(raw_name, str)
+                else str(raw_name)
+            )
         )
-        frozen_value = _wrap_readonly(member.value)
+        frozen_value = _wrap_readonly(raw_value)
         frozen_hash = _compute_enum_snapshot_hash(member, frozen_name, frozen_value)
         extra_attrs = _snapshot_enum_extra_attrs(member)
         key = id(self)
@@ -1387,7 +1418,9 @@ def _iter_snapshot_children(
     elif isinstance(obj, Mapping):
         for k, v in obj.items():
             children.extend((k, v))
-    elif isinstance(obj, (list, tuple, deque, set, frozenset)):
+    elif isinstance(obj, tuple) and not isinstance(obj, _ReadOnlyMaterialisingTuple):
+        children.extend(tuple.__iter__(obj))
+    elif isinstance(obj, (list, deque, set, frozenset)):
         children.extend(obj)
     elif type(obj) is slice:
         children.extend((obj.start, obj.stop, obj.step))
@@ -1667,7 +1700,7 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
             if not _is_immutable_enum(obj):
                 raise TypeError(
                     f"Cannot safely serialize Enum member "
-                    f"{type(obj).__name__}.{obj.name} with mutable payload"
+                    f"{_safe_enum_label(obj)} with mutable payload"
                 )
             continue
         obj_id = id(obj)
@@ -2070,14 +2103,20 @@ def _wrap_container_or_object(
     if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
         value, (str, bytes, bytearray, memoryview)
     ):
+        if isinstance(value, tuple) and type(value).__iter__ is not tuple.__iter__:
+            raise TypeError(
+                f"ReadOnlyModelProxy cannot safely freeze tuple subclass "
+                f"{type(value).__name__!r} with custom __iter__"
+            )
         obj_id = id(value)
         if obj_id in active:
             raise TypeError("ReadOnlyModelProxy cannot safely freeze cyclic container")
         active.add(obj_id)
         try:
+            seq_iter = tuple.__iter__(value) if isinstance(value, tuple) else value
             return _freeze_sequence_items([
                 _wrap_readonly(item, enum_snapshots, field_snapshots, active)
-                for item in value
+                for item in seq_iter
             ])
         finally:
             active.discard(obj_id)
@@ -2650,9 +2689,12 @@ def _frozen_value_matches_live(live_val: Any, frozen_val: Any) -> bool:
 def _single_enum_drifted(proxy: ReadOnlyEnumProxy) -> bool:
     """Return True if *proxy*'s live ``Enum`` singleton drifted in ``_name_`` or ``_value_``."""
     member, frozen_name, frozen_value, _frozen_hash, _extra = _ENUM_STATE[id(proxy)]
-    if type(member.name) is not type(frozen_name) or member.name != frozen_name:
+    if not _enum_has_standard_accessors(member):
         return True
-    return not _frozen_value_matches_live(member.value, frozen_value)
+    raw_name, raw_value = _read_enum_raw_name_value(member)
+    if type(raw_name) is not type(frozen_name) or raw_name != frozen_name:
+        return True
+    return not _frozen_value_matches_live(raw_value, frozen_value)
 
 
 def _enum_snapshots_drifted(

@@ -12,7 +12,15 @@ from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 import types
-from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Union, get_args, get_origin
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    ForwardRef,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from pydantic import BaseModel
 import yaml
@@ -36,7 +44,11 @@ from .pipeline.report_schema import (
     PhaseReport,
     ValidationReport,
 )
-from .rules.readonly_model import ReadOnlyModelProxy, _unwrap_model_for_validation, freeze_model
+from .rules.readonly_model import (
+    ReadOnlyModelProxy,
+    _unwrap_model_for_validation,
+    freeze_model,
+)
 
 if TYPE_CHECKING:
     from ..core.config import SUEWSConfig
@@ -279,9 +291,7 @@ def _validate_live_model_shapes(
                 )
         elif kind == "list":
             if not isinstance(val, list):
-                errors.append(
-                    f"{field_path}: expected list, got {type(val).__name__}"
-                )
+                errors.append(f"{field_path}: expected list, got {type(val).__name__}")
             else:
                 item_kind, _ = _expected_model_or_list_kind(
                     target, ref_value_cls=ref_value_cls
@@ -498,20 +508,22 @@ def _validate_suews_config_before_dump(
     if isinstance(config_copy.sites, list) and all(
         isinstance(site, Site) for site in config_copy.sites
     ):
-        validators.extend(
-            [
-                ("PROFILE_KEY_ERROR", config_copy.validate_hourly_profile_hours),
-                ("PROFILE_KEY_ERROR", config_copy.validate_ten_minute_profile_keys),
-            ]
-        )
-    validators.append(
-        (
-            "PROFILE_KEY_ERROR",
-            lambda: _validate_dict_backed_profile_keys(config_copy),
-        )
-    )
-    validators.append(("SENESCENCE_STATE_ERROR", config_copy._validate_senescence_states))
-    validators.append(("NON_NULL_VALUE_ERROR", config_copy.validate_non_null_ref_values))
+        validators.extend([
+            ("PROFILE_KEY_ERROR", config_copy.validate_hourly_profile_hours),
+            ("PROFILE_KEY_ERROR", config_copy.validate_ten_minute_profile_keys),
+        ])
+    validators.append((
+        "PROFILE_KEY_ERROR",
+        lambda: _validate_dict_backed_profile_keys(config_copy),
+    ))
+    validators.append((
+        "SENESCENCE_STATE_ERROR",
+        config_copy._validate_senescence_states,
+    ))
+    validators.append((
+        "NON_NULL_VALUE_ERROR",
+        config_copy.validate_non_null_ref_values,
+    ))
 
     issues: list[Issue] = []
     has_profile_error = False
@@ -894,7 +906,7 @@ def _run_phase_a_in_memory(
 def _prepare_typed_model_proxy(
     typed_model: BaseModel | ReadOnlyModelProxy | None,
 ) -> ReadOnlyModelProxy | None:
-    """Return a read-only proxy for Phase B rules without failing on private metadata."""
+    """Return a read-only proxy for Phase B rules, or ``None`` if safe freezing fails."""
     if isinstance(typed_model, ReadOnlyModelProxy):
         return typed_model
     if not isinstance(typed_model, BaseModel):
@@ -902,13 +914,7 @@ def _prepare_typed_model_proxy(
     try:
         return freeze_model(typed_model)
     except TypeError:
-        try:
-            clean_model = type(typed_model).model_validate(
-                typed_model.model_dump(mode="python")
-            )
-            return freeze_model(clean_model)
-        except Exception:  # noqa: BLE001
-            return None
+        return None
 
 
 def _run_phase_b_in_memory(
@@ -971,9 +977,9 @@ def _run_phase_b_in_memory(
             effective_fixes=effective_fixes,
             typed_model=frozen_typed_model,
         )
-        validation_results = bound_notes + RulesRegistry(
-            context=validation_context
-        ).run_validation()
+        validation_results = (
+            bound_notes + RulesRegistry(context=validation_context).run_validation()
+        )
     except (ValueError, KeyError, FileNotFoundError, TypeError) as exc:
         error_message = str(exc)
         parts = error_message.split("; ") if ";" in error_message else [error_message]
@@ -1045,7 +1051,9 @@ def _run_phase_c_in_memory(
     """Run single-pass Phase C Pydantic validation in memory."""
     result = phase_c.validate_phase_c(
         str(source_path) if source_path is not None else None,
-        raw_data=deepcopy(working_data) if isinstance(working_data, dict) else working_data,
+        raw_data=deepcopy(working_data)
+        if isinstance(working_data, dict)
+        else working_data,
         check_missing_critical_physics=check_missing_critical_physics,
     )
     return PhaseReport(

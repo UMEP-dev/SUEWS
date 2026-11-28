@@ -24,7 +24,7 @@ from enum import Enum
 from fractions import Fraction
 from pathlib import Path, PosixPath, PurePosixPath, PureWindowsPath, WindowsPath
 import re
-from types import MappingProxyType
+from types import MappingProxyType, MemberDescriptorType
 from typing import TYPE_CHECKING, Any, Literal
 import weakref
 from zoneinfo import ZoneInfo
@@ -133,7 +133,6 @@ _EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     datetime.timedelta,
     datetime.timezone,
     ZoneInfo,
-    re.Pattern,
 })
 
 _COPY_ON_READ_SCALAR_TYPES: frozenset[type[Any]] = frozenset({
@@ -178,6 +177,8 @@ def _is_exact_immutable_scalar(value: Any) -> bool:
     value_type = type(value)
     if value_type in _EXACT_IMMUTABLE_TYPES:
         return True
+    if value_type is re.Pattern:
+        return type(value.pattern) in {str, bytes}
     if value_type in {datetime.datetime, datetime.time}:
         return type(value.tzinfo) in _SAFE_TZINFO_TYPES
     return (
@@ -226,11 +227,65 @@ def _clone_copy_on_read_scalar(value: Any) -> Any:
     return _build_copy_on_read_scalar(value_type, arg1, arg2)
 
 
+_STD_ENUM_GETATTRIBUTES = frozenset({
+    object.__getattribute__,
+    int.__getattribute__,
+    str.__getattribute__,
+    float.__getattribute__,
+    bytes.__getattribute__,
+    tuple.__getattribute__,
+})
+
+
+def _enum_has_standard_accessors(member: Enum) -> bool:
+    """Return True when *member* uses standard ``__getattribute__``, ``name``, and ``value``."""
+    cls = type(member)
+    if cls.__getattribute__ not in _STD_ENUM_GETATTRIBUTES:
+        return False
+    for attr_name in ("name", "value"):
+        found = None
+        for base in cls.__mro__:
+            if attr_name in base.__dict__:
+                found = base.__dict__[attr_name]
+                break
+        if found is not Enum.__dict__[attr_name]:
+            return False
+    for internal in ("_name_", "_value_"):
+        for base in cls.__mro__:
+            if internal in base.__dict__:
+                desc = base.__dict__[internal]
+                if hasattr(desc, "__get__") and not isinstance(
+                    desc, MemberDescriptorType
+                ):
+                    return False
+                break
+    return True
+
+
+def _read_enum_raw_name_value(member: Enum) -> tuple[Any, Any]:
+    """Read ``(_name_, _value_)`` without executing overridden properties or descriptors."""
+    if not _enum_has_standard_accessors(member):
+        raise TypeError(
+            f"Cannot safely inspect Enum {type(member).__name__!r} with overridden "
+            "__getattribute__, name, or value accessor"
+        )
+    return (
+        object.__getattribute__(member, "_name_"),
+        object.__getattribute__(member, "_value_"),
+    )
+
+
 def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
     """Return True when all custom instance/slot attributes of *value* are immutable."""
-    if hasattr(value, "__dict__") and any(
+    if not _enum_has_standard_accessors(value):
+        return False
+    try:
+        inst_dict = object.__getattribute__(value, "__dict__")
+    except AttributeError:
+        inst_dict = None
+    if isinstance(inst_dict, dict) and any(
         not _is_deeply_immutable_payload(attr_val, seen)
-        for attr_name, attr_val in vars(value).items()
+        for attr_name, attr_val in inst_dict.items()
         if attr_name not in _ENUM_INTERNAL_ATTRS
     ):
         return False
@@ -250,8 +305,11 @@ def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
                 stripped = cls.__name__.lstrip("_")
                 if stripped:
                     resolved_name = f"_{stripped}{slot_name}"
+            slot_desc = cls.__dict__.get(resolved_name)
+            if not isinstance(slot_desc, MemberDescriptorType):
+                continue
             try:
-                slot_val = getattr(value, resolved_name)
+                slot_val = slot_desc.__get__(value, cls)
             except AttributeError:
                 continue
             if not _is_deeply_immutable_payload(slot_val, seen):
@@ -262,13 +320,16 @@ def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
 def _is_deeply_immutable_payload(value: Any, active: set[int]) -> bool:
     """Return True when *value* contains no reachable mutable or cyclic objects."""
     if isinstance(value, Enum):
+        if not _enum_has_standard_accessors(value):
+            return False
         obj_id = id(value)
         if obj_id in active:
             return False
         active.add(obj_id)
         try:
+            _raw_name, raw_value = _read_enum_raw_name_value(value)
             return _is_deeply_immutable_payload(
-                value.value, active
+                raw_value, active
             ) and _enum_extra_attrs_immutable(value, active)
         finally:
             active.discard(obj_id)
@@ -898,13 +959,19 @@ def _freeze_container_value(value: Any, active: set[int]) -> Any:
     if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
         value, (str, bytes, bytearray, memoryview)
     ):
+        if isinstance(value, tuple) and type(value).__iter__ is not tuple.__iter__:
+            raise TypeError(
+                f"deep_freeze cannot safely freeze tuple subclass "
+                f"{type(value).__name__!r} with custom __iter__"
+            )
         obj_id = id(value)
         if obj_id in active:
             raise TypeError("deep_freeze cannot safely freeze cyclic container")
         active.add(obj_id)
         try:
+            seq_iter = tuple.__iter__(value) if isinstance(value, tuple) else value
             return _freeze_sequence_items([
-                _deep_freeze_internal(item, active) for item in value
+                _deep_freeze_internal(item, active) for item in seq_iter
             ])
         finally:
             active.discard(obj_id)

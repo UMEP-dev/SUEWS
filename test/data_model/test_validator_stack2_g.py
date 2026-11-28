@@ -4051,3 +4051,91 @@ def test_r11_namedtuple_new_str_subclass_meta_nan_keys_tuple_nullify_and_ledger_
     ps = PathStyle(key_order=(Fraction(2, 5),))
     ps.key_order[0]._numerator = 888
     assert ps.key_order[0] == Fraction(2, 5)
+
+
+def test_r12_namedtuple_iter_phase_b_fallback_re_pattern_and_enum_getters() -> None:
+    """Cover Astra R2 findings: NamedTuple __iter__, Phase B fallback, re.Pattern subclass, Enum getters."""
+    import re  # noqa: PLC0415
+    from typing import NamedTuple  # noqa: PLC0415
+
+    # 1. NamedTuple subclass with custom __iter__ cannot leak snapshot during freezing.
+    leaked: list[object] = []
+
+    class _BaseIterNT(NamedTuple):
+        items: list[int]
+
+    class _LeakyIterNT(_BaseIterNT):
+        __slots__ = ()
+
+        def __iter__(self) -> object:  # type: ignore[override]
+            leaked.append(self)
+            return tuple.__iter__(self)
+
+    class _IterNTModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        nt: object
+
+    with pytest.raises(TypeError, match="Cannot safely detach"):
+        freeze_model(_IterNTModel(nt=_LeakyIterNT([1, 2])))
+    with pytest.raises(TypeError, match="custom __iter__"):
+        deep_freeze(_LeakyIterNT([1, 2]))
+    assert leaked == []
+
+    # 2. Phase B fallback when freeze_model fails never mutates caller's model via model_dump.
+    class _SideEffectConfig(SUEWSConfig):
+        _audit: list[str] = PrivateAttr(default_factory=list)
+
+        def model_dump(self, *args: object, **kwargs: object) -> dict[str, object]:
+            self._audit.append("dumped")
+            return super().model_dump(*args, **kwargs)  # type: ignore[arg-type,misc]
+
+    cfg = _SideEffectConfig()
+    object.__setattr__(cfg, "_callback", lambda: None)
+    assert validate_config(cfg, pipeline="B", forcing="off") is not None
+    assert cfg._audit == []
+
+    # 3. re.Pattern carrying a mutable str subclass is rejected while plain patterns pass.
+    class _TaggedPatternStr(str):
+        pass
+
+    tagged_text = _TaggedPatternStr("example")
+    tagged_text.tags = []  # type: ignore[attr-defined]
+    assert deep_freeze({"ok": re.compile("plain")})["ok"].pattern == "plain"
+    with pytest.raises(TypeError, match="Pattern"):
+        deep_freeze({"bad": re.compile(tagged_text)})
+
+    class _PatternModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        pat: object
+
+    with pytest.raises(TypeError, match="Pattern"):
+        freeze_model(_PatternModel(pat=re.compile(tagged_text)))
+
+    # 4. Enum subclasses overriding .value / .name / __getattribute__ are rejected without invocation.
+    enum_calls: list[str] = []
+
+    class _ChangingEnum(Enum):
+        ITEM = 1
+
+        @property
+        def value(self) -> int:
+            enum_calls.append("value")
+            self._value_ += 1
+            return self._value_
+
+    with pytest.raises(TypeError, match="overridden"):
+        deep_freeze(_ChangingEnum.ITEM)
+    assert enum_calls == []
+    assert object.__getattribute__(_ChangingEnum.ITEM, "_value_") == 1
+
+    class _ChangingNameEnum(Enum):
+        ITEM = 1
+
+        @property
+        def name(self) -> str:
+            enum_calls.append("name")
+            return "SPOOFED"
+
+    with pytest.raises(TypeError, match="overridden"):
+        deep_freeze(_ChangingNameEnum.ITEM)
+    assert enum_calls == []

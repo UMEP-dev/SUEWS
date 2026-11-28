@@ -254,13 +254,15 @@ class PathStyle:
     is_container: bool = False
 
     def __post_init__(self) -> None:
-        """Freeze ``ref`` metadata and normalise ``key_order`` to a tuple."""
+        """Freeze ``ref`` metadata and deeply freeze ``key_order``."""
         if self.ref is not None:
             object.__setattr__(self, "ref", _freeze_value(self.ref))
             if not self.has_ref:
                 object.__setattr__(self, "has_ref", True)
-        if not isinstance(self.key_order, tuple):
-            object.__setattr__(self, "key_order", tuple(self.key_order))
+        if self.key_order:
+            object.__setattr__(self, "key_order", _freeze_value(tuple(self.key_order)))
+        elif not isinstance(self.key_order, tuple):
+            object.__setattr__(self, "key_order", ())
 
 
 @dataclass(frozen=True, slots=True)

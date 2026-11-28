@@ -3715,33 +3715,29 @@ def test_r10_r10_dst_fold_signed_zero_coalesce_unnamed_flag_nested_enum_and_orth
 
 
 def test_r10_m1_copy_on_read_model_and_dataclass_isolation() -> None:
-    """R10-M1: Path, Fraction, and UUID stay typed while isolating CPython private-slot mutation."""
+    """R10-M1: Path and Fraction stay typed while isolating CPython private-slot mutation; UUID is rejected."""
     from typing import Annotated  # noqa: PLC0415
 
     @dataclass
     class _StdlibDC:
         p: PurePosixPath
         f: Fraction
-        u: UUID
 
     class _StdlibModel(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
         path_val: Annotated[Path, Fraction(1, 4)] = Field(default=Path("/default/path"))
         pure_win: PureWindowsPath = PureWindowsPath("C:/suews/forcing.txt")
         ratio: Fraction = Fraction(1, 3)
-        uid: UUID = UUID(int=42)
         nested: _StdlibDC
 
     orig_path = Path("/orig/forcing.txt")
     orig_win = PureWindowsPath("C:/orig/win.txt")
     orig_frac = Fraction(1, 3)
-    orig_uuid = UUID(int=12345)
     model = _StdlibModel(
         path_val=orig_path,
         pure_win=orig_win,
         ratio=orig_frac,
-        uid=orig_uuid,
-        nested=_StdlibDC(PurePosixPath("/dc/a"), Fraction(4, 9), UUID(int=99)),
+        nested=_StdlibDC(PurePosixPath("/dc/a"), Fraction(4, 9)),
     )
     ro = freeze_model(model)
 
@@ -3749,30 +3745,23 @@ def test_r10_m1_copy_on_read_model_and_dataclass_isolation() -> None:
     orig_path._str = "/caller/corrupted"  # type: ignore[attr-defined]
     orig_win._str = "Z:/caller/corrupted"  # type: ignore[attr-defined]
     orig_frac._numerator = 999  # type: ignore[attr-defined]
-    object.__setattr__(orig_uuid, "int", 999999)
 
-    read_p1, read_w1, read_f1, read_u1 = ro.path_val, ro.pure_win, ro.ratio, ro.uid
-    assert isinstance(read_p1, Path)
-    assert isinstance(read_w1, PureWindowsPath)
+    read_p1, read_w1, read_f1 = ro.path_val, ro.pure_win, ro.ratio
+    assert isinstance(read_p1, Path) and isinstance(read_w1, PureWindowsPath)
     assert isinstance(read_f1, Fraction)
-    assert isinstance(read_u1, UUID)
-    assert str(read_p1) == "/orig/forcing.txt"
-    assert str(read_w1) == "C:\\orig\\win.txt"
+    assert str(read_p1) == "/orig/forcing.txt" and str(read_w1) == "C:\\orig\\win.txt"
     assert read_f1 == Fraction(1, 3)
-    assert read_u1 == UUID(int=12345)
 
     # Hostile rule mutating received copies cannot poison cached proxy state.
     read_p1._str = "/rule/corrupted"  # type: ignore[attr-defined]
     read_w1._str = "Z:/rule/corrupted"  # type: ignore[attr-defined]
     read_f1._numerator = 777  # type: ignore[attr-defined]
-    object.__setattr__(read_u1, "int", 777777)
 
     assert ro.path_val is not read_p1 and str(ro.path_val) == "/orig/forcing.txt"
     assert ro.pure_win is not read_w1 and str(ro.pure_win) == "C:\\orig\\win.txt"
     assert ro.ratio is not read_f1 and ro.ratio == Fraction(1, 3)
-    assert ro.uid is not read_u1 and ro.uid == UUID(int=12345)
 
-    # Dataclass proxy, field metadata, and model_dump/unwrap_copy stay isolated too.
+    # Dataclass proxy, field metadata, unwrap_copy, and model_dump stay isolated too.
     ro.nested.p._str = "/dc/corrupted"
     ro.nested.f._numerator = 123
     assert str(ro.nested.p) == "/dc/a" and ro.nested.f == Fraction(4, 9)
@@ -3790,17 +3779,19 @@ def test_r10_m1_copy_on_read_model_and_dataclass_isolation() -> None:
     class _DumpModel(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
         p: object
-        u: UUID
 
-    ro_dump = freeze_model(_DumpModel(p=Path("/dump/path"), u=UUID(int=55)))
+    ro_dump = freeze_model(_DumpModel(p=Path("/dump/path")))
     dumped = ro_dump.model_dump()
     dumped["p"]._str = "/mutated/dump"
-    object.__setattr__(dumped["u"], "int", 999)
-    assert str(ro_dump.p) == "/dump/path" and ro_dump.u == UUID(int=55)
+    assert str(ro_dump.p) == "/dump/path"
+
+    # UUID exposes the process-wide SafeUUID Enum singleton via .is_safe, so freezing rejects it.
+    with pytest.raises(TypeError, match="UUID"):
+        deep_freeze({"u": UUID(int=1)})
 
 
 def test_r10_m1_copy_on_read_containers_enums_and_rejections() -> None:
-    """R10-M1: Frozen mappings/tuples/sets/slices/Enums isolate Path/Fraction/UUID and reject unsafe carriers."""
+    """R10-M1: Frozen mappings/tuples/sets/slices/Enums isolate Path/Fraction and reject unsafe carriers."""
     from dataclasses import field as dc_field  # noqa: PLC0415
 
     class _StdlibEnum(Enum):
@@ -3811,11 +3802,10 @@ def test_r10_m1_copy_on_read_containers_enums_and_rejections() -> None:
     tuple_key = (PurePosixPath("/key/tuple"), 1)
     val_p = Path("/val/a")
     frac = Fraction(3, 8)
-    uid = UUID(int=77)
     frozen = deep_freeze({
-        "map": {key_p: val_p, tuple_key: frac, uid: "u"},
-        "seq": [val_p, frac, uid],
-        "bag": {key_p, frac, uid},
+        "map": {key_p: val_p, tuple_key: frac},
+        "seq": [val_p, frac],
+        "bag": {key_p, frac},
         "win": slice(val_p, frac, None),
         "ep": _StdlibEnum.PATH,
         "epair": _StdlibEnum.PAIR,
@@ -3825,11 +3815,9 @@ def test_r10_m1_copy_on_read_containers_enums_and_rejections() -> None:
     tuple_key[0]._str = "/caller/tkey"  # type: ignore[attr-defined]
     val_p._str = "/caller/val"  # type: ignore[attr-defined]
     frac._numerator = 999  # type: ignore[attr-defined]
-    object.__setattr__(uid, "int", 999)
 
     assert frozen["map"][PurePosixPath("/key/one")] == Path("/val/a")
     assert frozen["map"][(PurePosixPath("/key/tuple"), 1)] == Fraction(3, 8)
-    assert frozen["map"][UUID(int=77)] == "u"
     for k in frozen["map"]:
         if isinstance(k, PurePosixPath):
             k._str = "/rule/key"  # type: ignore[attr-defined]
@@ -3838,7 +3826,7 @@ def test_r10_m1_copy_on_read_containers_enums_and_rejections() -> None:
     frozen["seq"][0]._str = "/rule/seq"
     assert str(frozen["seq"][0]) == "/val/a"
     assert hash(frozen["bag"]) == hash(
-        frozenset({PurePosixPath("/key/one"), Fraction(3, 8), UUID(int=77)})
+        frozenset({PurePosixPath("/key/one"), Fraction(3, 8)})
     )
     for item in frozen["bag"]:
         if isinstance(item, Fraction):
@@ -3969,3 +3957,97 @@ def test_r10_m2_strict_equal_slice_with_numpy_array_bounds() -> None:
         {"m": {slice(float("nan"), 1): 1}},
     )
     assert nan_key_noop == []
+
+
+def test_r11_namedtuple_new_str_subclass_meta_nan_keys_tuple_nullify_and_ledger_keys() -> (
+    None
+):
+    """Cover Astra R1 findings: caching NamedTuple, str subclass metadata, NaN keys, tuple nullify, ledger key_order."""
+    from typing import NamedTuple  # noqa: PLC0415
+
+    # 1. NamedTuple subclass with caching __new__ cannot return the caller's original instance.
+    class _BaseNT(NamedTuple):
+        items: list[int]
+
+    cached: list[_BaseNT] = []
+
+    class _CachingNT(_BaseNT):
+        __slots__ = ()
+
+        def __new__(cls, items: list[int]) -> _CachingNT:
+            if cached:
+                return cached[0]  # type: ignore[return-value]
+            inst = tuple.__new__(cls, (items,))
+            cached.append(inst)
+            return inst
+
+    class _NTModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        nt: _CachingNT
+
+    orig_list = [1, 2]
+    ro_nt = freeze_model(_NTModel(nt=_CachingNT(orig_list)))
+    orig_list.append(99)
+    assert ro_nt.nt == ((1, 2),)
+    assert ro_nt.unwrap_copy().nt.items == [1, 2]
+
+    # 2. Field alias/title/description strip mutable str subclasses to exact str.
+    class _TaggedStr(str):
+        tags: list[str]
+
+        def __new__(cls, text: str) -> _TaggedStr:
+            obj = super().__new__(cls, text)
+            obj.tags = ["orig"]
+            return obj
+
+    class _MetaStrModel(BaseModel):
+        x: int = Field(
+            default=1,
+            alias=_TaggedStr("ax"),
+            title=_TaggedStr("tx"),
+            description=_TaggedStr("dx"),
+        )
+
+    ro_meta = freeze_model(_MetaStrModel())
+    info = ro_meta.model_fields["x"]
+    assert type(info.alias) is str and info.alias == "ax"
+    assert type(info.title) is str and info.title == "tx"
+    assert type(info.description) is str and info.description == "dx"
+
+    # 3. Coalescing keeps writes to distinct NaN mapping keys separate.
+    n1 = float("nan")
+    n2 = float("nan")
+    nan_base: dict[str, object] = {"p": {n1: 0, n2: 0}}
+    nan_patches = [
+        ConfigPatch(
+            "p[n1]", "set", 1, default_wrapped=False, path_tokens=("p", MappingKey(n1))
+        ),
+        ConfigPatch(
+            "p[n2]", "set", 2, default_wrapped=False, path_tokens=("p", MappingKey(n2))
+        ),
+    ]
+    nan_norm = normalise_patches(nan_patches, nan_base)
+    assert len(nan_norm) == 2
+    nan_out = deepcopy(nan_base)
+    apply_patches_in_place(nan_out, nan_norm)
+    assert nan_out["p"] == {n1: 1, n2: 2}  # type: ignore[comparison-overlap]
+
+    # 4. Expanded and direct nullify_tree both reject tuple-parent targets (including empty dicts).
+    for tup_base in ({"a": ({"b": 1},)}, {"a": ({},)}):
+        p_null = ConfigPatch("a[0]", "nullify_tree")
+        with pytest.raises(ValueError, match="nullify_tree"):
+            apply_patches_in_place(deepcopy(tup_base), [p_null])
+        with pytest.raises(ValueError, match="nullify_tree"):
+            normalise_patches([p_null], tup_base, expand_nullify_tree=True)
+
+    # 5. StyleLedger / PathStyle deeply freeze key_order entries against Fraction private-slot mutation.
+    k_frac = Fraction(1, 3)
+    ledger = StyleLedger.from_mapping({k_frac: 1})
+    k_frac._numerator = 999  # type: ignore[attr-defined]
+    read_k = ledger.get("").key_order[0]
+    assert read_k == Fraction(1, 3)
+    read_k._numerator = 777
+    assert ledger.get("").key_order[0] == Fraction(1, 3)
+    ps = PathStyle(key_order=(Fraction(2, 5),))
+    ps.key_order[0]._numerator = 888
+    assert ps.key_order[0] == Fraction(2, 5)

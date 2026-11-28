@@ -26,7 +26,6 @@ from pathlib import Path, PosixPath, PurePosixPath, PureWindowsPath, WindowsPath
 import re
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
-from uuid import UUID, SafeUUID
 import weakref
 from zoneinfo import ZoneInfo
 
@@ -139,7 +138,6 @@ _EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
 
 _COPY_ON_READ_SCALAR_TYPES: frozenset[type[Any]] = frozenset({
     Fraction,
-    UUID,
     PurePosixPath,
     PureWindowsPath,
     PosixPath,
@@ -204,18 +202,6 @@ def _extract_copy_on_read_state(value: Any) -> tuple[type[Any], Any, Any, int]:
             )
         clean = Fraction(num, den)
         return (Fraction, clean.numerator, clean.denominator, hash(clean))
-    if value_type is UUID:
-        int_val = value.int
-        is_safe = value.is_safe
-        if (
-            type(int_val) is not int
-            or not isinstance(is_safe, SafeUUID)
-            or int_val < 0
-            or int_val >= (1 << 128)
-        ):
-            raise TypeError("Cannot safely freeze UUID with corrupted internal slots")
-        clean_uuid = UUID(int=int_val, is_safe=is_safe)
-        return (UUID, clean_uuid.int, clean_uuid.is_safe, hash(clean_uuid))
     if value_type in {PurePosixPath, PureWindowsPath, PosixPath, WindowsPath}:
         raw_str = str(value)
         if type(raw_str) is not str:
@@ -227,12 +213,10 @@ def _extract_copy_on_read_state(value: Any) -> tuple[type[Any], Any, Any, int]:
 
 def _build_copy_on_read_scalar(
     value_type: type[Any], arg1: Any, arg2: Any
-) -> Fraction | UUID | PurePosixPath | PureWindowsPath | PosixPath | WindowsPath:
+) -> Fraction | PurePosixPath | PureWindowsPath | PosixPath | WindowsPath:
     """Reconstruct a fresh copy-on-read stdlib scalar from validated immutable primitives."""
     if value_type is Fraction:
         return Fraction(arg1, arg2)
-    if value_type is UUID:
-        return UUID(int=arg1, is_safe=arg2)
     return value_type(arg1)
 
 
@@ -460,8 +444,8 @@ class _FrozenScalarSpec:
     """Immutable primitive-backed specification materialised as fresh stdlib value copies.
 
     Protects pure-Python stdlib value types whose CPython private slots are
-    writable (``Path`` / ``PurePath``, ``Fraction``, ``UUID``) while preserving
-    exact ``isinstance`` types on every read.
+    writable (``Path`` / ``PurePath`` and ``Fraction``) while preserving exact
+    ``isinstance`` types on every read.
     """
 
     __slots__ = ("__weakref__",)
@@ -474,7 +458,7 @@ class _FrozenScalarSpec:
         weakref.finalize(self, _FROZEN_SCALAR_STATE.pop, key, None)
 
     def materialise(self) -> Any:
-        """Return a fresh ``Path``, ``Fraction``, or ``UUID`` reconstructed from C primitives."""
+        """Return a fresh ``Path`` or ``Fraction`` reconstructed from C primitives."""
         value_type, arg1, arg2, _cached_hash = _FROZEN_SCALAR_STATE[id(self)]
         return _build_copy_on_read_scalar(value_type, arg1, arg2)
 
@@ -1594,6 +1578,25 @@ def nullify_tree_in_place(
     return changed
 
 
+def _locate_nullify_target(
+    target: dict[str, Any], tokens: Sequence[PathToken]
+) -> tuple[Any, PathToken, Any] | None:
+    """Resolve ``(parent, leaf, node)`` for a valid mutable ``nullify_tree`` target."""
+    located = _ensure_parent_container(target, tokens, create_missing=False)
+    if located is None:
+        return None
+    parent, leaf = located
+    if not _is_list_index_token(leaf):
+        raw_key = _mapping_key_from_token(leaf)
+        if not isinstance(parent, dict) or raw_key not in parent:
+            return None
+        return parent, leaf, parent[raw_key]
+    assert isinstance(leaf, int)
+    if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
+        return None
+    return parent, leaf, parent[leaf]
+
+
 def apply_nullify_tree_at_tokens(
     target: dict[str, Any],
     tokens: Sequence[PathToken],
@@ -1601,28 +1604,18 @@ def apply_nullify_tree_at_tokens(
     skip_keys: frozenset[str] = frozenset(),
 ) -> bool:
     """Apply ``nullify_tree_in_place`` at *tokens* (supporting dict keys and list indices)."""
-    located = _ensure_parent_container(target, tokens, create_missing=False)
+    located = _locate_nullify_target(target, tokens)
     if located is None:
         return False
-    parent, leaf = located
-    if not _is_list_index_token(leaf):
-        raw_key = _mapping_key_from_token(leaf)
-        if not isinstance(parent, dict) or raw_key not in parent:
-            return False
-        node = parent[raw_key]
-        if isinstance(node, (dict, list)):
-            nullify_tree_in_place(node, skip_keys=skip_keys)
-        elif node is not None:
-            parent[raw_key] = None
-        return True
-    assert isinstance(leaf, int)
-    if not isinstance(parent, list) or not (0 <= leaf < len(parent)):
-        return False
-    node = parent[leaf]
+    parent, leaf, node = located
     if isinstance(node, (dict, list)):
         nullify_tree_in_place(node, skip_keys=skip_keys)
     elif node is not None:
-        parent[leaf] = None
+        if not _is_list_index_token(leaf):
+            parent[_mapping_key_from_token(leaf)] = None
+        else:
+            assert isinstance(leaf, int)
+            parent[leaf] = None
     return True
 
 

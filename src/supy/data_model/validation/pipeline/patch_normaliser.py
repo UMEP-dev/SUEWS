@@ -42,6 +42,7 @@ from .document import (
     _copy_payload,
     _ensure_parent_container,
     _is_list_index_token,
+    _locate_nullify_target,
     _mapping_key_from_token,
     _prepare_working_dict,
     _resolve_patch_write_metadata,
@@ -660,9 +661,10 @@ def _apply_atomic_nullify(
     *,
     expand_nullify_tree: bool,
 ) -> list[tuple[ConfigPatch, Any]]:
-    raw_before = read_raw_tokens(working, tokens, default=_MISSING)
-    if raw_before is _MISSING:
+    located = _locate_nullify_target(working, tokens)
+    if located is None:
         raise ValueError(f"Failed to apply 'nullify_tree' patch at path {patch.path!r}")
+    _parent, _leaf, raw_before = located
 
     skip_set = frozenset(patch.skip_keys)
     if expand_nullify_tree:
@@ -934,11 +936,11 @@ def _assert_no_aliased_containers(value: Any) -> None:
 def _tokens_exact_equal(
     left: tuple[PathToken, ...], right: tuple[PathToken, ...]
 ) -> bool:
-    """Compare path token tuples by exact key representation (distinguishing ``0.0`` vs ``-0.0``)."""
+    """Compare path token tuples by exact runtime slot identity and key representation."""
     if len(left) != len(right):
         return False
     return all(
-        _strict_equal(a.key, b.key)
+        (_token_dict_aliases(a, b) and _strict_equal(a.key, b.key))
         if isinstance(a, MappingKey) and isinstance(b, MappingKey)
         else (type(a) is type(b) and a == b)
         for a, b in zip(left, right)

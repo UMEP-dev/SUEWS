@@ -143,6 +143,7 @@ def _assert_standard_getattribute(cls: type[Any]) -> None:
     """Reject classes defining unvetted ``__getattribute__`` hooks."""
     if cls.__getattribute__ not in {
         object.__getattribute__,
+        tuple.__getattribute__,
         BaseModel.__getattribute__,
     }:
         raise TypeError(
@@ -525,13 +526,14 @@ def _detach_sequence_or_set(
         and not hasattr(value, "__dict__")
         and not _iter_custom_slots(type(value), frozenset({"__dict__", "__weakref__"}))
     ):
+        _assert_standard_getattribute(type(value))
         items = [
             _detach_snapshot_tree(
                 item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
             )
-            for item in value
+            for item in tuple.__iter__(value)
         ]
-        result = memo[obj_id] if obj_id in memo else type(value)(*items)
+        result = memo[obj_id] if obj_id in memo else tuple.__new__(type(value), items)
     elif type(value) is frozenset:
         result = frozenset(
             _detach_snapshot_tree(
@@ -2169,18 +2171,36 @@ def _freeze_field_metadata_value(value: Any) -> Any:
         return f"<{type(value).__name__}>"
 
 
+def _freeze_optional_str_metadata(value: Any) -> Any:
+    """Snapshot optional string metadata as an exact immutable ``str`` or ``None``."""
+    if value is None:
+        return None
+    if type(value) is str:
+        return value
+    if isinstance(value, str):
+        return str.__str__(value)
+    return _freeze_field_metadata_value(value)
+
+
 def _freeze_model_fields(model_cls: type[BaseModel]) -> Mapping[str, ReadOnlyFieldInfo]:
     """Build a detached read-only snapshot of ``model_cls.model_fields``."""
     frozen: dict[str, ReadOnlyFieldInfo] = {}
     for field_name, info in model_cls.model_fields.items():
-        frozen[field_name] = ReadOnlyFieldInfo(
-            name=field_name,
+        clean_name = (
+            field_name
+            if type(field_name) is str
+            else str.__str__(field_name)
+            if isinstance(field_name, str)
+            else str(field_name)
+        )
+        frozen[clean_name] = ReadOnlyFieldInfo(
+            name=clean_name,
             annotation=_freeze_annotation(info.annotation),
             default=_freeze_field_metadata_value(info.default),
             is_required=bool(info.is_required()),
-            alias=info.alias,
-            title=info.title,
-            description=info.description,
+            alias=_freeze_optional_str_metadata(info.alias),
+            title=_freeze_optional_str_metadata(info.title),
+            description=_freeze_optional_str_metadata(info.description),
             deprecated=_freeze_field_metadata_value(info.deprecated),
             metadata=_freeze_sequence_items([
                 _freeze_field_metadata_value(m) for m in info.metadata

@@ -334,8 +334,8 @@ irrigation and CO2 modes) and its
 negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
 not `core` on purpose: #2100 asks for this restart verification to stay out of
 `standard` and `physics-core`, so it runs whenever CI selects full `-m physics`
-(see `.claude/rules/ci/conventions.md`, "Multi-Axis CI Topology") and not on
-Python-only PRs. [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26] The two `slow`
+and not on Python-only PRs that remain at `physics-core` (see
+`.claude/rules/ci/conventions.md`, "Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26] The two `slow`
 physics regressions
 (`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`
 and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also `core`

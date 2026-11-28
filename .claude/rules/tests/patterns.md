@@ -163,14 +163,11 @@ plugin-facing API contracts rather than model physics.
   repo-relative paths for still-open pre-`W1-4` pull requests may keep legacy
   `pytestmark = pytest.mark.api`; `test/conftest.py::pytest_collection_modifyitems`
   attaches their mapped primary axis (and any `LOCKED_PR_FILE_EXTRA_MARKERS`)
-  at collection time. [fact: git grep -n 'LOCKED_PR_FILE_AXES' scripts/lint/check_test_markers.py test/conftest.py]
-- **Temporary Schema-1 `api` auto-marking:** until `W1-7` removes the
-  compatibility shim, `test/conftest.py::pytest_collection_modifyitems` also
-  auto-attaches `pytest.mark.api` at collection time to non-physics items
-  (`NON_PHYSICS_AXIS_MARKERS`). [fact: git grep -n "NON_PHYSICS_AXIS_MARKERS" test/conftest.py]
-  If the lint fires on a new or edited test file, add
-  `pytestmark = pytest.mark.<axis>` using one of the four primary axes -- do
-  not write `pytest.mark.api` in source files or bypass the lint. [decision: software maintainer, 2026-11-26]
+  at collection time until those PRs land. [fact: git grep -n 'LOCKED_PR_FILE_AXES' scripts/lint/check_test_markers.py test/conftest.py]
+
+If the lint fires on a new or edited test file, add
+`pytestmark = pytest.mark.<axis>` using one of the four primary axes -- do not
+write `pytest.mark.api` in source files or bypass the lint. [decision: software maintainer, 2026-11-26]
 
 Where each axis runs in CI is stated once, in `.claude/rules/ci/conventions.md`
 ("Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-26]
@@ -209,8 +206,11 @@ and tiers run on each CI event): [decision: software maintainer, 2026-11-26]
   (`(core or not slow)` on non-physics axes, and `standard` when dispatched),
   an essential expensive regression is honestly marked `core` + `slow`.
 - `medium`: a test body of 10 to 30 CPU seconds on the Linux reference runner
-  (see "Cost thresholds" below). Excluded from `smoke`, included by ready and
-  full tiers.
+  (see "Cost thresholds" below). Included by ready non-physics lanes and full
+  primary-axis tiers, and excluded from `smoke`, the fixed `abi3_smoke`
+  expression, and `physics-core` (except the explicitly included
+  exact-reference witness; see `.claude/rules/ci/conventions.md`, "Test Tier
+  Definitions").
 - `slow`: a test body of 30 CPU seconds or more on that runner, or otherwise
   unsuitable for routine fast runs for a reason other than CPU, which the
   marker states: `pytest.mark.slow(reason="...")`. On non-physics axes, a

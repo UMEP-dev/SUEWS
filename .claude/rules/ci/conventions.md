@@ -303,8 +303,10 @@ Mitigate by:
 ## Multi-Axis CI Topology
 
 `build-publish_to_pypi.yml` runs the `4+1` dependency-axis topology under
-`GATE_AXIS_SCHEMA: '2'` (#2349), with marker expressions defined once in
-`scripts/suews/ci_tiers.py` (`--schema 2`). [fact: git grep -n "GATE_AXIS_SCHEMA: '2'" .github/workflows/build-publish_to_pypi.yml && git grep -n 'SCHEMA_V2_AXES = ("tooling", "unit", "native", "physics")' scripts/suews/ci_tiers.py]
+`GATE_AXIS_SCHEMA: '2'` (#2349), with canonical per-lane marker expressions in
+`scripts/suews/ci_tiers.py` (`--schema 2`), mirrored inline for the wheel-build
+physics step in `.github/actions/build-suews/action.yml` and checked for parity
+by `test/core/test_core_guard.py`. [fact: git grep -n "GATE_AXIS_SCHEMA: '2'" .github/workflows/build-publish_to_pypi.yml && git grep -n 'SCHEMA_V2_AXES = ("tooling", "unit", "native", "physics")' scripts/suews/ci_tiers.py && git grep -n "inputs.test_tier == 'physics-core'" .github/actions/build-suews/action.yml]
 
 - **One required check.** Every axis reports through the existing required
   check `PR build validation`; no required check is added or renamed. [decision: software maintainer, 2026-11-26] [fact: git grep -n "name: PR build validation" .github/workflows/build-publish_to_pypi.yml]
@@ -495,26 +497,25 @@ The merge queue deliberately uses a reduced platform/Python matrix rather than t
 **What merge queue omits:**
 
 - macOS ARM64 (available on PRs via `0-ci:full-matrix`, plus nightly and tag releases) and macOS Intel x86_64 (covered nightly, on tag releases, and on `full`/`custom` manual dispatch -- excluded from `PR_PLATFORMS`) [fact: git grep -n "PR_PLATFORMS=" .github/scripts/determine-matrix.sh && git grep -n "FULL_PLATFORMS=" .github/scripts/determine-matrix.sh]
-- Non-floor Python versions (`cp313`, `cp314`, and `cp315`: `cp315` is covered by the ready-PR `abi3_smoke` lane; `cp313` to `cp315` by nightly/release CI)
-- Non-core `slow` tests on non-physics axes (`tooling`, `unit`, `native`, `os_compat`), `qgis` tests, and full physics on Windows (covered nightly and on tag releases)
+- Non-floor Python versions (`cp313`, `cp314`, and `cp315`; see "Pull requests (draft and ready)" and "Nightly schedule / tag push" above for where `abi3_smoke` covers them) [fact: git grep -n 'ABI3_SMOKE_BUILDPLAT=' .github/scripts/determine-matrix.sh]
+- Non-core `slow` tests on non-physics axes (`tooling`, `unit`, `native`, `os_compat`), `qgis` tests, and full physics on Windows (see "Merge queue (`merge_group`)" and "Nightly schedule / tag push" above for the tier expressions and Windows `smoke` split) [fact: git grep -n '"physics-full": f"{axis} and (core or not slow) and not qgis"' scripts/suews/ci_tiers.py && git grep -n "event_name == 'merge_group'.*'smoke'" .github/workflows/build-publish_to_pypi.yml]
 
 **Rationale:** Running every platform and CPython version in the merge queue
 duplicates coverage already performed on ready PRs or the nightly while
 lengthening queue latency. The queue keeps Linux and Windows wheel builds plus
 full Linux physics on the combined tree; nightly and release CI retain full
-four-platform and cross-version coverage.
+four-platform and cross-version coverage. [decision: software maintainer, 2026-11-17; updated for GATE_AXIS_SCHEMA=2, 2026-11-26]
 
 **Safety net:**
 
-- **Nightly builds** (2 AM UTC) run the full four-platform matrix at tier `all`
-  (see "Nightly schedule / tag push" above, including the `abi3_smoke`
-  `macos-15-intel` trim). Any platform-specific regression that slips through
-  the merge queue is caught within 24 hours.
-- **Tag releases** also run the full four-platform matrix at tier `all` before
-  publishing to PyPI.
+- **Nightly builds** (2 AM UTC) and **tag releases** run the full four-platform
+  matrix at tier `all` (see "Nightly schedule / tag push" above, including the
+  `abi3_smoke` `macos-15-intel` trim), catching any platform-specific
+  regression that slips through the merge queue within 24 hours and before
+  publishing to PyPI. [fact: git grep -n -F "0 2 * * *" .github/workflows/build-publish_to_pypi.yml && git grep -n "test_tier=all" .github/scripts/determine-matrix.sh]
 - If a nightly fails, `scheduled-run-tracker.yml` opens a tracking issue naming
   the PRs merged since the last green nightly so it can be addressed before the
-  next release.
+  next release. [fact: git grep -n "nightly-tracker.js" .github/workflows/scheduled-run-tracker.yml]
 
 **When to reconsider:** If a platform-specific bug reaches master via the merge queue and causes user impact before the nightly catches it, consider widening the merge-queue platform set (e.g. adding macOS ARM or macOS Intel) or running a fuller platform matrix on merge queue for `fortran`- or `rust`-touching changes only. [decision: software maintainer, 2026-11-17]
 

@@ -6,11 +6,15 @@ import logging
 from pathlib import Path
 import shutil
 
+from click.testing import CliRunner
 import f90nml
 import numpy as np
 import pandas as pd
 import pytest
 
+from supy._load import load_SUEWS_dict_ModConfig
+from supy.cmd.table_converter import convert_table_cmd
+from supy.data_model.core.config import SUEWSConfig
 from supy.util.converter.table import table as table_mod
 from supy.util.converter.table.profile_manager import (
     ProfileManager,
@@ -412,7 +416,8 @@ class TestTableVersionDetectionAndHelpers:
             table_mod._check_nml_parameters(dir_2025, {"RunControl.nml": [()]}) is False
         )
 
-        # Vendored 2024a converts cleanly to 2025a when driven by detect_table_version.
+        # Vendored 2024a converts cleanly to 2025a when driven by detect_table_version,
+        # migrating historical diagMethod/LocalClimateMethod to canonical rslmethod/rsllevel.
         fixture_2024 = _LEGACY_FORMAT_ROOT / "2024a"
         assert fixture_2024.is_dir(), f"Missing vendored fixture: {fixture_2024}"
         detected_2024 = table_mod.detect_table_version(fixture_2024)
@@ -426,6 +431,11 @@ class TestTableVersionDetectionAndHelpers:
             validate_profiles=False,
         )
         assert table_mod.detect_table_version(out_2025) == "2025a"
+        out_rc = f90nml.read(str(out_2025 / "RunControl.nml"))["runcontrol"]
+        assert out_rc["rslmethod"] == 2
+        assert out_rc["rsllevel"] == 0
+        assert "diagmethod" not in out_rc
+        assert "localclimatemethod" not in out_rc
 
         # Forward conversion from 2020a -> 2024a produces a directory detected as 2024a.
         fixture_2020 = _LEGACY_TABLES_ROOT / "2020a"
@@ -441,6 +451,116 @@ class TestTableVersionDetectionAndHelpers:
             validate_profiles=False,
         )
         assert table_mod.detect_table_version(out_2024) == "2024a"
+
+    def test_cli_auto_detect_2024a_and_2025a_historical_aliases_to_yaml(self, tmp_path):
+        """CLI auto-detection converts historical 2024a/2025a fixtures to valid YAML preserving RSL settings."""
+        runner = CliRunner()
+
+        # 1. Vendored 2024a fixture (diagMethod=2, LocalClimateMethod=0, FAIMethod=0).
+        fixture_2024 = _LEGACY_FORMAT_ROOT / "2024a"
+        assert fixture_2024.is_dir(), f"Missing vendored fixture: {fixture_2024}"
+        out_2024_yml = tmp_path / "detected_2024a.yml"
+        res_2024 = runner.invoke(
+            convert_table_cmd,
+            ["-i", str(fixture_2024 / "RunControl.nml"), "-o", str(out_2024_yml)],
+        )
+        assert res_2024.exit_code == 0, res_2024.output
+        assert "Detected version: 2024a" in res_2024.output
+        cfg_2024 = SUEWSConfig.from_yaml(str(out_2024_yml))
+        assert int(cfg_2024.model.physics.roughness_sublayer.value) == 2
+        assert int(cfg_2024.model.physics.roughness_sublayer_level.value) == 0
+        assert int(cfg_2024.model.physics.frontal_area_index.value) == 0
+
+        # 2. Mutated historical 2024a copy with non-default LocalClimateMethod=1 verifies
+        # legacy alias overrides dict_RunControl_default['rsllevel'] = 0.
+        custom_2024 = tmp_path / "custom_2024a"
+        shutil.copytree(fixture_2024, custom_2024)
+        rc_custom = custom_2024 / "RunControl.nml"
+        rc_text = rc_custom.read_text(encoding="utf-8")
+        assert "LocalClimateMethod    = 0" in rc_text
+        rc_custom.write_text(
+            rc_text.replace("LocalClimateMethod    = 0", "LocalClimateMethod    = 1"),
+            encoding="utf-8",
+        )
+        out_custom_yml = tmp_path / "custom_2024a.yml"
+        res_custom = runner.invoke(
+            convert_table_cmd,
+            ["-i", str(rc_custom), "-o", str(out_custom_yml)],
+        )
+        assert res_custom.exit_code == 0, res_custom.output
+        assert "Detected version: 2024a" in res_custom.output
+        cfg_custom = SUEWSConfig.from_yaml(str(out_custom_yml))
+        assert int(cfg_custom.model.physics.roughness_sublayer.value) == 2
+        assert int(cfg_custom.model.physics.roughness_sublayer_level.value) == 1
+
+        # 3. Vendored 2025a fixture (same-version path via _load.py alias normalisation).
+        fixture_2025 = _LEGACY_FORMAT_ROOT / "2025a"
+        assert fixture_2025.is_dir(), f"Missing vendored fixture: {fixture_2025}"
+        out_2025_yml = tmp_path / "detected_2025a.yml"
+        res_2025 = runner.invoke(
+            convert_table_cmd,
+            ["-i", str(fixture_2025 / "RunControl.nml"), "-o", str(out_2025_yml)],
+        )
+        assert res_2025.exit_code == 0, res_2025.output
+        assert "Detected version: 2025a" in res_2025.output
+        cfg_2025 = SUEWSConfig.from_yaml(str(out_2025_yml))
+        assert int(cfg_2025.model.physics.roughness_sublayer.value) == 2
+        assert int(cfg_2025.model.physics.roughness_sublayer_level.value) == 0
+
+    def test_legacy_rsl_alias_precedence_in_loader_and_converter(self, tmp_path):
+        """Canonical rslmethod/rsllevel take precedence over historical aliases when both appear."""
+        rc_both = tmp_path / "both" / "RunControl.nml"
+        rc_both.parent.mkdir()
+        rc_both.write_text(
+            "&RunControl\n"
+            'FileInputPath="./Input/"\n'
+            "diagMethod = 2\n"
+            "rslmethod = 1\n"
+            "LocalClimateMethod = 1\n"
+            "rsllevel = 0\n"
+            "/\n",
+            encoding="utf-8",
+        )
+        loaded = load_SUEWS_dict_ModConfig(rc_both)
+        assert loaded["rslmethod"] == 1
+        assert loaded["rsllevel"] == 0
+        assert "diagmethod" not in loaded
+        assert "localclimatemethod" not in loaded
+
+        # Same precedence in _normalise_legacy_runcontrol_keys.
+        changed = table_mod._normalise_legacy_runcontrol_keys(rc_both)
+        assert changed is True
+        patched = f90nml.read(str(rc_both))["runcontrol"]
+        assert patched["rslmethod"] == 1
+        assert patched["rsllevel"] == 0
+        assert "diagmethod" not in patched
+        assert "localclimatemethod" not in patched
+
+        # Legacy-only file preserves legacy values (including non-zero rsllevel).
+        rc_legacy = tmp_path / "legacy_only" / "RunControl.nml"
+        rc_legacy.parent.mkdir()
+        rc_legacy.write_text(
+            "&RunControl\n"
+            'FileInputPath="./Input/"\n'
+            "diagMethod = 2\n"
+            "LocalClimateMethod = 1\n"
+            "/\n",
+            encoding="utf-8",
+        )
+        loaded_legacy = load_SUEWS_dict_ModConfig(rc_legacy)
+        assert loaded_legacy["rslmethod"] == 2
+        assert loaded_legacy["rsllevel"] == 1
+        assert "diagmethod" not in loaded_legacy
+        assert "localclimatemethod" not in loaded_legacy
+
+        # Absent or empty namelist returns False cleanly.
+        assert (
+            table_mod._normalise_legacy_runcontrol_keys(tmp_path / "absent.nml")
+            is False
+        )
+        empty_nml = tmp_path / "empty.nml"
+        empty_nml.write_text("", encoding="utf-8")
+        assert table_mod._normalise_legacy_runcontrol_keys(empty_nml) is False
 
     def test_detect_table_version_synthetic_2024a_2023a_2017a_empty_and_absolute_path(
         self, tmp_path

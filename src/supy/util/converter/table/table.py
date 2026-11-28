@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 
 from ...._env import logger_supy, trv_supy_module
-from ...._load import load_SUEWS_nml_simple
+from ...._load import LEGACY_RUNCONTROL_KEY_ALIASES, load_SUEWS_nml_simple
 from ...._misc import path_insensitive
 from .legacy import LegacyTable, read_legacy_table, write_legacy_table
 from .profile_manager import ProfileManager
@@ -436,8 +436,10 @@ def detect_table_version(input_dir):
             # (diagmethod/localclimatemethod) RunControl parameter names.
             "check_nml": {
                 "RunControl.nml": [
-                    ("rslmethod", "diagmethod"),
-                    ("rsllevel", "localclimatemethod"),
+                    *(
+                        (canonical, legacy)
+                        for legacy, canonical in LEGACY_RUNCONTROL_KEY_ALIASES
+                    ),
                     "faimethod",
                 ]
             },
@@ -1416,6 +1418,35 @@ def _apply_step_moves(toDir, harvested, fromVer, toVer):
             _write_table(path, header, rows)
 
 
+def _normalise_legacy_runcontrol_keys(path_runcontrol: Path) -> bool:
+    """Normalise pre-#864 RunControl aliases to canonical keys in place.
+
+    Preserves the legacy value when the canonical key is absent and gives
+    the canonical spelling precedence when both appear.
+    """
+    resolved_rc = Path(path_insensitive(path_runcontrol))
+    if not resolved_rc.is_file():
+        return False
+
+    nml = f90nml.read(str(resolved_rc))
+    if not nml:
+        return False
+
+    section_name = "runcontrol" if "runcontrol" in nml else next(iter(nml.keys()))
+    section = nml[section_name]
+    changed = False
+    for legacy_key, canonical_key in LEGACY_RUNCONTROL_KEY_ALIASES:
+        if legacy_key in section:
+            legacy_val = section.pop(legacy_key)
+            if canonical_key not in section:
+                section[canonical_key] = legacy_val
+            changed = True
+
+    if changed:
+        nml.write(str(resolved_rc), force=True)
+    return changed
+
+
 # a single conversion between two versions
 def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
     # Special case: if fromVer == toVer, just copy and clean without conversion
@@ -1680,6 +1711,11 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 
     # Re-apply harvested cross-file moves over the Add defaults.
     _apply_step_moves(toDir, moved_values, fromVer, toVer)
+
+    # Normalise historical 2024a RunControl aliases (diagmethod/localclimatemethod)
+    # to canonical 2025a keys (rslmethod/rsllevel), preserving user values.
+    if fromVer == "2024a" and toVer == "2025a":
+        _normalise_legacy_runcontrol_keys(Path(toDir) / "RunControl.nml")
 
 
 def SUEWS_Converter_file(fileX, actionList):

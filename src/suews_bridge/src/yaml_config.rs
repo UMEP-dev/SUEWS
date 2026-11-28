@@ -4453,19 +4453,27 @@ fn apply_site_overrides(
 //   when absent/null/non-numeric placeholder (#2363), validated as finite
 //   numbers when numeric (rejecting NaN/Inf). `store_min` retains the legacy
 //   fallback to `state_limit` when still `0.0`.
-// - `[1]` (`drain_eq`): required explicit integer selector on every active
-//   non-water surface (`require_i32`) so placeholder-only blocks cannot
-//   silently retain selector 0; optional otherwise (non-numeric placeholders
-//   ignored, NaN/Inf rejected).
-// - `[2]` (`drain_coef_1`) and `[3]` (`drain_coef_2`): required on active
-//   non-water surfaces using drainage equations 1, 2 or 3; optional otherwise
-//   (preserving ignored inputs and explicit zero, rejecting NaN/Inf).
-// - `[5]` (`store_cap`): required whenever Fortran reads `StoreDrainPrm(6, is)`
-//   on a contributing surface — `drainage` (`active && drain_eq == 1`),
-//   Rutter evaporation (`sfr > 0 && evap_method == 1`), AnOHM
-//   (`sfr > 0 && storage_heat_method == 3`), or EHC building soil-store
-//   scaling (`bldgs` with `sfr > 0 && storage_heat_method == 5 &&
-//   net_radiation_method > 1000`); optional otherwise (rejecting NaN/Inf).
+// - `[1]` (`drain_eq`), `[2]` (`drain_coef_1`), `[3]` (`drain_coef_2`), and
+//   `[5]` (`store_cap`): `SUEWS_cal_Water` (`suews_ctrl_driver.f95`) calls
+//   `drainage` for every non-water surface `1..nsurf-1` whenever
+//   `NonWaterFraction > 0` (regardless of individual `sfr == 0`), so any
+//   supplied non-null value on a non-water surface under `NonWaterFraction > 0`
+//   is validated strictly (`parse_optional_i32` for `drain_eq`,
+//   `parse_optional_numeric` for coefficients and `store_cap`). Placeholders
+//   are only relaxed where `drainage` is provably never called (`water` or
+//   `NonWaterFraction == 0.0`, where `NaN`/`Inf` remain rejected).
+//   - `[1]` (`drain_eq`): required explicit integer selector on every active
+//     non-water surface (`sfr > 0`, `require_i32`) so placeholder-only blocks
+//     cannot silently retain selector 0.
+//   - `[2]` (`drain_coef_1`) and `[3]` (`drain_coef_2`): required on active
+//     non-water surfaces using drainage equations 1, 2 or 3.
+//   - `[5]` (`store_cap`): required whenever Fortran reads
+//     `StoreDrainPrm(6, is)` on a contributing surface — `drainage`
+//     (`active && drain_eq == 1`), Rutter evaporation
+//     (`sfr > 0 && evap_method == 1`), AnOHM
+//     (`sfr > 0 && storage_heat_method == 3`), or EHC building soil-store
+//     scaling (`bldgs` with `sfr > 0 && storage_heat_method == 5 &&
+//     net_radiation_method > 1000`).
 fn apply_drainage_overrides(
     state: &mut SuewsState,
     site_root: &Value,
@@ -4473,6 +4481,7 @@ fn apply_drainage_overrides(
     fractions: &[f64],
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
+    let non_water_fraction_active = fractions[..6].iter().any(|&f| f > 0.0);
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         let surface_at = format!("{site_at}.properties.land_cover.{surface_name}");
         let sdp_at = format!("{surface_at}.storage_drain_params");
@@ -4485,6 +4494,7 @@ fn apply_drainage_overrides(
             }
         }
         let active = surface_name != "water" && fractions[surface_idx] > 0.0;
+        let kernel_may_call_drainage = surface_name != "water" && non_water_fraction_active;
         let sdp_path = ["properties", "land_cover", surface_name, "storedrainprm"];
         let drainage = get_path(site_root, &sdp_path);
         if active
@@ -4532,6 +4542,14 @@ fn apply_drainage_overrides(
                 // coefficient checks. Whole floats remain valid.
                 state.phenology_state.store_drain_prm[surface_idx][1] =
                     require_i32(sdp_root, &["drain_eq"], &sdp_at)? as f64;
+            } else if kernel_may_call_drainage {
+                // `SUEWS_cal_Water` invokes `drainage` across all non-water
+                // surfaces whenever `NonWaterFraction > 0`; reject malformed
+                // supplied selectors on zero-area surfaces instead of silently
+                // retaining selector 0.
+                if let Some(v) = parse_optional_i32(sdp_root, &["drain_eq"], &sdp_at)? {
+                    state.phenology_state.store_drain_prm[surface_idx][1] = v as f64;
+                }
             } else if let Some(v) =
                 require_if_active_numeric(sdp_root, &["drain_eq"], &sdp_at, false)?
             {
@@ -4543,7 +4561,14 @@ fn apply_drainage_overrides(
                     1.0 | 2.0 | 3.0
                 );
             for (key, slot) in [("drain_coef_1", 2), ("drain_coef_2", 3)] {
-                if let Some(v) = require_if_active_numeric(sdp_root, &[key], &sdp_at, required)? {
+                let value = if required {
+                    Some(require_numeric(sdp_root, &[key], &sdp_at)?)
+                } else if kernel_may_call_drainage {
+                    parse_optional_numeric(sdp_root, &[key], &sdp_at)?
+                } else {
+                    require_if_active_numeric(sdp_root, &[key], &sdp_at, false)?
+                };
+                if let Some(v) = value {
                     state.phenology_state.store_drain_prm[surface_idx][slot] = v;
                 }
             }
@@ -4561,18 +4586,21 @@ fn apply_drainage_overrides(
                 && (config.evap_method == 1
                     || config.storage_heat_method == StorageHeatMethod::Anohm.as_i32()))
             || ehc_bldg_scaling;
-        if let Some(v) = require_if_active_numeric(
-            site_root,
-            &[
-                "properties",
-                "land_cover",
-                surface_name,
-                "storedrainprm",
-                "store_cap",
-            ],
-            &site_at,
-            store_cap_required,
-        )? {
+        let store_cap_path = [
+            "properties",
+            "land_cover",
+            surface_name,
+            "storedrainprm",
+            "store_cap",
+        ];
+        let store_cap = if store_cap_required {
+            Some(require_numeric(site_root, &store_cap_path, &site_at)?)
+        } else if kernel_may_call_drainage {
+            parse_optional_numeric(site_root, &store_cap_path, &site_at)?
+        } else {
+            require_if_active_numeric(site_root, &store_cap_path, &site_at, false)?
+        };
+        if let Some(v) = store_cap {
             state.phenology_state.store_drain_prm[surface_idx][5] = v;
         }
         // Fallback: use statelimit for store_min if not yet populated
@@ -7575,15 +7603,19 @@ mod tests {
             assert!(err.contains("mapping"), "{err}");
         }
 
-        // Inactive placeholder strings on sfr=0 drainage fields do not fail
-        // (#2363), while non-finite IEEE inputs still fail with canonical paths.
-        for (slot_idx, field) in [
-            (0, "store_min"),
-            (1, "drain_eq"),
-            (2, "drain_coef_1"),
-            (3, "drain_coef_2"),
-            (4, "store_max"),
-            (5, "store_cap"),
+        // Because `SUEWS_cal_Water` invokes `drainage` across every non-water
+        // surface whenever `NonWaterFraction > 0` (even on `sfr == 0`),
+        // malformed kernel-read drainage leaves (`drain_eq`, `drain_coef_1`,
+        // `drain_coef_2`, `store_cap`) on a zero-area non-water surface must
+        // still be rejected, while unread `store_min`/`store_max` relax
+        // placeholders (#2363) and all leaves reject non-finite IEEE inputs.
+        for (slot_idx, field, kernel_read) in [
+            (0, "store_min", false),
+            (1, "drain_eq", true),
+            (2, "drain_coef_1", true),
+            (3, "drain_coef_2", true),
+            (4, "store_max", false),
+            (5, "store_cap", true),
         ] {
             let mut placeholder = stebbs_fixture_root();
             let site = first_site_mut(&mut placeholder).unwrap();
@@ -7605,12 +7637,51 @@ mod tests {
                     serde_yaml::from_str("\"bad\"").unwrap(),
                 );
             rebalance_sfr(site, "paved");
-            let parsed = load_run_config_from_value(&mut placeholder)
-                .unwrap_or_else(|e| panic!("placeholder inactive {field} must not fail (#2363): {e}"));
+            if kernel_read {
+                let err = load_run_config_from_value(&mut placeholder).expect_err(&format!(
+                    "malformed kernel-read non-water drainage field {field} must fail even on sfr=0"
+                ));
+                assert!(
+                    err.contains(&format!(
+                        "`sites[gridiv=1].properties.land_cover.evetr.storage_drain_params.{field}`"
+                    )),
+                    "{field}: {err}"
+                );
+            } else {
+                let parsed = load_run_config_from_value(&mut placeholder).unwrap_or_else(|e| {
+                    panic!("unread drainage field {field} placeholder must not fail (#2363): {e}")
+                });
+                if field != "store_min" {
+                    assert_eq!(
+                        parsed.state.phenology_state.store_drain_prm[2][slot_idx], 0.0,
+                        "placeholder unread {field} should keep default 0.0"
+                    );
+                }
+            }
+
+            // On `water` (never passed to `drainage`), placeholder strings on
+            // all six leaves are accepted while non-finite values still fail.
+            let mut water_placeholder: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let water_site = first_site_mut(&mut water_placeholder).unwrap();
+            get_path_mut(
+                water_site,
+                &["properties", "land_cover", "water", "storage_drain_params"],
+            )
+            .unwrap()
+            .as_mapping_mut()
+            .unwrap()
+            .insert(
+                Value::String(field.into()),
+                serde_yaml::from_str("\"TBD\"").unwrap(),
+            );
+            let parsed_water =
+                load_run_config_from_value(&mut water_placeholder).unwrap_or_else(|e| {
+                    panic!("water placeholder {field} must not fail (#2363): {e}")
+                });
             if field != "store_min" {
                 assert_eq!(
-                    parsed.state.phenology_state.store_drain_prm[2][slot_idx], 0.0,
-                    "placeholder inactive {field} should keep default 0.0"
+                    parsed_water.state.phenology_state.store_drain_prm[6][slot_idx], 0.0,
+                    "water placeholder {field} should keep default 0.0"
                 );
             }
 
@@ -7643,6 +7714,73 @@ mod tests {
                     "{field}={bad}: {err}"
                 );
             }
+        }
+
+        // Wet zero-area non-water surface regressions: explicit initial wetness
+        // (`state: 1.0`) with malformed `drain_eq: TBD` or `drain_coef_1: TBD`
+        // under `NonWaterFraction > 0` must be rejected rather than retaining 0
+        // and reaching Fortran's wet-surface `drainage` branch.
+        for (block_yaml, expected_field) in [
+            ("{drain_eq: TBD}", "drain_eq"),
+            (
+                "{drain_eq: 2, drain_coef_1: TBD, drain_coef_2: 1000}",
+                "drain_coef_1",
+            ),
+        ] {
+            let mut wet_zero: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut wet_zero).unwrap();
+            let evetr = get_path_mut(site, &["properties", "land_cover", "evetr"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            evetr.insert(
+                Value::String("sfr".into()),
+                serde_yaml::from_str("0.0").unwrap(),
+            );
+            evetr.insert(
+                Value::String("storage_drain_params".into()),
+                serde_yaml::from_str(block_yaml).unwrap(),
+            );
+            *get_path_mut(site, &["initial_states", "evetr", "state"]).unwrap() =
+                serde_yaml::from_str("{value: 1.0}").unwrap();
+            rebalance_sfr(site, "paved");
+            let err = load_run_config_from_value(&mut wet_zero)
+                .expect_err(&format!("wet zero-area evetr {block_yaml} must fail"));
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.evetr.storage_drain_params.{expected_field}`"
+                )),
+                "{block_yaml}: {err}"
+            );
+        }
+
+        // All-water site (`NonWaterFraction == 0.0`, where Fortran skips the
+        // `drainage` loop completely) allows non-numeric placeholders on all
+        // non-water drainage leaves while keeping `.nan`/`.inf` rejected.
+        {
+            let mut all_water: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut all_water).unwrap();
+            for (surface_name, _) in SURFACE_YAML_ORDER {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface_name])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                let sfr = if surface_name == "water" { "1.0" } else { "0.0" };
+                lc.insert(
+                    Value::String("sfr".into()),
+                    serde_yaml::from_str(sfr).unwrap(),
+                );
+            }
+            *get_path_mut(
+                site,
+                &["properties", "land_cover", "evetr", "storage_drain_params"],
+            )
+            .unwrap() = serde_yaml::from_str(
+                "{store_min: TBD, drain_eq: TBD, drain_coef_1: TBD, drain_coef_2: TBD, store_max: TBD, store_cap: TBD}",
+            )
+            .unwrap();
+            load_run_config_from_value(&mut all_water)
+                .expect("all-water site (NonWaterFraction=0) must accept non-water drainage placeholders");
         }
 
         // Active non-water surface with a placeholder-only or selector-less

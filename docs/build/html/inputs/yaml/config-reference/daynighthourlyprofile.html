@@ -1,0 +1,702 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta content="SUEWS YAML configuration for day/night hourly profile parameters" name="description" />
+<meta content="SUEWS, YAML, daynighthourlyprofile, parameters, configuration" name="keywords" />
+
+    <title>4.6.11. Day/Night Hourly Profile &#8212; SUEWS 2026.11.27.dev54 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=4418a689" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=bab574ae" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=6a604523" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/publications-filter.css?v=fa69f4f6" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../../../_static/documentation_options.js?v=73c5fef1"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../../_static/design-tabs.js?v=fcb327ea"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/config-reference/daynighthourlyprofile';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
+    <link rel="icon" href="../../../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="4.6.12. Daily Profile" href="dayprofile.html" />
+    <link rel="prev" title="4.6.10. Data Model Base" href="datamodelbase.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="2026.11.27.dev54" />
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.11.27.dev54, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6bf4077cee805745e7eb1c2766d27b6b1825ad03" style="color: #31708f;">6bf4077</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.27.dev54 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.27.dev54 documentation - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../../index.html">4. Input Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="../index.html">4.1. YAML Configuration Format</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../temporal-profiles.html">4.1.4.1. Temporal Profiles</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../forcing-data.html">4.3. Meteorological Forcing Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../timestamp-convention.html">4.4. Timestamp Convention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../surface-data-preparation.html">4.5. Preparing Surface Characteristics Data</a></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="index.html">4.6. YAML Configuration Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="anthropogenicemissions.html">4.6.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="anthropogenicheat.html">4.6.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="archetypeproperties.html">4.6.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="bldgsproperties.html">4.6.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="bsoilproperties.html">4.6.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildinglayer.html">4.6.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="co2params.html">4.6.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conductance.html">4.6.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="coolingsetpointprofile.html">4.6.9. Cooling Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datamodelbase.html">4.6.10. Data Model Base</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">4.6.11. Day/Night Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dayprofile.html">4.6.12. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dectrproperties.html">4.6.13. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="evetrproperties.html">4.6.14. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="forcingcontrol.html">4.6.15. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="grassproperties.html">4.6.16. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heatingsetpointprofile.html">4.6.17. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hourlyprofile.html">4.6.18. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatebldgs.html">4.6.19. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatebsoil.html">4.6.20. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatedectr.html">4.6.21. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstateevetr.html">4.6.22. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstategrass.html">4.6.23. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatepaved.html">4.6.24. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstateveg.html">4.6.25. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstatewater.html">4.6.26. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialstates.html">4.6.27. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="irrigationparams.html">4.6.28. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="laiparams.html">4.6.29. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="laipowercoefficients.html">4.6.30. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lumpsparams.html">4.6.31. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="landcover.html">4.6.32. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model.html">4.6.33. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modelcontrol.html">4.6.34. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modelphysics.html">4.6.35. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="nonvegetatedsurfaceproperties.html">4.6.36. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ohmcoefficients.html">4.6.37. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ohm_coefficient_season_wetness.html">4.6.38. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputcontrol.html">4.6.39. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pavedproperties.html">4.6.40. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rooflayer.html">4.6.41. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spartacusparams.html">4.6.42. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="suewsconfig.html">4.6.43. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="site.html">4.6.44. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="siteproperties.html">4.6.45. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="snowparams.html">4.6.46. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="soilobservationconfig.html">4.6.47. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stebbsphysics.html">4.6.48. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stebbsproperties.html">4.6.49. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="storagedrainparams.html">4.6.50. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="surfaceinitialstate.html">4.6.51. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="surfaceproperties.html">4.6.52. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tenminuteprofile.html">4.6.53. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="thermallayers.html">4.6.54. Material Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vegetatedsurfaceproperties.html">4.6.55. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vegetationparams.html">4.6.56. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="verticallayers.html">4.6.57. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="walllayer.html">4.6.58. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="waterdistribution.html">4.6.59. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="waterproperties.html">4.6.60. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="weeklyprofile.html">4.6.61. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../converter.html">4.7. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../transition_guide.html">4.8. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../units_migration_guide.html">4.9. Upgrading Across the Units Change</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation.html">4.10. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../tables/index.html">4.11. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../tables/met_input.html">4.11.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../tables/RunControl/RunControl.html">4.11.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/scheme_options.html">4.11.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/Time_related_options.html">4.11.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/File_related_options.html">4.11.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.11.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.11.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../tables/Initial_Conditions/Initial_Conditions.html">4.11.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Soil_moisture_states.html">4.11.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Vegetation_parameters.html">4.11.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Recent_meteorology.html">4.11.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Above_ground_state.html">4.11.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../tables/Initial_Conditions/Snow_related_parameters.html">4.11.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/rsl.html">5.3.5. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/dailystate.html">5.3.6. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/beers.html">5.3.8. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/debug.html">5.3.9. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/ehc.html">5.3.10. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/ehc.html">5.4. EHC coupling and heat diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.5. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.6. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Procedural API migration</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.2.1. supy.show_version</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.validate_config.html">6.2.3.1. supy.validate_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationEngine.html">6.2.3.2. supy.ValidationEngine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.ValidationReport.html">6.2.3.3. supy.ValidationReport</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.enable_file_logging.html">6.2.4.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.disable_file_logging.html">6.2.4.2. supy.disable_file_logging</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.attribute.html">6.3.7.1. supy.util.attribute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.diagnose.html">6.3.7.2. supy.util.diagnose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.attribute_t2.html">6.3.7.3. supy.util.attribute_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.attribute_q2.html">6.3.7.4. supy.util.attribute_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.attribute_u10.html">6.3.7.5. supy.util.attribute_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.diagnose_t2.html">6.3.7.6. supy.util.diagnose_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.diagnose_q2.html">6.3.7.7. supy.util.diagnose_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.diagnose_u10.html">6.3.7.8. supy.util.diagnose_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.AttributionResult.html">6.3.7.9. supy.util.AttributionResult</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/knowledge-pack.html">6.5. Knowledge Pack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/python-cli-equivalents.html">6.6. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../benchmark/drift.html">10. Cross-version drift</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notation.html">11. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../version-history/version-history.html">12. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2026.6.5.html">12.1. Version 2026.6.5 (released on 5 June 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2026.4.3.html">12.2. Version 2026.4.3 (released on 3 April 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2026.1.28.html">12.3. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2025.11.20.html">12.4. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2025.10.15.html">12.5. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2020a.html">12.6. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2019a.html">12.7. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2018c.html">12.8. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2018b.html">12.9. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2018a.html">12.10. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2017b.html">12.11. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2017a.html">12.12. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2016a.html">12.13. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2014b.html">12.14. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2014a.1.html">12.15. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2014a.html">12.16. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2013a.html">12.17. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2012b.html">12.18. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2012a.html">12.19. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2011b.html">12.20. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../contributing/schema/index.html">2. Schema and Data-interface Development</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../contributing/schema/schema-developer.html">2.1. Configuration Schema Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../contributing/schema/schema_versioning.html">2.2. YAML Configuration Schema Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../contributing/schema/data_interface_versioning.html">2.3. Data-interface versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../contributing/schema/schema_cli.html">2.4. Schema Management CLI</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../acknowledgement.html">3. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new/choose" target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Day/Night Hourly Profile</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<ol class="arabic simple">
+<li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a>.</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Finputs%2Fyaml%2Fconfig-reference%2Fdaynighthourlyprofile.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Finputs%2Fyaml%2Fconfig-reference%2Fdaynighthourlyprofile.html%29%0A&amp;title=[Docs]inputs/yaml/config-reference/daynighthourlyprofile">Report Issue for This Page</a> for page-specific feedback).
+Opening issues is limited to existing contributors, so if GitHub says you cannot open one, post the report in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a> instead: a maintainer will turn it into an issue and can add you as a contributor.</p></li>
+<li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
+</ol>
+</div>
+<section id="day-night-hourly-profile">
+<span id="index-0"></span><span id="daynighthourlyprofile"></span><h1><span class="section-number">4.6.11. </span>Day/Night Hourly Profile<a class="headerlink" href="#day-night-hourly-profile" title="Link to this heading">#</a></h1>
+<p>24-hour day/night transition profile bounded to <code class="docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">2.0]</span></code>.</p>
+<p>Used by <code class="docutils literal notranslate"><span class="pre">popprof_24hr</span></code> and <code class="docutils literal notranslate"><span class="pre">profile_human_activity_24hr</span></code>, which the
+anthropogenic emissions kernel consumes raw without normalisation
+(<code class="docutils literal notranslate"><span class="pre">1.0</span></code> = night, <code class="docutils literal notranslate"><span class="pre">2.0</span></code> = day, values in between = transition).</p>
+<p>See <a class="reference internal" href="../temporal-profiles.html"><span class="doc">Temporal Profiles</span></a> for timing and value treatment.</p>
+<dl class="input option" id="index-1">
+<dt class="sig sig-object input" id="input-option-working_day">
+<span class="sig-name descname"><span class="pre">working_day</span></span><a class="headerlink" href="#input-option-working_day" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Required</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="input option" id="index-2">
+<dt class="sig sig-object input" id="input-option-holiday">
+<span class="sig-name descname"><span class="pre">holiday</span></span><a class="headerlink" href="#input-option-holiday" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Status<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Required</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="input option" id="index-3">
+<dt class="sig sig-object input" id="input-option-ref">
+<span class="sig-name descname"><span class="pre">ref</span></span><a class="headerlink" href="#input-option-ref" title="Link to this definition">#</a></dt>
+<dd><p>The <code class="docutils literal notranslate"><span class="pre">ref</span></code> parameter group is defined by the <a class="reference internal" href="reference.html"><span class="doc">Reference Info</span></a> structure.</p>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="datamodelbase.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">4.6.10. </span>Data Model Base</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="dayprofile.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">4.6.12. </span>Daily Profile</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.11.27.dev54 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6bf4077cee805745e7eb1c2766d27b6b1825ad03">6bf4077</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

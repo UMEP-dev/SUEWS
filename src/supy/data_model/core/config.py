@@ -75,6 +75,7 @@ from .type import (
     _SNOW_ACTIVE_CONTEXT,
     _SOIL_OBSERVED_CONTEXT,
     _STEBBS_ACTIVE_CONTEXT,
+    _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT,
     _STEBBS_SHARED_ACTIVE_FIELDS,
     _coerce_inactive_stebbs_scalar,
     df_from_cols,
@@ -862,6 +863,7 @@ class SUEWSConfig(DataModelBase):
         soil_observed: bool,
         stebbs_active: bool = True,
         stebbs_shared_active_fields: frozenset[str] = frozenset(),
+        stebbs_setpoint_profile_active: bool | None = None,
     ):
         """Propagate scheme activation flags into nested model/site/surface/state validators."""
         from .human_activity import _IRRIGATION_MODELLED_CONTEXT
@@ -870,6 +872,9 @@ class SUEWSConfig(DataModelBase):
         tok_snow = _SNOW_ACTIVE_CONTEXT.set(snow_active)
         tok_soil = _SOIL_OBSERVED_CONTEXT.set(soil_observed)
         tok_stebbs = _STEBBS_ACTIVE_CONTEXT.set(stebbs_active)
+        tok_stebbs_setpoint = _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT.set(
+            stebbs_setpoint_profile_active
+        )
         tok_stebbs_shared = _STEBBS_SHARED_ACTIVE_FIELDS.set(
             stebbs_shared_active_fields
         )
@@ -877,6 +882,7 @@ class SUEWSConfig(DataModelBase):
             yield
         finally:
             _STEBBS_SHARED_ACTIVE_FIELDS.reset(tok_stebbs_shared)
+            _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT.reset(tok_stebbs_setpoint)
             _STEBBS_ACTIVE_CONTEXT.reset(tok_stebbs)
             _SOIL_OBSERVED_CONTEXT.reset(tok_soil)
             _SNOW_ACTIVE_CONTEXT.reset(tok_snow)
@@ -3256,13 +3262,14 @@ class SUEWSConfig(DataModelBase):
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
-        Validate required STEBBS and building archetype parameters when stebbs_method==1.
+        Validate required STEBBS and building archetype parameters when STEBBS is enabled.
 
-        If `stebbs_method==1`, this function enforces that both `site.properties.stebbs`
-        and `site.properties.building_archetype` contain all required parameters with
-        non-null values. The required parameter lists are defined by
-        `STEBBS_REQUIRED_PARAMS` and `ARCHETYPE_REQUIRED_PARAMS`, with dynamic
-        filtering based on the Window-to-Wall Ratio (WWR).
+        When STEBBS is enabled (composed ``stebbsmethod`` in ``(1, 2)``), this function
+        enforces that both ``site.properties.stebbs`` and ``site.properties.building_archetype``
+        contain all required parameters with non-null values. The required parameter lists
+        are defined by ``STEBBS_REQUIRED_PARAMS`` and ``ARCHETYPE_REQUIRED_PARAMS``, with
+        dynamic filtering based on the Window-to-Wall Ratio (WWR), setpoint method,
+        daylight control, internal shading, and capacitance method.
 
         Parameters
         ----------
@@ -3295,7 +3302,7 @@ class SUEWSConfig(DataModelBase):
 
         ## Must have a stebbs block
         if not hasattr(props, "stebbs") or props.stebbs is None:
-            issues.append("Missing 'stebbs' section (required when stebbs=1)")
+            issues.append("Missing 'stebbs' section (required when STEBBS is enabled)")
             return issues
 
         ## Must have a building_archetype block
@@ -3481,7 +3488,7 @@ class SUEWSConfig(DataModelBase):
         if missing_params:
             param_list = ", ".join(missing_params)
             issues.append(
-                f"Missing required STEBBS parameters: {param_list} (required when stebbs=1)"
+                f"Missing required STEBBS parameters: {param_list} (required when STEBBS is enabled)"
             )
 
         return issues
@@ -7574,15 +7581,24 @@ class SUEWSConfig(DataModelBase):
             )
 
         # Proceed with DataFrame conversion
-        snow_code = resolve_snow_use_code(
-            getattr(getattr(self.model, "physics", None), "snow_use", None)
+        phys = getattr(self.model, "physics", None)
+        snow_code = resolve_snow_use_code(getattr(phys, "snow_use", None))
+        stebbs_code = resolve_stebbs_method_code(phys)
+        stebbs_phys = getattr(phys, "stebbs", None) if phys is not None else None
+        setpoint_raw = (
+            _unwrap_value(getattr(stebbs_phys, "setpoint", None))
+            if stebbs_phys is not None
+            else None
         )
-        stebbs_code = resolve_stebbs_method_code(
-            getattr(self.model, "physics", None)
-        )
+        setpoint_profile_active = (
+            stebbs_code is None or stebbs_code != 0
+        ) and setpoint_raw in (SetpointMethod.SCHEDULED, SetpointMethod.SCHEDULED.value)
         snow_token = _SNOW_ACTIVE_CONTEXT.set(snow_code is None or snow_code != 0)
         stebbs_token = _STEBBS_ACTIVE_CONTEXT.set(
             stebbs_code is None or stebbs_code != 0
+        )
+        stebbs_setpoint_token = _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT.set(
+            setpoint_profile_active
         )
         try:
             grid_ids = []
@@ -7629,6 +7645,7 @@ class SUEWSConfig(DataModelBase):
             else:
                 raise
         finally:
+            _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT.reset(stebbs_setpoint_token)
             _STEBBS_ACTIVE_CONTEXT.reset(stebbs_token)
             _SNOW_ACTIVE_CONTEXT.reset(snow_token)
 
@@ -7721,12 +7738,25 @@ class SUEWSConfig(DataModelBase):
         soil_code = resolve_soil_moisture_code(model.physics.soil_moisture)
         stebbs_code = resolve_stebbs_method_code(model.physics)
         stebbs_shared_active = resolve_stebbs_shared_temp_fields(model.physics)
+        stebbs_phys_df = getattr(model.physics, "stebbs", None)
+        setpoint_raw_df = (
+            _unwrap_value(getattr(stebbs_phys_df, "setpoint", None))
+            if stebbs_phys_df is not None
+            else None
+        )
+        stebbs_setpoint_active = (
+            stebbs_code is None or stebbs_code != 0
+        ) and setpoint_raw_df in (
+            SetpointMethod.SCHEDULED,
+            SetpointMethod.SCHEDULED.value,
+        )
         with cls._scheme_validation_context(
             water_use_modelled=water_use_code == 0,
             snow_active=snow_code is None or snow_code != 0,
             soil_observed=soil_code is None or soil_code == 1,
             stebbs_active=stebbs_code is None or stebbs_code != 0,
             stebbs_shared_active_fields=stebbs_shared_active,
+            stebbs_setpoint_profile_active=stebbs_setpoint_active,
         ):
             # Create list of sites
             sites = []

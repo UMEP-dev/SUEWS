@@ -666,6 +666,9 @@ _SOIL_OBSERVED_CONTEXT: ContextVar[bool | None] = ContextVar(
 _STEBBS_ACTIVE_CONTEXT: ContextVar[bool | None] = ContextVar(
     "_STEBBS_ACTIVE_CONTEXT", default=None
 )
+_STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT: ContextVar[bool | None] = ContextVar(
+    "_STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT", default=None
+)
 _STEBBS_SHARED_ACTIVE_FIELDS: ContextVar[frozenset[str]] = ContextVar(
     "_STEBBS_SHARED_ACTIVE_FIELDS", default=frozenset()
 )
@@ -1100,6 +1103,22 @@ def normalise_inactive_float_value(
 _NON_FINITE_STRINGS: frozenset[str] = frozenset(
     {"nan", "+nan", "-nan", "inf", "+inf", "-inf", "infinity", "+infinity", "-infinity"}
 )
+
+
+def is_bool_scalar_or_wrapped(val: Any) -> bool:
+    """Return True when *val* is a bare, ``RefValue``-wrapped, or mapping-wrapped boolean."""
+    inner = (
+        val.value
+        if isinstance(val, RefValue)
+        else (
+            val["value"]
+            if isinstance(val, Mapping)
+            and "value" in val
+            and set(val.keys()) <= {"value", "ref"}
+            else val
+        )
+    )
+    return isinstance(inner, (bool, np.bool_))
 
 
 def is_non_finite_value(val: Any) -> bool:

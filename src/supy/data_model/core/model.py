@@ -51,6 +51,7 @@ from .type import (
     _WeakConfigRef,
     df_from_col_items,
     df_from_cols,
+    is_bool_scalar_or_wrapped,
     merge_df_state_col_items,
     normalise_inactive_stebbs_scalar,
     reject_bool_input,
@@ -1039,6 +1040,10 @@ class StebbsPhysics(DataModelBase):
         stripped: dict[str, Any] = {}
         for key, val in values.items():
             if key in cls._STEBBS_SUBORDINATE_SWITCH_ENUMS:
+                if is_bool_scalar_or_wrapped(val):
+                    raise ValueError(
+                        f"{cls.__name__}.{key} cannot be a boolean, got {val!r}"
+                    )
                 if cls._is_valid_subordinate_switch_input(key, val):
                     stripped[key] = val
                     continue
@@ -1104,6 +1109,10 @@ class StebbsPhysics(DataModelBase):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name in type(self)._STEBBS_SUBORDINATE_SWITCH_ENUMS:
+            if is_bool_scalar_or_wrapped(value):
+                raise ValueError(
+                    f"{type(self).__name__}.{name} cannot be a boolean, got {value!r}"
+                )
             if not self._is_stebbs_validation_active():
                 if not type(self)._is_valid_subordinate_switch_input(name, value):
                     ok, normalised = normalise_inactive_stebbs_scalar(

@@ -26,6 +26,7 @@ from .type import (
     _WeakConfigRef,
     df_from_col_items,
     df_from_cols,
+    is_bool_scalar_or_wrapped,
     is_finite_real_number,
     merge_df_state_col_items,
     merge_df_state_cols,
@@ -2610,6 +2611,10 @@ class ArchetypeProperties(DataModelBase):
                         stashed[key] = None
                     continue
             if key in cls.model_fields and key not in cls._ARCHETYPE_NON_SCALAR_FIELDS:
+                if is_bool_scalar_or_wrapped(val):
+                    raise ValueError(
+                        f"building_archetype.{key} cannot be a boolean, got {val!r}"
+                    )
                 ok, normalised = normalise_inactive_stebbs_scalar(
                     val,
                     allow_null=True,
@@ -2735,6 +2740,10 @@ class ArchetypeProperties(DataModelBase):
                     f"building_archetype.{name} must be a finite number, got {raw_check!r}"
                 )
             if not self._is_stebbs_validation_active():
+                if is_bool_scalar_or_wrapped(value):
+                    raise ValueError(
+                        f"building_archetype.{name} cannot be a boolean, got {value!r}"
+                    )
                 ok, normalised = normalise_inactive_stebbs_scalar(
                     value,
                     allow_null=True,
@@ -3573,6 +3582,10 @@ class StebbsProperties(DataModelBase):
                     and key not in cls._STEBBS_NON_SCALAR_FIELDS
                     and key not in shared_active
                 ):
+                    if is_bool_scalar_or_wrapped(val):
+                        raise ValueError(
+                            f"stebbs.{key} cannot be a boolean, got {val!r}"
+                        )
                     ok, normalised = normalise_inactive_stebbs_scalar(
                         val,
                         allow_null=True,
@@ -3711,6 +3724,10 @@ class StebbsProperties(DataModelBase):
                 not self._is_stebbs_validation_active()
                 and name not in self._active_shared_temp_fields()
             ):
+                if is_bool_scalar_or_wrapped(value):
+                    raise ValueError(
+                        f"stebbs.{name} cannot be a boolean, got {value!r}"
+                    )
                 ok, normalised = normalise_inactive_stebbs_scalar(
                     value,
                     allow_null=True,

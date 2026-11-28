@@ -17,6 +17,7 @@ from pydantic import (
 from .field_renames import RAW_YAML_FIELD_RENAMES
 from .type import (
     _STEBBS_ACTIVE_CONTEXT,
+    _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT,
     DataModelBase,
     Reference,
     _coerce_inactive_stebbs_scalar,
@@ -952,9 +953,19 @@ class TenMinuteProfile(DataModelBase):
             return dict(value)
         return handler(value)
 
+    @classmethod
+    def _is_inactive_for_df_state(cls) -> bool:
+        """Return True when this profile's owning STEBBS branch is inactive."""
+        if _STEBBS_ACTIVE_CONTEXT.get() is False:
+            return True
+        return (
+            issubclass(cls, (HeatingSetpointProfile, CoolingSetpointProfile))
+            and _STEBBS_SETPOINT_PROFILE_ACTIVE_CONTEXT.get() is False
+        )
+
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
         cols = {("gridiv", "0"): grid_id}
-        stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
+        stebbs_inactive = type(self)._is_inactive_for_df_state()
         for day_idx, day_type in enumerate(("working_day", "holiday")):
             day_map = getattr(self, day_type)
             if day_map is None and stebbs_inactive:
@@ -1002,7 +1013,7 @@ class TenMinuteProfile(DataModelBase):
         Returns:
             TenMinuteProfile: Instance of TenMinuteProfile
         """
-        allow_inactive_nulls = _STEBBS_ACTIVE_CONTEXT.get() is False
+        allow_inactive_nulls = cls._is_inactive_for_df_state()
 
         def _normalise_cell(raw_val: Any) -> Any:
             if allow_inactive_nulls and raw_val is not None:

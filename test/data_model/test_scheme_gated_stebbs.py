@@ -1821,6 +1821,85 @@ def test_inactive_wrapped_null_profile_preserves_valid_reference(
         reloaded.validate_for_engine()
 
 
+@pytest.mark.parametrize("setpoint_mode", [0, 1])
+def test_active_non_scheduled_multi_site_partial_null_and_null_day_setpoint_df_state_roundtrip(
+    sample_dict: dict, setpoint_mode: int
+) -> None:
+    """Multi-site partial-null and null-day unscheduled setpoint profiles survive ``df_state`` round-trips."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=1)
+    data["model"]["physics"]["stebbs"]["setpoint"] = setpoint_mode
+    site1 = copy.deepcopy(data["sites"][0])
+    site2 = copy.deepcopy(data["sites"][0])
+    site1["name"] = "Site1"
+    site1["gridiv"] = 1
+    site2["name"] = "Site2"
+    site2["gridiv"] = 2
+
+    # Site 1: partial null slot on heating + null working_day on cooling
+    site1["properties"]["building_archetype"][
+        "profile_setpoint_temperature_heating_air"
+    ]["working_day"]["1"] = None
+    site1["properties"]["building_archetype"][
+        "profile_setpoint_temperature_cooling_air"
+    ]["working_day"] = None
+    data["sites"] = [site1, site2]
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    rebuilt.validate_for_engine()
+
+    site1_arch = rebuilt.sites[0].properties.building_archetype
+    site2_arch = rebuilt.sites[1].properties.building_archetype
+    assert site1_arch.profile_setpoint_temperature_heating_air.working_day["1"] is None
+    assert (
+        site2_arch.profile_setpoint_temperature_heating_air.working_day["1"] is not None
+    )
+    assert site1_arch.profile_setpoint_temperature_cooling_air.working_day["1"] is None
+
+    # Switching df_state to scheduled setpoints (setpoint=2) must fail validation.
+    df_sched = df_state.copy()
+    df_sched[("setpointmethod", "0")] = 2
+    with pytest.raises((ValidationError, ValueError)):
+        rebuilt_sched = SUEWSConfig.from_df_state(df_sched)
+        rebuilt_sched.validate_for_engine()
+
+
+@pytest.mark.parametrize("bad_bool", [True, False, {"value": True}])
+def test_inactive_stebbs_rejects_boolean_scalars_and_switches_on_load_and_mutation(
+    sample_dict: dict, bad_bool
+) -> None:
+    """Disabled STEBBS rejects boolean inputs on numeric scalars and subordinate switches."""
+    for section, field in (
+        ("stebbs", "depth_ground"),
+        ("building_archetype", "occupants"),
+    ):
+        data = copy.deepcopy(sample_dict)
+        _disable_stebbs(data)
+        data["sites"][0]["properties"][section][field] = bad_bool
+        with pytest.raises((ValidationError, ValueError), match=field):
+            SUEWSConfig.from_dict(data)
+
+    data_sw = copy.deepcopy(sample_dict)
+    _disable_stebbs(data_sw)
+    data_sw["model"]["physics"]["stebbs"]["capacitance"] = bad_bool
+    with pytest.raises((ValidationError, ValueError), match="capacitance"):
+        SUEWSConfig.from_dict(data_sw)
+
+    # Live attribute mutation parity when STEBBS is disabled
+    data_ok = copy.deepcopy(sample_dict)
+    _disable_stebbs(data_ok)
+    cfg = SUEWSConfig.from_dict(data_ok)
+    with pytest.raises(ValueError, match="depth_ground"):
+        cfg.sites[0].properties.stebbs.depth_ground = bad_bool
+    with pytest.raises(ValueError, match="occupants"):
+        cfg.sites[0].properties.building_archetype.occupants = bad_bool
+    with pytest.raises(ValueError, match="capacitance"):
+        cfg.model.physics.stebbs.capacitance = bad_bool
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

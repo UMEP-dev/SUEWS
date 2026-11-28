@@ -2940,7 +2940,10 @@ def test_r10_r5_merge_keys_defaultdict_mangled_slots_cycles_identity_zero_sign_a
 
 def test_r10_r6_nested_dataclass_computed_field_and_engine_proxy_guard() -> None:
     """Cover R5 M1-M2: nested Pydantic dataclass computed fields and engine proxy guard."""
-    from pydantic import computed_field, field_serializer  # noqa: PLC0415
+    from pydantic import (  # noqa: PLC0415
+        computed_field,
+        field_serializer,
+    )
     from pydantic.dataclasses import dataclass as pdataclass  # noqa: PLC0415
 
     from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
@@ -4856,3 +4859,87 @@ def test_r18_classvar_unwrap_isolation_and_scalar_subclass_noop() -> None:
         normalise_patches([ConfigPatch("k", "set", s3, replace_raw=True)], {"k": s1})
         == []
     )
+
+
+def test_r19_setter_bypass_frozen_pdc_metadata_unwrap_and_fn_builtins() -> None:
+    """Cover Astra R9 M1-M3: hook-free __class__ rebind, frozen PDC dump, metadata unwrap isolation, fn.__builtins__."""
+    import builtins  # noqa: PLC0415
+    from types import FunctionType  # noqa: PLC0415
+
+    from pydantic import ValidationError  # noqa: PLC0415
+    from pydantic.dataclasses import dataclass as pdataclass  # noqa: PLC0415
+
+    from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
+
+    # M1: model_dump & validate_config bypass custom __setattr__ and support nested frozen Pydantic dataclasses.
+    setter_events: list[str] = []
+
+    class _SpySetattrModel(BaseModel):
+        x: int = 3
+
+        def __setattr__(self, name: str, value: object) -> None:
+            setter_events.append(name)
+            super().__setattr__(name, value)
+
+    @pdataclass(frozen=True)
+    class _FrozenPDC:
+        val: int = 9
+
+    class _OuterFrozenPDC(BaseModel):
+        item: _FrozenPDC
+
+    class _SpySetattrConfig(SUEWSConfig):
+        def __setattr__(self, name: str, value: object) -> None:
+            setter_events.append(name)
+            super().__setattr__(name, value)
+
+    spy_m = _SpySetattrModel(x=4)
+    spy_cfg = _SpySetattrConfig()
+    setter_events.clear()
+    assert freeze_model(spy_m).model_dump(mode="json") == {"x": 4}
+    assert freeze_model(_OuterFrozenPDC(item=_FrozenPDC(val=11))).model_dump(
+        mode="json"
+    ) == {"item": {"val": 11}}
+    assert (
+        validate_config(freeze_model(spy_cfg), pipeline="C", forcing="off") is not None
+    )
+    assert setter_events == []
+
+    # M2: Mutating model_config, model_fields, core_schema, or __dataclass_fields__ on unwrap_copy leaves orig class intact.
+    class _FrozenMetaModel(BaseModel):
+        model_config = ConfigDict(frozen=True)
+        x: int = Field(default=1, json_schema_extra={"tags": ["orig"]})
+
+    orig_fm = _FrozenMetaModel(x=2)
+    exported_fm = freeze_model(orig_fm).unwrap_copy()
+    exported_fm.model_config["frozen"] = False
+    type(exported_fm).model_fields["x"].json_schema_extra["tags"].append("mut")  # type: ignore[index]
+    type(exported_fm).model_fields.clear()
+    type(exported_fm).__pydantic_core_schema__.clear()
+    assert _FrozenMetaModel.model_config["frozen"] is True
+    assert _FrozenMetaModel.model_fields["x"].json_schema_extra == {"tags": ["orig"]}
+    with pytest.raises(ValidationError):
+        orig_fm.x = 99  # type: ignore[misc]
+
+    # M3: Function capturing custom __builtins__ whose __globals__["__builtins__"] was restored is still rejected.
+    hash_events: list[object] = []
+
+    @dataclass(frozen=True)
+    class _BuiltinsTargetDC:
+        x: int
+
+    forged_globals: dict[str, object] = {
+        "__builtins__": {"hash": lambda v: hash_events.append(v) or 1}
+    }
+    forged_hash = FunctionType(_BuiltinsTargetDC.__hash__.__code__, forged_globals)
+    forged_globals["__builtins__"] = builtins.__dict__
+
+    @dataclass(frozen=True)
+    class _ForgedBuiltinsDC:
+        x: int
+
+    _ForgedBuiltinsDC.__hash__ = forged_hash  # type: ignore[method-assign]
+    ro_fb = ReadOnlyDataclassProxy(_ForgedBuiltinsDC(1))
+    with pytest.raises(TypeError, match="unvetted custom __hash__"):
+        hash(ro_fb)
+    assert hash_events == []

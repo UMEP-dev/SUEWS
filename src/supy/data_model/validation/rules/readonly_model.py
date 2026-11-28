@@ -1742,7 +1742,9 @@ def _code_signature(fn: FunctionType) -> _CodeSig:
 
 
 def _globals_safe_for_names(fn: FunctionType, required: dict[str, Any]) -> bool:
-    """Verify *fn*'s global and builtins namespaces do not shadow *required* symbols."""
+    """Verify *fn*'s actual ``__builtins__`` and global namespaces do not shadow *required* symbols."""
+    if fn.__builtins__ is not builtins.__dict__:
+        return False
     fn_globals = fn.__globals__
     raw_builtins = fn_globals.get("__builtins__")
     if (
@@ -2359,10 +2361,299 @@ def _assert_exportable_class_attrs(root: Any) -> None:
         stack.extend(_iter_snapshot_children(obj, None))
 
 
+_OBJECT_CLASS_DESCRIPTOR = object.__dict__["__class__"]
 _STD_INIT_SUBCLASS_HOOKS: frozenset[Any] = frozenset({
     object.__dict__["__init_subclass__"],
     typing.Generic.__dict__["__init_subclass__"],
 })
+_DETACHED_MODEL_META_ATTRS: tuple[str, ...] = (
+    "model_config",
+    "__pydantic_fields__",
+    "__pydantic_computed_fields__",
+    "__pydantic_core_schema__",
+    "__pydantic_decorators__",
+    "__private_attributes__",
+    "__class_vars__",
+    "__pydantic_setattr_handlers__",
+    "__pydantic_generic_metadata__",
+    "__annotations__",
+)
+_DETACHED_DATACLASS_META_ATTRS: tuple[str, ...] = (
+    "__dataclass_fields__",
+    "__dataclass_params__",
+    "__annotations__",
+)
+
+
+def _set_object_class_unchecked(obj: Any, target_cls: type[Any]) -> None:
+    """Rebind *obj*'s class via ``object.__class__`` descriptor without invoking ``__setattr__``."""
+    orig_cls = type(obj)
+    if _find_class_attr(orig_cls, "__class__")[1] is not _OBJECT_CLASS_DESCRIPTOR:
+        raise TypeError(
+            f"Cannot safely rebind __class__ on {orig_cls.__name__!r} with shadowed __class__"
+        )
+    _OBJECT_CLASS_DESCRIPTOR.__set__(obj, target_cls)
+
+
+def _is_passthrough_class_meta(value: Any) -> bool:
+    """Return True if *value* is an immutable stdlib/Pydantic metadata atom."""
+    import dataclasses as _dc_mod  # noqa: PLC0415
+
+    return (
+        value is None
+        or _is_exact_immutable_scalar(value)
+        or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES
+        or type(value) in {ForwardRef, TypeVar}
+        or (
+            type(value) in _STDLIB_ALIAS_TYPES
+            and type(value) is not getattr(typing, "_AnnotatedAlias", None)
+        )
+        or isinstance(
+            value,
+            (
+                type,
+                FunctionType,
+                MethodType,
+                BuiltinMethodType,
+                MethodWrapperType,
+                ModuleType,
+                SchemaSerializer,
+                _dc_mod._MISSING_TYPE,
+                _dc_mod._FIELD_BASE,
+            ),
+        )
+    )
+
+
+def _clone_class_meta_object(value: Any, memo: dict[int, Any]) -> Any:
+    """Clone Pydantic/dataclass class-metadata structures without invoking user ``__deepcopy__``."""
+    import dataclasses as _dc_mod  # noqa: PLC0415
+
+    from pydantic._internal._decorators import (  # noqa: PLC0415
+        Decorator,
+        DecoratorInfos,
+    )
+    from pydantic.fields import (  # noqa: PLC0415
+        ComputedFieldInfo,
+        FieldInfo,
+        ModelPrivateAttr,
+    )
+
+    if _is_copy_on_read_scalar(value) or _is_passthrough_class_meta(value):
+        return (
+            _clone_copy_on_read_scalar(value)
+            if _is_copy_on_read_scalar(value)
+            else value
+        )
+    obj_id = id(value)
+    if obj_id in memo:
+        return memo[obj_id]
+    val_type = type(value)
+    if val_type is getattr(typing, "_AnnotatedAlias", None):
+        cloned_meta = tuple(
+            _clone_class_meta_object(m, memo) for m in value.__metadata__
+        )
+        cloned_origin = _clone_class_meta_object(value.__origin__, memo)
+        rebuilt = typing.Annotated[(cloned_origin, *cloned_meta)]  # type: ignore[misc]
+        memo[obj_id] = rebuilt
+        return rebuilt
+    if val_type in {
+        dict,
+        list,
+        tuple,
+        set,
+        frozenset,
+        MappingProxyType,
+        functools.partial,
+    }:
+        return _clone_class_meta_container(value, memo)
+    if (
+        val_type
+        in {
+            FieldInfo,
+            ComputedFieldInfo,
+            ModelPrivateAttr,
+            DecoratorInfos,
+            Decorator,
+            _dc_mod.Field,
+        }
+        or val_type.__name__ == "_DataclassParams"
+    ):
+        cloned = object.__new__(val_type)
+        memo[obj_id] = cloned
+        src_dict = _read_instance_dict(value)
+        if src_dict is not None:
+            _write_instance_dict(
+                cloned,
+                {k: _clone_class_meta_object(v, memo) for k, v in src_dict.items()},
+            )
+        for base, _sname, sdesc in _iter_custom_slots(
+            val_type, frozenset({"__dict__", "__weakref__"})
+        ):
+            try:
+                sval = sdesc.__get__(value, base)
+            except AttributeError:
+                continue
+            sdesc.__set__(cloned, _clone_class_meta_object(sval, memo))
+        return cloned
+    return _safe_snapshot_copy(value, reject_enums=True)
+
+
+def _clone_class_meta_container(value: Any, memo: dict[int, Any]) -> Any:
+    """Clone exact builtin container or ``functools.partial`` nodes inside class metadata."""
+    obj_id = id(value)
+    val_type = type(value)
+    if val_type is dict:
+        out_dict: dict[Any, Any] = {}
+        memo[obj_id] = out_dict
+        for k, v in value.items():
+            out_dict[_clone_class_meta_object(k, memo)] = _clone_class_meta_object(
+                v, memo
+            )
+        return out_dict
+    if val_type is list:
+        out_list: list[Any] = []
+        memo[obj_id] = out_list
+        out_list.extend(_clone_class_meta_object(x, memo) for x in value)
+        return out_list
+    if val_type is set:
+        out_set: set[Any] = set()
+        memo[obj_id] = out_set
+        out_set.update(_clone_class_meta_object(x, memo) for x in value)
+        return out_set
+    if val_type in {tuple, frozenset}:
+        out_seq: Any = val_type(_clone_class_meta_object(x, memo) for x in value)
+        memo[obj_id] = out_seq
+        return out_seq
+    if val_type is functools.partial:
+        out_partial = functools.partial(
+            _clone_class_meta_object(value.func, memo),
+            *(_clone_class_meta_object(a, memo) for a in value.args),
+            **{k: _clone_class_meta_object(v, memo) for k, v in value.keywords.items()},
+        )
+        memo[obj_id] = out_partial
+        return out_partial
+    out_mp = MappingProxyType({
+        _clone_class_meta_object(k, memo): _clone_class_meta_object(v, memo)
+        for k, v in value.items()
+    })
+    memo[obj_id] = out_mp
+    return out_mp
+
+
+def _make_detached_model_eq(orig_cls: type[BaseModel]) -> Any:
+    """Build ``__eq__`` for an exported detached ``BaseModel`` subclass preserving equality with *orig_cls*."""
+
+    def _detached_eq(self: BaseModel, other: object) -> Any:
+        if not isinstance(other, orig_cls):
+            return NotImplemented
+        return (
+            self.__dict__ == other.__dict__
+            and _read_pydantic_internal(self, "__pydantic_private__")
+            == _read_pydantic_internal(other, "__pydantic_private__")
+            and _read_pydantic_internal(self, "__pydantic_extra__")
+            == _read_pydantic_internal(other, "__pydantic_extra__")
+        )
+
+    return _detached_eq
+
+
+def _make_detached_dc_eq(orig_cls: type[Any]) -> Any:
+    """Build ``__eq__`` for an exported detached dataclass subclass preserving equality with *orig_cls*."""
+    cmp_names = tuple(f.name for f in dc_fields(orig_cls) if f.compare)
+
+    def _detached_dc_eq(self: Any, other: object) -> Any:
+        if not isinstance(other, orig_cls):
+            return NotImplemented
+        return tuple(getattr(self, n) for n in cmp_names) == tuple(
+            getattr(other, n) for n in cmp_names
+        )
+
+    return _detached_dc_eq
+
+
+def _make_detached_export_class(
+    cls: type[Any],
+    export_cache: dict[type[Any], type[Any]],
+    *,
+    is_model: bool,
+) -> type[Any]:
+    """Create an isolated subclass with detached mutable class metadata for ``unwrap_copy()``."""
+    cached = export_cache.get(cls)
+    if cached is not None:
+        return cached
+    if _find_class_attr(cls, "__init_subclass__")[1] not in _STD_INIT_SUBCLASS_HOOKS:
+        raise TypeError(
+            f"Cannot safely export isolated copy of {cls.__name__!r} with custom __init_subclass__"
+        )
+    if _find_class_attr(cls, "__class__")[1] is not _OBJECT_CLASS_DESCRIPTOR:
+        raise TypeError(
+            f"Cannot safely export isolated copy of {cls.__name__!r} with shadowed __class__"
+        )
+    ns: dict[str, Any] = {"__slots__": ()}
+    memo: dict[int, Any] = {}
+    attr_names = (
+        _DETACHED_MODEL_META_ATTRS if is_model else _DETACHED_DATACLASS_META_ATTRS
+    )
+    for attr_name in attr_names:
+        found, raw_val = _find_class_attr(cls, attr_name)
+        if found:
+            ns[attr_name] = _clone_class_meta_object(raw_val, memo)
+    if is_model and "model_fields" in cls.__dict__:
+        ns["model_fields"] = _clone_class_meta_object(
+            cls.__dict__["model_fields"], memo
+        )
+    if is_model and "model_computed_fields" in cls.__dict__:
+        ns["model_computed_fields"] = _clone_class_meta_object(
+            cls.__dict__["model_computed_fields"], memo
+        )
+    if is_model and _find_class_attr(cls, "__eq__")[1] is BaseModel.__eq__:
+        ns["__eq__"] = _make_detached_model_eq(cls)
+        if "__hash__" not in ns:
+            ns["__hash__"] = _find_class_attr(cls, "__hash__")[1]
+    elif (
+        not is_model
+        and _find_class_attr(cls, "__eq__")[1] is not object.__eq__
+        and _is_standard_dataclass_hook(cls, "__eq__")
+    ):
+        ns["__eq__"] = _make_detached_dc_eq(cls)
+        if "__hash__" not in ns:
+            ns["__hash__"] = _find_class_attr(cls, "__hash__")[1]
+    detached_cls = type.__new__(type(cls), cls.__name__, (cls,), ns)
+    export_cache[cls] = detached_cls
+    return detached_cls
+
+
+def _isolate_exported_classes(root: Any) -> Any:
+    """Rebind exported ``BaseModel`` and ``dataclass`` instances to metadata-isolated subclasses."""
+    export_cache: dict[type[Any], type[Any]] = {}
+    visited: set[int] = set()
+    stack: list[Any] = [root]
+    while stack:
+        obj = stack.pop()
+        if (
+            obj is None
+            or _is_exact_immutable_scalar(obj)
+            or _is_copy_on_read_scalar(obj)
+            or isinstance(obj, Enum)
+        ):
+            continue
+        obj_id = id(obj)
+        if obj_id in visited:
+            continue
+        visited.add(obj_id)
+        stack.extend(_iter_snapshot_children(obj, None))
+        if isinstance(obj, BaseModel):
+            det_cls = _make_detached_export_class(
+                type(obj), export_cache, is_model=True
+            )
+            _set_object_class_unchecked(obj, det_cls)
+        elif is_dataclass(obj) and not isinstance(obj, type):
+            det_cls = _make_detached_export_class(
+                type(obj), export_cache, is_model=False
+            )
+            _set_object_class_unchecked(obj, det_cls)
+    return root
 
 
 def _make_vetted_shadow_class(
@@ -2489,7 +2780,7 @@ def _dump_with_vetted_serializers(
                     type.__setattr__(shadow_cls, "__pydantic_serializer__", ser)
                 else:
                     shadow_cls = shadow_cache[obj_cls]
-                obj.__class__ = shadow_cls
+                _set_object_class_unchecked(obj, shadow_cls)
                 reclassed.append((obj, obj_cls))
 
         root_orig_cls = reclassed[0][1] if reclassed else type(working_copy)
@@ -2500,7 +2791,7 @@ def _dump_with_vetted_serializers(
         return root_ser.to_python(working_copy, *args, **kwargs)
     finally:
         for obj, orig_cls in reclassed:
-            obj.__class__ = orig_cls
+            _set_object_class_unchecked(obj, orig_cls)
 
 
 def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -> None:
@@ -2842,7 +3133,7 @@ class ReadOnlyDataclassProxy:
         """Return an independent mutable deep copy of the underlying dataclass."""
         target = _DATACLASS_STATE[id(self)][0]
         _assert_exportable_class_attrs(target)
-        return _safe_snapshot_copy(target, reject_enums=True)
+        return _isolate_exported_classes(_safe_snapshot_copy(target, reject_enums=True))
 
     def __copy__(self) -> ReadOnlyDataclassProxy:
         """Return ``self`` because ``ReadOnlyDataclassProxy`` is deeply immutable."""
@@ -3186,13 +3477,15 @@ class ReadOnlyModelProxy:
         working_copy = _safe_snapshot_copy(target)
         dumped = _dump_with_vetted_serializers(working_copy, *args, **kwargs)
         _assert_exportable_class_attrs(dumped)
-        return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
+        return _isolate_exported_classes(
+            _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
+        )
 
     def unwrap_copy(self) -> BaseModel:
         """Return an independent mutable deep copy of the underlying model."""
         target = _PROXY_STATE[id(self)][0]
         _assert_exportable_class_attrs(target)
-        return _safe_snapshot_copy(target, reject_enums=True)
+        return _isolate_exported_classes(_safe_snapshot_copy(target, reject_enums=True))
 
     def to_typed_view(self) -> Any:
         """Convert this read-only model into a deeply frozen :class:`TypedConfigView`."""

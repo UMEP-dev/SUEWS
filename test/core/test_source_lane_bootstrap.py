@@ -14,15 +14,24 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEST_DIR = REPO_ROOT / "test"
-BOOTSTRAP_PATH = REPO_ROOT / "scripts" / "suews" / "source_lane_bootstrap.py"
+BOOTSTRAP_PATH = (
+    REPO_ROOT / "scripts" / "suews" / "source_lane_bootstrap.py"
+).resolve()
 
-_SPEC = importlib.util.spec_from_file_location(
-    "suews_source_lane_bootstrap", BOOTSTRAP_PATH
+_EXISTING_SLB = sys.modules.get("_suews_source_lane_bootstrap")
+_EXISTING_SLB_FILE = (
+    getattr(_EXISTING_SLB, "__file__", None) if _EXISTING_SLB is not None else None
 )
-assert _SPEC is not None and _SPEC.loader is not None
-slb = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = slb
-_SPEC.loader.exec_module(slb)
+if _EXISTING_SLB_FILE and Path(_EXISTING_SLB_FILE).resolve() == BOOTSTRAP_PATH:
+    slb = _EXISTING_SLB
+else:
+    _SPEC = importlib.util.spec_from_file_location(
+        "_suews_source_lane_bootstrap", BOOTSTRAP_PATH
+    )
+    assert _SPEC is not None and _SPEC.loader is not None
+    slb = importlib.util.module_from_spec(_SPEC)
+    sys.modules[_SPEC.name] = slb
+    _SPEC.loader.exec_module(slb)
 
 pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
@@ -65,6 +74,7 @@ def _run_pytest(
     env = dict(os.environ)
     if source_lane_value is None:
         env.pop(slb.SOURCE_LANE_ENV_VAR, None)
+        env.pop(slb.SOURCE_LANE_ROOT_ENV_VAR, None)
     else:
         env[slb.SOURCE_LANE_ENV_VAR] = source_lane_value
     if extra_pythonpath is not None:
@@ -150,6 +160,9 @@ def test_activate_if_enabled_is_noop_when_unset(
     """Normal wheel mode (env unset or ``0``) installs no source-lane meta-path finders."""
     meta_snapshot = list(sys.meta_path)
     monkeypatch.setattr(sys, "meta_path", list(meta_snapshot))
+    monkeypatch.setitem(
+        slb._STATE, "disabled_finders", list(slb._STATE["disabled_finders"])
+    )
     slb.uninstall_guards()
 
     assert slb.activate_if_enabled(REPO_ROOT, env={}) is False
@@ -473,6 +486,7 @@ def test_configure_source_paths_normalises_relative_pythonpath(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "path", list(sys.path))
     monkeypatch.setenv("PYTHONPATH", f"src{os.pathsep}extra")
+    monkeypatch.delenv(slb.SOURCE_LANE_ROOT_ENV_VAR, raising=False)
 
     src_dir, mcp_dir = slb.configure_source_paths(tmp_path)
 
@@ -491,6 +505,7 @@ def test_ordinary_child_python_subprocess_inherits_compiled_extension_guard(
     """Ordinary ``python -c`` children inherit ``CompiledExtensionBlocker`` via startup hook."""
     monkeypatch.setenv(slb.SOURCE_LANE_ENV_VAR, "1")
     monkeypatch.setenv("PYTHONPATH", "")
+    monkeypatch.delenv(slb.SOURCE_LANE_ROOT_ENV_VAR, raising=False)
     monkeypatch.setattr(sys, "path", list(sys.path))
     slb.configure_source_paths(REPO_ROOT)
 
@@ -682,15 +697,21 @@ def test_standalone_conftest_fallback_blocks_cached_modules_and_cli_dispatch(
     (tmp_path / "pyproject.toml").write_text(_SYNTHETIC_PYPROJECT, encoding="utf-8")
     shutil.copy2(TEST_DIR / "conftest.py", test_root / "conftest.py")
 
-    # 1. Pre-cached compiled module in sys.modules fails loudly on conftest import.
+    # 1. Pre-cached compiled module in sys.modules fails loudly on pytest_configure.
     cached_script = (
         "import importlib.util, sys, types; "
         "sys.modules['supy.suews_bridge'] = types.ModuleType('supy.suews_bridge'); "
         f"spec = importlib.util.spec_from_file_location('conftest_standalone', {str(test_root / 'conftest.py')!r}); "
         "mod = importlib.util.module_from_spec(spec); "
-        "spec.loader.exec_module(mod)"
+        "spec.loader.exec_module(mod); "
+        "mod.pytest_configure(None)"
     )
-    env_on = {**os.environ, slb.SOURCE_LANE_ENV_VAR: "1"}
+    env_on = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"PYTHONPATH", slb.SOURCE_LANE_ROOT_ENV_VAR}
+    }
+    env_on[slb.SOURCE_LANE_ENV_VAR] = "1"
     cached_proc = subprocess.run(
         [sys.executable, "-c", cached_script],
         cwd=tmp_path,
@@ -703,13 +724,18 @@ def test_standalone_conftest_fallback_blocks_cached_modules_and_cli_dispatch(
     assert cached_proc.returncode != 0
     assert "SourceLaneViolationError" in cached_proc.stderr
 
-    # 2. Fallback resolve_suews_cli_command fails loudly under SUEWS_SOURCE_LANE_ONLY=1.
+    # 2. Fallback pytest_configure installs and pytest_unconfigure removes the blocker;
+    #    resolve_suews_cli_command fails loudly under SUEWS_SOURCE_LANE_ONLY=1.
     cli_script = (
-        "import importlib.util; "
-        f"spec = importlib.util.spec_from_file_location('conftest_standalone', {str(test_root / 'conftest.py')!r}); "
-        "mod = importlib.util.module_from_spec(spec); "
-        "spec.loader.exec_module(mod); "
-        "mod.resolve_suews_cli_command('suews')"
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('conftest_standalone', {str(test_root / 'conftest.py')!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        "mod.pytest_configure(None)\n"
+        "assert any(type(f).__name__ == '_FallbackCompiledBlocker' for f in sys.meta_path)\n"
+        "mod.pytest_unconfigure(None)\n"
+        "assert not any(type(f).__name__ == '_FallbackCompiledBlocker' for f in sys.meta_path)\n"
+        "mod.resolve_suews_cli_command('suews')\n"
     )
     cli_proc = subprocess.run(
         [sys.executable, "-c", cli_script],
@@ -792,3 +818,275 @@ def test_code_examples_subprocess_blocks_bridge_and_keeps_host_pythonpath_isolat
         supy_block, name="supy_from_source", timeout=30.0
     )
     assert supy_status == "ok", (supy_status, supy_detail)
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_sitecustomize_aborts_child_before_payload_on_startup_guard_failure(
+    tmp_path: Path,
+) -> None:
+    """Startup hook exits non-zero before running user code on guard or env failures."""
+    site_dir = REPO_ROOT / "scripts" / "suews" / "source_lane_site"
+    base_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {
+            "PYTHONPATH",
+            "PYTHONNOUSERSITE",
+            "PYTHONUSERBASE",
+            slb.SOURCE_LANE_ENV_VAR,
+            slb.SOURCE_LANE_ROOT_ENV_VAR,
+        }
+    }
+
+    # 1. A .pth file preloading supy.suews_bridge before sitecustomize must abort
+    #    interpreter startup via SystemExit so the child payload never runs.
+    import venv  # noqa: PLC0415
+
+    tmp_venv = tmp_path / "pth_venv"
+    builder = venv.EnvBuilder(symlinks=(os.name != "nt"), with_pip=False)
+    builder.create(tmp_venv)
+    context = builder.ensure_directories(tmp_venv)
+    venv_site = next(tmp_venv.rglob("site-packages"))
+    (venv_site / "preload_bridge.pth").write_text(
+        "import sys, types; "
+        "sys.modules['supy.suews_bridge'] = types.ModuleType('supy.suews_bridge')\n",
+        encoding="utf-8",
+    )
+    pth_marker = tmp_path / "pth_payload_ran.txt"
+    pth_env = {
+        **base_env,
+        "PYTHONPATH": str(site_dir),
+        slb.SOURCE_LANE_ENV_VAR: "1",
+        slb.SOURCE_LANE_ROOT_ENV_VAR: str(REPO_ROOT),
+    }
+    pth_proc = subprocess.run(
+        [
+            context.env_exe,
+            "-c",
+            f"from pathlib import Path; Path({str(pth_marker)!r}).write_text('ran', encoding='utf-8')",
+        ],
+        cwd=tmp_path,
+        env=pth_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
+    )
+    assert pth_proc.returncode != 0, pth_proc.stdout + pth_proc.stderr
+    assert "SourceLaneViolationError" in pth_proc.stderr, pth_proc.stderr
+    assert not pth_marker.exists(), "Child payload ran despite startup guard violation"
+
+    # 2. An invalid SUEWS_SOURCE_LANE_ONLY token must also abort before payload runs.
+    bad_marker = tmp_path / "invalid_env_payload_ran.txt"
+    bad_env = {
+        **base_env,
+        "PYTHONPATH": str(site_dir),
+        slb.SOURCE_LANE_ENV_VAR: "maybe",
+        slb.SOURCE_LANE_ROOT_ENV_VAR: str(REPO_ROOT),
+    }
+    bad_proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(bad_marker)!r}).write_text('ran', encoding='utf-8')",
+        ],
+        cwd=tmp_path,
+        env=bad_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
+    )
+    assert bad_proc.returncode != 0, bad_proc.stdout + bad_proc.stderr
+    assert "ValueError" in bad_proc.stderr, bad_proc.stderr
+    assert not bad_marker.exists(), "Child payload ran despite invalid env token"
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_pytest_main_source_to_normal_transition_and_failed_collection_cleanup(
+    tmp_path: Path,
+) -> None:
+    """``pytest.main()`` unwinds source-mode guards/paths/env/cache on both success and failure."""
+    checkout = tmp_path / "checkout"
+    test_root = _setup_synthetic_source_repo(checkout)
+    pkg_dir = checkout / "src" / "supy"
+    pkg_dir.mkdir(parents=True)
+    (pkg_dir / "__init__.py").write_text(
+        "SOURCE_MARKER = 'from_checkout'\nfrom ._version_scm import __version__\n",
+        encoding="utf-8",
+    )
+    (test_root / "test_unit_ok.py").write_text(
+        "import sys\n"
+        "import pytest\n"
+        "import supy\n"
+        "from supy import _version_scm\n\n"
+        "pytestmark = pytest.mark.unit\n\n"
+        "def test_source_active():\n"
+        "    assert supy.SOURCE_MARKER == 'from_checkout'\n"
+        "    assert _version_scm.__commit_hash__ == 'unknown'\n"
+        "    assert any(type(f).__name__ == 'CompiledExtensionBlocker' for f in sys.meta_path)\n",
+        encoding="utf-8",
+    )
+    (test_root / "test_native_blocked.py").write_text(
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n"
+        "def test_native():\n"
+        "    assert True\n",
+        encoding="utf-8",
+    )
+
+    foreign_dir = tmp_path / "foreign_supy"
+    foreign_dir.mkdir()
+    foreign_init = foreign_dir / "__init__.py"
+    foreign_init.write_text("SOURCE_MARKER = 'foreign'\n", encoding="utf-8")
+
+    driver = (
+        "import importlib.abc, importlib.machinery, os, pathlib, sys, types\n"
+        "import pytest\n"
+        f"checkout = pathlib.Path({str(checkout)!r}).resolve()\n"
+        "editable_hits = []\n"
+        "class _FakeEditable(importlib.abc.MetaPathFinder):\n"
+        "    __module__ = '_supy_editable_loader'\n"
+        "    def find_spec(self, fullname, path, target=None):\n"
+        "        if fullname == 'supy':\n"
+        "            editable_hits.append(fullname)\n"
+        "            return importlib.machinery.ModuleSpec('supy', _EditableLoader())\n"
+        "        return None\n"
+        "class _EditableLoader(importlib.abc.Loader):\n"
+        "    def create_module(self, spec):\n"
+        "        return None\n"
+        "    def exec_module(self, module):\n"
+        "        module.SOURCE_MARKER = 'from_editable'\n"
+        "fake_editable = _FakeEditable()\n"
+        "sys.meta_path[:] = [\n"
+        "    f for f in sys.meta_path\n"
+        "    if 'editable_loader' not in getattr(type(f), '__module__', '')\n"
+        "]\n"
+        "sys.meta_path.insert(1, fake_editable)\n"
+        "orig_idx = sys.meta_path.index(fake_editable)\n"
+        "os.environ['PYTHONPATH'] = 'sentinel_pp'\n"
+        "os.environ.pop('SUEWS_SOURCE_LANE_ROOT', None)\n"
+        "os.chdir(checkout)\n"
+        # 1. Source-mode pytest.main() followed by normal-mode import in same interpreter
+        "os.environ['SUEWS_SOURCE_LANE_ONLY'] = '1'\n"
+        "rc1 = pytest.main(['-q', '-m', 'unit', 'test/'])\n"
+        "assert rc1 == 0, rc1\n"
+        "assert editable_hits == [], editable_hits\n"
+        "os.environ.pop('SUEWS_SOURCE_LANE_ONLY', None)\n"
+        "assert sys.meta_path.index(fake_editable) == orig_idx, sys.meta_path\n"
+        "assert not any(type(f).__name__ in {'CompiledExtensionBlocker', 'SourceCheckoutFinder', 'VersionScmFallbackFinder'} for f in sys.meta_path)\n"
+        "assert os.environ.get('PYTHONPATH') == 'sentinel_pp', os.environ.get('PYTHONPATH')\n"
+        "assert 'SUEWS_SOURCE_LANE_ROOT' not in os.environ\n"
+        "assert str(checkout / 'src') not in sys.path\n"
+        "assert 'supy' not in sys.modules and 'supy._version_scm' not in sys.modules\n"
+        "import supy as normal_supy\n"
+        "assert normal_supy.SOURCE_MARKER == 'from_editable'\n"
+        "assert editable_hits == ['supy']\n"
+        "sys.modules.pop('supy', None)\n"
+        # 2. Failed collection (UsageError on native axis) must also unwind completely
+        "os.environ['SUEWS_SOURCE_LANE_ONLY'] = '1'\n"
+        "rc2 = pytest.main(['-q', '-m', 'native', 'test/'])\n"
+        "assert rc2 == pytest.ExitCode.USAGE_ERROR, rc2\n"
+        "assert sys.meta_path.index(fake_editable) == orig_idx, sys.meta_path\n"
+        "assert not any(type(f).__name__ in {'CompiledExtensionBlocker', 'SourceCheckoutFinder', 'VersionScmFallbackFinder'} for f in sys.meta_path)\n"
+        "assert os.environ.get('PYTHONPATH') == 'sentinel_pp'\n"
+        "assert 'SUEWS_SOURCE_LANE_ROOT' not in os.environ\n"
+        # 3. Partial activate() failure leaves path/env/meta_path untouched
+        "slb_mod = sys.modules['_suews_source_lane_bootstrap']\n"
+        "foreign = types.ModuleType('supy')\n"
+        f"foreign.__file__ = {str(foreign_init)!r}\n"
+        f"foreign.__path__ = [{str(foreign_dir)!r}]\n"
+        "sys.modules['supy'] = foreign\n"
+        "before_path = list(sys.path)\n"
+        "before_meta = list(sys.meta_path)\n"
+        "try:\n"
+        "    slb_mod.activate(checkout)\n"
+        "    raise AssertionError('expected SourceLaneViolationError')\n"
+        "except slb_mod.SourceLaneViolationError:\n"
+        "    pass\n"
+        "assert sys.path == before_path\n"
+        "assert sys.meta_path == before_meta\n"
+        "assert os.environ.get('PYTHONPATH') == 'sentinel_pp'\n"
+        "assert 'SUEWS_SOURCE_LANE_ROOT' not in os.environ\n"
+    )
+    clean_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {
+            "PYTHONPATH",
+            slb.SOURCE_LANE_ENV_VAR,
+            slb.SOURCE_LANE_ROOT_ENV_VAR,
+        }
+    }
+    proc = subprocess.run(
+        [sys.executable, "-c", driver],
+        cwd=tmp_path,
+        env=clean_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_inherited_sitecustomize_bootstrap_reused_by_conftest_without_duplicates(
+    tmp_path: Path,
+) -> None:
+    """Conftest reuses startup-loaded bootstrap without duplicating finders or losing ownership."""
+    site_dir = REPO_ROOT / "scripts" / "suews" / "source_lane_site"
+    script = (
+        "import importlib.util, sys\n"
+        "startup_mod = sys.modules.get('_suews_source_lane_bootstrap')\n"
+        "assert startup_mod is not None and startup_mod.is_active()\n"
+        f"spec = importlib.util.spec_from_file_location('conftest_inherited', {str(TEST_DIR / 'conftest.py')!r})\n"
+        "conftest_mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(conftest_mod)\n"
+        "assert conftest_mod._SOURCE_LANE_BOOTSTRAP is startup_mod\n"
+        "dummy_cfg = object()\n"
+        "conftest_mod.pytest_configure(dummy_cfg)\n"
+        "blockers = [f for f in sys.meta_path if isinstance(f, startup_mod.CompiledExtensionBlocker)]\n"
+        "checkouts = [f for f in sys.meta_path if isinstance(f, startup_mod.SourceCheckoutFinder)]\n"
+        "fallbacks = [f for f in sys.meta_path if isinstance(f, startup_mod.VersionScmFallbackFinder)]\n"
+        "assert len(blockers) == 1, blockers\n"
+        "assert len(checkouts) == 1, checkouts\n"
+        "assert len(fallbacks) == 1, fallbacks\n"
+        # conftest did not own startup activation, so pytest_unconfigure preserves startup guards
+        "conftest_mod.pytest_unconfigure(dummy_cfg)\n"
+        "assert startup_mod.is_active()\n"
+        "assert any(isinstance(f, startup_mod.CompiledExtensionBlocker) for f in sys.meta_path)\n"
+        # Explicit deactivate on the shared module tears down startup-installed guards completely
+        "assert startup_mod.deactivate() is True\n"
+        "assert not startup_mod.is_active()\n"
+        "assert not any(type(f).__name__ in {'CompiledExtensionBlocker', 'SourceCheckoutFinder', 'VersionScmFallbackFinder'} for f in sys.meta_path)\n"
+    )
+    child_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR, slb.SOURCE_LANE_ROOT_ENV_VAR}
+    }
+    child_env["PYTHONPATH"] = str(site_dir)
+    child_env[slb.SOURCE_LANE_ENV_VAR] = "1"
+    child_env[slb.SOURCE_LANE_ROOT_ENV_VAR] = str(REPO_ROOT)
+
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=child_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr

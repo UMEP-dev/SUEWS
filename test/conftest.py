@@ -41,10 +41,22 @@ if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
 
 
 def _load_source_lane_bootstrap():
-    """Load ``scripts/suews/source_lane_bootstrap.py`` when present beside ``test/``."""
-    bootstrap_script = _REPO_ROOT / "scripts" / "suews" / "source_lane_bootstrap.py"
+    """Load or reuse ``scripts/suews/source_lane_bootstrap.py`` beside ``test/``."""
+    bootstrap_script = (
+        _REPO_ROOT / "scripts" / "suews" / "source_lane_bootstrap.py"
+    ).resolve()
     if not bootstrap_script.is_file():
         return None
+    existing = sys.modules.get("_suews_source_lane_bootstrap")
+    existing_file = (
+        getattr(existing, "__file__", None) if existing is not None else None
+    )
+    if existing_file:
+        try:
+            if Path(existing_file).resolve() == bootstrap_script:
+                return existing
+        except OSError:
+            pass
     spec = importlib.util.spec_from_file_location(
         "_suews_source_lane_bootstrap", bootstrap_script
     )
@@ -59,6 +71,7 @@ def _load_source_lane_bootstrap():
 
 
 _SOURCE_LANE_BOOTSTRAP = _load_source_lane_bootstrap()
+_OWNED_SOURCE_LANE_CONFIGS: set[object] = set()
 
 if _SOURCE_LANE_BOOTSTRAP is not None:
     SOURCE_LANE_ENV_VAR = _SOURCE_LANE_BOOTSTRAP.SOURCE_LANE_ENV_VAR
@@ -70,10 +83,6 @@ if _SOURCE_LANE_BOOTSTRAP is not None:
     _check_selected_items_for_source_lane = (
         _SOURCE_LANE_BOOTSTRAP.check_selected_items_for_source_lane
     )
-    try:
-        _SOURCE_LANE_BOOTSTRAP.activate_if_enabled(_REPO_ROOT)
-    except ValueError as _exc:
-        raise pytest.UsageError(str(_exc)) from _exc
 else:
     # Standalone fallback used only when `test/conftest.py` is copied into an
     # isolated synthetic tmp_path repo without `scripts/suews/`.
@@ -156,24 +165,57 @@ else:
                 offending.append(f"{item.nodeid} ({', '.join(forbidden)})")
         return offending
 
+
+def pytest_configure(config) -> None:
+    """Activate source-lane guards for the lifetime of this pytest session."""
     try:
-        if is_source_lane_only():
-            _loaded_compiled = sorted(
-                name
-                for name, module in sys.modules.items()
-                if module is not None and _is_fallback_blocked(name)
-            )
-            if _loaded_compiled:
-                raise SourceLaneViolationError(
-                    f"Compiled extension module(s) already loaded in sys.modules under "
-                    f"{SOURCE_LANE_ENV_VAR}=1: {', '.join(_loaded_compiled)}"
-                )
-            if not any(
-                isinstance(finder, _FallbackCompiledBlocker) for finder in sys.meta_path
-            ):
-                sys.meta_path.insert(0, _FallbackCompiledBlocker())
-    except ValueError as _exc:
-        raise pytest.UsageError(str(_exc)) from _exc
+        enabled = is_source_lane_only()
+    except ValueError as exc:
+        raise pytest.UsageError(str(exc)) from exc
+    if not enabled:
+        return
+
+    owner_key = config if config is not None else "standalone"
+    if _SOURCE_LANE_BOOTSTRAP is not None:
+        was_active = _SOURCE_LANE_BOOTSTRAP.is_active()
+        _SOURCE_LANE_BOOTSTRAP.activate(_REPO_ROOT)
+        if not was_active:
+            _OWNED_SOURCE_LANE_CONFIGS.add(owner_key)
+        return
+
+    loaded_compiled = sorted(
+        name
+        for name, module in sys.modules.items()
+        if module is not None and _is_fallback_blocked(name)
+    )
+    if loaded_compiled:
+        raise SourceLaneViolationError(
+            f"Compiled extension module(s) already loaded in sys.modules under "
+            f"{SOURCE_LANE_ENV_VAR}=1: {', '.join(loaded_compiled)}"
+        )
+    if not any(
+        isinstance(finder, _FallbackCompiledBlocker) for finder in sys.meta_path
+    ):
+        sys.meta_path.insert(0, _FallbackCompiledBlocker())
+        _OWNED_SOURCE_LANE_CONFIGS.add(owner_key)
+
+
+def pytest_unconfigure(config) -> None:
+    """Tear down source-lane guards owned by this pytest session."""
+    owner_key = config if config is not None else "standalone"
+    if owner_key not in _OWNED_SOURCE_LANE_CONFIGS:
+        return
+    _OWNED_SOURCE_LANE_CONFIGS.discard(owner_key)
+    if _OWNED_SOURCE_LANE_CONFIGS:
+        return
+    if _SOURCE_LANE_BOOTSTRAP is not None:
+        _SOURCE_LANE_BOOTSTRAP.deactivate()
+    else:
+        sys.meta_path[:] = [
+            finder
+            for finder in sys.meta_path
+            if not isinstance(finder, _FallbackCompiledBlocker)
+        ]
 
 
 def _import_supy():

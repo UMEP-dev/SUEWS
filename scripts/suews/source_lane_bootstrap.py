@@ -69,9 +69,21 @@ _CLI_ENTRY_POINTS: dict[str, tuple[str, str]] = {
 _SITE_BOOTSTRAP_DIR = Path(__file__).resolve().parent / "source_lane_site"
 
 _STATE: dict[str, Any] = {
+    "active": False,
     "repo_root": None,
     "disabled_finders": [],
+    "sys_path_ops": [],
+    "had_pythonpath": False,
+    "saved_pythonpath": None,
+    "had_root_env": False,
+    "saved_root_env": None,
+    "pre_existing_pkg_modules": frozenset(),
 }
+
+
+def is_active() -> bool:
+    """Return True when source-lane bootstrap activation is currently active."""
+    return bool(_STATE["active"])
 
 
 class SourceLaneViolationError(RuntimeError):
@@ -397,22 +409,115 @@ def _assert_no_loaded_compiled_modules() -> None:
         )
 
 
+def _is_source_lane_finder(finder: Any) -> bool:
+    """Return True if ``finder`` is one of this module's source-lane finders."""
+    return isinstance(
+        finder,
+        (CompiledExtensionBlocker, SourceCheckoutFinder, VersionScmFallbackFinder),
+    )
+
+
+def _evict_synthetic_version_modules() -> None:
+    """Remove synthetic ``_version_scm`` fallback modules from ``sys.modules``."""
+    for name in _FALLBACK_VERSION_MODULES:
+        module = sys.modules.get(name)
+        spec = getattr(module, "__spec__", None) if module is not None else None
+        if spec is not None and isinstance(spec.loader, VersionScmFallbackFinder):
+            sys.modules.pop(name, None)
+
+
+def _loaded_owned_package_names() -> frozenset[str]:
+    """Return all currently loaded ``supy*`` / ``suews_mcp*`` module names."""
+    return frozenset(
+        name
+        for name in sys.modules
+        if name == "supy"
+        or name.startswith("supy.")
+        or name == "suews_mcp"
+        or name.startswith("suews_mcp.")
+    )
+
+
+def _snapshot_activation_baseline(resolved_root: Path) -> None:
+    """Capture reversible process state before transitioning inactive -> active."""
+    source_dirs = [
+        str(path)
+        for path in (resolved_root / "src", resolved_root / "mcp" / "src")
+        if path.is_dir()
+    ]
+    sys_path_ops: list[tuple[str, int | None]] = []
+    for entry in source_dirs:
+        orig_idx = sys.path.index(entry) if entry in sys.path else None
+        sys_path_ops.append((entry, orig_idx))
+
+    _STATE["sys_path_ops"] = sys_path_ops
+    _STATE["had_pythonpath"] = "PYTHONPATH" in os.environ
+    _STATE["saved_pythonpath"] = os.environ.get("PYTHONPATH")
+    _STATE["had_root_env"] = SOURCE_LANE_ROOT_ENV_VAR in os.environ
+    _STATE["saved_root_env"] = os.environ.get(SOURCE_LANE_ROOT_ENV_VAR)
+    _STATE["pre_existing_pkg_modules"] = _loaded_owned_package_names()
+
+
+def _restore_activation_baseline() -> None:
+    """Undo process-state mutations captured at the start of ``activate()``."""
+    sys_path_ops: list[tuple[str, int | None]] = list(_STATE["sys_path_ops"])
+    for entry, _ in sys_path_ops:
+        while entry in sys.path:
+            sys.path.remove(entry)
+    for entry, orig_idx in sorted(
+        ((e, i) for e, i in sys_path_ops if i is not None),
+        key=lambda item: item[1],
+    ):
+        sys.path.insert(min(orig_idx, len(sys.path)), entry)
+
+    if _STATE["had_pythonpath"]:
+        os.environ["PYTHONPATH"] = _STATE["saved_pythonpath"] or ""
+    else:
+        os.environ.pop("PYTHONPATH", None)
+
+    if _STATE["had_root_env"]:
+        os.environ[SOURCE_LANE_ROOT_ENV_VAR] = _STATE["saved_root_env"] or ""
+    else:
+        os.environ.pop(SOURCE_LANE_ROOT_ENV_VAR, None)
+
+    pre_existing: frozenset[str] = _STATE["pre_existing_pkg_modules"]
+    for name in list(_loaded_owned_package_names() - pre_existing):
+        sys.modules.pop(name, None)
+
+    _STATE["active"] = False
+    _STATE["repo_root"] = None
+    _STATE["sys_path_ops"] = []
+    _STATE["had_pythonpath"] = False
+    _STATE["saved_pythonpath"] = None
+    _STATE["had_root_env"] = False
+    _STATE["saved_root_env"] = None
+    _STATE["pre_existing_pkg_modules"] = frozenset()
+
+
 def install_guards(repo_root: Path | None = None) -> None:
     """Install the compiled-extension blocker, checkout finder, and version fallback."""
     _assert_no_loaded_compiled_modules()
     _assert_no_conflicting_loaded_packages(repo_root)
 
     # Temporarily disable any installed Meson editable meta-path finder for supy
-    # so it cannot trigger compilation or resolve another checkout in source mode.
+    # so it cannot trigger compilation or resolve another checkout in source mode,
+    # recording each finder's original index among non-source-lane finders.
+    existing_disabled = {finder for _, finder in _STATE["disabled_finders"]}
     kept_finders: list[Any] = []
+    non_source_idx = 0
     for finder in sys.meta_path:
-        if _is_editable_loader_finder(finder):
-            if finder not in _STATE["disabled_finders"]:
-                _STATE["disabled_finders"].append(finder)
+        if _is_source_lane_finder(finder):
+            if not isinstance(finder, SourceCheckoutFinder):
+                kept_finders.append(finder)
             continue
-        if isinstance(finder, SourceCheckoutFinder):
+        if _is_editable_loader_finder(finder):
+            if finder not in existing_disabled:
+                _STATE["disabled_finders"].append((non_source_idx, finder))
+                existing_disabled.add(finder)
+            non_source_idx += 1
             continue
         kept_finders.append(finder)
+        non_source_idx += 1
     sys.meta_path[:] = kept_finders
 
     if not any(
@@ -435,23 +540,24 @@ def install_guards(repo_root: Path | None = None) -> None:
 
 
 def uninstall_guards() -> None:
-    """Remove source-lane meta-path finders and restore any disabled editable finders."""
+    """Remove source-lane meta-path finders and restore disabled editable finders."""
     sys.meta_path[:] = [
-        finder
-        for finder in sys.meta_path
-        if not isinstance(
-            finder,
-            (CompiledExtensionBlocker, SourceCheckoutFinder, VersionScmFallbackFinder),
-        )
+        finder for finder in sys.meta_path if not _is_source_lane_finder(finder)
     ]
-    for finder in reversed(_STATE["disabled_finders"]):
+    for orig_idx, finder in sorted(
+        _STATE["disabled_finders"], key=lambda item: item[0]
+    ):
         if finder not in sys.meta_path:
-            sys.meta_path.insert(0, finder)
+            sys.meta_path.insert(min(orig_idx, len(sys.meta_path)), finder)
     _STATE["disabled_finders"].clear()
+    _evict_synthetic_version_modules()
 
 
 def activate(repo_root: Path | None = None) -> Path:
     """Activate source-lane path bootstrap and compiled-extension guards.
+
+    Validation runs before any process state is mutated, and any unexpected
+    failure during a fresh activation unwinds partial changes cleanly.
 
     Parameters
     ----------
@@ -468,10 +574,39 @@ def activate(repo_root: Path | None = None) -> Path:
         if repo_root is not None
         else Path(__file__).resolve().parents[2]
     )
-    configure_source_paths(resolved_root)
-    install_guards(resolved_root)
-    _STATE["repo_root"] = resolved_root
+    _assert_no_loaded_compiled_modules()
+    _assert_no_conflicting_loaded_packages(resolved_root)
+
+    first_activation = not _STATE["active"]
+    if first_activation:
+        _snapshot_activation_baseline(resolved_root)
+        _STATE["active"] = True
+
+    try:
+        configure_source_paths(resolved_root)
+        install_guards(resolved_root)
+        _STATE["repo_root"] = resolved_root
+    except BaseException:
+        if first_activation:
+            deactivate()
+        raise
     return resolved_root
+
+
+def deactivate() -> bool:
+    """Reverse source-lane guards and restore pre-activation process state.
+
+    Returns
+    -------
+    bool
+        ``True`` if an active source-lane session was deactivated, ``False``
+        otherwise.
+    """
+    uninstall_guards()
+    if not _STATE["active"]:
+        return False
+    _restore_activation_baseline()
+    return True
 
 
 def activate_if_enabled(
@@ -589,14 +724,23 @@ def resolve_suews_cli_command(
         else (_STATE["repo_root"] or Path(__file__).resolve().parents[2])
     )
     module_name, func_name = _CLI_ENTRY_POINTS[route]
-    scripts_dir = str((resolved_root / "scripts" / "suews").resolve())
+    bootstrap_path = str(
+        (resolved_root / "scripts" / "suews" / "source_lane_bootstrap.py").resolve()
+    )
     snippet = (
-        "import importlib, os, pathlib, sys; "
-        f"os.environ.setdefault({SOURCE_LANE_ENV_VAR!r}, '1'); "
-        f"sys.path.insert(0, {scripts_dir!r}); "
-        "import source_lane_bootstrap as _slb; "
-        f"_slb.activate(pathlib.Path({str(resolved_root)!r})); "
-        f"sys.argv[0] = {route!r}; "
-        f"getattr(importlib.import_module({module_name!r}), {func_name!r})()"
+        "import importlib, importlib.util, os, pathlib, sys\n"
+        f"os.environ.setdefault({SOURCE_LANE_ENV_VAR!r}, '1')\n"
+        f"_bp = pathlib.Path({bootstrap_path!r}).resolve()\n"
+        "_slb = sys.modules.get('_suews_source_lane_bootstrap')\n"
+        "_slb_file = getattr(_slb, '__file__', None) if _slb is not None else None\n"
+        "_reuse = bool(_slb_file) and pathlib.Path(_slb_file).resolve() == _bp\n"
+        "if not _reuse:\n"
+        "    _spec = importlib.util.spec_from_file_location('_suews_source_lane_bootstrap', _bp)\n"
+        "    _slb = importlib.util.module_from_spec(_spec)\n"
+        "    sys.modules[_spec.name] = _slb\n"
+        "    _spec.loader.exec_module(_slb)\n"
+        f"_slb.activate(pathlib.Path({str(resolved_root)!r}))\n"
+        f"sys.argv[0] = {route!r}\n"
+        f"getattr(importlib.import_module({module_name!r}), {func_name!r})()\n"
     )
     return [sys.executable, "-P", "-c", snippet]

@@ -73,10 +73,10 @@ on:
         type: boolean
         default: true
 
-      # Python toggles drive the cross-CPython api-test matrix (gh#1300).
-      # The build is always cp312-abi3 (one wheel covers all supported CPythons),
-      # so these toggles only affect which interpreters install the wheel and
-      # run `-m "api and <tier>"` in each platform's api cross-CPython lane.
+      # Python toggles drive the non-floor cross-CPython abi3_smoke matrix under
+      # Schema 2. The build is always cp312-abi3 (one wheel covers all supported
+      # CPythons), so non-floor toggles select which interpreters install the
+      # wheel and run `abi3_smoke` in test-wheel-lane-reusable.yml.
       py312:
         description: '[custom] Test on Python 3.12 (build is always cp312-abi3)'
         type: boolean
@@ -132,16 +132,16 @@ on:
         type: boolean
         default: false
       api_serial_platforms:
-        description: 'Comma-separated platforms (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; the SUEWS_API_SERIAL_PLATFORMS repository variable does the same on every event where this input is empty'
+        description: 'Comma-separated platforms (manylinux, macosx, win) whose wheel-backed lanes (native, os_compat, abi3_smoke) run in one process instead of on their xdist workers; the SUEWS_API_SERIAL_PLATFORMS repository variable does the same on every event where this input is empty'
         required: false
         type: string
         default: ''
       pr_api_lane:
-        description: 'Lay out the Schema 2 pull-request topology (sharded source unit and Linux native/physics lanes, no macOS wheel-lane runs), so the pull-request layout can be measured on a branch; pair it with test_tier physics-core or physics-full and the pr or custom matrix'
+        description: 'Enable Schema 2 pull-request sharding and Core-test guard on a manual dispatch (2-way sharded source unit and Linux native lanes, split Linux standard/physics-full shards, and Linux core_guard); pair with test_tier physics-core or physics-full and matrix_config minimal (or pr/custom) to measure the PR layout on a branch'
         type: boolean
         default: false
       cost_markers:
-        description: 'Also check the medium/slow cost markers against the per-test CPU seconds of the Linux cp312 api and physics lanes (what the nightly does; needs test_tier all and Linux + py312 in the matrix)'
+        description: 'Also check the medium/slow cost markers against the per-test CPU seconds of the Linux cp312 tooling, unit, native, and physics lanes (what the nightly does; needs test_tier all and Linux + py312 in the matrix)'
         type: boolean
         default: false
       python_coverage:
@@ -335,9 +335,7 @@ jobs:
     if: always() && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
-      api_buildplat: ${{ steps.set-matrix.outputs.api_buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
-      api_python: ${{ steps.set-matrix.outputs.api_python }}
       bookend_python: ${{ steps.set-matrix.outputs.bookend_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
       physics_change: ${{ steps.physics-label.outputs.found || 'false' }}
@@ -578,15 +576,16 @@ jobs:
       shard_python: 'all'
       shard_count: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)) && 2 || 1 }}
 
-  # One reusable-workflow call per platform, so each platform's api
-  # cross-CPython lane (chained inside build-wheels-reusable.yml) starts as
-  # soon as that platform's wheel exists rather than when the slowest build
-  # has finished. The job id stays `build_wheels`: its result aggregates every
-  # platform's wheel build and api lane, and is what pr-gate, the publish jobs
-  # and the nightly report read. build_mcp is a dependency because the api
-  # lane installs the suews-mcp-dist artefact and a job inside a reusable
-  # workflow cannot wait on a caller job itself; the wheel build still runs
-  # when build_mcp fails (run_api_tests is then false, as before).
+  # One reusable-workflow call per platform, so each platform's wheel-backed
+  # lanes (native, os_compat, abi3_smoke; chained inside build-wheels-reusable.yml)
+  # start as soon as that platform's wheel exists rather than when the slowest
+  # build has finished. The job id stays `build_wheels`: its result aggregates
+  # every platform's wheel build and wheel-backed lanes, and is what pr-gate,
+  # the publish jobs and the nightly report read. build_mcp is a dependency
+  # because the wheel-backed lanes install the suews-mcp-dist artefact and a job
+  # inside a reusable workflow cannot wait on a caller job itself; the wheel
+  # build still runs when build_mcp fails (run_native_tests, run_os_compat, and
+  # run_abi3_smoke are then false).
   build_wheels:
     name: Build and test (${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }})
     needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag, build_mcp]
@@ -604,7 +603,6 @@ jobs:
     with:
       buildplat_json: ${{ format('[["{0}", "{1}", "{2}"]]', matrix.buildplat[0], matrix.buildplat[1], matrix.buildplat[2]) }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
-      gate_axis_schema: '2'
       # The merge queue runs the Windows wheel's physics step at the smoke tier
       # only (Linux carries the queue's full physics tier), while lane_test_tier
       # keeps determine_matrix's full ready tier for native and os_compat so
@@ -640,11 +638,11 @@ jobs:
       serial_platforms: ${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}
       # The nightly coverage recording job runs inside the Linux call, chained
       # behind that platform's wheel only, so it no longer waits for every
-      # platform's api lane (it started ~58 min into the 22 Nov 2026 nightly
+      # platform's wheel lanes (it started ~58 min into the 22 Nov 2026 nightly
       # and hit its timeout on 21 Nov). The trigger stays here because
       # inputs.python_coverage inside the reusable workflow would be the
       # workflow_call input, not the dispatch input. It needs the MCP
-      # distribution as the api lane does.
+      # distribution as the wheel lanes do.
       # The dependency-floor smoke tests run on the Linux cp312 wheel inside
       # this call, as soon as it exists (gh#2104 F-17a).
       run_lowest_direct_deps: >-
@@ -662,7 +660,7 @@ jobs:
   # and run the full physics tier on it, so out-of-bounds and uninitialised
   # reads keep surfacing as Fortran runtime errors now that the published
   # wheels are release builds. Its artefacts carry the "checked-" prefix, so
-  # the TestPyPI and API-test jobs, which select by the unprefixed names,
+  # the TestPyPI and wheel-lane test jobs, which select by the unprefixed names,
   # never see them.
   build_wheels_checked:
     name: Build checked wheels (nightly physics tier)
@@ -681,7 +679,7 @@ jobs:
       build_profile: checked
       artifact_prefix: checked-
 
-  # build_wheels waits for this job (its api lane installs the artefact), so
+  # build_wheels waits for this job (its wheel-backed lanes install the artefact), so
   # it sits in front of every wheel build: the checkout is blob-less, which
   # is all get_ver_git.py needs, and is what the wheel build itself does.
   build_mcp:
@@ -776,9 +774,9 @@ jobs:
   # failure here from turning the nightly red, and the job feeds neither
   # report_scheduled_run nor pr-gate. It installs the release wheel the run
   # built (or the profile a dispatch chose), so it measures what ships.
-  # build_wheels covers each platform's wheel build and api lane, so this job
-  # starts once the api lanes have finished too; it records, so the wait is
-  # harmless.
+  # build_wheels covers each platform's wheel build and wheel-backed lanes, so
+  # this job starts once the wheel-backed lanes have finished too; it records,
+  # so the wait is harmless.
   #
   # The (platform x CPython) matrix lives in tolerance-spread-reusable.yml and
   # this job carries a static name, so the checks list shows one "Tolerance
@@ -815,9 +813,10 @@ jobs:
   # summary and, on a night that is failing for another reason, in the
   # tracking-issue comment; drift is never counted as a failure there, so on its
   # own it neither reddens the night nor opens an issue. The job is not in
-  # pr-gate. It needs the two Linux cp312 metrics artefacts, which only a
-  # full-tier run with Linux and py312 in its matrix produces. Pull requests
-  # run the same lint on the test files they change (cost_markers_pr below).
+  # pr-gate. It needs the Linux cp312 tooling, unit, native, and physics metrics
+  # artefacts, which only a full-tier run with Linux and py312 in its matrix
+  # produces. Pull requests run the same lint on the test files they change
+  # (cost_markers_pr below).
   cost_markers:
     name: Cost-marker drift (Linux cp312 CPU seconds)
     needs: [tooling, unit, build_wheels]
@@ -1032,12 +1031,12 @@ jobs:
         run: |
           echo "::notice title=Cost markers::This pull request comes from a fork, whose workflow token is read-only, so the CI summary comment is not edited. The cost-marker result is in this job's summary."
 
-  # Pull requests (standard tier only): report-only guard that checks whether
-  # the PR makes the Linux cp312 API or physics test lanes slower by more than
-  # 10% relative to the unchanged reference cohort in the committed baseline
-  # (`scripts/lint/test_duration_baseline.json`), or leaves new/changed tests
-  # over the repository's cost-marker thresholds without the matching marker.
-  # It downloads both unsharded and N-sharded API and physics artefacts into
+  # Pull requests (ready tiers): report-only guard that checks whether the PR
+  # makes the Linux cp312 tooling, unit, native, or physics lanes slower by more
+  # than 10% relative to the unchanged reference cohort in the committed
+  # baseline (`scripts/lint/test_duration_baseline.json`), or leaves new/changed
+  # tests over the repository's cost-marker thresholds without the matching
+  # marker. It downloads both unsharded and N-sharded lane artefacts into
   # separate subdirectories (aggregating across shards after per-shard scaling),
   # emits warning annotations and a job summary, and adds an advisory section to
   # the CI summary comment. It never gates: continue-on-error is true on the job
@@ -1082,13 +1081,6 @@ jobs:
 
       # Pattern matches both an unsharded Linux cp312 artefact and any
       # sharded artefacts (`...-shard-K-of-N`) into separate subdirectories.
-      - name: Download the Linux cp312 api metrics
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          pattern: ci-metrics-api-cp312-manylinux-x86_64*
-          path: ci-metrics/api
-
       - name: Download the Linux cp312 tooling metrics
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1554,7 +1546,7 @@ jobs:
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   # Every core test must pass on Linux before a merge (22 Nov 2026). The
   # Linux lanes' metrics record each test's node id, markers and outcome, and
-  # the Linux cp312 api cell records the whole suite's inventory with no -m;
+  # the Linux cp312 native cell records the whole suite's inventory with no -m;
   # scripts/suews/check_core_guard.py checks that every lane ran exactly what
   # its tier selects (shards present, disjoint and complete), that every core
   # test passed (a skip passes only by exact node id in

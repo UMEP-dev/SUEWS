@@ -1,13 +1,14 @@
 # Reusable workflow: build SUEWS abi3 wheels with a matrix strategy, and
-# optionally run the api cross-CPython lane on the wheel as soon as it exists.
+# optionally run the Schema 2 wheel-backed lanes (native, os_compat, abi3_smoke)
+# on each wheel as soon as it exists.
 #
-# Called by build-publish_to_pypi.yml. One cp312-abi3 wheel per (OS, arch)
-# covers cp312..cp3xx. The caller passes one platform per call (a matrix over
-# its platform list), so the api lane below waits for its own platform's
-# wheel only: Linux and macOS api tests start when their wheel is built
-# instead of when the slowest build (Windows) has finished. A caller that
-# passes several platforms in one call still works; its api lane then waits
-# for all of them.
+# Called by build-publish_to_pypi.yml (and ci-metrics-overhead.yml). One
+# cp312-abi3 wheel per (OS, arch) covers cp312..cp3xx. The caller passes one
+# platform per call (a matrix over its platform list), so each platform's
+# wheel-backed lanes wait for its own wheel only: Linux and macOS tests start
+# when their wheel is built instead of when the slowest build (Windows) has
+# finished. A caller that passes several platforms in one call still works; its
+# wheel-backed lanes then wait for all of them.
 
 name: Build wheels (reusable)
 
@@ -31,11 +32,6 @@ on:
         required: false
         type: string
         default: ''
-      gate_axis_schema:
-        description: 'Axis schema version: 1 (legacy physics|api) or 2 (4+1 multi-axis: native, os_compat, abi3_smoke, physics)'
-        required: false
-        type: string
-        default: '1'
       is_testpypi_build:
         description: 'Whether this is a TestPyPI build'
         required: false
@@ -51,33 +47,13 @@ on:
         required: false
         type: string
         default: ''
-      run_api_tests:
-        description: 'Run the api cross-CPython lane (test-api-cross-python-reusable.yml) on this call''s platforms once their wheels exist; the lane also needs the suews-mcp-dist artefact, so the caller must depend on the job that uploads it'
-        required: false
-        type: boolean
-        default: false
-      api_shard_python:
-        description: 'Test-time CPython tag whose api cell on this call''s platform is split into api_shard_count shards, or all to split every non-bookend_core api cell (the pull-request layout passes cp312 for Linux and all for Windows); empty runs every api cell whole. Only read when run_api_tests is true'
-        required: false
-        type: string
-        default: ''
-      api_shard_count:
-        description: 'Number of shards for the api_shard_python cell (scripts/suews/pytest_shard.py); draft tiers are never sharded'
-        required: false
-        type: number
-        default: 2
-      api_bookend_core:
-        description: 'Run every api Python except the build Python at the core-bookend tier (every core api test plus smoke) in one job; the non-core api tests on those Pythons wait for the nightly'
-        required: false
-        type: boolean
-        default: false
       run_lowest_direct_deps:
         description: 'Run the lowest-direct dependency smoke tests on the Linux cp312 wheel this call built, as soon as it exists (the caller passes true only for the manylinux x86_64 call, when dependency-audit paths changed, on the schedule, or on a dispatch with lowest_direct_deps)'
         required: false
         type: boolean
         default: false
       split_tests:
-        description: 'Upload the wheel without testing it inside cibuildwheel, then run the physics tier in physics_shards separate jobs in the same manylinux image, in parallel with the api lane (Linux only; the Fortran probe libraries are built once by the fortran_probes job)'
+        description: 'Upload the wheel without testing it inside cibuildwheel, then run the physics tier in physics_shards separate jobs in the same manylinux image, in parallel with the wheel-backed lanes (Linux only; the Fortran probe libraries are built once by the fortran_probes job)'
         required: false
         type: boolean
         default: false
@@ -86,13 +62,8 @@ on:
         required: false
         type: number
         default: 2
-      api_python_json:
-        description: 'JSON array of test-time CPython tags for the api lane (e.g. ["cp312","cp315"]); only read when run_api_tests is true'
-        required: false
-        type: string
-        default: '[]'
       serial_platforms:
-        description: 'Comma-separated platform names (manylinux, macosx, win) whose api lane runs in one process instead of on its xdist workers; forwarded to the api lane, and only read when run_api_tests is true'
+        description: 'Comma-separated platform names (manylinux, macosx, win) whose wheel-backed lanes run in one process instead of on xdist workers; forwarded to test-wheel-lane-reusable.yml'
         required: false
         type: string
         default: ''
@@ -138,15 +109,13 @@ env:
   MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_x86_64:2025.10.10-1
 
 jobs:
-  # Lays out this platform's test jobs (scripts/suews/ci_test_layout.py):
-  # which api Python is sharded and how many ways, which runs the
-  # core-bookend tier, and how many physics shards run. It needs nothing, so
-  # it finishes long before the wheel.
+  # Lays out this platform's Schema 2 test jobs (scripts/suews/ci_test_layout.py):
+  # native cells (optionally sharded), os_compat cell, abi3_smoke cells, and
+  # physics shards. It needs nothing, so it finishes long before the wheel.
   layout:
     name: test layout
     runs-on: ubuntu-latest
     outputs:
-      api_cells: ${{ steps.layout.outputs.api_cells }}
       native_cells: ${{ steps.layout.outputs.native_cells || '[]' }}
       abi3_smoke_cells: ${{ steps.layout.outputs.abi3_smoke_cells || '[]' }}
       os_compat_cells: ${{ steps.layout.outputs.os_compat_cells || '[]' }}
@@ -158,17 +127,12 @@ jobs:
           sparse-checkout: scripts/suews
           persist-credentials: false
 
-      - name: Lay out the api cells and physics shards
+      - name: Lay out the wheel-lane cells and physics shards
         id: layout
         shell: bash
         env:
-          GATE_AXIS_SCHEMA: ${{ inputs.gate_axis_schema }}
-          API_PYTHON: ${{ inputs.api_python_json }}
           TIER: ${{ inputs.test_tier }}
           LANE_TIER: ${{ inputs.lane_test_tier }}
-          SHARD_PYTHON: ${{ inputs.api_shard_python }}
-          SHARD_COUNT: ${{ inputs.api_shard_count }}
-          BOOKEND_CORE: ${{ inputs.api_bookend_core }}
           FULL_PYTHON: ${{ fromJson(inputs.python_json)[0] }}
           SPLIT_TESTS: ${{ inputs.split_tests }}
           PHYSICS_SHARDS: ${{ inputs.physics_shards }}
@@ -176,46 +140,37 @@ jobs:
           ABI3_SMOKE_PYTHON: ${{ inputs.abi3_smoke_python_json }}
           RUN_OS_COMPAT: ${{ inputs.run_os_compat }}
         run: |
-          if [[ "$GATE_AXIS_SCHEMA" == "2" ]]; then
-            EFFECTIVE_LANE_TIER="${LANE_TIER:-$TIER}"
-            lane_args=(--schema 2 --tier "$EFFECTIVE_LANE_TIER" --full-python "$FULL_PYTHON"
-                       --physics-shards "$PHYSICS_SHARDS"
-                       --native-shards "$NATIVE_SHARDS"
-                       --abi3-smoke-python "$ABI3_SMOKE_PYTHON")
-            [[ "$RUN_OS_COMPAT" == "true" ]] && lane_args+=(--include-os-compat)
-            [[ "$SPLIT_TESTS" == "true" ]] && lane_args+=(--split-tests)
-            if [[ "$EFFECTIVE_LANE_TIER" == "$TIER" ]]; then
-              python3 scripts/suews/ci_test_layout.py "${lane_args[@]}"
-            else
-              # When the caller narrows the wheel's physics tier (e.g. Windows
-              # merge_group running smoke physics inside the wheel build while
-              # native and os_compat keep the ready tier), compute physics
-              # split/shards from TIER and wheel-lane cells from EFFECTIVE_LANE_TIER.
-              PHYS_OUT="$(mktemp)"
-              LANE_OUT="$(mktemp)"
-              phys_args=(--schema 2 --tier "$TIER" --full-python "$FULL_PYTHON"
-                         --physics-shards "$PHYSICS_SHARDS" --native-shards 1
-                         --abi3-smoke-python '[]')
-              [[ "$SPLIT_TESTS" == "true" ]] && phys_args+=(--split-tests)
-              GITHUB_OUTPUT="$PHYS_OUT" python3 scripts/suews/ci_test_layout.py "${phys_args[@]}"
-              GITHUB_OUTPUT="$LANE_OUT" python3 scripts/suews/ci_test_layout.py "${lane_args[@]}"
-              grep -E '^(effective_split_tests|physics_shards)=' "$PHYS_OUT" >> "$GITHUB_OUTPUT"
-              grep -E '^(native_cells|abi3_smoke_cells|os_compat_cells)=' "$LANE_OUT" >> "$GITHUB_OUTPUT"
-              rm -f "$PHYS_OUT" "$LANE_OUT"
-            fi
+          EFFECTIVE_LANE_TIER="${LANE_TIER:-$TIER}"
+          lane_args=(--schema 2 --tier "$EFFECTIVE_LANE_TIER" --full-python "$FULL_PYTHON"
+                     --physics-shards "$PHYSICS_SHARDS"
+                     --native-shards "$NATIVE_SHARDS"
+                     --abi3-smoke-python "$ABI3_SMOKE_PYTHON")
+          [[ "$RUN_OS_COMPAT" == "true" ]] && lane_args+=(--include-os-compat)
+          [[ "$SPLIT_TESTS" == "true" ]] && lane_args+=(--split-tests)
+          if [[ "$EFFECTIVE_LANE_TIER" == "$TIER" ]]; then
+            python3 scripts/suews/ci_test_layout.py "${lane_args[@]}"
           else
-            args=(--schema 1 --api-python "$API_PYTHON" --tier "$TIER"
-                  --shard-python "$SHARD_PYTHON" --shard-count "$SHARD_COUNT"
-                  --full-python "$FULL_PYTHON" --physics-shards "$PHYSICS_SHARDS")
-            [[ "$BOOKEND_CORE" == "true" ]] && args+=(--bookend-core)
-            [[ "$SPLIT_TESTS" == "true" ]] && args+=(--split-tests)
-            python3 scripts/suews/ci_test_layout.py "${args[@]}"
+            # When the caller narrows the wheel's physics tier (e.g. Windows
+            # merge_group running smoke physics inside the wheel build while
+            # native and os_compat keep the ready tier), compute physics
+            # split/shards from TIER and wheel-lane cells from EFFECTIVE_LANE_TIER.
+            PHYS_OUT="$(mktemp)"
+            LANE_OUT="$(mktemp)"
+            phys_args=(--schema 2 --tier "$TIER" --full-python "$FULL_PYTHON"
+                       --physics-shards "$PHYSICS_SHARDS" --native-shards 1
+                       --abi3-smoke-python '[]')
+            [[ "$SPLIT_TESTS" == "true" ]] && phys_args+=(--split-tests)
+            GITHUB_OUTPUT="$PHYS_OUT" python3 scripts/suews/ci_test_layout.py "${phys_args[@]}"
+            GITHUB_OUTPUT="$LANE_OUT" python3 scripts/suews/ci_test_layout.py "${lane_args[@]}"
+            grep -E '^(effective_split_tests|physics_shards)=' "$PHYS_OUT" >> "$GITHUB_OUTPUT"
+            grep -E '^(native_cells|abi3_smoke_cells|os_compat_cells)=' "$LANE_OUT" >> "$GITHUB_OUTPUT"
+            rm -f "$PHYS_OUT" "$LANE_OUT"
           fi
 
   build:
     # Leaf names say what the job does: the caller's group name collapses
     # into the checks list, where a bare cp312-<platform> leaf would read the
-    # same as the api lane's leaf.
+    # same as a wheel-lane leaf.
     name: wheel | ${{ matrix.python }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
@@ -301,12 +256,12 @@ jobs:
           retention-days: 3
 
   # The physics tier of the split layout: one job per shard, started as soon
-  # as the wheel is uploaded, in parallel with the api lane. Each runs inside
-  # the same manylinux image as the wheel build (a container job cannot run
-  # the JavaScript actions on that image's glibc, so the host checks out and
-  # downloads, then docker runs the tests), with SUEWS_REFERENCE_LANE=1 so the
-  # exact sample-output reproduction and the Fortran probes behave as they did
-  # in the wheel job. The core-test guard reads each shard's metrics.
+  # as the wheel is uploaded, in parallel with the wheel-backed lanes. Each
+  # runs inside the same manylinux image as the wheel build (a container job
+  # cannot run the JavaScript actions on that image's glibc, so the host checks
+  # out and downloads, then docker runs the tests), with SUEWS_REFERENCE_LANE=1
+  # so the exact sample-output reproduction and the Fortran probes behave as
+  # they did in the wheel job. The core-test guard reads each shard's metrics.
   physics:
     name: physics | ${{ matrix.python }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.shard && format(' shard {0}', matrix.shard) || '' }}
     needs: [layout, build, fortran_probes]
@@ -350,7 +305,7 @@ jobs:
       - name: Run the physics shard in the wheel's manylinux image
         shell: bash
         env:
-          GATE_AXIS_SCHEMA: ${{ inputs.gate_axis_schema }}
+          GATE_AXIS_SCHEMA: '2'
           TIER: ${{ inputs.test_tier }}
           SHARD: ${{ matrix.shard }}
           PYTAG: ${{ matrix.python }}
@@ -406,26 +361,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # Schema 1 legacy api lane (kept until W1-7 retires the api shim; skipped
-  # when gate_axis_schema == '2').
-  api_cross_python:
-    name: API cross-CPython tests
-    needs: [layout, build]
-    if: inputs.gate_axis_schema != '2' && inputs.run_api_tests
-    uses: $/.github/workflows/test-api-cross-python-reusable.yml
-    with:
-      buildplat_json: ${{ inputs.buildplat_json }}
-      cells_json: ${{ needs.layout.outputs.api_cells }}
-      test_tier: ${{ inputs.test_tier }}
-      serial_platforms: ${{ inputs.serial_platforms }}
-
   # Schema 2 wheel-backed lanes: native (cp312 per built OS), os_compat (cp312
   # per built OS), and abi3_smoke (non-floor CPythons on built OSes). Each
   # starts as soon as this call's platform wheel is uploaded.
   native_tests:
     name: Native tests
     needs: [layout, build]
-    if: inputs.gate_axis_schema == '2' && inputs.run_native_tests && needs.layout.outputs.native_cells != '[]'
+    if: inputs.run_native_tests && needs.layout.outputs.native_cells != '[]'
     uses: $/.github/workflows/test-wheel-lane-reusable.yml
     with:
       buildplat_json: ${{ inputs.buildplat_json }}
@@ -438,7 +380,7 @@ jobs:
   os_compat_tests:
     name: OS compat tests
     needs: [layout, build]
-    if: inputs.gate_axis_schema == '2' && inputs.run_os_compat && needs.layout.outputs.os_compat_cells != '[]'
+    if: inputs.run_os_compat && needs.layout.outputs.os_compat_cells != '[]'
     uses: $/.github/workflows/test-wheel-lane-reusable.yml
     with:
       buildplat_json: ${{ inputs.buildplat_json }}
@@ -451,7 +393,7 @@ jobs:
   abi3_smoke_tests:
     name: ABI3 smoke tests
     needs: [layout, build]
-    if: inputs.gate_axis_schema == '2' && inputs.run_abi3_smoke && needs.layout.outputs.abi3_smoke_cells != '[]'
+    if: inputs.run_abi3_smoke && needs.layout.outputs.abi3_smoke_cells != '[]'
     uses: $/.github/workflows/test-wheel-lane-reusable.yml
     with:
       buildplat_json: ${{ inputs.buildplat_json }}
@@ -591,18 +533,18 @@ jobs:
 
   # Nightly and on demand: Python line and branch coverage of supy and
   # suews_mcp over the whole suite except the qgis tests, on the Linux cp312
-  # wheel this call built, installed as the api lane installs it, with the
+  # wheel this call built, installed as the wheel lanes install it, with the
   # configuration in pyproject.toml ([tool.coverage.*]) so `pytest --cov`
-  # gives the same numbers locally. The test requirements are the api lane's
+  # gives the same numbers locally. The test requirements are the wheel lanes'
   # exact pins plus pytest-cov and coverage, pinned the same way. It records
   # and never gates: continue-on-error keeps a failing test, an install
   # failure or the timeout from turning the calling run red, and it feeds
-  # neither report_scheduled_run nor pr-gate; a failing test is the api and
-  # physics lanes' to report, here it only lowers the figures. It uploads
+  # neither report_scheduled_run nor pr-gate; a failing test is the test
+  # lanes' to report, here it only lowers the figures. It uploads
   # coverage.json and coverage.xml as the python-coverage artefact and writes
   # totals and a per-package table to the job summary; no external service.
   # It lives here, chained behind `build`, so it starts when the Linux wheel
-  # exists rather than after every platform's api lane; the check renders as
+  # exists rather than after every platform's wheel lanes; the check renders as
   # "Build and test (manylinux x86_64) / Python coverage (Linux cp312)".
   python_coverage:
     name: Python coverage (Linux cp312)
@@ -640,7 +582,7 @@ jobs:
             pytest-cov==7.1.0 coverage==7.17.3
           python -m pip install wheelhouse/*.whl mcp-dist/*.whl
 
-      # Four workers, as the Linux api lane measured (#1786). pytest-cov writes
+      # Four workers, as measured for Linux wheel lanes (#1786). pytest-cov writes
       # the reports whatever the test outcome.
       # The step timeout sits under the job timeout so a slow night fails
       # this step (which continue-on-error absorbs) rather than cancelling

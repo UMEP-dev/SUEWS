@@ -313,15 +313,21 @@ def test_tier_tables_match_the_workflow_expressions() -> None:
     assert physics == ci_tiers.PHYSICS_TIERS_V2
     assert f"--suews-include-node {EXACT_REFERENCE_TEST}" in cibw_cmd
 
-    api_workflow = yaml.safe_load(
-        (
-            PROJECT_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
-        ).read_text(encoding="utf-8")
-    )
-    steps = api_workflow["jobs"]["api_cross_python"]["steps"]
-    script = next(s["run"] for s in steps if s.get("id") == "marker")
-    api = dict(re.findall(r"^\s*([a-z-]+)\)\s+EXPR='([^']+)'", script, flags=re.M))
-    assert api == ci_tiers.API_TIERS
+    # Retired Schema 1 reusable workflow is absent; active Schema 2 reusable
+    # workflows resolve marker expressions via scripts/suews/ci_tiers.py --schema 2.
+    assert not (
+        PROJECT_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
+    ).exists()
+    for wf_name, job_id in (
+        ("test-source-lane-reusable.yml", "source_lane"),
+        ("test-wheel-lane-reusable.yml", "wheel_lane"),
+    ):
+        wf = yaml.safe_load(
+            (PROJECT_ROOT / ".github/workflows" / wf_name).read_text(encoding="utf-8")
+        )
+        steps = wf["jobs"][job_id]["steps"]
+        script = next(s["run"] for s in steps if s.get("id") == "marker")
+        assert 'python scripts/suews/ci_tiers.py --schema 2 "$LANE" "$TIER"' in script
 
 
 def test_guard_is_wired_into_the_gate() -> None:
@@ -387,10 +393,9 @@ def test_guard_is_wired_into_the_gate() -> None:
         PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml"
     ).read_text(encoding="utf-8")
     assert "scripts.suews.pytest_inventory" in wheel_lane_workflow
-    api_workflow = (
+    assert not (
         PROJECT_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
-    ).read_text(encoding="utf-8")
-    assert "scripts.suews.pytest_inventory" in api_workflow
+    ).exists()
 
 
 def test_suews_include_node_keeps_witness_and_fails_closed(

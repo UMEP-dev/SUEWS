@@ -841,15 +841,22 @@ def _ordered_axes(axes: Iterable[str]) -> list[str]:
     return [*ordered, *extras]
 
 
+def _is_valid_call_measurement(value: float) -> bool:
+    """Return True when a call CPU or wall reading is finite and non-negative."""
+    return math.isfinite(value) and value >= 0.0
+
+
 def largest_per_axis_node(tests: Iterable[TestCost]) -> list[TestCost]:
-    """Keep one measurement per ``(axis, node_id)``: the largest finite call CPU cost."""
+    """Keep one measurement per ``(axis, node_id)``: the largest valid call CPU cost."""
     best: dict[tuple[str | None, str], TestCost] = {}
     for test in tests:
         if test.measured and (
-            not math.isfinite(test.effective_call_cpu)
-            or not math.isfinite(test.effective_call_wall)
+            not _is_valid_call_measurement(test.effective_call_cpu)
+            or not _is_valid_call_measurement(test.effective_call_wall)
         ):
-            raise ValueError(f"non-finite or missing call metrics for {test.node_id}")
+            raise ValueError(
+                f"invalid (non-finite or negative) call metrics for {test.node_id}"
+            )
         key = (test.axis, test.node_id)
         current = best.get(key)
         if current is None or (
@@ -861,9 +868,10 @@ def largest_per_axis_node(tests: Iterable[TestCost]) -> list[TestCost]:
 
 
 def _all_call_measurements_finite(tests: Iterable[TestCost]) -> bool:
-    """Return True when every measured record carries finite call CPU and wall seconds."""
+    """Return True when every measured record carries finite non-negative call CPU/wall."""
     return all(
-        math.isfinite(t.effective_call_cpu) and math.isfinite(t.effective_call_wall)
+        _is_valid_call_measurement(t.effective_call_cpu)
+        and _is_valid_call_measurement(t.effective_call_wall)
         for t in tests
         if t.measured
     )
@@ -902,6 +910,33 @@ def summarise_axis_cpu(tests: Iterable[TestCost]) -> list[AxisCpuSummary]:
             )
         )
     return summaries
+
+
+def _build_axis_cpu_deltas(
+    curr_by_axis: Mapping[str, float],
+    base_by_axis: Mapping[str, float],
+) -> tuple[AxisCpuDelta, ...]:
+    """Build per-axis CPU delta rows and reject any non-finite per-axis value."""
+    rows: list[AxisCpuDelta] = []
+    for axis in _ordered_axes(set(curr_by_axis) | set(base_by_axis)):
+        curr_axis = curr_by_axis.get(axis, 0.0)
+        base_axis = base_by_axis.get(axis, 0.0)
+        axis_delta = curr_axis - base_axis
+        if not (
+            math.isfinite(curr_axis)
+            and math.isfinite(base_axis)
+            and math.isfinite(axis_delta)
+        ):
+            raise ValueError(f"computed CPU delta is non-finite for axis {axis}")
+        rows.append(
+            AxisCpuDelta(
+                axis=axis,
+                current_cpu_seconds=curr_axis,
+                baseline_cpu_seconds=base_axis,
+                delta_cpu_seconds=axis_delta,
+            )
+        )
+    return tuple(rows)
 
 
 def compute_budget_delta(
@@ -972,16 +1007,7 @@ def compute_budget_delta(
     if not (math.isfinite(delta_total) and math.isfinite(added_cpu)):
         raise ValueError("computed CPU delta is non-finite")
     exceeded = budget_seconds is not None and delta_total > budget_seconds
-    all_axes = _ordered_axes(set(curr_by_axis) | set(base_by_axis))
-    per_axis = tuple(
-        AxisCpuDelta(
-            axis=axis,
-            current_cpu_seconds=curr_by_axis.get(axis, 0.0),
-            baseline_cpu_seconds=base_by_axis.get(axis, 0.0),
-            delta_cpu_seconds=curr_by_axis.get(axis, 0.0) - base_by_axis.get(axis, 0.0),
-        )
-        for axis in all_axes
-    )
+    per_axis = _build_axis_cpu_deltas(curr_by_axis, base_by_axis)
     return BudgetDelta(
         current_cpu_seconds=curr_total,
         baseline_cpu_seconds=base_total,
@@ -1001,15 +1027,17 @@ def restrict_to_files(tests: Iterable[TestCost], test_files: Iterable[str]) -> l
 
 
 def largest_call_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
-    """Keep one measured record per node id using the largest finite call-phase CPU cost."""
+    """Keep one measured record per node id using the largest valid call-phase CPU cost."""
     best: dict[str, TestCost] = {}
     for test in tests:
         if not test.measured:
             continue
         cpu = test.effective_call_cpu
         wall = test.effective_call_wall
-        if not math.isfinite(cpu) or not math.isfinite(wall):
-            raise ValueError(f"non-finite or missing call metrics for {test.node_id}")
+        if not _is_valid_call_measurement(cpu) or not _is_valid_call_measurement(wall):
+            raise ValueError(
+                f"invalid (non-finite or negative) call metrics for {test.node_id}"
+            )
         current = best.get(test.node_id)
         if current is None or cpu > current.effective_call_cpu:
             best[test.node_id] = test
@@ -1321,7 +1349,7 @@ def _validate_baseline_input_paths(baseline_paths: list[Path]) -> str | None:
         for file_path in iter_artefact_paths([raw_path]):
             try:
                 payload = json.loads(file_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, ValueError) as exc:
+            except (OSError, UnicodeError, ValueError, RecursionError) as exc:
                 return f"unreadable or malformed baseline metrics JSON {file_path.name}: {exc}"
             if is_explicit_file and _pytest_payload(payload, file_path) is None:
                 return (
@@ -1352,6 +1380,7 @@ def _load_optional_baseline_tests(
         ValueError,
         AttributeError,
         OverflowError,
+        RecursionError,
         OSError,
     ) as exc:
         return None, f"baseline metrics: {exc}"
@@ -1363,7 +1392,7 @@ def _load_optional_baseline_tests(
     if not baseline_tests:
         return None, "no per-test records found in --baseline-metrics"
     if not _all_call_measurements_finite(baseline_tests):
-        return None, "baseline metrics contain non-finite call CPU/wall values"
+        return None, "baseline metrics contain non-finite or negative call CPU/wall values"
     return baseline_tests, None
 
 

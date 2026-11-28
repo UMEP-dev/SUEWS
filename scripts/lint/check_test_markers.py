@@ -1867,6 +1867,17 @@ def _walk_module_non_sim_stmts(
             _kill_non_sim_names(written, non_sim_mods, non_sim_classes, non_sim_vars)
 
 
+def _collect_pattern_capture_names(pattern: ast.AST) -> set[str]:
+    """Return variable names bound by a ``match`` case pattern."""
+    names: set[str] = set()
+    for node in ast.walk(pattern):
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            names.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            names.add(node.rest)
+    return names
+
+
 def _collect_written_names_in_stmt(root: ast.AST) -> set[str]:
     """Return variable/import/def names bound inside ``root`` (excluding nested defs' bodies)."""
     written: set[str] = set()
@@ -1896,6 +1907,10 @@ def _collect_written_names_in_stmt(root: ast.AST) -> set[str]:
             written.add(node.name)
         elif isinstance(node, ast.withitem) and node.optional_vars is not None:
             written.update(_iter_assigned_names(node.optional_vars))
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            written.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            written.add(node.rest)
         stack.extend(ast.iter_child_nodes(node))
     return written
 
@@ -3232,6 +3247,55 @@ def _collect_helper_return_exprs(tree: ast.Module) -> dict[str, ast.AST]:
     return return_exprs
 
 
+def _expand_helper_returns_in_expr(
+    expr: ast.AST,
+    mod_state: _BindingState,
+    helper_return_exprs: Mapping[str, ast.AST],
+    *,
+    seen_helpers: frozenset[str] = frozenset(),
+    depth: int = 0,
+) -> tuple[list[ast.AST], bool]:
+    """Expand calls to single-return module helpers inside ``expr`` with recursion bounds."""
+    if depth > 4:
+        return ([expr], False)
+    if (
+        isinstance(expr, ast.Call)
+        and isinstance(expr.func, ast.Name)
+        and expr.func.id in helper_return_exprs
+        and expr.func.id not in seen_helpers
+    ):
+        ret_expr = helper_return_exprs[expr.func.id]
+        sub_vals, sub_ov = _substitute_expr_values(ret_expr, mod_state)
+        expanded: list[ast.AST] = []
+        ov = sub_ov or _expr_references_overflowed(ret_expr, mod_state.overflowed)
+        for val in sub_vals:
+            inner, inner_ov = _expand_helper_returns_in_expr(
+                val,
+                mod_state,
+                helper_return_exprs,
+                seen_helpers=seen_helpers | {expr.func.id},
+                depth=depth + 1,
+            )
+            expanded.extend(inner)
+            ov = ov or inner_ov
+        kept, cap_ov = _compact_ast_candidates(expanded)
+        return (kept, ov or cap_ov)
+    if isinstance(expr, (ast.List, ast.Tuple)) and expr.elts:
+        first_vals, first_ov = _expand_helper_returns_in_expr(
+            expr.elts[0],
+            mod_state,
+            helper_return_exprs,
+            seen_helpers=seen_helpers,
+            depth=depth + 1,
+        )
+        cls = ast.List if isinstance(expr, ast.List) else ast.Tuple
+        rebuilt = [
+            cls(elts=[fv, *expr.elts[1:]], ctx=ast.Load()) for fv in first_vals
+        ]
+        return (rebuilt, first_ov)
+    return ([expr], False)
+
+
 def _resolve_subprocess_clis(
     cmd_arg: ast.AST,
     call_state: _BindingState,
@@ -3243,20 +3307,25 @@ def _resolve_subprocess_clis(
     clis = _detect_suews_clis_in_expr(
         cmd_arg, call_state.env, overflow_flag=ov_flag
     )
-    if clis:
+    if clis or not helper_return_exprs:
         return (clis, ov_flag[0])
-    if (
-        isinstance(cmd_arg, ast.Call)
-        and isinstance(cmd_arg.func, ast.Name)
-        and cmd_arg.func.id in helper_return_exprs
-    ):
-        ret_expr = helper_return_exprs[cmd_arg.func.id]
-        ret_ov = [_expr_references_overflowed(ret_expr, mod_state.overflowed)]
-        ret_clis = _detect_suews_clis_in_expr(
-            ret_expr, mod_state.env, overflow_flag=ret_ov
+
+    subst_cands, subst_ov = _substitute_expr_values(cmd_arg, call_state)
+    ov = ov_flag[0] or subst_ov
+    for cand in subst_cands:
+        expanded_cands, exp_ov = _expand_helper_returns_in_expr(
+            cand, mod_state, helper_return_exprs
         )
-        return (ret_clis, ov_flag[0] or ret_ov[0])
-    return (set(), ov_flag[0])
+        ov = ov or exp_ov
+        for exp in expanded_cands:
+            exp_flag = [False]
+            clis.update(
+                _detect_suews_clis_in_expr(
+                    exp, call_state.env, overflow_flag=exp_flag
+                )
+            )
+            ov = ov or exp_flag[0]
+    return (clis, ov)
 
 
 def _extract_param_defaults(
@@ -3615,17 +3684,42 @@ def _parse_parametrize_case_item(
     return (bindings, case_marks)
 
 
+def _normalise_parametrize_call(
+    dec: ast.AST,
+    mod_env: Mapping[str, ast.AST],
+    ast_value_env: Mapping[str, ast.AST],
+) -> tuple[bool, ast.Call | None]:
+    """Return ``(is_parametrize, call_node)`` handling ``.with_args(...)`` chains."""
+    resolved = dec
+    if isinstance(resolved, ast.Name) and resolved.id in ast_value_env:
+        resolved = ast_value_env[resolved.id]
+    if isinstance(resolved, ast.Call):
+        if _direct_pytest_marker_name(resolved) == "parametrize":
+            return (True, resolved)
+        if (
+            isinstance(resolved.func, ast.Attribute)
+            and resolved.func.attr == "with_args"
+            and _direct_pytest_marker_name(resolved.func.value) == "parametrize"
+        ):
+            return (True, resolved)
+    dec_marks, _ = _inspect_decorator_expr(dec, mod_env)
+    if "parametrize" in dec_marks:
+        # Recognised chained/aliased parametrize form we cannot safely unpack: fail closed.
+        return (True, None)
+    return (False, None)
+
+
 def _parse_single_parametrize_decorator(
     dec: ast.AST,
     mod_env: Mapping[str, ast.AST],
     ast_value_env: Mapping[str, ast.AST],
 ) -> tuple[bool, list[tuple[dict[str, ast.AST], set[str]]] | None]:
     """Parse one ``@pytest.mark.parametrize`` decorator into ``(is_param, cases)``."""
-    resolved = dec
-    if isinstance(resolved, ast.Name) and resolved.id in ast_value_env:
-        resolved = ast_value_env[resolved.id]
-    if not isinstance(resolved, ast.Call) or _direct_pytest_marker_name(resolved) != "parametrize":
+    is_param, resolved = _normalise_parametrize_call(dec, mod_env, ast_value_env)
+    if not is_param:
         return (False, None)
+    if resolved is None:
+        return (True, None)
 
     argnames_node: ast.AST | None = resolved.args[0] if resolved.args else None
     argvalues_node: ast.AST | None = resolved.args[1] if len(resolved.args) >= 2 else None
@@ -3955,7 +4049,9 @@ def _walk_sim_calls_in_compound(
         merged = pre_state.clone()
         for case in stmt.cases:
             c_state = pre_state.clone()
-            c_state.kill(_collect_written_names_in_stmt(case.pattern))
+            c_state.kill(_collect_pattern_capture_names(case.pattern))
+            if case.guard is not None:
+                cnt += _count_sim_calls_in_expr(case.guard, c_state)
             cnt += _walk_sim_calls_in_block(case.body, c_state)
             merged.intersect_with(c_state)
         state.mods = merged.mods
@@ -5061,6 +5157,11 @@ def _validate_baseline_path(
     allow_external: bool,
 ) -> str | None:
     """Validate symlink/junction safety and repository containment for a baseline path."""
+    if ".." in baseline_path.parts:
+        return (
+            "AST guards baseline path must not contain parent traversal ('..'): "
+            f"{baseline_path.as_posix()}"
+        )
     if _is_link_or_junction(baseline_path):
         return (
             "AST guards baseline path must not be a symlink or junction: "

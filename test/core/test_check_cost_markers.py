@@ -1007,7 +1007,13 @@ def test_advisory_boundary_isolates_malformed_baseline_nonfinite_and_invalid_cli
             '{"schema_version": 2, "tests": [{"node_id": "test/a.py::test_x", '
             '"outcome": "passed", "cpu_seconds": {"call": 1e309}, '
             '"wall_seconds": {"call": 1.0}}]}',
-            "non-finite call CPU/wall",
+            "non-finite or negative",
+        ),
+        (
+            "deep_nest.json",
+            ("[" * max(12000, sys.getrecursionlimit() * 12))
+            + ("]" * max(12000, sys.getrecursionlimit() * 12)),
+            "maximum recursion depth",
         ),
     ):
         bad_base = tmp_path / name
@@ -1103,6 +1109,46 @@ def test_incomplete_optional_baseline_suppresses_delta_with_advisory_error(
     parsed_mixed = json.loads(out_mixed.read_text(encoding="utf-8"))
     assert parsed_mixed["budget_delta"] is not None
     assert parsed_mixed["advisory_errors"] == []
+
+
+def test_negative_or_overflowing_axis_delta_stays_warn_only_with_strict_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Negative baseline readings and per-axis delta overflow never crash strict JSON output."""
+    curr = _artefact(
+        tmp_path / "unit-cp312-linux-x86_64.json",
+        [_record("test/core/test_big.py::test_huge", call=1e308, markers=("slow",))],
+    )
+    base_dir = tmp_path / "base_axes"
+    base_dir.mkdir()
+    _artefact(
+        base_dir / "unit-cp312-linux-x86_64.json",
+        [_record("test/core/test_big.py::test_huge", call=-1e308, markers=("slow",))],
+    )
+    _artefact(
+        base_dir / "physics-cp312-linux-x86_64.json",
+        [_record("test/core/test_big.py::test_other", call=1e308, markers=("slow",))],
+    )
+    out_json = tmp_path / "out_overflow.json"
+    assert (
+        checker.main([
+            str(curr),
+            "--baseline-metrics",
+            str(base_dir),
+            "--budget-warn",
+            "10",
+            "--json",
+            str(out_json),
+        ])
+        == 0
+    )
+    capsys.readouterr()
+    raw = out_json.read_text(encoding="utf-8")
+    assert "Infinity" not in raw and "NaN" not in raw
+    parsed = json.loads(raw)
+    assert parsed["ok"] is True
+    assert parsed["budget_delta"] is None
+    assert parsed["advisory_errors"]
 
 
 def test_budget_delta_tracks_added_lane_execution_and_call_phase_under_setup_phase(

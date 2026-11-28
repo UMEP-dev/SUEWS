@@ -2833,3 +2833,81 @@ def test_ast_guards_loop_carried_try_intermediate_and_module_eager_bindings(
     assert "missing-e2e-marker: test/core/test_r4_detect.py::test_try_intermediate_suews" in err
     assert "subprocess-analysis-overflow: test/core/test_r4_detect.py::test_non_converging_loop_fails_closed" in err
     assert "test_module_eager_no_false_positive" not in err
+
+
+def test_ast_guards_with_args_helper_returns_match_captures_and_parent_traversal(
+    tmp_path: Path, capsys
+) -> None:
+    """Chained .with_args, assigned helper returns, match captures/guards, and '..' baseline paths."""
+    src = (
+        "import subprocess\n"
+        "import unittest\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "def command():\n"
+        "    return ['suews-validate', 'cfg.yml']\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize.with_args('x', range(11))\n"
+        "def test_with_args_cap(x):\n"
+        "    subprocess.run(['suews', str(x)])\n\n"
+        "def test_helper_return_direct():\n"
+        "    subprocess.run(command())\n\n"
+        "def test_helper_return_assigned():\n"
+        "    argv = command()\n"
+        "    subprocess.run(argv)\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_match_capture_invalidates_non_sim(x, sim):\n"
+        "    runner = unittest.TextTestRunner()\n"
+        "    match sim:\n"
+        "        case runner:\n"
+        "            runner.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_match_guard_sim_call_caught(x, sim):\n"
+        "    runner = unittest.TextTestRunner()\n"
+        "    match sim:\n"
+        "        case runner if runner.run():\n"
+        "            pass\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_match_literal_keeps_non_sim(x):\n"
+        "    runner = unittest.TextTestRunner()\n"
+        "    match x:\n"
+        "        case 1:\n"
+        "            runner.run()\n"
+    )
+    repo = _make_repo(
+        tmp_path / "repo_r5",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r5_edges.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "`suews` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+    assert "missing-e2e-marker: test/core/test_r5_edges.py::test_helper_return_direct" in err
+    assert "missing-e2e-marker: test/core/test_r5_edges.py::test_helper_return_assigned" in err
+    assert "parametrised-simulation: test/core/test_r5_edges.py::test_match_capture_invalidates_non_sim" in err
+    assert "parametrised-simulation: test/core/test_r5_edges.py::test_match_guard_sim_call_caught" in err
+    assert "test_match_literal_keeps_non_sim" not in err
+
+    # Parent traversal through a symlink (repo/link/../baseline.json) rejected on read and init.
+    outside = tmp_path / "outside"
+    (outside / "child").mkdir(parents=True)
+    (outside / "baseline.json").write_text(
+        json.dumps(check_test_markers._empty_ast_guards_baseline()), encoding="utf-8"
+    )
+    repo_trav = _make_repo(
+        tmp_path / "repo_trav",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_ok.py": UNIT_TEST_SOURCE,
+        },
+    )
+    _create_symlink(repo_trav / "link", outside / "child", target_is_directory=True)
+    tricky_path = repo_trav / "link" / ".." / "baseline.json"
+    for extra in (["--ast-baseline", str(tricky_path)], ["--init-ast-baseline", "--ast-baseline", str(tricky_path)]):
+        assert (
+            check_test_markers.main(["check_test_markers.py", str(repo_trav), *extra])
+            == 1
+        )
+        assert "parent traversal" in capsys.readouterr().err

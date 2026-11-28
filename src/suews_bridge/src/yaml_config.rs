@@ -13763,13 +13763,19 @@ mod tests {
         let root: Value = serde_yaml::from_str(
             "\
 valid_f: 3.5
+neg_zero: -0.0
 wrapped_f: {value: -999.0}
 valid_i: 2
 wrapped_i: {value: 4.0}
+i32_min: -2147483648
+i32_max: 2147483647
+i32_under: -2147483649
+i32_over: 2147483648
 frac_i: 1.5
 huge_i: 1.0e12
 null_bare: null
 null_wrapped: {value: null}
+nested_wrap: {value: {value: 2}}
 ref_only: {ref: {desc: omitted}}
 placeholder_str: TBD
 wrapped_placeholder: {value: 'N/A'}
@@ -13781,15 +13787,25 @@ nan_val: .nan
 inf_val: .inf
 ninf_val: -.inf
 wrapped_nan: {value: .nan}
+wrapped_inf: {value: .inf}
+wrapped_ninf: {value: -.inf}
 ",
         )
         .expect("test YAML must parse");
 
-        // Inactive (`required = false`): finite values pass through, while missing,
-        // null, ref-only, and non-numeric placeholder values return Ok(None).
+        // Inactive (`required = false`): finite values pass through (preserving
+        // -0.0 bit-for-bit), while missing, null, nested wrapper, ref-only, and
+        // non-numeric placeholder values return Ok(None).
         assert_eq!(
             require_if_active_numeric(&root, &["valid_f"], "s", false),
             Ok(Some(3.5))
+        );
+        assert_eq!(
+            require_if_active_numeric(&root, &["neg_zero"], "s", false)
+                .unwrap()
+                .unwrap()
+                .to_bits(),
+            (-0.0_f64).to_bits()
         );
         assert_eq!(
             require_if_active_numeric(&root, &["wrapped_f"], "s", false),
@@ -13799,6 +13815,7 @@ wrapped_nan: {value: .nan}
             "missing_key",
             "null_bare",
             "null_wrapped",
+            "nested_wrap",
             "ref_only",
             "placeholder_str",
             "wrapped_placeholder",
@@ -13814,7 +13831,14 @@ wrapped_nan: {value: .nan}
             );
         }
         // Inactive non-finite IEEE values are still rejected naming the path.
-        for key in ["nan_val", "inf_val", "ninf_val", "wrapped_nan"] {
+        for key in [
+            "nan_val",
+            "inf_val",
+            "ninf_val",
+            "wrapped_nan",
+            "wrapped_inf",
+            "wrapped_ninf",
+        ] {
             let err = require_if_active_numeric(&root, &[key], "s", false)
                 .expect_err(&format!("inactive {key} must still reject non-finite"));
             assert!(
@@ -13824,15 +13848,23 @@ wrapped_nan: {value: .nan}
         }
 
         // Active (`required = true`): only valid finite numbers pass; every missing,
-        // null, placeholder, or non-finite value fails with its canonical path.
+        // null, nested wrapper, placeholder, or non-finite value fails with its canonical path.
         assert_eq!(
             require_if_active_numeric(&root, &["valid_f"], "s", true),
             Ok(Some(3.5))
+        );
+        assert_eq!(
+            require_if_active_numeric(&root, &["neg_zero"], "s", true)
+                .unwrap()
+                .unwrap()
+                .to_bits(),
+            (-0.0_f64).to_bits()
         );
         for key in [
             "missing_key",
             "null_bare",
             "null_wrapped",
+            "nested_wrap",
             "ref_only",
             "placeholder_str",
             "wrapped_placeholder",
@@ -13844,15 +13876,18 @@ wrapped_nan: {value: .nan}
             "inf_val",
             "ninf_val",
             "wrapped_nan",
+            "wrapped_inf",
+            "wrapped_ninf",
         ] {
             let err = require_if_active_numeric(&root, &[key], "s", true)
                 .expect_err(&format!("active require_if_active_numeric must reject {key}"));
             assert!(err.contains(&format!("`s.{key}`")), "{key}: {err}");
         }
 
-        // Integer counterpart: inactive accepts exact integers as Some, and
-        // relaxes missing, null, placeholders, fractional, and out-of-range finite
-        // values to Ok(None), while still rejecting non-finite IEEE values.
+        // Integer counterpart: inactive accepts exact integers across the full
+        // inclusive i32 range (including -0.0 -> 0) as Some, and relaxes missing,
+        // null, placeholders, nested wrappers, fractional, and adjacent
+        // out-of-range finite values to Ok(None), while still rejecting non-finite IEEE values.
         assert_eq!(
             require_if_active_i32(&root, &["valid_i"], "s", false),
             Ok(Some(2))
@@ -13861,10 +13896,23 @@ wrapped_nan: {value: .nan}
             require_if_active_i32(&root, &["wrapped_i"], "s", false),
             Ok(Some(4))
         );
+        assert_eq!(
+            require_if_active_i32(&root, &["neg_zero"], "s", false),
+            Ok(Some(0))
+        );
+        assert_eq!(
+            require_if_active_i32(&root, &["i32_min"], "s", false),
+            Ok(Some(i32::MIN))
+        );
+        assert_eq!(
+            require_if_active_i32(&root, &["i32_max"], "s", false),
+            Ok(Some(i32::MAX))
+        );
         for key in [
             "missing_key",
             "null_bare",
             "null_wrapped",
+            "nested_wrap",
             "ref_only",
             "placeholder_str",
             "wrapped_placeholder",
@@ -13873,6 +13921,8 @@ wrapped_nan: {value: .nan}
             "seq_val",
             "map_val",
             "frac_i",
+            "i32_under",
+            "i32_over",
             "huge_i",
         ] {
             assert_eq!(
@@ -13881,7 +13931,14 @@ wrapped_nan: {value: .nan}
                 "inactive require_if_active_i32 must accept {key} as None"
             );
         }
-        for key in ["nan_val", "inf_val", "ninf_val", "wrapped_nan"] {
+        for key in [
+            "nan_val",
+            "inf_val",
+            "ninf_val",
+            "wrapped_nan",
+            "wrapped_inf",
+            "wrapped_ninf",
+        ] {
             let err = require_if_active_i32(&root, &[key], "s", false)
                 .expect_err(&format!("inactive i32 {key} must still reject non-finite"));
             assert!(
@@ -13893,14 +13950,40 @@ wrapped_nan: {value: .nan}
             require_if_active_i32(&root, &["valid_i"], "s", true),
             Ok(Some(2))
         );
+        assert_eq!(
+            require_if_active_i32(&root, &["neg_zero"], "s", true),
+            Ok(Some(0))
+        );
+        assert_eq!(
+            require_if_active_i32(&root, &["i32_min"], "s", true),
+            Ok(Some(i32::MIN))
+        );
+        assert_eq!(
+            require_if_active_i32(&root, &["i32_max"], "s", true),
+            Ok(Some(i32::MAX))
+        );
         for key in [
             "missing_key",
             "null_bare",
             "null_wrapped",
+            "nested_wrap",
+            "ref_only",
             "placeholder_str",
+            "wrapped_placeholder",
+            "empty_str",
+            "bool_val",
+            "seq_val",
+            "map_val",
             "frac_i",
+            "i32_under",
+            "i32_over",
             "huge_i",
             "nan_val",
+            "inf_val",
+            "ninf_val",
+            "wrapped_nan",
+            "wrapped_inf",
+            "wrapped_ninf",
         ] {
             let err = require_if_active_i32(&root, &[key], "s", true)
                 .expect_err(&format!("active require_if_active_i32 must reject {key}"));
@@ -13919,7 +14002,12 @@ wrapped_nan: {value: .nan}
         //    `stebbs: {value: 0}`) disable STEBBS and skip STEBBS/archetype
         //    overrides even when blocks are omitted, null, malformed, carry
         //    broken 10-minute profiles, or hold distinct numeric overrides.
-        for mode in ["nested_false", "flat_stebbsmethod_0", "legacy_stebbs_0"] {
+        for mode in [
+            "nested_false_wrapped_tbd",
+            "nested_false_bare_tbd",
+            "flat_stebbsmethod_0_tbd",
+            "legacy_stebbs_0_tbd",
+        ] {
             let make_inactive = || -> Value {
                 let mut root: Value =
                     serde_yaml::from_str(sample_fixture_yaml()).expect("sample fixture parses");
@@ -13929,34 +14017,53 @@ wrapped_nan: {value: .nan}
                     .unwrap();
                 physics.remove(Value::String("stebbs".to_string()));
                 physics.remove(Value::String("stebbsmethod".to_string()));
+                physics.remove(Value::String("rcmethod".to_string()));
+                physics.remove(Value::String("setpointmethod".to_string()));
                 match mode {
-                    "nested_false" => {
+                    "nested_false_wrapped_tbd" => {
                         physics.insert(
                             Value::String("stebbs".to_string()),
                             serde_yaml::from_str(
-                                "{enabled: {value: false}, capacitance: {value: ''}, setpoint: null}",
+                                "{enabled: {value: false}, capacitance: {value: TBD}, setpoint: {value: TBD}}",
                             )
                             .unwrap(),
                         );
                     }
-                    "flat_stebbsmethod_0" => {
+                    "nested_false_bare_tbd" => {
+                        physics.insert(
+                            Value::String("stebbs".to_string()),
+                            serde_yaml::from_str(
+                                "{enabled: false, capacitance: TBD, setpoint: TBD}",
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    "flat_stebbsmethod_0_tbd" => {
                         physics.insert(
                             Value::String("stebbsmethod".to_string()),
                             serde_yaml::from_str("{value: 0}").unwrap(),
                         );
                         physics.insert(
                             Value::String("rcmethod".to_string()),
-                            serde_yaml::from_str("1.5").unwrap(),
+                            serde_yaml::from_str("TBD").unwrap(),
                         );
                         physics.insert(
                             Value::String("setpointmethod".to_string()),
-                            Value::Null,
+                            serde_yaml::from_str("{value: TBD}").unwrap(),
                         );
                     }
-                    "legacy_stebbs_0" => {
+                    "legacy_stebbs_0_tbd" => {
                         physics.insert(
                             Value::String("stebbs".to_string()),
                             serde_yaml::from_str("{value: 0}").unwrap(),
+                        );
+                        physics.insert(
+                            Value::String("capacitance".to_string()),
+                            serde_yaml::from_str("{value: TBD}").unwrap(),
+                        );
+                        physics.insert(
+                            Value::String("setpoint".to_string()),
+                            serde_yaml::from_str("TBD").unwrap(),
                         );
                     }
                     _ => unreachable!(),
@@ -14091,7 +14198,7 @@ thickness_wall: .nan
             .expect_err("active STEBBS must reject incomplete hot_water_flow_profile");
         assert!(err.contains("HotWaterFlowProfile"), "{err}");
 
-        let mut active_bad_arch_prof = active;
+        let mut active_bad_arch_prof = active.clone();
         *get_path_mut(
             first_site_mut(&mut active_bad_arch_prof).unwrap(),
             &["properties", "building_archetype", "profile_metabolism"],
@@ -14100,5 +14207,31 @@ thickness_wall: .nan
         let err = load_run_config_from_value(&mut active_bad_arch_prof)
             .expect_err("active STEBBS must reject incomplete metabolism_profile");
         assert!(err.contains("MetabolismProfile"), "{err}");
+
+        for (selector_key, bad_val) in [
+            ("capacitance", "{value: TBD}"),
+            ("setpoint", "TBD"),
+        ] {
+            let mut active_bad_sel = active.clone();
+            let physics = get_path_mut(&mut active_bad_sel, &["model", "physics"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            let stebbs = physics
+                .get_mut(Value::String("stebbs".to_string()))
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            stebbs.insert(
+                Value::String(selector_key.to_string()),
+                serde_yaml::from_str(bad_val).unwrap(),
+            );
+            let err = load_run_config_from_value(&mut active_bad_sel)
+                .expect_err(&format!("active STEBBS must reject {selector_key}={bad_val}"));
+            assert!(
+                err.contains("unknown scheme name"),
+                "{selector_key}: {err}"
+            );
+        }
     }
 }

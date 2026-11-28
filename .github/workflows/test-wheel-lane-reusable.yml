@@ -154,7 +154,7 @@ jobs:
             pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0 \
             wheelhouse/*.whl "${EXTRA_WHEELS[@]}"
 
-          if [[ "$LANE" == "os_compat" && "$INSTALL_MCP" == "true" ]]; then
+          if [[ ( "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ) && "$INSTALL_MCP" == "true" ]]; then
             python - <<'PY'
           from pathlib import Path
           import shutil

@@ -341,12 +341,11 @@ runs:
           ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke and not (medium or slow)"' ||
               inputs.test_tier == 'core' && '-m "physics and (smoke or core) and not slow"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg) and not slow"' ||
-              inputs.test_tier == 'physics-core' && '-m "physics and smoke and not (medium or slow)"' ||
+              inputs.test_tier == 'physics-core' && '-m "physics and smoke and not (medium or slow)" -p scripts.suews.pytest_include_nodes --suews-include-node test/core/test_sample_output_exact.py::test_sample_run_reproduces_reference_exactly' ||
               inputs.test_tier == 'standard' && '-m "physics and (core or not slow)"' ||
               inputs.test_tier == 'physics-full' && '-m physics' ||
               inputs.test_tier == 'all' && '-m physics' ||
               '-m physics' }}
-          ${{ inputs.test_tier == 'physics-core' && '-p scripts.suews.pytest_include_nodes --suews-include-node test/core/test_sample_output_exact.py::test_sample_run_reproduces_reference_exactly' || '' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Save the Rust build cache

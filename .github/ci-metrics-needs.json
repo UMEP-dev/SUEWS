@@ -73,21 +73,25 @@
   ],
   "Build and test (manylinux x86_64) / ABI3 smoke tests / *": [
     "Build and test (manylinux x86_64) / wheel | *",
+    "Build MCP package",
     "Determine build matrix",
     "Build and test (manylinux x86_64) / test layout"
   ],
   "Build and test (macosx arm64) / ABI3 smoke tests / *": [
     "Build and test (macosx arm64) / wheel | *",
+    "Build MCP package",
     "Determine build matrix",
     "Build and test (macosx arm64) / test layout"
   ],
   "Build and test (macosx x86_64) / ABI3 smoke tests / *": [
     "Build and test (macosx x86_64) / wheel | *",
+    "Build MCP package",
     "Determine build matrix",
     "Build and test (macosx x86_64) / test layout"
   ],
   "Build and test (win AMD64) / ABI3 smoke tests / *": [
     "Build and test (win AMD64) / wheel | *",
+    "Build MCP package",
     "Determine build matrix",
     "Build and test (win AMD64) / test layout"
   ],

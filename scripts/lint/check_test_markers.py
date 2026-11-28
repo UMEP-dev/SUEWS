@@ -66,7 +66,7 @@ LOCKED_PR_FILE_AXES: dict[str, str] = {
     "test/physics/test_option_sweep.py": "physics",  # #2373
     # Brand-new api-marked files in open PRs not yet merged to master:
     "test/core/test_util_profile_manager_csv.py": "unit",  # #2429
-    "test/data_model/test_day_night_profile_scale.py": "native",  # #2407 (calls sim.run())
+    "test/data_model/test_day_night_profile_scale.py": "unit",  # #2407
     "test/data_model/test_validator_stack2_g.py": "unit",  # #2406
     "test/docs/test_code_examples.py": "tooling",  # #2400
 }

@@ -287,16 +287,32 @@ def test_repository_allowlist_entries_name_physics_core_tests() -> None:
 
 def test_tier_tables_match_the_workflow_expressions() -> None:
     """The guard judges each lane by the expression that lane actually ran."""
-    action = (PROJECT_ROOT / ".github/actions/build-suews/action.yml").read_text(
+    action_text = (PROJECT_ROOT / ".github/actions/build-suews/action.yml").read_text(
         encoding="utf-8"
     )
-    physics = dict(
-        re.findall(r"inputs\.test_tier == '([a-z-]+)' && '-m \"?([^'\"]+)\"?'", action)
+    action_yaml = yaml.safe_load(action_text)
+    cibw_step = next(
+        step
+        for step in action_yaml["runs"]["steps"]
+        if str(step.get("uses", "")).startswith("pypa/cibuildwheel@")
     )
+    cibw_cmd = cibw_step["env"]["CIBW_TEST_COMMAND"]
+    # Outside ${{ ... }} expressions, CIBW_TEST_COMMAND must stay single-line so
+    # `sh -c "$CIBW_TEST_COMMAND"` never splits flags onto a separate command line.
+    assert "\n" not in re.sub(r"\$\{\{.*?\}\}", "<EXPR>", cibw_cmd, flags=re.S), (
+        cibw_cmd
+    )
+    physics = {
+        tier: quoted or bare
+        for tier, quoted, bare in re.findall(
+            r"inputs\.test_tier == '([a-z-]+)' && '-m (?:\"([^\"]+)\"|([a-z]+))",
+            cibw_cmd,
+        )
+    }
     assert physics == ci_tiers.PHYSICS_TIERS_V2
     assert (
         f"-p scripts.suews.pytest_include_nodes --suews-include-node {EXACT_REFERENCE_TEST}"
-        in action
+        in cibw_cmd
     )
 
     api_workflow = yaml.safe_load(
@@ -331,6 +347,14 @@ def test_guard_is_wired_into_the_gate() -> None:
     assert "--schema 2" in guard_step["run"]
     assert "--require-os-compat" in guard_step["run"]
     assert guard_step["env"]["GATE_AXIS_SCHEMA"] == "2"
+    # Both source lanes run on determine_matrix's source_python so executed
+    # matrices, post-ci-summary, and core_guard stay in lockstep across triggers.
+    assert jobs["tooling"]["with"]["python_json"] == (
+        "${{ needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python }}"
+    )
+    assert jobs["unit"]["with"]["python_json"] == (
+        "${{ needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python }}"
+    )
 
     gate = jobs["pr-gate"]
     assert {"core_guard", "tooling", "unit"} <= set(gate["needs"])
@@ -431,6 +455,47 @@ def test_pytest_include_nodes_keeps_witness_alongside_mark_filter_and_fails_clos
     assert "test_sample.py::test_fast_smoke" in ok.stdout
     assert "test_sample.py::test_exact_witness" in ok.stdout
     assert "test_sample.py::test_other_slow" not in ok.stdout
+
+    # Also verify real execution under xdist + pytest_ci_metrics records both
+    # the smoke test and the included witness in one metrics artefact.
+    metrics_path = tmp_path / "physics-cp312-manylinux-x86_64.json"
+    run_xdist = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-o",
+            "addopts=",
+            "-c",
+            str(tmp_path / "pytest.ini"),
+            "-p",
+            "scripts.suews.pytest_ci_metrics",
+            "-p",
+            "scripts.suews.pytest_include_nodes",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "-m",
+            "physics and smoke and not (medium or slow)",
+            "-n",
+            "2",
+            "--dist",
+            "worksteal",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env={**full_env, "SUEWS_CI_METRICS": str(metrics_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_xdist.returncode == 0, run_xdist.stdout + run_xdist.stderr
+    recorded = json.loads(metrics_path.read_text(encoding="utf-8"))
+    recorded_ids = {t["node_id"] for t in recorded["tests"]}
+    assert recorded_ids == {
+        "test_sample.py::test_fast_smoke",
+        "test_sample.py::test_exact_witness",
+    }
 
     missing = subprocess.run(
         [

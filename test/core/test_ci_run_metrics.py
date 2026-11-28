@@ -420,6 +420,9 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     assert chain_job["with"]["run_os_compat"].startswith(
         "${{ needs.build_mcp.result == 'success' && "
     )
+    assert chain_job["with"]["run_abi3_smoke"].startswith(
+        "${{ needs.build_mcp.result == 'success' && "
+    )
 
     wheels_workflow = yaml.safe_load(
         (root / ".github/workflows/build-wheels-reusable.yml").read_text(
@@ -434,7 +437,7 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     for lane_job_id, expects_mcp in (
         ("native_tests", True),
         ("os_compat_tests", True),
-        ("abi3_smoke_tests", False),
+        ("abi3_smoke_tests", True),
     ):
         lane_job = wheels_workflow["jobs"][lane_job_id]
         assert lane_job["needs"] == ["layout", "build"]

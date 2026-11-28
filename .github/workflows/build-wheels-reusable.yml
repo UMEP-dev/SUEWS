@@ -429,7 +429,7 @@ jobs:
       buildplat_json: ${{ inputs.buildplat_json }}
       cells_json: ${{ needs.layout.outputs.abi3_smoke_cells }}
       test_tier: ${{ inputs.test_tier }}
-      install_mcp: false
+      install_mcp: true
       serial_platforms: ${{ inputs.serial_platforms }}
 
   # Verify the built Linux cp312 wheel installs and passes core/smoke tests

@@ -34,14 +34,19 @@ from pydantic_core import PydanticUndefinedType
 from ..pipeline.document import (
     _ENUM_INTERNAL_ATTRS,
     _LAZY_FROZEN_SPECS,
+    _clone_copy_on_read_scalar,
     _freeze_mapping_entries,
     _freeze_sequence_items,
+    _freeze_set_items,
     _freeze_slice_value,
     _FrozenArraySpec,
+    _FrozenScalarSpec,
     _FrozenSliceSpec,
+    _is_copy_on_read_scalar,
     _is_exact_immutable_scalar,
     _is_immutable_enum,
     _materialise_frozen,
+    _ReadOnlyMaterialisingFrozenSet,
     _ReadOnlyMaterialisingMapping,
     _ReadOnlyMaterialisingTuple,
     _validate_safe_numpy_dtype,
@@ -177,6 +182,29 @@ def _read_stored_field(target: Any, name: str) -> Any:
     raise AttributeError(name)
 
 
+def _read_pydantic_internal(model: BaseModel, attr: str) -> Any:
+    """Read a Pydantic internal slot bypassing subclass properties or overrides."""
+    slot_desc = BaseModel.__dict__.get(attr)
+    if isinstance(slot_desc, MemberDescriptorType):
+        try:
+            return slot_desc.__get__(model, BaseModel)
+        except AttributeError:
+            return None
+    try:
+        return object.__getattribute__(model, attr)
+    except AttributeError:
+        return None
+
+
+def _write_pydantic_internal(model: BaseModel, attr: str, value: Any) -> None:
+    """Write a Pydantic internal slot bypassing subclass data descriptors."""
+    slot_desc = BaseModel.__dict__.get(attr)
+    if isinstance(slot_desc, MemberDescriptorType):
+        slot_desc.__set__(model, value)
+    else:
+        object.__setattr__(model, attr, value)
+
+
 def _clone_base_model(
     value: BaseModel,
     memo: dict[int, Any],
@@ -197,25 +225,34 @@ def _clone_base_model(
         for k, v in src_dict.items()
     }
     object.__setattr__(cloned, "__dict__", cloned_dict)
-    fields_set = getattr(value, "__pydantic_fields_set__", None)
+    fields_set = _read_pydantic_internal(value, "__pydantic_fields_set__")
     if fields_set is not None:
-        object.__setattr__(cloned, "__pydantic_fields_set__", set(fields_set))
-    extra = getattr(value, "__pydantic_extra__", None)
+        _write_pydantic_internal(
+            cloned,
+            "__pydantic_fields_set__",
+            {
+                _detach_snapshot_tree(
+                    item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
+                for item in fields_set
+            },
+        )
+    extra = _read_pydantic_internal(value, "__pydantic_extra__")
     if extra is None:
-        object.__setattr__(cloned, "__pydantic_extra__", None)
+        _write_pydantic_internal(cloned, "__pydantic_extra__", None)
     else:
-        object.__setattr__(
+        _write_pydantic_internal(
             cloned,
             "__pydantic_extra__",
             _detach_snapshot_tree(
                 extra, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
             ),
         )
-    private = getattr(value, "__pydantic_private__", None)
+    private = _read_pydantic_internal(value, "__pydantic_private__")
     if private is None:
-        object.__setattr__(cloned, "__pydantic_private__", None)
+        _write_pydantic_internal(cloned, "__pydantic_private__", None)
     else:
-        object.__setattr__(
+        _write_pydantic_internal(
             cloned,
             "__pydantic_private__",
             {
@@ -759,15 +796,9 @@ def _detach_enum_value(
     return value
 
 
-def _detach_snapshot_tree(
-    value: Any,
-    memo: dict[int, Any],
-    *,
-    reject_enums: bool = False,
-    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None = None,
-) -> Any:
-    """Recursively detach *value*, isolating ``MappingProxyType``, bound methods, and enums."""
-    if (
+def _is_already_detached_scalar_or_proxy(value: Any) -> bool:
+    """Return True when *value* is strictly immutable or already a read-only proxy/spec."""
+    return (
         value is None
         or _is_exact_immutable_scalar(value)
         or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES
@@ -779,14 +810,29 @@ def _detach_snapshot_tree(
                 ReadOnlyEnumProxy,
                 ReadOnlyFieldInfo,
                 ReadOnlyTypeInfo,
-                _FrozenArraySpec,
-                _FrozenSliceSpec,
+                *_LAZY_FROZEN_SPECS,
                 _ReadOnlyMaterialisingMapping,
                 _ReadOnlyMaterialisingTuple,
+                _ReadOnlyMaterialisingFrozenSet,
             ),
         )
-    ):
-        return value
+    )
+
+
+def _detach_snapshot_tree(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool = False,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None = None,
+) -> Any:
+    """Recursively detach *value*, isolating ``MappingProxyType``, bound methods, and enums."""
+    if _is_copy_on_read_scalar(value) or _is_already_detached_scalar_or_proxy(value):
+        return (
+            _clone_copy_on_read_scalar(value)
+            if _is_copy_on_read_scalar(value)
+            else value
+        )
     if isinstance(value, Enum):
         return _detach_enum_value(
             value, reject_enums=reject_enums, wrap_enums=wrap_enums
@@ -896,7 +942,9 @@ def _enum_proxy_equals(
             result = (
                 False
                 if (member_eq is object.__eq__ or other_eq is object.__eq__)
-                else bool(frozen_value == other_val)
+                else bool(
+                    _materialise_frozen(frozen_value) == _materialise_frozen(other_val)
+                )
             )
     elif isinstance(other, Enum):
         other_eq = type(other).__eq__
@@ -910,10 +958,14 @@ def _enum_proxy_equals(
             result = (
                 False
                 if (member_eq is object.__eq__ or other_eq is object.__eq__)
-                else bool(frozen_value == other.value)
+                else bool(_materialise_frozen(frozen_value) == other.value)
             )
-    elif _is_exact_immutable_scalar(other):
-        result = False if member_eq is object.__eq__ else bool(frozen_value == other)
+    elif _is_exact_immutable_scalar(other) or _is_copy_on_read_scalar(other):
+        result = (
+            False
+            if member_eq is object.__eq__
+            else bool(_materialise_frozen(frozen_value) == other)
+        )
     return result
 
 
@@ -1307,8 +1359,8 @@ def _iter_snapshot_children(
         if field_snapshots is not None and model_cls not in field_snapshots:
             field_snapshots[model_cls] = _freeze_model_fields(model_cls)
         children.extend(_iter_instance_state_children(obj, _PYDANTIC_INTERNAL_SLOTS))
-        for attr in ("model_extra", "__pydantic_private__"):
-            mapping = getattr(obj, attr, None)
+        for attr in ("__pydantic_extra__", "__pydantic_private__"):
+            mapping = _read_pydantic_internal(obj, attr)
             if isinstance(mapping, Mapping):
                 children.append(mapping)
     elif is_dataclass(obj) and not isinstance(obj, type):
@@ -1432,7 +1484,11 @@ def _has_custom_dunder(root: Any, dunder: str) -> bool:
     stack: list[Any] = [root]
     while stack:
         obj = stack.pop()
-        if obj is None or _is_exact_immutable_scalar(obj):
+        if (
+            obj is None
+            or _is_exact_immutable_scalar(obj)
+            or _is_copy_on_read_scalar(obj)
+        ):
             continue
         if isinstance(obj, Enum):
             if getattr(type(obj), dunder, None) not in std_enum_hooks:
@@ -1599,7 +1655,11 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
     stack: list[Any] = [root]
     while stack:
         obj = stack.pop()
-        if obj is None or _is_exact_immutable_scalar(obj):
+        if (
+            obj is None
+            or _is_exact_immutable_scalar(obj)
+            or _is_copy_on_read_scalar(obj)
+        ):
             continue
         if isinstance(obj, Enum):
             if not _is_immutable_enum(obj):
@@ -1649,7 +1709,7 @@ def _safe_repr_container(value: Any, seen: set[int]) -> str | None:
             return f"({items}{suffix})"
         finally:
             seen.discard(obj_id)
-    if isinstance(value, frozenset):
+    if isinstance(value, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
         seen.add(obj_id)
         try:
             items = ", ".join(_safe_repr_value(v, seen) for v in value)
@@ -1664,6 +1724,7 @@ def _safe_repr_value(value: Any, seen: set[int]) -> str:
     if (
         value is None
         or _is_exact_immutable_scalar(value)
+        or _is_copy_on_read_scalar(value)
         or isinstance(value, (ReadOnlyEnumProxy, np.ndarray))
     ):
         return repr(value)
@@ -1723,7 +1784,7 @@ def _format_model_proxy_repr(proxy: ReadOnlyModelProxy, seen: set[int]) -> str:
             f"{_format_raw_field_repr(_read_stored_field(target, name), enum_snapshots, field_snapshots, seen)}"
             for name in model_cls.model_fields
         ]
-        extra = object.__getattribute__(target, "__pydantic_extra__")
+        extra = _read_pydantic_internal(target, "__pydantic_extra__")
         if isinstance(extra, Mapping):
             parts.extend(
                 f"{k}={_format_raw_field_repr(v, enum_snapshots, field_snapshots, seen)}"
@@ -1747,7 +1808,11 @@ def _collect_proxy_snapshots(
     stack: list[Any] = [root]
     while stack:
         obj = stack.pop()
-        if obj is None or _is_exact_immutable_scalar(obj):
+        if (
+            obj is None
+            or _is_exact_immutable_scalar(obj)
+            or _is_copy_on_read_scalar(obj)
+        ):
             continue
         if isinstance(obj, Enum):
             obj_id = id(obj)
@@ -2020,10 +2085,10 @@ def _wrap_container_or_object(
             raise TypeError("ReadOnlyModelProxy cannot safely freeze cyclic container")
         active.add(obj_id)
         try:
-            return frozenset(
+            return _freeze_set_items([
                 _wrap_readonly(item, enum_snapshots, field_snapshots, active)
                 for item in value
-            )
+            ])
         finally:
             active.discard(obj_id)
     if isinstance(value, (np.ndarray, np.void)):
@@ -2062,7 +2127,7 @@ def _wrap_readonly(
                 bound, enum_snapshots, field_snapshots, active
             ),
         )
-    if (
+    if _is_copy_on_read_scalar(value) or (
         _is_exact_immutable_scalar(value)
         or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES
         or isinstance(
@@ -2072,14 +2137,14 @@ def _wrap_readonly(
                 ReadOnlyDataclassProxy,
                 ReadOnlyEnumProxy,
                 ReadOnlyTypeInfo,
-                _FrozenArraySpec,
-                _FrozenSliceSpec,
+                *_LAZY_FROZEN_SPECS,
                 _ReadOnlyMaterialisingMapping,
                 _ReadOnlyMaterialisingTuple,
+                _ReadOnlyMaterialisingFrozenSet,
             ),
         )
     ):
-        return value
+        return _FrozenScalarSpec(value) if _is_copy_on_read_scalar(value) else value
     if type(value) in {bytearray, memoryview}:
         return bytes(value)
     if isinstance(value, BaseModel):
@@ -2093,6 +2158,8 @@ def _wrap_readonly(
 
 def _freeze_field_metadata_value(value: Any) -> Any:
     """Safely snapshot and freeze arbitrary Pydantic field metadata values without user hooks."""
+    if _is_copy_on_read_scalar(value):
+        return _FrozenScalarSpec(value)
     if _is_exact_immutable_scalar(value) or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES:
         return value
     try:
@@ -2202,9 +2269,17 @@ class ReadOnlyModelProxy:
         return field_snapshots[type(target)]
 
     @property
-    def model_fields_set(self) -> frozenset[str]:
+    def model_fields_set(self) -> AbstractSet[str]:
         """Frozen set of field names explicitly set on the model."""
-        return frozenset(_PROXY_STATE[id(self)][0].model_fields_set)
+        target, _cache, enum_snapshots, field_snapshots = _PROXY_STATE[id(self)]
+        fields_set = _read_pydantic_internal(target, "__pydantic_fields_set__")
+        if not fields_set:
+            return frozenset()
+        if all(type(item) is str for item in fields_set):
+            return frozenset(fields_set)
+        return _freeze_set_items([
+            _wrap_readonly(item, enum_snapshots, field_snapshots) for item in fields_set
+        ])
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return a fresh detached dictionary serialisation of a working model copy."""
@@ -2289,7 +2364,7 @@ class ReadOnlyModelProxy:
                     return _materialise_readonly(wrapped)
                 break
 
-        extra = object.__getattribute__(target, "__pydantic_extra__")
+        extra = _read_pydantic_internal(target, "__pydantic_extra__")
         if isinstance(extra, Mapping) and name in extra:
             wrapped = _wrap_readonly(extra[name], enum_snapshots, field_snapshots)
             cache[name] = wrapped
@@ -2328,6 +2403,7 @@ class ReadOnlyModelProxy:
             other_target = other
         elif isinstance(target, RefValue) and (
             _is_exact_immutable_scalar(other)
+            or _is_copy_on_read_scalar(other)
             or isinstance(other, (Enum, ReadOnlyEnumProxy))
         ):
             if isinstance(target.value, Enum):
@@ -2397,7 +2473,12 @@ def _has_nested_identity_hash(root: Any) -> bool:
     stack: list[Any] = list(_iter_snapshot_children(root, None))
     while stack:
         obj = stack.pop()
-        if obj is None or _is_exact_immutable_scalar(obj) or isinstance(obj, Enum):
+        if (
+            obj is None
+            or _is_exact_immutable_scalar(obj)
+            or _is_copy_on_read_scalar(obj)
+            or isinstance(obj, Enum)
+        ):
             continue
         obj_id = id(obj)
         if obj_id in visited:
@@ -2433,20 +2514,54 @@ def _stable_composite_hash(
     return hash(_safe_snapshot_copy(target, wrap_enums=enum_snapshots))
 
 
+def _frozen_frozensets_strict_equal(
+    left: AbstractSet[Any], right: AbstractSet[Any]
+) -> bool:
+    """Compare two already-frozen frozenset payloads element-wise using strict equality."""
+    if len(left) != len(right):
+        return False
+    remaining = list(right)
+    for item in left:
+        match_idx = next(
+            (
+                i
+                for i, candidate in enumerate(remaining)
+                if _frozen_values_strict_equal(item, candidate)
+            ),
+            None,
+        )
+        if match_idx is None:
+            return False
+        remaining.pop(match_idx)
+    return True
+
+
 def _frozen_values_strict_equal(left: Any, right: Any) -> bool:
     """Compare two already-frozen Enum payload values strictly."""
     from ..pipeline.patch_normaliser import _strict_equal  # noqa: PLC0415
 
+    if isinstance(left, (_FrozenScalarSpec, _FrozenSliceSpec)):
+        left = left.materialise()
+    if isinstance(right, (_FrozenScalarSpec, _FrozenSliceSpec)):
+        right = right.materialise()
     if isinstance(left, ReadOnlyEnumProxy) or isinstance(right, ReadOnlyEnumProxy):
         return (
             isinstance(left, ReadOnlyEnumProxy)
             and isinstance(right, ReadOnlyEnumProxy)
             and bool(left == right)
         )
-    if type(left) is tuple and type(right) is tuple:
+    if type(left) in {tuple, _ReadOnlyMaterialisingTuple} and type(right) in {
+        tuple,
+        _ReadOnlyMaterialisingTuple,
+    }:
         return len(left) == len(right) and all(
             _frozen_values_strict_equal(a, b) for a, b in zip(left, right)
         )
+    if type(left) in {frozenset, _ReadOnlyMaterialisingFrozenSet} and type(right) in {
+        frozenset,
+        _ReadOnlyMaterialisingFrozenSet,
+    }:
+        return _frozen_frozensets_strict_equal(left, right)
     if type(left) is slice and type(right) is slice:
         return (
             _frozen_values_strict_equal(left.start, right.start)
@@ -2457,7 +2572,7 @@ def _frozen_values_strict_equal(left: Any, right: Any) -> bool:
 
 
 def _frozen_frozenset_matches_live(
-    live_val: frozenset[Any], frozen_val: frozenset[Any]
+    live_val: frozenset[Any], frozen_val: AbstractSet[Any]
 ) -> bool:
     """Return True iff every element of *live_val* matches a distinct element of *frozen_val*."""
     if len(live_val) != len(frozen_val):
@@ -2482,6 +2597,8 @@ def _frozen_value_matches_live(live_val: Any, frozen_val: Any) -> bool:
     """Return True iff live Enum payload *live_val* matches snapshotted *frozen_val*."""
     from ..pipeline.patch_normaliser import _strict_equal  # noqa: PLC0415
 
+    if isinstance(frozen_val, (_FrozenScalarSpec, _FrozenSliceSpec)):
+        frozen_val = frozen_val.materialise()
     if isinstance(frozen_val, ReadOnlyEnumProxy):
         target_member = _ENUM_STATE[id(frozen_val)][0]
         return (
@@ -2489,11 +2606,17 @@ def _frozen_value_matches_live(live_val: Any, frozen_val: Any) -> bool:
             and live_val is target_member
             and not _single_enum_drifted(frozen_val)
         )
-    if type(live_val) is tuple and type(frozen_val) is tuple:
+    if type(live_val) is tuple and type(frozen_val) in {
+        tuple,
+        _ReadOnlyMaterialisingTuple,
+    }:
         return len(live_val) == len(frozen_val) and all(
             _frozen_value_matches_live(a, b) for a, b in zip(live_val, frozen_val)
         )
-    if type(live_val) is frozenset and type(frozen_val) is frozenset:
+    if type(live_val) is frozenset and type(frozen_val) in {
+        frozenset,
+        _ReadOnlyMaterialisingFrozenSet,
+    }:
         return _frozen_frozenset_matches_live(live_val, frozen_val)
     if type(live_val) is slice and type(frozen_val) is slice:
         return (

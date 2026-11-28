@@ -44,6 +44,7 @@ from .document import (
     _is_list_index_token,
     _mapping_key_from_token,
     _prepare_working_dict,
+    _resolve_patch_write_metadata,
     apply_nullify_tree_at_tokens,
     canonicalise_token,
     deep_freeze,
@@ -207,6 +208,13 @@ def _strict_hashable_key(value: Any) -> Any:
         result = (tuple, tuple(_strict_hashable_key(item) for item in value))
     elif val_type is frozenset:
         result = (frozenset, frozenset(_strict_hashable_key(item) for item in value))
+    elif val_type is slice:
+        result = (
+            slice,
+            _strict_hashable_key(value.start),
+            _strict_hashable_key(value.stop),
+            _strict_hashable_key(value.step),
+        )
     else:
         result = (val_type, value)
     return result
@@ -272,6 +280,25 @@ def _numeric_strict_equal(left: Any, right: Any) -> bool:
     return bool(left == right)
 
 
+def _strict_equal_same_type(left: Any, right: Any) -> bool:
+    """Compare non-numeric, non-container values already known to share exact type."""
+    if type(left) is slice:
+        return (
+            _strict_equal(left.start, right.start)
+            and _strict_equal(left.stop, right.stop)
+            and _strict_equal(left.step, right.step)
+        )
+    if isinstance(left, (datetime.datetime, datetime.time)):
+        return (
+            bool(left == right)
+            and left.fold == right.fold
+            and (left.tzinfo is None) == (right.tzinfo is None)
+            and type(left.tzinfo) is type(right.tzinfo)
+            and bool(left.tzinfo == right.tzinfo)
+        )
+    return bool(left == right)
+
+
 def _strict_equal(left: Any, right: Any) -> bool:
     """Compare two config values strictly, keeping scalar types and zero sign distinct."""
     if isinstance(left, (np.ndarray, np.void)) or isinstance(
@@ -288,15 +315,7 @@ def _strict_equal(left: Any, right: Any) -> bool:
         return _container_strict_equal(left, right)
     if type(left) is not type(right):
         return False
-    if isinstance(left, (datetime.datetime, datetime.time)):
-        return (
-            bool(left == right)
-            and left.fold == right.fold
-            and (left.tzinfo is None) == (right.tzinfo is None)
-            and type(left.tzinfo) is type(right.tzinfo)
-            and bool(left.tzinfo == right.tzinfo)
-        )
-    return bool(left == right)
+    return _strict_equal_same_type(left, right)
 
 
 def _classify_raw_entry(
@@ -531,18 +550,7 @@ def _apply_atomic_set(
     had_original, old_val, orig_style, orig_ref = _classify_raw_entry(raw_before)
     raw_snapshot = _copy_payload(raw_before) if had_original else _UNSET
     created_ancestor = find_first_created_ancestor(working, tokens)
-    if (
-        patch.write_style is not None
-        or patch.write_ref is not None
-        or patch.write_has_ref
-    ):
-        forward_style = patch.write_style
-        forward_ref = patch.write_ref
-        forward_has_ref: bool | None = patch.write_has_ref or forward_ref is not None
-    else:
-        forward_style = patch.original_style
-        forward_ref = patch.original_ref
-        forward_has_ref = True if forward_ref is not None else None
+    forward_style, forward_ref, forward_has_ref = _resolve_patch_write_metadata(patch)
     applied = write_tokens(
         working,
         tokens,

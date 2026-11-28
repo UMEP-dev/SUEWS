@@ -26,7 +26,7 @@ from pathlib import Path, PosixPath, PurePosixPath, PureWindowsPath, WindowsPath
 import re
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
-from uuid import UUID
+from uuid import UUID, SafeUUID
 import weakref
 from zoneinfo import ZoneInfo
 
@@ -130,17 +130,20 @@ _EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     bytes,
     range,
     Decimal,
+    datetime.date,
+    datetime.timedelta,
+    datetime.timezone,
+    ZoneInfo,
+    re.Pattern,
+})
+
+_COPY_ON_READ_SCALAR_TYPES: frozenset[type[Any]] = frozenset({
     Fraction,
     UUID,
     PurePosixPath,
     PureWindowsPath,
     PosixPath,
     WindowsPath,
-    datetime.date,
-    datetime.timedelta,
-    datetime.timezone,
-    ZoneInfo,
-    re.Pattern,
 })
 
 _SAFE_TZINFO_TYPES: frozenset[type[Any]] = frozenset({
@@ -167,11 +170,13 @@ _ENUM_INTERNAL_ATTRS = frozenset({
 
 _FROZEN_ARRAY_STATE: dict[int, tuple[bytes, np.dtype[Any], tuple[int, ...]]] = {}
 _FROZEN_SLICE_STATE: dict[int, tuple[Any, Any, Any]] = {}
+_FROZEN_SCALAR_STATE: dict[int, tuple[type[Any], Any, Any, int]] = {}
 _FROZEN_MAP_STATE: dict[int, dict[Any, Any]] = {}
+_FROZEN_SET_STATE: dict[int, frozenset[Any]] = {}
 
 
 def _is_exact_immutable_scalar(value: Any) -> bool:
-    """Return True only for exact immutable primitive/stdlib/NumPy scalar types."""
+    """Return True only for strictly C-immutable primitive/stdlib/NumPy scalar types."""
     value_type = type(value)
     if value_type in _EXACT_IMMUTABLE_TYPES:
         return True
@@ -180,6 +185,61 @@ def _is_exact_immutable_scalar(value: Any) -> bool:
     return (
         isinstance(value, _NUMPY_IMMUTABLE_SCALARS) and value_type.__module__ == "numpy"
     )
+
+
+def _is_copy_on_read_scalar(value: Any) -> bool:
+    """Return True for pure-Python stdlib value types with writable private slots."""
+    return type(value) in _COPY_ON_READ_SCALAR_TYPES
+
+
+def _extract_copy_on_read_state(value: Any) -> tuple[type[Any], Any, Any, int]:
+    """Validate and snapshot immutable C primitives for a copy-on-read stdlib scalar."""
+    value_type = type(value)
+    if value_type is Fraction:
+        num = value.numerator
+        den = value.denominator
+        if type(num) is not int or type(den) is not int or den == 0:
+            raise TypeError(
+                "Cannot safely freeze Fraction with corrupted numerator or denominator"
+            )
+        clean = Fraction(num, den)
+        return (Fraction, clean.numerator, clean.denominator, hash(clean))
+    if value_type is UUID:
+        int_val = value.int
+        is_safe = value.is_safe
+        if (
+            type(int_val) is not int
+            or not isinstance(is_safe, SafeUUID)
+            or int_val < 0
+            or int_val >= (1 << 128)
+        ):
+            raise TypeError("Cannot safely freeze UUID with corrupted internal slots")
+        clean_uuid = UUID(int=int_val, is_safe=is_safe)
+        return (UUID, clean_uuid.int, clean_uuid.is_safe, hash(clean_uuid))
+    if value_type in {PurePosixPath, PureWindowsPath, PosixPath, WindowsPath}:
+        raw_str = str(value)
+        if type(raw_str) is not str:
+            raise TypeError("Cannot safely freeze Path with non-string representation")
+        clean_path = value_type(raw_str)
+        return (value_type, raw_str, None, hash(clean_path))
+    raise TypeError(f"Unsupported copy-on-read scalar type {value_type.__name__!r}")
+
+
+def _build_copy_on_read_scalar(
+    value_type: type[Any], arg1: Any, arg2: Any
+) -> Fraction | UUID | PurePosixPath | PureWindowsPath | PosixPath | WindowsPath:
+    """Reconstruct a fresh copy-on-read stdlib scalar from validated immutable primitives."""
+    if value_type is Fraction:
+        return Fraction(arg1, arg2)
+    if value_type is UUID:
+        return UUID(int=arg1, is_safe=arg2)
+    return value_type(arg1)
+
+
+def _clone_copy_on_read_scalar(value: Any) -> Any:
+    """Return a fresh detached instance of a copy-on-read stdlib scalar."""
+    value_type, arg1, arg2, _cached_hash = _extract_copy_on_read_state(value)
+    return _build_copy_on_read_scalar(value_type, arg1, arg2)
 
 
 def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
@@ -228,7 +288,7 @@ def _is_deeply_immutable_payload(value: Any, active: set[int]) -> bool:
             ) and _enum_extra_attrs_immutable(value, active)
         finally:
             active.discard(obj_id)
-    if _is_exact_immutable_scalar(value):
+    if _is_exact_immutable_scalar(value) or _is_copy_on_read_scalar(value):
         return True
     if type(value) is slice:
         return all(
@@ -396,7 +456,52 @@ class _FrozenSliceSpec:
         raise TypeError("Cannot mutate _FrozenSliceSpec")
 
 
-_LAZY_FROZEN_SPECS = (_FrozenArraySpec, _FrozenSliceSpec)
+class _FrozenScalarSpec:
+    """Immutable primitive-backed specification materialised as fresh stdlib value copies.
+
+    Protects pure-Python stdlib value types whose CPython private slots are
+    writable (``Path`` / ``PurePath``, ``Fraction``, ``UUID``) while preserving
+    exact ``isinstance`` types on every read.
+    """
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, value: Any) -> None:
+        key = id(self)
+        if key in _FROZEN_SCALAR_STATE:
+            raise TypeError("_FrozenScalarSpec instances cannot be re-initialised")
+        _FROZEN_SCALAR_STATE[key] = _extract_copy_on_read_state(value)
+        weakref.finalize(self, _FROZEN_SCALAR_STATE.pop, key, None)
+
+    def materialise(self) -> Any:
+        """Return a fresh ``Path``, ``Fraction``, or ``UUID`` reconstructed from C primitives."""
+        value_type, arg1, arg2, _cached_hash = _FROZEN_SCALAR_STATE[id(self)]
+        return _build_copy_on_read_scalar(value_type, arg1, arg2)
+
+    def __copy__(self) -> _FrozenScalarSpec:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _FrozenScalarSpec:
+        return self
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _FrozenScalarSpec):
+            return bool(self.materialise() == other.materialise())
+        if _is_exact_immutable_scalar(other) or _is_copy_on_read_scalar(other):
+            return bool(self.materialise() == other)
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return _FROZEN_SCALAR_STATE[id(self)][3]
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise TypeError("Cannot mutate _FrozenScalarSpec")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError("Cannot mutate _FrozenScalarSpec")
+
+
+_LAZY_FROZEN_SPECS = (_FrozenArraySpec, _FrozenSliceSpec, _FrozenScalarSpec)
 
 
 def _materialise_frozen(value: Any) -> Any:
@@ -437,7 +542,8 @@ class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
         return _materialise_frozen(_FROZEN_MAP_STATE[id(self)][key])
 
     def __iter__(self) -> Any:
-        return iter(_FROZEN_MAP_STATE[id(self)])
+        for key in _FROZEN_MAP_STATE[id(self)]:
+            yield _materialise_frozen(key)
 
     def __len__(self) -> int:
         return len(_FROZEN_MAP_STATE[id(self)])
@@ -447,7 +553,8 @@ class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
 
     def __repr__(self) -> str:
         return repr({
-            k: _materialise_frozen(v) for k, v in _FROZEN_MAP_STATE[id(self)].items()
+            _materialise_frozen(k): _materialise_frozen(v)
+            for k, v in _FROZEN_MAP_STATE[id(self)].items()
         })
 
     def __eq__(self, other: object) -> bool:
@@ -469,10 +576,17 @@ class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
 
 
 class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
-    """Tuple subclass that materialises fresh NumPy views on every access."""
+    """Tuple subclass that materialises fresh views/copies on every access."""
 
     __slots__ = ()
-    __hash__ = None  # type: ignore[assignment]
+
+    def __hash__(self) -> int:
+        if any(
+            isinstance(item, (_FrozenArraySpec, _FrozenSliceSpec))
+            for item in super().__iter__()
+        ):
+            raise TypeError(f"unhashable type: {type(self).__name__!r}")
+        return hash(tuple(super().__iter__()))
 
     def __getitem__(self, index: Any) -> Any:
         if isinstance(index, slice):
@@ -551,6 +665,79 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
         raise TypeError(f"Cannot delete read-only sequence attribute {name!r}")
 
 
+class _ReadOnlyMaterialisingFrozenSet(AbstractSet[Any]):
+    """Read-only set that materialises fresh stdlib scalar copies on every access."""
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, items: Sequence[Any] | AbstractSet[Any]) -> None:
+        key = id(self)
+        if key in _FROZEN_SET_STATE:
+            raise TypeError(
+                "_ReadOnlyMaterialisingFrozenSet instances cannot be re-initialised"
+            )
+        _FROZEN_SET_STATE[key] = frozenset(items)
+        weakref.finalize(self, _FROZEN_SET_STATE.pop, key, None)
+
+    @classmethod
+    def _from_iterable(cls, it: Any) -> frozenset[Any]:
+        return frozenset(it)
+
+    def __iter__(self) -> Any:
+        for item in _FROZEN_SET_STATE[id(self)]:
+            yield _materialise_frozen(item)
+
+    def __len__(self) -> int:
+        return len(_FROZEN_SET_STATE[id(self)])
+
+    def __contains__(self, value: object) -> bool:
+        return value in _FROZEN_SET_STATE[id(self)]
+
+    def __hash__(self) -> int:
+        return hash(_FROZEN_SET_STATE[id(self)])
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, _ReadOnlyMaterialisingFrozenSet):
+            return _FROZEN_SET_STATE[id(self)] == _FROZEN_SET_STATE[id(other)]
+        return super().__eq__(other)
+
+    def __repr__(self) -> str:
+        return repr(frozenset(self))
+
+    def copy(self) -> _ReadOnlyMaterialisingFrozenSet:
+        return self
+
+    def issubset(self, other: Any) -> bool:
+        return frozenset(self).issubset(other)
+
+    def issuperset(self, other: Any) -> bool:
+        return frozenset(self).issuperset(other)
+
+    def union(self, *others: Any) -> frozenset[Any]:
+        return frozenset(self).union(*others)
+
+    def intersection(self, *others: Any) -> frozenset[Any]:
+        return frozenset(self).intersection(*others)
+
+    def difference(self, *others: Any) -> frozenset[Any]:
+        return frozenset(self).difference(*others)
+
+    def symmetric_difference(self, other: Any) -> frozenset[Any]:
+        return frozenset(self).symmetric_difference(other)
+
+    def __copy__(self) -> _ReadOnlyMaterialisingFrozenSet:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _ReadOnlyMaterialisingFrozenSet:
+        return self
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise TypeError(f"Cannot mutate read-only set attribute {name!r}")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError(f"Cannot delete read-only set attribute {name!r}")
+
+
 def _copy_numpy_payload(value: np.ndarray[Any, Any] | np.void) -> Any:
     """Copy an exact NumPy ``ndarray`` or ``np.void`` while detaching its mutable ``dtype``."""
     if type(value) not in {np.ndarray, np.void}:
@@ -582,6 +769,8 @@ def _copy_non_container_payload(value: Any) -> Any:
     """Copy slices, NumPy values, lazy frozen specs, or proxies while keeping representations."""
     if isinstance(value, _LAZY_FROZEN_SPECS):
         return _copy_payload(value.materialise())
+    if _is_copy_on_read_scalar(value):
+        return _clone_copy_on_read_scalar(value)
     if type(value) is slice:
         return slice(
             _copy_payload(value.start),
@@ -617,7 +806,7 @@ def _copy_payload(value: Any) -> Any:
         return tuple(_copy_payload(item) for item in value)
     if isinstance(value, set):
         return {_copy_payload(item) for item in value}
-    if isinstance(value, frozenset):
+    if isinstance(value, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
         return frozenset(_copy_payload(item) for item in value)
     return _copy_non_container_payload(value)
 
@@ -638,7 +827,10 @@ def _prepare_working_dict(target: ConfigDocument | Mapping[str, Any]) -> dict[st
 
 
 def _freeze_mapping_entries(entries: dict[Any, Any]) -> Mapping[Any, Any]:
-    if any(isinstance(v, _LAZY_FROZEN_SPECS) for v in entries.values()):
+    if any(
+        isinstance(k, _LAZY_FROZEN_SPECS) or isinstance(v, _LAZY_FROZEN_SPECS)
+        for k, v in entries.items()
+    ):
         return _ReadOnlyMaterialisingMapping(entries)
     return MappingProxyType(entries)
 
@@ -649,9 +841,13 @@ def _freeze_sequence_items(items: list[Any]) -> tuple[Any, ...]:
     return tuple(items)
 
 
-def _freeze_numpy_value(
-    value: np.ndarray[Any, Any] | np.void, active: set[int]
-) -> Any:
+def _freeze_set_items(items: list[Any]) -> AbstractSet[Any]:
+    if any(isinstance(item, _LAZY_FROZEN_SPECS) for item in items):
+        return _ReadOnlyMaterialisingFrozenSet(items)
+    return frozenset(items)
+
+
+def _freeze_numpy_value(value: np.ndarray[Any, Any] | np.void, active: set[int]) -> Any:
     if type(value) not in {np.ndarray, np.void}:
         raise TypeError(
             f"deep_freeze cannot safely freeze NumPy subclass {type(value).__name__!r}"
@@ -734,7 +930,9 @@ def _freeze_container_value(value: Any, active: set[int]) -> Any:
             raise TypeError("deep_freeze cannot safely freeze cyclic container")
         active.add(obj_id)
         try:
-            return frozenset(_deep_freeze_internal(item, active) for item in value)
+            return _freeze_set_items([
+                _deep_freeze_internal(item, active) for item in value
+            ])
         finally:
             active.discard(obj_id)
     if isinstance(value, (np.ndarray, np.void)):
@@ -743,7 +941,7 @@ def _freeze_container_value(value: Any, active: set[int]) -> Any:
 
 
 def _deep_freeze_internal(value: Any, active: set[int] | None = None) -> Any:
-    """Recursively freeze values, keeping NumPy arrays as lazy :class:`_FrozenArraySpec`."""
+    """Recursively freeze values, keeping NumPy arrays and copy-on-read scalars lazy."""
     if active is None:
         active = set()
     if isinstance(value, Enum):
@@ -754,12 +952,15 @@ def _deep_freeze_internal(value: Any, active: set[int] | None = None) -> Any:
         return _freeze_slice_value(
             value, lambda bound: _deep_freeze_internal(bound, active)
         )
+    if _is_copy_on_read_scalar(value):
+        return _FrozenScalarSpec(value)
     if _is_exact_immutable_scalar(value) or isinstance(
         value,
         (
             *_LAZY_FROZEN_SPECS,
             _ReadOnlyMaterialisingMapping,
             _ReadOnlyMaterialisingTuple,
+            _ReadOnlyMaterialisingFrozenSet,
         ),
     ):
         return value
@@ -775,6 +976,8 @@ def _thaw_non_container(value: Any) -> Any:
     """Thaw slices, lazy frozen specs, read-only proxies, or fall back to ``deepcopy``."""
     if isinstance(value, _LAZY_FROZEN_SPECS):
         return thaw_copy(value.materialise())
+    if _is_copy_on_read_scalar(value):
+        return _clone_copy_on_read_scalar(value)
     if type(value) is slice:
         return slice(
             thaw_copy(value.start),
@@ -801,13 +1004,13 @@ def thaw_copy(value: Any) -> Any:
     if value is None or type(value) in {bool, int, float, str, bytes}:
         return value
     if isinstance(value, Mapping):
-        return {k: thaw_copy(v) for k, v in value.items()}
+        return {_copy_payload(k): thaw_copy(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [thaw_copy(item) for item in value]
     if isinstance(value, set):
-        return {thaw_copy(item) for item in value}
-    if isinstance(value, frozenset):
-        return frozenset(thaw_copy(item) for item in value)
+        return {_copy_payload(item) for item in value}
+    if isinstance(value, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
+        return frozenset(_copy_payload(item) for item in value)
     return _thaw_non_container(value)
 
 
@@ -1492,6 +1695,34 @@ class ConfigPatch:
             object.__setattr__(self, "original_raw", _copy_payload(self.original_raw))
 
 
+def _resolve_patch_write_metadata(
+    patch: ConfigPatch,
+) -> tuple[WrapperStyle | None, Mapping[str, Any] | None, bool | None]:
+    """Resolve effective forward write style/ref metadata for a ``set`` patch.
+
+    Explicit forward metadata (``write_style``, ``write_ref``, ``write_has_ref``)
+    always takes precedence. Unnormalised patches (``had_original is None``)
+    forward ``original_style`` / ``original_ref`` hints; partially pre-enriched
+    patches without explicit forward metadata defer to the live target entry or
+    :class:`StyleLedger` identically across direct application and normalisation.
+    """
+    if (
+        patch.write_style is not None
+        or patch.write_ref is not None
+        or patch.write_has_ref
+    ):
+        eff_style = patch.write_style
+        eff_ref = patch.write_ref
+        eff_has_ref: bool | None = patch.write_has_ref or eff_ref is not None
+        return eff_style, eff_ref, eff_has_ref
+    if patch.had_original is None:
+        eff_style = patch.original_style
+        eff_ref = patch.original_ref
+        eff_has_ref = True if eff_ref is not None else None
+        return eff_style, eff_ref, eff_has_ref
+    return None, None, None
+
+
 def apply_patches_in_place(
     target: dict[str, Any],
     patches: Sequence[ConfigPatch],
@@ -1521,22 +1752,7 @@ def apply_patches_in_place(
             else tuple(parse_path_tokens(patch.path))
         )
         if patch.action == "set":
-            if (
-                patch.write_style is not None
-                or patch.write_ref is not None
-                or patch.write_has_ref
-            ):
-                eff_style = patch.write_style
-                eff_ref = patch.write_ref
-                eff_has_ref: bool | None = patch.write_has_ref or eff_ref is not None
-            elif patch.had_original is None:
-                eff_style = patch.original_style
-                eff_ref = patch.original_ref
-                eff_has_ref = True if eff_ref is not None else None
-            else:
-                eff_style = None
-                eff_ref = None
-                eff_has_ref = None
+            eff_style, eff_ref, eff_has_ref = _resolve_patch_write_metadata(patch)
             applied = write_tokens(
                 target,
                 tokens,

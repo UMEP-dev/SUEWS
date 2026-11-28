@@ -7,12 +7,14 @@ from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, dataclass
 import datetime
 from enum import Enum, IntEnum, StrEnum
+from fractions import Fraction
 import functools
 from importlib.resources import files
 import ipaddress
 import math
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -3710,3 +3712,260 @@ def test_r10_r10_dst_fold_signed_zero_coalesce_unnamed_flag_nested_enum_and_orth
         }).code("net_radiation")
         == 3
     )
+
+
+def test_r10_m1_copy_on_read_model_and_dataclass_isolation() -> None:
+    """R10-M1: Path, Fraction, and UUID stay typed while isolating CPython private-slot mutation."""
+    from typing import Annotated  # noqa: PLC0415
+
+    @dataclass
+    class _StdlibDC:
+        p: PurePosixPath
+        f: Fraction
+        u: UUID
+
+    class _StdlibModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        path_val: Annotated[Path, Fraction(1, 4)] = Field(default=Path("/default/path"))
+        pure_win: PureWindowsPath = PureWindowsPath("C:/suews/forcing.txt")
+        ratio: Fraction = Fraction(1, 3)
+        uid: UUID = UUID(int=42)
+        nested: _StdlibDC
+
+    orig_path = Path("/orig/forcing.txt")
+    orig_win = PureWindowsPath("C:/orig/win.txt")
+    orig_frac = Fraction(1, 3)
+    orig_uuid = UUID(int=12345)
+    model = _StdlibModel(
+        path_val=orig_path,
+        pure_win=orig_win,
+        ratio=orig_frac,
+        uid=orig_uuid,
+        nested=_StdlibDC(PurePosixPath("/dc/a"), Fraction(4, 9), UUID(int=99)),
+    )
+    ro = freeze_model(model)
+
+    # Caller mutating private CPython slots after freeze_model cannot leak into the proxy.
+    orig_path._str = "/caller/corrupted"  # type: ignore[attr-defined]
+    orig_win._str = "Z:/caller/corrupted"  # type: ignore[attr-defined]
+    orig_frac._numerator = 999  # type: ignore[attr-defined]
+    object.__setattr__(orig_uuid, "int", 999999)
+
+    read_p1, read_w1, read_f1, read_u1 = ro.path_val, ro.pure_win, ro.ratio, ro.uid
+    assert isinstance(read_p1, Path)
+    assert isinstance(read_w1, PureWindowsPath)
+    assert isinstance(read_f1, Fraction)
+    assert isinstance(read_u1, UUID)
+    assert str(read_p1) == "/orig/forcing.txt"
+    assert str(read_w1) == "C:\\orig\\win.txt"
+    assert read_f1 == Fraction(1, 3)
+    assert read_u1 == UUID(int=12345)
+
+    # Hostile rule mutating received copies cannot poison cached proxy state.
+    read_p1._str = "/rule/corrupted"  # type: ignore[attr-defined]
+    read_w1._str = "Z:/rule/corrupted"  # type: ignore[attr-defined]
+    read_f1._numerator = 777  # type: ignore[attr-defined]
+    object.__setattr__(read_u1, "int", 777777)
+
+    assert ro.path_val is not read_p1 and str(ro.path_val) == "/orig/forcing.txt"
+    assert ro.pure_win is not read_w1 and str(ro.pure_win) == "C:\\orig\\win.txt"
+    assert ro.ratio is not read_f1 and ro.ratio == Fraction(1, 3)
+    assert ro.uid is not read_u1 and ro.uid == UUID(int=12345)
+
+    # Dataclass proxy, field metadata, and model_dump/unwrap_copy stay isolated too.
+    ro.nested.p._str = "/dc/corrupted"
+    ro.nested.f._numerator = 123
+    assert str(ro.nested.p) == "/dc/a" and ro.nested.f == Fraction(4, 9)
+
+    ro.model_fields["path_val"].default._str = "/mutated/default"
+    ro.model_fields["path_val"].metadata[0]._numerator = 99
+    assert str(ro.model_fields["path_val"].default) == "/default/path"
+    assert ro.model_fields["path_val"].metadata[0] == Fraction(1, 4)
+
+    unwrapped = ro.unwrap_copy()
+    unwrapped.path_val._str = "/mutated/unwrap"  # type: ignore[attr-defined]
+    unwrapped.ratio._numerator = 888  # type: ignore[attr-defined]
+    assert str(ro.path_val) == "/orig/forcing.txt" and ro.ratio == Fraction(1, 3)
+
+    class _DumpModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        p: object
+        u: UUID
+
+    ro_dump = freeze_model(_DumpModel(p=Path("/dump/path"), u=UUID(int=55)))
+    dumped = ro_dump.model_dump()
+    dumped["p"]._str = "/mutated/dump"
+    object.__setattr__(dumped["u"], "int", 999)
+    assert str(ro_dump.p) == "/dump/path" and ro_dump.u == UUID(int=55)
+
+
+def test_r10_m1_copy_on_read_containers_enums_and_rejections() -> None:
+    """R10-M1: Frozen mappings/tuples/sets/slices/Enums isolate Path/Fraction/UUID and reject unsafe carriers."""
+    from dataclasses import field as dc_field  # noqa: PLC0415
+
+    class _StdlibEnum(Enum):
+        PATH = PurePosixPath("/enum/path")
+        PAIR = (PurePosixPath("/enum/pair"), Fraction(3, 7))
+
+    key_p = PurePosixPath("/key/one")
+    tuple_key = (PurePosixPath("/key/tuple"), 1)
+    val_p = Path("/val/a")
+    frac = Fraction(3, 8)
+    uid = UUID(int=77)
+    frozen = deep_freeze({
+        "map": {key_p: val_p, tuple_key: frac, uid: "u"},
+        "seq": [val_p, frac, uid],
+        "bag": {key_p, frac, uid},
+        "win": slice(val_p, frac, None),
+        "ep": _StdlibEnum.PATH,
+        "epair": _StdlibEnum.PAIR,
+    })
+
+    key_p._str = "/caller/key"  # type: ignore[attr-defined]
+    tuple_key[0]._str = "/caller/tkey"  # type: ignore[attr-defined]
+    val_p._str = "/caller/val"  # type: ignore[attr-defined]
+    frac._numerator = 999  # type: ignore[attr-defined]
+    object.__setattr__(uid, "int", 999)
+
+    assert frozen["map"][PurePosixPath("/key/one")] == Path("/val/a")
+    assert frozen["map"][(PurePosixPath("/key/tuple"), 1)] == Fraction(3, 8)
+    assert frozen["map"][UUID(int=77)] == "u"
+    for k in frozen["map"]:
+        if isinstance(k, PurePosixPath):
+            k._str = "/rule/key"  # type: ignore[attr-defined]
+    assert PurePosixPath("/key/one") in frozen["map"]
+
+    frozen["seq"][0]._str = "/rule/seq"
+    assert str(frozen["seq"][0]) == "/val/a"
+    assert hash(frozen["bag"]) == hash(
+        frozenset({PurePosixPath("/key/one"), Fraction(3, 8), UUID(int=77)})
+    )
+    for item in frozen["bag"]:
+        if isinstance(item, Fraction):
+            item._numerator = 555  # type: ignore[attr-defined]
+    assert Fraction(3, 8) in frozen["bag"]
+
+    frozen["win"].start._str = "/rule/slice"
+    frozen["win"].stop._numerator = 666
+    assert str(frozen["win"].start) == "/val/a"
+    assert frozen["win"].stop == Fraction(3, 8)
+
+    frozen["ep"].value._str = "/rule/enum"
+    assert str(frozen["ep"].value) == "/enum/path"
+    assert frozen["ep"] == _StdlibEnum.PATH
+    assert frozen["epair"] == _StdlibEnum.PAIR
+
+    thawed = thaw_copy(frozen["map"])
+    thawed[(PurePosixPath("/key/tuple"), 1)]._numerator = 222
+    assert frozen["map"][(PurePosixPath("/key/tuple"), 1)] == Fraction(3, 8)
+
+    # NumPy dtype.metadata rejects Fraction (deepcopy(dtype) aliases Fraction).
+    dt_frac = np.dtype("float64", metadata={"r": Fraction(1, 2)})
+    with pytest.raises(TypeError, match="metadata"):
+        deep_freeze(np.zeros(2, dtype=dt_frac))
+
+    # Slotted dataclass with class-backed Path default is rejected.
+    @dataclass
+    class _SlottedDefaultPath:
+        __slots__ = ()
+        p: PurePosixPath = dc_field(init=False, default=PurePosixPath("/cls/default"))
+
+    with pytest.raises(TypeError, match="slotted dataclass"):
+        ReadOnlyDataclassProxy(_SlottedDefaultPath())
+
+
+def test_r10_m2_overridden_model_fields_set_and_model_extra_not_executed() -> None:
+    """R10-M2: Overridden model_fields_set / model_extra properties on BaseModel are bypassed."""
+    calls: list[str] = []
+
+    class _AdversarialPropsModel(BaseModel):
+        model_config = ConfigDict(extra="allow")
+        x: int = 1
+
+        @property
+        def model_fields_set(self) -> set[str]:  # type: ignore[override]
+            calls.append("model_fields_set")
+            return {"spoofed"}
+
+        @property
+        def model_extra(self) -> dict[str, object]:  # type: ignore[override]
+            calls.append("model_extra")
+            return {"spoofed": 999}
+
+    inst = _AdversarialPropsModel(x=7, extra_field=42)  # type: ignore[call-arg]
+    ro = freeze_model(inst)
+    assert calls == []
+    assert ro.model_fields_set == frozenset({"x", "extra_field"})
+    assert ro.extra_field == 42
+    assert "extra_field=42" in repr(ro)
+    assert ro == freeze_model(_AdversarialPropsModel(x=7, extra_field=42))  # type: ignore[call-arg]
+    assert ro.model_dump() == {"x": 7, "extra_field": 42}
+    unwrapped = ro.unwrap_copy()
+    assert unwrapped.x == 7
+    assert object.__getattribute__(unwrapped, "__pydantic_extra__") == {
+        "extra_field": 42
+    }
+    assert calls == []
+
+
+def test_r10_m1_pre_enriched_patch_write_metadata_parity() -> None:
+    """R10-m1: Partially pre-enriched patches behave identically across direct apply and normalisation."""
+    base = {"a": {"value": 1, "ref": {"ID": "r1"}}}
+    pre_enriched = ConfigPatch(
+        path="a",
+        action="set",
+        new_value=None,
+        had_original=True,
+        original_style="ref_only",
+        original_ref={"ID": "r1"},
+    )
+    direct = deepcopy(base)
+    apply_patches_in_place(direct, [pre_enriched])
+
+    normalised = normalise_patches([pre_enriched], base)
+    via_norm = deepcopy(base)
+    apply_patches_in_place(via_norm, normalised)
+
+    assert direct == via_norm == {"a": {"value": None, "ref": {"ID": "r1"}}}
+
+    # Unnormalised patch (had_original=None) with original_style="ref_only" honours hint on both paths.
+    hinted = ConfigPatch(
+        path="a",
+        action="set",
+        new_value=None,
+        original_style="ref_only",
+        original_ref={"ID": "r1"},
+    )
+    direct_hinted = deepcopy(base)
+    apply_patches_in_place(direct_hinted, [hinted])
+    via_norm_hinted = deepcopy(base)
+    apply_patches_in_place(via_norm_hinted, normalise_patches([hinted], base))
+    assert direct_hinted == via_norm_hinted == {"a": {"ref": {"ID": "r1"}}}
+
+
+def test_r10_m2_strict_equal_slice_with_numpy_array_bounds() -> None:
+    """R10-m2: _strict_equal handles slice payloads carrying NumPy arrays without ValueError."""
+    base_same = {"s": slice(np.array([1, 2]), None, 1)}
+    noop = normalise_patches(
+        [ConfigPatch("s", "set", slice(np.array([1, 2]), None, 1), replace_raw=True)],
+        base_same,
+    )
+    assert noop == []
+
+    changed = normalise_patches(
+        [ConfigPatch("s", "set", slice(np.array([1, 3]), None, 1), replace_raw=True)],
+        base_same,
+    )
+    assert len(changed) == 1
+
+    # Signed-zero and NaN slice bounds stay distinct/equal strictly as both values and keys.
+    sz_slice = normalise_patches(
+        [ConfigPatch("s", "set", slice(-0.0, 1), replace_raw=True)],
+        {"s": slice(0.0, 1)},
+    )
+    assert len(sz_slice) == 1
+    nan_key_noop = normalise_patches(
+        [ConfigPatch("m", "set", {slice(float("nan"), 1): 1}, replace_raw=True)],
+        {"m": {slice(float("nan"), 1): 1}},
+    )
+    assert nan_key_noop == []

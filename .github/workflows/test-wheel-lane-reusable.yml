@@ -28,6 +28,11 @@ on:
         description: 'Test tier of the calling run (smoke|core|cfg|physics-core|standard|physics-full|all)'
         required: true
         type: string
+      build_python:
+        description: 'Build-floor CPython tag that produced the abi3 wheel artefact (e.g. cp312 or cp313)'
+        required: false
+        type: string
+        default: 'cp312'
       install_mcp:
         description: 'Download and install suews-mcp-dist alongside the supy wheel (required for os_compat protocol tests and Linux inventory collection)'
         required: false
@@ -81,7 +86,7 @@ jobs:
       - name: Download wheel for this platform
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          name: ${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
           path: wheelhouse/
 
       - name: Download MCP distribution
@@ -195,11 +200,11 @@ jobs:
           (success() || failure()) &&
           matrix.cell.lane == 'native' &&
           matrix.buildplat[1] == 'manylinux' &&
-          matrix.cell.python_version == 'cp312' &&
+          matrix.cell.python_version == inputs.build_python &&
           (matrix.cell.shard == '' || startsWith(matrix.cell.shard, '1-of-'))
         shell: bash
         env:
-          INVENTORY_PATH: ci-metrics/inventory-cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
+          INVENTORY_PATH: ci-metrics/inventory-${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
         run: |
           python -m pytest -p scripts.suews.pytest_inventory --collect-only -q \
             -p no:cacheprovider test \

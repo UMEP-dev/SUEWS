@@ -1252,3 +1252,93 @@ def test_schema2_layout_and_guard_agree_when_abi3_list_includes_build_python(
         ])
         == 0
     )
+
+
+def test_wheel_lanes_and_core_guard_propagate_non_cp312_build_floor(
+    tmp_path: Path,
+) -> None:
+    """A non-cp312 build floor (e.g. cp313) flows through producer, wheel lanes, inventory, and core_guard."""
+    wheels = yaml.safe_load(
+        (PROJECT_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheel_lane = yaml.safe_load(
+        (PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    # Producer (build job -> build-suews action) uploads <inputs.python>-<platform>-<arch>,
+    # and each Schema 2 wheel-lane call forwards fromJson(inputs.python_json)[0] as build_python.
+    build_step = next(
+        s
+        for s in wheels["jobs"]["build"]["steps"]
+        if str(s.get("uses", "")).endswith("/.github/actions/build-suews")
+    )
+    assert build_step["with"]["python"] == "${{ matrix.python }}"
+    action_yaml = yaml.safe_load(
+        (PROJECT_ROOT / ".github/actions/build-suews/action.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    upload_step = next(
+        s for s in action_yaml["runs"]["steps"] if s.get("name") == "Upload wheels"
+    )
+    assert upload_step["with"]["name"] == (
+        "${{ inputs.artifact_prefix }}${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}"
+    )
+    for job_id in ("native_tests", "os_compat_tests", "abi3_smoke_tests"):
+        assert (
+            wheels["jobs"][job_id]["with"]["build_python"]
+            == "${{ fromJson(inputs.python_json)[0] }}"
+        )
+
+    # Consumer (test-wheel-lane-reusable.yml) downloads <inputs.build_python>-<platform>-<arch>
+    # and records inventory-<inputs.build_python>-manylinux-x86_64.json when native matches build_python.
+    steps = wheel_lane["jobs"]["wheel_lane"]["steps"]
+    dl_step = next(
+        s for s in steps if s.get("name") == "Download wheel for this platform"
+    )
+    assert dl_step["with"]["name"] == (
+        "${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
+    )
+    inv_step = next(
+        s
+        for s in steps
+        if s.get("name") == "Record the test inventory for the core-test guard"
+    )
+    assert "matrix.cell.python_version == inputs.build_python" in inv_step["if"]
+    assert inv_step["env"]["INVENTORY_PATH"] == (
+        "ci-metrics/inventory-${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json"
+    )
+
+    # End-to-end check_core_guard with cp313 build floor + cp315 abi3_smoke.
+    metrics = _layout_v2(
+        tmp_path,
+        tier="physics-core",
+        abi3_smoke_pythons=("cp315",),
+        include_os_compat=True,
+    )
+    for path in sorted(metrics.rglob("*cp312*"), reverse=True):
+        path.rename(path.with_name(path.name.replace("cp312", "cp313")))
+    allow = tmp_path / "allow.json"
+    assert (
+        main([
+            str(metrics),
+            "--schema",
+            "2",
+            "--tier",
+            "physics-core",
+            "--physics-python",
+            "cp313",
+            "--source-python",
+            "cp313",
+            "--abi3-smoke-python",
+            '["cp315"]',
+            "--require-os-compat",
+            "--allowlist",
+            str(allow),
+        ])
+        == 0
+    )

@@ -1133,64 +1133,52 @@ jobs:
           fi
           BASELINE_SCHEMA="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path("scripts/lint/test_duration_baseline.json").read_text(encoding="utf-8")).get("schema_version", 1))')"
           mkdir -p ci-metrics
-          METRICS_ROOT="ci-metrics"
-          extra_args=()
-          # Transitional Schema-1 baseline bridge: until W1-5b refreshes
-          # scripts/lint/test_duration_baseline.json to schema_version 2, stage
-          # each complete Schema-2 tooling/unit/native artefact byte-for-byte as
-          # its own legacy `api` shard so every runner keeps independent
-          # normalisation and original session metadata/exit codes intact.
+          # Schema 1 baselines measure the legacy `api` and `standard` physics
+          # cohorts, which are not comparable to Schema 2's 4-axis lanes.
+          # Report all four Schema 2 lanes explicitly as unavailable until W1-5b
+          # commits a Schema 2 baseline (`schema_version: 2`), at which point
+          # check_test_duration.py runs directly against ci-metrics/.
           if [ "${GATE_AXIS_SCHEMA:-1}" = "2" ] && [ "${BASELINE_SCHEMA}" -lt 2 ]; then
-            METRICS_ROOT="ci-metrics-v1"
-            extra_args+=(--min-reference-matches 3)
-            python - <<'PY'
-          import shutil
+            BASELINE_SCHEMA="$BASELINE_SCHEMA" python - <<'PY'
+          import json
+          import os
           from pathlib import Path
-          from scripts.lint import check_test_duration as ctd
 
-          src = Path("ci-metrics")
-          dst = Path("ci-metrics-v1")
-          if dst.exists():
-              shutil.rmtree(dst)
-          dst.mkdir(parents=True, exist_ok=True)
-
-          api_files = []
-          complete = True
-          for lane in ("tooling", "unit", "native"):
-              lane_dir = src / lane
-              lane_items = []
-              if lane_dir.is_dir():
-                  for p in sorted(ctd.cost_markers.iter_artefact_paths([lane_dir])):
-                      loaded = ctd.load_artefacts([p], allowed_lanes=(lane,))
-                      if loaded:
-                          lane_items.append((p, loaded[0]))
-              artefacts = [art for _, art in lane_items]
-              if (
-                  not artefacts
-                  or ctd._check_measurement_validity(artefacts) is not None
-                  or ctd._check_artefact_and_shard_completeness(artefacts) is not None
-              ):
-                  complete = False
-                  break
-              api_files.extend(p for p, _ in lane_items)
-
-          if complete and 1 <= len(api_files) <= ctd.MAX_SHARD_TOTAL:
-              total = len(api_files)
-              for idx, p in enumerate(api_files, start=1):
-                  shard_dir = (
-                      dst
-                      / "api"
-                      / f"ci-metrics-api-cp312-manylinux-x86_64-shard-{idx}-of-{total}"
-                  )
-                  shard_dir.mkdir(parents=True, exist_ok=True)
-                  shutil.copy2(
-                      p,
-                      shard_dir
-                      / f"api-cp312-manylinux-x86_64-shard-{idx}-of-{total}.json",
-                  )
-          if (src / "physics").is_dir():
-              shutil.copytree(src / "physics", dst / "physics")
+          base_schema = os.environ["BASELINE_SCHEMA"]
+          reason = (
+              f"base branch baseline is schema {base_schema} (legacy api/physics cohorts); "
+              "awaiting Schema 2 baseline refresh (W1-5b)"
+          )
+          lanes = {
+              lane: {"lane": lane, "status": "unavailable", "reason": reason}
+              for lane in ("tooling", "unit", "native", "physics")
+          }
+          report = {
+              "schema_version": 2,
+              "max_regression": 0.1,
+              "lanes": lanes,
+              "marker_warnings": [],
+          }
+          Path("duration-guard.json").write_text(
+              json.dumps(report, indent=2) + "\n", encoding="utf-8"
+          )
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              lines = [
+                  "## Test duration guard (report-only)",
+                  "",
+                  f"Status: **UNAVAILABLE** -- {reason}.",
+                  "",
+                  "| Lane | Status | Reason |",
+                  "|---|---|---|",
+                  *(f"| `{lane}` | unavailable | {reason} |" for lane in lanes),
+                  "",
+              ]
+              with Path(summary_path).open("a", encoding="utf-8") as fh:
+                  fh.write("\n".join(lines))
+          print(f"[UNAVAILABLE] {reason}")
           PY
+            exit 0
           fi
           # File names are PR data: read them into an array through jq, never
           # into the text of a command.
@@ -1201,9 +1189,8 @@ jobs:
           else
             for f in "${files[@]}"; do args+=(--test-file "$f"); done
           fi
-          python scripts/lint/check_test_duration.py "$METRICS_ROOT" \
+          python scripts/lint/check_test_duration.py ci-metrics \
             --baseline scripts/lint/test_duration_baseline.json \
-            "${extra_args[@]}" \
             "${args[@]}" \
             --annotations \
             --json duration-guard.json \

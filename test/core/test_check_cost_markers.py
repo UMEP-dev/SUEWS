@@ -874,12 +874,8 @@ def test_baseline_metrics_and_budget_warn_report_delta_without_failing(
         ])
         == 0
     )
-    bad_opt_out = capsys.readouterr().out
-    assert "[OK]" in bad_opt_out
-    assert "[WARN] advisory budget diagnostic unavailable (warn-only):" in bad_opt_out
-    bad_opt_payload = json.loads(bad_opt_json.read_text(encoding="utf-8"))
-    assert bad_opt_payload["ok"] is True
-    assert len(bad_opt_payload["advisory_errors"]) == 3
+    assert "[WARN] advisory budget diagnostic unavailable (warn-only):" in capsys.readouterr().out
+    assert len(json.loads(bad_opt_json.read_text(encoding="utf-8"))["advisory_errors"]) == 3
 
     # Unsupported schema or malformed records in --baseline-metrics also stay warn-only.
     bad_schema_base = tmp_path / "bad_schema_base.json"
@@ -952,3 +948,139 @@ def test_per_axis_cpu_summary_preserves_dual_lane_measurements(
     assert set(by_axis) == {"api", "physics"}
     assert by_axis["api"].total_cpu_seconds == pytest.approx(4.0)
     assert by_axis["physics"].total_cpu_seconds == pytest.approx(6.0)
+
+
+def test_advisory_boundary_isolates_malformed_baseline_nonfinite_and_invalid_cli_args(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Null/overflow/infinite baseline records and non-numeric CLI advisory flags stay warn-only."""
+    curr = _artefact(
+        tmp_path / "unit-cp312-linux-x86_64.json",
+        [_record("test/core/test_ok.py::test_fast", call=1.5)],
+    )
+    out_json = tmp_path / "out.json"
+
+    # 1) Non-numeric --parametrize-budget-seconds and --budget-warn must NOT trigger argparse exit 2.
+    assert (
+        checker.main([
+            str(curr),
+            "--parametrize-budget-seconds",
+            "invalid",
+            "--budget-warn",
+            "not-a-number",
+            "--json",
+            str(out_json),
+        ])
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "[OK]" in out
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert len(payload["advisory_errors"]) == 2
+
+    # 2) Python entry point check_costs(..., explosion_seconds=0) degrades to advisory_errors.
+    report = checker.check_costs(
+        [checker.TestCost("test/core/test_ok.py::test_fast", (), 1.5, 1.5, "unit.json")],
+        explosion_seconds=0,
+    )
+    assert report.ok is True
+    assert report.advisory_errors
+
+    # 3) Baseline containing [null], huge int (OverflowError), and 1e309 (Infinity)
+    #    must never crash or emit non-standard JSON Infinity.
+    for name, raw_text in (
+        ("null_rec.json", '{"schema_version": 2, "tests": [null]}'),
+        (
+            "huge_int.json",
+            '{"schema_version": 2, "tests": [{"node_id": "test/a.py::test_x", '
+            '"outcome": "passed", "cpu_seconds": {"call": ' + ("9" * 400) + "}}]}",
+        ),
+        (
+            "inf_rec.json",
+            '{"schema_version": 2, "tests": [{"node_id": "test/a.py::test_x", '
+            '"outcome": "passed", "cpu_seconds": {"call": 1e309}}]}',
+        ),
+    ):
+        bad_base = tmp_path / name
+        bad_base.write_text(raw_text, encoding="utf-8")
+        out_path = tmp_path / f"out_{name}"
+        assert (
+            checker.main([
+                str(curr),
+                "--baseline-metrics",
+                str(bad_base),
+                "--budget-warn",
+                "10",
+                "--json",
+                str(out_path),
+            ])
+            == 0
+        )
+        capsys.readouterr()
+        raw_out = out_path.read_text(encoding="utf-8")
+        assert "Infinity" not in raw_out
+        assert "NaN" not in raw_out
+        parsed = json.loads(raw_out)
+        assert parsed["ok"] is True
+        assert parsed["budget_delta"] is None
+        assert parsed["advisory_errors"]
+
+
+def test_budget_delta_tracks_added_lane_execution_and_call_phase_under_setup_phase(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Budget delta counts new axis executions and call-CPU diagnostics ignore --phase setup."""
+    # 1) Baseline runs test_x in api (6s); current keeps api (6s) and adds physics (4s).
+    base_tests = [
+        checker.TestCost(
+            "test/core/test_dual.py::test_x", ("api",), 6.0, 6.0, "api.json", axis="api"
+        )
+    ]
+    curr_tests = [
+        checker.TestCost(
+            "test/core/test_dual.py::test_x", ("api",), 6.0, 6.0, "api.json", axis="api"
+        ),
+        checker.TestCost(
+            "test/core/test_dual.py::test_x", ("physics",), 4.0, 4.0, "physics.json", axis="physics"
+        ),
+    ]
+    report = checker.check_costs(curr_tests, baseline_tests=base_tests, budget_warn_seconds=3.0)
+    assert report.budget_delta is not None
+    assert report.budget_delta.baseline_cpu_seconds == pytest.approx(6.0)
+    assert report.budget_delta.current_cpu_seconds == pytest.approx(10.0)
+    assert report.budget_delta.delta_cpu_seconds == pytest.approx(4.0)
+    assert report.budget_delta.added_test_count == 1
+    assert report.budget_delta.added_tests_cpu_seconds == pytest.approx(4.0)
+    assert report.budget_delta.exceeded is True
+
+    # 2) Under --phase setup, high setup CPU (11s x 2) with tiny call CPU (0.1s x 2)
+    #    must NOT trigger a call-CPU parametrisation explosion warning.
+    setup_heavy = _artefact(
+        tmp_path / "unit-setup.json",
+        [
+            {
+                "node_id": "test/core/test_s.py::test_p[0]",
+                "outcome": "passed",
+                "markers": ["unit"],
+                "cpu_seconds": {"setup": 11.0, "call": 0.1, "teardown": 0.0, "total": 11.1},
+                "wall_seconds": {"setup": 11.0, "call": 0.1, "teardown": 0.0, "total": 11.1},
+            },
+            {
+                "node_id": "test/core/test_s.py::test_p[1]",
+                "outcome": "passed",
+                "markers": ["unit"],
+                "cpu_seconds": {"setup": 11.0, "call": 0.1, "teardown": 0.0, "total": 11.1},
+                "wall_seconds": {"setup": 11.0, "call": 0.1, "teardown": 0.0, "total": 11.1},
+            },
+        ],
+    )
+    out_json = tmp_path / "setup_phase.json"
+    # Setup is 11s x 2 (= 22s > 20s if setup leaked into call diagnostics),
+    # while call CPU is 0.1s x 2 = 0.2s (no explosion warning, 0.2s axis summary).
+    rc = checker.main([str(setup_heavy), "--phase", "setup", "--json", str(out_json)])
+    assert rc == 0
+    capsys.readouterr()
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["parametrize_explosion_warnings"] == []
+    assert payload["axis_cpu_summary"][0]["total_cpu_seconds"] == pytest.approx(0.2)

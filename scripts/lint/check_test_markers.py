@@ -52,7 +52,9 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import stat
+import subprocess
 import sys
 
 AXIS_MARKERS: frozenset[str] = frozenset({"tooling", "unit", "native", "physics"})
@@ -171,7 +173,18 @@ _PYTHON_EXE_VAR_TOKENS: tuple[str, ...] = (
     "env_exe",
     "executable",
 )
-_MAX_BRANCH_BINDINGS: int = 8
+_PYTHON_TWO_ARG_FLAGS: frozenset[str] = frozenset({"-W", "-X"})
+_MAX_BRANCH_BINDINGS: int = 64
+_MAX_EXPANDED_CASES: int = 2048
+_BASELINE_ALLOWED_KEYS: frozenset[str] = frozenset({
+    "schema_version",
+    "description",
+    "e2e_default_cap",
+    "parametrized_simulations",
+    "unmarked_subprocess_e2e",
+    "e2e_command_caps",
+    "unresolvable_e2e_parametrize",
+})
 _ENGINE_BIN_VAR_NAMES: frozenset[str] = frozenset({
     "engine_bin",
     "engine_exe",
@@ -190,13 +203,10 @@ _SUEWS_EXE_VAR_NAMES: frozenset[str] = frozenset({
     "suews_cli",
 })
 _SUEWS_CLI_SET: frozenset[str] = frozenset(SUEWS_CLI_COMMANDS)
-_BASELINE_ALLOWED_KEYS: frozenset[str] = frozenset({
-    "schema_version",
-    "description",
-    "e2e_default_cap",
-    "parametrized_simulations",
-    "unmarked_subprocess_e2e",
-    "e2e_command_caps",
+_DARWIN_SYSTEM_LINK_ROOTS: frozenset[Path] = frozenset({
+    Path("/tmp"),
+    Path("/var"),
+    Path("/etc"),
 })
 
 # Make parser regexes (applied to leading-whitespace-trimmed non-recipe lines).
@@ -1494,6 +1504,8 @@ class AstGuardsSnapshot:
         parametrized_simulations: dict[str, int] | None = None,
         unmarked_subprocess_e2e: dict[str, list[str]] | None = None,
         e2e_command_nodes: dict[str, int] | None = None,
+        unresolvable_e2e_parametrize: dict[str, list[str]] | None = None,
+        subprocess_analysis_overflow: dict[str, list[str]] | None = None,
     ) -> None:
         """Initialise an AST guards snapshot with optional pre-populated maps."""
         self.parametrized_simulations: dict[str, int] = (
@@ -1507,17 +1519,31 @@ class AstGuardsSnapshot:
         self.e2e_command_nodes: dict[str, int] = (
             dict(e2e_command_nodes) if e2e_command_nodes else {}
         )
+        self.unresolvable_e2e_parametrize: dict[str, list[str]] = (
+            {k: list(v) for k, v in unresolvable_e2e_parametrize.items()}
+            if unresolvable_e2e_parametrize
+            else {}
+        )
+        self.subprocess_analysis_overflow: dict[str, list[str]] = (
+            {k: list(v) for k, v in subprocess_analysis_overflow.items()}
+            if subprocess_analysis_overflow
+            else {}
+        )
 
     __hash__ = None  # Mutable snapshot mappings are unhashable.
 
     def __eq__(self, other: object) -> bool:
-        """Compare two snapshots by their three guard mappings."""
+        """Compare two snapshots by their guard mappings."""
         if not isinstance(other, AstGuardsSnapshot):
             return NotImplemented
         return (
             self.parametrized_simulations == other.parametrized_simulations
             and self.unmarked_subprocess_e2e == other.unmarked_subprocess_e2e
             and self.e2e_command_nodes == other.e2e_command_nodes
+            and self.unresolvable_e2e_parametrize
+            == other.unresolvable_e2e_parametrize
+            and self.subprocess_analysis_overflow
+            == other.subprocess_analysis_overflow
         )
 
     def __repr__(self) -> str:
@@ -1526,7 +1552,9 @@ class AstGuardsSnapshot:
             "AstGuardsSnapshot("
             f"parametrized_simulations={self.parametrized_simulations!r}, "
             f"unmarked_subprocess_e2e={self.unmarked_subprocess_e2e!r}, "
-            f"e2e_command_nodes={self.e2e_command_nodes!r})"
+            f"e2e_command_nodes={self.e2e_command_nodes!r}, "
+            f"unresolvable_e2e_parametrize={self.unresolvable_e2e_parametrize!r}, "
+            f"subprocess_analysis_overflow={self.subprocess_analysis_overflow!r})"
         )
 
 
@@ -1703,40 +1731,192 @@ def _is_non_simulation_run_receiver(
     )
 
 
-def _collect_import_aliases(
+def _collect_subprocess_imports(
     tree: ast.Module,
-) -> tuple[set[str], set[str], frozenset[str], frozenset[str]]:
-    """Collect subprocess aliases, direct subprocess funcs, non-sim modules, and runner classes."""
+) -> tuple[set[str], set[str]]:
+    """Collect module aliases and direct imports for ``subprocess`` calls."""
     subproc_aliases: set[str] = {"subprocess"}
     subproc_funcs: set[str] = set()
-    non_sim_mods: set[str] = set()
-    non_sim_classes: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                local_name = alias.asname or alias.name.split(".", 1)[0]
-                root_mod = alias.name.split(".", 1)[0]
                 if alias.name == "subprocess":
-                    subproc_aliases.add(local_name)
-                if root_mod in _NON_SIMULATION_RUN_MODULES:
-                    non_sim_mods.add(local_name)
+                    subproc_aliases.add(alias.asname or "subprocess")
+        elif isinstance(node, ast.ImportFrom) and node.module == "subprocess":
+            for alias in node.names:
+                if alias.name in _SUBPROCESS_CALL_METHODS:
+                    subproc_funcs.add(alias.asname or alias.name)
+    return (subproc_aliases, subproc_funcs)
+
+
+def _kill_non_sim_names(
+    names: set[str],
+    non_sim_mods: set[str],
+    non_sim_classes: set[str],
+    non_sim_vars: set[str],
+) -> None:
+    """Remove ``names`` from all proven module-level non-simulation binding sets."""
+    non_sim_mods.difference_update(names)
+    non_sim_classes.difference_update(names)
+    non_sim_vars.difference_update(names)
+
+
+def _apply_module_non_sim_import(
+    stmt: ast.Import | ast.ImportFrom,
+    non_sim_mods: set[str],
+    non_sim_classes: set[str],
+    non_sim_vars: set[str],
+) -> None:
+    """Update module non-sim binding sets for an import statement."""
+    if isinstance(stmt, ast.Import):
+        for alias in stmt.names:
+            local_name = alias.asname or alias.name.split(".", 1)[0]
+            root_mod = alias.name.split(".", 1)[0]
+            _kill_non_sim_names({local_name}, non_sim_mods, non_sim_classes, non_sim_vars)
+            if root_mod in _NON_SIMULATION_RUN_MODULES:
+                non_sim_mods.add(local_name)
+    else:
+        root_mod = stmt.module.split(".", 1)[0] if stmt.module else ""
+        is_non_sim_mod = root_mod in _NON_SIMULATION_RUN_MODULES
+        for alias in stmt.names:
+            if alias.name == "*":
+                continue
+            local_name = alias.asname or alias.name
+            _kill_non_sim_names({local_name}, non_sim_mods, non_sim_classes, non_sim_vars)
+            if is_non_sim_mod and alias.name in _NON_SIMULATION_RUN_CLASSES:
+                non_sim_classes.add(local_name)
+
+
+def _apply_module_non_sim_assign(
+    target: ast.AST,
+    value: ast.AST | None,
+    non_sim_mods: set[str],
+    non_sim_classes: set[str],
+    non_sim_vars: set[str],
+) -> None:
+    """Update module non-sim binding sets for an assignment target."""
+    assigned = set(_iter_assigned_names(target))
+    is_ctor = (
+        value is not None
+        and isinstance(target, ast.Name)
+        and _is_non_sim_constructor_call(
+            value,
+            frozenset(non_sim_mods),
+            frozenset(non_sim_classes),
+            frozenset(),
+        )
+    )
+    _kill_non_sim_names(assigned, non_sim_mods, non_sim_classes, non_sim_vars)
+    if is_ctor and isinstance(target, ast.Name):
+        non_sim_vars.add(target.id)
+
+
+def _walk_module_non_sim_stmts(
+    stmts: list[ast.stmt],
+    non_sim_mods: set[str],
+    non_sim_classes: set[str],
+    non_sim_vars: set[str],
+) -> None:
+    """Walk module-level statements in order, preserving only must-hold non-sim bindings."""
+    for stmt in stmts:
+        if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+            _apply_module_non_sim_import(stmt, non_sim_mods, non_sim_classes, non_sim_vars)
+        elif isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                _apply_module_non_sim_assign(
+                    target, stmt.value, non_sim_mods, non_sim_classes, non_sim_vars
+                )
+        elif isinstance(stmt, ast.AnnAssign):
+            if stmt.value is not None:
+                _apply_module_non_sim_assign(
+                    stmt.target, stmt.value, non_sim_mods, non_sim_classes, non_sim_vars
+                )
+        elif isinstance(stmt, ast.AugAssign):
+            _kill_non_sim_names(
+                set(_iter_assigned_names(stmt.target)),
+                non_sim_mods,
+                non_sim_classes,
+                non_sim_vars,
+            )
+        elif isinstance(stmt, ast.Delete):
+            for target in stmt.targets:
+                _kill_non_sim_names(
+                    set(_iter_assigned_names(target)),
+                    non_sim_mods,
+                    non_sim_classes,
+                    non_sim_vars,
+                )
+        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            _kill_non_sim_names({stmt.name}, non_sim_mods, non_sim_classes, non_sim_vars)
+        elif isinstance(stmt, ast.If):
+            t_m, t_c, t_v = set(non_sim_mods), set(non_sim_classes), set(non_sim_vars)
+            e_m, e_c, e_v = set(non_sim_mods), set(non_sim_classes), set(non_sim_vars)
+            _walk_module_non_sim_stmts(stmt.body, t_m, t_c, t_v)
+            if stmt.orelse:
+                _walk_module_non_sim_stmts(stmt.orelse, e_m, e_c, e_v)
+            non_sim_mods.clear()
+            non_sim_mods.update(t_m & e_m)
+            non_sim_classes.clear()
+            non_sim_classes.update(t_c & e_c)
+            non_sim_vars.clear()
+            non_sim_vars.update(t_v & e_v)
+        else:
+            # Conservative kill for loops/try/with/match at module level: any name
+            # written inside cannot be assumed to retain its pre-block non-sim binding.
+            written = _collect_written_names_in_stmt(stmt)
+            _kill_non_sim_names(written, non_sim_mods, non_sim_classes, non_sim_vars)
+
+
+def _collect_written_names_in_stmt(root: ast.AST) -> set[str]:
+    """Return variable/import/def names bound inside ``root`` (excluding nested defs' bodies)."""
+    written: set[str] = set()
+    stack: list[ast.AST] = list(ast.iter_child_nodes(root))
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            written.add(node.name)
+            continue
+        if isinstance(node, ast.Import):
+            written.update(a.asname or a.name.split(".", 1)[0] for a in node.names)
         elif isinstance(node, ast.ImportFrom):
-            if node.module == "subprocess":
-                for alias in node.names:
-                    if alias.name in _SUBPROCESS_CALL_METHODS:
-                        subproc_funcs.add(alias.asname or alias.name)
-            elif (
-                node.module
-                and node.module.split(".", 1)[0] in _NON_SIMULATION_RUN_MODULES
-            ):
-                for alias in node.names:
-                    if alias.name in _NON_SIMULATION_RUN_CLASSES:
-                        non_sim_classes.add(alias.asname or alias.name)
+            written.update(a.asname or a.name for a in node.names if a.name != "*")
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                written.update(_iter_assigned_names(target))
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            written.update(_iter_assigned_names(node.target))
+        elif isinstance(node, ast.Delete):
+            for target in node.targets:
+                written.update(_iter_assigned_names(target))
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            written.update(_iter_assigned_names(node.target))
+        elif isinstance(node, ast.NamedExpr):
+            written.add(node.target.id)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            written.add(node.name)
+        elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+            written.update(_iter_assigned_names(node.optional_vars))
+        stack.extend(ast.iter_child_nodes(node))
+    return written
+
+
+def _collect_module_non_sim_bindings(
+    tree: ast.Module,
+) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
+    """Collect module-level bindings provably holding non-simulation runners on all paths."""
+    non_sim_mods: set[str] = set()
+    non_sim_classes: set[str] = set()
+    non_sim_vars: set[str] = set()
+    _walk_module_non_sim_stmts(tree.body, non_sim_mods, non_sim_classes, non_sim_vars)
+    global_mutated: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Global):
+            global_mutated.update(node.names)
+    _kill_non_sim_names(global_mutated, non_sim_mods, non_sim_classes, non_sim_vars)
     return (
-        subproc_aliases,
-        subproc_funcs,
         frozenset(non_sim_mods),
         frozenset(non_sim_classes),
+        frozenset(non_sim_vars),
     )
 
 
@@ -1774,13 +1954,14 @@ def _is_python_executable_expr(
         rhs = _leading_str_constant(unwrapped.right)
         matched = rhs is not None and _is_python_token(rhs)
     elif isinstance(unwrapped, ast.Name):
-        if unwrapped.id in env and unwrapped.id not in seen:
-            matched = any(
-                _is_python_executable_expr(
-                    cand, env, seen=seen | {unwrapped.id}, depth=depth + 1
+        if unwrapped.id in env:
+            if unwrapped.id not in seen:
+                matched = any(
+                    _is_python_executable_expr(
+                        cand, env, seen=seen | {unwrapped.id}, depth=depth + 1
+                    )
+                    for cand in env[unwrapped.id]
                 )
-                for cand in env[unwrapped.id]
-            )
         else:
             matched = any(
                 tok in unwrapped.id.lower() for tok in _PYTHON_EXE_VAR_TOKENS
@@ -1794,6 +1975,7 @@ def _flatten_argv_variants(
     *,
     seen: frozenset[str] = frozenset(),
     depth: int = 0,
+    overflow_flag: list[bool] | None = None,
 ) -> list[list[ast.AST]]:
     """Expand an argv expression into candidate flattened element lists."""
     if depth > 6:
@@ -1803,53 +1985,75 @@ def _flatten_argv_variants(
         for cand in env[node.id]:
             variants.extend(
                 _flatten_argv_variants(
-                    cand, env, seen=seen | {node.id}, depth=depth + 1
+                    cand,
+                    env,
+                    seen=seen | {node.id},
+                    depth=depth + 1,
+                    overflow_flag=overflow_flag,
                 )
             )
-        return variants[:_MAX_BRANCH_BINDINGS]
+        if len(variants) > _MAX_BRANCH_BINDINGS:
+            if overflow_flag is not None:
+                overflow_flag[0] = True
+            return variants[:_MAX_BRANCH_BINDINGS]
+        return variants
     if isinstance(node, (ast.List, ast.Tuple)):
         variants = [[]]
         for elt in node.elts:
             if isinstance(elt, ast.Starred):
                 part_variants = _flatten_argv_variants(
-                    elt.value, env, seen=seen, depth=depth + 1
+                    elt.value,
+                    env,
+                    seen=seen,
+                    depth=depth + 1,
+                    overflow_flag=overflow_flag,
                 )
-                variants = [
-                    [*base, *part]
-                    for base in variants
-                    for part in part_variants
-                ][:_MAX_BRANCH_BINDINGS]
+                combined = [
+                    [*base, *part] for base in variants for part in part_variants
+                ]
+                if len(combined) > _MAX_BRANCH_BINDINGS and overflow_flag is not None:
+                    overflow_flag[0] = True
+                variants = combined[:_MAX_BRANCH_BINDINGS]
             else:
                 for base in variants:
                     base.append(elt)
         return variants
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         left_variants = _flatten_argv_variants(
-            node.left, env, seen=seen, depth=depth + 1
+            node.left, env, seen=seen, depth=depth + 1, overflow_flag=overflow_flag
         )
         right_variants = _flatten_argv_variants(
-            node.right, env, seen=seen, depth=depth + 1
+            node.right, env, seen=seen, depth=depth + 1, overflow_flag=overflow_flag
         )
-        return [
+        combined = [
             [*left, *right] for left in left_variants for right in right_variants
-        ][:_MAX_BRANCH_BINDINGS]
+        ]
+        if len(combined) > _MAX_BRANCH_BINDINGS and overflow_flag is not None:
+            overflow_flag[0] = True
+        return combined[:_MAX_BRANCH_BINDINGS]
     return [[node]]
 
 
 def _unwrap_path_conversion(node: ast.AST) -> ast.AST:
-    """Unwrap ``str(x)``, ``os.fspath(x)``, or ``Path(x)`` around an executable expr."""
+    """Unwrap ``str(x)``, ``os.fspath(x)``, ``Path(x)``, or zero-arg path methods."""
     cur = node
-    for _ in range(3):
-        if isinstance(cur, ast.Call) and cur.args:
-            func = cur.func
+    for _ in range(5):
+        if not isinstance(cur, ast.Call):
+            break
+        func = cur.func
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr in {"as_posix", "resolve", "expanduser", "absolute"}
+            and not cur.args
+        ):
+            cur = func.value
+            continue
+        if cur.args:
             if isinstance(func, ast.Name) and func.id in {"str", "fspath", "Path"}:
                 cur = cur.args[0]
                 continue
-            if (
-                isinstance(func, ast.Attribute)
-                and func.attr in {"fspath", "Path", "as_posix"}
-            ):
-                cur = cur.args[0] if func.attr != "as_posix" else func.value
+            if isinstance(func, ast.Attribute) and func.attr in {"fspath", "Path"}:
+                cur = cur.args[0]
                 continue
         break
     return cur
@@ -1922,20 +2126,44 @@ def _detect_cli_from_call_expr(
     return result
 
 
+def _is_supy_module_name(mod_name: str | None) -> bool:
+    """Return True when ``mod_name`` is ``supy`` or a submodule of ``supy``."""
+    return mod_name is not None and (mod_name == "supy" or mod_name.startswith("supy."))
+
+
+def _tokens_invoke_python_m_supy(args: list[str | None]) -> bool:
+    """Return True if Python interpreter ``args`` invoke ``-m supy...`` before option end."""
+    idx = 0
+    while idx < len(args):
+        tok = args[idx]
+        if tok is None or not tok.startswith("-") or tok in {"-", "--", "-c"} or tok.startswith("-c"):
+            return False
+        if tok == "-m":
+            return idx + 1 < len(args) and _is_supy_module_name(args[idx + 1])
+        if tok.startswith("-m") and len(tok) > 2:
+            return _is_supy_module_name(tok[2:])
+        if tok in _PYTHON_TWO_ARG_FLAGS or tok == "--check-hash-based-pycs":
+            idx += 2
+            continue
+        idx += 1
+    return False
+
+
 def _detect_cli_from_string(text: str) -> set[str]:
     """Detect a SUEWS CLI or ``python -m supy...`` invocation in a command string."""
-    tokens = text.split()
+    try:
+        tokens = shlex.split(text)
+    except ValueError:
+        tokens = text.split()
     if not tokens:
         return set()
     exe = _normalise_cli_executable(tokens[0])
     if exe is not None:
         return {exe}
-    if _is_python_token(tokens[0]):
-        for idx, tok in enumerate(tokens[1:-1], start=1):
-            if tok == "-m" and (
-                tokens[idx + 1] == "supy" or tokens[idx + 1].startswith("supy.")
-            ):
-                return {PYTHON_M_SUPY_COMMAND}
+    if _is_python_token(tokens[0]) and _tokens_invoke_python_m_supy(
+        list(tokens[1:])
+    ):
+        return {PYTHON_M_SUPY_COMMAND}
     return set()
 
 
@@ -1949,6 +2177,27 @@ _CLI_NAME_SUBSTRINGS: tuple[tuple[str, str], ...] = (
 )
 
 
+def _is_resolved_literal_executable(node: ast.AST) -> bool:
+    """Return True when ``node`` is a concrete literal/path executable expression."""
+    unwrapped = _unwrap_path_conversion(node)
+    if _leading_str_constant(unwrapped) is not None:
+        return True
+    if isinstance(unwrapped, ast.BinOp) and isinstance(unwrapped.op, ast.Div):
+        return _leading_str_constant(unwrapped.right) is not None
+    if isinstance(unwrapped, (ast.List, ast.Tuple)) and unwrapped.elts:
+        return _is_resolved_literal_executable(unwrapped.elts[0])
+    if isinstance(unwrapped, ast.Call):
+        func = unwrapped.func
+        fname = (
+            func.id
+            if isinstance(func, ast.Name)
+            else (func.attr if isinstance(func, ast.Attribute) else "")
+        )
+        if fname.lower() == "which" and unwrapped.args:
+            return _leading_str_constant(unwrapped.args[0]) is not None
+    return False
+
+
 def _detect_cli_from_name(
     first: ast.Name,
     elems: list[ast.AST],
@@ -1958,47 +2207,71 @@ def _detect_cli_from_name(
     depth: int,
 ) -> set[str]:
     """Detect SUEWS CLI command(s) from a variable or fixture name in ``argv[0]``."""
-    found: set[str] = set()
-    if first.id in env and first.id not in seen:
-        for cand in env[first.id]:
-            found.update(
-                _detect_suews_clis_in_expr(
-                    cand, env, seen=seen | {first.id}, depth=depth + 1
+    if first.id in env:
+        found: set[str] = set()
+        if first.id not in seen:
+            for cand in env[first.id]:
+                found.update(
+                    _detect_suews_clis_in_expr(
+                        cand, env, seen=seen | {first.id}, depth=depth + 1
+                    )
                 )
-            )
-        if found:
+        if found or (
+            env[first.id]
+            and all(_is_resolved_literal_executable(c) for c in env[first.id])
+        ):
             return found
     low = first.id.lower()
+    result: set[str] = set()
     for needle, command in _CLI_NAME_SUBSTRINGS:
         if needle in low:
-            return {command}
-    if low in _ENGINE_BIN_VAR_NAMES or (
-        low in _GENERIC_ENGINE_RUN_VARS
-        and len(elems) >= 2
-        and _leading_str_constant(elems[1]) == "run"
+            result = {command}
+            break
+    if not result and (
+        low in _ENGINE_BIN_VAR_NAMES
+        or (
+            low in _GENERIC_ENGINE_RUN_VARS
+            and len(elems) >= 2
+            and _leading_str_constant(elems[1]) == "run"
+        )
     ):
-        return {"suews-engine"}
-    if low in _SUEWS_EXE_VAR_NAMES:
-        if len(elems) >= 2 and _leading_str_constant(elems[1]) == "validate":
-            return {"suews-validate"}
-        return {"suews"}
-    return set()
+        result = {"suews-engine"}
+    elif not result and low in _SUEWS_EXE_VAR_NAMES:
+        sub = _leading_str_constant(elems[1]) if len(elems) >= 2 else None
+        result = {"suews-validate"} if sub == "validate" else {"suews"}
+    return result
+
+
+def _elem_string_variants(
+    elem: ast.AST,
+    env: Mapping[str, list[ast.AST]],
+) -> list[str | None]:
+    """Return candidate constant string values for one argv element."""
+    direct = _leading_str_constant(elem)
+    if direct is not None:
+        return [direct]
+    if isinstance(elem, ast.Name) and elem.id in env:
+        vals = [_leading_str_constant(cand) for cand in env[elem.id]]
+        return vals or [None]
+    return [None]
 
 
 def _has_python_m_supy(
     elems: list[ast.AST], env: Mapping[str, list[ast.AST]]
 ) -> bool:
     """Return True when ``elems`` invokes a Python executable with ``-m supy...``."""
-    if len(elems) < 3 or not _is_python_executable_expr(elems[0], env):
+    if len(elems) < 2 or not _is_python_executable_expr(elems[0], env):
         return False
-    for idx, elem in enumerate(elems[1:-1], start=1):
-        if _leading_str_constant(elem) == "-m":
-            mod_str = _leading_str_constant(elems[idx + 1])
-            if mod_str is not None and (
-                mod_str == "supy" or mod_str.startswith("supy.")
-            ):
-                return True
-    return False
+    # Check across candidate constant token choices (usually 1 per slot).
+    token_lists: list[list[str | None]] = [[]]
+    for elem in elems[1:]:
+        choices = _elem_string_variants(elem, env)
+        token_lists = [
+            [*prefix, choice]
+            for prefix in token_lists
+            for choice in choices
+        ][:_MAX_BRANCH_BINDINGS]
+    return any(_tokens_invoke_python_m_supy(tokens) for tokens in token_lists)
 
 
 def _detect_suews_clis_in_argv(
@@ -2040,6 +2313,7 @@ def _detect_suews_clis_in_expr(
     *,
     seen: frozenset[str] = frozenset(),
     depth: int = 0,
+    overflow_flag: list[bool] | None = None,
 ) -> set[str]:
     """Return canonical SUEWS CLI command(s) invoked by ``expr``."""
     if depth > 6:
@@ -2048,43 +2322,530 @@ def _detect_suews_clis_in_expr(
     if direct_str is not None:
         return _detect_cli_from_string(direct_str)
     found: set[str] = set()
-    for elems in _flatten_argv_variants(expr, env, seen=seen, depth=depth + 1):
+    for elems in _flatten_argv_variants(
+        expr, env, seen=seen, depth=depth + 1, overflow_flag=overflow_flag
+    ):
         found.update(_detect_suews_clis_in_argv(elems, env, seen=seen, depth=depth))
     return found
 
 
-def _clone_binding_env(
-    env: Mapping[str, list[ast.AST]],
-) -> dict[str, list[ast.AST]]:
-    """Return a shallow copy of a multi-value variable binding map."""
-    return {k: list(v) for k, v in env.items()}
+def _is_cli_relevant_candidate(node: ast.AST) -> bool:
+    """Return True if ``node`` directly resembles a SUEWS CLI or python-m-supy piece."""
+    if _detect_suews_clis_in_expr(node, {}):
+        return True
+    text = _leading_str_constant(_unwrap_path_conversion(node))
+    if text is not None:
+        return (
+            _normalise_cli_executable(text) is not None
+            or _is_python_token(text)
+            or text == "-m"
+            or _is_supy_module_name(text)
+        )
+    return False
 
 
-def _merge_binding_envs(
-    first: Mapping[str, list[ast.AST]],
-    second: Mapping[str, list[ast.AST]],
-) -> dict[str, list[ast.AST]]:
+def _compact_ast_candidates(
+    candidates: list[ast.AST],
+) -> tuple[list[ast.AST], bool]:
+    """Deduplicate AST candidates by structure, preserving CLI-relevant items on cap."""
+    deduped: list[ast.AST] = []
+    seen_dumps: set[str] = set()
+    for node in candidates:
+        dump = ast.dump(node)
+        if dump not in seen_dumps:
+            seen_dumps.add(dump)
+            deduped.append(node)
+    if len(deduped) <= _MAX_BRANCH_BINDINGS:
+        return (deduped, False)
+    priority = [node for node in deduped if _is_cli_relevant_candidate(node)]
+    rest = [node for node in deduped if not _is_cli_relevant_candidate(node)]
+    kept = (priority + rest)[:_MAX_BRANCH_BINDINGS]
+    return (kept, True)
+
+
+class _BindingState:
+    """Point-in-time variable bindings plus explicit overflow tracking for subprocess AST."""
+
+    def __init__(
+        self,
+        env: Mapping[str, list[ast.AST]] | None = None,
+        overflowed: set[str] | frozenset[str] | None = None,
+    ) -> None:
+        self.env: dict[str, list[ast.AST]] = (
+            {k: list(v) for k, v in env.items()} if env else {}
+        )
+        self.overflowed: set[str] = set(overflowed) if overflowed else set()
+
+    def clone(self) -> _BindingState:
+        """Return a shallow copy of this binding state."""
+        return _BindingState(self.env, self.overflowed)
+
+
+def _merge_binding_states(
+    first: _BindingState,
+    second: _BindingState,
+) -> _BindingState:
     """Conservatively union candidate bindings from two control-flow branches."""
-    merged: dict[str, list[ast.AST]] = {}
-    for key in set(first) | set(second):
-        combined: list[ast.AST] = []
-        seen_ids: set[int] = set()
-        for src in (first.get(key, ()), second.get(key, ())):
-            for node in src:
-                if id(node) not in seen_ids:
-                    seen_ids.add(id(node))
-                    combined.append(node)
-        merged[key] = combined[:_MAX_BRANCH_BINDINGS]
-    return merged
+    merged_env: dict[str, list[ast.AST]] = {}
+    merged_overflow: set[str] = set(first.overflowed) | set(second.overflowed)
+    for key in set(first.env) | set(second.env):
+        combined = [*first.env.get(key, ()), *second.env.get(key, ())]
+        kept, overflowed = _compact_ast_candidates(combined)
+        merged_env[key] = kept
+        if overflowed:
+            merged_overflow.add(key)
+    return _BindingState(merged_env, merged_overflow)
+
+
+def _substitute_seq_elements(
+    elts: list[ast.AST],
+    state: _BindingState,
+    *,
+    depth: int,
+) -> tuple[list[list[ast.AST]], bool]:
+    """Eagerly substitute element expressions into Cartesian-product element lists."""
+    lists: list[list[ast.AST]] = [[]]
+    overflowed = False
+    for elt in elts:
+        if isinstance(elt, ast.Starred):
+            sub_vals, sub_ov = _substitute_expr_values(
+                elt.value, state, depth=depth + 1
+            )
+            choices: list[ast.AST] = [
+                ast.Starred(value=val, ctx=ast.Load()) for val in sub_vals
+            ]
+        else:
+            choices, sub_ov = _substitute_expr_values(elt, state, depth=depth + 1)
+        overflowed = overflowed or sub_ov
+        expanded = [[*base, choice] for base in lists for choice in choices]
+        if len(expanded) > _MAX_BRANCH_BINDINGS:
+            overflowed = True
+            lists = expanded[:_MAX_BRANCH_BINDINGS]
+        else:
+            lists = expanded
+    return (lists, overflowed)
+
+
+def _substitute_call_values(
+    expr: ast.Call,
+    state: _BindingState,
+    *,
+    depth: int,
+) -> tuple[list[ast.AST], bool]:
+    """Eagerly substitute bound variables inside a call's receiver and arguments."""
+    func_choices: list[ast.AST] = [expr.func]
+    overflowed = False
+    if isinstance(expr.func, ast.Attribute):
+        recv_vals, recv_ov = _substitute_expr_values(
+            expr.func.value, state, depth=depth + 1
+        )
+        overflowed = overflowed or recv_ov
+        func_choices = [
+            ast.Attribute(value=rv, attr=expr.func.attr, ctx=ast.Load())
+            for rv in recv_vals
+        ]
+    arg_lists, arg_ov = _substitute_seq_elements(expr.args, state, depth=depth)
+    overflowed = overflowed or arg_ov
+    results = [
+        ast.Call(func=fn, args=args, keywords=expr.keywords)
+        for fn in func_choices
+        for args in arg_lists
+    ]
+    kept, cap_ov = _compact_ast_candidates(results)
+    return (kept, overflowed or cap_ov)
+
+
+def _substitute_expr_values(
+    expr: ast.AST,
+    state: _BindingState,
+    *,
+    depth: int = 0,
+) -> tuple[list[ast.AST], bool]:
+    """Eagerly replace active variable references with their assignment-time AST values."""
+    result: tuple[list[ast.AST], bool] = ([expr], False)
+    if depth <= 6:
+        if isinstance(expr, ast.Name) and isinstance(expr.ctx, ast.Load):
+            if expr.id in state.env:
+                result = (list(state.env[expr.id]), expr.id in state.overflowed)
+        elif isinstance(expr, (ast.List, ast.Tuple)):
+            elt_lists, overflowed = _substitute_seq_elements(
+                expr.elts, state, depth=depth
+            )
+            cls = ast.List if isinstance(expr, ast.List) else ast.Tuple
+            rebuilt = [cls(elts=elts, ctx=ast.Load()) for elts in elt_lists]
+            kept, cap_ov = _compact_ast_candidates(rebuilt)
+            result = (kept, overflowed or cap_ov)
+        elif isinstance(expr, ast.BinOp):
+            l_vals, l_ov = _substitute_expr_values(expr.left, state, depth=depth + 1)
+            r_vals, r_ov = _substitute_expr_values(expr.right, state, depth=depth + 1)
+            rebuilt = [
+                ast.BinOp(left=lv, op=expr.op, right=rv)
+                for lv in l_vals
+                for rv in r_vals
+            ]
+            kept, cap_ov = _compact_ast_candidates(rebuilt)
+            result = (kept, l_ov or r_ov or cap_ov)
+        elif isinstance(expr, ast.IfExp):
+            b_vals, b_ov = _substitute_expr_values(expr.body, state, depth=depth + 1)
+            o_vals, o_ov = _substitute_expr_values(expr.orelse, state, depth=depth + 1)
+            kept, cap_ov = _compact_ast_candidates([*b_vals, *o_vals])
+            result = (kept, b_ov or o_ov or cap_ov)
+        elif isinstance(expr, ast.Call):
+            result = _substitute_call_values(expr, state, depth=depth)
+    return result
+
+
+def _expr_references_overflowed(
+    expr: ast.AST,
+    overflowed: set[str],
+) -> bool:
+    """Return True if ``expr`` directly loads any variable marked overflowed."""
+    if not overflowed:
+        return False
+    return any(
+        isinstance(node, ast.Name)
+        and isinstance(node.ctx, ast.Load)
+        and node.id in overflowed
+        for node in ast.walk(expr)
+    )
+
+
+def _eval_int_constant(node: ast.AST) -> int | None:
+    """Evaluate a literal integer (including unary ``-``/``+``), excluding ``bool``."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(
+        node.value, bool
+    ):
+        return int(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        inner = _eval_int_constant(node.operand)
+        if inner is not None:
+            return -inner if isinstance(node.op, ast.USub) else inner
+    return None
+
+
+def _expand_range_call(call: ast.Call) -> list[ast.AST] | None:
+    """Expand a static ``range(...)`` call into constant int AST elements."""
+    if not (1 <= len(call.args) <= 3) or call.keywords:
+        return None
+    int_args = [_eval_int_constant(arg) for arg in call.args]
+    if any(val is None for val in int_args):
+        return None
+    r_args = [int(val) for val in int_args if val is not None]
+    if len(r_args) == 3 and r_args[2] == 0:
+        return None
+    r_obj = range(*r_args)
+    if len(r_obj) > _MAX_EXPANDED_CASES:
+        return None
+    return [ast.Constant(value=v) for v in r_obj]
+
+
+def _dedup_constant_elements(elts: list[ast.AST]) -> list[ast.AST] | None:
+    """Deduplicate a set's elements when all are hashable constants; else return None."""
+    out: list[ast.AST] = []
+    seen_keys: set[tuple[type, object]] = set()
+    for elt in elts:
+        if not isinstance(elt, ast.Constant):
+            return None
+        key = (type(elt.value), elt.value)
+        if key not in seen_keys:
+            seen_keys.add(key)
+            out.append(elt)
+    return out
+
+
+def _expand_dict_view_call(
+    call: ast.Call,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str],
+    depth: int,
+) -> list[ast.AST] | None:
+    """Expand literal ``dict.keys()`` / ``dict.values()`` / ``dict.items()`` calls."""
+    del depth
+    if call.args or call.keywords or not isinstance(call.func, ast.Attribute):
+        return None
+    method = call.func.attr
+    target: ast.AST = call.func.value
+    if isinstance(target, ast.Name) and target.id in env and target.id not in seen:
+        target = env[target.id]
+    if (
+        method not in {"keys", "values", "items"}
+        or not isinstance(target, ast.Dict)
+        or any(k is None for k in target.keys)
+        or len(target.keys) > _MAX_EXPANDED_CASES
+    ):
+        return None
+    if method == "keys":
+        return [k for k in target.keys if k is not None]
+    if method == "values":
+        return list(target.values)
+    return [
+        ast.Tuple(elts=[k, v], ctx=ast.Load())
+        for k, v in zip(target.keys, target.values)
+        if k is not None
+    ]
+
+
+def _expand_collection_ctor(
+    fname: str,
+    node: ast.Call,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str],
+    depth: int,
+) -> list[ast.AST] | None:
+    """Expand ``list/tuple/set/sorted/reversed(...)`` calls."""
+    if not node.args and not node.keywords and fname in {"list", "tuple", "set"}:
+        return []
+    if len(node.args) != 1 or (fname != "sorted" and node.keywords):
+        return None
+    inner = _expand_static_sequence(node.args[0], env, seen=seen, depth=depth + 1)
+    if inner is None:
+        return None
+    if fname == "reversed":
+        return list(reversed(inner))
+    if fname == "set":
+        return _dedup_constant_elements(inner)
+    return list(inner)
+
+
+def _expand_call_sequence(
+    node: ast.Call,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str],
+    depth: int,
+) -> list[ast.AST] | None:
+    """Expand supported built-in sequence constructor calls."""
+    if isinstance(node.func, ast.Attribute):
+        return _expand_dict_view_call(node, env, seen=seen, depth=depth)
+    if not isinstance(node.func, ast.Name):
+        return None
+    fname = node.func.id
+    result: list[ast.AST] | None = None
+    if fname == "range":
+        result = _expand_range_call(node)
+    elif fname in {"list", "tuple", "set", "sorted", "reversed"}:
+        result = _expand_collection_ctor(fname, node, env, seen=seen, depth=depth)
+    elif fname == "enumerate" and len(node.args) == 1 and not node.keywords:
+        inner = _expand_static_sequence(node.args[0], env, seen=seen, depth=depth + 1)
+        if inner is not None:
+            result = [
+                ast.Tuple(elts=[ast.Constant(value=i), elt], ctx=ast.Load())
+                for i, elt in enumerate(inner)
+            ]
+    elif fname == "zip" and not node.keywords:
+        parts = [
+            _expand_static_sequence(arg, env, seen=seen, depth=depth + 1)
+            for arg in node.args
+        ]
+        if all(p is not None for p in parts):
+            result = [
+                ast.Tuple(elts=list(items), ctx=ast.Load())
+                for items in zip(*(p for p in parts if p is not None))
+            ]
+    return result
+
+
+def _bind_comp_target(
+    target: ast.AST,
+    item: ast.AST,
+    out: dict[str, ast.AST],
+) -> bool:
+    """Bind comprehension target variable(s) to ``item``; return False if unsupported."""
+    if isinstance(target, ast.Name):
+        out[target.id] = item
+        return True
+    if isinstance(target, (ast.Tuple, ast.List)) and isinstance(
+        item, (ast.Tuple, ast.List)
+    ):
+        if len(target.elts) != len(item.elts):
+            return False
+        return all(
+            _bind_comp_target(sub_t, sub_v, out)
+            for sub_t, sub_v in zip(target.elts, item.elts)
+        )
+    return False
+
+
+def _expand_comprehension(
+    node: ast.ListComp | ast.GeneratorExp,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str],
+    depth: int,
+) -> list[ast.AST] | None:
+    """Expand filter-free list/generator comprehensions into element AST expressions."""
+    if any(gen.ifs or gen.is_async for gen in node.generators):
+        return None
+    bindings_list: list[dict[str, ast.AST]] = [{}]
+    for gen in node.generators:
+        next_bindings: list[dict[str, ast.AST]] = []
+        for cur_bind in bindings_list:
+            sub_env = {**env, **cur_bind}
+            items = _expand_static_sequence(
+                gen.iter, sub_env, seen=seen, depth=depth + 1
+            )
+            if items is None:
+                return None
+            for item in items:
+                merged = dict(cur_bind)
+                if not _bind_comp_target(gen.target, item, merged):
+                    return None
+                next_bindings.append(merged)
+                if len(next_bindings) > _MAX_EXPANDED_CASES:
+                    return None
+        bindings_list = next_bindings
+    out: list[ast.AST] = []
+    for cur_bind in bindings_list:
+        bstate = _BindingState({k: [v] for k, v in cur_bind.items()})
+        substituted, _ = _substitute_expr_values(node.elt, bstate)
+        out.append(substituted[0] if substituted else node.elt)
+    return out
+
+
+def _expand_binop_sequence(
+    node: ast.BinOp,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str],
+    depth: int,
+) -> list[ast.AST] | None:
+    """Expand sequence concatenation ``A + B`` and repetition ``A * n`` / ``n * A``."""
+    result: list[ast.AST] | None = None
+    if isinstance(node.op, ast.Add):
+        left = _expand_static_sequence(node.left, env, seen=seen, depth=depth + 1)
+        right = _expand_static_sequence(node.right, env, seen=seen, depth=depth + 1)
+        if left is not None and right is not None and len(left) + len(right) <= _MAX_EXPANDED_CASES:
+            result = [*left, *right]
+    elif isinstance(node.op, ast.Mult):
+        l_int = _eval_int_constant(node.left)
+        r_int = _eval_int_constant(node.right)
+        seq: list[ast.AST] | None = None
+        mult = 0
+        if l_int is not None and r_int is None:
+            seq = _expand_static_sequence(node.right, env, seen=seen, depth=depth + 1)
+            mult = l_int
+        elif r_int is not None and l_int is None:
+            seq = _expand_static_sequence(node.left, env, seen=seen, depth=depth + 1)
+            mult = r_int
+        if seq is not None:
+            if mult <= 0:
+                result = []
+            elif len(seq) * mult <= _MAX_EXPANDED_CASES:
+                result = seq * mult
+    return result
+
+
+def _expand_literal_container(
+    node: ast.List | ast.Tuple | ast.Set,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str],
+    depth: int,
+) -> list[ast.AST] | None:
+    """Expand a literal list/tuple/set (including starred sub-sequences)."""
+    items: list[ast.AST] = []
+    for elt in node.elts:
+        if isinstance(elt, ast.Starred):
+            part = _expand_static_sequence(
+                elt.value, env, seen=seen, depth=depth + 1
+            )
+            if part is None or len(items) + len(part) > _MAX_EXPANDED_CASES:
+                return None
+            items.extend(part)
+        else:
+            if len(items) + 1 > _MAX_EXPANDED_CASES:
+                return None
+            items.append(elt)
+    return _dedup_constant_elements(items) if isinstance(node, ast.Set) else items
+
+
+def _expand_static_sequence(
+    node: ast.AST,
+    env: Mapping[str, ast.AST],
+    *,
+    seen: frozenset[str] = frozenset(),
+    depth: int = 0,
+) -> list[ast.AST] | None:
+    """Return statically expanded sequence elements, or ``None`` when cardinality is unknown."""
+    result: list[ast.AST] | None = None
+    if depth <= 8:
+        if isinstance(node, ast.Name):
+            if node.id in env and node.id not in seen:
+                result = _expand_static_sequence(
+                    env[node.id], env, seen=seen | {node.id}, depth=depth + 1
+                )
+        elif isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            result = _expand_literal_container(node, env, seen=seen, depth=depth)
+        elif isinstance(node, ast.Call):
+            result = _expand_call_sequence(node, env, seen=seen, depth=depth)
+        elif isinstance(node, ast.BinOp):
+            result = _expand_binop_sequence(node, env, seen=seen, depth=depth)
+        elif isinstance(node, (ast.ListComp, ast.GeneratorExp)):
+            result = _expand_comprehension(node, env, seen=seen, depth=depth)
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and len(node.value) <= _MAX_EXPANDED_CASES
+        ):
+            result = [ast.Constant(value=ch) for ch in node.value]
+    return result
+
+
+def _expand_iterable_in_state(
+    iter_expr: ast.AST,
+    state: _BindingState,
+) -> tuple[list[ast.AST], bool]:
+    """Expand a ``for`` loop iterable using current eager bindings."""
+    subst_iters, overflowed = _substitute_expr_values(iter_expr, state)
+    single_env = {k: v[0] for k, v in state.env.items() if len(v) == 1}
+    collected: list[ast.AST] = []
+    for cand in subst_iters:
+        expanded = _expand_static_sequence(cand, single_env)
+        if expanded is not None:
+            collected.extend(expanded)
+    return (collected, overflowed)
+
+
+def _bind_for_target(
+    target: ast.AST,
+    elements: list[ast.AST],
+    state: _BindingState,
+    *,
+    iter_overflowed: bool,
+) -> None:
+    """Bind ``for`` loop target variable(s) to statically expanded iterable elements."""
+    if not elements:
+        return
+    if isinstance(target, ast.Name):
+        kept, cap_ov = _compact_ast_candidates(elements)
+        state.env[target.id] = kept
+        if iter_overflowed or cap_ov:
+            state.overflowed.add(target.id)
+        else:
+            state.overflowed.discard(target.id)
+        return
+    if isinstance(target, (ast.Tuple, ast.List)):
+        ncols = len(target.elts)
+        columns: list[list[ast.AST]] = [[] for _ in range(ncols)]
+        for elt in elements:
+            if isinstance(elt, (ast.Tuple, ast.List)) and len(elt.elts) == ncols:
+                for col_idx, sub_val in enumerate(elt.elts):
+                    columns[col_idx].append(sub_val)
+        for sub_target, col_vals in zip(target.elts, columns):
+            _bind_for_target(
+                sub_target, col_vals, state, iter_overflowed=iter_overflowed
+            )
 
 
 def _record_calls_in_expr(
     expr: ast.AST,
-    env: Mapping[str, list[ast.AST]],
-    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
 ) -> None:
-    """Record every ``ast.Call`` inside expression ``expr`` with current ``env``."""
-    snap = _clone_binding_env(env)
+    """Record every ``ast.Call`` inside expression ``expr`` with current ``state``."""
+    snap = state.clone()
     for node in ast.walk(expr):
         if isinstance(node, ast.Call):
             recorded.append((node, snap))
@@ -2092,11 +2853,11 @@ def _record_calls_in_expr(
 
 def _record_calls_in_stmt_order(
     stmts: list[ast.stmt],
-    env: dict[str, list[ast.AST]],
-    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
-) -> dict[str, list[ast.AST]]:
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+) -> _BindingState:
     """Walk statements in execution order, recording calls with point-in-time bindings."""
-    cur = _clone_binding_env(env)
+    cur = state.clone()
     for stmt in stmts:
         cur = _step_single_stmt(stmt, cur, recorded)
     return cur
@@ -2104,89 +2865,132 @@ def _record_calls_in_stmt_order(
 
 def _step_compound_stmt(
     stmt: ast.stmt,
-    env: dict[str, list[ast.AST]],
-    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
-) -> dict[str, list[ast.AST]]:
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+) -> _BindingState:
     """Handle control-flow compound statements while preserving branch bindings."""
     if isinstance(stmt, ast.If):
-        _record_calls_in_expr(stmt.test, env, recorded)
-        then_env = _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
-        else_env = (
-            _record_calls_in_stmt_order(stmt.orelse, _clone_binding_env(env), recorded)
+        _record_calls_in_expr(stmt.test, state, recorded)
+        then_state = _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
+        else_state = (
+            _record_calls_in_stmt_order(stmt.orelse, state.clone(), recorded)
             if stmt.orelse
-            else env
+            else state
         )
-        return _merge_binding_envs(then_env, else_env)
+        return _merge_binding_states(then_state, else_state)
     if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
         header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
-        _record_calls_in_expr(header, env, recorded)
-        body_env = _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
-        merged = _merge_binding_envs(env, body_env)
+        _record_calls_in_expr(header, state, recorded)
+        loop_entry = state.clone()
+        if isinstance(stmt, (ast.For, ast.AsyncFor)):
+            elements, iter_ov = _expand_iterable_in_state(stmt.iter, state)
+            _bind_for_target(
+                stmt.target, elements, loop_entry, iter_overflowed=iter_ov
+            )
+        body_state = _record_calls_in_stmt_order(stmt.body, loop_entry, recorded)
+        merged = _merge_binding_states(state, body_state)
         if stmt.orelse:
-            else_env = _record_calls_in_stmt_order(stmt.orelse, _clone_binding_env(merged), recorded)
-            merged = _merge_binding_envs(merged, else_env)
+            else_state = _record_calls_in_stmt_order(
+                stmt.orelse, merged.clone(), recorded
+            )
+            merged = _merge_binding_states(merged, else_state)
         return merged
     if isinstance(stmt, (ast.With, ast.AsyncWith)):
         for item in stmt.items:
-            _record_calls_in_expr(item.context_expr, env, recorded)
-        return _record_calls_in_stmt_order(stmt.body, env, recorded)
+            _record_calls_in_expr(item.context_expr, state, recorded)
+        return _record_calls_in_stmt_order(stmt.body, state, recorded)
     if isinstance(stmt, ast.Try):
-        body_env = _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
-        merged = _merge_binding_envs(env, body_env)
+        body_state = _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
+        merged = _merge_binding_states(state, body_state)
         for handler in stmt.handlers:
-            h_env = _record_calls_in_stmt_order(handler.body, _clone_binding_env(merged), recorded)
-            merged = _merge_binding_envs(merged, h_env)
+            h_state = _record_calls_in_stmt_order(
+                handler.body, merged.clone(), recorded
+            )
+            merged = _merge_binding_states(merged, h_state)
         if stmt.orelse:
             merged = _record_calls_in_stmt_order(stmt.orelse, merged, recorded)
         if stmt.finalbody:
             merged = _record_calls_in_stmt_order(stmt.finalbody, merged, recorded)
         return merged
     if isinstance(stmt, ast.Match):
-        _record_calls_in_expr(stmt.subject, env, recorded)
-        merged = _clone_binding_env(env)
+        _record_calls_in_expr(stmt.subject, state, recorded)
+        merged = state.clone()
         for case in stmt.cases:
-            c_env = _record_calls_in_stmt_order(case.body, _clone_binding_env(env), recorded)
-            merged = _merge_binding_envs(merged, c_env)
+            c_state = _record_calls_in_stmt_order(
+                case.body, state.clone(), recorded
+            )
+            merged = _merge_binding_states(merged, c_state)
         return merged
-    return env
+    return state
+
+
+def _assign_eager_target(
+    target: ast.AST,
+    value: ast.AST,
+    state: _BindingState,
+) -> None:
+    """Eagerly substitute ``value`` in ``state`` and bind ``target``."""
+    if not isinstance(target, ast.Name):
+        for name in _iter_assigned_names(target):
+            state.env.pop(name, None)
+            state.overflowed.discard(name)
+        return
+    subst_vals, overflowed = _substitute_expr_values(value, state)
+    state.env[target.id] = subst_vals
+    if overflowed:
+        state.overflowed.add(target.id)
+    else:
+        state.overflowed.discard(target.id)
 
 
 def _step_single_stmt(
     stmt: ast.stmt,
-    env: dict[str, list[ast.AST]],
-    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
-) -> dict[str, list[ast.AST]]:
-    """Process one statement in order, updating ``env`` without clobbering across scopes."""
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+) -> _BindingState:
+    """Process one statement in order, eagerly substituting assignment-time values."""
     if isinstance(stmt, ast.Assign):
-        _record_calls_in_expr(stmt.value, env, recorded)
+        _record_calls_in_expr(stmt.value, state, recorded)
         for target in stmt.targets:
-            if isinstance(target, ast.Name):
-                env[target.id] = [stmt.value]
+            _assign_eager_target(target, stmt.value, state)
     elif isinstance(stmt, ast.AnnAssign):
         if stmt.value is not None:
-            _record_calls_in_expr(stmt.value, env, recorded)
-            if isinstance(stmt.target, ast.Name):
-                env[stmt.target.id] = [stmt.value]
+            _record_calls_in_expr(stmt.value, state, recorded)
+            _assign_eager_target(stmt.target, stmt.value, state)
     elif isinstance(stmt, ast.AugAssign):
-        _record_calls_in_expr(stmt.value, env, recorded)
+        _record_calls_in_expr(stmt.value, state, recorded)
         if isinstance(stmt.op, ast.Add) and isinstance(stmt.target, ast.Name):
-            prev = env.get(stmt.target.id)
+            prev = state.env.get(stmt.target.id)
             if prev:
-                env[stmt.target.id] = [
-                    ast.BinOp(left=p, op=ast.Add(), right=stmt.value)
-                    for p in prev[:_MAX_BRANCH_BINDINGS]
+                rhs_vals, rhs_ov = _substitute_expr_values(stmt.value, state)
+                combined = [
+                    ast.BinOp(left=p, op=ast.Add(), right=rv)
+                    for p in prev
+                    for rv in rhs_vals
                 ]
+                kept, cap_ov = _compact_ast_candidates(combined)
+                state.env[stmt.target.id] = kept
+                if rhs_ov or cap_ov:
+                    state.overflowed.add(stmt.target.id)
     elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-        # Inspect nested scopes with a copy so inner reassignments never clobber outer env.
-        _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
+        _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
     elif isinstance(
         stmt,
-        (ast.If, ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith, ast.Try, ast.Match),
+        (
+            ast.If,
+            ast.For,
+            ast.AsyncFor,
+            ast.While,
+            ast.With,
+            ast.AsyncWith,
+            ast.Try,
+            ast.Match,
+        ),
     ):
-        return _step_compound_stmt(stmt, env, recorded)
+        return _step_compound_stmt(stmt, state, recorded)
     else:
-        _record_calls_in_expr(stmt, env, recorded)
-    return env
+        _record_calls_in_expr(stmt, state, recorded)
+    return state
 
 
 def _is_subprocess_call(
@@ -2256,37 +3060,66 @@ def _collect_helper_return_exprs(tree: ast.Module) -> dict[str, ast.AST]:
 
 def _resolve_subprocess_clis(
     cmd_arg: ast.AST,
-    env: Mapping[str, list[ast.AST]],
-    mod_binding_env: Mapping[str, list[ast.AST]],
+    call_state: _BindingState,
+    mod_state: _BindingState,
     helper_return_exprs: Mapping[str, ast.AST],
-) -> set[str]:
-    """Resolve canonical SUEWS CLI command(s) invoked by ``cmd_arg``."""
-    clis = _detect_suews_clis_in_expr(cmd_arg, env)
+) -> tuple[set[str], bool]:
+    """Resolve canonical SUEWS CLI command(s) invoked by ``cmd_arg`` and overflow flag."""
+    ov_flag = [_expr_references_overflowed(cmd_arg, call_state.overflowed)]
+    clis = _detect_suews_clis_in_expr(
+        cmd_arg, call_state.env, overflow_flag=ov_flag
+    )
     if clis:
-        return clis
+        return (clis, ov_flag[0])
     if (
         isinstance(cmd_arg, ast.Call)
         and isinstance(cmd_arg.func, ast.Name)
         and cmd_arg.func.id in helper_return_exprs
     ):
-        return _detect_suews_clis_in_expr(
-            helper_return_exprs[cmd_arg.func.id], mod_binding_env
+        ret_expr = helper_return_exprs[cmd_arg.func.id]
+        ret_ov = [_expr_references_overflowed(ret_expr, mod_state.overflowed)]
+        ret_clis = _detect_suews_clis_in_expr(
+            ret_expr, mod_state.env, overflow_flag=ret_ov
         )
-    return set()
+        return (ret_clis, ov_flag[0] or ret_ov[0])
+    return (set(), ov_flag[0])
+
+
+def _extract_param_defaults(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    mod_state: _BindingState,
+) -> dict[str, list[ast.AST]]:
+    """Extract eagerly substituted default-argument expressions for ``fn``."""
+    pos_args = [
+        *(arg.arg for arg in fn.args.posonlyargs),
+        *(arg.arg for arg in fn.args.args),
+    ]
+    defaults: dict[str, list[ast.AST]] = {}
+    if fn.args.defaults:
+        offset = len(pos_args) - len(fn.args.defaults)
+        for idx, default_expr in enumerate(fn.args.defaults):
+            vals, _ = _substitute_expr_values(default_expr, mod_state)
+            defaults[pos_args[offset + idx]] = vals
+    for kwarg, default_expr in zip(fn.args.kwonlyargs, fn.args.kw_defaults):
+        if default_expr is not None:
+            vals, _ = _substitute_expr_values(default_expr, mod_state)
+            defaults[kwarg.arg] = vals
+    return defaults
 
 
 def _scan_single_helper(
     stmt: ast.FunctionDef | ast.AsyncFunctionDef,
-    mod_binding_env: Mapping[str, list[ast.AST]],
+    mod_state: _BindingState,
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_return_exprs: Mapping[str, ast.AST],
 ) -> tuple[
     dict[str, int],
+    dict[str, list[ast.AST]],
     set[str],
     set[str],
     set[str],
-    list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+    list[tuple[ast.Call, _BindingState]],
 ]:
     """Inspect one module-level helper in statement order for CLI calls and forwarded params."""
     pos_args = [
@@ -2295,56 +3128,65 @@ def _scan_single_helper(
     ]
     param_pos = {name: idx for idx, name in enumerate(pos_args)}
     all_params = set(param_pos) | {arg.arg for arg in stmt.args.kwonlyargs}
-    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]] = []
-    _record_calls_in_stmt_order(stmt.body, _clone_binding_env(mod_binding_env), recorded)
+    param_defaults = _extract_param_defaults(stmt, mod_state)
+    entry_state = mod_state.clone()
+    for p_name in all_params:
+        entry_state.env.pop(p_name, None)
+        entry_state.overflowed.discard(p_name)
+
+    recorded: list[tuple[ast.Call, _BindingState]] = []
+    _record_calls_in_stmt_order(stmt.body, entry_state, recorded)
 
     clis: set[str] = set()
     forwarded: set[str] = set()
-    helper_calls: list[tuple[ast.Call, dict[str, list[ast.AST]]]] = []
-    for call, call_env in recorded:
+    helper_calls: list[tuple[ast.Call, _BindingState]] = []
+    for call, call_state in recorded:
         if _is_subprocess_call(call, subproc_aliases, subproc_funcs):
             cmd_arg = _extract_subprocess_cmd_arg(call)
             if cmd_arg is None:
                 continue
-            clis.update(
-                _resolve_subprocess_clis(
-                    cmd_arg, call_env, mod_binding_env, helper_return_exprs
-                )
+            found_clis, _ = _resolve_subprocess_clis(
+                cmd_arg, call_state, mod_state, helper_return_exprs
             )
+            clis.update(found_clis)
             forwarded.update(
-                _extract_forwarded_param_names(cmd_arg, call_env, all_params)
+                _extract_forwarded_param_names(cmd_arg, call_state.env, all_params)
             )
         elif isinstance(call.func, ast.Name):
-            helper_calls.append((call, call_env))
-    return (param_pos, all_params, clis, forwarded, helper_calls)
+            helper_calls.append((call, call_state))
+    return (param_pos, param_defaults, all_params, clis, forwarded, helper_calls)
 
 
-def _bound_call_arg(
-    call: ast.Call, param_name: str, param_pos: Mapping[str, int]
-) -> ast.AST | None:
-    """Return the argument AST expression bound to ``param_name`` at ``call``."""
+def _bound_call_arg_candidates(
+    call: ast.Call,
+    param_name: str,
+    param_pos: Mapping[str, int],
+    param_defaults: Mapping[str, list[ast.AST]],
+) -> list[ast.AST]:
+    """Return AST expression(s) bound to ``param_name`` at ``call`` (falling back to default)."""
     idx = param_pos.get(param_name)
     if idx is not None and idx < len(call.args):
-        return call.args[idx]
+        return [call.args[idx]]
     for kw in call.keywords:
         if kw.arg == param_name:
-            return kw.value
-    return None
+            return [kw.value]
+    return list(param_defaults.get(param_name, ()))
 
 
 def _propagate_helper_clis(
     helper_clis: dict[str, set[str]],
     helper_forwarded: dict[str, set[str]],
     helper_param_positions: Mapping[str, dict[str, int]],
+    helper_param_defaults: Mapping[str, dict[str, list[ast.AST]]],
     helper_all_params: Mapping[str, set[str]],
-    helper_calls: Mapping[str, list[tuple[ast.Call, dict[str, list[ast.AST]]]]],
+    helper_calls: Mapping[str, list[tuple[ast.Call, _BindingState]]],
 ) -> None:
     """Propagate SUEWS CLI sets and forwarded-parameter edges across helper chains."""
     changed = True
     while changed:
         changed = False
         for helper_name, calls in helper_calls.items():
-            for call, call_env in calls:
+            for call, call_state in calls:
                 callee = call.func.id if isinstance(call.func, ast.Name) else ""
                 if callee not in helper_clis:
                     continue
@@ -2352,18 +3194,21 @@ def _propagate_helper_clis(
                 before_fwd = len(helper_forwarded[helper_name])
                 helper_clis[helper_name].update(helper_clis[callee])
                 callee_pos = helper_param_positions.get(callee, {})
+                callee_defs = helper_param_defaults.get(callee, {})
                 for param_name in helper_forwarded.get(callee, ()):
-                    arg_expr = _bound_call_arg(call, param_name, callee_pos)
-                    if arg_expr is None:
-                        continue
-                    helper_clis[helper_name].update(
-                        _detect_suews_clis_in_expr(arg_expr, call_env)
-                    )
-                    helper_forwarded[helper_name].update(
-                        _extract_forwarded_param_names(
-                            arg_expr, call_env, helper_all_params[helper_name]
+                    for arg_expr in _bound_call_arg_candidates(
+                        call, param_name, callee_pos, callee_defs
+                    ):
+                        helper_clis[helper_name].update(
+                            _detect_suews_clis_in_expr(arg_expr, call_state.env)
                         )
-                    )
+                        helper_forwarded[helper_name].update(
+                            _extract_forwarded_param_names(
+                                arg_expr,
+                                call_state.env,
+                                helper_all_params[helper_name],
+                            )
+                        )
                 if (
                     len(helper_clis[helper_name]) > before_clis
                     or len(helper_forwarded[helper_name]) > before_fwd
@@ -2373,22 +3218,25 @@ def _propagate_helper_clis(
 
 def _analyse_module_helpers(
     tree: ast.Module,
-    mod_binding_env: Mapping[str, list[ast.AST]],
+    mod_state: _BindingState,
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_return_exprs: Mapping[str, ast.AST],
 ) -> tuple[
     dict[str, set[str]],
     dict[str, dict[str, int]],
+    dict[str, dict[str, list[ast.AST]]],
     dict[str, set[str]],
 ]:
     """Analyse module-level non-test helpers for SUEWS CLI subprocess calls.
 
-    Returns ``(helper_direct_clis, helper_param_positions, helper_forwarded_params)``.
+    Returns ``(helper_direct_clis, helper_param_positions, helper_param_defaults,
+    helper_forwarded_params)``.
     """
     helper_clis: dict[str, set[str]] = {}
-    helper_calls: dict[str, list[tuple[ast.Call, dict[str, list[ast.AST]]]]] = {}
+    helper_calls: dict[str, list[tuple[ast.Call, _BindingState]]] = {}
     helper_param_positions: dict[str, dict[str, int]] = {}
+    helper_param_defaults: dict[str, dict[str, list[ast.AST]]] = {}
     helper_all_params: dict[str, set[str]] = {}
     helper_forwarded: dict[str, set[str]] = {}
 
@@ -2396,10 +3244,17 @@ def _analyse_module_helpers(
         if isinstance(
             stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
         ) and not stmt.name.startswith("test_"):
-            param_pos, all_params, clis, forwarded, calls = _scan_single_helper(
-                stmt, mod_binding_env, subproc_aliases, subproc_funcs, helper_return_exprs
+            param_pos, param_defs, all_params, clis, forwarded, calls = (
+                _scan_single_helper(
+                    stmt,
+                    mod_state,
+                    subproc_aliases,
+                    subproc_funcs,
+                    helper_return_exprs,
+                )
             )
             helper_param_positions[stmt.name] = param_pos
+            helper_param_defaults[stmt.name] = param_defs
             helper_all_params[stmt.name] = all_params
             helper_clis[stmt.name] = clis
             helper_forwarded[stmt.name] = forwarded
@@ -2409,303 +3264,498 @@ def _analyse_module_helpers(
         helper_clis,
         helper_forwarded,
         helper_param_positions,
+        helper_param_defaults,
         helper_all_params,
         helper_calls,
     )
-    return (helper_clis, helper_param_positions, helper_forwarded)
+    return (
+        helper_clis,
+        helper_param_positions,
+        helper_param_defaults,
+        helper_forwarded,
+    )
 
 
-def _count_parametrize_nodes(
-    decorators: list[ast.AST],
+def _extract_parametrize_argnames(node: ast.AST) -> list[str]:
+    """Extract parameter names from the first argument of ``@pytest.mark.parametrize``."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [part.strip() for part in node.value.split(",") if part.strip()]
+    if isinstance(node, (ast.List, ast.Tuple)):
+        return [
+            elt.value.strip()
+            for elt in node.elts
+            if isinstance(elt, ast.Constant)
+            and isinstance(elt.value, str)
+            and elt.value.strip()
+        ]
+    return []
+
+
+def _parse_parametrize_case_item(
+    raw_item: ast.AST,
+    param_names: list[str],
+    mod_env: Mapping[str, ast.AST],
+) -> tuple[dict[str, ast.AST], set[str]]:
+    """Parse one element of ``@pytest.mark.parametrize`` ``argvalues`` into ``(bindings, marks)``."""
+    case_marks: set[str] = set()
+    if isinstance(raw_item, ast.Call) and _is_pytest_param_call(raw_item):
+        case_values = list(raw_item.args)
+        for kw in raw_item.keywords:
+            if kw.arg == "marks":
+                m_names, _ = _validate_marker_expr(
+                    kw.value, mod_env=mod_env, local_lists={}, allow_refs=True
+                )
+                case_marks.update(m_names)
+    elif len(param_names) > 1 and isinstance(raw_item, (ast.Tuple, ast.List)):
+        case_values = list(raw_item.elts)
+    else:
+        case_values = [raw_item]
+    bindings: dict[str, ast.AST] = {}
+    if len(param_names) == 1 and case_values:
+        bindings[param_names[0]] = case_values[0]
+    elif len(param_names) > 1 and len(case_values) == len(param_names):
+        bindings = dict(zip(param_names, case_values))
+    return (bindings, case_marks)
+
+
+def _parse_single_parametrize_decorator(
+    dec: ast.AST,
+    mod_env: Mapping[str, ast.AST],
     ast_value_env: Mapping[str, ast.AST],
-) -> int:
-    """Return statically counted node expansion factor for ``@pytest.mark.parametrize``."""
-    total = 1
+) -> tuple[bool, list[tuple[dict[str, ast.AST], set[str]]] | None]:
+    """Parse one ``@pytest.mark.parametrize`` decorator into ``(is_param, cases)``."""
+    resolved = dec
+    if isinstance(resolved, ast.Name) and resolved.id in ast_value_env:
+        resolved = ast_value_env[resolved.id]
+    if not isinstance(resolved, ast.Call) or _direct_pytest_marker_name(resolved) != "parametrize":
+        return (False, None)
+
+    argnames_node: ast.AST | None = resolved.args[0] if resolved.args else None
+    argvalues_node: ast.AST | None = resolved.args[1] if len(resolved.args) >= 2 else None
+    for kw in resolved.keywords:
+        if kw.arg == "argnames" and argnames_node is None:
+            argnames_node = kw.value
+        elif kw.arg == "argvalues" and argvalues_node is None:
+            argvalues_node = kw.value
+
+    if argvalues_node is None:
+        return (True, None)
+    raw_items = _expand_static_sequence(argvalues_node, ast_value_env)
+    if raw_items is None:
+        return (True, None)
+    param_names = (
+        _extract_parametrize_argnames(argnames_node) if argnames_node is not None else []
+    )
+    cases = [
+        _parse_parametrize_case_item(item, param_names, mod_env) for item in raw_items
+    ]
+    return (True, cases)
+
+
+def _expand_parametrize_cases(
+    decorators: list[ast.AST],
+    mod_env: Mapping[str, ast.AST],
+    ast_value_env: Mapping[str, ast.AST],
+) -> tuple[list[tuple[dict[str, ast.AST], set[str]]], bool]:
+    """Expand ``@pytest.mark.parametrize`` decorators into ``(cases, unresolvable)``."""
+    cases: list[tuple[dict[str, ast.AST], set[str]]] = [({}, set())]
+    unresolvable = False
     for dec in decorators:
-        resolved = dec
-        if isinstance(resolved, ast.Name) and resolved.id in ast_value_env:
-            resolved = ast_value_env[resolved.id]
-        if not isinstance(resolved, ast.Call):
+        is_param, dec_cases = _parse_single_parametrize_decorator(
+            dec, mod_env, ast_value_env
+        )
+        if not is_param:
             continue
-        if _direct_pytest_marker_name(resolved) != "parametrize":
+        if dec_cases is None:
+            unresolvable = True
             continue
-        argvalues: ast.AST | None = None
-        if len(resolved.args) >= 2:
-            argvalues = resolved.args[1]
-        else:
-            for kw in resolved.keywords:
-                if kw.arg == "argvalues":
-                    argvalues = kw.value
-                    break
-        if isinstance(argvalues, ast.Name) and argvalues.id in ast_value_env:
-            argvalues = ast_value_env[argvalues.id]
-        if isinstance(argvalues, (ast.List, ast.Tuple, ast.Set)) and argvalues.elts:
-            total *= len(argvalues.elts)
-        elif (
-            isinstance(argvalues, ast.Call)
-            and isinstance(argvalues.func, ast.Name)
-            and argvalues.func.id == "range"
-            and 1 <= len(argvalues.args) <= 3
-            and all(
-                isinstance(a, ast.Constant)
-                and isinstance(a.value, int)
-                and not isinstance(a.value, bool)
-                for a in argvalues.args
-            )
-        ):
-            r_args = [int(a.value) for a in argvalues.args]  # type: ignore[union-attr]
-            if len(r_args) < 3 or r_args[2] != 0:
-                length = len(range(*r_args))
-                if length > 0:
-                    total *= length
-    return total
+        if not dec_cases:
+            return ([], False)
+        if len(cases) * len(dec_cases) > _MAX_EXPANDED_CASES:
+            unresolvable = True
+            continue
+        cases = [
+            ({**base_bind, **new_bind}, base_marks | new_marks)
+            for base_bind, base_marks in cases
+            for new_bind, new_marks in dec_cases
+        ]
+    return (cases, unresolvable)
+
+
+class _NonSimState:
+    """Must-hold non-simulation receiver bindings along a control-flow path."""
+
+    def __init__(
+        self,
+        mods: set[str] | frozenset[str],
+        classes: set[str] | frozenset[str],
+        local_vars: set[str] | frozenset[str],
+        shadowed: set[str] | frozenset[str],
+    ) -> None:
+        self.mods: set[str] = set(mods)
+        self.classes: set[str] = set(classes)
+        self.local_vars: set[str] = set(local_vars)
+        self.shadowed: set[str] = set(shadowed)
+
+    def clone(self) -> _NonSimState:
+        """Return a shallow copy of this must-hold state."""
+        return _NonSimState(self.mods, self.classes, self.local_vars, self.shadowed)
+
+    def kill(self, names: set[str]) -> None:
+        """Invalidate non-sim provenance for ``names`` and mark them shadowed."""
+        self.mods.difference_update(names)
+        self.classes.difference_update(names)
+        self.local_vars.difference_update(names)
+        self.shadowed.update(names)
+
+    def intersect_with(self, other: _NonSimState) -> None:
+        """Keep only bindings proven non-sim on both ``self`` and ``other``."""
+        self.mods.intersection_update(other.mods)
+        self.classes.intersection_update(other.classes)
+        self.local_vars.intersection_update(other.local_vars)
+        self.shadowed.update(other.shadowed)
 
 
 def _count_sim_calls_in_expr(
     expr: ast.AST,
-    non_sim_mods: frozenset[str],
-    non_sim_classes: frozenset[str],
-    local_non_sim_vars: frozenset[str],
-    shadowed: frozenset[str],
+    state: _NonSimState,
 ) -> int:
     """Count simulation ``from_sample_data`` and ``.run`` calls in an expression."""
     count = 0
     for node in ast.walk(expr):
+        if isinstance(node, ast.NamedExpr):
+            state.kill({node.target.id})
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
             continue
         if node.func.attr == "from_sample_data" or (
             node.func.attr == "run"
             and not _is_non_simulation_run_receiver(
                 node.func.value,
-                non_sim_mods,
-                non_sim_classes,
-                local_non_sim_vars,
-                shadowed,
+                frozenset(state.mods),
+                frozenset(state.classes),
+                frozenset(state.local_vars),
+                frozenset(state.shadowed),
             )
         ):
             count += 1
     return count
 
 
+def _apply_local_non_sim_import(
+    stmt: ast.Import | ast.ImportFrom,
+    state: _NonSimState,
+) -> None:
+    """Update local must-hold non-sim bindings for an in-function import."""
+    if isinstance(stmt, ast.Import):
+        for alias in stmt.names:
+            local_name = alias.asname or alias.name.split(".", 1)[0]
+            root_mod = alias.name.split(".", 1)[0]
+            state.kill({local_name})
+            if root_mod in _NON_SIMULATION_RUN_MODULES:
+                state.mods.add(local_name)
+                state.shadowed.discard(local_name)
+    else:
+        root_mod = stmt.module.split(".", 1)[0] if stmt.module else ""
+        is_non_sim_mod = root_mod in _NON_SIMULATION_RUN_MODULES
+        for alias in stmt.names:
+            if alias.name == "*":
+                continue
+            local_name = alias.asname or alias.name
+            state.kill({local_name})
+            if is_non_sim_mod and alias.name in _NON_SIMULATION_RUN_CLASSES:
+                state.classes.add(local_name)
+                state.shadowed.discard(local_name)
+
+
+def _apply_local_non_sim_assign(
+    target: ast.AST,
+    value: ast.AST,
+    state: _NonSimState,
+) -> None:
+    """Update local must-hold non-sim bindings for an assignment target."""
+    is_ctor = isinstance(target, ast.Name) and _is_non_sim_constructor_call(
+        value,
+        frozenset(state.mods),
+        frozenset(state.classes),
+        frozenset(state.shadowed),
+    )
+    assigned = set(_iter_assigned_names(target))
+    state.kill(assigned)
+    if is_ctor and isinstance(target, ast.Name):
+        state.local_vars.add(target.id)
+        state.shadowed.discard(target.id)
+
+
+def _func_param_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """Return all parameter names bound by ``fn``."""
+    names = {
+        *(arg.arg for arg in fn.args.posonlyargs),
+        *(arg.arg for arg in fn.args.args),
+        *(arg.arg for arg in fn.args.kwonlyargs),
+    }
+    if fn.args.vararg is not None:
+        names.add(fn.args.vararg.arg)
+    if fn.args.kwarg is not None:
+        names.add(fn.args.kwarg.arg)
+    return names
+
+
 def _walk_sim_calls_in_block(
     stmts: list[ast.stmt],
-    non_sim_mods: frozenset[str],
-    non_sim_classes: frozenset[str],
-    local_non_sim_vars: set[str],
-    shadowed: set[str],
+    state: _NonSimState,
 ) -> int:
-    """Count simulation calls in statement order with binding-aware shadowing."""
+    """Count simulation calls in statement order with sound must-hold shadowing."""
     count = 0
     for stmt in stmts:
-        if isinstance(stmt, ast.Assign):
-            count += _count_sim_calls_in_expr(
-                stmt.value,
-                non_sim_mods,
-                non_sim_classes,
-                frozenset(local_non_sim_vars),
-                frozenset(shadowed),
-            )
-            is_non_sim_ctor = _is_non_sim_constructor_call(
-                stmt.value, non_sim_mods, non_sim_classes, frozenset(shadowed)
-            )
+        if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+            _apply_local_non_sim_import(stmt, state)
+        elif isinstance(stmt, ast.Assign):
+            count += _count_sim_calls_in_expr(stmt.value, state)
             for target in stmt.targets:
-                for name in _iter_assigned_names(target):
-                    if is_non_sim_ctor and isinstance(target, ast.Name):
-                        local_non_sim_vars.add(name)
-                        shadowed.discard(name)
-                    else:
-                        local_non_sim_vars.discard(name)
-                        shadowed.add(name)
+                _apply_local_non_sim_assign(target, stmt.value, state)
         elif isinstance(stmt, ast.AnnAssign):
             if stmt.value is not None:
-                count += _count_sim_calls_in_expr(
-                    stmt.value,
-                    non_sim_mods,
-                    non_sim_classes,
-                    frozenset(local_non_sim_vars),
-                    frozenset(shadowed),
-                )
-                if isinstance(stmt.target, ast.Name):
-                    if _is_non_sim_constructor_call(
-                        stmt.value, non_sim_mods, non_sim_classes, frozenset(shadowed)
-                    ):
-                        local_non_sim_vars.add(stmt.target.id)
-                        shadowed.discard(stmt.target.id)
-                    else:
-                        local_non_sim_vars.discard(stmt.target.id)
-                        shadowed.add(stmt.target.id)
-        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            count += _walk_sim_calls_in_block(
-                stmt.body,
-                non_sim_mods,
-                non_sim_classes,
-                set(local_non_sim_vars),
-                set(shadowed),
-            )
+                count += _count_sim_calls_in_expr(stmt.value, state)
+                _apply_local_non_sim_assign(stmt.target, stmt.value, state)
+        elif isinstance(stmt, ast.AugAssign):
+            count += _count_sim_calls_in_expr(stmt.value, state)
+            state.kill(set(_iter_assigned_names(stmt.target)))
+        elif isinstance(stmt, ast.Delete):
+            for target in stmt.targets:
+                state.kill(set(_iter_assigned_names(target)))
+        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            state.kill({stmt.name})
+            nested = state.clone()
+            nested.kill(_func_param_names(stmt))
+            count += _walk_sim_calls_in_block(stmt.body, nested)
+        elif isinstance(stmt, ast.ClassDef):
+            state.kill({stmt.name})
+            count += _walk_sim_calls_in_block(stmt.body, state.clone())
         else:
-            count += _walk_sim_calls_in_compound(
-                stmt, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-            )
+            count += _walk_sim_calls_in_compound(stmt, state)
     return count
+
+
+def _walk_sim_calls_in_loop(
+    stmt: ast.For | ast.AsyncFor | ast.While,
+    state: _NonSimState,
+) -> int:
+    """Walk a loop soundly: zero-iteration paths cannot establish new non-sim vars."""
+    header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
+    cnt = _count_sim_calls_in_expr(header, state)
+    pre_state = state.clone()
+    written_in_loop = _collect_written_names_in_stmt(stmt)
+    if isinstance(stmt, (ast.For, ast.AsyncFor)):
+        written_in_loop.update(_iter_assigned_names(stmt.target))
+
+    # Any name overwritten inside the loop might not hold its pre-loop non-sim
+    # binding on iteration 2+, so invalidate before walking the loop body.
+    body_state = pre_state.clone()
+    body_state.kill(written_in_loop)
+    cnt += _walk_sim_calls_in_block(stmt.body, body_state)
+
+    # Zero-iteration path means post-loop state cannot gain bindings created only in body.
+    after_state = pre_state.clone()
+    after_state.intersect_with(body_state)
+    if stmt.orelse:
+        else_state = after_state.clone()
+        cnt += _walk_sim_calls_in_block(stmt.orelse, else_state)
+        after_state.intersect_with(else_state)
+
+    state.mods = after_state.mods
+    state.classes = after_state.classes
+    state.local_vars = after_state.local_vars
+    state.shadowed = after_state.shadowed
+    return cnt
+
+
+def _walk_sim_calls_in_try(
+    stmt: ast.Try,
+    state: _NonSimState,
+) -> int:
+    """Walk a try/except/else/finally block soundly across exception paths."""
+    pre_state = state.clone()
+    try_state = pre_state.clone()
+    cnt = _walk_sim_calls_in_block(stmt.body, try_state)
+
+    # Exception can occur at any point in try_state; only bindings holding both
+    # before and after the try body survive safely into except handlers.
+    handler_entry = pre_state.clone()
+    handler_entry.intersect_with(try_state)
+    exit_states: list[_NonSimState] = []
+
+    if stmt.orelse:
+        else_state = try_state.clone()
+        cnt += _walk_sim_calls_in_block(stmt.orelse, else_state)
+        exit_states.append(else_state)
+    else:
+        exit_states.append(try_state)
+
+    for handler in stmt.handlers:
+        h_state = handler_entry.clone()
+        if handler.name:
+            h_state.kill({handler.name})
+        cnt += _walk_sim_calls_in_block(handler.body, h_state)
+        exit_states.append(h_state)
+
+    merged = exit_states[0].clone()
+    for other in exit_states[1:]:
+        merged.intersect_with(other)
+
+    if stmt.finalbody:
+        cnt += _walk_sim_calls_in_block(stmt.finalbody, merged)
+
+    state.mods = merged.mods
+    state.classes = merged.classes
+    state.local_vars = merged.local_vars
+    state.shadowed = merged.shadowed
+    return cnt
 
 
 def _walk_sim_calls_in_compound(
     stmt: ast.stmt,
-    non_sim_mods: frozenset[str],
-    non_sim_classes: frozenset[str],
-    local_non_sim_vars: set[str],
-    shadowed: set[str],
+    state: _NonSimState,
 ) -> int:
-    """Walk compound statements for simulation calls, intersecting safe non-sim vars."""
+    """Walk compound statements for simulation calls, requiring all-path non-sim proof."""
     if isinstance(stmt, ast.If):
-        cnt = _count_sim_calls_in_expr(
-            stmt.test,
-            non_sim_mods,
-            non_sim_classes,
-            frozenset(local_non_sim_vars),
-            frozenset(shadowed),
-        )
-        t_vars, t_shad = set(local_non_sim_vars), set(shadowed)
-        e_vars, e_shad = set(local_non_sim_vars), set(shadowed)
-        cnt += _walk_sim_calls_in_block(
-            stmt.body, non_sim_mods, non_sim_classes, t_vars, t_shad
-        )
+        cnt = _count_sim_calls_in_expr(stmt.test, state)
+        t_state = state.clone()
+        e_state = state.clone()
+        cnt += _walk_sim_calls_in_block(stmt.body, t_state)
         if stmt.orelse:
-            cnt += _walk_sim_calls_in_block(
-                stmt.orelse, non_sim_mods, non_sim_classes, e_vars, e_shad
-            )
-        local_non_sim_vars.intersection_update(t_vars & e_vars)
-        shadowed.update(t_shad | e_shad)
+            cnt += _walk_sim_calls_in_block(stmt.orelse, e_state)
+        t_state.intersect_with(e_state)
+        state.mods = t_state.mods
+        state.classes = t_state.classes
+        state.local_vars = t_state.local_vars
+        state.shadowed = t_state.shadowed
         return cnt
     if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
-        header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
-        cnt = _count_sim_calls_in_expr(
-            header,
-            non_sim_mods,
-            non_sim_classes,
-            frozenset(local_non_sim_vars),
-            frozenset(shadowed),
-        )
-        cnt += _walk_sim_calls_in_block(
-            stmt.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-        )
-        if stmt.orelse:
-            cnt += _walk_sim_calls_in_block(
-                stmt.orelse, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-            )
-        return cnt
+        return _walk_sim_calls_in_loop(stmt, state)
     if isinstance(stmt, (ast.With, ast.AsyncWith)):
-        cnt = sum(
-            _count_sim_calls_in_expr(
-                item.context_expr,
-                non_sim_mods,
-                non_sim_classes,
-                frozenset(local_non_sim_vars),
-                frozenset(shadowed),
-            )
-            for item in stmt.items
-        )
-        return cnt + _walk_sim_calls_in_block(
-            stmt.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-        )
+        cnt = 0
+        for item in stmt.items:
+            cnt += _count_sim_calls_in_expr(item.context_expr, state)
+            if item.optional_vars is not None:
+                state.kill(set(_iter_assigned_names(item.optional_vars)))
+        return cnt + _walk_sim_calls_in_block(stmt.body, state)
     if isinstance(stmt, ast.Try):
-        cnt = _walk_sim_calls_in_block(
-            stmt.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-        )
-        for handler in stmt.handlers:
-            cnt += _walk_sim_calls_in_block(
-                handler.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-            )
-        if stmt.orelse:
-            cnt += _walk_sim_calls_in_block(
-                stmt.orelse, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-            )
-        if stmt.finalbody:
-            cnt += _walk_sim_calls_in_block(
-                stmt.finalbody, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
-            )
+        return _walk_sim_calls_in_try(stmt, state)
+    if isinstance(stmt, ast.Match):
+        cnt = _count_sim_calls_in_expr(stmt.subject, state)
+        pre_state = state.clone()
+        merged = pre_state.clone()
+        for case in stmt.cases:
+            c_state = pre_state.clone()
+            c_state.kill(_collect_written_names_in_stmt(case.pattern))
+            cnt += _walk_sim_calls_in_block(case.body, c_state)
+            merged.intersect_with(c_state)
+        state.mods = merged.mods
+        state.classes = merged.classes
+        state.local_vars = merged.local_vars
+        state.shadowed = merged.shadowed
         return cnt
-    return _count_sim_calls_in_expr(
-        stmt,
-        non_sim_mods,
-        non_sim_classes,
-        frozenset(local_non_sim_vars),
-        frozenset(shadowed),
-    )
+    return _count_sim_calls_in_expr(stmt, state)
 
 
 def _count_param_simulation_calls(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
     non_sim_mods: frozenset[str],
     non_sim_classes: frozenset[str],
+    mod_non_sim_vars: frozenset[str] = frozenset(),
 ) -> int:
     """Count direct ``from_sample_data(...)`` and simulation ``.run(...)`` calls in ``fn``."""
-    param_names = {
-        *(arg.arg for arg in fn.args.posonlyargs),
-        *(arg.arg for arg in fn.args.args),
-        *(arg.arg for arg in fn.args.kwonlyargs),
-    }
-    if fn.args.vararg is not None:
-        param_names.add(fn.args.vararg.arg)
-    if fn.args.kwarg is not None:
-        param_names.add(fn.args.kwarg.arg)
-    return _walk_sim_calls_in_block(
-        fn.body, non_sim_mods, non_sim_classes, set(), set(param_names)
-    )
+    param_names = _func_param_names(fn)
+    state = _NonSimState(non_sim_mods, non_sim_classes, mod_non_sim_vars, set())
+    state.kill(param_names)
+    return _walk_sim_calls_in_block(fn.body, state)
 
 
 def _resolve_forwarded_helper_clis(
     call: ast.Call,
     forwarded_params: set[str],
     param_pos: Mapping[str, int],
-    env: Mapping[str, list[ast.AST]],
-) -> set[str]:
-    """Detect SUEWS CLI commands passed through forwarded helper parameters."""
+    param_defaults: Mapping[str, list[ast.AST]],
+    call_state: _BindingState,
+) -> tuple[set[str], bool]:
+    """Detect SUEWS CLI commands passed through forwarded helper parameters (or defaults)."""
     found: set[str] = set()
+    overflowed = False
     for param_name in forwarded_params:
-        arg_expr = _bound_call_arg(call, param_name, param_pos)
-        if arg_expr is not None:
-            found.update(_detect_suews_clis_in_expr(arg_expr, env))
-    return found
+        for arg_expr in _bound_call_arg_candidates(
+            call, param_name, param_pos, param_defaults
+        ):
+            ov_flag = [_expr_references_overflowed(arg_expr, call_state.overflowed)]
+            found.update(
+                _detect_suews_clis_in_expr(
+                    arg_expr, call_state.env, overflow_flag=ov_flag
+                )
+            )
+            overflowed = overflowed or ov_flag[0]
+    return (found, overflowed)
+
+
+def _build_test_entry_state(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    mod_state: _BindingState,
+    param_bindings: Mapping[str, list[ast.AST]] | None,
+) -> _BindingState:
+    """Create initial binding state for ``fn`` with parameters shadowed and seeded."""
+    entry_state = mod_state.clone()
+    for p_name in _func_param_names(fn):
+        entry_state.env.pop(p_name, None)
+        entry_state.overflowed.discard(p_name)
+    if param_bindings:
+        for p_name, p_vals in param_bindings.items():
+            subst_list: list[ast.AST] = []
+            ov = False
+            for val in p_vals:
+                sub_v, sub_ov = _substitute_expr_values(val, mod_state)
+                subst_list.extend(sub_v)
+                ov = ov or sub_ov
+            kept, cap_ov = _compact_ast_candidates(subst_list)
+            entry_state.env[p_name] = kept
+            if ov or cap_ov:
+                entry_state.overflowed.add(p_name)
+    return entry_state
 
 
 def _collect_test_subprocess_clis(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
-    mod_binding_env: Mapping[str, list[ast.AST]],
-    subproc_aliases: set[str],
-    subproc_funcs: set[str],
-    helper_clis: Mapping[str, set[str]],
-    helper_param_positions: Mapping[str, dict[str, int]],
-    helper_forwarded: Mapping[str, set[str]],
-    helper_return_exprs: Mapping[str, ast.AST],
-) -> set[str]:
+    ctx: _FileAstGuardContext,
+    param_bindings: Mapping[str, list[ast.AST]] | None = None,
+) -> tuple[set[str], bool]:
     """Collect canonical SUEWS CLI commands invoked via subprocess by ``fn``."""
-    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]] = []
-    _record_calls_in_stmt_order(fn.body, _clone_binding_env(mod_binding_env), recorded)
+    entry_state = _build_test_entry_state(fn, ctx.mod_state, param_bindings)
+    recorded: list[tuple[ast.Call, _BindingState]] = []
+    _record_calls_in_stmt_order(fn.body, entry_state, recorded)
+
     found: set[str] = set()
-    for call, call_env in recorded:
-        if _is_subprocess_call(call, subproc_aliases, subproc_funcs):
+    overflowed = False
+    for call, call_state in recorded:
+        if _is_subprocess_call(call, ctx.subproc_aliases, ctx.subproc_funcs):
             cmd_arg = _extract_subprocess_cmd_arg(call)
             if cmd_arg is not None:
-                found.update(
-                    _resolve_subprocess_clis(
-                        cmd_arg, call_env, mod_binding_env, helper_return_exprs
-                    )
+                clis, ov = _resolve_subprocess_clis(
+                    cmd_arg, call_state, ctx.mod_state, ctx.helper_return_exprs
                 )
-        elif isinstance(call.func, ast.Name) and call.func.id in helper_clis:
+                found.update(clis)
+                overflowed = overflowed or ov
+        elif isinstance(call.func, ast.Name) and call.func.id in ctx.helper_clis:
             callee = call.func.id
-            found.update(helper_clis[callee])
-            forwarded = helper_forwarded.get(callee)
+            found.update(ctx.helper_clis[callee])
+            forwarded = ctx.helper_forwarded.get(callee)
             if forwarded:
-                found.update(
-                    _resolve_forwarded_helper_clis(
-                        call,
-                        forwarded,
-                        helper_param_positions.get(callee, {}),
-                        call_env,
-                    )
+                fwd_clis, fwd_ov = _resolve_forwarded_helper_clis(
+                    call,
+                    forwarded,
+                    ctx.helper_param_positions.get(callee, {}),
+                    ctx.helper_param_defaults.get(callee, {}),
+                    call_state,
                 )
-    return found
+                found.update(fwd_clis)
+                overflowed = overflowed or fwd_ov
+    return (found, overflowed)
 
 
 class _FileAstGuardContext:
@@ -2721,31 +3771,148 @@ class _FileAstGuardContext:
         self.rel_posix = rel_posix
         self.mod_env = _build_single_assign_env(tree)
         self.ast_value_env = _build_ast_value_env(tree)
-        self.mod_binding_env = {k: [v] for k, v in self.ast_value_env.items()}
+        self.mod_state = _BindingState({k: [v] for k, v in self.ast_value_env.items()})
         mod_markers, _ = _extract_scope_pytestmark(tree.body)
         self.mod_pm_exprs = _extract_scope_pytestmark_exprs(tree.body)
         self.file_e2e = ("e2e" in mod_markers) or (
             "e2e" in extra_markers.get(rel_posix, ())
         )
         self.file_param = "parametrize" in mod_markers
+        self.subproc_aliases, self.subproc_funcs = _collect_subprocess_imports(tree)
         (
-            self.subproc_aliases,
-            self.subproc_funcs,
             self.non_sim_mods,
             self.non_sim_classes,
-        ) = _collect_import_aliases(tree)
+            self.mod_non_sim_vars,
+        ) = _collect_module_non_sim_bindings(tree)
         self.helper_return_exprs = _collect_helper_return_exprs(tree)
         (
             self.helper_clis,
             self.helper_param_positions,
+            self.helper_param_defaults,
             self.helper_forwarded,
         ) = _analyse_module_helpers(
             tree,
-            self.mod_binding_env,
+            self.mod_state,
             self.subproc_aliases,
             self.subproc_funcs,
             self.helper_return_exprs,
         )
+        self.per_node_e2e_counts: dict[tuple[str, str], int] = {}
+
+
+def _is_non_cli_scalar_constant(node: ast.AST) -> bool:
+    """Return True when ``node`` is a scalar constant that can never name a CLI command."""
+    return isinstance(node, ast.Constant) and not isinstance(node.value, str)
+
+
+def _referenced_load_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """Return variable names loaded anywhere inside ``fn.body``."""
+    names: set[str] = set()
+    for stmt in fn.body:
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                names.add(node.id)
+    return names
+
+
+def _group_parametrize_cases(
+    cases: list[tuple[dict[str, ast.AST], set[str]]],
+    base_is_e2e: bool,
+    referenced_names: set[str],
+) -> list[tuple[bool, dict[str, list[ast.AST]], int]]:
+    """Group expanded cases into ``(case_is_e2e, param_bindings, weight)`` buckets."""
+    grouped: dict[
+        tuple[bool, tuple[tuple[str, str], ...]],
+        tuple[bool, dict[str, list[ast.AST]], int],
+    ] = {}
+    for bindings, marks in cases:
+        case_e2e = base_is_e2e or ("e2e" in marks)
+        relevant = {
+            k: v
+            for k, v in bindings.items()
+            if k in referenced_names and not _is_non_cli_scalar_constant(v)
+        }
+        key = (case_e2e, tuple((k, ast.dump(v)) for k, v in sorted(relevant.items())))
+        if key in grouped:
+            prev_e2e, prev_bind, prev_count = grouped[key]
+            grouped[key] = (prev_e2e, prev_bind, prev_count + 1)
+        else:
+            grouped[key] = (case_e2e, {k: [v] for k, v in relevant.items()}, 1)
+
+    groups = list(grouped.values())
+    if len(groups) <= _MAX_BRANCH_BINDINGS:
+        return groups
+
+    # Merge large distinct-string parameter spaces into at most 2 buckets (e2e / non-e2e).
+    merged_buckets: dict[bool, tuple[dict[str, list[ast.AST]], int]] = {}
+    for case_e2e, bind_map, weight in groups:
+        if case_e2e not in merged_buckets:
+            merged_buckets[case_e2e] = ({k: list(v) for k, v in bind_map.items()}, weight)
+        else:
+            cur_map, cur_w = merged_buckets[case_e2e]
+            for k, v in bind_map.items():
+                cur_map.setdefault(k, []).extend(v)
+            merged_buckets[case_e2e] = (cur_map, cur_w + weight)
+    return [(e2e, bmap, w) for e2e, (bmap, w) in merged_buckets.items()]
+
+
+def _record_function_subprocess_results(
+    ctx: _FileAstGuardContext,
+    snapshot: AstGuardsSnapshot,
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    node_id: str,
+    all_decs: list[ast.AST],
+    *,
+    base_is_e2e: bool,
+) -> None:
+    """Evaluate subprocess CLI invocations per expanded case and update ``snapshot``."""
+    cases, has_unresolvable = _expand_parametrize_cases(
+        all_decs, ctx.mod_env, ctx.ast_value_env
+    )
+    if not cases:
+        return
+    groups = _group_parametrize_cases(
+        cases, base_is_e2e, _referenced_load_names(fn)
+    )
+
+    unmarked_clis: set[str] = set()
+    e2e_cli_counts: dict[str, int] = {}
+    overflow_clis: set[str] = set()
+    any_overflow = False
+
+    for case_e2e, bind_map, weight in groups:
+        clis, overflowed = _collect_test_subprocess_clis(fn, ctx, bind_map)
+        if overflowed:
+            any_overflow = True
+            overflow_clis.update(clis)
+        if not clis:
+            continue
+        if case_e2e:
+            for cli in clis:
+                e2e_cli_counts[cli] = e2e_cli_counts.get(cli, 0) + weight
+        else:
+            unmarked_clis.update(clis)
+
+    if any_overflow:
+        existing_ov = set(snapshot.subprocess_analysis_overflow.get(node_id, ()))
+        snapshot.subprocess_analysis_overflow[node_id] = sorted(
+            existing_ov | overflow_clis | ({"<unknown>"} if not overflow_clis else set())
+        )
+    if unmarked_clis:
+        prev_unmarked = set(snapshot.unmarked_subprocess_e2e.get(node_id, ()))
+        snapshot.unmarked_subprocess_e2e[node_id] = sorted(prev_unmarked | unmarked_clis)
+    if e2e_cli_counts:
+        if has_unresolvable:
+            prev_unres = set(snapshot.unresolvable_e2e_parametrize.get(node_id, ()))
+            snapshot.unresolvable_e2e_parametrize[node_id] = sorted(
+                prev_unres | set(e2e_cli_counts)
+            )
+        else:
+            for cli, count in e2e_cli_counts.items():
+                key = (node_id, cli)
+                ctx.per_node_e2e_counts[key] = max(
+                    ctx.per_node_e2e_counts.get(key, 0), count
+                )
 
 
 def _visit_ast_guard_function(
@@ -2768,37 +3935,153 @@ def _visit_ast_guard_function(
         d_names, _ = _inspect_decorator_expr(dec, ctx.mod_env)
         fn_marks.update(d_names)
     is_param = ctx.file_param or inherited_param or ("parametrize" in fn_marks)
-    is_e2e = ctx.file_e2e or inherited_e2e or ("e2e" in fn_marks)
+    base_is_e2e = ctx.file_e2e or inherited_e2e or ("e2e" in fn_marks)
     node_id = "::".join((ctx.rel_posix, *class_chain, fn.name))
     if is_param:
         sim_calls = _count_param_simulation_calls(
-            fn, ctx.non_sim_mods, ctx.non_sim_classes
+            fn, ctx.non_sim_mods, ctx.non_sim_classes, ctx.mod_non_sim_vars
         )
         if sim_calls > 0:
-            snapshot.parametrized_simulations[node_id] = sim_calls
-    clis = _collect_test_subprocess_clis(
-        fn,
-        ctx.mod_binding_env,
-        ctx.subproc_aliases,
-        ctx.subproc_funcs,
-        ctx.helper_clis,
-        ctx.helper_param_positions,
-        ctx.helper_forwarded,
-        ctx.helper_return_exprs,
-    )
-    if not clis:
-        return
-    if not is_e2e:
-        snapshot.unmarked_subprocess_e2e[node_id] = sorted(clis)
-    else:
-        nodes = _count_parametrize_nodes(
-            [*ctx.mod_pm_exprs, *enclosing_decs, *fn.decorator_list],
-            ctx.ast_value_env,
-        )
-        for cli in clis:
-            snapshot.e2e_command_nodes[cli] = (
-                snapshot.e2e_command_nodes.get(cli, 0) + nodes
+            snapshot.parametrized_simulations[node_id] = max(
+                snapshot.parametrized_simulations.get(node_id, 0), sim_calls
             )
+    all_decs = [*ctx.mod_pm_exprs, *enclosing_decs, *fn.decorator_list]
+    _record_function_subprocess_results(
+        ctx, snapshot, fn, node_id, all_decs, base_is_e2e=base_is_e2e
+    )
+
+
+def _is_skipped_static_if_test(test: ast.AST) -> bool:
+    """Return True for dead/type-checking-only guards (``if False:``, ``if TYPE_CHECKING:``)."""
+    if isinstance(test, ast.Constant) and test.value is False:
+        return True
+    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
+        return True
+    return isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+
+
+def _iter_scope_defs(
+    stmts: list[ast.stmt],
+) -> list[ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef]:
+    """Collect function and class defs in ``stmts``, descending into conditional blocks."""
+    found: list[ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef] = []
+    for stmt in stmts:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            found.append(stmt)
+        elif isinstance(stmt, ast.If):
+            if not _is_skipped_static_if_test(stmt.test):
+                found.extend(_iter_scope_defs(stmt.body))
+            if stmt.orelse:
+                found.extend(_iter_scope_defs(stmt.orelse))
+        elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith)):
+            found.extend(_iter_scope_defs(stmt.body))
+            if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)) and stmt.orelse:
+                found.extend(_iter_scope_defs(stmt.orelse))
+        elif isinstance(stmt, ast.Try):
+            found.extend(_iter_scope_defs(stmt.body))
+            for handler in stmt.handlers:
+                found.extend(_iter_scope_defs(handler.body))
+            found.extend(_iter_scope_defs(stmt.orelse))
+            found.extend(_iter_scope_defs(stmt.finalbody))
+        elif isinstance(stmt, ast.Match):
+            for case in stmt.cases:
+                found.extend(_iter_scope_defs(case.body))
+    return found
+
+
+def _extract_class_test_flag(cls: ast.ClassDef) -> bool | None:
+    """Return literal ``__test__`` boolean assigned directly on ``cls``, or ``None``."""
+    result: bool | None = None
+    for stmt in cls.body:
+        if isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id == "__test__"
+                    and isinstance(stmt.value, ast.Constant)
+                    and isinstance(stmt.value.value, bool)
+                ):
+                    result = stmt.value.value
+        elif (
+            isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and stmt.target.id == "__test__"
+            and isinstance(stmt.value, ast.Constant)
+            and isinstance(stmt.value.value, bool)
+        ):
+            result = stmt.value.value
+    return result
+
+
+def _is_testcase_base_expr(base: ast.AST) -> bool:
+    """Return True when class base expression names ``TestCase`` or ``*.TestCase``."""
+    if isinstance(base, ast.Name):
+        return base.id == "TestCase"
+    return isinstance(base, ast.Attribute) and base.attr == "TestCase"
+
+
+def _resolve_local_mro(
+    cls: ast.ClassDef,
+    class_registry: Mapping[str, ast.ClassDef],
+    *,
+    seen: frozenset[str] = frozenset(),
+) -> list[ast.ClassDef]:
+    """Return local-class MRO list starting with ``cls`` (avoiding cycles)."""
+    mro: list[ast.ClassDef] = [cls]
+    visited = set(seen) | {cls.name}
+    for base in cls.bases:
+        if isinstance(base, ast.Name) and base.id in class_registry and base.id not in visited:
+            for anc in _resolve_local_mro(
+                class_registry[base.id], class_registry, seen=frozenset(visited)
+            ):
+                if anc.name not in visited:
+                    visited.add(anc.name)
+                    mro.append(anc)
+    return mro
+
+
+def _is_pytest_collected_class(
+    cls: ast.ClassDef,
+    mro: list[ast.ClassDef],
+) -> bool:
+    """Return True when pytest will collect ``cls`` under default collection rules."""
+    for anc in mro:
+        flag = _extract_class_test_flag(anc)
+        if flag is not None:
+            if not flag:
+                return False
+            break
+    is_testcase = any(
+        _is_testcase_base_expr(base) for anc in mro for base in anc.bases
+    )
+    if is_testcase:
+        return True
+    if not cls.name.startswith("Test"):
+        return False
+    return not any(
+        isinstance(defn, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and defn.name == "__init__"
+        for anc in mro
+        for defn in _iter_scope_defs(anc.body)
+    )
+
+
+def _collect_class_mro_marks(
+    mro: list[ast.ClassDef],
+    mod_env: Mapping[str, ast.AST],
+) -> tuple[set[str], list[ast.AST]]:
+    """Collect accumulated marker names and decorator/pytestmark AST nodes along ``mro``."""
+    cls_marks: set[str] = set()
+    cls_decs: list[ast.AST] = []
+    for anc in reversed(mro):
+        for dec in anc.decorator_list:
+            d_names, _ = _inspect_decorator_expr(dec, mod_env)
+            cls_marks.update(d_names)
+        cls_pm, _ = _extract_scope_pytestmark(anc.body)
+        cls_marks.update(cls_pm)
+        cls_decs.extend(anc.decorator_list)
+        cls_decs.extend(_extract_scope_pytestmark_exprs(anc.body))
+    return (cls_marks, cls_decs)
 
 
 def _visit_ast_guard_class(
@@ -2807,40 +4090,57 @@ def _visit_ast_guard_class(
     cls: ast.ClassDef,
     class_chain: tuple[str, ...],
     enclosing_decs: list[ast.AST],
+    class_registry: Mapping[str, ast.ClassDef],
     *,
     inherited_param: bool,
     inherited_e2e: bool,
 ) -> None:
-    """Recursively inspect test methods and nested classes inside ``cls``."""
-    cls_marks: set[str] = set()
-    for dec in cls.decorator_list:
-        d_names, _ = _inspect_decorator_expr(dec, ctx.mod_env)
-        cls_marks.update(d_names)
-    cls_pm, _ = _extract_scope_pytestmark(cls.body)
-    cls_pm_exprs = _extract_scope_pytestmark_exprs(cls.body)
-    cls_marks.update(cls_pm)
+    """Inspect a pytest-collected class (including inherited methods and nested classes)."""
+    mro = _resolve_local_mro(cls, class_registry)
+    if not _is_pytest_collected_class(cls, mro):
+        return
+
+    cls_marks, cls_decs = _collect_class_mro_marks(mro, ctx.mod_env)
     next_chain = (*class_chain, cls.name)
-    next_decs = [*enclosing_decs, *cls.decorator_list, *cls_pm_exprs]
+    next_decs = [*enclosing_decs, *cls_decs]
     next_param = inherited_param or ("parametrize" in cls_marks)
     next_e2e = inherited_e2e or ("e2e" in cls_marks)
-    for item in cls.body:
-        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            _visit_ast_guard_function(
-                ctx,
-                snapshot,
-                item,
-                next_chain,
-                next_decs,
-                inherited_param=next_param,
-                inherited_e2e=next_e2e,
-            )
-        elif isinstance(item, ast.ClassDef):
+
+    nested_defs = _iter_scope_defs(cls.body)
+    nested_registry = {
+        **class_registry,
+        **{item.name: item for item in nested_defs if isinstance(item, ast.ClassDef)},
+    }
+
+    seen_methods: set[str] = set()
+    for anc in mro:
+        anc_methods = [
+            defn
+            for defn in _iter_scope_defs(anc.body)
+            if isinstance(defn, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        for method in anc_methods:
+            if method.name not in seen_methods:
+                _visit_ast_guard_function(
+                    ctx,
+                    snapshot,
+                    method,
+                    next_chain,
+                    next_decs,
+                    inherited_param=next_param,
+                    inherited_e2e=next_e2e,
+                )
+        seen_methods.update(m.name for m in anc_methods)
+
+    for item in nested_defs:
+        if isinstance(item, ast.ClassDef):
             _visit_ast_guard_class(
                 ctx,
                 snapshot,
                 item,
                 next_chain,
                 next_decs,
+                nested_registry,
                 inherited_param=next_param,
                 inherited_e2e=next_e2e,
             )
@@ -2876,15 +4176,30 @@ def inspect_file_ast_guards(
 
     ctx = _FileAstGuardContext(rel_posix, tree, extra_markers)
     snapshot = AstGuardsSnapshot()
-    for stmt in tree.body:
-        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+    top_defs = _iter_scope_defs(tree.body)
+    class_registry: dict[str, ast.ClassDef] = {
+        defn.name: defn for defn in top_defs if isinstance(defn, ast.ClassDef)
+    }
+    for defn in top_defs:
+        if isinstance(defn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             _visit_ast_guard_function(
-                ctx, snapshot, stmt, (), [], inherited_param=False, inherited_e2e=False
+                ctx, snapshot, defn, (), [], inherited_param=False, inherited_e2e=False
             )
-        elif isinstance(stmt, ast.ClassDef):
+        elif isinstance(defn, ast.ClassDef):
             _visit_ast_guard_class(
-                ctx, snapshot, stmt, (), [], inherited_param=False, inherited_e2e=False
+                ctx,
+                snapshot,
+                defn,
+                (),
+                [],
+                class_registry,
+                inherited_param=False,
+                inherited_e2e=False,
             )
+    for (_node_id, cli), count in ctx.per_node_e2e_counts.items():
+        snapshot.e2e_command_nodes[cli] = (
+            snapshot.e2e_command_nodes.get(cli, 0) + count
+        )
     return snapshot
 
 
@@ -2916,6 +4231,12 @@ def scan_repo_ast_guards(
             continue
         combined.parametrized_simulations.update(file_snap.parametrized_simulations)
         combined.unmarked_subprocess_e2e.update(file_snap.unmarked_subprocess_e2e)
+        combined.unresolvable_e2e_parametrize.update(
+            file_snap.unresolvable_e2e_parametrize
+        )
+        combined.subprocess_analysis_overflow.update(
+            file_snap.subprocess_analysis_overflow
+        )
         for cmd, count in file_snap.e2e_command_nodes.items():
             combined.e2e_command_nodes[cmd] = (
                 combined.e2e_command_nodes.get(cmd, 0) + count
@@ -2928,6 +4249,12 @@ def scan_repo_ast_guards(
         sorted(combined.unmarked_subprocess_e2e.items())
     )
     combined.e2e_command_nodes = dict(sorted(combined.e2e_command_nodes.items()))
+    combined.unresolvable_e2e_parametrize = dict(
+        sorted(combined.unresolvable_e2e_parametrize.items())
+    )
+    combined.subprocess_analysis_overflow = dict(
+        sorted(combined.subprocess_analysis_overflow.items())
+    )
     return (combined, frozenset(skipped))
 
 
@@ -2941,6 +4268,7 @@ def _empty_ast_guards_baseline(
         "parametrized_simulations": {},
         "unmarked_subprocess_e2e": {},
         "e2e_command_caps": {},
+        "unresolvable_e2e_parametrize": {},
     }
 
 
@@ -2949,15 +4277,43 @@ def _is_positive_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
+def _validate_cli_map_section(
+    raw_map: object,
+    section_name: str,
+    errors: list[str],
+) -> dict[str, list[str]]:
+    """Validate a ``{node_id: [cli_cmd, ...]}`` ratchet mapping."""
+    clean: dict[str, list[str]] = {}
+    if not isinstance(raw_map, dict):
+        errors.append(f"baseline {section_name} must be an object")
+        return clean
+    for node_id, cmds in sorted(raw_map.items()):
+        if (
+            isinstance(node_id, str)
+            and isinstance(cmds, list)
+            and cmds
+            and all(isinstance(c, str) and c in ALL_SUEWS_CLI_COMMANDS for c in cmds)
+        ):
+            clean[node_id] = sorted(set(cmds))
+        else:
+            errors.append(f"invalid {section_name} entry: {node_id!r}: {cmds!r}")
+    return clean
+
+
 def _validate_baseline_sections(
     raw: Mapping[str, object],
     *,
     default_cap: int,
-) -> tuple[dict[str, int], dict[str, list[str]], dict[str, int], list[str]]:
-    """Validate the three ratchet maps inside an AST guards baseline payload."""
+) -> tuple[
+    dict[str, int],
+    dict[str, list[str]],
+    dict[str, int],
+    dict[str, list[str]],
+    list[str],
+]:
+    """Validate the ratchet maps inside an AST guards baseline payload."""
     errors: list[str] = []
     param_clean: dict[str, int] = {}
-    unmarked_clean: dict[str, list[str]] = {}
     caps_clean: dict[str, int] = {}
 
     param_raw = raw.get("parametrized_simulations", {})
@@ -2972,24 +4328,14 @@ def _validate_baseline_sections(
                     f"invalid parametrized_simulations entry: {node_id!r}: {count!r}"
                 )
 
-    unmarked_raw = raw.get("unmarked_subprocess_e2e", {})
-    if not isinstance(unmarked_raw, dict):
-        errors.append("baseline unmarked_subprocess_e2e must be an object")
-    else:
-        for node_id, cmds in sorted(unmarked_raw.items()):
-            if (
-                isinstance(node_id, str)
-                and isinstance(cmds, list)
-                and cmds
-                and all(
-                    isinstance(c, str) and c in ALL_SUEWS_CLI_COMMANDS for c in cmds
-                )
-            ):
-                unmarked_clean[node_id] = sorted(set(cmds))
-            else:
-                errors.append(
-                    f"invalid unmarked_subprocess_e2e entry: {node_id!r}: {cmds!r}"
-                )
+    unmarked_clean = _validate_cli_map_section(
+        raw.get("unmarked_subprocess_e2e", {}), "unmarked_subprocess_e2e", errors
+    )
+    unresolvable_clean = _validate_cli_map_section(
+        raw.get("unresolvable_e2e_parametrize", {}),
+        "unresolvable_e2e_parametrize",
+        errors,
+    )
 
     caps_raw = raw.get("e2e_command_caps", {})
     if not isinstance(caps_raw, dict):
@@ -3009,20 +4355,21 @@ def _validate_baseline_sections(
                     f"(must be a recognised command with cap > {default_cap})"
                 )
 
-    return (param_clean, unmarked_clean, caps_clean, errors)
+    return (param_clean, unmarked_clean, caps_clean, unresolvable_clean, errors)
 
 
-def load_ast_guards_baseline(
-    baseline_path: Path,
+def _parse_ast_guards_baseline_text(
+    text: str,
+    source_label: str,
     *,
     default_cap: int = DEFAULT_E2E_COMMAND_NODE_CAP,
 ) -> tuple[dict[str, object] | None, list[str]]:
-    """Load and validate an AST guards baseline JSON file."""
+    """Parse and validate AST guards baseline JSON text."""
     errors: list[str] = []
     try:
-        raw = json.loads(baseline_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        return (None, [f"unable to load AST guards baseline {baseline_path.name}: {exc}"])
+        raw = json.loads(text)
+    except json.JSONDecodeError as exc:
+        return (None, [f"unable to load AST guards baseline {source_label}: {exc}"])
 
     if not isinstance(raw, dict):
         return (None, ["AST guards baseline must be a JSON object"])
@@ -3053,8 +4400,8 @@ def load_ast_guards_baseline(
             f"configured cap {default_cap}"
         )
 
-    param_clean, unmarked_clean, caps_clean, section_errors = _validate_baseline_sections(
-        raw, default_cap=default_cap
+    param_clean, unmarked_clean, caps_clean, unresolvable_clean, section_errors = (
+        _validate_baseline_sections(raw, default_cap=default_cap)
     )
     errors.extend(section_errors)
     if errors:
@@ -3067,8 +4414,27 @@ def load_ast_guards_baseline(
             "parametrized_simulations": param_clean,
             "unmarked_subprocess_e2e": unmarked_clean,
             "e2e_command_caps": caps_clean,
+            "unresolvable_e2e_parametrize": unresolvable_clean,
         },
         [],
+    )
+
+
+def load_ast_guards_baseline(
+    baseline_path: Path,
+    *,
+    default_cap: int = DEFAULT_E2E_COMMAND_NODE_CAP,
+) -> tuple[dict[str, object] | None, list[str]]:
+    """Load and validate an AST guards baseline JSON file."""
+    try:
+        text = baseline_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return (
+            None,
+            [f"unable to load AST guards baseline {baseline_path.name}: {exc}"],
+        )
+    return _parse_ast_guards_baseline_text(
+        text, baseline_path.name, default_cap=default_cap
     )
 
 
@@ -3084,7 +4450,7 @@ def write_ast_guards_baseline(
         for cmd, count in sorted(snapshot.e2e_command_nodes.items())
         if count > default_cap
     }
-    payload = {
+    payload: dict[str, object] = {
         "schema_version": AST_GUARDS_BASELINE_SCHEMA_VERSION,
         "description": (
             "Monotonic legacy baseline for static AST guards in "
@@ -3101,6 +4467,11 @@ def write_ast_guards_baseline(
         },
         "e2e_command_caps": caps_above_default,
     }
+    if snapshot.unresolvable_e2e_parametrize:
+        payload["unresolvable_e2e_parametrize"] = {
+            k: sorted(set(v))
+            for k, v in sorted(snapshot.unresolvable_e2e_parametrize.items())
+        }
     baseline_path.parent.mkdir(parents=True, exist_ok=True)
     baseline_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
@@ -3108,6 +4479,36 @@ def write_ast_guards_baseline(
 def _node_belongs_to_skipped(node_id: str, skipped_files: frozenset[str]) -> bool:
     """Return True if ``node_id`` belongs to a file in ``skipped_files``."""
     return node_id.split("::", 1)[0] in skipped_files
+
+
+def _compare_cli_map_section(
+    live_map: Mapping[str, list[str]],
+    base_map: Mapping[str, list[str]],
+    *,
+    violation_prefix: str,
+    violation_detail: str,
+    stale_prefix: str,
+    skipped_files: frozenset[str],
+) -> tuple[list[str], list[str]]:
+    """Compare a ``{node_id: [cli, ...]}`` snapshot map against its baseline map."""
+    violations: list[str] = []
+    stale: list[str] = []
+    for node_id in sorted(set(live_map) | set(base_map)):
+        now_cmds = set(live_map.get(node_id, ()))
+        then_cmds = set(base_map.get(node_id, ()))
+        added = sorted(now_cmds - then_cmds)
+        removed = sorted(then_cmds - now_cmds)
+        if added:
+            violations.append(
+                f"{violation_prefix}: {node_id} {violation_detail} "
+                f"({', '.join(added)})"
+            )
+        if removed and not _node_belongs_to_skipped(node_id, skipped_files):
+            stale.append(
+                f"{stale_prefix} baseline stale: {node_id} "
+                f"(removed {', '.join(removed)})"
+            )
+    return (violations, stale)
 
 
 def compare_ast_guards_baseline(
@@ -3135,31 +4536,50 @@ def compare_ast_guards_baseline(
         then = base_param.get(node_id, 0)
         if now > then:
             violations.append(
-                f"parametrized-simulation: {node_id} calls from_sample_data()/.run() "
+                f"parametrised-simulation: {node_id} calls from_sample_data()/.run() "
                 f"directly inside @pytest.mark.parametrize ({then} -> {now}); "
                 "inject a session/module fixture instead"
             )
         elif now < then and not _node_belongs_to_skipped(node_id, skipped_files):
             stale.append(
-                f"parametrized-simulation baseline stale: {node_id} ({then} -> {now})"
+                f"parametrised-simulation baseline stale: {node_id} ({then} -> {now})"
             )
 
     base_unmarked: Mapping[str, list[str]] = baseline.get("unmarked_subprocess_e2e", {})  # type: ignore[assignment]
-    for node_id in sorted(set(snapshot.unmarked_subprocess_e2e) | set(base_unmarked)):
-        now_cmds = set(snapshot.unmarked_subprocess_e2e.get(node_id, ()))
-        then_cmds = set(base_unmarked.get(node_id, ()))
-        added = sorted(now_cmds - then_cmds)
-        removed = sorted(then_cmds - now_cmds)
-        if added:
-            violations.append(
-                f"missing-e2e-marker: {node_id} invokes SUEWS CLI subprocess "
-                f"({', '.join(added)}) without @pytest.mark.e2e"
-            )
-        if removed and not _node_belongs_to_skipped(node_id, skipped_files):
-            stale.append(
-                f"unmarked-subprocess-e2e baseline stale: {node_id} "
-                f"(removed {', '.join(removed)})"
-            )
+    unm_v, unm_s = _compare_cli_map_section(
+        snapshot.unmarked_subprocess_e2e,
+        base_unmarked,
+        violation_prefix="missing-e2e-marker",
+        violation_detail="invokes SUEWS CLI subprocess without @pytest.mark.e2e",
+        stale_prefix="unmarked-subprocess-e2e",
+        skipped_files=skipped_files,
+    )
+    violations.extend(unm_v)
+    stale.extend(unm_s)
+
+    base_unres: Mapping[str, list[str]] = baseline.get(
+        "unresolvable_e2e_parametrize", {}
+    )  # type: ignore[assignment]
+    unr_v, unr_s = _compare_cli_map_section(
+        snapshot.unresolvable_e2e_parametrize,
+        base_unres,
+        violation_prefix="unresolvable-e2e-parametrize",
+        violation_detail=(
+            "uses non-static @pytest.mark.parametrize argvalues on an "
+            "@pytest.mark.e2e subprocess test"
+        ),
+        stale_prefix="unresolvable-e2e-parametrize",
+        skipped_files=skipped_files,
+    )
+    violations.extend(unr_v)
+    stale.extend(unr_s)
+
+    for node_id, cmds in sorted(snapshot.subprocess_analysis_overflow.items()):
+        violations.append(
+            f"subprocess-analysis-overflow: {node_id} exceeded static branch "
+            f"bound ({_MAX_BRANCH_BINDINGS}) while resolving subprocess command "
+            f"({', '.join(cmds)}); simplify command construction"
+        )
 
     base_caps: Mapping[str, int] = baseline.get("e2e_command_caps", {})  # type: ignore[assignment]
     for cmd in sorted(set(snapshot.e2e_command_nodes) | set(base_caps)):
@@ -3187,6 +4607,104 @@ def compare_ast_guards_baseline(
     return (violations, stale)
 
 
+def compare_ast_baselines_monotonic(
+    base_baseline: Mapping[str, object],
+    current_baseline: Mapping[str, object],
+    *,
+    default_cap: int = DEFAULT_E2E_COMMAND_NODE_CAP,
+) -> list[str]:
+    """Return errors if ``current_baseline`` adds or increases debt over ``base_baseline``."""
+    errors: list[str] = []
+    base_cap = int(base_baseline.get("e2e_default_cap", default_cap))  # type: ignore[arg-type]
+    cur_cap = int(current_baseline.get("e2e_default_cap", default_cap))  # type: ignore[arg-type]
+    if cur_cap > base_cap:
+        errors.append(
+            f"AST guards baseline increased e2e_default_cap ({base_cap} -> {cur_cap})"
+        )
+
+    base_param: Mapping[str, int] = base_baseline.get("parametrized_simulations", {})  # type: ignore[assignment]
+    cur_param: Mapping[str, int] = current_baseline.get("parametrized_simulations", {})  # type: ignore[assignment]
+    for node_id, now in sorted(cur_param.items()):
+        then = base_param.get(node_id, 0)
+        if now > then:
+            errors.append(
+                f"AST guards baseline increased parametrised-simulation debt: "
+                f"{node_id} ({then} -> {now})"
+            )
+
+    for section, label in (
+        ("unmarked_subprocess_e2e", "unmarked-subprocess-e2e"),
+        ("unresolvable_e2e_parametrize", "unresolvable-e2e-parametrize"),
+    ):
+        base_map: Mapping[str, list[str]] = base_baseline.get(section, {})  # type: ignore[assignment]
+        cur_map: Mapping[str, list[str]] = current_baseline.get(section, {})  # type: ignore[assignment]
+        for node_id, now_cmds in sorted(cur_map.items()):
+            added = sorted(set(now_cmds) - set(base_map.get(node_id, ())))
+            if added:
+                errors.append(
+                    f"AST guards baseline added {label} debt: {node_id} "
+                    f"({', '.join(added)})"
+                )
+
+    base_caps: Mapping[str, int] = base_baseline.get("e2e_command_caps", {})  # type: ignore[assignment]
+    cur_caps: Mapping[str, int] = current_baseline.get("e2e_command_caps", {})  # type: ignore[assignment]
+    for cmd, now_cap in sorted(cur_caps.items()):
+        then_eff = base_caps.get(cmd, base_cap)
+        if now_cap > then_eff:
+            errors.append(
+                f"AST guards baseline increased e2e-subprocess-cap for `{cmd}` "
+                f"({then_eff} -> {now_cap})"
+            )
+    return errors
+
+
+def _walk_components_for_links(
+    start_root: Path,
+    rel_parts: tuple[str, ...],
+    *,
+    skip_darwin_system_roots: bool = False,
+) -> Path | None:
+    """Walk ``start_root / rel_parts`` component-by-component; return first link/junction."""
+    cur = start_root
+    for part in rel_parts:
+        cur /= part
+        if skip_darwin_system_roots and cur in _DARWIN_SYSTEM_LINK_ROOTS:
+            continue
+        if _is_link_or_junction(cur):
+            return cur
+    return None
+
+
+def _validate_in_repo_baseline_path(
+    baseline_path: Path,
+    in_repo_root: Path,
+    resolved_root: Path,
+    abs_baseline: Path,
+    *,
+    allow_external: bool,
+) -> str | None:
+    """Validate symlink/junction safety for a baseline path lexically under ``repo_root``."""
+    bad = _walk_components_for_links(
+        in_repo_root, abs_baseline.relative_to(in_repo_root).parts
+    )
+    if bad is not None:
+        rel_label = bad.relative_to(in_repo_root).as_posix()
+        return (
+            f"AST guards baseline path traverses a symlink or junction: {rel_label}"
+        )
+    if allow_external:
+        return None
+    try:
+        if not baseline_path.resolve(strict=False).is_relative_to(resolved_root):
+            return (
+                "AST guards baseline resolved path escapes repository root: "
+                f"{baseline_path.as_posix()}"
+            )
+    except (OSError, RuntimeError) as exc:
+        return f"unable to resolve AST guards baseline path: {exc}"
+    return None
+
+
 def _validate_baseline_path(
     baseline_path: Path,
     repo_root: Path,
@@ -3199,37 +4717,142 @@ def _validate_baseline_path(
             "AST guards baseline path must not be a symlink or junction: "
             f"{baseline_path.as_posix()}"
         )
-    if allow_external:
-        return None
 
+    abs_baseline = Path(os.path.abspath(baseline_path))
+    abs_root = Path(os.path.abspath(repo_root))
     resolved_root = repo_root.resolve()
-    try:
-        rel_parts = baseline_path.relative_to(resolved_root).parts
-    except ValueError:
+
+    for candidate_root in (resolved_root, abs_root):
+        if abs_baseline.is_relative_to(candidate_root):
+            return _validate_in_repo_baseline_path(
+                baseline_path,
+                candidate_root,
+                resolved_root,
+                abs_baseline,
+                allow_external=allow_external,
+            )
+
+    if not allow_external:
         return (
             "AST guards baseline path escapes repository root: "
             f"{baseline_path.as_posix()}"
         )
-    cur = resolved_root
-    for part in rel_parts:
-        cur /= part
-        if _is_link_or_junction(cur):
-            rel_label = cur.relative_to(resolved_root).as_posix()
-            return (
-                "AST guards baseline path traverses a symlink or junction: "
-                f"{rel_label}"
-            )
-    error: str | None = None
+
     try:
-        resolved_target = baseline_path.resolve(strict=False)
-        if not resolved_target.is_relative_to(resolved_root):
-            error = (
-                "AST guards baseline resolved path escapes repository root: "
-                f"{baseline_path.as_posix()}"
+        common = Path(os.path.commonpath([str(abs_baseline), str(resolved_root)]))
+    except ValueError:
+        common = Path(abs_baseline.anchor)
+    skip_darwin = sys.platform == "darwin" and common == Path("/")
+    bad = _walk_components_for_links(
+        common,
+        abs_baseline.relative_to(common).parts,
+        skip_darwin_system_roots=skip_darwin,
+    )
+    if bad is not None:
+        return (
+            "AST guards baseline path traverses a symlink or junction: "
+            f"{bad.as_posix()}"
+        )
+    return None
+
+
+def _git_ref_exists(repo_root: Path, ref: str) -> bool:
+    """Return True if ``ref`` resolves to a commit in ``repo_root``."""
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+    except OSError:
+        return False
+    return res.returncode == 0
+
+
+def _read_git_baseline_at_ref(
+    repo_root: Path,
+    ref: str,
+    rel_posix: str,
+    *,
+    default_cap: int,
+) -> tuple[dict[str, object] | None, list[str]]:
+    """Read and validate ``rel_posix`` at git ``ref``; return ``(None, [])`` if absent there."""
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(repo_root), "show", f"{ref}:{rel_posix}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+    except OSError as exc:
+        return (None, [f"unable to run git show for base ref {ref!r}: {exc}"])
+    if res.returncode != 0:
+        stderr = (res.stderr or "").strip()
+        if (
+            "does not exist in" in stderr
+            or "exists on disk, but not in" in stderr
+            or "path '" in stderr
+        ):
+            return (None, [])
+        return (None, [f"unable to read baseline at git ref {ref!r}: {stderr}"])
+    return _parse_ast_guards_baseline_text(
+        res.stdout, f"{ref}:{rel_posix}", default_cap=default_cap
+    )
+
+
+def _discover_trusted_base_ref(repo_root: Path) -> str | None:
+    """Discover a trusted git base revision for monotonic baseline ratchet comparison."""
+    env_base = os.environ.get("GITHUB_BASE_REF", "").strip()
+    candidates: list[str] = (
+        [f"origin/{env_base}", env_base, "HEAD^1", "HEAD"]
+        if env_base
+        else ["origin/master", "origin/main", "master", "main", "HEAD"]
+    )
+    for ref in candidates:
+        if _git_ref_exists(repo_root, ref):
+            return ref
+    return None
+
+
+def _load_trusted_base_baseline(
+    repo_root: Path,
+    target_baseline: Path,
+    *,
+    explicit_base_file: Path | None,
+    explicit_base_ref: str | None,
+    default_cap: int,
+) -> tuple[dict[str, object] | None, list[str]]:
+    """Load the trusted base baseline for checking that the baseline file did not grow."""
+    if explicit_base_file is not None:
+        return _resolve_explicit_baseline(
+            explicit_base_file, repo_root, default_cap=default_cap
+        )
+
+    rel_posix = AST_GUARDS_BASELINE_PATH.as_posix()
+    if explicit_base_ref is not None:
+        if not _git_ref_exists(repo_root, explicit_base_ref):
+            return (
+                None,
+                [f"git base ref {explicit_base_ref!r} not found in repository"],
             )
-    except (OSError, RuntimeError) as exc:
-        error = f"unable to resolve AST guards baseline path: {exc}"
-    return error
+        return _read_git_baseline_at_ref(
+            repo_root, explicit_base_ref, rel_posix, default_cap=default_cap
+        )
+
+    default_path = (repo_root / AST_GUARDS_BASELINE_PATH).resolve(strict=False)
+    base_ref = (
+        _discover_trusted_base_ref(repo_root)
+        if target_baseline.resolve(strict=False) == default_path
+        else None
+    )
+    if base_ref is None:
+        return (None, [])
+    return _read_git_baseline_at_ref(
+        repo_root, base_ref, rel_posix, default_cap=default_cap
+    )
 
 
 def _resolve_explicit_baseline(
@@ -3341,7 +4964,7 @@ def _emit_lint_failures(
             ),
         ),
         (
-            "[X] gh#2349 AST guard lint: invalid or missing AST guards baseline:",
+            "[X] gh#2349 AST guard lint: invalid, missing, or regressed AST guards baseline:",
             baseline_errors,
             None,
         ),
@@ -3367,21 +4990,32 @@ def _emit_lint_failures(
 
 
 def _check_monotonic_write_allowed(
+    repo_root: Path,
     target_baseline: Path,
     ast_snapshot: AstGuardsSnapshot,
     *,
     init_mode: bool,
     default_cap: int,
+    explicit_base_file: Path | None,
+    explicit_base_ref: str | None,
 ) -> list[str]:
     """Verify baseline creation or downward-only regeneration preconditions."""
+    if ast_snapshot.subprocess_analysis_overflow:
+        return [
+            "refusing to write AST guards baseline while subprocess analysis "
+            "overflow errors exist:",
+            *sorted(ast_snapshot.subprocess_analysis_overflow),
+        ]
     exists = target_baseline.exists()
     if init_mode:
-        if exists:
-            return [
+        return (
+            [
                 f"baseline already exists at {target_baseline.as_posix()}; "
                 "use --write-ast-baseline to lower existing debt"
             ]
-        return []
+            if exists
+            else []
+        )
     if not exists:
         return [
             f"baseline not found at {target_baseline.as_posix()}; "
@@ -3392,16 +5026,36 @@ def _check_monotonic_write_allowed(
     )
     if existing is None:
         return load_errors
+
+    errors: list[str] = []
     increases, _ = compare_ast_guards_baseline(
         ast_snapshot, existing, default_cap=default_cap
     )
     if increases:
-        return [
+        errors.extend([
             "refusing to increase AST guards baseline via --write-ast-baseline "
             "(ratchet is downward-only):",
             *increases,
-        ]
-    return []
+        ])
+    trusted_base, base_errs = _load_trusted_base_baseline(
+        repo_root,
+        target_baseline,
+        explicit_base_file=explicit_base_file,
+        explicit_base_ref=explicit_base_ref,
+        default_cap=default_cap,
+    )
+    errors.extend(base_errs)
+    if trusted_base is not None:
+        base_increases, _ = compare_ast_guards_baseline(
+            ast_snapshot, trusted_base, default_cap=default_cap
+        )
+        if base_increases:
+            errors.extend([
+                "refusing to increase AST guards baseline above trusted base "
+                "revision via --write-ast-baseline:",
+                *base_increases,
+            ])
+    return errors
 
 
 def _write_baseline_mode(
@@ -3432,10 +5086,13 @@ def _write_baseline_mode(
         return 1
 
     guard_errors = _check_monotonic_write_allowed(
+        repo_root,
         target_baseline,
         ast_snapshot,
         init_mode=args.init_ast_baseline,
         default_cap=args.e2e_cap,
+        explicit_base_file=args.base_ast_baseline,
+        explicit_base_ref=args.base_ref,
     )
     if guard_errors:
         _print_error_block("[X] gh#2349 AST guard lint:", guard_errors)
@@ -3480,6 +5137,24 @@ def _parse_cli_args(argv: list[str]) -> argparse.Namespace:
             f"(defaults to {AST_GUARDS_BASELINE_PATH.as_posix()})."
         ),
     )
+    base_group = parser.add_mutually_exclusive_group()
+    base_group.add_argument(
+        "--base-ast-baseline",
+        type=Path,
+        default=None,
+        help=(
+            "Trusted base AST guards baseline JSON file to verify monotonic "
+            "non-increase of the current baseline."
+        ),
+    )
+    base_group.add_argument(
+        "--base-ref",
+        default=None,
+        help=(
+            "Trusted git ref (e.g. origin/master) from which to read the prior "
+            "AST guards baseline for monotonic non-increase verification."
+        ),
+    )
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
         "--write-ast-baseline",
@@ -3521,6 +5196,27 @@ def _evaluate_ast_guards(
     )
     if baseline is None:
         return (baseline_errors, [], [])
+
+    target_path = (
+        args.ast_baseline
+        if args.ast_baseline is not None
+        else repo_root / AST_GUARDS_BASELINE_PATH
+    )
+    trusted_base, base_errs = _load_trusted_base_baseline(
+        repo_root,
+        target_path,
+        explicit_base_file=args.base_ast_baseline,
+        explicit_base_ref=args.base_ref,
+        default_cap=args.e2e_cap,
+    )
+    baseline_errors.extend(base_errs)
+    if trusted_base is not None:
+        baseline_errors.extend(
+            compare_ast_baselines_monotonic(
+                trusted_base, baseline, default_cap=args.e2e_cap
+            )
+        )
+
     ast_violations, ast_stale = compare_ast_guards_baseline(
         ast_snapshot,
         baseline,

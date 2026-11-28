@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -1699,7 +1700,7 @@ def test_parametrised_simulation_guard_catches_direct_calls_and_allows_fixtures(
     rc = _run(bad_repo)
     captured = capsys.readouterr()
     assert rc == 1
-    assert "parametrized-simulation" in captured.err
+    assert "parametrised-simulation" in captured.err
     assert "test/core/test_bad_direct.py::test_direct_sample" in captured.err
     assert "test/core/test_bad_class.py::TestParamClass::test_method_run" in captured.err
     assert captured.err.isascii()
@@ -1916,7 +1917,7 @@ def test_ast_guards_baseline_ratchet_detects_new_and_stale_entries(
     (repo / "test/core/test_legacy.py").write_text(increased_src, encoding="utf-8")
     assert _run(repo) == 1
     err_inc = capsys.readouterr().err
-    assert "parametrized-simulation" in err_inc
+    assert "parametrised-simulation" in err_inc
     assert "(1 -> 2)" in err_inc
     assert (
         check_test_markers.main(
@@ -2189,3 +2190,403 @@ def test_module_exec_without_sys_modules_registration() -> None:
     assert spec.name not in sys.modules
     spec.loader.exec_module(mod)
     assert mod.AXIS_MARKERS == check_test_markers.AXIS_MARKERS
+
+
+def test_ast_guards_baseline_ratchet_rejects_manual_baseline_increases(
+    tmp_path: Path, capsys
+) -> None:
+    """Manually bumping test_ast_guards_baseline.json is rejected against trusted base."""
+    legacy_src = (
+        "import pytest\n"
+        "import supy as sp\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_legacy(x):\n"
+        "    sim = sp.SUEWSSimulation.from_sample_data()\n"
+        "    assert sim is not None\n"
+    )
+    repo = _make_repo(
+        tmp_path / "git_ratchet",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_legacy.py": legacy_src,
+        },
+    )
+    (repo / "scripts" / "lint").mkdir(parents=True)
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo), "--init-ast-baseline"]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    # Commit the baseline on `master` in a real temporary git repo.
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+    for cmd in (
+        ["git", "-C", str(repo), "init", "-b", "master"],
+        ["git", "-C", str(repo), "add", "."],
+        ["git", "-C", str(repo), "commit", "-m", "base"],
+        ["git", "-C", str(repo), "checkout", "-b", "pr-branch"],
+    ):
+        subprocess.run(cmd, env=git_env, check=True, capture_output=True)
+
+    # Save a copy of the trusted base baseline for explicit --base-ast-baseline test too.
+    baseline_path = repo / "scripts" / "lint" / "test_ast_guards_baseline.json"
+    base_copy = tmp_path / "base_baseline.json"
+    base_copy.write_text(baseline_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    # Add a second simulation call AND manually bump the baseline count 1 -> 2.
+    bumped_src = legacy_src.replace("assert sim is not None", "sim.run()")
+    (repo / "test/core/test_legacy.py").write_text(bumped_src, encoding="utf-8")
+    payload = json.loads(baseline_path.read_text(encoding="utf-8"))
+    payload["parametrized_simulations"]["test/core/test_legacy.py::test_legacy"] = 2
+    baseline_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-am", "manual bump"],
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+
+    # Automatic git base discovery (`master`) rejects the manual bump!
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "AST guards baseline increased parametrised-simulation debt" in err
+    assert "(1 -> 2)" in err
+
+    # Explicit --base-ast-baseline also rejects it.
+    assert (
+        check_test_markers.main([
+            "check_test_markers.py",
+            str(repo),
+            "--base-ast-baseline",
+            str(base_copy),
+        ])
+        == 1
+    )
+    assert "increased parametrised-simulation debt" in capsys.readouterr().err
+
+    # Legitimate reduction (fixing the test and lowering the baseline) passes!
+    fixed_src = (
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_legacy(shared_sim, x):\n"
+        "    assert shared_sim is not None\n"
+    )
+    (repo / "test/core/test_legacy.py").write_text(fixed_src, encoding="utf-8")
+    payload["parametrized_simulations"] = {}
+    baseline_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    assert _run(repo) == 0, capsys.readouterr().err
+
+
+def test_ast_guards_eager_assignment_values_and_branch_overflow(
+    tmp_path: Path, capsys
+) -> None:
+    """Stored command bindings keep assignment-time values; >8 and >64 branches stay sound."""
+    # Construct a 9-branch and a 70-branch test to verify no silent SUEWS loss.
+    nine_branches = "\n".join(
+        f"    {'if' if i == 0 else 'elif'} x == {i}:\n        argv = ['echo', '{i}']"
+        for i in range(9)
+    ) + "\n    else:\n        argv = ['suews', '--help']\n"
+    seventy_branches = "\n".join(
+        f"    {'if' if i == 0 else 'elif'} x == {i}:\n        argv = ['echo', '{i}']"
+        for i in range(70)
+    ) + "\n    else:\n        argv = ['git', '--version']\n"
+
+    src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def test_eager_captures_suews():\n"
+        "    exe = 'suews'\n"
+        "    argv = [exe, '--help']\n"
+        "    exe = 'echo'\n"
+        "    subprocess.run(argv)\n\n"
+        "def test_eager_no_false_positive():\n"
+        "    exe = 'echo'\n"
+        "    argv = [exe, '--help']\n"
+        "    exe = 'suews'\n"
+        "    subprocess.run(argv)\n\n"
+        "def test_tenth_branch_suews_detected(x):\n"
+        f"{nine_branches}"
+        "    subprocess.run(argv)\n\n"
+        "def test_overflow_fails_closed(x):\n"
+        f"{seventy_branches}"
+        "    subprocess.run(argv)\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_eager.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_eager.py::test_eager_captures_suews" in err
+    assert "test_eager_no_false_positive" not in err
+    assert "missing-e2e-marker: test/core/test_eager.py::test_tenth_branch_suews_detected" in err
+    assert "subprocess-analysis-overflow: test/core/test_eager.py::test_overflow_fails_closed" in err
+
+
+def test_ast_guards_sound_non_sim_provenance_across_scopes_and_control_flow(
+    tmp_path: Path, capsys
+) -> None:
+    """Module reassignment, zero-iteration loops, and failing try blocks cannot exempt .run()."""
+    src = (
+        "import subprocess as sim\n"
+        "import unittest\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n"
+        "sim = SUEWSSimulation()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_module_reassigned_sim(x):\n"
+        "    sim.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_zero_iter_loop_cannot_exempt(x, runner):\n"
+        "    for _ in []:\n"
+        "        runner = unittest.TextTestRunner()\n"
+        "    runner.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_try_cannot_exempt_after_except(x, runner):\n"
+        "    try:\n"
+        "        maybe_fail()\n"
+        "        runner = unittest.TextTestRunner()\n"
+        "    except RuntimeError:\n"
+        "        pass\n"
+        "    runner.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_with_target_shadows_import(x):\n"
+        "    with open_sim() as unittest:\n"
+        "        unittest.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_proven_non_sim_before_loop_stays_exempt(x):\n"
+        "    runner = unittest.TextTestRunner()\n"
+        "    for _ in [1, 2]:\n"
+        "        runner.run()\n"
+        "    runner.run()\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_sound_sim.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "parametrised-simulation: test/core/test_sound_sim.py::test_module_reassigned_sim" in err
+    assert "parametrised-simulation: test/core/test_sound_sim.py::test_zero_iter_loop_cannot_exempt" in err
+    assert "parametrised-simulation: test/core/test_sound_sim.py::test_try_cannot_exempt_after_except" in err
+    assert "parametrised-simulation: test/core/test_sound_sim.py::test_with_target_shadows_import" in err
+    assert "test_proven_non_sim_before_loop_stays_exempt" not in err
+
+
+def test_ast_guards_static_sequence_expansion_and_unknown_cardinality(
+    tmp_path: Path, capsys
+) -> None:
+    """Starred ranges, list(range(11)), and dynamic e2e argvalues cannot bypass the cap."""
+    src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = [pytest.mark.native, pytest.mark.e2e]\n\n"
+        "@pytest.mark.parametrize('x', [*range(11)])\n"
+        "def test_starred_range(x):\n"
+        "    subprocess.run(['suews', str(x)])\n\n"
+        "@pytest.mark.parametrize('x', list(range(11)))\n"
+        "def test_list_range(x):\n"
+        "    subprocess.run(['suews-validate', str(x)])\n\n"
+        "@pytest.mark.parametrize('x', get_dynamic_cases())\n"
+        "def test_dynamic_cases(x):\n"
+        "    subprocess.run(['suews-mcp', str(x)])\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_seq_caps.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "`suews` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+    assert "`suews-validate` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+    assert "unresolvable-e2e-parametrize: test/core/test_seq_caps.py::test_dynamic_cases" in err
+
+
+def test_ast_guards_conditional_defs_inheritance_and_collection_eligibility(
+    tmp_path: Path, capsys
+) -> None:
+    """Conditional test defs, inherited e2e methods, and pytest class eligibility are modelled."""
+    subclasses = "\n".join(f"class TestSub{i}(_BaseCli):\n    pass\n" for i in range(11))
+    src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "if True:\n"
+        "    def test_conditional_unmarked():\n"
+        "        subprocess.run(['suews-run', 'cfg.yml'])\n\n"
+        "class _BaseCli:\n"
+        "    @pytest.mark.e2e\n"
+        "    def test_inherited_cli(self):\n"
+        "        subprocess.run(['suews', '--help'])\n\n"
+        f"{subclasses}\n"
+        "class HelperNotCollected:\n"
+        "    def test_ignored_helper(self):\n"
+        "        subprocess.run(['suews-schema', 'export'])\n\n"
+        "class TestWithInitNotCollected:\n"
+        "    def __init__(self):\n"
+        "        pass\n"
+        "    def test_ignored_init(self):\n"
+        "        subprocess.run(['suews-convert', 'in.nml'])\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_discovery.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_discovery.py::test_conditional_unmarked" in err
+    assert "`suews` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+    assert "HelperNotCollected" not in err
+    assert "TestWithInitNotCollected" not in err
+
+
+def test_ast_guards_parametrize_values_for_targets_helper_defaults_and_param_marks(
+    tmp_path: Path, capsys
+) -> None:
+    """Parametrise values, for-loop targets, helper defaults, and per-case e2e marks work."""
+    bad_src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def _invoke(argv=('suews-engine', 'run')):\n"
+        "    return subprocess.run(argv)\n\n"
+        "@pytest.mark.parametrize('exe', ['suews'])\n"
+        "def test_param_value_unmarked(exe):\n"
+        "    subprocess.run([exe, '--help'])\n\n"
+        "def test_for_loop_unmarked():\n"
+        "    for argv in [['suews-validate', 'cfg.yml']]:\n"
+        "        subprocess.run(argv)\n\n"
+        "def test_helper_default_unmarked():\n"
+        "    _invoke()\n\n"
+        "@pytest.mark.parametrize('x', [\n"
+        "    pytest.param(1, marks=pytest.mark.e2e),\n"
+        "    pytest.param(2),\n"
+        "])\n"
+        "def test_mixed_param_marks(x):\n"
+        "    subprocess.run(['suews-mcp', str(x)])\n"
+    )
+    good_src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def _invoke(argv=('suews-engine', 'run')):\n"
+        "    return subprocess.run(argv)\n\n"
+        "@pytest.mark.parametrize('x', [pytest.param(1, marks=pytest.mark.e2e)])\n"
+        "def test_all_param_cases_marked(x):\n"
+        "    subprocess.run(['suews', str(x)])\n\n"
+        "@pytest.mark.parametrize('exe', [\n"
+        "    pytest.param('suews', marks=pytest.mark.e2e),\n"
+        "    pytest.param('echo'),\n"
+        "])\n"
+        "def test_only_cli_case_needs_e2e(exe):\n"
+        "    subprocess.run([exe, '--help'])\n\n"
+        "def test_helper_override_non_suews():\n"
+        "    _invoke(['echo', 'ok'])\n"
+    )
+    bad_repo = _make_repo(
+        tmp_path / "bad",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_bindings_bad.py": bad_src,
+        },
+    )
+    assert _run(bad_repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_bindings_bad.py::test_param_value_unmarked" in err
+    assert "missing-e2e-marker: test/core/test_bindings_bad.py::test_for_loop_unmarked" in err
+    assert "missing-e2e-marker: test/core/test_bindings_bad.py::test_helper_default_unmarked" in err
+    assert "missing-e2e-marker: test/core/test_bindings_bad.py::test_mixed_param_marks" in err
+
+    good_repo = _make_repo(
+        tmp_path / "good",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_bindings_good.py": good_src,
+        },
+    )
+    assert _run(good_repo) == 0, capsys.readouterr().err
+
+
+def test_ast_guards_explicit_baseline_parent_symlink_and_cli_semantics(
+    tmp_path: Path, capsys
+) -> None:
+    """Explicit --ast-baseline checks parent symlinks; resolved values, -c, as_posix, and quotes work."""
+    # 1) Explicit --ast-baseline through symlinked scripts/lint must be rejected.
+    external = tmp_path / "external"
+    external.mkdir()
+    (external / "base.json").write_text(
+        json.dumps(check_test_markers._empty_ast_guards_baseline()), encoding="utf-8"
+    )
+    repo_sym = _make_repo(
+        tmp_path / "repo_sym",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_ok.py": UNIT_TEST_SOURCE,
+        },
+    )
+    (repo_sym / "scripts").mkdir()
+    _create_symlink(repo_sym / "scripts" / "lint", external, target_is_directory=True)
+    symlinked_explicit = repo_sym / "scripts" / "lint" / "base.json"
+    assert (
+        check_test_markers.main([
+            "check_test_markers.py",
+            str(repo_sym),
+            "--ast-baseline",
+            str(symlinked_explicit),
+        ])
+        == 1
+    )
+    assert "symlink" in capsys.readouterr().err
+
+    # 2) Resolved value overrides naming heuristic; -c stops python -m scan;
+    #    Path('suews').as_posix() and quoted shell paths are caught.
+    cli_src = (
+        "from pathlib import Path\n"
+        "import subprocess\n"
+        "import sys\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def test_non_suews_resolved_name_and_dash_c():\n"
+        "    engine_bin = 'git'\n"
+        "    subprocess.run([engine_bin, '--version'])\n"
+        "    subprocess.run([sys.executable, '-c', 'pass', '-m', 'supy'])\n\n"
+        "def test_as_posix_unmarked():\n"
+        "    subprocess.run([Path('suews').as_posix(), '--help'])\n\n"
+        "def test_quoted_shell_path_unmarked():\n"
+        "    subprocess.run('\"./dir with spaces/suews-validate\" --help', shell=True)\n"
+    )
+    repo_cli = _make_repo(
+        tmp_path / "repo_cli",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_cli_edge.py": cli_src,
+        },
+    )
+    assert _run(repo_cli) == 1
+    err = capsys.readouterr().err
+    assert "test_non_suews_resolved_name_and_dash_c" not in err
+    assert "missing-e2e-marker: test/core/test_cli_edge.py::test_as_posix_unmarked" in err
+    assert "missing-e2e-marker: test/core/test_cli_edge.py::test_quoted_shell_path_unmarked" in err

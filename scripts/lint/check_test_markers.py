@@ -2441,13 +2441,42 @@ def _substitute_seq_elements(
     return (lists, overflowed)
 
 
+def _substitute_keyword_lists(
+    keywords: list[ast.keyword],
+    state: _BindingState,
+    *,
+    depth: int,
+) -> tuple[list[list[ast.keyword]], bool]:
+    """Eagerly substitute keyword argument values with bounded branch combinations."""
+    kw_lists: list[list[ast.keyword]] = [[]]
+    overflowed = False
+    for kw in keywords:
+        choices, kw_ov = _substitute_expr_values(kw.value, state, depth=depth + 1)
+        overflowed = (
+            overflowed
+            or kw_ov
+            or _expr_references_overflowed(kw.value, state.overflowed)
+        )
+        expanded = [
+            [*base, ast.keyword(arg=kw.arg, value=choice)]
+            for base in kw_lists
+            for choice in choices
+        ]
+        if len(expanded) > _MAX_BRANCH_BINDINGS:
+            overflowed = True
+            kw_lists = expanded[:_MAX_BRANCH_BINDINGS]
+        else:
+            kw_lists = expanded
+    return (kw_lists, overflowed)
+
+
 def _substitute_call_values(
     expr: ast.Call,
     state: _BindingState,
     *,
     depth: int,
 ) -> tuple[list[ast.AST], bool]:
-    """Eagerly substitute bound variables inside a call's receiver and arguments."""
+    """Eagerly substitute bound variables inside a call's receiver, args, and keywords."""
     func_choices: list[ast.AST] = [expr.func]
     overflowed = False
     if isinstance(expr.func, ast.Attribute):
@@ -2460,11 +2489,13 @@ def _substitute_call_values(
             for rv in recv_vals
         ]
     arg_lists, arg_ov = _substitute_seq_elements(expr.args, state, depth=depth)
-    overflowed = overflowed or arg_ov
+    kw_lists, kw_ov = _substitute_keyword_lists(expr.keywords, state, depth=depth)
+    overflowed = overflowed or arg_ov or kw_ov
     results = [
-        ast.Call(func=fn, args=args, keywords=expr.keywords)
+        ast.Call(func=fn, args=args, keywords=kws)
         for fn in func_choices
         for args in arg_lists
+        for kws in kw_lists
     ]
     kept, cap_ov = _compact_ast_candidates(results)
     return (kept, overflowed or cap_ov)
@@ -2538,6 +2569,13 @@ def _eval_int_constant(node: ast.AST) -> int | None:
     return None
 
 
+def _range_length(start: int, stop: int, step: int) -> int:
+    """Compute exact Python ``range(start, stop, step)`` length without C ssize_t overflow."""
+    if step > 0:
+        return max(0, (stop - start + step - 1) // step)
+    return max(0, (start - stop - step - 1) // (-step))
+
+
 def _expand_range_call(call: ast.Call) -> list[ast.AST] | None:
     """Expand a static ``range(...)`` call into constant int AST elements."""
     if not (1 <= len(call.args) <= 3) or call.keywords:
@@ -2546,25 +2584,33 @@ def _expand_range_call(call: ast.Call) -> list[ast.AST] | None:
     if any(val is None for val in int_args):
         return None
     r_args = [int(val) for val in int_args if val is not None]
-    if len(r_args) == 3 and r_args[2] == 0:
+    if len(r_args) == 1:
+        start, stop, step = 0, r_args[0], 1
+    elif len(r_args) == 2:
+        start, stop, step = r_args[0], r_args[1], 1
+    else:
+        start, stop, step = r_args[0], r_args[1], r_args[2]
+    if step == 0:
         return None
-    r_obj = range(*r_args)
-    if len(r_obj) > _MAX_EXPANDED_CASES:
+    count = _range_length(start, stop, step)
+    if count > _MAX_EXPANDED_CASES:
         return None
-    return [ast.Constant(value=v) for v in r_obj]
+    return [ast.Constant(value=start + idx * step) for idx in range(count)]
 
 
 def _dedup_constant_elements(elts: list[ast.AST]) -> list[ast.AST] | None:
-    """Deduplicate a set's elements when all are hashable constants; else return None."""
+    """Deduplicate a set's elements using Python set equality and hash semantics."""
     out: list[ast.AST] = []
-    seen_keys: set[tuple[type, object]] = set()
+    seen_vals: set[object] = set()
     for elt in elts:
         if not isinstance(elt, ast.Constant):
             return None
-        key = (type(elt.value), elt.value)
-        if key not in seen_keys:
-            seen_keys.add(key)
-            out.append(elt)
+        try:
+            if elt.value not in seen_vals:
+                seen_vals.add(elt.value)
+                out.append(elt)
+        except TypeError:
+            return None
     return out
 
 
@@ -3126,8 +3172,13 @@ def _step_loop_stmt(
     return merged
 
 
+_TRY_STMT_TYPES: tuple[type[ast.stmt], ...] = (
+    (ast.Try, ast.TryStar) if hasattr(ast, "TryStar") else (ast.Try,)
+)
+
+
 def _step_try_stmt(
-    stmt: ast.Try,
+    stmt: ast.stmt,
     state: _BindingState,
     recorded: list[tuple[ast.Call, _BindingState]],
     *,
@@ -3135,10 +3186,15 @@ def _step_try_stmt(
     descend_defs: bool,
     returns: list[tuple[ast.AST, _BindingState]] | None = None,
 ) -> _BindingState:
-    """Preserve intermediate bindings from ``try.body`` for ``except``/``finally`` handlers."""
+    """Preserve intermediate bindings from ``try``/``try*`` body for handlers and ``finally``."""
+    body: list[ast.stmt] = getattr(stmt, "body", [])
+    orelse: list[ast.stmt] = getattr(stmt, "orelse", [])
+    handlers: list[ast.ExceptHandler] = getattr(stmt, "handlers", [])
+    finalbody: list[ast.stmt] = getattr(stmt, "finalbody", [])
+
     try_exc: list[_BindingState] = [state.clone()]
     body_end = _record_calls_in_stmt_order(
-        stmt.body,
+        body,
         state.clone(),
         recorded,
         exc_accum=try_exc,
@@ -3151,18 +3207,18 @@ def _step_try_stmt(
 
     normal_exit = (
         _record_calls_in_stmt_order(
-            stmt.orelse,
+            orelse,
             body_end.clone(),
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
             returns=returns,
         )
-        if stmt.orelse
+        if orelse
         else body_end
     )
     merged = normal_exit
-    for handler in stmt.handlers:
+    for handler in handlers:
         h_state = _record_calls_in_stmt_order(
             handler.body,
             handler_entry.clone(),
@@ -3172,10 +3228,10 @@ def _step_try_stmt(
             returns=returns,
         )
         merged = _merge_binding_states(merged, h_state)
-    if stmt.finalbody:
+    if finalbody:
         finally_entry = _merge_binding_states(merged, handler_entry)
         merged = _record_calls_in_stmt_order(
-            stmt.finalbody,
+            finalbody,
             finally_entry,
             recorded,
             exc_accum=exc_accum,
@@ -3228,17 +3284,26 @@ def _step_compound_stmt(
             returns=returns,
         )
     if isinstance(stmt, (ast.With, ast.AsyncWith)):
+        body_entry = state.clone()
         for item in stmt.items:
-            _record_calls_in_expr(item.context_expr, state, recorded)
-        return _record_calls_in_stmt_order(
+            _record_calls_in_expr(item.context_expr, body_entry, recorded)
+            if item.optional_vars is not None:
+                _clear_for_target(
+                    item.optional_vars, body_entry, iter_overflowed=False
+                )
+        with_exc: list[_BindingState] = [body_entry.clone()]
+        body_end = _record_calls_in_stmt_order(
             stmt.body,
-            state,
+            body_entry.clone(),
             recorded,
-            exc_accum=exc_accum,
+            exc_accum=with_exc,
             descend_defs=descend_defs,
             returns=returns,
         )
-    if isinstance(stmt, ast.Try):
+        if exc_accum is not None:
+            exc_accum[0] = _merge_binding_states(exc_accum[0], with_exc[0])
+        return _merge_binding_states(body_end, with_exc[0])
+    if isinstance(stmt, _TRY_STMT_TYPES):
         return _step_try_stmt(
             stmt,
             state,
@@ -3367,7 +3432,7 @@ def _step_single_stmt(
             ast.While,
             ast.With,
             ast.AsyncWith,
-            ast.Try,
+            *_TRY_STMT_TYPES,
             ast.Match,
         ),
     ):
@@ -3805,6 +3870,19 @@ def _expand_helper_returns_in_expr(
     return ([expr], False)
 
 
+def _expr_mentions_helper_call(
+    expr: ast.AST,
+    helper_defs: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
+) -> bool:
+    """Return True when ``expr`` contains a direct call to any helper in ``helper_defs``."""
+    return any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in helper_defs
+        for node in ast.walk(expr)
+    )
+
+
 def _resolve_subprocess_clis(
     cmd_arg: ast.AST,
     call_state: _BindingState,
@@ -3819,12 +3897,14 @@ def _resolve_subprocess_clis(
     clis = _detect_suews_clis_in_expr(
         cmd_arg, call_state.env, overflow_flag=ov_flag
     )
-    if clis or not helper_defs:
+    if not helper_defs:
         return (clis, ov_flag[0])
 
     subst_cands, subst_ov = _substitute_expr_values(cmd_arg, call_state)
     ov = ov_flag[0] or subst_ov
     for cand in subst_cands:
+        if not _expr_mentions_helper_call(cand, helper_defs):
+            continue
         expanded_cands, exp_ov = _expand_helper_returns_in_expr(
             cand,
             call_state,
@@ -4533,30 +4613,35 @@ def _collect_written_names_in_stmts(stmts: list[ast.stmt]) -> set[str]:
 
 
 def _walk_sim_calls_in_try(
-    stmt: ast.Try,
+    stmt: ast.stmt,
     state: _NonSimState,
 ) -> int:
-    """Walk a try/except/else/finally block soundly across intermediate exception points."""
+    """Walk a try/except/except*/else/finally block soundly across exception points."""
+    body: list[ast.stmt] = getattr(stmt, "body", [])
+    orelse: list[ast.stmt] = getattr(stmt, "orelse", [])
+    handlers: list[ast.ExceptHandler] = getattr(stmt, "handlers", [])
+    finalbody: list[ast.stmt] = getattr(stmt, "finalbody", [])
+
     pre_state = state.clone()
     try_state = pre_state.clone()
-    cnt = _walk_sim_calls_in_block(stmt.body, try_state)
+    cnt = _walk_sim_calls_in_block(body, try_state)
 
-    # An exception may occur at any intermediate point inside ``stmt.body``, so
+    # An exception may occur at any intermediate point inside ``body``, so
     # any binding written within the ``try`` block cannot be assumed non-sim on
     # exception entry (even if restored later in the ``try`` body).
-    written_in_try = _collect_written_names_in_stmts(stmt.body)
+    written_in_try = _collect_written_names_in_stmts(body)
     handler_entry = pre_state.clone()
     handler_entry.kill(written_in_try)
     exit_states: list[_NonSimState] = []
 
-    if stmt.orelse:
+    if orelse:
         else_state = try_state.clone()
-        cnt += _walk_sim_calls_in_block(stmt.orelse, else_state)
+        cnt += _walk_sim_calls_in_block(orelse, else_state)
         exit_states.append(else_state)
     else:
         exit_states.append(try_state)
 
-    for handler in stmt.handlers:
+    for handler in handlers:
         h_state = handler_entry.clone()
         if handler.name:
             h_state.kill({handler.name})
@@ -4567,11 +4652,11 @@ def _walk_sim_calls_in_try(
     for other in exit_states[1:]:
         merged.intersect_with(other)
 
-    if stmt.finalbody:
+    if finalbody:
         # An unhandled exception type can jump directly from try_body to finally.
         finally_state = merged.clone()
         finally_state.intersect_with(handler_entry)
-        cnt += _walk_sim_calls_in_block(stmt.finalbody, finally_state)
+        cnt += _walk_sim_calls_in_block(finalbody, finally_state)
         merged = finally_state
 
     state.mods = merged.mods
@@ -4607,8 +4692,20 @@ def _walk_sim_calls_in_compound(
             cnt += _count_sim_calls_in_expr(item.context_expr, state)
             if item.optional_vars is not None:
                 state.kill(set(_iter_assigned_names(item.optional_vars)))
-        return cnt + _walk_sim_calls_in_block(stmt.body, state)
-    if isinstance(stmt, ast.Try):
+        pre_body = state.clone()
+        body_state = pre_body.clone()
+        cnt += _walk_sim_calls_in_block(stmt.body, body_state)
+        # A context manager's __exit__ may suppress an exception raised at any point in
+        # the body, so post-with state must intersect normal completion with suppressed exits.
+        suppressed_exit = pre_body.clone()
+        suppressed_exit.kill(_collect_written_names_in_stmts(stmt.body))
+        body_state.intersect_with(suppressed_exit)
+        state.mods = body_state.mods
+        state.classes = body_state.classes
+        state.local_vars = body_state.local_vars
+        state.shadowed = body_state.shadowed
+        return cnt
+    if isinstance(stmt, _TRY_STMT_TYPES):
         return _walk_sim_calls_in_try(stmt, state)
     if isinstance(stmt, ast.Match):
         cnt = _count_sim_calls_in_expr(stmt.subject, state)
@@ -5002,12 +5099,12 @@ def _iter_scope_defs(
             found.extend(_iter_scope_defs(stmt.body))
             if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)) and stmt.orelse:
                 found.extend(_iter_scope_defs(stmt.orelse))
-        elif isinstance(stmt, ast.Try):
-            found.extend(_iter_scope_defs(stmt.body))
-            for handler in stmt.handlers:
+        elif isinstance(stmt, _TRY_STMT_TYPES):
+            found.extend(_iter_scope_defs(getattr(stmt, "body", [])))
+            for handler in getattr(stmt, "handlers", []):
                 found.extend(_iter_scope_defs(handler.body))
-            found.extend(_iter_scope_defs(stmt.orelse))
-            found.extend(_iter_scope_defs(stmt.finalbody))
+            found.extend(_iter_scope_defs(getattr(stmt, "orelse", [])))
+            found.extend(_iter_scope_defs(getattr(stmt, "finalbody", [])))
         elif isinstance(stmt, ast.Match):
             for case in stmt.cases:
                 found.extend(_iter_scope_defs(case.body))

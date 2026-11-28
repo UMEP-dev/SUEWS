@@ -3085,3 +3085,82 @@ def test_ast_guards_test_prefix_expression_scopes_and_helper_return_scope(
         check=False,
     )
     assert "test_prefix_probe.py::testCli" in proc.stdout
+
+
+def test_ast_guards_keyword_eager_alt_union_with_suppress_trystar_set_and_big_range(
+    tmp_path: Path, capsys
+) -> None:
+    """Keyword eager bindings, alternative unions, with-suppress, except*, set dedup, big range."""
+    src = (
+        "import contextlib\n"
+        "import subprocess\n"
+        "import unittest\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def build_kw(exe='echo'):\n"
+        "    return [exe, '--help']\n\n"
+        "def engine_cli():\n"
+        "    return 'suews-engine'\n\n"
+        "def test_kw_eager_captures_suews():\n"
+        "    name = 'suews'\n"
+        "    argv = build_kw(exe=name)\n"
+        "    name = 'echo'\n"
+        "    subprocess.run(argv)\n\n"
+        "def test_kw_eager_harmless_not_corrupted():\n"
+        "    name = 'echo'\n"
+        "    argv = build_kw(exe=name)\n"
+        "    name = 'suews'\n"
+        "    subprocess.run(argv)\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize('i', range(11))\n"
+        "def test_alt_union_does_not_drop_helper(i, flag):\n"
+        "    exe = 'suews-validate' if flag else engine_cli()\n"
+        "    subprocess.run([exe, '--help'])\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_with_suppress_preserves_sim_path(x, sim):\n"
+        "    runner = sim\n"
+        "    with contextlib.suppress(ValueError):\n"
+        "        might_fail()\n"
+        "        runner = unittest.TextTestRunner()\n"
+        "    runner.run()\n\n"
+        "def test_trystar_updates_cmd():\n"
+        "    cmd = ['git', '--version']\n"
+        "    try:\n"
+        "        cmd = ['suews-mcp', '--version']\n"
+        "        raise ExceptionGroup('eg', [ValueError('x')])\n"
+        "    except* ValueError:\n"
+        "        subprocess.run(cmd)\n\n"
+        "try:\n"
+        "    pass\n"
+        "except* RuntimeError:\n"
+        "    def test_discovered_in_trystar():\n"
+        "        subprocess.run(['suews-convert', '--help'])\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize('x', {*range(10), False})\n"
+        "def test_set_dedup_collapses_zero_and_false(x):\n"
+        "    subprocess.run(['suews-run', 'cfg.yml'])\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize('x', range(10**30))\n"
+        "def test_huge_range_no_overflow_error(x):\n"
+        "    subprocess.run(['suews-schema', 'export'])\n"
+    )
+    repo = _make_repo(
+        tmp_path / "repo_r8",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r8_edges.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_r8_edges.py::test_kw_eager_captures_suews" in err
+    assert "test_kw_eager_harmless_not_corrupted" not in err
+    assert "e2e-subprocess-cap: `suews-engine`" in err
+    assert "e2e-subprocess-cap: `suews-validate`" in err
+    assert "parametrised-simulation: test/core/test_r8_edges.py::test_with_suppress_preserves_sim_path" in err
+    assert "missing-e2e-marker: test/core/test_r8_edges.py::test_trystar_updates_cmd" in err
+    assert "missing-e2e-marker: test/core/test_r8_edges.py::test_discovered_in_trystar" in err
+    # {*range(10), False} has 10 distinct Python elements (0 == False), so suews-run stays <= 10.
+    assert "e2e-subprocess-cap: `suews-run`" not in err
+    # range(10**30) must produce unresolvable-e2e-parametrize rather than raising OverflowError.
+    assert "unresolvable-e2e-parametrize: test/core/test_r8_edges.py::test_huge_range_no_overflow_error" in err

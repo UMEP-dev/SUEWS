@@ -1243,6 +1243,66 @@ def histogram_lines(tests: Iterable[TestCost]) -> list[str]:
     return lines
 
 
+_KNOWN_CLI_OPTIONS: frozenset[str] = frozenset({
+    "-h",
+    "--help",
+    "--medium-seconds",
+    "--slow-seconds",
+    "--band",
+    "--phase",
+    "--markdown",
+    "--histogram",
+    "--test-file",
+    "--json",
+    "--require-axis",
+    "--parametrize-budget-seconds",
+    "--baseline-metrics",
+    "--budget-warn",
+    "--",
+})
+
+
+def _is_known_cli_option(token: str) -> bool:
+    """Return True when ``token`` names one of this CLI's own options."""
+    if token in _KNOWN_CLI_OPTIONS:
+        return True
+    head, sep, _ = token.partition("=")
+    return bool(sep) and head in _KNOWN_CLI_OPTIONS
+
+
+def _normalise_advisory_flag_argv(argv: list[str]) -> list[str]:
+    """Attach negative/special advisory values with ``=`` so argparse stays warn-only."""
+    normalised: list[str] = []
+    idx = 0
+    end_of_options = False
+    while idx < len(argv):
+        token = argv[idx]
+        if end_of_options:
+            normalised.append(token)
+            idx += 1
+            continue
+        if token == "--":
+            end_of_options = True
+            normalised.append(token)
+            idx += 1
+            continue
+        if token == "--parametrize-budget-seconds" and idx + 1 < len(argv):
+            nxt = argv[idx + 1]
+            if not _is_known_cli_option(nxt):
+                normalised.append(f"{token}={nxt}")
+                idx += 2
+                continue
+        if token == "--budget-warn" and idx + 1 < len(argv):
+            nxt = argv[idx + 1]
+            if nxt.startswith("-") and not nxt.startswith("--") and nxt != "-h":
+                normalised.append(f"{token}={nxt}")
+                idx += 2
+                continue
+        normalised.append(token)
+        idx += 1
+    return normalised
+
+
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -1347,7 +1407,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
             "never changes exit code"
         ),
     )
-    return parser.parse_args(argv)
+    raw_argv = sys.argv[1:] if argv is None else list(argv)
+    return parser.parse_args(_normalise_advisory_flag_argv(raw_argv))
 
 
 def _validate_baseline_input_paths(baseline_paths: list[Path]) -> str | None:

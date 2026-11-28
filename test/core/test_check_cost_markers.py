@@ -1313,3 +1313,46 @@ def test_nonfinite_legacy_thresholds_rejected_cleanly_on_cli(
         checker.check_costs([], slow_seconds=float("inf"))
     with pytest.raises(ValueError, match="finite"):
         checker.check_costs([], band=float("nan"))
+
+
+def test_negative_special_advisory_flags_stay_warn_only_on_cli(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Negative/special advisory flag spellings never trigger argparse SystemExit(2)."""
+    clean_metrics = _artefact(
+        tmp_path / "unit-clean.json",
+        [_record("test/core/test_ok.py::test_fast", call=0.2, markers=("unit",))],
+    )
+    failing_metrics = _artefact(
+        tmp_path / "unit-fail.json",
+        [_record("test/core/test_slow.py::test_unmarked", call=25.0, markers=("unit",))],
+    )
+
+    for extra_args in (
+        ["--budget-warn", "-inf"],
+        ["--budget-warn", "-1e309"],
+        ["--parametrize-budget-seconds", "-inf"],
+        ["--parametrize-budget-seconds", "-1e309"],
+    ):
+        out_json = tmp_path / f"clean_{extra_args[0]}_{extra_args[1]}.json"
+        rc_clean = checker.main([str(clean_metrics), *extra_args, "--json", str(out_json)])
+        assert rc_clean == 0
+        capsys.readouterr()
+        payload = json.loads(out_json.read_text(encoding="utf-8"))
+        assert payload["ok"] is True
+        assert payload["advisory_errors"]
+
+        rc_fail = checker.main([str(failing_metrics), *extra_args])
+        assert rc_fail == 1
+        capsys.readouterr()
+
+    # Bare --budget-warn followed by another option still uses default budget without stealing it.
+    out_bare = tmp_path / "bare_budget.json"
+    assert (
+        checker.main([str(clean_metrics), "--budget-warn", "--json", str(out_bare)]) == 0
+    )
+    capsys.readouterr()
+    bare_payload = json.loads(out_bare.read_text(encoding="utf-8"))
+    assert bare_payload["budget_delta"]["budget_seconds"] == pytest.approx(
+        checker.DEFAULT_PR_ADDED_CPU_BUDGET_SECONDS
+    )

@@ -266,13 +266,15 @@ When reviewing a PR that touches physics source, physics-affecting defaults, or 
 
 ## CI gate (gh#1576)
 
-`.github/scripts/determine-matrix.sh` selects `test_tier=standard` for both
-`pull_request` (ready) and `merge_group`. Standard retains `core` + `slow`
-regressions while excluding non-core `slow` tests. Only `schedule` (nightly)
-and tag/full-dispatch use `test_tier=all`.
+Under `GATE_AXIS_SCHEMA=2` (`.claude/rules/ci/conventions.md`, "Multi-Axis CI
+Topology"), `.github/scripts/determine-matrix.sh` selects `test_tier=physics-core`
+for Python-only pull requests and selects `test_tier=physics-full` automatically
+on `fortran`/`rust`/`build` pull requests, on pull requests carrying
+`0-physics:change` or `0-numerics:change`, and on `merge_group` runs; only
+`schedule` (nightly) and tag/full-dispatch use `test_tier=all`. [fact: git grep -n "TIER=physics-core" .github/scripts/determine-matrix.sh && git grep -n "MERGE_TIER=physics-full" .github/scripts/determine-matrix.sh]
 
-When a PR carries `0-physics:change` or `0-numerics:change`, `determine_matrix` sets `physics_change=true` (requiring the `build_wheels` job and its green check in `pr-gate` even if no build-filtered code paths changed) and `determine-matrix.sh` selects `test_tier=physics-full` in both ready-PR and `merge_group` contexts (widening `merge_group` to `PR_PLATFORMS`), so the `slow` physics tests run as a required check before merge. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml && git grep -n "TIER=physics-full" .github/scripts/determine-matrix.sh]
-The physics axis then runs `-m physics` (`.github/actions/build-suews/action.yml`); the api axis is unchanged.
+When a PR carries `0-physics:change` or `0-numerics:change`, `determine_matrix` sets `physics_change=true` (requiring the `build_wheels` job and its green check in `pr-gate` even if no build-filtered code paths changed) and `determine-matrix.sh` selects `test_tier=physics-full` in both `pull_request` and `merge_group` contexts (keeping `MERGE_QUEUE_PLATFORMS` in `merge_group`), so the `slow` physics tests run as a required check before merge. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml && git grep -n "TIER=physics-full" .github/scripts/determine-matrix.sh]
+The physics axis then runs `-m physics` (`.github/actions/build-suews/action.yml`, or split Linux physics shards in `.github/workflows/build-wheels-reusable.yml`); the non-physics axes (`tooling`, `unit`, `native`, `os_compat`) stay on their ready `(core or not slow) and not qgis` expressions. [fact: git grep -n "inputs.test_tier == 'physics-full'" .github/actions/build-suews/action.yml && git grep -n '"physics-full": f"{axis}' scripts/suews/ci_tiers.py]
 
 ## Exact reference gate
 

@@ -110,7 +110,7 @@ def method_code(value: Any, field_name: str | None = None) -> int | None:
     return _coerce_numeric_method_code(value)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ControlView:
     """Deeply immutable typed view over ``model.control``."""
 
@@ -146,7 +146,7 @@ class ControlView:
         return None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PhysicsView:
     """Deeply immutable typed view over ``model.physics``."""
 
@@ -217,7 +217,7 @@ class PhysicsView:
         return get_value_safe(self.stebbs_block, key, default)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SurfaceView:
     """Deeply immutable typed view over one land-cover surface mapping."""
 
@@ -243,7 +243,7 @@ class SurfaceView:
         return get_value_safe(self.raw, key, default)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LandCoverView:
     """Deeply immutable typed view over ``site.properties.land_cover``."""
 
@@ -295,7 +295,7 @@ class LandCoverView:
         return tuple(active)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class VerticalLayersView:
     """Deeply immutable typed view over ``site.properties.vertical_layers``."""
 
@@ -365,7 +365,7 @@ class VerticalLayersView:
         return last_nz
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SiteView:
     """Deeply immutable typed view over one entry in ``sites``."""
 
@@ -556,7 +556,7 @@ class SiteView:
 _UNSET_CONTROL: Any = object()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TypedConfigView:
     """Deeply immutable typed view over a full SUEWS YAML configuration."""
 

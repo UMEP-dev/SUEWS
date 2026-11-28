@@ -22,7 +22,7 @@ def function_name(context):
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 import logging
 from typing import Any, Optional
 
@@ -159,7 +159,7 @@ class ValidationResult:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ValidationContext:
     """Immutable context for validation rules carrying a pre-built read-only view."""
 
@@ -168,9 +168,12 @@ class ValidationContext:
     model_year: Optional[int] = None
     effective_fixes: str = "suggest"
     typed_model: BaseModel | ReadOnlyModelProxy | None = None
+    _cached_view: TypedConfigView = field(init=False, repr=False, compare=False)
 
     def __post_init__(self):
         for f in fields(self):
+            if not f.init:
+                continue
             value = getattr(self, f.name)
             if f.name == "typed_model":
                 if isinstance(value, (BaseModel, ReadOnlyModelProxy)):

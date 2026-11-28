@@ -2151,9 +2151,10 @@ def test_astra_r3_model_dump_isolation_float_enum_eager_fields_and_copy_payload(
             obj.items.append(42)
         return "ok"
 
-    dumped = ro_dm.model_dump(mode="json", fallback=_mutating_fallback)
-    assert dumped["payload"] == "ok"
-    assert ro_dm.mutating_prop == 1
+    with pytest.raises(TypeError, match="unvetted fallback"):
+        ro_dm.model_dump(mode="json", fallback=_mutating_fallback)
+    with pytest.raises(TypeError, match="unvetted property"):
+        _ = ro_dm.mutating_prop
     assert ro_dm.unwrap_copy().payload.items == [1]
 
     # Minor 6: float-derived enum (TimezoneOffset) preserves numeric reads via SiteView.
@@ -2428,14 +2429,16 @@ def test_r10_r1_mapping_proxy_private_attr_and_cycle_snapshot() -> None:
     ro_pm = freeze_model(pm)
     pm._secret.append(999)
     assert ro_pm.ro_map["k"] == (1,)
-    assert ro_pm.secret_sum == 7
+    with pytest.raises(TypeError, match="unvetted property"):
+        _ = ro_pm.secret_sum
     assert ro_pm.extra_val == 42
     unwrapped_pm = ro_pm.unwrap_copy()
     assert unwrapped_pm._secret == [3, 4]
+    assert unwrapped_pm.secret_sum == 7
     assert unwrapped_pm.self_ref is unwrapped_pm
     assert unwrapped_pm.model_extra == {"extra_val": 42}
     unwrapped_pm._secret.append(100)
-    assert ro_pm.secret_sum == 7
+    assert ro_pm.unwrap_copy()._secret == [3, 4]
 
 
 def test_r10_r2_stebbs_master_ledger_complex_nan_arrays_property_enum_and_numpy_dtype_isolation() -> (
@@ -2701,8 +2704,10 @@ def test_r10_r4_tuple_nullify_proxy_eq_hash_custom_deepcopy_and_payload_enum_sca
 
     m_eq = _MutEqHashModel()
     ro_eq = freeze_model(m_eq)
-    assert ro_eq == m_eq
-    assert hash(ro_eq) == 7
+    with pytest.raises(TypeError, match="unvetted custom __eq__"):
+        _ = ro_eq == m_eq
+    with pytest.raises(TypeError, match="unvetted custom __hash__"):
+        hash(ro_eq)
     assert ro_eq.items == (1,)
     assert ro_eq.unwrap_copy().items == [1]
 
@@ -2885,7 +2890,8 @@ def test_r10_r5_merge_keys_defaultdict_mangled_slots_cycles_identity_zero_sign_a
             return self.__cache[0]
 
     ro_mangled = ReadOnlyDataclassProxy(_MangledSlotDC(5))
-    assert ro_mangled.doubled == 10
+    with pytest.raises(TypeError, match="unvetted property"):
+        _ = ro_mangled.doubled
     assert ro_mangled.unwrap_copy().doubled == 10
 
     # m4: Cyclic containers raise TypeError instead of RecursionError on read & deep_freeze.
@@ -3044,7 +3050,8 @@ def test_r10_r6_masked_array_type_noop_nan_keys_memoryview_enum_drift_and_cycles
     buf = array.array("I", [257])
     ro_mv = freeze_model(_MvModel(payload=memoryview(buf)))
     buf[0] = 999
-    assert ro_mv.first == 257
+    with pytest.raises(TypeError, match="unvetted property"):
+        _ = ro_mv.first
     unwrapped_mv = ro_mv.unwrap_copy().payload
     assert unwrapped_mv.format == "I"
     assert unwrapped_mv[0] == 257
@@ -3229,3 +3236,130 @@ def test_r10_r7_list_subclass_tuple_cycle_slot_metadata_and_refvalue_eq() -> Non
     assert ro_ref == 3
     assert ro_ref != 4
     assert RefValue(3) == ro_ref
+
+
+def test_r10_r8_slotted_views_dtype_metadata_vetted_hooks_and_physics_enum() -> None:
+    """Cover R7 M1-M4 and m5: slotted views, dtype metadata Enum rejection, vetted hooks, PhysicsView Enum."""
+    from typing import ClassVar  # noqa: PLC0415
+
+    from pydantic import field_serializer  # noqa: PLC0415
+
+    from supy.data_model.core.model import NetRadiationMethod  # noqa: PLC0415
+    from supy.data_model.validation.pipeline.phase_b_rules.rules_core import (  # noqa: PLC0415
+        ValidationContext,
+    )
+
+    # M1: ValidationContext and TypedConfigView hierarchy have no writable __dict__.
+    ctx = ValidationContext(yaml_data={"model": {"physics": {}}, "sites": []})
+    assert not hasattr(ctx, "__dict__")
+    assert not hasattr(ctx.view, "__dict__")
+    assert not hasattr(ctx.view.physics, "__dict__")
+    assert not hasattr(ctx.view.control, "__dict__")
+
+    # M2: NumPy dtype metadata carrying Enum or mutable payload is rejected on freeze & detach.
+    class _MetaEnum(Enum):
+        ITEM = 1
+
+    arr_enum_meta = np.array([1], dtype=np.dtype("i4", metadata={"m": _MetaEnum.ITEM}))
+    with pytest.raises(TypeError, match="mutable or Enum metadata"):
+        deep_freeze(arr_enum_meta)
+
+    class _MetaModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        arr: object
+
+    with pytest.raises(TypeError, match="mutable or Enum metadata"):
+        freeze_model(_MetaModel(arr=arr_enum_meta))
+
+    # M3 & M4: Enum-free ClassVar-mutating property/serializer rejected; vetted SUEWS properties still work.
+    class _ClassVarModel(BaseModel):
+        shared: ClassVar[list[int]] = []
+        x: int = 1
+
+        @property
+        def bad_prop(self) -> int:
+            self.shared.append(1)
+            return self.x
+
+        @field_serializer("x")
+        def _bad_ser(self, val: int) -> int:
+            self.shared.append(2)
+            return val
+
+    ro_cv = freeze_model(_ClassVarModel())
+    with pytest.raises(TypeError, match="unvetted property"):
+        _ = ro_cv.bad_prop
+    with pytest.raises(TypeError, match="unvetted"):
+        ro_cv.model_dump()
+    assert _ClassVarModel.shared == []
+
+    # Vetted SUEWS property works cleanly on frozen SUEWSConfig.
+    ro_cfg = freeze_model(SUEWSConfig())
+    _ = ro_cfg.model.control.forcing_file
+
+    # m5: PhysicsView.code handles Enum values inside physics-family mappings after freezing.
+    pv = PhysicsView({
+        "net_radiation": {"narp": {"value": NetRadiationMethod.LDOWN_AIR}}
+    })
+    assert pv.code("net_radiation") == 3
+
+
+def test_r10_r8_dtype_metadata_noop_reflexive_eq_partial_state_and_cycles() -> None:
+    """Cover R7 m1-m4: metadata-only array patches, reflexive nested eq=False, partial state/cycles, namedtuple."""
+    from typing import NamedTuple  # noqa: PLC0415
+
+    # m1: Metadata-only NumPy dtype patch is NOT dropped as a no-op.
+    arr_m = np.array([1], dtype=np.dtype("i4", metadata={"unit": "m"}))
+    arr_k = np.array([1], dtype=np.dtype("i4", metadata={"unit": "K"}))
+    meta_norm = normalise_patches(
+        [ConfigPatch("a", "set", arr_k, replace_raw=True)],
+        {"a": arr_m},
+    )
+    assert len(meta_norm) == 1
+
+    # m2: Proxy equality is reflexive even with nested @dataclass(eq=False) tokens.
+    @dataclass(eq=False)
+    class _Token:
+        tag: str
+
+    @dataclass
+    class _Holder:
+        tok: _Token
+
+    class _PydHolder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        tok: _Token
+
+    ro_dc = ReadOnlyDataclassProxy(_Holder(_Token("t")))
+    ro_dc_alias = ro_dc
+    assert ro_dc == ro_dc_alias
+    ro_pyd = freeze_model(_PydHolder(tok=_Token("t")))
+    ro_pyd_alias = ro_pyd
+    assert ro_pyd == ro_pyd_alias
+
+    # m3 & m4: functools.partial preserves extra __dict__ state, rejects cycles; namedtuple subclass with extra state rejected.
+    class _ObjModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        val: object
+
+    p_extra = functools.partial(pow, 2)
+    p_extra.label = "original"
+    ro_part = freeze_model(_ObjModel(val=p_extra))
+    p_extra.label = "changed"
+    assert ro_part.unwrap_copy().val.label == "original"
+
+    p_cyc = functools.partial(max)
+    p_cyc.keywords["default"] = p_cyc
+    with pytest.raises(TypeError, match=r"cyclic functools\.partial"):
+        freeze_model(_ObjModel(val=p_cyc))
+
+    class _BasePt(NamedTuple):
+        x: int
+
+    class _SubPt(_BasePt):
+        pass
+
+    sub_pt = _SubPt(1)
+    sub_pt.unit = "m"
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_ObjModel(val=sub_pt))

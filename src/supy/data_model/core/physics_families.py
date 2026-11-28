@@ -435,7 +435,9 @@ def _coerce_family_tag(field_name: str, value: Mapping[str, Any]) -> Any:
             f"not a nested mapping."
         )
 
-    if isinstance(code, Enum):
+    if isinstance(code, Enum) or (
+        type(code).__name__ == "ReadOnlyEnumProxy" and hasattr(code, "value")
+    ):
         code = code.value
 
     if isinstance(code, bool):

@@ -94,6 +94,40 @@ def _real_float_arrays_strict_equal(
     return bool(np.array_equal(np.signbit(left)[non_nan], np.signbit(right)[non_nan]))
 
 
+def _dtype_strict_equal(left: np.dtype[Any], right: np.dtype[Any]) -> bool:
+    """Compare NumPy dtypes strictly including metadata on top-level, field, and subarray dtypes."""
+    if left != right or (left.metadata is None) != (right.metadata is None):
+        return False
+    if left.metadata is not None and not _mapping_strict_equal(
+        left.metadata, right.metadata
+    ):
+        return False
+    if (left.fields is None) != (right.fields is None):
+        return False
+    if (
+        left.fields is not None
+        and right.fields is not None
+        and (
+            left.fields.keys() != right.fields.keys()
+            or any(
+                not _dtype_strict_equal(left.fields[name][0], right.fields[name][0])
+                for name in left.fields
+            )
+        )
+    ):
+        return False
+    if (left.subdtype is None) != (right.subdtype is None):
+        return False
+    return (
+        left.subdtype is None
+        or right.subdtype is None
+        or (
+            left.subdtype[1] == right.subdtype[1]
+            and _dtype_strict_equal(left.subdtype[0], right.subdtype[0])
+        )
+    )
+
+
 def _arrays_strict_equal(
     left: np.ndarray[Any, Any], right: np.ndarray[Any, Any]
 ) -> bool:
@@ -101,7 +135,7 @@ def _arrays_strict_equal(
     if (
         type(left) is not type(right)
         or left.shape != right.shape
-        or left.dtype != right.dtype
+        or not _dtype_strict_equal(left.dtype, right.dtype)
     ):
         return False
     if left.dtype.hasobject:
@@ -129,7 +163,7 @@ def _numpy_strict_equal(left: Any, right: Any) -> bool:
         )
     if not (isinstance(left, np.void) and isinstance(right, np.void)):
         return False
-    if left.dtype != right.dtype:
+    if not _dtype_strict_equal(left.dtype, right.dtype):
         return False
     if left.dtype.names:
         return all(_strict_equal(left[name], right[name]) for name in left.dtype.names)

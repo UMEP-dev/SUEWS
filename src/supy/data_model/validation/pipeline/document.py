@@ -252,16 +252,71 @@ def _is_immutable_enum(member: Enum) -> bool:
     return _is_deeply_immutable_payload(member, set())
 
 
+def _is_deeply_immutable_metadata_value(value: Any, active: set[int]) -> bool:
+    """Return True when a NumPy dtype metadata value contains only pure immutable non-Enum data."""
+    if isinstance(value, Enum):
+        return False
+    if _is_exact_immutable_scalar(value):
+        return True
+    if type(value) is slice:
+        return all(
+            _is_deeply_immutable_metadata_value(bound, active)
+            for bound in (value.start, value.stop, value.step)
+        )
+    if type(value) in {tuple, frozenset}:
+        obj_id = id(value)
+        if obj_id in active:
+            return False
+        active.add(obj_id)
+        try:
+            return all(
+                _is_deeply_immutable_metadata_value(item, active) for item in value
+            )
+        finally:
+            active.discard(obj_id)
+    if isinstance(value, Mapping):
+        obj_id = id(value)
+        if obj_id in active:
+            return False
+        active.add(obj_id)
+        try:
+            return all(
+                _is_deeply_immutable_metadata_value(k, active)
+                and _is_deeply_immutable_metadata_value(v, active)
+                for k, v in value.items()
+            )
+        finally:
+            active.discard(obj_id)
+    return False
+
+
+def _validate_safe_numpy_dtype(dtype: np.dtype[Any]) -> np.dtype[Any]:
+    """Ensure *dtype* (and nested field/subarray dtypes) carry no Enum or mutable metadata."""
+    if dtype.metadata is not None and not _is_deeply_immutable_metadata_value(
+        dtype.metadata, set()
+    ):
+        raise TypeError(
+            "Cannot safely freeze or detach NumPy dtype carrying mutable or Enum metadata"
+        )
+    if dtype.fields is not None:
+        for field_info in dtype.fields.values():
+            _validate_safe_numpy_dtype(field_info[0])
+    if dtype.subdtype is not None:
+        _validate_safe_numpy_dtype(dtype.subdtype[0])
+    return deepcopy(dtype)
+
+
 class _FrozenArraySpec:
     """Immutable byte-backed specification materialised as fresh read-only views."""
 
     __slots__ = ("__weakref__",)
 
     def __init__(self, array: np.ndarray[Any, Any]) -> None:
+        detached_dtype = _validate_safe_numpy_dtype(array.dtype)
         key = id(self)
         _FROZEN_ARRAY_STATE[key] = (
             array.tobytes(),
-            deepcopy(array.dtype),
+            detached_dtype,
             tuple(array.shape),
         )
         weakref.finalize(self, _FROZEN_ARRAY_STATE.pop, key, None)
@@ -495,7 +550,7 @@ def _copy_numpy_payload(value: np.ndarray[Any, Any] | np.void) -> Any:
             f"Cannot safely copy NumPy subclass {type(value).__name__!r} "
             "without losing subclass state"
         )
-    detached_dtype = deepcopy(value.dtype)
+    detached_dtype = _validate_safe_numpy_dtype(value.dtype)
     if type(value) is np.ndarray:
         if value.dtype.hasobject:
             out_arr: np.ndarray[Any, Any] = np.empty(value.shape, dtype=detached_dtype)

@@ -101,7 +101,9 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
     - Biogenic CO2 parameters are only required if the emissions method enables CO2 for the relevant surfaces.
     - Parameters under surfaces with `sfr == 0` are not validated, but a warning is issued if such parameters exist.
     """
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
     emissionsmethod = get_value_safe(view.physics.raw, "emissions")
     spartacus_enabled = view.physics.is_spartacus_enabled
@@ -485,7 +487,9 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
     - Longitude must be a numeric value between -180 and 180.
     - Timezone and daylight saving parameters are optional; warnings are issued if missing.
     """
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
     effective_fixes = str(getattr(context, "effective_fixes", "suggest") or "suggest").lower()
 
@@ -745,7 +749,9 @@ def validate_irrigation_doy(
 @RulesRegistry.add_rule("irrigation")
 def validate_irrigation_parameters(context) -> List[ValidationResult]:
     """Validate irrigation DOY parameters for sites with active modelled irrigation."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     model_year = context.model_year
     physics_raw = view.physics.raw
     if "water_use" in physics_raw or "waterusemethod" in physics_raw:
@@ -773,7 +779,9 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
 @RulesRegistry.add_rule("veg_albedo")
 def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
     """Report when vegetated surfaces have null alb_id."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     surface_labels = {

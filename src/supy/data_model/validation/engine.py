@@ -12,7 +12,15 @@ from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 import types
-from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Union, get_args, get_origin
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    ForwardRef,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from pydantic import BaseModel
 import yaml
@@ -35,6 +43,13 @@ from .pipeline.report_schema import (
     Issue,
     PhaseReport,
     ValidationReport,
+)
+from .rules.readonly_model import (
+    ReadOnlyModelProxy,
+    _dump_with_vetted_serializers,
+    _safe_snapshot_copy,
+    _unwrap_model_for_validation,
+    freeze_model,
 )
 
 if TYPE_CHECKING:
@@ -278,9 +293,7 @@ def _validate_live_model_shapes(
                 )
         elif kind == "list":
             if not isinstance(val, list):
-                errors.append(
-                    f"{field_path}: expected list, got {type(val).__name__}"
-                )
+                errors.append(f"{field_path}: expected list, got {type(val).__name__}")
             else:
                 item_kind, _ = _expected_model_or_list_kind(
                     target, ref_value_cls=ref_value_cls
@@ -387,7 +400,9 @@ def _restore_explicit_and_non_optional_nulls(
                     )
 
 
-def _validate_dict_backed_profile_keys(config_copy: SUEWSConfig) -> None:
+def _validate_dict_backed_profile_keys(
+    config_copy: SUEWSConfig, *, from_readonly_proxy: bool = False
+) -> None:
     """Validate hourly and 10-minute profile keys on a Python-mode dump before JSON coercion.
 
     Catches mixed integer/string key collisions (such as ``1`` alongside ``"1"``)
@@ -402,7 +417,11 @@ def _validate_dict_backed_profile_keys(config_copy: SUEWSConfig) -> None:
         normalise_ten_minute_profile_mapping,
     )
 
-    raw_py = config_copy.model_dump(mode="python", round_trip=True)
+    raw_py = (
+        _dump_with_vetted_serializers(config_copy, mode="python", round_trip=True)
+        if from_readonly_proxy
+        else config_copy.model_dump(mode="python", round_trip=True)
+    )
     sites = raw_py.get("sites") if isinstance(raw_py, Mapping) else None
     if not isinstance(sites, list):
         return
@@ -455,7 +474,10 @@ def _validate_dict_backed_profile_keys(config_copy: SUEWSConfig) -> None:
 
 
 def _validate_suews_config_before_dump(
-    config: SUEWSConfig, *, first_phase: str
+    config: SUEWSConfig,
+    *,
+    first_phase: str,
+    from_readonly_proxy: bool = False,
 ) -> tuple[SUEWSConfig, PhaseReport | None]:
     """Validate live model shapes, profile keys, and senescence states on a deep copy.
 
@@ -468,10 +490,13 @@ def _validate_suews_config_before_dump(
     ``SUEWSConfig`` instance or letting malformed nested values escape as raw
     exceptions.
     """
+    from ..core.config import SUEWSConfig as _SUEWSConfig  # noqa: PLC0415
     from ..core.site import Site  # noqa: PLC0415
     from ..core.type import RefValue  # noqa: PLC0415
 
-    config_copy = deepcopy(config)
+    config_copy = (
+        _safe_snapshot_copy(config) if from_readonly_proxy else deepcopy(config)
+    )
 
     shape_errors = _validate_live_model_shapes(config_copy, ref_value_cls=RefValue)
     if shape_errors:
@@ -497,20 +522,40 @@ def _validate_suews_config_before_dump(
     if isinstance(config_copy.sites, list) and all(
         isinstance(site, Site) for site in config_copy.sites
     ):
-        validators.extend(
-            [
+        if from_readonly_proxy:
+            validators.extend([
+                (
+                    "PROFILE_KEY_ERROR",
+                    lambda: _SUEWSConfig.validate_hourly_profile_hours(config_copy),
+                ),
+                (
+                    "PROFILE_KEY_ERROR",
+                    lambda: _SUEWSConfig.validate_ten_minute_profile_keys(config_copy),
+                ),
+            ])
+        else:
+            validators.extend([
                 ("PROFILE_KEY_ERROR", config_copy.validate_hourly_profile_hours),
                 ("PROFILE_KEY_ERROR", config_copy.validate_ten_minute_profile_keys),
-            ]
-        )
-    validators.append(
-        (
-            "PROFILE_KEY_ERROR",
-            lambda: _validate_dict_backed_profile_keys(config_copy),
-        )
-    )
-    validators.append(("SENESCENCE_STATE_ERROR", config_copy._validate_senescence_states))
-    validators.append(("NON_NULL_VALUE_ERROR", config_copy.validate_non_null_ref_values))
+            ])
+    validators.append((
+        "PROFILE_KEY_ERROR",
+        lambda: _validate_dict_backed_profile_keys(
+            config_copy, from_readonly_proxy=from_readonly_proxy
+        ),
+    ))
+    validators.append((
+        "SENESCENCE_STATE_ERROR",
+        (lambda: _SUEWSConfig._validate_senescence_states(config_copy))
+        if from_readonly_proxy
+        else config_copy._validate_senescence_states,
+    ))
+    validators.append((
+        "NON_NULL_VALUE_ERROR",
+        (lambda: _SUEWSConfig.validate_non_null_ref_values(config_copy))
+        if from_readonly_proxy
+        else config_copy.validate_non_null_ref_values,
+    ))
 
     issues: list[Issue] = []
     has_profile_error = False
@@ -549,7 +594,10 @@ def _validate_suews_config_before_dump(
 
 
 def _dump_suews_config(
-    config: SUEWSConfig, *, dumped_copy: SUEWSConfig | None = None
+    config: SUEWSConfig,
+    *,
+    dumped_copy: SUEWSConfig | None = None,
+    from_readonly_proxy: bool = False,
 ) -> dict[str, Any]:
     """Serialise an in-memory ``SUEWSConfig`` to a YAML-equivalent dict.
 
@@ -563,8 +611,12 @@ def _dump_suews_config(
     from ..core.type import RefValue  # noqa: PLC0415
 
     source_for_dump = config if dumped_copy is None else dumped_copy
-    raw_data = source_for_dump.model_dump(
-        exclude_none=True, mode="json", round_trip=True
+    raw_data = (
+        _dump_with_vetted_serializers(
+            source_for_dump, exclude_none=True, mode="json", round_trip=True
+        )
+        if from_readonly_proxy
+        else source_for_dump.model_dump(exclude_none=True, mode="json", round_trip=True)
     )
     _restore_explicit_and_non_optional_nulls(
         source_for_dump, raw_data, ref_value_cls=RefValue
@@ -591,21 +643,50 @@ def _dump_suews_config(
 
 
 def _load_source_in_memory(
-    source: str | Path | Mapping[str, Any] | SUEWSConfig,
+    source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
     *,
     first_phase: str,
 ) -> tuple[Any, Path | None, PhaseReport | None]:
     """Resolve *source* into ``(raw_data, source_path, error_report)`` without writes."""
     from ..core.config import SUEWSConfig  # noqa: PLC0415
 
+    from_readonly_proxy = isinstance(source, ReadOnlyModelProxy)
+    if from_readonly_proxy:
+        try:
+            source = _unwrap_model_for_validation(source)
+        except TypeError as exc:
+            return (
+                None,
+                None,
+                PhaseReport(
+                    phase=first_phase,
+                    issues=[
+                        Issue(
+                            phase=first_phase,
+                            severity=SEVERITY_ERROR,
+                            code=f"{first_phase}.CONFIG_CONSISTENCY.INVALID_MODEL_STATE",
+                            message=f"Could not serialise read-only config proxy safely: {exc}",
+                            category="CONFIG_CONSISTENCY",
+                        )
+                    ],
+                    yaml_in=None,
+                ),
+            )
+
     if isinstance(source, SUEWSConfig):
         validated_copy, pre_dump_err = _validate_suews_config_before_dump(
-            source, first_phase=first_phase
+            source,
+            first_phase=first_phase,
+            from_readonly_proxy=from_readonly_proxy,
         )
         if pre_dump_err is not None:
             return None, None, pre_dump_err
         try:
-            dumped = _dump_suews_config(source, dumped_copy=validated_copy)
+            dumped = _dump_suews_config(
+                source,
+                dumped_copy=validated_copy,
+                from_readonly_proxy=from_readonly_proxy,
+            )
         except (ValueError, TypeError, AttributeError) as exc:
             return (
                 None,
@@ -868,6 +949,20 @@ def _run_phase_a_in_memory(
     )
 
 
+def _prepare_typed_model_proxy(
+    typed_model: BaseModel | ReadOnlyModelProxy | None,
+) -> ReadOnlyModelProxy | None:
+    """Return a read-only proxy for Phase B rules, or ``None`` if safe freezing fails."""
+    if isinstance(typed_model, ReadOnlyModelProxy):
+        return typed_model
+    if not isinstance(typed_model, BaseModel):
+        return None
+    try:
+        return freeze_model(typed_model)
+    except TypeError:
+        return None
+
+
 def _run_phase_b_in_memory(
     working_data: Any,
     *,
@@ -875,6 +970,7 @@ def _run_phase_b_in_memory(
     science_fixes: str,
     upstream_has_errors: bool,
     base_dir: Path | None = None,
+    typed_model: BaseModel | ReadOnlyModelProxy | None = None,
 ) -> tuple[Any, PhaseReport]:
     """Run Phase B scientific checks and optional in-memory adjustments."""
     if not isinstance(working_data, Mapping):
@@ -919,15 +1015,17 @@ def _run_phase_b_in_memory(
                 resolved_base_dir,
             )
         )
+        frozen_typed_model = _prepare_typed_model_proxy(typed_model)
         validation_context = ValidationContext(
             yaml_data=data,
             start_date=start_date,
             model_year=model_year,
             effective_fixes=effective_fixes,
+            typed_model=frozen_typed_model,
         )
-        validation_results = bound_notes + RulesRegistry(
-            context=validation_context
-        ).run_validation()
+        validation_results = (
+            bound_notes + RulesRegistry(context=validation_context).run_validation()
+        )
     except (ValueError, KeyError, FileNotFoundError, TypeError) as exc:
         error_message = str(exc)
         parts = error_message.split("; ") if ";" in error_message else [error_message]
@@ -999,7 +1097,9 @@ def _run_phase_c_in_memory(
     """Run single-pass Phase C Pydantic validation in memory."""
     result = phase_c.validate_phase_c(
         str(source_path) if source_path is not None else None,
-        raw_data=deepcopy(working_data) if isinstance(working_data, dict) else working_data,
+        raw_data=deepcopy(working_data)
+        if isinstance(working_data, dict)
+        else working_data,
         check_missing_critical_physics=check_missing_critical_physics,
     )
     return PhaseReport(
@@ -1051,7 +1151,7 @@ class ValidationEngine:
 
     def _validate_staged(
         self,
-        source: str | Path | Mapping[str, Any] | SUEWSConfig,
+        source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
         *,
         pipeline_norm: str,
         mode_norm: str,
@@ -1133,7 +1233,7 @@ class ValidationEngine:
 
     def validate(
         self,
-        source: str | Path | Mapping[str, Any] | SUEWSConfig,
+        source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
         *,
         pipeline: str = "ABC",
         mode: str = "public",
@@ -1168,6 +1268,11 @@ class ValidationEngine:
                 _render_mode=mode_norm,
                 _render_science_fixes=fixes_norm,
             )
+        unwrapped_source: Any = (
+            _unwrap_model_for_validation(source)
+            if isinstance(source, ReadOnlyModelProxy)
+            else source
+        )
 
         policy_issues = _build_policy_issues(
             raw_data, mode_norm=mode_norm, first_phase=first_phase
@@ -1204,17 +1309,27 @@ class ValidationEngine:
             source_path.parent if source_path is not None else None
         )
         if bound_base_dir is None:
-            yaml_path_attr = getattr(source, "_yaml_path", None)
+            yaml_path_attr = getattr(unwrapped_source, "_yaml_path", None)
             if isinstance(yaml_path_attr, (str, Path)) and str(yaml_path_attr).strip():
                 bound_base_dir = Path(yaml_path_attr).resolve().parent
 
         if "B" in pipeline_norm and (not has_errors or continue_on_error):
+            phase_b_typed_source: BaseModel | ReadOnlyModelProxy | None = (
+                source
+                if isinstance(source, ReadOnlyModelProxy)
+                else (
+                    unwrapped_source
+                    if isinstance(unwrapped_source, BaseModel)
+                    else None
+                )
+            )
             phase_b_out, phase_b_report = _run_phase_b_in_memory(
                 working_data,
                 source_path=source_path,
                 science_fixes=fixes_norm,
                 upstream_has_errors=has_errors,
                 base_dir=bound_base_dir,
+                typed_model=phase_b_typed_source,
             )
             phases.append(phase_b_report)
             if not phase_b_report.has_errors:
@@ -1245,7 +1360,7 @@ class ValidationEngine:
 
 
 def validate_config(
-    source: str | Path | Mapping[str, Any] | SUEWSConfig,
+    source: str | Path | Mapping[str, Any] | SUEWSConfig | ReadOnlyModelProxy,
     *,
     pipeline: str = "ABC",
     mode: str = "public",
@@ -1262,9 +1377,10 @@ def validate_config(
 
     Parameters
     ----------
-    source : str, pathlib.Path, Mapping, or SUEWSConfig
-        Path to a SUEWS YAML configuration, an in-memory config mapping, or an
-        already-loaded :class:`~supy.data_model.SUEWSConfig`.
+    source : str, pathlib.Path, Mapping, SUEWSConfig, or ReadOnlyModelProxy
+        Path to a SUEWS YAML configuration, an in-memory config mapping, an
+        already-loaded :class:`~supy.data_model.SUEWSConfig`, or a
+        :class:`~supy.data_model.validation.rules.readonly_model.ReadOnlyModelProxy`.
     pipeline : str, default "ABC"
         Phase combination to run: one of ``"A"``, ``"B"``, ``"C"``, ``"AB"``,
         ``"AC"``, ``"BC"``, or ``"ABC"``.

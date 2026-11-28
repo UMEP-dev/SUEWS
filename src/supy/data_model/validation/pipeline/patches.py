@@ -35,13 +35,19 @@ from ..rules.hard_invariants import (
 from .document import (
     ConfigDocument,
     ConfigPatch,
+    _prepare_working_dict,
     apply_patches_in_place,
     is_ref_only,
     is_ref_wrapper,
     read_scalar,
     site_gridid,
-    thaw_copy,
     unwrap_entry,
+)
+from .patch_normaliser import (
+    _strict_equal,
+    collect_nullifiable_values,
+    invert_patches,
+    normalise_owned_patches,
 )
 
 SURFACE_TYPES: tuple[str, ...] = (
@@ -118,6 +124,33 @@ class PlannedAdjustment:
     patches: tuple[ConfigPatch, ...] = ()
 
 
+def _patches_equal(left: ConfigPatch, right: ConfigPatch) -> bool:
+    """Compare two :class:`ConfigPatch` instances safely even with NumPy array payloads."""
+    return (
+        left.path == right.path
+        and left.action == right.action
+        and left.reason == right.reason
+        and left.parameter == right.parameter
+        and left.site_index == right.site_index
+        and left.site_gridid == right.site_gridid
+        and left.source == right.source
+        and left.skip_keys == right.skip_keys
+        and left.default_wrapped == right.default_wrapped
+        and left.had_original == right.had_original
+        and left.original_style == right.original_style
+        and left.original_ref == right.original_ref
+        and left.path_tokens == right.path_tokens
+        and left.replace_raw == right.replace_raw
+        and left.created_ancestor == right.created_ancestor
+        and left.write_style == right.write_style
+        and left.write_ref == right.write_ref
+        and left.write_has_ref == right.write_has_ref
+        and _strict_equal(left.new_value, right.new_value)
+        and _strict_equal(left.old_value, right.old_value)
+        and _strict_equal(left.original_raw, right.original_raw)
+    )
+
+
 @dataclass
 class PatchPlan:
     """Ordered collection of pure patches and their human-readable adjustment records."""
@@ -147,12 +180,97 @@ class PatchPlan:
         """Return a new :class:`ConfigDocument` with all patches applied once."""
         return doc.apply_patches(self.patches)
 
+    def normalised(
+        self,
+        target: ConfigDocument | Mapping[str, Any],
+        *,
+        expand_nullify_tree: bool = True,
+        drop_noops: bool = True,
+        coalesce: bool = True,
+    ) -> PatchPlan:
+        """Return a new :class:`PatchPlan` whose patches are normalised against *target*.
+
+        Every patch in the returned plan carries its verified original value
+        (``old_value``), ``had_original``, ``original_style``, and frozen
+        ``original_ref`` metadata, and each surviving :class:`PlannedAdjustment`
+        is reconciled against the surviving normalised patches in the plan.
+        """
+        owner_by_pos: list[int | None] = [None] * len(self.patches)
+        claimed: set[int] = set()
+        for adj_idx, adj in enumerate(self.adjustments):
+            for adj_patch in adj.patches:
+                matched_pos: int | None = None
+                for pos, plan_patch in enumerate(self.patches):
+                    if pos not in claimed and plan_patch is adj_patch:
+                        matched_pos = pos
+                        break
+                if matched_pos is None:
+                    for pos, plan_patch in enumerate(self.patches):
+                        if pos not in claimed and _patches_equal(plan_patch, adj_patch):
+                            matched_pos = pos
+                            break
+                if matched_pos is not None:
+                    owner_by_pos[matched_pos] = adj_idx
+                    claimed.add(matched_pos)
+
+        owned_norm = normalise_owned_patches(
+            list(zip(owner_by_pos, self.patches)),
+            target,
+            expand_nullify_tree=expand_nullify_tree,
+            drop_noops=drop_noops,
+            coalesce=coalesce,
+        )
+        norm_patches = [patch for _, patch in owned_norm]
+        by_owner: dict[int, list[ConfigPatch]] = {}
+        for owner_idx, patch in owned_norm:
+            if owner_idx is not None:
+                by_owner.setdefault(owner_idx, []).append(patch)
+
+        norm_adjustments: list[PlannedAdjustment] = []
+        for adj_idx, adj in enumerate(self.adjustments):
+            surviving = by_owner.get(adj_idx)
+            if not surviving:
+                continue
+            single_set_match = (
+                len(adj.patches) == 1
+                and len(surviving) == 1
+                and adj.patches[0].path == surviving[0].path
+                and surviving[0].action == "set"
+            )
+            adj_old = surviving[0].old_value if single_set_match else adj.old_value
+            adj_new = (
+                surviving[0].new_value
+                if single_set_match
+                and not _strict_equal(surviving[0].new_value, adj.patches[0].new_value)
+                else adj.new_value
+            )
+            norm_adjustments.append(
+                PlannedAdjustment(
+                    parameter=adj.parameter,
+                    site_index=adj.site_index,
+                    site_gridid=adj.site_gridid,
+                    old_value=adj_old,
+                    new_value=adj_new,
+                    reason=adj.reason,
+                    patches=tuple(surviving),
+                )
+            )
+        return PatchPlan(
+            patches=norm_patches,
+            adjustments=norm_adjustments,
+            _bound_patch_count=len(norm_patches),
+        )
+
+    def invert(self) -> list[ConfigPatch]:
+        """Return the inverse patch list that undoes this normalised plan."""
+        return invert_patches(self.patches)
+
     def apply_to_dict(
         self, yaml_data: Mapping[str, Any], *, in_place: bool = False
     ) -> dict[str, Any]:
         """Apply all patches to *yaml_data* (returning a single copy unless ``in_place``)."""
         if not in_place:
-            copied = thaw_copy(yaml_data)
+            copied = _prepare_working_dict(yaml_data)
             apply_patches_in_place(copied, self.patches)
             return copied
         assert isinstance(yaml_data, dict)
@@ -638,6 +756,7 @@ def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
             continue
 
         max_surface = sum_check.max_surface
+        raw_old_sfr = get_ref_or_bare(unwrap_entry(land_cover[max_surface]), "sfr")
         old_value = float(surface_fractions[max_surface])
         new_value = old_value + sum_check.correction
 
@@ -646,7 +765,9 @@ def plan_land_cover_fraction_patches(yaml_data: Mapping[str, Any]) -> PatchPlan:
                 path=f"sites[{site_idx}].properties.land_cover.{max_surface}.sfr",
                 action="set",
                 new_value=new_value,
-                old_value=old_value,
+                old_value=raw_old_sfr if raw_old_sfr is not None else old_value,
+                had_original=True,
+                source="land_cover_fraction",
             )
         )
         plan.record(
@@ -692,11 +813,20 @@ def _plan_disabled_stebbs_patches(
             )
             if not nullifiable:
                 continue
+            orig_values = collect_nullifiable_values(
+                block,
+                prefix="",
+                skip_keys=skip_keys,
+                skip_at_root_only=True,
+            )
             plan.patches.append(
                 ConfigPatch(
                     path=f"sites[{site_idx}].properties.{block_name}",
                     action="nullify_tree",
+                    old_value=orig_values,
                     skip_keys=tuple(skip_keys),
+                    had_original=True,
+                    source="disabled_stebbs",
                 )
             )
             param_list = ", ".join(nullifiable)
@@ -800,10 +930,14 @@ def _plan_disabled_co2_patches(
             if not nullifiable:
                 nullifiable = collect_nullifiable_paths(co2_block)
             if nullifiable:
+                orig_values = collect_nullifiable_values(co2_block, prefix="")
                 plan.patches.append(
                     ConfigPatch(
                         path=f"sites[{site_idx}].properties.anthropogenic_emissions.co2",
                         action="nullify_tree",
+                        old_value=orig_values,
+                        had_original=True,
+                        source="disabled_co2",
                     )
                 )
                 param_list = ", ".join(nullifiable)
@@ -1265,6 +1399,7 @@ def plan_setpointmethod_patches(
                     if not isinstance(day_profile, Mapping):
                         continue
                     if collect_nullifiable_paths(day_profile):
+                        orig_values = collect_nullifiable_values(day_profile, prefix="")
                         plan.patches.append(
                             ConfigPatch(
                                 path=(
@@ -1272,6 +1407,9 @@ def plan_setpointmethod_patches(
                                     f"{prof_param}.{daytype}"
                                 ),
                                 action="nullify_tree",
+                                old_value=orig_values,
+                                had_original=True,
+                                source="setpointmethod",
                             )
                         )
                         plan.record(

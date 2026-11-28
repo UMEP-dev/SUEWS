@@ -93,7 +93,9 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
     - If all required parameters are present and non-empty, a pass result is returned.
     - For parameter descriptions and typical values, consult the SUEWS documentation: https://docs.suews.io/latest/
     """
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     physics = view.physics.raw
 
     results = []
@@ -532,7 +534,9 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
         depending on the validation result.
     """
 
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     physics = view.physics
 
     results = []
@@ -647,7 +651,9 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
 @RulesRegistry.add_rule("rcmethod")
 def validate_model_option_rcmethod(context) -> List[ValidationResult]:
     """Validate dependencies and consistency for the capacitance (rcmethod) option."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
     rcmethod_value = view.physics.stebbs_value("capacitance")
 
@@ -721,7 +727,9 @@ def validate_model_option_same_albedo_facet(site_data, facet, *, site_view=None)
 @RulesRegistry.add_rule("same_albedo")
 def validate_model_option_same_albedo(context) -> List[ValidationResult]:
     """Emit advisory warnings when ``same_albedo_wall`` or ``same_albedo_roof`` is 0."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
     same_albedo_roof = view.physics.stebbs_value("same_albedo_roof")
     same_albedo_wall = view.physics.stebbs_value("same_albedo_wall")
@@ -743,7 +751,9 @@ def validate_model_option_same_albedo(context) -> List[ValidationResult]:
 @RulesRegistry.add_rule("same_emissivity")
 def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
     """Emit advisory warnings when ``same_emissivity_wall`` or ``same_emissivity_roof`` is 0."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
     same_emissivity_roof = view.physics.stebbs_value("same_emissivity_roof")
     same_emissivity_wall = view.physics.stebbs_value("same_emissivity_wall")
@@ -790,7 +800,9 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     Sites without buildings (``bldgs.sfr <= 0``) are skipped because they have
     no building height to scale ``z`` against.
     """
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results: List[ValidationResult] = []
 
     stebbsmethod_val = view.physics.stebbs_method_int

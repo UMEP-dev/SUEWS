@@ -102,7 +102,9 @@ def check_archetype_properties(context):
     - For each site, the function checks the "Wall" and "Roof" facets of the building archetype properties.
     - If a validation result is found, it is annotated with the site's index and grid ID before being added to the results list.
     """
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     if view.physics.stebbs_method == 1:
@@ -123,7 +125,9 @@ def check_archetype_properties(context):
 @RulesRegistry.add_rule("occupants_metabolism")
 def check_occupants_metabolism(context):
     """Check for inconsistency between the number of occupants and metabolism profile."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     if view.physics.stebbs_method == 1:
@@ -161,7 +165,9 @@ def check_occupants_metabolism(context):
 @RulesRegistry.add_rule("daylight_control")
 def check_daylight_control(context):
     """Validate the 'daylight_control' flag and related lighting parameters for each site when STEBBS is active."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     if view.physics.stebbs_method == 1:
@@ -206,7 +212,9 @@ def check_daylight_control(context):
 @RulesRegistry.add_rule("internal_shading")
 def check_internal_shading(context):
     """Validate internal window-shading controls when STEBBS is active."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     if view.physics.stebbs_method != 1:
@@ -238,7 +246,9 @@ def check_internal_shading(context):
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
     """Validate the 'profile_flow_hot_water' values in STEBBS properties when STEBBS is active."""
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     if view.physics.stebbs_method == 1:
@@ -295,7 +305,9 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
       `working_day` and `holiday` profiles.
     - All checks are only performed if stebbsmethod == 1.
     """
-    view = TypedConfigView.from_mapping(context.yaml_data)
+    view = getattr(context, "view", None) or TypedConfigView.from_mapping(
+        context.yaml_data
+    )
     results = []
 
     setpointmethod = view.physics.stebbs_value("setpoint")

@@ -13,11 +13,14 @@ validation/
 |   |-- utils.py               # Shared utility functions
 |   `-- yaml_helpers.py        # YAML scalar/RefValue helpers and CRU/DLS lookup
 |-- rules/
-|   |-- typed_view.py          # Read-only typed view over normalised YAML mappings
+|   |-- typed_view.py          # Deeply immutable typed view over YAML mappings
+|   |-- readonly_model.py      # Deeply immutable proxy over Pydantic models
 |   |-- hard_invariants.py     # Tier-1 hard invariants shared with Pydantic models
 |   `-- advisory.py            # Tier-2 scientific advisories (Phase B warnings)
 `-- pipeline/
     |-- document.py            # ConfigDocument, RefValue helpers, ConfigPatch
+    |-- style_ledger.py        # Per-path YAML authoring style ledger and dumper
+    |-- patch_normaliser.py    # Patch normalisation with original values and inversion
     |-- orchestrator.py        # Transactional staged pipeline orchestration
     |-- patches.py             # Pure Phase B scientific patch planners
     |-- phase_a.py             # Schema-driven structural completeness and renames

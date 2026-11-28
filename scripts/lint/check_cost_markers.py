@@ -50,21 +50,42 @@ part of a node id before `::`), which is how a pull-request run judges only the
 test files that pull request adds or changes. `--json` writes the outcome as
 JSON (counts and one record per flagged test) for a workflow step to read.
 
+In addition to per-node cost-marker drift, this script emits strictly warn-only
+dynamic CPU budget diagnostics (calibration phase, gh#2349 W1-8; never changes
+the exit code):
+
+- **Per-function parametrisation explosion**: groups measured non-`slow` nodes
+  by base test function (`file::[Class::]test_func`, stripping `[...]`),
+  computes `(node_count, median_node_cpu, total_call_cpu)`, and warns when
+  `node_count >= 2` and `node_count * median_node_cpu > 20.0` CPU-s
+  (`PARAMETRISE_EXPLOSION_CPU_SECONDS`, overridable via
+  `--parametrize-budget-seconds`).
+- **Per-axis call CPU summary**: totals measured call CPU seconds per axis
+  (`tooling`, `unit`, `native`, `physics` for multi-axis artefacts, also
+  recognising legacy `api`/`physics` axis labels on `schema_version: 2`
+  artefacts, or `unattributed` when unlabelled).
+- **Optional per-PR added-CPU delta**: when `--baseline-metrics` and/or
+  `--budget-warn` is supplied, reports the CPU delta against the baseline (and
+  whether it exceeds the advisory budget) without affecting the exit code.
+
 Usage::
 
     python scripts/lint/check_cost_markers.py ci-metrics/ [--markdown SUMMARY]
     python scripts/lint/check_cost_markers.py api.json physics-pytest.json --histogram
     python scripts/lint/check_cost_markers.py ci-metrics/ --test-file test/core/test_x.py --json out.json
+    python scripts/lint/check_cost_markers.py ci-metrics/ --baseline-metrics base-metrics/ --budget-warn 30
 """
 
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 import json
+import math
 from pathlib import Path
 import re
+import statistics
 import sys
 from typing import Any
 
@@ -76,6 +97,11 @@ SLOW_CPU_SECONDS = 30.0
 # Hysteresis: a marker is questioned only when the reading is on the wrong side
 # of a threshold by more than this factor (see the module docstring).
 BAND = 2.0
+# Warn-only dynamic CPU budget thresholds (gh#2349 W1-8, calibration phase).
+# Findings produced by these thresholds are strictly advisory and never change
+# the process exit code.
+PARAMETRISE_EXPLOSION_CPU_SECONDS = 20.0
+DEFAULT_PR_ADDED_CPU_BUDGET_SECONDS = 30.0
 # The phase whose CPU seconds define a test's cost. `call` is the test body;
 # `total` adds fixture setup and teardown, which under xdist charges a shared
 # session fixture to whichever test reaches it first on each worker.
@@ -113,6 +139,8 @@ class TestCost:
     outcome: str = "passed"
     marker_reasons: tuple[tuple[str, str], ...] = ()
     axis: str | None = None
+    call_cpu_seconds: float | None = None
+    call_wall_seconds: float | None = None
 
     @property
     def cost_marker(self) -> str | None:
@@ -131,6 +159,24 @@ class TestCost:
     def measured(self) -> bool:
         return self.outcome in MEASURED_OUTCOMES
 
+    @property
+    def effective_call_cpu(self) -> float:
+        """Call-phase CPU seconds (falling back to ``cpu_seconds`` when unset)."""
+        return (
+            self.call_cpu_seconds
+            if self.call_cpu_seconds is not None
+            else self.cpu_seconds
+        )
+
+    @property
+    def effective_call_wall(self) -> float:
+        """Call-phase wall seconds (falling back to ``wall_seconds`` when unset)."""
+        return (
+            self.call_wall_seconds
+            if self.call_wall_seconds is not None
+            else self.wall_seconds
+        )
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -148,6 +194,89 @@ class Finding:
         )
 
 
+@dataclass(frozen=True)
+class FunctionExplosionWarning:
+    """Warn-only finding for a parametrised non-slow function exceeding CPU budget."""
+
+    function_id: str
+    node_count: int
+    median_node_cpu: float
+    estimated_cpu_seconds: float
+    total_call_cpu: float
+    threshold_seconds: float
+    axis: str | None = None
+
+    def line(self) -> str:
+        """Render a single plain-text diagnostic line for this explosion warning."""
+        safe_func = _sanitise_diagnostic(self.function_id)
+        axis_note = (
+            f"; axis={_sanitise_diagnostic(self.axis)}"
+            if self.axis is not None
+            else ""
+        )
+        return (
+            f"  - {safe_func}: {self.node_count} nodes x "
+            f"{self.median_node_cpu:.2f} median = {self.estimated_cpu_seconds:.1f} "
+            f"CPU-s > {self.threshold_seconds:g} CPU-s "
+            f"(total {self.total_call_cpu:.1f} CPU-s{axis_note}; warn-only)"
+        )
+
+
+@dataclass(frozen=True)
+class AxisCpuSummary:
+    """Total measured CPU and wall seconds grouped by dependency axis."""
+
+    axis: str
+    test_count: int
+    total_cpu_seconds: float
+    total_wall_seconds: float
+
+
+@dataclass(frozen=True)
+class AxisCpuDelta:
+    """Per-axis CPU comparison between current and baseline measurements."""
+
+    axis: str
+    current_cpu_seconds: float
+    baseline_cpu_seconds: float
+    delta_cpu_seconds: float
+
+
+@dataclass(frozen=True)
+class BudgetDelta:
+    """Warn-only per-PR CPU delta against baseline metrics or an absolute budget."""
+
+    current_cpu_seconds: float
+    baseline_cpu_seconds: float | None
+    delta_cpu_seconds: float
+    budget_seconds: float | None
+    exceeded: bool
+    added_test_count: int
+    added_tests_cpu_seconds: float
+    per_axis: tuple[AxisCpuDelta, ...] = ()
+
+    def summary_line(self) -> str:
+        """Render a one-line advisory summary of the PR CPU delta."""
+        tag = "[WARN]" if self.exceeded else "[INFO]"
+        if self.baseline_cpu_seconds is not None:
+            delta_str = f"{self.delta_cpu_seconds:+.1f} CPU-s"
+            base_part = (
+                f"current {self.current_cpu_seconds:.1f} CPU-s vs baseline "
+                f"{self.baseline_cpu_seconds:.1f} CPU-s (delta {delta_str}; "
+                f"{self.added_test_count} added test(s), "
+                f"{self.added_tests_cpu_seconds:.1f} CPU-s)"
+            )
+        else:
+            base_part = f"current {self.current_cpu_seconds:.1f} CPU-s (no baseline metrics)"
+        if self.budget_seconds is not None:
+            status = "exceeds" if self.exceeded else "within"
+            return (
+                f"{tag} PR CPU budget (warn-only): {base_part}; "
+                f"{status} advisory budget {self.budget_seconds:g} CPU-s."
+            )
+        return f"{tag} PR CPU delta (warn-only): {base_part}."
+
+
 @dataclass
 class Report:
     """Outcome of one check over a set of artefacts."""
@@ -162,6 +291,12 @@ class Report:
     unmeasured: int = 0
     # The test files the check was restricted to, or None for every test.
     restricted_to: tuple[str, ...] | None = None
+    # Strictly warn-only dynamic CPU budget fields (never affect `ok` or exit code).
+    explosion_threshold_seconds: float = PARAMETRISE_EXPLOSION_CPU_SECONDS
+    explosion_warnings: list[FunctionExplosionWarning] = field(default_factory=list)
+    axis_summary: list[AxisCpuSummary] = field(default_factory=list)
+    budget_delta: BudgetDelta | None = None
+    advisory_errors: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -186,6 +321,32 @@ class Report:
 
     def to_dict(self) -> dict[str, Any]:
         """Return the outcome as plain data, for `--json`."""
+        budget_payload: dict[str, Any] | None = None
+        if self.budget_delta is not None:
+            budget_payload = {
+                "current_cpu_seconds": round(self.budget_delta.current_cpu_seconds, 4),
+                "baseline_cpu_seconds": (
+                    None
+                    if self.budget_delta.baseline_cpu_seconds is None
+                    else round(self.budget_delta.baseline_cpu_seconds, 4)
+                ),
+                "delta_cpu_seconds": round(self.budget_delta.delta_cpu_seconds, 4),
+                "budget_seconds": self.budget_delta.budget_seconds,
+                "exceeded": self.budget_delta.exceeded,
+                "added_test_count": self.budget_delta.added_test_count,
+                "added_tests_cpu_seconds": round(
+                    self.budget_delta.added_tests_cpu_seconds, 4
+                ),
+                "per_axis": [
+                    {
+                        "axis": row.axis,
+                        "current_cpu_seconds": round(row.current_cpu_seconds, 4),
+                        "baseline_cpu_seconds": round(row.baseline_cpu_seconds, 4),
+                        "delta_cpu_seconds": round(row.delta_cpu_seconds, 4),
+                    }
+                    for row in self.budget_delta.per_axis
+                ],
+            }
         return {
             "ok": self.ok,
             "flagged": len(self.findings),
@@ -210,25 +371,76 @@ class Report:
                 }
                 for finding in self.findings
             ],
+            "axis_cpu_summary": [
+                {
+                    "axis": row.axis,
+                    "test_count": row.test_count,
+                    "total_cpu_seconds": round(row.total_cpu_seconds, 4),
+                    "total_wall_seconds": round(row.total_wall_seconds, 4),
+                }
+                for row in self.axis_summary
+            ],
+            "parametrize_explosion_threshold_seconds": self.explosion_threshold_seconds,
+            "parametrize_explosion_warnings": [
+                {
+                    "function_id": warn.function_id,
+                    "node_count": warn.node_count,
+                    "median_node_cpu": round(warn.median_node_cpu, 4),
+                    "estimated_cpu_seconds": round(warn.estimated_cpu_seconds, 4),
+                    "total_call_cpu": round(warn.total_call_cpu, 4),
+                    "threshold_seconds": warn.threshold_seconds,
+                    "axis": warn.axis,
+                }
+                for warn in self.explosion_warnings
+            ],
+            "budget_delta": budget_payload,
+            "advisory_errors": list(self.advisory_errors),
         }
 
     def message(self) -> str:
-        """Plain-text report: header, then each finding class with its nodes."""
+        """Plain-text report: header, findings, and warn-only CPU budget diagnostics."""
         lines = [f"Cost markers against measured CPU seconds: {self._scope()}"]
         if self.ok:
             lines.append("[OK] every medium and slow marker agrees with its measured cost.")
-            return "\n".join(lines)
-        lines.append(f"[X] {len(self.findings)} marker(s) disagree with the measurement:")
-        for kind, findings in self.by_kind().items():
-            if not findings:
-                continue
-            lines.append(f"{FINDING_KINDS[kind]} ({len(findings)}):")
-            lines.extend(finding.line() for finding in findings)
-        lines.append(
-            "Fix the marker, not the threshold: thresholds and their reasoning are in "
-            ".claude/rules/tests/patterns.md. A slow test that is slow for a reason "
-            "other than CPU states it as pytest.mark.slow(reason=...)."
-        )
+        else:
+            lines.append(f"[X] {len(self.findings)} marker(s) disagree with the measurement:")
+            for kind, findings in self.by_kind().items():
+                if not findings:
+                    continue
+                lines.append(f"{FINDING_KINDS[kind]} ({len(findings)}):")
+                lines.extend(finding.line() for finding in findings)
+            lines.append(
+                "Fix the marker, not the threshold: thresholds and their reasoning are in "
+                ".claude/rules/tests/patterns.md. A slow test that is slow for a reason "
+                "other than CPU states it as pytest.mark.slow(reason=...)."
+            )
+        if self.axis_summary:
+            axis_parts = [
+                f"{_sanitise_diagnostic(row.axis)}={row.total_cpu_seconds:.1f} CPU-s ({row.test_count})"
+                for row in self.axis_summary
+            ]
+            lines.append(f"Axis call CPU summary: {', '.join(axis_parts)}.")
+        if self.explosion_warnings:
+            lines.append(
+                f"[WARN] {len(self.explosion_warnings)} parametrised non-slow function(s) "
+                f"exceed {self.explosion_threshold_seconds:g} CPU-s "
+                "(node_count * median_node_cpu; warn-only):"
+            )
+            lines.extend(warn.line() for warn in self.explosion_warnings)
+        if self.budget_delta is not None:
+            lines.append(_sanitise_diagnostic(self.budget_delta.summary_line()))
+            for row in self.budget_delta.per_axis:
+                safe_axis = _sanitise_diagnostic(row.axis)
+                lines.append(
+                    f"  - axis {safe_axis}: {row.current_cpu_seconds:.1f} CPU-s "
+                    f"(baseline {row.baseline_cpu_seconds:.1f}, "
+                    f"delta {row.delta_cpu_seconds:+.1f} CPU-s)"
+                )
+        for err in self.advisory_errors:
+            lines.append(
+                f"[WARN] advisory budget diagnostic unavailable (warn-only): "
+                f"{_sanitise_diagnostic(err)}"
+            )
         return "\n".join(lines)
 
     def markdown(self) -> str:
@@ -250,6 +462,59 @@ class Report:
                     f"{test.cost_marker or '-'} | {finding.wanted} | "
                     f"{finding.kind} | {test.source} |"
                 )
+        if self.axis_summary:
+            lines.extend([
+                "",
+                "### Per-axis call CPU summary",
+                "",
+                "| Axis | Tests | Total CPU-s | Total wall-s |",
+                "|---|---:|---:|---:|",
+            ])
+            for row in self.axis_summary:
+                safe_axis = _sanitise_diagnostic(row.axis)
+                lines.append(
+                    f"| `{safe_axis}` | {row.test_count} | "
+                    f"{row.total_cpu_seconds:.1f} | {row.total_wall_seconds:.1f} |"
+                )
+        if self.explosion_warnings:
+            lines.extend([
+                "",
+                "### Parametrisation explosion warnings (warn-only)",
+                "",
+                "| Function | Nodes | Median CPU-s | Nodes x Median | Total CPU-s | Axis |",
+                "|---|---:|---:|---:|---:|---|",
+            ])
+            for warn in self.explosion_warnings:
+                safe_func = _sanitise_diagnostic(warn.function_id)
+                safe_axis = _sanitise_diagnostic(warn.axis) if warn.axis else "-"
+                lines.append(
+                    f"| `{safe_func}` | {warn.node_count} | "
+                    f"{warn.median_node_cpu:.2f} | {warn.estimated_cpu_seconds:.1f} | "
+                    f"{warn.total_call_cpu:.1f} | {safe_axis} |"
+                )
+        if self.budget_delta is not None:
+            lines.extend([
+                "",
+                "### PR CPU budget delta (warn-only)",
+                "",
+                _sanitise_diagnostic(self.budget_delta.summary_line()),
+            ])
+            if self.budget_delta.per_axis:
+                lines.extend([
+                    "",
+                    "| Axis | Current CPU-s | Baseline CPU-s | Delta CPU-s |",
+                    "|---|---:|---:|---:|",
+                ])
+                for row in self.budget_delta.per_axis:
+                    safe_axis = _sanitise_diagnostic(row.axis)
+                    lines.append(
+                        f"| `{safe_axis}` | {row.current_cpu_seconds:.1f} | "
+                        f"{row.baseline_cpu_seconds:.1f} | {row.delta_cpu_seconds:+.1f} |"
+                    )
+        if self.advisory_errors:
+            lines.extend(["", "### Advisory budget diagnostics (warn-only)", ""])
+            for err in self.advisory_errors:
+                lines.append(f"- {_sanitise_diagnostic(err)}")
         lines.extend(["", "### Distribution", "", *histogram_lines(self.tests), ""])
         return "\n".join(lines)
 
@@ -396,6 +661,32 @@ def missing_required_axes(
     return missing
 
 
+def _safe_optional_call_float(
+    phase_map: Mapping[str, object],
+    *,
+    selected_phase: str,
+    selected_value: float,
+) -> float:
+    """Parse ``call`` phase seconds without failing selected-phase loading.
+
+    Returns ``math.nan`` when ``call`` is missing or non-numeric under another
+    selected phase so advisory diagnostics degrade cleanly to
+    ``advisory_errors`` without changing marker classification or exit status.
+    """
+    if selected_phase == "call":
+        return selected_value
+    if "call" not in phase_map:
+        return math.nan
+    raw = phase_map["call"]
+    if isinstance(raw, bool):
+        return math.nan
+    try:
+        value = float(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError, OverflowError):
+        return math.nan
+    return value if math.isfinite(value) else math.nan
+
+
 def load_tests(
     paths: Iterable[Path],
     *,
@@ -426,16 +717,28 @@ def load_tests(
         axis = source_axis(path)
         for record in metrics["tests"]:
             reasons = record.get("marker_reasons") or {}
+            cpu_map = record["cpu_seconds"]
+            wall_map = record["wall_seconds"]
+            selected_cpu = float(cpu_map[phase])
+            selected_wall = float(wall_map[phase])
+            call_cpu = _safe_optional_call_float(
+                cpu_map, selected_phase=phase, selected_value=selected_cpu
+            )
+            call_wall = _safe_optional_call_float(
+                wall_map, selected_phase=phase, selected_value=selected_wall
+            )
             tests.append(
                 TestCost(
                     node_id=str(record["node_id"]),
                     markers=tuple(sorted(str(m) for m in record.get("markers", []))),
-                    cpu_seconds=float(record["cpu_seconds"][phase]),
-                    wall_seconds=float(record["wall_seconds"][phase]),
+                    cpu_seconds=selected_cpu,
+                    wall_seconds=selected_wall,
                     source=path.name,
                     outcome=str(record.get("outcome")),
                     marker_reasons=tuple(sorted((str(k), str(v)) for k, v in reasons.items())),
                     axis=axis,
+                    call_cpu_seconds=call_cpu,
+                    call_wall_seconds=call_wall,
                 )
             )
     return tests, sources
@@ -454,10 +757,291 @@ def node_file(node_id: str) -> str:
     return _posix_path(node_id.split("::", 1)[0])
 
 
+def base_function_id(node_id: str) -> str:
+    """Return ``file::[Class::]test_func`` with any ``[...]`` parameter suffix stripped."""
+    sep = node_id.find("::")
+    if sep == -1:
+        return _posix_path(node_id)
+    file_part = _posix_path(node_id[:sep])
+    rest = node_id[sep + 2 :]
+    bracket = rest.find("[")
+    func_part = rest[:bracket] if bracket != -1 else rest
+    return f"{file_part}::{func_part}"
+
+
+def detect_parametrize_explosions(
+    tests: Iterable[TestCost],
+    *,
+    threshold_seconds: float = PARAMETRISE_EXPLOSION_CPU_SECONDS,
+) -> list[FunctionExplosionWarning]:
+    """Flag non-``slow`` parametrised functions where ``node_count * median_call_cpu > threshold``.
+
+    Parameters
+    ----------
+    tests : Iterable[TestCost]
+        Measured per-node cost records (deduplicated per node id).
+    threshold_seconds : float, optional
+        Warn-only CPU budget in seconds (default ``PARAMETRISE_EXPLOSION_CPU_SECONDS``).
+
+    Returns
+    -------
+    list[FunctionExplosionWarning]
+        Warn-only findings ordered by descending estimated CPU seconds.
+    """
+    if not math.isfinite(threshold_seconds) or threshold_seconds <= 0.0:
+        raise ValueError("the parametrize explosion threshold must be finite and positive")
+
+    grouped: dict[str, list[TestCost]] = {}
+    for test in tests:
+        if not test.measured or test.cost_marker == "slow":
+            continue
+        if not math.isfinite(test.effective_call_cpu):
+            continue
+        grouped.setdefault(base_function_id(test.node_id), []).append(test)
+
+    warnings: list[FunctionExplosionWarning] = []
+    for func_id, group in grouped.items():
+        node_count = len(group)
+        if node_count < 2:
+            continue
+        cpus = [item.effective_call_cpu for item in group]
+        median_cpu = float(statistics.median(cpus))
+        total_cpu = float(sum(cpus))
+        estimated = node_count * median_cpu
+        if not (
+            math.isfinite(median_cpu)
+            and math.isfinite(total_cpu)
+            and math.isfinite(estimated)
+        ):
+            continue
+        if estimated > threshold_seconds:
+            axes = {item.axis for item in group if item.axis is not None}
+            axis = next(iter(axes)) if len(axes) == 1 else None
+            warnings.append(
+                FunctionExplosionWarning(
+                    function_id=func_id,
+                    node_count=node_count,
+                    median_node_cpu=median_cpu,
+                    estimated_cpu_seconds=estimated,
+                    total_call_cpu=total_cpu,
+                    threshold_seconds=threshold_seconds,
+                    axis=axis,
+                )
+            )
+    warnings.sort(key=lambda item: (-item.estimated_cpu_seconds, item.function_id))
+    return warnings
+
+
+def _ordered_axes(axes: Iterable[str]) -> list[str]:
+    """Order observed axis labels canonically (Schema-2, Schema-1, unattributed)."""
+    axis_set = set(axes)
+    canonical = (*MULTI_AXES, "api", "unattributed")
+    ordered = [axis for axis in canonical if axis in axis_set]
+    extras = sorted(axis_set - set(canonical))
+    return [*ordered, *extras]
+
+
+def _is_valid_call_measurement(value: float) -> bool:
+    """Return True when a call CPU or wall reading is finite and non-negative."""
+    return math.isfinite(value) and value >= 0.0
+
+
+def largest_per_axis_node(tests: Iterable[TestCost]) -> list[TestCost]:
+    """Keep one measurement per ``(axis, node_id)``: the largest valid call CPU cost."""
+    best: dict[tuple[str | None, str], TestCost] = {}
+    for test in tests:
+        if test.measured and (
+            not _is_valid_call_measurement(test.effective_call_cpu)
+            or not _is_valid_call_measurement(test.effective_call_wall)
+        ):
+            raise ValueError(
+                f"invalid (non-finite or negative) call metrics for {test.node_id}"
+            )
+        key = (test.axis, test.node_id)
+        current = best.get(key)
+        if current is None or (
+            test.measured
+            and (not current.measured or test.effective_call_cpu > current.effective_call_cpu)
+        ):
+            best[key] = test
+    return [best[key] for key in sorted(best, key=lambda item: (item[0] or "", item[1]))]
+
+
+def _all_call_measurements_finite(tests: Iterable[TestCost]) -> bool:
+    """Return True when every measured record carries finite non-negative call CPU/wall."""
+    return all(
+        _is_valid_call_measurement(t.effective_call_cpu)
+        and _is_valid_call_measurement(t.effective_call_wall)
+        for t in tests
+        if t.measured
+    )
+
+
+def summarise_axis_cpu(tests: Iterable[TestCost]) -> list[AxisCpuSummary]:
+    """Summarise measured call CPU and wall seconds per axis (deduplicated within each axis)."""
+    counts: dict[str, int] = {}
+    cpu_totals: dict[str, float] = {}
+    wall_totals: dict[str, float] = {}
+    for test in largest_per_axis_node(tests):
+        if not test.measured:
+            continue
+        if not (
+            math.isfinite(test.effective_call_cpu)
+            and math.isfinite(test.effective_call_wall)
+        ):
+            raise ValueError(f"non-finite call metrics for {test.node_id}")
+        axis = test.axis if test.axis is not None else "unattributed"
+        counts[axis] = counts.get(axis, 0) + 1
+        cpu_totals[axis] = cpu_totals.get(axis, 0.0) + test.effective_call_cpu
+        wall_totals[axis] = wall_totals.get(axis, 0.0) + test.effective_call_wall
+
+    summaries: list[AxisCpuSummary] = []
+    for axis in _ordered_axes(counts):
+        if not (
+            math.isfinite(cpu_totals[axis]) and math.isfinite(wall_totals[axis])
+        ):
+            raise ValueError(f"non-finite aggregated call metrics for axis {axis}")
+        summaries.append(
+            AxisCpuSummary(
+                axis=axis,
+                test_count=counts[axis],
+                total_cpu_seconds=cpu_totals[axis],
+                total_wall_seconds=wall_totals[axis],
+            )
+        )
+    return summaries
+
+
+def _build_axis_cpu_deltas(
+    curr_by_axis: Mapping[str, float],
+    base_by_axis: Mapping[str, float],
+) -> tuple[AxisCpuDelta, ...]:
+    """Build per-axis CPU delta rows and reject any non-finite per-axis value."""
+    rows: list[AxisCpuDelta] = []
+    for axis in _ordered_axes(set(curr_by_axis) | set(base_by_axis)):
+        curr_axis = curr_by_axis.get(axis, 0.0)
+        base_axis = base_by_axis.get(axis, 0.0)
+        axis_delta = curr_axis - base_axis
+        if not (
+            math.isfinite(curr_axis)
+            and math.isfinite(base_axis)
+            and math.isfinite(axis_delta)
+        ):
+            raise ValueError(f"computed CPU delta is non-finite for axis {axis}")
+        rows.append(
+            AxisCpuDelta(
+                axis=axis,
+                current_cpu_seconds=curr_axis,
+                baseline_cpu_seconds=base_axis,
+                delta_cpu_seconds=axis_delta,
+            )
+        )
+    return tuple(rows)
+
+
+def compute_budget_delta(
+    current_tests: Iterable[TestCost],
+    baseline_tests: Iterable[TestCost] | None = None,
+    *,
+    budget_seconds: float | None = None,
+) -> BudgetDelta:
+    """Compute warn-only per-PR call CPU delta (per-axis-deduplicated) against optional baseline."""
+    if budget_seconds is not None and (
+        not math.isfinite(budget_seconds) or budget_seconds < 0.0
+    ):
+        raise ValueError("the budget warning threshold must be finite and non-negative")
+
+    curr_measured = [t for t in largest_per_axis_node(current_tests) if t.measured]
+    if not _all_call_measurements_finite(curr_measured):
+        raise ValueError("current metrics contain non-finite call CPU/wall values")
+    curr_total = float(sum(t.effective_call_cpu for t in curr_measured))
+    curr_by_axis: dict[str, float] = {}
+    for test in curr_measured:
+        axis = test.axis if test.axis is not None else "unattributed"
+        curr_by_axis[axis] = curr_by_axis.get(axis, 0.0) + test.effective_call_cpu
+    if not math.isfinite(curr_total) or not all(
+        math.isfinite(v) for v in curr_by_axis.values()
+    ):
+        raise ValueError("current call CPU totals overflowed to non-finite values")
+
+    if baseline_tests is None:
+        delta_total = curr_total
+        exceeded = budget_seconds is not None and delta_total > budget_seconds
+        per_axis = tuple(
+            AxisCpuDelta(
+                axis=axis,
+                current_cpu_seconds=curr_by_axis[axis],
+                baseline_cpu_seconds=0.0,
+                delta_cpu_seconds=curr_by_axis[axis],
+            )
+            for axis in _ordered_axes(curr_by_axis)
+        )
+        return BudgetDelta(
+            current_cpu_seconds=curr_total,
+            baseline_cpu_seconds=None,
+            delta_cpu_seconds=delta_total,
+            budget_seconds=budget_seconds,
+            exceeded=exceeded,
+            added_test_count=len(curr_measured),
+            added_tests_cpu_seconds=curr_total,
+            per_axis=per_axis,
+        )
+
+    base_measured = [t for t in largest_per_axis_node(baseline_tests) if t.measured]
+    if not _all_call_measurements_finite(base_measured):
+        raise ValueError("baseline metrics contain non-finite call CPU/wall values")
+    base_total = float(sum(t.effective_call_cpu for t in base_measured))
+    base_keys = {(t.axis, t.node_id) for t in base_measured}
+    base_by_axis: dict[str, float] = {}
+    for test in base_measured:
+        axis = test.axis if test.axis is not None else "unattributed"
+        base_by_axis[axis] = base_by_axis.get(axis, 0.0) + test.effective_call_cpu
+    if not math.isfinite(base_total) or not all(
+        math.isfinite(v) for v in base_by_axis.values()
+    ):
+        raise ValueError("baseline call CPU totals overflowed to non-finite values")
+
+    added_tests = [t for t in curr_measured if (t.axis, t.node_id) not in base_keys]
+    added_cpu = float(sum(t.effective_call_cpu for t in added_tests))
+    delta_total = curr_total - base_total
+    if not (math.isfinite(delta_total) and math.isfinite(added_cpu)):
+        raise ValueError("computed CPU delta is non-finite")
+    exceeded = budget_seconds is not None and delta_total > budget_seconds
+    per_axis = _build_axis_cpu_deltas(curr_by_axis, base_by_axis)
+    return BudgetDelta(
+        current_cpu_seconds=curr_total,
+        baseline_cpu_seconds=base_total,
+        delta_cpu_seconds=delta_total,
+        budget_seconds=budget_seconds,
+        exceeded=exceeded,
+        added_test_count=len(added_tests),
+        added_tests_cpu_seconds=added_cpu,
+        per_axis=per_axis,
+    )
+
+
 def restrict_to_files(tests: Iterable[TestCost], test_files: Iterable[str]) -> list[TestCost]:
     """Keep the tests whose node id lies in one of `test_files`."""
     wanted = {_posix_path(path) for path in test_files}
     return [test for test in tests if node_file(test.node_id) in wanted]
+
+
+def largest_call_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
+    """Keep one measured record per node id using the largest valid call-phase CPU cost."""
+    best: dict[str, TestCost] = {}
+    for test in tests:
+        if not test.measured:
+            continue
+        cpu = test.effective_call_cpu
+        wall = test.effective_call_wall
+        if not _is_valid_call_measurement(cpu) or not _is_valid_call_measurement(wall):
+            raise ValueError(
+                f"invalid (non-finite or negative) call metrics for {test.node_id}"
+            )
+        current = best.get(test.node_id)
+        if current is None or cpu > current.effective_call_cpu:
+            best[test.node_id] = test
+    return [best[node_id] for node_id in sorted(best)]
 
 
 def largest_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
@@ -512,6 +1096,36 @@ def classify(
     return Finding("slow-without-reason", test, wanted or "no cost marker")
 
 
+def _coerce_advisory_float(
+    raw: float | str | None,
+    *,
+    name: str,
+    allow_zero: bool,
+    allow_none: bool = True,
+    fallback: float | None,
+    advisory_errors: list[str],
+) -> float | None:
+    """Parse and validate an advisory threshold without ever raising or exiting non-zero."""
+    if raw is None:
+        if allow_none:
+            return None
+        advisory_errors.append(f"invalid {name} None (expected a finite number)")
+        return fallback
+    try:
+        value = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        advisory_errors.append(
+            f"invalid {name} {raw!r} (expected a finite number)"
+        )
+        return fallback
+    bound_ok = value >= 0.0 if allow_zero else value > 0.0
+    if not math.isfinite(value) or not bound_ok:
+        bound_desc = "finite and non-negative" if allow_zero else "finite and positive"
+        advisory_errors.append(f"invalid {name} {raw!r} (must be {bound_desc})")
+        return fallback
+    return value
+
+
 def check_costs(
     tests: Iterable[TestCost],
     *,
@@ -521,20 +1135,63 @@ def check_costs(
     phase: str = DEFAULT_PHASE,
     sources: Iterable[str] = (),
     test_files: Iterable[str] | None = None,
+    explosion_seconds: float | str | None = PARAMETRISE_EXPLOSION_CPU_SECONDS,
+    baseline_tests: Iterable[TestCost] | None = None,
+    budget_warn_seconds: float | str | None = None,
 ) -> Report:
     """Compare every measured test's cost marker with the marker its cost calls for.
 
     With `test_files`, only the tests in those files are judged and counted.
+    Also populates strictly warn-only dynamic CPU budget summaries (per-function
+    parametrisation explosions, per-axis call CPU totals, and optional PR delta);
+    invalid advisory options or non-finite advisory metrics are isolated into
+    ``report.advisory_errors`` rather than raising or altering ``report.ok``.
     """
+    if not (math.isfinite(medium_seconds) and math.isfinite(slow_seconds)):
+        raise ValueError("thresholds must be finite numbers")
     if not medium_seconds < slow_seconds:
         raise ValueError("the medium threshold must be below the slow threshold")
+    if not math.isfinite(band):
+        raise ValueError("the band must be a finite number")
     if band < 1.0:
         raise ValueError("the band must be at least 1")
-    report = Report(medium_seconds, slow_seconds, band, phase, sources=list(sources))
+
+    advisory_errors: list[str] = []
+    safe_explosion = _coerce_advisory_float(
+        explosion_seconds,
+        name="--parametrize-budget-seconds",
+        allow_zero=False,
+        allow_none=False,
+        fallback=PARAMETRISE_EXPLOSION_CPU_SECONDS,
+        advisory_errors=advisory_errors,
+    )
+    if safe_explosion is None:
+        safe_explosion = PARAMETRISE_EXPLOSION_CPU_SECONDS
+    safe_budget = _coerce_advisory_float(
+        budget_warn_seconds,
+        name="--budget-warn",
+        allow_zero=True,
+        fallback=None,
+        advisory_errors=advisory_errors,
+    )
+
+    report = Report(
+        medium_seconds,
+        slow_seconds,
+        band,
+        phase,
+        sources=list(sources),
+        explosion_threshold_seconds=safe_explosion,
+        advisory_errors=advisory_errors,
+    )
+    raw_tests = list(tests)
+    raw_baseline = None if baseline_tests is None else list(baseline_tests)
     if test_files is not None:
         report.restricted_to = tuple(sorted({_posix_path(path) for path in test_files}))
-        tests = restrict_to_files(tests, report.restricted_to)
-    all_tests = largest_per_node(tests)
+        raw_tests = restrict_to_files(raw_tests, report.restricted_to)
+        if raw_baseline is not None:
+            raw_baseline = restrict_to_files(raw_baseline, report.restricted_to)
+    all_tests = largest_per_node(raw_tests)
     report.tests = [test for test in all_tests if test.measured]
     report.unmeasured = len(all_tests) - len(report.tests)
     for test in report.tests:
@@ -543,6 +1200,27 @@ def check_costs(
         )
         if finding is not None:
             report.findings.append(finding)
+
+    try:
+        report.axis_summary = summarise_axis_cpu(raw_tests)
+    except (ValueError, TypeError, OverflowError) as exc:
+        report.advisory_errors.append(f"axis summary unavailable: {exc}")
+    try:
+        call_measured = [t for t in largest_call_per_node(raw_tests) if t.measured]
+        report.explosion_warnings = detect_parametrize_explosions(
+            call_measured, threshold_seconds=safe_explosion
+        )
+    except (ValueError, TypeError, OverflowError) as exc:
+        report.advisory_errors.append(f"parametrisation explosion check unavailable: {exc}")
+    if raw_baseline is not None or safe_budget is not None:
+        try:
+            report.budget_delta = compute_budget_delta(
+                raw_tests,
+                baseline_tests=raw_baseline,
+                budget_seconds=safe_budget,
+            )
+        except (ValueError, TypeError, OverflowError) as exc:
+            report.advisory_errors.append(f"PR CPU budget delta unavailable: {exc}")
     return report
 
 
@@ -563,6 +1241,66 @@ def histogram_lines(tests: Iterable[TestCost]) -> list[str]:
             f"max {costs[-1]:.1f} | | |"
         )
     return lines
+
+
+_KNOWN_CLI_OPTIONS: frozenset[str] = frozenset({
+    "-h",
+    "--help",
+    "--medium-seconds",
+    "--slow-seconds",
+    "--band",
+    "--phase",
+    "--markdown",
+    "--histogram",
+    "--test-file",
+    "--json",
+    "--require-axis",
+    "--parametrize-budget-seconds",
+    "--baseline-metrics",
+    "--budget-warn",
+    "--",
+})
+
+
+def _is_known_cli_option(token: str) -> bool:
+    """Return True when ``token`` names one of this CLI's own options."""
+    if token in _KNOWN_CLI_OPTIONS:
+        return True
+    head, sep, _ = token.partition("=")
+    return bool(sep) and head in _KNOWN_CLI_OPTIONS
+
+
+def _normalise_advisory_flag_argv(argv: list[str]) -> list[str]:
+    """Attach negative/special advisory values with ``=`` so argparse stays warn-only."""
+    normalised: list[str] = []
+    idx = 0
+    end_of_options = False
+    while idx < len(argv):
+        token = argv[idx]
+        if end_of_options:
+            normalised.append(token)
+            idx += 1
+            continue
+        if token == "--":
+            end_of_options = True
+            normalised.append(token)
+            idx += 1
+            continue
+        if token == "--parametrize-budget-seconds" and idx + 1 < len(argv):
+            nxt = argv[idx + 1]
+            if not _is_known_cli_option(nxt):
+                normalised.append(f"{token}={nxt}")
+                idx += 2
+                continue
+        if token == "--budget-warn" and idx + 1 < len(argv):
+            nxt = argv[idx + 1]
+            if nxt.startswith("-") and not nxt.startswith("--") and nxt != "-h":
+                normalised.append(f"{token}={nxt}")
+                idx += 2
+                continue
+        normalised.append(token)
+        idx += 1
+    return normalised
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -635,10 +1373,102 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
             f"({', '.join(AXES)}); repeat to require multiple axes before reporting clean"
         ),
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--parametrize-budget-seconds",
+        type=str,
+        default=str(PARAMETRISE_EXPLOSION_CPU_SECONDS),
+        help=(
+            "warn-only threshold for per-function parametrisation explosion "
+            "(node_count * median_call_cpu, in CPU seconds; "
+            f"default {PARAMETRISE_EXPLOSION_CPU_SECONDS:g})"
+        ),
+    )
+    parser.add_argument(
+        "--baseline-metrics",
+        dest="baseline_paths",
+        action="append",
+        type=Path,
+        metavar="PATH",
+        help=(
+            "optional baseline metrics JSON file or directory for warn-only "
+            "per-PR added-CPU delta reporting; repeat for multiple paths"
+        ),
+    )
+    parser.add_argument(
+        "--budget-warn",
+        nargs="?",
+        const=str(DEFAULT_PR_ADDED_CPU_BUDGET_SECONDS),
+        default=None,
+        type=str,
+        metavar="SECONDS",
+        help=(
+            "warn-only advisory PR added-CPU budget in CPU seconds "
+            f"(default {DEFAULT_PR_ADDED_CPU_BUDGET_SECONDS:g} when flag is given without a value); "
+            "never changes exit code"
+        ),
+    )
+    raw_argv = sys.argv[1:] if argv is None else list(argv)
+    return parser.parse_args(_normalise_advisory_flag_argv(raw_argv))
+
+
+def _validate_baseline_input_paths(baseline_paths: list[Path]) -> str | None:
+    """Reject missing paths, malformed JSON, or explicitly named non-metrics baseline files."""
+    for raw_path in baseline_paths:
+        if not raw_path.exists():
+            return f"baseline metrics path not found: {raw_path.as_posix()}"
+        is_explicit_file = raw_path.is_file()
+        for file_path in iter_artefact_paths([raw_path]):
+            try:
+                payload = json.loads(file_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, ValueError, RecursionError) as exc:
+                return f"unreadable or malformed baseline metrics JSON {file_path.name}: {exc}"
+            if is_explicit_file and _pytest_payload(payload, file_path) is None:
+                return (
+                    f"baseline metrics file {file_path.name} has no per-test records"
+                )
+    return None
+
+
+def _load_optional_baseline_tests(
+    baseline_paths: list[Path] | None,
+    phase: str,
+) -> tuple[list[TestCost] | None, str | None]:
+    """Load optional ``--baseline-metrics`` artefacts, isolating all advisory failures."""
+    if not baseline_paths:
+        return None, None
+    baseline_skipped: list[str] = []
+    try:
+        input_err = _validate_baseline_input_paths(baseline_paths)
+        if input_err is not None:
+            return None, input_err
+        baseline_tests, _ = load_tests(
+            baseline_paths, phase=phase, skipped=baseline_skipped
+        )
+    except (
+        UnsupportedMetricsSchema,
+        KeyError,
+        TypeError,
+        ValueError,
+        AttributeError,
+        OverflowError,
+        RecursionError,
+        OSError,
+    ) as exc:
+        return None, f"baseline metrics: {exc}"
+    for path in baseline_skipped:
+        print(
+            f"[skip] baseline {_sanitise_diagnostic(path)}: "
+            "not a metrics artefact with per-test records"
+        )
+    if not baseline_tests:
+        return None, "no per-test records found in --baseline-metrics"
+    if not _all_call_measurements_finite(baseline_tests):
+        return None, "baseline metrics contain non-finite or negative call CPU/wall values"
+    return baseline_tests, None
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the cost-marker and warn-only dynamic CPU budget CLI."""
     args = _parse_args(argv)
     skipped: list[str] = []
     try:
@@ -661,15 +1491,48 @@ def main(argv: list[str] | None = None) -> int:
                 f"(measured axes present: {found_str})"
             )
             return 2
-    report = check_costs(
-        tests,
-        medium_seconds=args.medium_seconds,
-        slow_seconds=args.slow_seconds,
-        band=args.band,
-        phase=args.phase,
-        sources=sources,
-        test_files=args.test_files,
+    baseline_tests, baseline_err = _load_optional_baseline_tests(
+        args.baseline_paths, args.phase
     )
+    extra_advisory_errors: list[str] = []
+    budget_warn_arg = args.budget_warn
+    if baseline_err is not None and budget_warn_arg is not None:
+        _coerce_advisory_float(
+            budget_warn_arg,
+            name="--budget-warn",
+            allow_zero=True,
+            fallback=None,
+            advisory_errors=extra_advisory_errors,
+        )
+        budget_warn_arg = None
+    if baseline_err is not None:
+        extra_advisory_errors.append(baseline_err)
+    try:
+        report = check_costs(
+            tests,
+            medium_seconds=args.medium_seconds,
+            slow_seconds=args.slow_seconds,
+            band=args.band,
+            phase=args.phase,
+            sources=sources,
+            test_files=args.test_files,
+            explosion_seconds=args.parametrize_budget_seconds,
+            baseline_tests=baseline_tests,
+            budget_warn_seconds=budget_warn_arg,
+        )
+    except ValueError as exc:
+        print(f"[X] {exc}")
+        return 2
+    report.advisory_errors.extend(extra_advisory_errors)
+    serialized_json: str | None = None
+    if args.json_path:
+        try:
+            serialized_json = (
+                json.dumps(report.to_dict(), indent=2, allow_nan=False) + "\n"
+            )
+        except ValueError as exc:
+            print(f"[X] cannot serialise non-finite metrics payload to JSON: {exc}")
+            return 2
     print(report.message())
     if args.histogram:
         print()
@@ -678,11 +1541,9 @@ def main(argv: list[str] | None = None) -> int:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         with args.markdown.open("a", encoding="utf-8") as handle:
             handle.write(report.markdown())
-    if args.json_path:
+    if args.json_path and serialized_json is not None:
         args.json_path.parent.mkdir(parents=True, exist_ok=True)
-        args.json_path.write_text(
-            json.dumps(report.to_dict(), indent=2) + "\n", encoding="utf-8"
-        )
+        args.json_path.write_text(serialized_json, encoding="utf-8")
     return 0 if report.ok else 1
 
 

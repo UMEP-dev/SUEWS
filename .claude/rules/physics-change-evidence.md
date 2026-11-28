@@ -266,13 +266,20 @@ When reviewing a PR that touches physics source, physics-affecting defaults, or 
 
 ## CI gate (gh#1576)
 
-`.github/scripts/determine-matrix.sh` selects `test_tier=standard` for both
-`pull_request` (ready) and `merge_group`. Standard retains `core` + `slow`
-regressions while excluding non-core `slow` tests. Only `schedule` (nightly)
-and tag/full-dispatch use `test_tier=all`.
+General event, lane, and merge-queue selection under `GATE_AXIS_SCHEMA=2`
+(including which triggers select `physics-core`, `physics-full`, or `all`, and
+the Windows merge-queue `smoke` physics split) is defined once in
+`.claude/rules/ci/conventions.md` ("Multi-Axis CI Topology", "Test Tier
+Assignment by Event", and "Merge Queue Coverage Policy").
 
-When a PR carries `0-physics:change` or `0-numerics:change`, `determine_matrix` sets `physics_change=true` (requiring the `build_wheels` job and its green check in `pr-gate` even if no build-filtered code paths changed) and `determine-matrix.sh` selects `test_tier=physics-full` in both ready-PR and `merge_group` contexts (widening `merge_group` to `PR_PLATFORMS`), so the `slow` physics tests run as a required check before merge. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml && git grep -n "TIER=physics-full" .github/scripts/determine-matrix.sh]
-The physics axis then runs `-m physics` (`.github/actions/build-suews/action.yml`); the api axis is unchanged.
+For `0-physics:change` and `0-numerics:change`, `determine_matrix` sets
+`physics_change=true` (forcing `build_wheels` and requiring its green check in
+`pr-gate` even if no build-filtered code paths changed) and
+`.github/scripts/determine-matrix.sh` forces `test_tier=physics-full` on both
+`pull_request` and `merge_group` (keeping `MERGE_QUEUE_PLATFORMS` on
+`merge_group`), so the full Linux `-m physics` suite (including `slow`) gates
+the change before merge; non-physics axes (`tooling`, `unit`, `native`,
+`os_compat`) stay on their ready `(core or not slow) and not qgis` expressions. [fact: git grep -n "physics_change:" .github/workflows/build-publish_to_pypi.yml && git grep -n "TIER=physics-full" .github/scripts/determine-matrix.sh && git grep -n '"physics-full": f"{axis}' scripts/suews/ci_tiers.py]
 
 ## Exact reference gate
 
@@ -310,20 +317,25 @@ Together: an output-moving change cannot merge without a refresh, and a refresh 
 
 ## What `physics-full` adds over `standard`
 
-Today: the continuation matrix. The physics axis of `standard` runs
-`-m "physics and (core or not slow)"` and `physics-full` runs `-m physics`, so
-the only tests the label can add are those matching
-`physics and slow and not core`. That set is the module
+Today: the continuation matrix. Comparing those two tier definitions directly,
+the physics axis of `standard` runs `-m "physics and (core or not slow)"` and
+`physics-full` runs `-m physics`, so the delta between `standard` and
+`physics-full` is `physics and slow and not core`. [fact: git grep -n 'STANDARD_EXPR = "physics and (core or not slow)"' scripts/lint/check_physics_tier_delta.py && git grep -n 'DELTA_EXPR = "physics and slow and not core"' scripts/lint/check_physics_tier_delta.py]
+(On a Python-only pull request starting at `physics-core`, adding a
+classification label additionally brings in the non-smoke `physics` tests
+between `physics-core` and `standard`; see `.claude/rules/ci/conventions.md`,
+"Multi-Axis CI Topology" and "Test Tier Assignment by Event", for full event
+selection.) The `physics and slow and not core` set is the module
 `test/physics/test_continuation_matrix.py`: the parametrised
 `test_continuation_matrix` (chunked, checkpoint-resumed and streamed
 runs against an uninterrupted run, crossed with the default, leap-day,
 snow, SPARTACUS, STEBBS, dual-timescale EHC, DyOHM, DyOHM-building,
 irrigation and CO2 modes) and its
 negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
-not `core` on purpose: #2100 asks for this restart verification to be opt-in, so
-it runs on ready `0-physics:change` and `0-numerics:change` PRs and their
-merge-queue runs, in the nightly, tag and full-dispatch runs (`test_tier=all`),
-and not on every PR. [decision: software maintainer, 2026-11-22] The two `slow`
+not `core` on purpose: #2100 asks for this restart verification to stay out of
+`standard` and `physics-core`, so it runs whenever CI selects full `-m physics`
+and not on Python-only PRs that remain at `physics-core` (see
+`.claude/rules/ci/conventions.md`, "Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26] The two `slow`
 physics regressions
 (`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`
 and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also `core`

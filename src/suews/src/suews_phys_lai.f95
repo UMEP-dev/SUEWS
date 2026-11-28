@@ -180,6 +180,21 @@ CONTAINS
    END SUBROUTINE update_gddlai
 
 
+   PURE LOGICAL FUNCTION is_missing_sentinel(val) RESULT(is_missing)
+
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: val
+
+      ! Check finiteness before comparing so quiet NaNs never raise IEEE_INVALID.
+      IF (.NOT. ieee_is_finite(val)) THEN
+         is_missing = .TRUE.
+         RETURN
+      END IF
+      is_missing = (ABS(val + 999.0D0) <= 1.0D-6)
+   END FUNCTION is_missing_sentinel
+
+
    PURE LOGICAL FUNCTION has_valid_absent_lai_params( &
       base_t_gdd, base_t_sdd, gdd_base, sdd_base, &
       lai_min, lai_max, lai_power, lai_id_prev) RESULT(is_valid)
@@ -195,22 +210,30 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(4), INTENT(IN) :: lai_power
       REAL(KIND(1D0)), INTENT(IN) :: lai_id_prev
 
-      ! Check finiteness BEFORE any ordering comparison so quiet NaNs on an
-      ! absent vegetation surface (sfr == 0) never raise IEEE_INVALID (#2363).
+      INTEGER :: k
+
+      ! Check finiteness and recognised -999 missing sentinels on EVERY consumed
+      ! coefficient BEFORE any ordering comparison so quiet NaNs never raise
+      ! IEEE_INVALID, finite -999 sentinels (e.g. lai_power=-999) never reach
+      ! calculate_lai, and legitimate negative thresholds (e.g. sdd_base=-1000)
+      ! are preserved (#2363).
       is_valid = .FALSE.
-      IF (.NOT. ieee_is_finite(base_t_gdd)) RETURN
-      IF (.NOT. ieee_is_finite(base_t_sdd)) RETURN
-      IF (.NOT. ieee_is_finite(gdd_base)) RETURN
-      IF (.NOT. ieee_is_finite(sdd_base)) RETURN
-      IF (.NOT. ieee_is_finite(lai_min)) RETURN
-      IF (.NOT. ieee_is_finite(lai_max)) RETURN
-      IF (.NOT. ieee_is_finite(lai_id_prev)) RETURN
-      IF (.NOT. ALL(ieee_is_finite(lai_power))) RETURN
+      IF (is_missing_sentinel(base_t_gdd)) RETURN
+      IF (is_missing_sentinel(base_t_sdd)) RETURN
+      IF (is_missing_sentinel(gdd_base)) RETURN
+      IF (is_missing_sentinel(sdd_base)) RETURN
+      IF (is_missing_sentinel(lai_min)) RETURN
+      IF (is_missing_sentinel(lai_max)) RETURN
+      IF (is_missing_sentinel(lai_id_prev)) RETURN
+      DO k = 1, 4
+         IF (is_missing_sentinel(lai_power(k))) RETURN
+      END DO
 
       IF (lai_id_prev < 0.0D0) RETURN
       IF (lai_min < 0.0D0 .OR. lai_max < 0.0D0) RETURN
-      IF (base_t_gdd <= -900.0D0 .OR. base_t_sdd <= -900.0D0) RETURN
-      IF (gdd_base <= -900.0D0 .OR. sdd_base <= -900.0D0) RETURN
+      IF (lai_id_prev == 0.0D0 .AND. .NOT. (lai_min == 0.0D0 .AND. lai_max == 0.0D0)) THEN
+         IF (lai_power(1) < 0.0D0 .OR. lai_power(3) < 0.0D0) RETURN
+      END IF
 
       is_valid = .TRUE.
    END FUNCTION has_valid_absent_lai_params

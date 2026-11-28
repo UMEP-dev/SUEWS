@@ -9,7 +9,7 @@ MODULE module_phys_dailystate
       DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
-   use module_phys_lai, only: update_gddlai, has_valid_absent_lai_params
+   use module_phys_lai, only: update_gddlai, has_valid_absent_lai_params, is_missing_sentinel
    USE module_ctrl_const_physconst, ONLY: sec_per_day
    IMPLICIT NONE
 
@@ -287,14 +287,35 @@ CONTAINS
                IF (sfr_veg(ivConif) > 0.0D0) THEN
                   LAIMin(ivConif) = evetrPrm%lai%lai_min
                   LAIMax(ivConif) = evetrPrm%lai%lai_max
+               ELSE IF (.NOT. is_missing_sentinel(evetrPrm%lai%lai_min) .AND. &
+                        .NOT. is_missing_sentinel(evetrPrm%lai%lai_max)) THEN
+                  LAIMin(ivConif) = evetrPrm%lai%lai_min
+                  LAIMax(ivConif) = evetrPrm%lai%lai_max
+               ELSE
+                  LAIMin(ivConif) = -999.0D0
+                  LAIMax(ivConif) = -999.0D0
                END IF
                IF (sfr_veg(ivDecid) > 0.0D0) THEN
                   LAIMin(ivDecid) = dectrPrm%lai%lai_min
                   LAIMax(ivDecid) = dectrPrm%lai%lai_max
+               ELSE IF (.NOT. is_missing_sentinel(dectrPrm%lai%lai_min) .AND. &
+                        .NOT. is_missing_sentinel(dectrPrm%lai%lai_max)) THEN
+                  LAIMin(ivDecid) = dectrPrm%lai%lai_min
+                  LAIMax(ivDecid) = dectrPrm%lai%lai_max
+               ELSE
+                  LAIMin(ivDecid) = -999.0D0
+                  LAIMax(ivDecid) = -999.0D0
                END IF
                IF (sfr_veg(ivGrass) > 0.0D0) THEN
                   LAIMin(ivGrass) = grassPrm%lai%lai_min
                   LAIMax(ivGrass) = grassPrm%lai%lai_max
+               ELSE IF (.NOT. is_missing_sentinel(grassPrm%lai%lai_min) .AND. &
+                        .NOT. is_missing_sentinel(grassPrm%lai%lai_max)) THEN
+                  LAIMin(ivGrass) = grassPrm%lai%lai_min
+                  LAIMax(ivGrass) = grassPrm%lai%lai_max
+               ELSE
+                  LAIMin(ivGrass) = -999.0D0
+                  LAIMax(ivGrass) = -999.0D0
                END IF
 
                IF (LAICalcYes /= 0) THEN
@@ -619,6 +640,7 @@ CONTAINS
 
       INTEGER :: iv
       LOGICAL, DIMENSION(nvegsurf) :: active_veg
+      LOGICAL, DIMENSION(nvegsurf) :: update_veg_surf
 
       REAL(KIND(1D0)) :: albChangeDecTr
       REAL(KIND(1D0)) :: albChangeEveTr
@@ -647,12 +669,53 @@ CONTAINS
       active_veg = .TRUE.
       IF (PRESENT(sfr_veg)) active_veg = (sfr_veg > 0.0D0)
 
+      ! For absent surfaces (sfr == 0), preserve existing diagnostic albedo,
+      ! storage-capacity, and porosity evolution when all consumed bounds are
+      ! valid and non-sentinel, and skip cleanly when any bound is NaN or -999
+      ! (checking finiteness via is_missing_sentinel before ordering comparisons
+      ! so quiet NaNs never raise IEEE_INVALID) (#2363).
+      update_veg_surf = active_veg
+      IF (.NOT. update_veg_surf(ivDecid)) THEN
+         IF (.NOT. is_missing_sentinel(LAIMin(ivDecid)) .AND. &
+             .NOT. is_missing_sentinel(LAImax(ivDecid)) .AND. &
+             .NOT. is_missing_sentinel(AlbMin_DecTr) .AND. &
+             .NOT. is_missing_sentinel(AlbMax_DecTr) .AND. &
+             .NOT. is_missing_sentinel(CapMin_dec) .AND. &
+             .NOT. is_missing_sentinel(CapMax_dec) .AND. &
+             .NOT. is_missing_sentinel(PorMin_dec) .AND. &
+             .NOT. is_missing_sentinel(PorMax_dec) .AND. &
+             .NOT. is_missing_sentinel(LAI_id(ivDecid)) .AND. &
+             .NOT. is_missing_sentinel(LAI_id_prev(ivDecid))) THEN
+            update_veg_surf(ivDecid) = .TRUE.
+         END IF
+      END IF
+      IF (.NOT. update_veg_surf(ivConif)) THEN
+         IF (.NOT. is_missing_sentinel(LAIMin(ivConif)) .AND. &
+             .NOT. is_missing_sentinel(LAImax(ivConif)) .AND. &
+             .NOT. is_missing_sentinel(AlbMin_EveTr) .AND. &
+             .NOT. is_missing_sentinel(AlbMax_EveTr) .AND. &
+             .NOT. is_missing_sentinel(LAI_id(ivConif)) .AND. &
+             .NOT. is_missing_sentinel(LAI_id_prev(ivConif))) THEN
+            update_veg_surf(ivConif) = .TRUE.
+         END IF
+      END IF
+      IF (.NOT. update_veg_surf(ivGrass)) THEN
+         IF (.NOT. is_missing_sentinel(LAIMin(ivGrass)) .AND. &
+             .NOT. is_missing_sentinel(LAImax(ivGrass)) .AND. &
+             .NOT. is_missing_sentinel(AlbMin_Grass) .AND. &
+             .NOT. is_missing_sentinel(AlbMax_Grass) .AND. &
+             .NOT. is_missing_sentinel(LAI_id(ivGrass)) .AND. &
+             .NOT. is_missing_sentinel(LAI_id_prev(ivGrass))) THEN
+            update_veg_surf(ivGrass) = .TRUE.
+         END IF
+      END IF
+
       ! Use nested IF blocks (Fortran does not guarantee short-circuiting of
-      ! .AND.) so absent vegetation surfaces never evaluate NaN comparisons or
-      ! arithmetic (#2363). Active vegetation updates remain enabled for both
-      ! observed and modelled LAI.
+      ! .AND.) so absent vegetation surfaces with poisoned bounds never evaluate
+      ! NaN comparisons or arithmetic (#2363). Active vegetation updates remain
+      ! enabled for both observed and modelled LAI.
       iv = ivDecid
-      IF (active_veg(iv)) THEN
+      IF (update_veg_surf(iv)) THEN
          IF (ieee_is_finite(LAI_id(iv)) .AND. ieee_is_finite(LAI_id_prev(iv))) THEN
             IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0.0D0) THEN
                IF (ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv))) THEN
@@ -668,7 +731,7 @@ CONTAINS
       END IF
 
       iv = ivConif
-      IF (active_veg(iv)) THEN
+      IF (update_veg_surf(iv)) THEN
          IF (ieee_is_finite(LAI_id(iv)) .AND. ieee_is_finite(LAI_id_prev(iv))) THEN
             IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0.0D0) THEN
                IF (ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv))) THEN
@@ -682,7 +745,7 @@ CONTAINS
       END IF
 
       iv = ivGrass
-      IF (active_veg(iv)) THEN
+      IF (update_veg_surf(iv)) THEN
          IF (ieee_is_finite(LAI_id(iv)) .AND. ieee_is_finite(LAI_id_prev(iv))) THEN
             IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0.0D0) THEN
                IF (ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv))) THEN
@@ -695,7 +758,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (active_veg(ivDecid)) THEN
+      IF (update_veg_surf(ivDecid)) THEN
          DecidCap_id = DecidCap_id - CapChange
          StoreDrainPrm(6, DecidSurf) = DecidCap_id !Change current storage capacity of deciduous trees
          porosity_id = porosity_id + porChange !- changed to + by HCW 20 Aug 2015 (porosity greatest when LAI smallest)
@@ -704,10 +767,10 @@ CONTAINS
          ! update albedo values while limiting these to valid ranges
          albDecTr_id = MIN(MAX(albDecTr_id + albChangeDecTr, AlbMin_DecTr), AlbMax_DecTr)
       END IF
-      IF (active_veg(ivConif)) THEN
+      IF (update_veg_surf(ivConif)) THEN
          albEveTr_id = MIN(MAX(albEveTr_id + albChangeEveTr, AlbMin_EveTr), AlbMax_EveTr)
       END IF
-      IF (active_veg(ivGrass)) THEN
+      IF (update_veg_surf(ivGrass)) THEN
          albGrass_id = MIN(MAX(albGrass_id + albChangeGrass, AlbMin_Grass), AlbMax_Grass)
       END IF
 

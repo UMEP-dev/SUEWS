@@ -1798,30 +1798,59 @@ CONTAINS
 
                IF (EmissionsMethod >= 11) THEN
                   ! Copy biogenic CO2 and vegetation parameters only when CO2
-                  ! calculations are active (#2363).
-                  alpha_bioCO2 = [evetrPrm%bioco2%alpha_bioco2, &
-                                  dectrPrm%bioco2%alpha_bioco2, &
-                                  grassPrm%bioco2%alpha_bioco2]
-                  alpha_enh_bioCO2 = [evetrPrm%bioco2%alpha_enh_bioco2, &
-                                      dectrPrm%bioco2%alpha_enh_bioco2, &
-                                      grassPrm%bioco2%alpha_enh_bioco2]
-                  beta_bioCO2 = [evetrPrm%bioco2%beta_bioCO2, &
-                                 dectrPrm%bioco2%beta_bioCO2, &
-                                 grassPrm%bioco2%beta_bioCO2]
-                  beta_enh_bioCO2 = [evetrPrm%bioco2%beta_enh_bioCO2, &
-                                     dectrPrm%bioco2%beta_enh_bioCO2, &
-                                     grassPrm%bioco2%beta_enh_bioCO2]
-                  LAIMin = [evetrPrm%lai%lai_min, dectrPrm%lai%lai_min, grassPrm%lai%lai_min]
-                  LAIMax = [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max]
-                  min_res_bioCO2 = [evetrPrm%bioco2%min_res_bioCO2, &
-                                    dectrPrm%bioco2%min_res_bioCO2, &
-                                    grassPrm%bioco2%min_res_bioCO2]
-                  resp_a = [evetrPrm%bioco2%resp_a, dectrPrm%bioco2%resp_a, grassPrm%bioco2%resp_a]
-                  resp_b = [evetrPrm%bioco2%resp_b, dectrPrm%bioco2%resp_b, grassPrm%bioco2%resp_b]
-                  theta_bioCO2 = [evetrPrm%bioco2%theta_bioCO2, &
-                                  dectrPrm%bioco2%theta_bioCO2, &
-                                  grassPrm%bioco2%theta_bioCO2]
-                  MaxConductance = [evetrPrm%max_conductance, dectrPrm%max_conductance, grassPrm%max_conductance]
+                  ! calculations are active and only for present vegetation
+                  ! surfaces (sfr_surf > 0) (#2363).
+                  alpha_bioCO2 = 0.0D0
+                  alpha_enh_bioCO2 = 0.0D0
+                  beta_bioCO2 = 0.0D0
+                  beta_enh_bioCO2 = 0.0D0
+                  LAIMin = 0.0D0
+                  LAIMax = 0.0D0
+                  min_res_bioCO2 = 0.0D0
+                  resp_a = 0.0D0
+                  resp_b = 0.0D0
+                  theta_bioCO2 = 0.0D0
+                  MaxConductance = 0.0D0
+
+                  IF (sfr_surf(ConifSurf) > 0.0D0) THEN
+                     alpha_bioCO2(ivConif) = evetrPrm%bioco2%alpha_bioco2
+                     alpha_enh_bioCO2(ivConif) = evetrPrm%bioco2%alpha_enh_bioco2
+                     beta_bioCO2(ivConif) = evetrPrm%bioco2%beta_bioCO2
+                     beta_enh_bioCO2(ivConif) = evetrPrm%bioco2%beta_enh_bioCO2
+                     LAIMin(ivConif) = evetrPrm%lai%lai_min
+                     LAIMax(ivConif) = evetrPrm%lai%lai_max
+                     min_res_bioCO2(ivConif) = evetrPrm%bioco2%min_res_bioCO2
+                     resp_a(ivConif) = evetrPrm%bioco2%resp_a
+                     resp_b(ivConif) = evetrPrm%bioco2%resp_b
+                     theta_bioCO2(ivConif) = evetrPrm%bioco2%theta_bioCO2
+                     MaxConductance(ivConif) = evetrPrm%max_conductance
+                  END IF
+                  IF (sfr_surf(DecidSurf) > 0.0D0) THEN
+                     alpha_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_bioco2
+                     alpha_enh_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_enh_bioco2
+                     beta_bioCO2(ivDecid) = dectrPrm%bioco2%beta_bioCO2
+                     beta_enh_bioCO2(ivDecid) = dectrPrm%bioco2%beta_enh_bioCO2
+                     LAIMin(ivDecid) = dectrPrm%lai%lai_min
+                     LAIMax(ivDecid) = dectrPrm%lai%lai_max
+                     min_res_bioCO2(ivDecid) = dectrPrm%bioco2%min_res_bioCO2
+                     resp_a(ivDecid) = dectrPrm%bioco2%resp_a
+                     resp_b(ivDecid) = dectrPrm%bioco2%resp_b
+                     theta_bioCO2(ivDecid) = dectrPrm%bioco2%theta_bioCO2
+                     MaxConductance(ivDecid) = dectrPrm%max_conductance
+                  END IF
+                  IF (sfr_surf(GrassSurf) > 0.0D0) THEN
+                     alpha_bioCO2(ivGrass) = grassPrm%bioco2%alpha_bioco2
+                     alpha_enh_bioCO2(ivGrass) = grassPrm%bioco2%alpha_enh_bioco2
+                     beta_bioCO2(ivGrass) = grassPrm%bioco2%beta_bioCO2
+                     beta_enh_bioCO2(ivGrass) = grassPrm%bioco2%beta_enh_bioCO2
+                     LAIMin(ivGrass) = grassPrm%lai%lai_min
+                     LAIMax(ivGrass) = grassPrm%lai%lai_max
+                     min_res_bioCO2(ivGrass) = grassPrm%bioco2%min_res_bioCO2
+                     resp_a(ivGrass) = grassPrm%bioco2%resp_a
+                     resp_b(ivGrass) = grassPrm%bioco2%resp_b
+                     theta_bioCO2(ivGrass) = grassPrm%bioco2%theta_bioCO2
+                     MaxConductance(ivGrass) = grassPrm%max_conductance
+                  END IF
 
                   ! Initialise conductance functions for biogenic CO2 calculations
                   gfunc_use = gfunc

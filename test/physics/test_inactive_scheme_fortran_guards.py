@@ -189,10 +189,13 @@ def test_ehc_with_stebbs_disabled_ignores_inactive_stebbs_archetype_parameters(
     assert np.isfinite(df_mut.xs("SUEWS", level="group", axis=1)["QS"]).all()
 
 
-def test_active_stebbs_produces_finite_building_outputs():
-    """Active STEBBS (storage_heat=7, stebbs enabled) continues to produce finite outputs."""
+def test_active_stebbs_matches_reference_building_outputs():
+    """Active STEBBS (storage_heat=7, stebbs enabled) matches shipped reference outputs."""
     sim = SUEWSSimulation(STEBBS_FIXTURE_CONFIG)
-    df_forcing = sim.forcing.df.loc["2017-08-26":"2017-08-26"].iloc[:24].copy()
+    df_window = sim.forcing.df.loc["2017-08-26":"2017-08-27"]
+    # Run day-1 spin-up + 12 validation steps on day 2 so outputs match sample_output_stebbs.csv.
+    val_steps = 12
+    df_forcing = df_window.iloc[: TIMESTEPS_PER_DAY + val_steps].copy()
     df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
     sim.update_forcing(df_forcing)
     result = sim.run(
@@ -200,10 +203,21 @@ def test_active_stebbs_produces_finite_building_outputs():
         end_date=df_forcing.index[-1],
         n_jobs=1,
     )
-    stebbs = result.df.xs("STEBBS", level="group", axis=1)
-    for col in ("Tair_ind", "QN_bldg_FA", "QS_total_FA", "QH_bldg_FA"):
-        vals = stebbs[col].to_numpy(dtype=np.float64)
-        assert np.isfinite(vals).all(), f"Active STEBBS column {col} became non-finite"
+    stebbs = result.df.xs("STEBBS", level="group", axis=1).iloc[TIMESTEPS_PER_DAY:]
+    ref_path = STEBBS_FIXTURE_CONFIG.parent / "sample_output_stebbs.csv"
+    ref = pd.read_csv(ref_path).iloc[:val_steps]
+    for col, atol in (
+        ("Tair_ind", 0.5),
+        ("QN_bldg_FA", 1.0),
+        ("QS_total_FA", 1.0),
+        ("QH_bldg_FA", 1.0),
+    ):
+        actual = stebbs[col].to_numpy(dtype=np.float64)
+        expected = ref[col].to_numpy(dtype=np.float64)
+        assert np.isfinite(actual).all(), (
+            f"Active STEBBS column {col} became non-finite"
+        )
+        np.testing.assert_allclose(actual, expected, rtol=0.02, atol=atol)
 
 
 def test_observed_lai_ignores_inactive_phenology_parameters(_two_day_sample):
@@ -416,6 +430,7 @@ def test_co2_enabled_emissions_ignores_inactive_submethod_parameters(
     assert np.any(suews["Fc"].to_numpy() != 0.0)
 
 
+@pytest.mark.e2e
 def test_native_fortran_guards_survive_nan_and_zero_inactive_parameters(tmp_path):
     """Direct Fortran probe verifies NaN / -999 / zero denominators stay inert.
 
@@ -752,6 +767,87 @@ if (.not. (ieee_is_finite(decid_cap) .and. ieee_is_finite(alb_dec) .and. &
            ieee_is_finite(alb_eve) .and. ieee_is_finite(alb_gra) .and. &
            ieee_is_finite(poros))) stop 31
 
+! 3c. Absent vegetation (sfr == 0) with finite -999 sentinel in lai_power
+!     and reached growth threshold must NOT overflow 0.1**(-999) or raise
+!     error 117.
+call reset_supy_error()
+config%LAImethod = 1
+siteInfo%sfr_surf = 0.0d0
+siteInfo%sfr_surf(PavSurf) = 0.5d0
+siteInfo%sfr_surf(ConifSurf) = 0.25d0
+siteInfo%sfr_surf(DecidSurf) = 0.0d0
+siteInfo%sfr_surf(GrassSurf) = 0.25d0
+! Restore active EveTr and Grass phenology after the LAImethod=0 NaN test above
+siteInfo%lc_evetr%lai%base_temperature = 5.0d0
+siteInfo%lc_evetr%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_evetr%lai%gdd_base = 300.0d0
+siteInfo%lc_evetr%lai%sdd_base = -450.0d0
+siteInfo%lc_evetr%lai%lai_power = [0.03d0, 0.0005d0, 0.03d0, 0.0005d0]
+siteInfo%lc_grass%lai%base_temperature = 5.0d0
+siteInfo%lc_grass%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_grass%lai%gdd_base = 300.0d0
+siteInfo%lc_grass%lai%sdd_base = -450.0d0
+siteInfo%lc_grass%lai%lai_power = [0.03d0, 0.0005d0, 0.03d0, 0.0005d0]
+siteInfo%lc_dectr%lai%base_temperature = 5.0d0
+siteInfo%lc_dectr%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_dectr%lai%gdd_base = 100.0d0
+siteInfo%lc_dectr%lai%sdd_base = -200.0d0
+siteInfo%lc_dectr%lai%lai_min = 0.1d0
+siteInfo%lc_dectr%lai%lai_max = 3.0d0
+siteInfo%lc_dectr%lai%lai_power = [-999.0d0, -999.0d0, -999.0d0, -999.0d0]
+modState%phenState%LAI_id = [4.2d0, 0.1d0, 2.5d0]
+modState%phenState%GDD_id = [200.0d0, 200.0d0, 200.0d0]
+modState%phenState%SDD_id = [0.0d0, 0.0d0, 0.0d0]
+call clear_fpe()
+call SUEWS_cal_DailyState(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(122)
+if (supy_error_flag()) stop 32
+if (abs(modState%phenState%LAI_id(ivDecid) - 0.1d0) > 1.0d-12) stop 33
+
+! 3d. Absent vegetation (sfr == 0) with valid parameters including legitimate
+!     negative sdd_base = -1000.0 preserves exact diagnostic GDD/LAI and
+!     update_Veg albedo evolution (0.12 -> 0.17 for LAI 1 -> 2 on [1, 3]).
+call reset_supy_error()
+config%LAImethod = 2
+siteInfo%sfr_surf(ConifSurf) = 0.0d0
+siteInfo%sfr_surf(DecidSurf) = 0.25d0
+siteInfo%lc_evetr%lai%base_temperature = 5.0d0
+siteInfo%lc_evetr%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_evetr%lai%gdd_base = 100.0d0
+siteInfo%lc_evetr%lai%sdd_base = -1000.0d0
+siteInfo%lc_evetr%lai%lai_min = 1.0d0
+siteInfo%lc_evetr%lai%lai_max = 3.0d0
+siteInfo%lc_evetr%lai%lai_power = [0.03d0, 0.0005d0, 0.03d0, 0.0005d0]
+siteInfo%lc_evetr%Alb_Min = 0.10d0
+siteInfo%lc_evetr%Alb_Max = 0.20d0
+siteInfo%lc_dectr%lai%lai_power = [0.03d0, 0.0005d0, 0.03d0, 0.0005d0]
+modState%phenState%LAI_id = [1.5d0, 2.0d0, 2.5d0]
+modState%phenState%GDD_id = [150.0d0, 150.0d0, 150.0d0]
+modState%phenState%SDD_id = [0.0d0, 0.0d0, 0.0d0]
+modState%phenState%albEveTr_id = 0.12d0
+call clear_fpe()
+call SUEWS_cal_DailyState(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(123)
+if (supy_error_flag()) stop 34
+! Tmin=12, Tmax=22 -> mean=17, base_t=5 -> delta_gdd=12 -> GDD=150+12=162
+if (abs(modState%phenState%GDD_id(ivConif) - 162.0d0) > 1.0d-12) stop 35
+if (modState%phenState%LAI_id(ivConif) <= 1.5d0) stop 36
+! Direct update_Veg witness: absent EveTr with valid bounds evolves 0.12 -> 0.17
+alb_eve = 0.12d0
+call clear_fpe()
+call update_Veg( &
+   LAImax=[3.0d0, 3.0d0, 3.0d0], LAIMin=[1.0d0, 1.0d0, 1.0d0], &
+   AlbMax_DecTr=0.18d0, AlbMax_EveTr=0.20d0, AlbMax_Grass=0.25d0, &
+   AlbMin_DecTr=0.12d0, AlbMin_EveTr=0.10d0, AlbMin_Grass=0.15d0, &
+   CapMax_dec=0.8d0, CapMin_dec=0.3d0, &
+   PorMax_dec=0.6d0, PorMin_dec=0.2d0, &
+   LAI_id=[2.0d0, 1.0d0, 1.0d0], LAI_id_prev=[1.0d0, 1.0d0, 1.0d0], &
+   DecidCap_id=decid_cap, albDecTr_id=alb_dec, albEveTr_id=alb_eve, &
+   albGrass_id=alb_gra, porosity_id=poros, StoreDrainPrm=store_drain, &
+   sfr_veg=[0.0d0, 0.25d0, 0.25d0])
+call assert_no_fpe(124)
+if (abs(alb_eve - 0.17d0) > 1.0d-12) stop 37
+
 ! -------------------------------------------------------------------------
 ! 4. update_DailyState_Day with calc_hdd=.false., calc_cdd=.false. and
 !    NaN / -999 BaseT_Heating / BaseT_Cooling.
@@ -839,6 +935,123 @@ call assert_no_fpe(120)
 if (supy_error_flag()) stop 53
 if (modState%anthroEmisState%Fc_biogen /= 0.0d0 .or. &
     modState%anthroEmisState%Fc /= 0.0d0) stop 54
+
+! SUEWS_cal_BiogenCO2 for active methods 32 (31..36) and 42 (41..46) with
+! absent DecidSurf (sfr=0) poisoned with NaN biogenic CO2 parameters.
+siteInfo%sfr_surf = 0.0d0
+siteInfo%sfr_surf(PavSurf) = 0.5d0
+siteInfo%sfr_surf(ConifSurf) = 0.25d0
+siteInfo%sfr_surf(DecidSurf) = 0.0d0
+siteInfo%sfr_surf(GrassSurf) = 0.25d0
+siteInfo%conductance%gs_model = 1
+config%RSLLevel = 0
+config%SMDMethod = 0
+config%Diagnose = 0
+forcing%kdown = 400.0d0
+forcing%Temp_C = 20.0d0
+forcing%RH = 50.0d0
+forcing%pres = 1013.0d0
+modState%snowState%snow_fraction = 0.0d0
+modState%phenState%LAI_id = [4.0d0, 1.0d0, 2.5d0]
+modState%phenState%g_func = 0.5d0
+siteInfo%lc_evetr%lai%lai_min = 4.0d0
+siteInfo%lc_evetr%lai%lai_max = 5.0d0
+siteInfo%lc_evetr%bioco2%alpha_bioco2 = 0.05d0
+siteInfo%lc_evetr%bioco2%alpha_enh_bioco2 = 0.01d0
+siteInfo%lc_evetr%bioco2%beta_bioco2 = -2.0d0
+siteInfo%lc_evetr%bioco2%beta_enh_bioco2 = 20.0d0
+siteInfo%lc_evetr%bioco2%theta_bioco2 = 0.8d0
+siteInfo%lc_evetr%bioco2%resp_a = 1.5d0
+siteInfo%lc_evetr%bioco2%resp_b = 0.05d0
+siteInfo%lc_evetr%bioco2%min_res_bioco2 = 0.6d0
+siteInfo%lc_grass%lai%lai_min = 1.6d0
+siteInfo%lc_grass%lai%lai_max = 5.0d0
+siteInfo%lc_grass%bioco2%alpha_bioco2 = 0.05d0
+siteInfo%lc_grass%bioco2%alpha_enh_bioco2 = 0.01d0
+siteInfo%lc_grass%bioco2%beta_bioco2 = -2.0d0
+siteInfo%lc_grass%bioco2%beta_enh_bioco2 = 20.0d0
+siteInfo%lc_grass%bioco2%theta_bioco2 = 0.8d0
+siteInfo%lc_grass%bioco2%resp_a = 1.5d0
+siteInfo%lc_grass%bioco2%resp_b = 0.05d0
+siteInfo%lc_grass%bioco2%min_res_bioco2 = 0.6d0
+! Poison absent DecidSurf biogenic CO2 and LAI parameters with NaN
+siteInfo%lc_dectr%lai%lai_min = qnan
+siteInfo%lc_dectr%lai%lai_max = qnan
+siteInfo%lc_dectr%bioco2%alpha_bioco2 = qnan
+siteInfo%lc_dectr%bioco2%alpha_enh_bioco2 = qnan
+siteInfo%lc_dectr%bioco2%beta_bioco2 = qnan
+siteInfo%lc_dectr%bioco2%beta_enh_bioco2 = qnan
+siteInfo%lc_dectr%bioco2%theta_bioco2 = qnan
+siteInfo%lc_dectr%bioco2%resp_a = qnan
+siteInfo%lc_dectr%bioco2%resp_b = qnan
+siteInfo%lc_dectr%bioco2%min_res_bioco2 = qnan
+
+call reset_supy_error()
+config%EmissionsMethod = 32
+modState%anthroEmisState%Fc_anthro = 1.0d0
+call clear_fpe()
+call SUEWS_cal_BiogenCO2(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(125)
+if (supy_error_flag()) stop 55
+if (.not. (ieee_is_finite(modState%anthroEmisState%Fc_photo) .and. &
+           ieee_is_finite(modState%anthroEmisState%Fc_biogen) .and. &
+           ieee_is_finite(modState%anthroEmisState%Fc))) stop 56
+if (modState%anthroEmisState%Fc_photo >= 0.0d0) stop 57
+
+call reset_supy_error()
+config%EmissionsMethod = 42
+siteInfo%lc_evetr%bioco2%beta_bioco2 = 20.0d0
+siteInfo%lc_grass%bioco2%beta_bioco2 = 20.0d0
+modState%anthroEmisState%Fc_anthro = 1.0d0
+call clear_fpe()
+call SUEWS_cal_BiogenCO2(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(126)
+if (supy_error_flag()) stop 58
+! Analytical Fc_photo for em=42: -(0.25*4.0*20.0 + 0.25*2.5*20.0)*0.5 = -16.25
+if (abs(modState%anthroEmisState%Fc_photo - (-16.25d0)) > 1.0d-12) stop 59
+if (.not. (ieee_is_finite(modState%anthroEmisState%Fc_biogen) .and. &
+           ieee_is_finite(modState%anthroEmisState%Fc))) stop 64
+
+! Active CO2-enabled AnthropogenicEmissions (em=11, 12, 15, 42) with poisoned
+! inactive sub-method parameters must produce finite non-zero Fc_anthro.
+do em = 11, 15
+   if (em == 13 .or. em == 14) cycle
+   call reset_supy_error()
+   if (em == 15) then
+      traff_prof = 1.0d0
+   else
+      traff_prof = qnan
+   end if
+   call clear_fpe()
+   call AnthropogenicEmissions( &
+      CO2PointSource=0.0d0, EmissionsMethod=em, &
+      it=12, imin=0, DLS=0, DayofWeek_id=[2, 1, 1], &
+      EF_umolCO2perJ=1.0d0, FcEF_v_kgkm=[0.2d0, 0.2d0], &
+      EnEF_v_Jkm=3.0d6, &
+      TrafficUnits=merge(1.0d0, qnan, em == 15), &
+      FrFossilFuel_Heat=0.8d0, FrFossilFuel_NonHeat=0.5d0, &
+      MinFCMetab=100.0d0, MaxFCMetab=175.0d0, &
+      MinQFMetab=100.0d0, MaxQFMetab=175.0d0, &
+      PopDensDaytime=[100.0d0, 80.0d0], PopDensNighttime=90.0d0, &
+      Tair=10.0d0, HDD_id=hdd_id, &
+      Qf_A=[0.05d0, 0.04d0], Qf_B=[0.01d0, 0.01d0], Qf_C=[0.02d0, 0.02d0], &
+      AH_MIN=[15.0d0, 12.0d0], &
+      AH_SLOPE_Heating=[2.0d0, 1.8d0], &
+      AH_SLOPE_Cooling=merge([qnan, qnan], [1.5d0, 1.2d0], em == 11), &
+      BaseT_Heating=[18.0d0, 18.0d0], &
+      BaseT_Cooling=merge([qnan, qnan], [25.0d0, 25.0d0], em == 11), &
+      TrafficRate=merge([0.04d0, 0.02d0], [qnan, qnan], em == 15), &
+      QF0_BEU=[0.5d0, 0.5d0], QF_SAHP=qf_sahp, &
+      Fc_anthro=fc_anthro, Fc_metab=fc_metab, Fc_traff=fc_traff, &
+      Fc_build=fc_build, Fc_point=fc_point, &
+      AHProf_24hr=ah_prof, HumActivity_24hr=hum_prof, &
+      TraffProf_24hr=traff_prof, PopProf_24hr=pop_prof, &
+      SurfaceArea=1.0d6, QF_build_out=qf_build_out)
+   call assert_no_fpe(130 + em)
+   if (supy_error_flag()) stop 65
+   if (.not. (ieee_is_finite(qf_sahp) .and. ieee_is_finite(fc_anthro))) stop 66
+   if (fc_anthro <= 0.0d0) stop 67
+end do
 
 ! -------------------------------------------------------------------------
 ! 6. LUMPS_cal_QHQE with mixed present/absent vegetation (DecidSurf sfr=0)

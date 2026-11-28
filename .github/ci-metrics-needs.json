@@ -23,6 +23,74 @@
     "Determine build matrix",
     "Build and test (win AMD64) / test layout"
   ],
+  "Build and test (manylinux x86_64) / Native tests / *": [
+    "Build and test (manylinux x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (manylinux x86_64) / test layout"
+  ],
+  "Build and test (macosx arm64) / Native tests / *": [
+    "Build and test (macosx arm64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (macosx arm64) / test layout"
+  ],
+  "Build and test (macosx x86_64) / Native tests / *": [
+    "Build and test (macosx x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (macosx x86_64) / test layout"
+  ],
+  "Build and test (win AMD64) / Native tests / *": [
+    "Build and test (win AMD64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (win AMD64) / test layout"
+  ],
+  "Build and test (manylinux x86_64) / OS compat tests / *": [
+    "Build and test (manylinux x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (manylinux x86_64) / test layout"
+  ],
+  "Build and test (macosx arm64) / OS compat tests / *": [
+    "Build and test (macosx arm64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (macosx arm64) / test layout"
+  ],
+  "Build and test (macosx x86_64) / OS compat tests / *": [
+    "Build and test (macosx x86_64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (macosx x86_64) / test layout"
+  ],
+  "Build and test (win AMD64) / OS compat tests / *": [
+    "Build and test (win AMD64) / wheel | *",
+    "Build MCP package",
+    "Determine build matrix",
+    "Build and test (win AMD64) / test layout"
+  ],
+  "Build and test (manylinux x86_64) / ABI3 smoke tests / *": [
+    "Build and test (manylinux x86_64) / wheel | *",
+    "Determine build matrix",
+    "Build and test (manylinux x86_64) / test layout"
+  ],
+  "Build and test (macosx arm64) / ABI3 smoke tests / *": [
+    "Build and test (macosx arm64) / wheel | *",
+    "Determine build matrix",
+    "Build and test (macosx arm64) / test layout"
+  ],
+  "Build and test (macosx x86_64) / ABI3 smoke tests / *": [
+    "Build and test (macosx x86_64) / wheel | *",
+    "Determine build matrix",
+    "Build and test (macosx x86_64) / test layout"
+  ],
+  "Build and test (win AMD64) / ABI3 smoke tests / *": [
+    "Build and test (win AMD64) / wheel | *",
+    "Determine build matrix",
+    "Build and test (win AMD64) / test layout"
+  ],
   "Build and test (manylinux x86_64) / Python coverage *": [
     "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",
@@ -57,11 +125,32 @@
   "Build MCP package": [
     "Create nightly tag for scheduled builds",
     "Detect code changes",
+    "Determine build matrix",
     "Verify tag is on master"
+  ],
+  "Source tests (tooling) / layout": [
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Source tests (tooling) / tooling | *": [
+    "Source tests (tooling) / layout"
+  ],
+  "Source tests (unit) / layout": [
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Source tests (unit) / unit | *": [
+    "Source tests (unit) / layout"
   ],
   "Core-test guard (Linux)": [
     "Build and test (*) / *",
-    "Determine build matrix"
+    "Determine build matrix",
+    "Source tests (tooling) / *",
+    "Source tests (unit) / *"
   ],
   "Data-interface version audit / *": [],
   "Dependency and startup audit / *": [
@@ -110,6 +199,8 @@
     "Rust clippy / *",
     "Rust test / *",
     "Schema version audit / *",
+    "Source tests (tooling) / *",
+    "Source tests (unit) / *",
     "Workflow security / *"
   ],
   "RSS growth (Linux cp312)": [

@@ -7,8 +7,11 @@ for each way a core test can go missing before a merge.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 import pytest
 import yaml
@@ -290,7 +293,11 @@ def test_tier_tables_match_the_workflow_expressions() -> None:
     physics = dict(
         re.findall(r"inputs\.test_tier == '([a-z-]+)' && '-m \"?([^'\"]+)\"?'", action)
     )
-    assert physics == ci_tiers.PHYSICS_TIERS
+    assert physics == ci_tiers.PHYSICS_TIERS_V2
+    assert (
+        f"-p scripts.suews.pytest_include_nodes --suews-include-node {EXACT_REFERENCE_TEST}"
+        in action
+    )
 
     api_workflow = yaml.safe_load(
         (
@@ -312,14 +319,32 @@ def test_guard_is_wired_into_the_gate() -> None:
     jobs = workflow["jobs"]
     guard = jobs["core_guard"]
     assert guard["name"] == "Core-test guard (Linux)"
-    assert {"determine_matrix", "build_wheels"} <= set(guard["needs"])
+    assert {"determine_matrix", "tooling", "unit", "build_wheels"} <= set(
+        guard["needs"]
+    )
+    assert "physics-core" in guard["if"]
+    guard_step = next(
+        s
+        for s in guard["steps"]
+        if s.get("name") == "Check every core test passed on Linux"
+    )
+    assert "--schema 2" in guard_step["run"]
+    assert "--require-os-compat" in guard_step["run"]
+    assert guard_step["env"]["GATE_AXIS_SCHEMA"] == "2"
+
     gate = jobs["pr-gate"]
-    assert "core_guard" in gate["needs"]
+    assert {"core_guard", "tooling", "unit"} <= set(gate["needs"])
     env = next(
         s["env"] for s in gate["steps"] if s.get("name") == "Check build results"
     )
+    assert env["GATE_AXIS_SCHEMA"] == "2"
     assert env["CORE_GUARD_RESULT"] == "${{ needs.core_guard.result }}"
     assert env["TEST_TIER"] == "${{ needs.determine_matrix.outputs.test_tier }}"
+    assert env["TOOLING_RESULT"] == "${{ needs.tooling.result }}"
+    assert env["UNIT_RESULT"] == "${{ needs.unit.result }}"
+    assert env["NATIVE_RESULT"] == "${{ needs.build_wheels.result }}"
+    assert env["PHYSICS_RESULT"] == "${{ needs.build_wheels.result }}"
+    assert env["OS_COMPAT_RESULT"] == "${{ needs.build_wheels.result }}"
     # The gate script is read from the base branch, so the workflow enforces
     # the guard itself as well.
     inline = next(
@@ -328,15 +353,112 @@ def test_guard_is_wired_into_the_gate() -> None:
         if s.get("name") == "Require the core-test guard at ready tiers"
     )
     assert inline["env"]["CORE_GUARD_RESULT"] == "${{ needs.core_guard.result }}"
+    assert "physics-core" in inline["run"]
     assert "exit 1" in inline["run"]
     needs_map = json.loads(
         (PROJECT_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
     assert "Core-test guard (Linux)" in needs_map["PR build validation"]
+    assert "Source tests (tooling) / *" in needs_map["Core-test guard (Linux)"]
+    assert "Source tests (unit) / *" in needs_map["Core-test guard (Linux)"]
+    wheel_lane_workflow = (
+        PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml"
+    ).read_text(encoding="utf-8")
+    assert "scripts.suews.pytest_inventory" in wheel_lane_workflow
     api_workflow = (
         PROJECT_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
     assert "scripts.suews.pytest_inventory" in api_workflow
+
+
+def test_pytest_include_nodes_keeps_witness_alongside_mark_filter_and_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """pytest_include_nodes retains the witness under -m and fails closed if absent."""
+    (tmp_path / "pytest.ini").write_text(
+        "[pytest]\nmarkers =\n"
+        "    physics: physics\n"
+        "    smoke: smoke\n"
+        "    core: core\n"
+        "    medium: medium\n"
+        "    slow: slow\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "test_sample.py").write_text(
+        "import pytest\n"
+        "@pytest.mark.physics\n"
+        "@pytest.mark.smoke\n"
+        "def test_fast_smoke():\n"
+        "    assert True\n"
+        "@pytest.mark.physics\n"
+        "@pytest.mark.core\n"
+        "@pytest.mark.slow\n"
+        "def test_exact_witness():\n"
+        "    assert True\n"
+        "@pytest.mark.physics\n"
+        "@pytest.mark.slow\n"
+        "def test_other_slow():\n"
+        "    assert True\n",
+        encoding="utf-8",
+    )
+    full_env = {**os.environ, "PYTHONPATH": str(PROJECT_ROOT)}
+    ok = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-o",
+            "addopts=",
+            "-c",
+            str(tmp_path / "pytest.ini"),
+            "-p",
+            "scripts.suews.pytest_include_nodes",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "-m",
+            "physics and smoke and not (medium or slow)",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    assert "test_sample.py::test_fast_smoke" in ok.stdout
+    assert "test_sample.py::test_exact_witness" in ok.stdout
+    assert "test_sample.py::test_other_slow" not in ok.stdout
+
+    missing = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-o",
+            "addopts=",
+            "-c",
+            str(tmp_path / "pytest.ini"),
+            "-p",
+            "scripts.suews.pytest_include_nodes",
+            "--suews-include-node",
+            "test_sample.py::test_renamed_or_deleted",
+            "-m",
+            "physics and smoke and not (medium or slow)",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 4, missing.stdout + missing.stderr
+    assert "did not match any collected test" in missing.stderr + missing.stdout
 
 
 def test_inventory_is_not_read_as_pytest_metrics(tmp_path: Path) -> None:

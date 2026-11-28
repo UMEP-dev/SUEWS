@@ -1450,11 +1450,11 @@ def test_merge_queue_runs_linux_full_and_windows_smoke_without_macos(
         "${{ github.event_name == 'merge_group' && matrix.buildplat[1] == 'win' "
         "&& 'smoke' || needs.determine_matrix.outputs.test_tier }}"
     )
-    # The api lane is Linux only in the queue even while determine_matrix
-    # still runs an older base-branch script.
-    assert jobs["build_wheels"]["with"]["run_api_tests"].endswith(
-        "&& !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}"
-    )
+    # Schema 2 wheel lanes follow determine_matrix's per-lane buildplat outputs
+    # (abi3_smoke is skipped on merge_group because abi3_smoke_python == '[]').
+    assert "abi3_smoke_python != '[]'" in jobs["build_wheels"]["with"]["run_abi3_smoke"]
+    assert "native_buildplat" in jobs["build_wheels"]["with"]["run_native_tests"]
+    assert "os_compat_buildplat" in jobs["build_wheels"]["with"]["run_os_compat"]
     # The label is read live from the API on pull requests and fed to the script.
     steps = jobs["determine_matrix"]["steps"]
     label_step = next(s for s in steps if s.get("id") == "full-matrix-label")

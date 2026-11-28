@@ -109,7 +109,9 @@ on:
         type: choice
         options:
           - all
+          - physics-full
           - standard
+          - physics-core
           - core
           - cfg
           - smoke
@@ -153,6 +155,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  GATE_AXIS_SCHEMA: '2'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -336,6 +341,17 @@ jobs:
       bookend_python: ${{ steps.set-matrix.outputs.bookend_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
       physics_change: ${{ steps.physics-label.outputs.found || 'false' }}
+      gate_axis_schema: ${{ steps.set-matrix.outputs.gate_axis_schema }}
+      source_lanes: ${{ steps.set-matrix.outputs.source_lanes }}
+      source_buildplat: ${{ steps.set-matrix.outputs.source_buildplat }}
+      source_python: ${{ steps.set-matrix.outputs.source_python }}
+      native_python: ${{ steps.set-matrix.outputs.native_python }}
+      native_buildplat: ${{ steps.set-matrix.outputs.native_buildplat }}
+      abi3_smoke_python: ${{ steps.set-matrix.outputs.abi3_smoke_python }}
+      abi3_smoke_buildplat: ${{ steps.set-matrix.outputs.abi3_smoke_buildplat }}
+      os_compat_buildplat: ${{ steps.set-matrix.outputs.os_compat_buildplat }}
+      full_physics: ${{ steps.set-matrix.outputs.full_physics }}
+      physics_full_trigger: ${{ steps.set-matrix.outputs.physics_full_trigger }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -437,6 +453,7 @@ jobs:
       - name: Set matrix based on trigger type
         id: set-matrix
         env:
+          GATE_AXIS_SCHEMA: '2'
           EVENT_NAME: ${{ github.event_name }}
           PHYSICS_CHANGE: ${{ steps.physics-label.outputs.found || 'false' }}
           FULL_MATRIX: ${{ steps.full-matrix-label.outputs.found || 'false' }}
@@ -505,14 +522,61 @@ jobs:
           SITE_FILES: ${{ needs.detect-changes.outputs.site-files || '[]' }}
           PYPROJECT_FILES: ${{ needs.detect-changes.outputs.pyproject-files || '[]' }}
           NEEDS_BUILD: ${{ (needs.detect-changes.outputs.needs-build == 'true' || needs.determine_matrix.outputs.physics_change == 'true') && 'true' || 'false' }}
+          GATE_AXIS_SCHEMA: '2'
+          PHYSICS_CHANGE: ${{ needs.determine_matrix.outputs.physics_change || 'false' }}
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           BUILDPLAT_JSON: ${{ needs.determine_matrix.outputs.buildplat }}
           PYTHON_JSON: ${{ needs.determine_matrix.outputs.python }}
+          SOURCE_LANES_JSON: ${{ needs.determine_matrix.outputs.source_lanes || '["tooling","unit"]' }}
+          SOURCE_PYTHON_JSON: ${{ needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python }}
+          NATIVE_PYTHON_JSON: ${{ needs.determine_matrix.outputs.native_python || needs.determine_matrix.outputs.python }}
+          NATIVE_BUILDPLAT_JSON: ${{ needs.determine_matrix.outputs.native_buildplat || needs.determine_matrix.outputs.buildplat }}
+          ABI3_SMOKE_PYTHON_JSON: ${{ needs.determine_matrix.outputs.abi3_smoke_python || '[]' }}
+          ABI3_SMOKE_BUILDPLAT_JSON: ${{ needs.determine_matrix.outputs.abi3_smoke_buildplat || '[]' }}
+          OS_COMPAT_BUILDPLAT_JSON: ${{ needs.determine_matrix.outputs.os_compat_buildplat || needs.determine_matrix.outputs.buildplat }}
+          PHYSICS_FULL_TRIGGER: ${{ needs.determine_matrix.outputs.physics_full_trigger || 'none' }}
           COMMIT_SHA: ${{ github.sha }}
         with:
           script: |
             const script = require('./.github/scripts/post-ci-summary.js');
             await script({ github, context });
+
+  # Schema 2 source-checkout lanes (#2349 W1-6): start at t=0 once
+  # determine_matrix completes, without waiting for wheel or MCP builds.
+  # SUEWS_SOURCE_LANE_ONLY=1 loads supy and suews_mcp directly from source and
+  # blocks compiled extensions.
+  tooling:
+    name: Source tests (tooling)
+    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
+    if: |
+      always() &&
+      needs.determine_matrix.result == 'success' &&
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true' || needs.determine_matrix.outputs.physics_change == 'true') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
+    uses: $/.github/workflows/test-source-lane-reusable.yml
+    with:
+      lane: tooling
+      python_json: ${{ needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python }}
+      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+      shard_count: 1
+
+  unit:
+    name: Source tests (unit)
+    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
+    if: |
+      always() &&
+      needs.determine_matrix.result == 'success' &&
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true' || needs.determine_matrix.outputs.physics_change == 'true') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
+    uses: $/.github/workflows/test-source-lane-reusable.yml
+    with:
+      lane: unit
+      python_json: ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
+      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+      shard_python: 'all'
+      shard_count: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 2 || 1 }}
 
   # One reusable-workflow call per platform, so each platform's api
   # cross-CPython lane (chained inside build-wheels-reusable.yml) starts as
@@ -540,75 +604,37 @@ jobs:
     with:
       buildplat_json: ${{ format('[["{0}", "{1}", "{2}"]]', matrix.buildplat[0], matrix.buildplat[1], matrix.buildplat[2]) }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
+      gate_axis_schema: '2'
       # The merge queue runs the Windows wheel at the smoke tier only (Linux
       # carries the queue's full tier); every other event and platform runs
       # the tier determine_matrix chose.
       test_tier: ${{ github.event_name == 'merge_group' && matrix.buildplat[1] == 'win' && 'smoke' || needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
       build_profile: ${{ inputs.build_profile || 'release' }}
-      # The api lane runs on this platform when it is in api_buildplat (the
-      # nightly, the full dispatch and tag releases drop macos-15-intel there;
-      # every other event sets it equal to buildplat) and the MCP distribution it installs was built. The quoted
-      # runner label is the containment key because the script writes the
-      # triples as `["<runner>", "<platform>", "<arch>"]`, and the closing
-      # quote keeps "macos-15" from matching "macos-15-intel". Fall back to
-      # the full buildplat when api_buildplat is empty: determine_matrix runs
-      # determine-matrix.sh from the BASE branch (trusted-script design), so a
-      # PR that introduces or extends the api_buildplat output would otherwise
-      # skip every api lane until the script change lands on master.
-      #
-      # Pull requests skip the macOS api cells: macOS runners are the scarce
-      # class, and those two cells queued for up to ~90 min under burst pushes
-      # on 22 Nov 2026, while the macOS wheel is still built and runs its
-      # physics tier on every PR labelled 0-ci:full-matrix. The merge queue runs
-      # the api lane on Linux only (determine-matrix.sh sets api_buildplat;
-      # the merge_group term repeats it here because determine_matrix runs the
-      # base branch's script). The nightly (every bookend) keeps the macOS and
-      # Windows api coverage. The pr_api_lane dispatch input applies the
-      # pull-request layout to a dispatch.
-      run_api_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) && !((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'macosx') && !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}
-      # Ready pull requests and the merge queue (and the pr_api_lane
-      # dispatch, which measures that layout on a branch) test the Linux
-      # wheel in parallel jobs instead of serially (22 Nov 2026): the wheel
-      # uploads untested, then the physics tier runs as two shards (three for
-      # physics-full) in the wheel's manylinux image while the api lane runs
-      # the build Python as four shards. On a pull request the newer Python
-      # bookend runs the core-bookend api tier (every core api test plus
-      # smoke) in one job; its non-core api tests wait for the nightly, and
-      # the merge queue runs the build Python only. The core-test guard
-      # checks the shards add up. Draft tiers keep the wheel-job physics run
-      # and are never sharded. scripts/suews/ci_test_layout.py turns these
-      # inputs into the jobs.
+      # Schema 2 wheel-backed lanes (#2349 W1-6):
+      # - native runs once per built OS on cp312 (the abi3 build floor).
+      # - os_compat runs the cross-OS slice on cp312 across every built OS.
+      # - abi3_smoke installs the cp312-abi3 wheel onto non-floor CPythons
+      #   (cp315 on PRs, cp313..cp315 on nightly/tag, skipped on merge_group).
+      # The quoted runner label is the containment key so "macos-15" never
+      # matches "macos-15-intel".
+      run_native_tests: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.native_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) }}
+      native_shards: ${{ (matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane)) && 2 || 1 }}
+      run_os_compat: ${{ needs.build_mcp.result == 'success' && contains(needs.determine_matrix.outputs.os_compat_buildplat || needs.determine_matrix.outputs.buildplat, format('"{0}"', matrix.buildplat[0])) }}
+      run_abi3_smoke: ${{ needs.determine_matrix.outputs.abi3_smoke_python != '[]' && contains(needs.determine_matrix.outputs.abi3_smoke_buildplat || '[]', format('"{0}"', matrix.buildplat[0])) }}
+      abi3_smoke_python_json: ${{ needs.determine_matrix.outputs.abi3_smoke_python || '[]' }}
+      # Full-physics runs on Linux PRs and the merge queue split physics tests
+      # into parallel shards in the wheel's manylinux image; physics-core stays
+      # inside the wheel job (~50 s) via SCHEMA_V2_UNSHARDED_TIERS.
       split_tests: >-
         ${{ matrix.buildplat[1] == 'manylinux' &&
         (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
         (github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)) }}
       physics_shards: ${{ needs.determine_matrix.outputs.test_tier == 'physics-full' && 3 || 2 }}
-      api_bookend_core: >-
-        ${{ matrix.buildplat[1] == 'manylinux' &&
-        (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
-        (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)) }}
-      # Pull requests split every Windows api cell (cp312 and cp315, via
-      # shard_python 'all') into two shards each (scripts/suews/pytest_shard.py);
-      # Windows runners queue at about zero, so the extra runners cost no wait.
-      # The Linux build-Python cell runs as four shards on pull requests and in
-      # the merge queue. The nightly runs every cell whole.
-      api_shard_python: >-
-        ${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && matrix.buildplat[1] == 'win') && 'all' ||
-        ((matrix.buildplat[1] == 'manylinux' && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || inputs.pr_api_lane))
-        && fromJson(needs.determine_matrix.outputs.python)[0] || '') }}
-      api_shard_count: ${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}
-      # A ready PR already validates both supported Python bookends. The merge
-      # queue revalidates the combined tree on the abi3 floor only, on Linux,
-      # instead of repeating the full suite twice.
-      # Use the build-Python output here as a compatibility bridge while the
-      # trusted determine-matrix script is still read from the base branch.
-      api_python_json: >-
-        ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
       # Escape hatch (#1786 measured the worker counts): a dispatch input for
       # one run, or the SUEWS_API_SERIAL_PLATFORMS repository variable for
       # every event, serialises the named platforms without a workflow edit.
-      # The reusable workflow forwards this to the api lane it chains.
+      # The reusable workflow forwards this to the wheel lanes it chains.
       serial_platforms: ${{ inputs.api_serial_platforms || vars.SUEWS_API_SERIAL_PLATFORMS || '' }}
       # The nightly coverage recording job runs inside the Linux call, chained
       # behind that platform's wheel only, so it no longer waits for every
@@ -659,11 +685,12 @@ jobs:
   build_mcp:
     name: Build MCP package
     runs-on: ubuntu-latest
-    needs: [create_nightly_tag, detect-changes, verify-release-tag]
+    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
     if: |
       always() &&
+      needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true' || needs.determine_matrix.outputs.physics_change == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -791,11 +818,11 @@ jobs:
   # run the same lint on the test files they change (cost_markers_pr below).
   cost_markers:
     name: Cost-marker drift (Linux cp312 CPU seconds)
-    # build_wheels chains each platform's API lane behind its wheel, so its
-    # result covers the api metrics artefact this job downloads as well.
-    needs: [build_wheels]
+    needs: [tooling, unit, build_wheels]
     if: |
       always() &&
+      needs.tooling.result == 'success' &&
+      needs.unit.result == 'success' &&
       needs.build_wheels.result == 'success' &&
       (
         github.event_name == 'schedule' ||
@@ -818,18 +845,30 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Download the Linux cp312 api metrics
+      - name: Download the Linux cp312 tooling metrics
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          # A pattern, so a sharded lane (one artefact per shard) is read whole.
-          pattern: ci-metrics-api-cp312-manylinux-x86_64*
+          pattern: ci-metrics-tooling-cp312-manylinux-x86_64*
           merge-multiple: true
-          path: ci-metrics/api
+          path: ci-metrics/tooling
+
+      - name: Download the Linux cp312 unit metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ci-metrics-unit-cp312-manylinux-x86_64*
+          merge-multiple: true
+          path: ci-metrics/unit
+
+      - name: Download the Linux cp312 native metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ci-metrics-native-cp312-manylinux-x86_64*
+          merge-multiple: true
+          path: ci-metrics/native
 
       - name: Download the Linux cp312 physics metrics
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          # A pattern, so a sharded lane (one artefact per shard) is read whole.
           pattern: ci-metrics-physics-cp312-manylinux-x86_64*
           merge-multiple: true
           path: ci-metrics/physics
@@ -838,7 +877,9 @@ jobs:
         shell: bash
         run: >-
           python scripts/lint/check_cost_markers.py ci-metrics
-          --require-axis api
+          --require-axis tooling
+          --require-axis unit
+          --require-axis native
           --require-axis physics
           --histogram
           --markdown "$GITHUB_STEP_SUMMARY"
@@ -882,13 +923,17 @@ jobs:
   # says the result is in the job summary.
   cost_markers_pr:
     name: Cost markers of changed tests
-    needs: [detect-changes, determine_matrix, post-ci-summary, build_wheels]
+    needs: [detect-changes, determine_matrix, post-ci-summary, tooling, unit, build_wheels]
     if: |
       always() &&
       github.event_name == 'pull_request' &&
       needs.detect-changes.outputs.tests-changed == 'true' &&
       (needs.post-ci-summary.result == 'success' || needs.post-ci-summary.result == 'failure' || needs.post-ci-summary.result == 'skipped') &&
-      (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure')
+      (
+        needs.tooling.result == 'success' || needs.tooling.result == 'failure' ||
+        needs.unit.result == 'success' || needs.unit.result == 'failure' ||
+        needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure'
+      )
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 10
@@ -910,20 +955,34 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Download the Linux cp312 api metrics
+      - name: Download the Linux cp312 tooling metrics
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          # A pattern, so a sharded lane (one artefact per shard) is read whole.
-          pattern: ci-metrics-api-cp312-manylinux-x86_64*
+          pattern: ci-metrics-tooling-cp312-manylinux-x86_64*
           merge-multiple: true
-          path: ci-metrics/api
+          path: ci-metrics/tooling
+
+      - name: Download the Linux cp312 unit metrics
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ci-metrics-unit-cp312-manylinux-x86_64*
+          merge-multiple: true
+          path: ci-metrics/unit
+
+      - name: Download the Linux cp312 native metrics
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ci-metrics-native-cp312-manylinux-x86_64*
+          merge-multiple: true
+          path: ci-metrics/native
 
       - name: Download the Linux cp312 physics metrics
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          # A pattern, so a sharded lane (one artefact per shard) is read whole.
           pattern: ci-metrics-physics-cp312-manylinux-x86_64*
           merge-multiple: true
           path: ci-metrics/physics
@@ -1427,13 +1486,15 @@ jobs:
   # checked on a branch.
   core_guard:
     name: Core-test guard (Linux)
-    needs: [determine_matrix, build_wheels]
+    needs: [determine_matrix, tooling, unit, build_wheels]
     if: >-
       always() &&
       (needs.build_wheels.result == 'success' || needs.build_wheels.result == 'failure') &&
       (github.event_name == 'pull_request' || github.event_name == 'merge_group' ||
        (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane)) &&
-      (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
+      (needs.determine_matrix.outputs.test_tier == 'physics-core' ||
+       needs.determine_matrix.outputs.test_tier == 'standard' ||
+       needs.determine_matrix.outputs.test_tier == 'physics-full') &&
       contains(needs.determine_matrix.outputs.buildplat, '"manylinux"')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1459,17 +1520,20 @@ jobs:
       - name: Check every core test passed on Linux
         shell: bash
         env:
+          GATE_AXIS_SCHEMA: '2'
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
-          # The api lane's Python list, exactly as build_wheels passes it.
-          API_PYTHON: ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
           PHYSICS_PYTHON: ${{ fromJson(needs.determine_matrix.outputs.python)[0] }}
-          # Mirrors build_wheels' api_bookend_core for the Linux call.
-          BOOKEND_CORE: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true) }}
+          SOURCE_PYTHON: ${{ fromJson(needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python)[0] }}
+          ABI3_SMOKE_PYTHON: ${{ needs.determine_matrix.outputs.abi3_smoke_python || '[]' }}
+          REQUIRE_OS_COMPAT: ${{ contains(needs.determine_matrix.outputs.os_compat_buildplat || needs.determine_matrix.outputs.buildplat, '"ubuntu-latest"') }}
         run: |
           python -m pip install --quiet pytest==9.1.1
-          args=(--tier "$TEST_TIER" --api-python "$API_PYTHON"
-                --physics-python "$PHYSICS_PYTHON" --summary "$GITHUB_STEP_SUMMARY")
-          [[ "$BOOKEND_CORE" == "true" ]] && args+=(--bookend-core)
+          args=(--schema 2 --tier "$TEST_TIER"
+                --physics-python "$PHYSICS_PYTHON"
+                --source-python "$SOURCE_PYTHON"
+                --abi3-smoke-python "$ABI3_SMOKE_PYTHON"
+                --summary "$GITHUB_STEP_SUMMARY")
+          [[ "$REQUIRE_OS_COMPAT" == "true" ]] && args+=(--require-os-compat)
           python scripts/suews/check_core_guard.py ci-metrics "${args[@]}"
 
   pr-gate:
@@ -1477,6 +1541,8 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs:
+      - tooling
+      - unit
       - build_wheels
       - build_mcp
       - core_guard
@@ -1533,17 +1599,25 @@ jobs:
           fi
           echo "result=${result}" >> "$GITHUB_OUTPUT"
 
-      # build_wheels is one node per run whose result aggregates every
-      # platform's wheel build and api lane (the lane is chained inside the
-      # reusable workflow), so the same result feeds both gate inputs; the
-      # run page shows which lane failed.
+      # build_wheels aggregates every platform's wheel build and its chained
+      # Schema 2 wheel-backed lanes (physics, native, os_compat, abi3_smoke),
+      # while tooling and unit run independently from source at t=0.
       - name: Check build results
         env:
+          GATE_AXIS_SCHEMA: '2'
           EVENT_NAME: ${{ github.event_name }}
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
           BUILD_MCP_RESULT: ${{ needs.build_mcp.result }}
-          TEST_BRIDGE_RESULT: ${{ needs.build_wheels.result }}
+          TOOLING_RESULT: ${{ needs.tooling.result }}
+          UNIT_RESULT: ${{ needs.unit.result }}
+          NATIVE_RESULT: ${{ needs.build_wheels.result }}
+          PHYSICS_RESULT: ${{ needs.build_wheels.result }}
+          OS_COMPAT_RESULT: ${{ needs.build_wheels.result }}
+          OS_COMPAT_REQUIRED: ${{ (needs.detect-changes.outputs.needs-build == 'true' || needs.determine_matrix.outputs.physics_change == 'true') && contains(needs.determine_matrix.outputs.os_compat_buildplat || needs.determine_matrix.outputs.buildplat, '"ubuntu-latest"') && 'true' || 'false' }}
+          ABI3_SMOKE_RESULT: ${{ needs.determine_matrix.outputs.abi3_smoke_buildplat != '[]' && needs.build_wheels.result || 'skipped' }}
+          ABI3_SMOKE_PYTHON: ${{ needs.determine_matrix.outputs.abi3_smoke_python || '[]' }}
+          ABI3_SMOKE_REQUIRED: ${{ (needs.detect-changes.outputs.needs-build == 'true' || needs.determine_matrix.outputs.physics_change == 'true') && needs.determine_matrix.outputs.abi3_smoke_python != '[]' && 'true' || 'false' }}
           CORE_GUARD_RESULT: ${{ needs.core_guard.result }}
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
@@ -1584,7 +1658,7 @@ jobs:
           CORE_GUARD_RESULT: ${{ needs.core_guard.result }}
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
         run: |
-          if [[ "$TEST_TIER" == "standard" || "$TEST_TIER" == "physics-full" ]] && \
+          if [[ "$TEST_TIER" == "physics-core" || "$TEST_TIER" == "standard" || "$TEST_TIER" == "physics-full" ]] && \
              [[ "$BUILD_WHEELS_RESULT" == "success" ]] && [[ "$CORE_GUARD_RESULT" != "success" ]]; then
             echo "::error::Core-test guard required at tier ${TEST_TIER} but finished with '${CORE_GUARD_RESULT}'"
             exit 1
@@ -1669,7 +1743,7 @@ jobs:
   report_scheduled_run:
     name: Report scheduled run outcome
     runs-on: ubuntu-latest
-    needs: [create_nightly_tag, build_wheels, build_wheels_checked, build_mcp, check_test_markers, deploy_testpypi, cost_markers]
+    needs: [create_nightly_tag, tooling, unit, build_wheels, build_wheels_checked, build_mcp, check_test_markers, deploy_testpypi, cost_markers]
     if: always() && github.event_name == 'schedule'
     permissions: {}
     steps:
@@ -1698,18 +1772,19 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - determine_matrix
+      - tooling
+      - unit
       - build_wheels
       - build_mcp
       - create_nightly_tag
       - verify-release-tag
-    # Publish only when every platform wheel built AND the cross-CPython
-    # api tests passed on every matrix cell. build_wheels fails when any
-    # platform's wheel build or chained api lane fails. Its api lane is
-    # skipped (and the node still succeeds) only when build_mcp failed,
-    # which the explicit build_mcp check below catches, or on the nightly
-    # macOS Intel trim, where skipping is intended.
+    # Publish only when every Schema 2 axis succeeded (source tooling/unit,
+    # per-OS wheels + physics + native + os_compat, cross-CPython abi3_smoke,
+    # and MCP build).
     if: |
       always() &&
+      needs.tooling.result == 'success' &&
+      needs.unit.result == 'success' &&
       needs.build_wheels.result == 'success' &&
       needs.build_mcp.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
@@ -1747,19 +1822,21 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - determine_matrix
+      - tooling
+      - unit
       - build_wheels
       - build_mcp
       - create_nightly_tag
       - verify-release-tag
-    # Production tags only: all platform wheels must succeed AND the
-    # cross-CPython api tests must pass (the only signal the cp312-abi3
-    # wheel imports on cp312..cp315 after the build matrix collapse); both
-    # are carried by build_wheels, whose per-platform chain runs the api
-    # lane after the wheel.
+    # Production tags only: every Schema 2 axis must pass (source tooling/unit,
+    # every platform wheel + physics + native + os_compat, cross-CPython
+    # abi3_smoke across cp313..cp315, and MCP build).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
+      needs.tooling.result == 'success' &&
+      needs.unit.result == 'success' &&
       needs.build_wheels.result == 'success' &&
       needs.build_mcp.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&

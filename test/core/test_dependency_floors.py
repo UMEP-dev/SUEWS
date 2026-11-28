@@ -627,6 +627,7 @@ def _run_workflow_path_pipeline(
         "PHYSICS_CHANGE": "false",
         "PR_PYPROJECT": str(REPO_ROOT / "pyproject.toml"),
     }
+    matrix_env.pop("GATE_AXIS_SCHEMA", None)
     subprocess.run(
         ["bash", str(REPO_ROOT / ".github/scripts/determine-matrix.sh")],
         env=matrix_env,
@@ -645,6 +646,7 @@ def _run_workflow_path_pipeline(
 
     gate_env = dict(os.environ)
     for var in (
+        "GATE_AXIS_SCHEMA",
         "EVENT_NAME",
         "LOWEST_DIRECT_DEPS_RESULT",
         "LOWEST_DIRECT_DEPS_REQUIRED",

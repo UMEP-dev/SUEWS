@@ -954,8 +954,20 @@ class TenMinuteProfile(DataModelBase):
 
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
         cols = {("gridiv", "0"): grid_id}
+        stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
+        if (
+            stebbs_inactive
+            and getattr(self, "working_day", None) is None
+            and getattr(self, "holiday", None) is None
+        ):
+            for day_idx in (0, 1):
+                for bin_idx in range(144):
+                    cols[(param_name, f"({bin_idx}, {day_idx})")] = None
+            return cols
         for day_idx, day_type in enumerate(("working_day", "holiday")):
             day_map = getattr(self, day_type)
+            if day_map is None and stebbs_inactive:
+                continue
             if not isinstance(day_map, dict):
                 raise ValueError(
                     f"TenMinuteProfile.{day_type} must be a mapping keyed by "
@@ -1006,6 +1018,32 @@ class TenMinuteProfile(DataModelBase):
                 if raw_val is pd.NA:
                     return None
             return raw_val
+
+        if allow_inactive_nulls:
+            wd_cols = [
+                (i, (param_name, f"({i}, 0)"))
+                for i in range(144)
+                if (param_name, f"({i}, 0)") in df.columns
+            ]
+            hol_cols = [
+                (i, (param_name, f"({i}, 1)"))
+                for i in range(144)
+                if (param_name, f"({i}, 1)") in df.columns
+            ]
+            working_day = (
+                {str(i + 1): _normalise_cell(df.loc[grid_id, col]) for i, col in wd_cols}
+                if wd_cols
+                else None
+            )
+            holiday = (
+                {
+                    str(i + 1): _normalise_cell(df.loc[grid_id, col])
+                    for i, col in hol_cols
+                }
+                if hol_cols
+                else None
+            )
+            return cls.model_validate({"working_day": working_day, "holiday": holiday})
 
         # Extract working day values (index 0)
         working_day = {

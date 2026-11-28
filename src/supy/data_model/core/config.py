@@ -1992,11 +1992,8 @@ class SUEWSConfig(DataModelBase):
                         for shared_field in sorted(shared_active):
                             raw_shared = getattr(stebbs_props, shared_field, None)
                             val_shared = _unwrap_value(raw_shared)
-                            if (
-                                val_shared is None
-                                or isinstance(val_shared, (bool, np.bool_))
-                                or not isinstance(val_shared, (int, float, np.number))
-                                or not math.isfinite(float(val_shared))
+                            if val_shared is None or isinstance(
+                                val_shared, (bool, np.bool_)
                             ):
                                 non_finite_errors.append(
                                     f"{site_name}: stebbs.{shared_field} ({val_shared!r}) "
@@ -7832,27 +7829,57 @@ class SUEWSConfig(DataModelBase):
                             props_dict["stebbs"] = None
                         elif isinstance(stebbs_obj, StebbsProperties):
                             stebbs_dict = props_dict.setdefault("stebbs", {})
-                            for field_name in stebbs_obj.model_fields_set:
+                            for field_name in (
+                                stebbs_obj.model_fields_set
+                                | StebbsProperties._STEBBS_PROFILE_FIELDS
+                            ):
                                 if field_name == "ref":
                                     continue
                                 raw = getattr(stebbs_obj, field_name, None)
-                                if raw is None:
+                                if raw is None and field_name in stebbs_obj.model_fields_set:
                                     stebbs_dict[field_name] = None
-                                elif isinstance(raw, RefValue) and raw.value is None:
+                                elif (
+                                    isinstance(raw, RefValue)
+                                    and raw.value is None
+                                    and field_name in stebbs_obj.model_fields_set
+                                ):
                                     stebbs_dict[field_name] = _null_ref_yaml_entry(raw)
+                                elif isinstance(raw, TenMinuteProfile) and (
+                                    raw.working_day is None or raw.holiday is None
+                                ):
+                                    prof_dict = stebbs_dict.setdefault(field_name, {})
+                                    if raw.working_day is None:
+                                        prof_dict["working_day"] = None
+                                    if raw.holiday is None:
+                                        prof_dict["holiday"] = None
                         arch_obj = getattr(props_obj, "building_archetype", None)
                         if arch_obj is None:
                             props_dict["building_archetype"] = None
                         elif isinstance(arch_obj, ArchetypeProperties):
                             arch_dict = props_dict.setdefault("building_archetype", {})
-                            for field_name in arch_obj.model_fields_set:
+                            for field_name in (
+                                arch_obj.model_fields_set
+                                | ArchetypeProperties._ARCHETYPE_PROFILE_FIELDS
+                            ):
                                 if field_name == "ref":
                                     continue
                                 raw = getattr(arch_obj, field_name, None)
-                                if raw is None:
+                                if raw is None and field_name in arch_obj.model_fields_set:
                                     arch_dict[field_name] = None
-                                elif isinstance(raw, RefValue) and raw.value is None:
+                                elif (
+                                    isinstance(raw, RefValue)
+                                    and raw.value is None
+                                    and field_name in arch_obj.model_fields_set
+                                ):
                                     arch_dict[field_name] = _null_ref_yaml_entry(raw)
+                                elif isinstance(raw, TenMinuteProfile) and (
+                                    raw.working_day is None or raw.holiday is None
+                                ):
+                                    prof_dict = arch_dict.setdefault(field_name, {})
+                                    if raw.working_day is None:
+                                        prof_dict["working_day"] = None
+                                    if raw.holiday is None:
+                                        prof_dict["holiday"] = None
 
                 init_obj = getattr(site_obj, "initial_states", None)
                 init_dict = site_dict.get("initial_states")

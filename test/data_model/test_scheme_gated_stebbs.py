@@ -1301,6 +1301,103 @@ def test_inactive_wrapped_null_profile_validates_reference_strictly(
         SUEWSConfig.from_dict(data)
 
 
+@pytest.mark.parametrize(
+    ("section", "profile_field"),
+    [
+        ("stebbs", "profile_appliance"),
+        ("building_archetype", "profile_metabolism"),
+    ],
+)
+def test_sparse_inactive_ten_minute_profile_preserves_placeholders_across_df_state(
+    sample_dict: dict, section: str, profile_field: str
+) -> None:
+    """Sparse inactive 10-minute profiles preserve placeholders through df_state and fail on activation."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"][section][profile_field] = {
+        "working_day": {"1": "TBD"},
+        "holiday": {"1": 0.0},
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    rebuilt_prof = getattr(getattr(rebuilt.sites[0].properties, section), profile_field)
+    assert rebuilt_prof.working_day == {"1": "TBD"}
+    assert rebuilt_prof.holiday == {"1": 0.0}
+
+    rebuilt.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match=profile_field):
+        rebuilt.validate_for_engine()
+
+
+def test_inactive_null_day_ten_minute_profile_roundtrips_df_state_and_yaml(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Inactive 10-minute profiles with ``working_day=None`` round-trip via df_state and YAML."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"]["profile_appliance"] = {
+        "working_day": None,
+        "holiday": {"1": "TBD"},
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+
+    df_state = cfg.to_df_state()
+    rebuilt_df = SUEWSConfig.from_df_state(df_state)
+    prof_df = rebuilt_df.sites[0].properties.stebbs.profile_appliance
+    assert prof_df.working_day is None
+    assert prof_df.holiday == {"1": "TBD"}
+
+    yaml_path = tmp_path / "null_day_profile.yml"
+    cfg.to_yaml(yaml_path)
+    rebuilt_yaml = SUEWSConfig.from_yaml(yaml_path)
+    prof_yaml = rebuilt_yaml.sites[0].properties.stebbs.profile_appliance
+    assert prof_yaml.working_day is None
+    assert prof_yaml.holiday == {"1": "TBD"}
+
+    rebuilt_yaml.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="profile_appliance"):
+        rebuilt_yaml.validate_for_engine()
+
+
+@pytest.mark.parametrize(
+    ("storage_heat", "ehc_coupling"),
+    [(5, 1), (6, 1)],
+)
+def test_live_numeric_string_mutation_coerced_on_ehc_and_dyohm_activation(
+    sample_dict: dict, tmp_path: Path, storage_heat: int, ehc_coupling: int
+) -> None:
+    """Mutating wrapped ``temperature_air_annual_mean.value = '12.5'`` coerces on EHC/DyOHM activation."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["storage_heat"] = 1
+    data["sites"][0]["properties"]["stebbs"]["temperature_air_annual_mean"] = {
+        "value": "TBD"
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.sites[0].properties.stebbs.temperature_air_annual_mean.value = "12.5"
+    cfg.model.physics.storage_heat = storage_heat
+    cfg.model.physics.ehc_surface_coupling = ehc_coupling
+
+    cfg.validate_for_engine()
+    assert cfg.sites[0].properties.stebbs.temperature_air_annual_mean.value == 12.5
+    assert isinstance(
+        cfg.sites[0].properties.stebbs.temperature_air_annual_mean.value, float
+    )
+    engine_doc = yaml.safe_load(config_to_engine_yaml(cfg, for_file_output=False))
+    emitted = engine_doc["sites"][0]["properties"]["stebbs"][
+        "temperature_air_annual_mean"
+    ]
+    emitted_val = emitted["value"] if isinstance(emitted, dict) else emitted
+    assert emitted_val == 12.5
+    assert isinstance(emitted_val, float)
+    cfg.to_yaml(tmp_path / f"ehc_dyohm_sh{storage_heat}.yml")
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

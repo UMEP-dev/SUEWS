@@ -26,10 +26,11 @@ import time
 import pytest
 
 pytestmark = [
-    pytest.mark.unit,
+    pytest.mark.native,
     pytest.mark.os_compat,
     pytest.mark.e2e,
     pytest.mark.smoke,
+    pytest.mark.smoke_bridge,
     pytest.mark.contract("C-API"),
 ]
 

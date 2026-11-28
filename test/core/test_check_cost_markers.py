@@ -487,8 +487,8 @@ def test_require_axis_rejects_partial_lane_metrics_and_workflow_wires_both_axes(
         for step in wf["jobs"]["cost_markers"]["steps"]
         if step.get("name") == "Check cost markers against measured CPU seconds"
     )
-    assert "--require-axis api" in check_step["run"]
-    assert "--require-axis physics" in check_step["run"]
+    for axis in ("tooling", "unit", "native", "physics"):
+        assert f"--require-axis {axis}" in check_step["run"]
 
 
 @pytest.mark.smoke

@@ -6,9 +6,13 @@ for each way a core test can go missing before a merge.
 
 from __future__ import annotations
 
+import ast
 import json
+import os
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 import pytest
 import yaml
@@ -284,13 +288,30 @@ def test_repository_allowlist_entries_name_physics_core_tests() -> None:
 
 def test_tier_tables_match_the_workflow_expressions() -> None:
     """The guard judges each lane by the expression that lane actually ran."""
-    action = (PROJECT_ROOT / ".github/actions/build-suews/action.yml").read_text(
+    action_text = (PROJECT_ROOT / ".github/actions/build-suews/action.yml").read_text(
         encoding="utf-8"
     )
-    physics = dict(
-        re.findall(r"inputs\.test_tier == '([a-z-]+)' && '-m \"?([^'\"]+)\"?'", action)
+    action_yaml = yaml.safe_load(action_text)
+    cibw_step = next(
+        step
+        for step in action_yaml["runs"]["steps"]
+        if str(step.get("uses", "")).startswith("pypa/cibuildwheel@")
     )
-    assert physics == ci_tiers.PHYSICS_TIERS
+    cibw_cmd = cibw_step["env"]["CIBW_TEST_COMMAND"]
+    # Outside ${{ ... }} expressions, CIBW_TEST_COMMAND must stay single-line so
+    # `sh -c "$CIBW_TEST_COMMAND"` never splits flags onto a separate command line.
+    assert "\n" not in re.sub(r"\$\{\{.*?\}\}", "<EXPR>", cibw_cmd, flags=re.S), (
+        cibw_cmd
+    )
+    physics = {
+        tier: quoted or bare
+        for tier, quoted, bare in re.findall(
+            r"inputs\.test_tier == '([a-z-]+)' && '-m (?:\"([^\"]+)\"|([a-z]+))",
+            cibw_cmd,
+        )
+    }
+    assert physics == ci_tiers.PHYSICS_TIERS_V2
+    assert f"--suews-include-node {EXACT_REFERENCE_TEST}" in cibw_cmd
 
     api_workflow = yaml.safe_load(
         (
@@ -312,14 +333,40 @@ def test_guard_is_wired_into_the_gate() -> None:
     jobs = workflow["jobs"]
     guard = jobs["core_guard"]
     assert guard["name"] == "Core-test guard (Linux)"
-    assert {"determine_matrix", "build_wheels"} <= set(guard["needs"])
+    assert {"determine_matrix", "tooling", "unit", "build_wheels"} <= set(
+        guard["needs"]
+    )
+    assert "physics-core" in guard["if"]
+    guard_step = next(
+        s
+        for s in guard["steps"]
+        if s.get("name") == "Check every core test passed on Linux"
+    )
+    assert "--schema 2" in guard_step["run"]
+    assert "--require-os-compat" in guard_step["run"]
+    assert guard_step["env"]["GATE_AXIS_SCHEMA"] == "2"
+    # Both source lanes run on determine_matrix's source_python so executed
+    # matrices, post-ci-summary, and core_guard stay in lockstep across triggers.
+    assert jobs["tooling"]["with"]["python_json"] == (
+        "${{ needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python }}"
+    )
+    assert jobs["unit"]["with"]["python_json"] == (
+        "${{ needs.determine_matrix.outputs.source_python || needs.determine_matrix.outputs.python }}"
+    )
+
     gate = jobs["pr-gate"]
-    assert "core_guard" in gate["needs"]
+    assert {"core_guard", "tooling", "unit"} <= set(gate["needs"])
     env = next(
         s["env"] for s in gate["steps"] if s.get("name") == "Check build results"
     )
+    assert env["GATE_AXIS_SCHEMA"] == "2"
     assert env["CORE_GUARD_RESULT"] == "${{ needs.core_guard.result }}"
     assert env["TEST_TIER"] == "${{ needs.determine_matrix.outputs.test_tier }}"
+    assert env["TOOLING_RESULT"] == "${{ needs.tooling.result }}"
+    assert env["UNIT_RESULT"] == "${{ needs.unit.result }}"
+    assert env["NATIVE_RESULT"] == "${{ needs.build_wheels.result }}"
+    assert env["PHYSICS_RESULT"] == "${{ needs.build_wheels.result }}"
+    assert env["OS_COMPAT_RESULT"] == "${{ needs.build_wheels.result }}"
     # The gate script is read from the base branch, so the workflow enforces
     # the guard itself as well.
     inline = next(
@@ -328,15 +375,228 @@ def test_guard_is_wired_into_the_gate() -> None:
         if s.get("name") == "Require the core-test guard at ready tiers"
     )
     assert inline["env"]["CORE_GUARD_RESULT"] == "${{ needs.core_guard.result }}"
+    assert "physics-core" in inline["run"]
     assert "exit 1" in inline["run"]
     needs_map = json.loads(
         (PROJECT_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
     assert "Core-test guard (Linux)" in needs_map["PR build validation"]
+    assert "Source tests (tooling) / *" in needs_map["Core-test guard (Linux)"]
+    assert "Source tests (unit) / *" in needs_map["Core-test guard (Linux)"]
+    wheel_lane_workflow = (
+        PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml"
+    ).read_text(encoding="utf-8")
+    assert "scripts.suews.pytest_inventory" in wheel_lane_workflow
     api_workflow = (
         PROJECT_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
     assert "scripts.suews.pytest_inventory" in api_workflow
+
+
+def test_suews_include_node_keeps_witness_and_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """conftest --suews-include-node retains the witness under -m, preserves order, and fails closed."""
+    (tmp_path / "pytest.ini").write_text(
+        "[pytest]\nmarkers =\n"
+        "    physics: physics\n"
+        "    smoke: smoke\n"
+        "    core: core\n"
+        "    medium: medium\n"
+        "    slow: slow\n"
+        "    contract: contract\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "conftest.py").write_text(
+        (PROJECT_ROOT / "test/conftest.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (tmp_path / "test_sample.py").write_text(
+        "import pytest\n"
+        "pytestmark = [pytest.mark.physics, pytest.mark.contract('C-RESPONSE')]\n"
+        "@pytest.mark.smoke\n"
+        "def test_alpha_smoke():\n"
+        "    assert True\n"
+        "@pytest.mark.core\n"
+        "@pytest.mark.slow\n"
+        "def test_exact_witness():\n"
+        "    assert True\n"
+        "@pytest.mark.smoke\n"
+        "def test_beta_smoke():\n"
+        "    assert True\n"
+        "@pytest.mark.slow\n"
+        "def test_other_slow():\n"
+        "    assert True\n",
+        encoding="utf-8",
+    )
+    # Verify custom hook reordering on surviving items is preserved (not re-sorted).
+    (tmp_path / "reorder_plugin.py").write_text(
+        "import pytest\n"
+        "@pytest.hookimpl(trylast=True)\n"
+        "def pytest_collection_modifyitems(items):\n"
+        "    items[:] = list(reversed(items))\n",
+        encoding="utf-8",
+    )
+    full_env = {**os.environ, "PYTHONPATH": f"{tmp_path}{os.pathsep}{PROJECT_ROOT}"}
+    full_env.pop("SUEWS_SOURCE_LANE_ONLY", None)
+    base_cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-o",
+        "addopts=",
+        "-c",
+        str(tmp_path / "pytest.ini"),
+        "-m",
+        "physics and smoke and not (medium or slow)",
+    ]
+
+    ok = subprocess.run(
+        [
+            *base_cmd,
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    assert "test_sample.py::test_alpha_smoke" in ok.stdout
+    assert "test_sample.py::test_exact_witness" in ok.stdout
+    assert "test_sample.py::test_beta_smoke" in ok.stdout
+    assert "test_sample.py::test_other_slow" not in ok.stdout
+
+    # Another trylast plugin's ordering is preserved.
+    reordered = subprocess.run(
+        [
+            *base_cmd,
+            "-p",
+            "reorder_plugin",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert reordered.returncode == 0, reordered.stdout + reordered.stderr
+    collected_lines = [
+        line.strip()
+        for line in reordered.stdout.splitlines()
+        if line.strip().startswith("test_sample.py::")
+    ]
+    assert set(collected_lines) == {
+        "test_sample.py::test_beta_smoke",
+        "test_sample.py::test_exact_witness",
+        "test_sample.py::test_alpha_smoke",
+    }
+    assert collected_lines.index(
+        "test_sample.py::test_beta_smoke"
+    ) < collected_lines.index("test_sample.py::test_alpha_smoke")
+
+    # Real execution under xdist + pytest_ci_metrics records smoke tests and
+    # the included witness in one metrics artefact.
+    metrics_path = tmp_path / "physics-cp312-manylinux-x86_64.json"
+    run_xdist = subprocess.run(
+        [
+            *base_cmd,
+            "-p",
+            "scripts.suews.pytest_ci_metrics",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "-n",
+            "2",
+            "--dist",
+            "worksteal",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env={**full_env, "SUEWS_CI_METRICS": str(metrics_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_xdist.returncode == 0, run_xdist.stdout + run_xdist.stderr
+    recorded = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert {t["node_id"] for t in recorded["tests"]} == {
+        "test_sample.py::test_alpha_smoke",
+        "test_sample.py::test_exact_witness",
+        "test_sample.py::test_beta_smoke",
+    }
+
+    # Missing node ID fails closed.
+    missing = subprocess.run(
+        [
+            *base_cmd,
+            "--suews-include-node",
+            "test_sample.py::test_renamed_or_deleted",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 4, missing.stdout + missing.stderr
+    assert "did not match any collected test" in missing.stderr + missing.stdout
+
+    # Unsupported combinations (-k and --suews-shard) fail closed.
+    with_k = subprocess.run(
+        [
+            *base_cmd,
+            "-k",
+            "alpha",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert with_k.returncode == 4, with_k.stdout + with_k.stderr
+    assert "cannot be combined with -k" in with_k.stderr + with_k.stdout
+
+    with_shard = subprocess.run(
+        [
+            *base_cmd,
+            "-p",
+            "scripts.suews.pytest_shard",
+            "--suews-shard",
+            "1/2",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert with_shard.returncode == 4, with_shard.stdout + with_shard.stderr
+    assert "cannot be combined with --suews-shard" in with_shard.stderr + with_shard.stdout
 
 
 def test_inventory_is_not_read_as_pytest_metrics(tmp_path: Path) -> None:
@@ -993,3 +1253,189 @@ def test_schema2_layout_and_guard_agree_when_abi3_list_includes_build_python(
         ])
         == 0
     )
+
+
+def test_wheel_lanes_and_core_guard_propagate_non_cp312_build_floor(
+    tmp_path: Path,
+) -> None:
+    """A non-cp312 build floor (e.g. cp313) flows through producer, wheel lanes, inventory, and core_guard."""
+    wheels = yaml.safe_load(
+        (PROJECT_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheel_lane = yaml.safe_load(
+        (PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    # Producer (build job -> build-suews action) uploads <inputs.python>-<platform>-<arch>,
+    # and each Schema 2 wheel-lane call forwards fromJson(inputs.python_json)[0] as build_python.
+    build_step = next(
+        s
+        for s in wheels["jobs"]["build"]["steps"]
+        if str(s.get("uses", "")).endswith("/.github/actions/build-suews")
+    )
+    assert build_step["with"]["python"] == "${{ matrix.python }}"
+    action_yaml = yaml.safe_load(
+        (PROJECT_ROOT / ".github/actions/build-suews/action.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    upload_step = next(
+        s for s in action_yaml["runs"]["steps"] if s.get("name") == "Upload wheels"
+    )
+    assert upload_step["with"]["name"] == (
+        "${{ inputs.artifact_prefix }}${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}"
+    )
+    for job_id in ("native_tests", "os_compat_tests", "abi3_smoke_tests"):
+        assert (
+            wheels["jobs"][job_id]["with"]["build_python"]
+            == "${{ fromJson(inputs.python_json)[0] }}"
+        )
+
+    # Consumer (test-wheel-lane-reusable.yml) downloads <inputs.build_python>-<platform>-<arch>
+    # and records inventory-<inputs.build_python>-manylinux-x86_64.json when native matches build_python.
+    steps = wheel_lane["jobs"]["wheel_lane"]["steps"]
+    dl_step = next(
+        s for s in steps if s.get("name") == "Download wheel for this platform"
+    )
+    assert dl_step["with"]["name"] == (
+        "${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}"
+    )
+    inv_step = next(
+        s
+        for s in steps
+        if s.get("name") == "Record the test inventory for the core-test guard"
+    )
+    assert "matrix.cell.python_version == inputs.build_python" in inv_step["if"]
+    assert inv_step["env"]["INVENTORY_PATH"] == (
+        "ci-metrics/inventory-${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json"
+    )
+
+    # End-to-end check_core_guard with cp313 build floor + cp315 abi3_smoke.
+    metrics = _layout_v2(
+        tmp_path,
+        tier="physics-core",
+        abi3_smoke_pythons=("cp315",),
+        include_os_compat=True,
+    )
+    for path in sorted(metrics.rglob("*cp312*"), reverse=True):
+        path.rename(path.with_name(path.name.replace("cp312", "cp313")))
+    allow = tmp_path / "allow.json"
+    assert (
+        main([
+            str(metrics),
+            "--schema",
+            "2",
+            "--tier",
+            "physics-core",
+            "--physics-python",
+            "cp313",
+            "--source-python",
+            "cp313",
+            "--abi3-smoke-python",
+            '["cp315"]',
+            "--require-os-compat",
+            "--allowlist",
+            str(allow),
+        ])
+        == 0
+    )
+
+
+def test_schema2_installed_cli_tests_routed_to_wheel_lanes() -> None:
+    """Every MCP/CLI test that requires installed console scripts runs in a wheel lane, not unit."""
+    cli_witness_files = (
+        "test/mcp/test_tool_readiness.py",
+        "test/mcp/test_tool_schema_search.py",
+        "test/mcp/test_canonical_questions_cli.py",
+        "test/mcp/test_tool_validate_cli.py",
+        "test/mcp/test_real_cli_smoke.py",
+        "test/mcp/test_boundary_paths_cli.py",
+        "test/mcp/test_protocol_handshake.py",
+        "test/core/test_cli_validation.py",
+    )
+
+    def _module_marks(path: Path) -> set[str]:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        marks: set[str] = set()
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(
+                isinstance(target, ast.Name) and target.id == "pytestmark"
+                for target in node.targets
+            ):
+                continue
+            for sub in ast.walk(node.value):
+                if (
+                    isinstance(sub, ast.Attribute)
+                    and isinstance(sub.value, ast.Attribute)
+                    and isinstance(sub.value.value, ast.Name)
+                    and sub.value.value.id == "pytest"
+                    and sub.value.attr == "mark"
+                ):
+                    marks.add(sub.attr)
+        return marks
+
+    # 1. No file in test/mcp/ or test/core/test_cli_validation.py that shells out
+    #    to installed console scripts (`shutil.which("suews"...)`) may be marked
+    #    `unit`, where wheels and console scripts are absent.
+    candidates = [
+        *sorted((PROJECT_ROOT / "test/mcp").glob("test_*.py")),
+        PROJECT_ROOT / "test/core/test_cli_validation.py",
+    ]
+    for path in candidates:
+        text = path.read_text(encoding="utf-8")
+        needs_installed_cli = any(
+            token in text
+            for token in (
+                'shutil.which("suews"',
+                'shutil.which("suews-validate"',
+                'shutil.which("suews-mcp"',
+            )
+        )
+        if not needs_installed_cli:
+            continue
+        marks = _module_marks(path)
+        assert "native" in marks, (
+            f"{path.relative_to(PROJECT_ROOT)} requires an installed CLI executable "
+            f"and must declare pytest.mark.native, got {sorted(marks)}"
+        )
+        assert "unit" not in marks, (
+            f"{path.relative_to(PROJECT_ROOT)} requires an installed CLI executable "
+            "and must not be routed to the wheel-free unit lane"
+        )
+
+    # 2. Every real-CLI witness file matches Schema 2 native ready/all tiers and
+    #    never matches unit.
+    for rel in cli_witness_files:
+        marks = _module_marks(PROJECT_ROOT / rel)
+        for tier in ("physics-core", "standard", "physics-full", "all"):
+            assert ci_tiers.matches(
+                ci_tiers.tier_expression("native", tier, schema=2), marks
+            ), f"{rel} not selected by Schema 2 native tier {tier!r}"
+            assert not ci_tiers.matches(
+                ci_tiers.tier_expression("unit", tier, schema=2), marks
+            ), f"{rel} must not be selected by Schema 2 unit tier {tier!r}"
+
+    # 3. The reusable wheel-lane workflow enforces executable presence and fails
+    #    closed if any watched installed-CLI witness skips.
+    wheel_lane = yaml.safe_load(
+        (PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    run_step = next(
+        s
+        for s in wheel_lane["jobs"]["wheel_lane"]["steps"]
+        if s.get("name") == "Install wheel and run Schema 2 lane tests"
+    )
+    script = run_step["run"]
+    for exe in ('"suews"', '"suews-validate"', '"suews-mcp"'):
+        assert exe in script
+    for rel in cli_witness_files:
+        assert rel in script
+    assert "unexpectedly skipped in wheel lane" in script

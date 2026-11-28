@@ -166,8 +166,114 @@ else:
         return offending
 
 
+class _IncludeNodesPlugin:
+    """Keep explicit ``--suews-include-node`` targets across ``-m`` filtering.
+
+    Registered only when ``--suews-include-node`` is passed (used by the
+    Schema 2 ``physics-core`` CI tier so one pytest run executes physics smoke
+    tests plus the exact sample-output reference witness).  Leaves requested
+    nodes in ``items`` while inner collection hooks run so marker-attachment
+    hooks still inspect them, filters them out of ``pytest_deselected``, and
+    splices only deselected requested nodes back without re-sorting other
+    items.  Combining with ``-k`` or ``--suews-shard`` fails closed with
+    ``pytest.UsageError``.
+    """
+
+    def __init__(self, requested: list[str]) -> None:
+        self._requested = requested
+        self._requested_set = set(requested)
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_deselected(self, items: list[pytest.Item]) -> None:
+        """Keep restored ``--suews-include-node`` items out of deselected counts."""
+        items[:] = [item for item in items if item.nodeid not in self._requested_set]
+
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_collection_modifyitems(
+        self, config: pytest.Config, items: list[pytest.Item]
+    ):
+        if getattr(config.option, "keyword", ""):
+            raise pytest.UsageError(
+                "--suews-include-node cannot be combined with -k keyword filtering"
+            )
+        if getattr(config.option, "suews_shard", None):
+            raise pytest.UsageError(
+                "--suews-include-node cannot be combined with --suews-shard"
+            )
+
+        by_id = {item.nodeid: item for item in items}
+        missing = [node_id for node_id in self._requested if node_id not in by_id]
+        if missing:
+            raise pytest.UsageError(
+                "--suews-include-node did not match any collected test: "
+                + ", ".join(missing)
+            )
+
+        # Remember the surviving tail after each requested node so restoration
+        # splices only the requested nodes back without re-sorting other items.
+        original_index = {item.nodeid: idx for idx, item in enumerate(items)}
+        saved_order = sorted(self._requested, key=lambda nid: original_index[nid])
+        saved_items = {nid: by_id[nid] for nid in saved_order}
+        followers: dict[str, list[str]] = {}
+        for nid in saved_order:
+            pos = original_index[nid]
+            followers[nid] = [
+                other.nodeid
+                for other in items[pos + 1 :]
+                if other.nodeid not in self._requested_set
+            ]
+
+        yield
+
+        present = {item.nodeid for item in items}
+        for nid in saved_order:
+            if nid in present:
+                continue
+            item = saved_items[nid]
+            anchor = next((f for f in followers[nid] if f in present), None)
+            if anchor is None:
+                items.append(item)
+            else:
+                insert_at = next(
+                    idx for idx, existing in enumerate(items) if existing.nodeid == anchor
+                )
+                items.insert(insert_at, item)
+            present.add(nid)
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register SUEWS test-suite CLI options."""
+    parser.addoption(
+        "--suews-include-node",
+        action="append",
+        default=[],
+        metavar="NODEID",
+        help=(
+            "Keep this collected node ID even when deselected by -m; "
+            "fails closed if missing or combined with -k or --suews-shard."
+        ),
+    )
+
+
 def pytest_configure(config) -> None:
-    """Activate source-lane guards for the lifetime of this pytest session."""
+    """Activate source-lane guards and optional ``--suews-include-node`` plugin."""
+    if hasattr(config, "getoption"):
+        raw_include = config.getoption("--suews-include-node", default=[]) or []
+        requested = list(dict.fromkeys(raw_include))
+        if requested:
+            if getattr(config.option, "keyword", ""):
+                raise pytest.UsageError(
+                    "--suews-include-node cannot be combined with -k keyword filtering"
+                )
+            if getattr(config.option, "suews_shard", None):
+                raise pytest.UsageError(
+                    "--suews-include-node cannot be combined with --suews-shard"
+                )
+            if not config.pluginmanager.has_plugin("suews-include-nodes"):
+                config.pluginmanager.register(
+                    _IncludeNodesPlugin(requested), name="suews-include-nodes"
+                )
+
     try:
         enabled = is_source_lane_only()
     except ValueError as exc:

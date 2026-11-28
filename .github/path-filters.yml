@@ -101,6 +101,8 @@ ci:
   - '.github/workflows/rust-test.yml'
   - '.github/workflows/schema-version-audit.yml'
   - '.github/workflows/test-api-cross-python-reusable.yml'
+  - '.github/workflows/test-source-lane-reusable.yml'
+  - '.github/workflows/test-wheel-lane-reusable.yml'
   - '.github/workflows/tolerance-spread-reusable.yml'
   - '.github/workflows/workflow-security.yml'
   - '.github/actions/build-suews/**'

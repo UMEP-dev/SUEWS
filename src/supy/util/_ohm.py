@@ -137,18 +137,17 @@ def replace_ohm_coeffs(df_state, coefs, land_cover_type):
     coef_matrix[:, 1] = coefs[1]
     coef_matrix[:, 2] = coefs[2]
 
-    # Copy ohm_coef part of df_state_init
-    df_ohm = df_state.loc[:, "ohm_coef"].copy()
-    # Reshape values into matrix form
-    values_ohm = df_ohm.values.reshape((-1, 8, 4, 3))
+    # Copy ohm_coef block into a writable array (pandas 3.0 CoW views are read-only)
+    df_ohm = df_state.loc[:, "ohm_coef"]
+    values_ohm = df_ohm.to_numpy(dtype=float, copy=True).reshape((-1, 8, 4, 3))
     # Get ohm values corresponding to user specified land cover and assign to matrix
     values_ohm[:, lc_index] = coef_matrix
-    # Place new ohm values into df_ohm
-    df_ohm.loc[:, :] = values_ohm.reshape(df_ohm.shape)
-    # Make copy of df_state_init
+    # Make copy of df_state_init and replace ohm_coef columns with new values
     df_state_init_copy = df_state.copy()
-    # Replace  ohm_coef part of df_state_init with new values
-    df_state_init_copy.loc[:, "ohm_coef"] = df_ohm.values
+    ohm_cols = df_state_init_copy.columns[
+        df_state_init_copy.columns.get_level_values(0) == "ohm_coef"
+    ]
+    df_state_init_copy[ohm_cols] = values_ohm.reshape(df_ohm.shape)
 
     return df_state_init_copy
 

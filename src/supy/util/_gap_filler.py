@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from .._misc import infer_freq_offset
+
 
 def _civil_day_start(ts: pd.Timestamp, day_offset: int = 0) -> pd.Timestamp:
     """Return the first valid instant of the civil date ``day_offset`` days from ``ts``."""
@@ -172,7 +174,7 @@ def fill_gap_one(ser_test, freq="1D", pattern="010"):
     return _fill_gap_at_loc(ser_test, rsmp, candidates[0], pattern, freq=freq)
 
 
-def cal_ratio_info(ser_to_fill, freq="1d", origin="start_day"):
+def cal_ratio_info(ser_to_fill, freq="1D", origin="start_day"):
     rsmp = ser_to_fill.resample(freq, origin=origin)
     ser_TF_10 = rsmp.apply(lambda ser: ser.isna().any()) * 1
     if ser_TF_10.size == 0:
@@ -187,10 +189,7 @@ def _infer_step_freq(index: pd.DatetimeIndex):
         return index.freq
     if len(index) < 3:
         return None
-    inferred = pd.infer_freq(index)
-    if inferred is None:
-        return None
-    return pd.tseries.frequencies.to_offset(inferred)
+    return infer_freq_offset(index)
 
 
 def _chunk_size(index: pd.DatetimeIndex, freq: str) -> int | None:

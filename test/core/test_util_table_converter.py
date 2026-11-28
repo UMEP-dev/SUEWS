@@ -212,6 +212,35 @@ class TestProfileManager:
         assert updated.loc[4, "Value"] == "888"  # non-Add action ignored
         assert pm.missing_profiles == {888}
 
+        # Numeric-typed Value columns (e.g. int64/float64 from numeric CSVs) also update cleanly.
+        pm_int = ProfileManager()
+        pm_int.available_profiles = {10, 999}
+        int_rules = pd.DataFrame({
+            "Action": ["Add", "Add"],
+            "Variable": ["SnowClearingProfWD", "EnergyUseProfWD"],
+            "Value": [404, 10],
+        })
+        assert pd.api.types.is_integer_dtype(int_rules["Value"])
+        updated_int = pm_int.process_conversion_rules(int_rules)
+        assert updated_int.loc[0, "Value"] == "999"
+        assert str(updated_int.loc[1, "Value"]) == "10"
+        assert pm_int.missing_profiles == {404}
+        # Input frame is not mutated in place.
+        assert int_rules.loc[0, "Value"] == 404
+
+        pm_float = ProfileManager()
+        pm_float.available_profiles = {10, 999}
+        float_rules = pd.DataFrame({
+            "Action": ["Add", "Add", "Add"],
+            "Variable": ["SnowClearingProfWD", "TraffProfWD", "PopProfWD"],
+            "Value": [404.0, 404.5, np.nan],
+        })
+        updated_float = pm_float.process_conversion_rules(float_rules)
+        assert updated_float.loc[0, "Value"] == "999"
+        assert updated_float.loc[1, "Value"] == pytest.approx(404.5)
+        assert pd.isna(updated_float.loc[2, "Value"])
+        assert pm_float.missing_profiles == {404}
+
     def test_validate_and_fix_profiles_with_and_without_missing_codes(self, tmp_path):
         """validate_and_fix_profiles backs up rules on fixes and skips backup when clean."""
         # Case 1: missing code -> creates rules.csv.bak and updates rules.csv.
@@ -253,6 +282,29 @@ class TestProfileManager:
         _write_legacy_profiles(norules_dir / "SUEWS_Profiles.txt", {10: 1.0})
         mgr_nr = validate_and_fix_profiles(norules_dir, norules_dir / "absent.csv")
         assert 999 in mgr_nr.available_profiles
+
+        # Case 4: numeric float-formatted CSV (e.g. 404.0, 404.5, NaN) resolves
+        # integral decimal codes while leaving fractional/missing tokens untouched.
+        float_dir = tmp_path / "case_float_csv"
+        float_dir.mkdir()
+        _write_legacy_profiles(float_dir / "SUEWS_Profiles.txt", {10: 1.0})
+        float_rules_path = float_dir / "rules.csv"
+        pd.DataFrame({
+            "Action": ["Add", "Add", "Add"],
+            "Variable": ["SnowClearingProfWD", "TraffProfWD", "PopProfWD"],
+            "Value": [404.0, 404.5, np.nan],
+        }).to_csv(float_rules_path, index=False)
+
+        mgr_float = validate_and_fix_profiles(float_dir, float_rules_path)
+        assert (float_dir / "rules.csv.bak").is_file()
+        updated_float_csv = pd.read_csv(
+            float_rules_path, dtype=str, keep_default_na=False
+        )
+        assert updated_float_csv.loc[0, "Value"] == "999"
+        assert updated_float_csv.loc[1, "Value"] == "404.5"
+        assert updated_float_csv.loc[2, "Value"] == ""
+        assert 404 in mgr_float.missing_profiles
+        assert 404 in mgr_float.available_profiles
 
 
 class TestTableVersionDetectionAndHelpers:

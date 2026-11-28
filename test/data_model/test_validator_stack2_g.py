@@ -4587,3 +4587,94 @@ def test_r15_exec_forged_dataclass_hooks_and_detached_attr_dict_keys() -> None:
     tk_dc.tags.append("mut")  # type: ignore[attr-defined]
     uk_dc = next(iter(ro_dc_k.unwrap_copy().__dict__.keys()))
     assert uk_dc is not tk_dc and uk_dc.tags == ["orig"]  # type: ignore[attr-defined]
+
+
+def test_r16_numpy_dtype_titles_and_non_function_serializers() -> None:
+    """Cover Astra R6 M1 & M2: structured NumPy dtype titles and to-string/format serializers."""
+    from pydantic_core import core_schema  # noqa: PLC0415
+
+    # M1: Structured dtype titles isolate dict mutations in both directions and reject unsafe titles.
+    orig_title = {"k": 1}
+    dt_dict_title = np.dtype({
+        "names": ["x"],
+        "formats": ["i4"],
+        "titles": [orig_title],
+    })
+    arr_title = np.array([(5,)], dtype=dt_dict_title)
+
+    class _ArrHolder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        arr: np.ndarray
+
+    ro_title = freeze_model(_ArrHolder(arr=arr_title))
+    frozen_map = deep_freeze({"a": arr_title})
+    orig_title["k"] = 999
+    assert ro_title.arr.dtype.fields["x"][2] == {"k": 1}
+    assert frozen_map["a"].dtype.fields["x"][2] == {"k": 1}
+    with pytest.raises(TypeError):
+        ro_title.arr.dtype.fields["x"][2]["k"] = 777
+    assert ro_title.arr.dtype.fields["x"][2] == {"k": 1}
+    assert orig_title == {"k": 999}
+
+    title_events: list[str] = []
+
+    class _SpyTitleDict(dict):  # type: ignore[type-arg]
+        def items(self):  # type: ignore[override]
+            title_events.append("items")
+            return super().items()
+
+    class _TitleEnum(Enum):
+        TAG = 1
+
+    for bad_title in (["mutable"], _TitleEnum.TAG, _SpyTitleDict({"a": 1})):
+        bad_dt = np.dtype({"names": ["x"], "formats": ["i4"], "titles": [bad_title]})
+        with pytest.raises(TypeError, match="mutable or Enum metadata"):
+            deep_freeze(np.array([(1,)], dtype=bad_dt))
+    assert title_events == []
+
+    # M2: to-string and format serializers are rejected before invoking __str__ or __format__.
+    ser_events: list[str] = []
+
+    class _StrPayload:
+        def __init__(self) -> None:
+            self.tag = "orig"
+
+        def __str__(self) -> str:
+            ser_events.append("str")
+            return "evil"
+
+        @classmethod
+        def __get_pydantic_core_schema__(
+            cls, _src: object, _handler: object
+        ) -> core_schema.CoreSchema:
+            return core_schema.is_instance_schema(
+                cls, serialization=core_schema.to_string_ser_schema()
+            )
+
+    class _FmtPayload:
+        def __init__(self) -> None:
+            self.tag = "orig"
+
+        def __format__(self, _spec: str) -> str:
+            ser_events.append("format")
+            return "evil"
+
+        @classmethod
+        def __get_pydantic_core_schema__(
+            cls, _src: object, _handler: object
+        ) -> core_schema.CoreSchema:
+            return core_schema.is_instance_schema(
+                cls, serialization=core_schema.format_ser_schema("")
+            )
+
+    class _ToStrModel(BaseModel):
+        p: _StrPayload
+
+    class _FmtModel(BaseModel):
+        p: _FmtPayload
+
+    with pytest.raises(TypeError, match="unvetted custom serializer"):
+        freeze_model(_ToStrModel(p=_StrPayload())).model_dump(mode="json")
+    with pytest.raises(TypeError, match="unvetted custom serializer"):
+        freeze_model(_FmtModel(p=_FmtPayload())).model_dump(mode="json")
+    assert ser_events == []

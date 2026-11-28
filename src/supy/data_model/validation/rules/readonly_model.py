@@ -1531,13 +1531,16 @@ def _iter_instance_state_children(obj: Any, skip: frozenset[str]) -> list[Any]:
 
 
 def _iter_dtype_metadata_children(dtype: np.dtype[Any]) -> list[Any]:
-    """Return metadata mappings reachable from *dtype* and its nested field/subarray dtypes."""
+    """Return metadata mappings and field titles reachable from *dtype* and its nested dtypes."""
     out: list[Any] = []
     if dtype.metadata is not None:
         out.append(dtype.metadata)
-    if dtype.fields is not None:
-        for field_info in dtype.fields.values():
+    if dtype.fields is not None and dtype.names is not None:
+        for name in dtype.names:
+            field_info = dtype.fields[name]
             out.extend(_iter_dtype_metadata_children(field_info[0]))
+            if len(field_info) > 2 and field_info[2] is not None:
+                out.append(field_info[2])
     if dtype.subdtype is not None:
         out.extend(_iter_dtype_metadata_children(dtype.subdtype[0]))
     return out
@@ -1938,6 +1941,46 @@ def _get_vetted_suews_hooks() -> tuple[
     )
 
 
+_SAFE_SIMPLE_SER_TYPES: frozenset[str] = frozenset({
+    "none",
+    "int",
+    "bool",
+    "float",
+    "str",
+    "bytes",
+    "bytearray",
+    "list",
+    "tuple",
+    "set",
+    "frozenset",
+    "generator",
+    "dict",
+    "datetime",
+    "date",
+    "time",
+    "timedelta",
+    "url",
+    "multi-host-url",
+    "json",
+    "uuid",
+    "any",
+    "model",
+})
+
+
+def _ser_schema_disallowed(ser: Any, allowed_sers: frozenset[Any]) -> bool:
+    """Return True if a ``serialization`` sub-schema invokes an unvetted Python hook."""
+    if ser is None:
+        return False
+    if not isinstance(ser, dict):
+        return True
+    ser_type = ser.get("type")
+    if ser_type in {"function-plain", "function-wrap"}:
+        fn = ser.get("function")
+        return getattr(fn, "__func__", fn) not in allowed_sers
+    return ser_type not in _SAFE_SIMPLE_SER_TYPES
+
+
 def _schema_has_disallowed_hook(
     schema: Any,
     allowed_sers: frozenset[Any],
@@ -1953,21 +1996,20 @@ def _schema_has_disallowed_hook(
             if node_id in seen:
                 continue
             seen.add(node_id)
+            node_type = node.get("type")
+            if node_type in {"to-string", "format"}:
+                return True
             next_owner = (
                 node.get("cls", owner_cls)
-                if node.get("type") in {"model", "dataclass"}
+                if node_type in {"model", "dataclass"}
                 else owner_cls
             )
-            ser = node.get("serialization")
-            if isinstance(ser, dict) and ser.get("type") in {
-                "function-plain",
-                "function-wrap",
-            }:
-                fn = ser.get("function")
-                if getattr(fn, "__func__", fn) not in allowed_sers:
-                    return True
+            if "serialization" in node and _ser_schema_disallowed(
+                node.get("serialization"), allowed_sers
+            ):
+                return True
             if (
-                node.get("type") == "computed-field"
+                node_type == "computed-field"
                 and (next_owner, node.get("property_name")) not in allowed_computed
             ):
                 return True

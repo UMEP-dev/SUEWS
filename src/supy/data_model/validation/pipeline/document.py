@@ -409,7 +409,7 @@ _UNSAFE_DTYPE_META_MSG = (
 
 
 def _clone_safe_metadata_value(value: Any, active: set[int]) -> Any:
-    """Validate and reconstruct a NumPy dtype metadata value using only exact builtin containers."""
+    """Validate and reconstruct a NumPy dtype metadata/title value into deeply immutable builtins."""
     if isinstance(value, Enum):
         raise TypeError(_UNSAFE_DTYPE_META_MSG)
     if _is_exact_immutable_scalar(value):
@@ -433,12 +433,12 @@ def _clone_safe_metadata_value(value: Any, active: set[int]) -> Any:
                 return frozenset(
                     _clone_safe_metadata_value(item, active) for item in value
                 )
-            return {
+            return MappingProxyType({
                 _clone_safe_metadata_value(k, active): _clone_safe_metadata_value(
                     v, active
                 )
                 for k, v in value.items()
-            }
+            })
         finally:
             active.discard(obj_id)
     raise TypeError(_UNSAFE_DTYPE_META_MSG)
@@ -450,12 +450,14 @@ def _clone_safe_metadata_mapping(metadata: Any) -> dict[Any, Any] | None:
         return None
     if type(metadata) not in {dict, MappingProxyType}:
         raise TypeError(_UNSAFE_DTYPE_META_MSG)
-    cloned = _clone_safe_metadata_value(metadata, set())
-    return cloned if isinstance(cloned, dict) else dict(cloned)
+    return {
+        _clone_safe_metadata_value(k, set()): _clone_safe_metadata_value(v, set())
+        for k, v in metadata.items()
+    }
 
 
 def _validate_safe_numpy_dtype(dtype: np.dtype[Any]) -> np.dtype[Any]:
-    """Ensure *dtype* (and nested field/subarray dtypes) carry clean reconstructed metadata."""
+    """Ensure *dtype* (and nested field/subarray dtypes and titles) carry clean immutable metadata."""
     clean_meta = _clone_safe_metadata_mapping(dtype.metadata)
     meta_kwargs: dict[str, Any] = (
         {"metadata": clean_meta} if clean_meta is not None else {}
@@ -468,7 +470,12 @@ def _validate_safe_numpy_dtype(dtype: np.dtype[Any]) -> np.dtype[Any]:
         formats = [_validate_safe_numpy_dtype(dtype.fields[n][0]) for n in names]
         offsets = [dtype.fields[n][1] for n in names]
         titles = [
-            dtype.fields[n][2] if len(dtype.fields[n]) > 2 else None for n in names
+            (
+                _clone_safe_metadata_value(dtype.fields[n][2], set())
+                if len(dtype.fields[n]) > 2 and dtype.fields[n][2] is not None
+                else None
+            )
+            for n in names
         ]
         spec: dict[str, Any] = {
             "names": names,

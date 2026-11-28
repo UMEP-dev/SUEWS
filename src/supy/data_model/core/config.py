@@ -1987,19 +1987,58 @@ class SUEWSConfig(DataModelBase):
                             f"storage-heat scheme consumes {shared_list}"
                         )
                 else:
-                    for shared_field in sorted(shared_active):
-                        raw_shared = getattr(stebbs_props, shared_field, None)
-                        val_shared = _unwrap_value(raw_shared)
-                        if (
-                            val_shared is None
-                            or isinstance(val_shared, (bool, np.bool_))
-                            or not isinstance(val_shared, (int, float, np.number))
-                            or not math.isfinite(float(val_shared))
-                        ):
-                            non_finite_errors.append(
-                                f"{site_name}: stebbs.{shared_field} ({val_shared!r}) "
-                                "must be a finite number for active EHC/DyOHM boundary temperature"
-                            )
+                    if shared_active:
+                        shared_payload: dict[str, Any] = {}
+                        for shared_field in sorted(shared_active):
+                            raw_shared = getattr(stebbs_props, shared_field, None)
+                            val_shared = _unwrap_value(raw_shared)
+                            if (
+                                val_shared is None
+                                or isinstance(val_shared, (bool, np.bool_))
+                                or not isinstance(val_shared, (int, float, np.number))
+                                or not math.isfinite(float(val_shared))
+                            ):
+                                non_finite_errors.append(
+                                    f"{site_name}: stebbs.{shared_field} ({val_shared!r}) "
+                                    "must be a finite number for active EHC/DyOHM boundary temperature"
+                                )
+                            else:
+                                shared_payload[shared_field] = (
+                                    self._unwrap_ref_for_strict_validation(raw_shared)
+                                )
+                        if shared_payload:
+                            shared_tok = _STEBBS_ACTIVE_CONTEXT.set(True)
+                            try:
+                                validated_shared = StebbsProperties.model_validate(
+                                    shared_payload
+                                )
+                            except (ValidationError, ValueError) as exc:
+                                non_finite_errors.append(
+                                    f"{site_name}: properties.stebbs: {exc}"
+                                )
+                            else:
+                                for shared_field in shared_payload:
+                                    orig_s = getattr(stebbs_props, shared_field, None)
+                                    coerced_s = getattr(validated_shared, shared_field)
+                                    coerced_inner = (
+                                        coerced_s.value
+                                        if isinstance(coerced_s, RefValue)
+                                        else coerced_s
+                                    )
+                                    if isinstance(orig_s, RefValue):
+                                        object.__setattr__(
+                                            stebbs_props,
+                                            shared_field,
+                                            RefValue(
+                                                value=coerced_inner, ref=orig_s.ref
+                                            ),
+                                        )
+                                    else:
+                                        object.__setattr__(
+                                            stebbs_props, shared_field, coerced_s
+                                        )
+                            finally:
+                                _STEBBS_ACTIVE_CONTEXT.reset(shared_tok)
                     for field_name in StebbsProperties.model_fields:
                         if field_name in StebbsProperties._STEBBS_PROFILE_FIELDS:
                             prof = getattr(stebbs_props, field_name, None)

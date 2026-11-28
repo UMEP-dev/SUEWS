@@ -2579,17 +2579,21 @@ class ArchetypeProperties(DataModelBase):
         stashed: dict[str, Any] = {}
         stripped: dict[str, Any] = {}
         for key, val in renamed.items():
-            if key in cls._ARCHETYPE_PROFILE_FIELDS and (
-                val is None
-                or (
+            if key in cls._ARCHETYPE_PROFILE_FIELDS:
+                if val is None:
+                    stashed[key] = None
+                    continue
+                if (
                     isinstance(val, Mapping)
                     and "value" in val
                     and val["value"] is None
                     and set(val.keys()) <= {"value", "ref"}
-                )
-            ):
-                stashed[key] = None
-                continue
+                ):
+                    ref_raw = val.get("ref")
+                    if ref_raw is not None and not isinstance(ref_raw, Reference):
+                        Reference.model_validate(ref_raw, extra="forbid")
+                    stashed[key] = None
+                    continue
             if key in cls.model_fields and key not in cls._ARCHETYPE_NON_SCALAR_FIELDS:
                 ok, normalised = normalise_inactive_stebbs_scalar(
                     val,
@@ -3488,17 +3492,21 @@ class StebbsProperties(DataModelBase):
             stashed: dict[str, Any] = {}
             stripped: dict[str, Any] = {}
             for key, val in renamed.items():
-                if key in cls._STEBBS_PROFILE_FIELDS and (
-                    val is None
-                    or (
+                if key in cls._STEBBS_PROFILE_FIELDS:
+                    if val is None:
+                        stashed[key] = None
+                        continue
+                    if (
                         isinstance(val, Mapping)
                         and "value" in val
                         and val["value"] is None
                         and set(val.keys()) <= {"value", "ref"}
-                    )
-                ):
-                    stashed[key] = None
-                    continue
+                    ):
+                        ref_raw = val.get("ref")
+                        if ref_raw is not None and not isinstance(ref_raw, Reference):
+                            Reference.model_validate(ref_raw, extra="forbid")
+                        stashed[key] = None
+                        continue
                 if (
                     key in cls.model_fields
                     and key not in cls._STEBBS_NON_SCALAR_FIELDS

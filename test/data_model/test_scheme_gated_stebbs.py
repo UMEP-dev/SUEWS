@@ -1233,6 +1233,74 @@ def test_standalone_stebbs_physics_deepcopy_preserves_live_guard_owner() -> None
     assert phys.capacitance.value is None
 
 
+def test_live_ehc_implicit_activation_enforces_shared_temperature_bounds(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Switching ``storage_heat`` 1 -> 5 (implicit EHC) revalidates ``gt=0`` on diffmax."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["storage_heat"] = 1
+    data["sites"][0]["properties"]["stebbs"][
+        "temperature_air_month_mean_diffmax"
+    ] = -999.0
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+
+    cfg.model.physics.storage_heat = 5
+    cfg.model.physics.ehc_surface_coupling = 1
+    with pytest.raises(ValueError, match="temperature_air_month_mean_diffmax"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="temperature_air_month_mean_diffmax"):
+        config_to_engine_yaml(cfg, for_file_output=False)
+    with pytest.raises(ValueError, match="temperature_air_month_mean_diffmax"):
+        cfg.to_yaml(tmp_path / "bad_ehc_diffmax.yml")
+
+
+def test_dyohm_building_method_8_allows_inactive_null_stebbs_and_annual_mean(
+    sample_dict: dict,
+) -> None:
+    """Method 8 (``dyohm_building``) does not consume ``deep_soil_temperature``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["storage_heat"] = 8
+    data["sites"][0]["properties"]["stebbs"]["temperature_air_annual_mean"] = None
+    cfg = SUEWSConfig.from_dict(data)
+    assert cfg.sites[0].properties.stebbs.temperature_air_annual_mean is None
+    cfg.validate_for_engine()
+
+    data_null_block = copy.deepcopy(sample_dict)
+    _disable_stebbs(data_null_block)
+    data_null_block["model"]["physics"]["storage_heat"] = 8
+    data_null_block["sites"][0]["properties"]["stebbs"] = None
+    cfg_null = SUEWSConfig.from_dict(data_null_block)
+    assert cfg_null.sites[0].properties.stebbs is None
+    cfg_null.validate_for_engine()
+
+
+@pytest.mark.parametrize(
+    ("section", "profile_field", "bad_ref"),
+    [
+        ("stebbs", "profile_appliance", {"unexpected": 1}),
+        ("stebbs", "profile_flow_hot_water", 123),
+        ("building_archetype", "profile_metabolism", {"unexpected": 1}),
+        ("building_archetype", "profile_metabolism", 123),
+    ],
+)
+def test_inactive_wrapped_null_profile_validates_reference_strictly(
+    sample_dict: dict, section: str, profile_field: str, bad_ref
+) -> None:
+    """Wrapped-null inactive profiles still validate ``ref`` metadata with ``extra='forbid'``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"][section][profile_field] = {
+        "value": None,
+        "ref": bad_ref,
+    }
+    with pytest.raises((ValidationError, ValueError)):
+        SUEWSConfig.from_dict(data)
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

@@ -701,8 +701,10 @@ def resolve_stebbs_shared_temp_fields(physics: Any) -> frozenset[str]:
     Even when STEBBS is disabled, Fortran ``ehc_implicit_boundaries``
     (``storage_heat == 5`` with implicit ``ehc_surface_coupling != 0``) consumes
     ``temperature_air_annual_mean``, ``temperature_air_month_mean_diffmax``, and
-    ``temperature_air_indoor_initial``; DyOHM (``storage_heat in (6, 7, 8)``)
-    consumes ``temperature_air_annual_mean`` via ``deep_soil_temperature``.
+    ``temperature_air_indoor_initial``; DyOHM (``storage_heat in (6, 7)``)
+    consumes ``temperature_air_annual_mean`` via ``deep_soil_temperature``
+    (method 8 ``dyohm_building`` returns before the deep-soil update in
+    ``suews_update_tsurf_dyohm``).
     """
     if physics is None:
         return frozenset()
@@ -780,7 +782,7 @@ def resolve_stebbs_shared_temp_fields(physics: Any) -> frozenset[str]:
             return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
         return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
 
-    if sh_code in (6, 7, 8):
+    if sh_code in (6, 7):
         return _DYOHM_STEBBS_TEMP_FIELDS
 
     return frozenset()

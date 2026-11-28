@@ -117,3 +117,32 @@ def test_inactive_stebbs_relaxed_config_matches_baseline_bit_identically(
     ] = "TBD"
     placeholder_tair_out = _run_variant(relaxed_placeholder_tair, df_forcing)
     pd.testing.assert_frame_equal(placeholder_tair_out, flat_out, check_exact=True)
+
+
+def test_active_constant_setpoint_nullified_profiles_run_bit_identically(
+    short_sample_sim,
+) -> None:
+    """Active STEBBS with ``setpoint=0`` and Phase-B-nullified setpoint profiles runs bit-identically."""
+    control_sim = short_sample_sim()
+    df_forcing = control_sim.forcing.df.iloc[:12].copy()
+    base_dict = control_sim.config.model_dump(mode="json", round_trip=True)
+    base_dict["model"]["physics"]["stebbs"]["enabled"] = True
+    base_dict["model"]["physics"]["stebbs"]["parameters"] = 1
+    base_dict["model"]["physics"]["stebbs"]["setpoint"] = 0
+
+    baseline_active = _run_variant(base_dict, df_forcing)
+
+    null_day = {str(i): None for i in range(1, 145)}
+    nullified = copy.deepcopy(base_dict)
+    arch = nullified["sites"][0]["properties"]["building_archetype"]
+    arch["profile_setpoint_temperature_heating_air"] = {
+        "working_day": copy.deepcopy(null_day),
+        "holiday": copy.deepcopy(null_day),
+    }
+    arch["profile_setpoint_temperature_cooling_air"] = {
+        "working_day": copy.deepcopy(null_day),
+        "holiday": copy.deepcopy(null_day),
+    }
+
+    nullified_out = _run_variant(nullified, df_forcing)
+    pd.testing.assert_frame_equal(nullified_out, baseline_active, check_exact=True)

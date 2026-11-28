@@ -1702,6 +1702,125 @@ def test_active_scheduled_setpoint_rejects_null_and_incomplete_setpoint_profiles
         SUEWSConfig.from_dict(data_sparse)
 
 
+@pytest.mark.parametrize("parameters", [1, 2])
+def test_active_constant_setpoint_explicit_null_profiles_survive_yaml_roundtrip(
+    sample_dict: dict, tmp_path: Path, parameters: int
+) -> None:
+    """Explicit ``None`` setpoint profiles stay ``None`` across ``to_yaml()`` and reject live ``setpoint=2``."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    data["model"]["physics"]["stebbs"]["setpoint"] = 0
+    arch = data["sites"][0]["properties"]["building_archetype"]
+    arch["profile_setpoint_temperature_heating_air"] = None
+    arch["profile_setpoint_temperature_cooling_air"] = None
+
+    cfg = SUEWSConfig.from_dict(data)
+    exported = tmp_path / f"active_const_null_setpoint_p{parameters}.yml"
+    cfg.to_yaml(exported)
+    reloaded = SUEWSConfig.from_yaml(str(exported))
+    reloaded_arch = reloaded.sites[0].properties.building_archetype
+    assert reloaded_arch.profile_setpoint_temperature_heating_air is None
+    assert reloaded_arch.profile_setpoint_temperature_cooling_air is None
+
+    reloaded.model.physics.stebbs.setpoint = SetpointMethod.SCHEDULED
+    with pytest.raises(ValueError, match="profile_setpoint_temperature_heating_air"):
+        reloaded.validate_for_engine()
+    with pytest.raises(ValueError, match="profile_setpoint_temperature_heating_air"):
+        reloaded.to_yaml(tmp_path / "should_fail_scheduled_null.yml")
+
+
+def test_inactive_live_validation_rejects_overflow_strings_and_booleans(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Live disabled-STEBBS mutations reject overflowing strings and booleans just like the loader."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"]["depth_ground"] = {"value": "TBD"}
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.sites[0].properties.stebbs.depth_ground.value = "1e999"
+    with pytest.raises(ValueError, match="depth_ground"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="depth_ground"):
+        cfg.to_yaml(tmp_path / "bad_overflow_scalar.yml")
+
+    with pytest.raises((ValidationError, ValueError)):
+        cfg.sites[0].properties.stebbs.depth_ground.value = True
+
+    cfg.sites[0].properties.stebbs.depth_ground.value = "TBD"
+    cfg.sites[0].properties.stebbs.profile_appliance.working_day["1"] = True
+    with pytest.raises(ValueError, match="profile_appliance"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="profile_appliance"):
+        cfg.to_yaml(tmp_path / "bad_bool_profile.yml")
+
+    cfg.sites[0].properties.stebbs.profile_appliance.working_day["1"] = "1e999"
+    with pytest.raises(ValueError, match="profile_appliance"):
+        cfg.validate_for_engine()
+
+
+def test_to_yaml_enforces_same_surface_checks_after_live_stebbs_activation(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Live STEBBS activation enforces ``same_albedo_wall`` during ``to_yaml()``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["same_albedo_wall"] = 1
+    walls = data["sites"][0]["properties"]["vertical_layers"]["walls"]
+    walls[0]["alb"] = {"value": 0.2}
+    walls[1]["alb"] = {"value": 0.5}
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.to_yaml(tmp_path / "inactive_same_albedo_ok.yml")
+
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="albedo"):
+        cfg.to_yaml(tmp_path / "active_same_albedo_bad.yml")
+
+
+@pytest.mark.parametrize(
+    ("section", "profile_field"),
+    [
+        ("stebbs", "profile_appliance"),
+        ("building_archetype", "profile_metabolism"),
+    ],
+)
+def test_inactive_wrapped_null_profile_preserves_valid_reference(
+    sample_dict: dict, tmp_path: Path, section: str, profile_field: str
+) -> None:
+    """Wrapped-null inactive profiles with valid ``ref`` metadata retain ``ref`` instead of dropping it."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"][section][profile_field] = {
+        "value": None,
+        "ref": {"desc": "pending measurement"},
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    prof = getattr(getattr(cfg.sites[0].properties, section), profile_field)
+    assert prof is not None
+    assert prof.working_day is None
+    assert prof.holiday is None
+    assert prof.ref is not None
+    assert prof.ref.desc == "pending measurement"
+
+    exported = tmp_path / f"wrapped_null_ref_{section}_{profile_field}.yml"
+    cfg.to_yaml(exported)
+    reloaded = SUEWSConfig.from_yaml(str(exported))
+    reloaded_prof = getattr(
+        getattr(reloaded.sites[0].properties, section), profile_field
+    )
+    assert reloaded_prof is not None
+    assert reloaded_prof.working_day is None
+    assert reloaded_prof.holiday is None
+    assert reloaded_prof.ref is not None
+    assert reloaded_prof.ref.desc == "pending measurement"
+
+    reloaded.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match=profile_field):
+        reloaded.validate_for_engine()
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

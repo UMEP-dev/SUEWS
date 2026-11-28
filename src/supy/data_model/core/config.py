@@ -76,10 +76,12 @@ from .type import (
     _SOIL_OBSERVED_CONTEXT,
     _STEBBS_ACTIVE_CONTEXT,
     _STEBBS_SHARED_ACTIVE_FIELDS,
+    _coerce_inactive_stebbs_scalar,
     df_from_cols,
     is_finite_real_number,
     is_non_finite_value,
     merge_df_state_cols,
+    normalise_inactive_stebbs_scalar,
     resolve_snow_use_code,
     resolve_soil_moisture_code,
     resolve_stebbs_method_code,
@@ -1967,10 +1969,17 @@ class SUEWSConfig(DataModelBase):
             non_finite_errors: list[str] = []
             if stebbs_phys is not None:
                 for switch_name in REQUIRED_STEBBS_SWITCHES:
-                    val = _unwrap_value(getattr(stebbs_phys, switch_name, None))
-                    if is_non_finite_value(val):
+                    raw_switch = getattr(stebbs_phys, switch_name, None)
+                    ok, _ = normalise_inactive_stebbs_scalar(
+                        raw_switch,
+                        allow_null=True,
+                        allow_string=True,
+                        int_preferred=True,
+                    )
+                    if not ok:
+                        val = _unwrap_value(raw_switch)
                         non_finite_errors.append(
-                            f"model.physics.stebbs.{switch_name} ({val!r}) must be finite"
+                            f"model.physics.stebbs.{switch_name} ({val!r}) must be a finite value or placeholder string"
                         )
             for i, site in enumerate(self.sites):
                 site_name = getattr(site, "name", f"Site {i}")
@@ -2043,17 +2052,33 @@ class SUEWSConfig(DataModelBase):
                                     day_map = getattr(prof, day_key, None)
                                     if isinstance(day_map, Mapping):
                                         for step_k, step_v in day_map.items():
-                                            if is_non_finite_value(step_v):
+                                            ok, _ = _coerce_inactive_stebbs_scalar(
+                                                step_v,
+                                                allow_null=True,
+                                                allow_string=True,
+                                                int_preferred=False,
+                                            )
+                                            if not ok:
                                                 non_finite_errors.append(
-                                                    f"{site_name}: stebbs.{field_name}.{day_key}.{step_k} ({step_v!r}) must be finite"
+                                                    f"{site_name}: stebbs.{field_name}.{day_key}.{step_k} ({step_v!r}) must be a finite number or placeholder string"
                                                 )
                             continue
-                        if field_name in StebbsProperties._STEBBS_NON_SCALAR_FIELDS:
+                        if (
+                            field_name in StebbsProperties._STEBBS_NON_SCALAR_FIELDS
+                            or field_name in shared_active
+                        ):
                             continue
-                        val = _unwrap_value(getattr(stebbs_props, field_name, None))
-                        if is_non_finite_value(val):
+                        raw_field = getattr(stebbs_props, field_name, None)
+                        ok, _ = normalise_inactive_stebbs_scalar(
+                            raw_field,
+                            allow_null=True,
+                            allow_string=True,
+                            int_preferred=(field_name in StebbsProperties._STEBBS_INT_FIELDS),
+                        )
+                        if not ok:
+                            val = _unwrap_value(raw_field)
                             non_finite_errors.append(
-                                f"{site_name}: stebbs.{field_name} ({val!r}) must be finite"
+                                f"{site_name}: stebbs.{field_name} ({val!r}) must be a finite number or placeholder string"
                             )
                 arch_props = getattr(props, "building_archetype", None)
                 if arch_props is not None:
@@ -2065,17 +2090,30 @@ class SUEWSConfig(DataModelBase):
                                     day_map = getattr(prof, day_key, None)
                                     if isinstance(day_map, Mapping):
                                         for step_k, step_v in day_map.items():
-                                            if is_non_finite_value(step_v):
+                                            ok, _ = _coerce_inactive_stebbs_scalar(
+                                                step_v,
+                                                allow_null=True,
+                                                allow_string=True,
+                                                int_preferred=False,
+                                            )
+                                            if not ok:
                                                 non_finite_errors.append(
-                                                    f"{site_name}: building_archetype.{field_name}.{day_key}.{step_k} ({step_v!r}) must be finite"
+                                                    f"{site_name}: building_archetype.{field_name}.{day_key}.{step_k} ({step_v!r}) must be a finite number or placeholder string"
                                                 )
                             continue
                         if field_name in ArchetypeProperties._ARCHETYPE_NON_SCALAR_FIELDS:
                             continue
-                        val = _unwrap_value(getattr(arch_props, field_name, None))
-                        if is_non_finite_value(val):
+                        raw_field = getattr(arch_props, field_name, None)
+                        ok, _ = normalise_inactive_stebbs_scalar(
+                            raw_field,
+                            allow_null=True,
+                            allow_string=True,
+                            int_preferred=(field_name in ArchetypeProperties._ARCHETYPE_INT_FIELDS),
+                        )
+                        if not ok:
+                            val = _unwrap_value(raw_field)
                             non_finite_errors.append(
-                                f"{site_name}: building_archetype.{field_name} ({val!r}) must be finite"
+                                f"{site_name}: building_archetype.{field_name} ({val!r}) must be a finite number or placeholder string"
                             )
             if non_finite_errors:
                 raise ValueError("; ".join(non_finite_errors))
@@ -7756,8 +7794,29 @@ class SUEWSConfig(DataModelBase):
                 self.validate_stebbs_parameters()
                 if self._needs_stebbs_validation():
                     stebbs_export_issues: list[str] = []
+                    same_surface_checks = (
+                        (
+                            self._needs_same_albedo_wall_validation(),
+                            self._validate_same_albedo_wall,
+                        ),
+                        (
+                            self._needs_same_albedo_roof_validation(),
+                            self._validate_same_albedo_roof,
+                        ),
+                        (
+                            self._needs_same_emissivity_wall_validation(),
+                            self._validate_same_emissivity_wall,
+                        ),
+                        (
+                            self._needs_same_emissivity_roof_validation(),
+                            self._validate_same_emissivity_roof,
+                        ),
+                    )
                     for idx, site in enumerate(self.sites):
                         stebbs_export_issues.extend(self._validate_stebbs(site, idx))
+                        for needed, validator_fn in same_surface_checks:
+                            if needed:
+                                stebbs_export_issues.extend(validator_fn(site, idx))
                     if stebbs_export_issues:
                         raise ValueError("; ".join(stebbs_export_issues))
 
@@ -7795,10 +7854,17 @@ class SUEWSConfig(DataModelBase):
             return entry
 
         phys_obj = getattr(self.model, "physics", None) if not isinstance(self.model, dict) else None
-        stebbs_inactive_for_yaml = (
-            resolve_stebbs_method_code(phys_obj) == 0 if phys_obj is not None else False
+        stebbs_method_for_yaml = (
+            resolve_stebbs_method_code(phys_obj) if phys_obj is not None else None
         )
+        stebbs_inactive_for_yaml = stebbs_method_for_yaml == 0
         stebbs_phys_obj = getattr(phys_obj, "stebbs", None) if phys_obj is not None else None
+        stebbs_setpoint_inactive_for_yaml = (
+            stebbs_method_for_yaml in (1, 2)
+            and isinstance(stebbs_phys_obj, StebbsPhysics)
+            and _unwrap_value(getattr(stebbs_phys_obj, "setpoint", None))
+            not in (SetpointMethod.SCHEDULED, SetpointMethod.SCHEDULED.value)
+        )
         if stebbs_inactive_for_yaml and isinstance(stebbs_phys_obj, StebbsPhysics):
             stebbs_phys_dict = (
                 config_dict.setdefault("model", {})
@@ -7900,6 +7966,25 @@ class SUEWSConfig(DataModelBase):
                                     and field_name in arch_obj.model_fields_set
                                 ):
                                     arch_dict[field_name] = _null_ref_yaml_entry(raw)
+                                elif isinstance(raw, TenMinuteProfile) and (
+                                    raw.working_day is None or raw.holiday is None
+                                ):
+                                    prof_dict = arch_dict.setdefault(field_name, {})
+                                    if raw.working_day is None:
+                                        prof_dict["working_day"] = None
+                                    if raw.holiday is None:
+                                        prof_dict["holiday"] = None
+                    elif stebbs_setpoint_inactive_for_yaml:
+                        arch_obj = getattr(props_obj, "building_archetype", None)
+                        if isinstance(arch_obj, ArchetypeProperties):
+                            arch_dict = props_dict.setdefault("building_archetype", {})
+                            for field_name in (
+                                "profile_setpoint_temperature_heating_air",
+                                "profile_setpoint_temperature_cooling_air",
+                            ):
+                                raw = getattr(arch_obj, field_name, None)
+                                if raw is None and field_name in arch_obj.model_fields_set:
+                                    arch_dict[field_name] = None
                                 elif isinstance(raw, TenMinuteProfile) and (
                                     raw.working_day is None or raw.holiday is None
                                 ):

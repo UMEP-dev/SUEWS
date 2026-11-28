@@ -10,6 +10,7 @@ from pydantic import (
     computed_field,
     field_serializer,
     field_validator,
+    model_serializer,
     model_validator,
 )
 from .type import (
@@ -44,6 +45,7 @@ from .unit_metadata import (
     conditional_unit_extra,
 )
 from .profile import (
+    CANONICAL_TEN_MINUTE_KEYS,
     HourlyProfile,
     DayProfile,
     WeeklyProfile,
@@ -2590,9 +2592,22 @@ class ArchetypeProperties(DataModelBase):
                     and set(val.keys()) <= {"value", "ref"}
                 ):
                     ref_raw = val.get("ref")
-                    if ref_raw is not None and not isinstance(ref_raw, Reference):
-                        Reference.model_validate(ref_raw, extra="forbid")
-                    stashed[key] = None
+                    if ref_raw is not None:
+                        ref_obj = (
+                            ref_raw
+                            if isinstance(ref_raw, Reference)
+                            else Reference.model_validate(ref_raw, extra="forbid")
+                        )
+                        profile_cls = {
+                            "profile_metabolism": TenMinuteProfile,
+                            "profile_setpoint_temperature_heating_air": HeatingSetpointProfile,
+                            "profile_setpoint_temperature_cooling_air": CoolingSetpointProfile,
+                        }[key]
+                        stashed[key] = profile_cls.model_validate(
+                            {"working_day": None, "holiday": None, "ref": ref_obj}
+                        )
+                    else:
+                        stashed[key] = None
                     continue
             if key in cls.model_fields and key not in cls._ARCHETYPE_NON_SCALAR_FIELDS:
                 ok, normalised = normalise_inactive_stebbs_scalar(
@@ -2646,6 +2661,56 @@ class ArchetypeProperties(DataModelBase):
         return serialise_relaxed_ref_value(
             value, handler, info, expected_scalar_types=expected
         )
+
+    @staticmethod
+    def _is_complete_numeric_ten_minute_profile(prof: Any) -> bool:
+        """Return True when *prof* is a TenMinuteProfile with 144 finite slots on both days."""
+        if not isinstance(prof, TenMinuteProfile):
+            return False
+        for day_key in ("working_day", "holiday"):
+            day_map = getattr(prof, day_key, None)
+            if not isinstance(day_map, Mapping) or len(day_map) != 144:
+                return False
+            for step_k in CANONICAL_TEN_MINUTE_KEYS:
+                if step_k not in day_map or not is_finite_real_number(day_map[step_k]):
+                    return False
+        return True
+
+    @model_serializer(mode="wrap")
+    def _serialise_archetype_model(
+        self, handler: Any, info: SerializationInfo
+    ) -> Any:
+        """Omit unused incomplete/null setpoint profiles from engine exports when setpoint != 2."""
+        dumped = handler(self)
+        if info.round_trip or not isinstance(dumped, dict):
+            return dumped
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is None:
+            return dumped
+        model = getattr(parent_cfg, "model", None)
+        physics = getattr(model, "physics", None) if model is not None else None
+        if resolve_stebbs_method_code(physics) not in (1, 2):
+            return dumped
+        stebbs_phys = getattr(physics, "stebbs", None)
+        setpoint_raw = getattr(stebbs_phys, "setpoint", None)
+        if isinstance(setpoint_raw, RefValue):
+            setpoint_raw = setpoint_raw.value
+        if hasattr(setpoint_raw, "value"):
+            setpoint_raw = setpoint_raw.value
+        if setpoint_raw == 2:
+            return dumped
+        for p_name in (
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
+        ):
+            if p_name not in dumped:
+                continue
+            if not self._is_complete_numeric_ten_minute_profile(
+                getattr(self, p_name, None)
+            ):
+                dumped.pop(p_name, None)
+        return dumped
 
     def __setattr__(self, name: str, value: Any) -> None:
         if (
@@ -3491,9 +3556,17 @@ class StebbsProperties(DataModelBase):
                         and set(val.keys()) <= {"value", "ref"}
                     ):
                         ref_raw = val.get("ref")
-                        if ref_raw is not None and not isinstance(ref_raw, Reference):
-                            Reference.model_validate(ref_raw, extra="forbid")
-                        stashed[key] = None
+                        if ref_raw is not None:
+                            ref_obj = (
+                                ref_raw
+                                if isinstance(ref_raw, Reference)
+                                else Reference.model_validate(ref_raw, extra="forbid")
+                            )
+                            stashed[key] = TenMinuteProfile.model_validate(
+                                {"working_day": None, "holiday": None, "ref": ref_obj}
+                            )
+                        else:
+                            stashed[key] = None
                         continue
                 if (
                     key in cls.model_fields

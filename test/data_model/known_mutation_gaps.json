@@ -758,12 +758,12 @@
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
-      "category": "active_gap",
-      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor has capacitance=0 so outer/fraction roof fields are not required unless capacitance is 1 or 2); core roof, wall, window, and ground STEBBS fields reject explicit nulls.",
-      "owner_issue": "#2309",
+      "category": "inactive_optional",
+      "active_condition": "Inactive when capacitance=0 on spartacus_ehc_stebbs (RC_DEFAULT does not read roof fraction or outer-layer parameters; capacitance=1 and capacitance=2 strictly enforce them).",
+      "owner_issue": "#2083",
       "related_issues": [
-        "#1991",
-        "#2001"
+        "#2083",
+        "#2363"
       ],
       "rationale": "Capacitance-dependent roof fraction and outer-layer archetype fields remain nullable when capacitance=0 on spartacus_ehc_stebbs."
     },
@@ -1227,7 +1227,7 @@
       ],
       "mutations": {
         "omit": "dropped",
-        "bare_null": "null_or_empty"
+        "bare_null": "dropped"
       },
       "category": "inactive_optional",
       "active_condition": "Inactive when stebbs.setpoint != 2 (spartacus_ehc_stebbs uses setpoint='constant'); strictly enforced when stebbs.setpoint == 2 (scheduled).",

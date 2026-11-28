@@ -25,7 +25,6 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
-    ValidationError,
     ValidationInfo,
     field_validator,
     model_serializer,
@@ -1104,9 +1103,19 @@ _NON_FINITE_STRINGS: frozenset[str] = frozenset(
 
 
 def is_non_finite_value(val: Any) -> bool:
-    """Return True when *val* is a non-finite number or a non-finite string literal."""
+    """Return True when *val* is a non-finite number or a non-finite numeric string."""
     if isinstance(val, str):
-        return val.strip().lower() in _NON_FINITE_STRINGS
+        stripped = val.strip()
+        if stripped.lower() in _NON_FINITE_STRINGS:
+            return True
+        if stripped and "_" not in stripped:
+            try:
+                return not math.isfinite(float(stripped))
+            except ValueError:
+                return False
+            except OverflowError:
+                return True
+        return False
     if isinstance(val, (int, float, np.number)) and not isinstance(
         val, (bool, np.bool_)
     ):

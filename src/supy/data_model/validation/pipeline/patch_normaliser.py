@@ -97,8 +97,12 @@ def _real_float_arrays_strict_equal(
 def _arrays_strict_equal(
     left: np.ndarray[Any, Any], right: np.ndarray[Any, Any]
 ) -> bool:
-    """Compare two NumPy arrays strictly by shape, dtype, NaN-equality, sign, and elements."""
-    if left.shape != right.shape or left.dtype != right.dtype:
+    """Compare two NumPy arrays strictly by exact type, shape, dtype, NaN-equality, sign, and elements."""
+    if (
+        type(left) is not type(right)
+        or left.shape != right.shape
+        or left.dtype != right.dtype
+    ):
         return False
     if left.dtype.hasobject:
         return all(_strict_equal(a, b) for a, b in zip(left.flat, right.flat))
@@ -169,6 +173,8 @@ def _mapping_strict_equal(left: Mapping[Any, Any], right: Mapping[Any, Any]) -> 
         return False
     left_typed = {_strict_hashable_key(k): v for k, v in left.items()}
     right_typed = {_strict_hashable_key(k): v for k, v in right.items()}
+    if len(left_typed) != len(left) or len(right_typed) != len(right):
+        return False
     return left_typed.keys() == right_typed.keys() and all(
         _strict_equal(left_typed[k], right_typed[k]) for k in left_typed
     )
@@ -185,12 +191,13 @@ def _container_strict_equal(left: Any, right: Any) -> bool:
     if isinstance(left, Mapping) and isinstance(right, Mapping):
         return _mapping_strict_equal(left, right)
     if isinstance(left, (set, frozenset)) and isinstance(right, (set, frozenset)):
-        return (
-            type(left) is type(right)
-            and len(left) == len(right)
-            and {_strict_hashable_key(item) for item in left}
-            == {_strict_hashable_key(item) for item in right}
-        )
+        if type(left) is not type(right) or len(left) != len(right):
+            return False
+        left_keys = {_strict_hashable_key(item) for item in left}
+        right_keys = {_strict_hashable_key(item) for item in right}
+        if len(left_keys) != len(left) or len(right_keys) != len(right):
+            return False
+        return left_keys == right_keys
     return False
 
 
@@ -225,6 +232,8 @@ def _strict_equal(left: Any, right: Any) -> bool:
         right, (list, tuple, Mapping, set, frozenset)
     ):
         return _container_strict_equal(left, right)
+    if type(left) is not type(right):
+        return False
     return bool(left == right)
 
 

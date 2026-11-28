@@ -215,29 +215,35 @@ def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
     return True
 
 
-def _is_deeply_immutable_payload(value: Any, seen: set[int]) -> bool:
-    """Return True when *value* contains no reachable mutable objects."""
+def _is_deeply_immutable_payload(value: Any, active: set[int]) -> bool:
+    """Return True when *value* contains no reachable mutable or cyclic objects."""
     if isinstance(value, Enum):
         obj_id = id(value)
-        if obj_id in seen:
-            return True
-        seen.add(obj_id)
-        return _is_deeply_immutable_payload(
-            value.value, seen
-        ) and _enum_extra_attrs_immutable(value, seen)
+        if obj_id in active:
+            return False
+        active.add(obj_id)
+        try:
+            return _is_deeply_immutable_payload(
+                value.value, active
+            ) and _enum_extra_attrs_immutable(value, active)
+        finally:
+            active.discard(obj_id)
     if _is_exact_immutable_scalar(value):
         return True
     if type(value) is slice:
         return all(
-            _is_deeply_immutable_payload(bound, seen)
+            _is_deeply_immutable_payload(bound, active)
             for bound in (value.start, value.stop, value.step)
         )
     if type(value) in {tuple, frozenset}:
         obj_id = id(value)
-        if obj_id in seen:
-            return True
-        seen.add(obj_id)
-        return all(_is_deeply_immutable_payload(item, seen) for item in value)
+        if obj_id in active:
+            return False
+        active.add(obj_id)
+        try:
+            return all(_is_deeply_immutable_payload(item, active) for item in value)
+        finally:
+            active.discard(obj_id)
     return False
 
 
@@ -483,9 +489,14 @@ class _ReadOnlyMaterialisingTuple(tuple):  # type: ignore[type-arg]
 
 
 def _copy_numpy_payload(value: np.ndarray[Any, Any] | np.void) -> Any:
-    """Copy a NumPy array or structured scalar while detaching its mutable ``dtype``."""
+    """Copy an exact NumPy ``ndarray`` or ``np.void`` while detaching its mutable ``dtype``."""
+    if type(value) not in {np.ndarray, np.void}:
+        raise TypeError(
+            f"Cannot safely copy NumPy subclass {type(value).__name__!r} "
+            "without losing subclass state"
+        )
     detached_dtype = deepcopy(value.dtype)
-    if isinstance(value, np.ndarray):
+    if type(value) is np.ndarray:
         if value.dtype.hasobject:
             out_arr: np.ndarray[Any, Any] = np.empty(value.shape, dtype=detached_dtype)
             for idx, item in enumerate(value.flat):
@@ -578,7 +589,11 @@ def _freeze_sequence_items(items: list[Any]) -> tuple[Any, ...]:
 def _freeze_numpy_value(
     value: np.ndarray[Any, Any] | np.void, active: set[int]
 ) -> Any:
-    if isinstance(value, np.void):
+    if type(value) not in {np.ndarray, np.void}:
+        raise TypeError(
+            f"deep_freeze cannot safely freeze NumPy subclass {type(value).__name__!r}"
+        )
+    if type(value) is np.void:
         if value.dtype.names:
             return _freeze_mapping_entries({
                 name: _deep_freeze_internal(value[name], active)
@@ -592,8 +607,8 @@ def _freeze_numpy_value(
         active.add(obj_id)
         try:
             if value.ndim == 0:
-                return _deep_freeze_internal(deepcopy(value.item()), active)
-            return _deep_freeze_internal(deepcopy(value.tolist()), active)
+                return _deep_freeze_internal(value.item(), active)
+            return _deep_freeze_internal(value.tolist(), active)
         finally:
             active.discard(obj_id)
     return _FrozenArraySpec(value)

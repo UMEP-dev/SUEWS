@@ -2925,3 +2925,176 @@ def test_r10_r5_merge_keys_defaultdict_mangled_slots_cycles_identity_zero_sign_a
     assert frozen_zero.shape == (2,)
     assert frozen_zero.dtype == np.dtype("V0")
     assert not frozen_zero.flags.writeable
+
+
+def test_r10_r6_nested_dataclass_computed_field_and_engine_proxy_guard() -> None:
+    """Cover R5 M1-M2: nested Pydantic dataclass computed fields and engine proxy guard."""
+    from pydantic import computed_field, field_serializer  # noqa: PLC0415
+    from pydantic.dataclasses import dataclass as pdataclass  # noqa: PLC0415
+
+    from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
+
+    # M1: Nested Pydantic dataclass @computed_field on Enum-bearing instance is blocked.
+    class _DcEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "orig"
+
+    @pdataclass
+    class _NestedPdc:
+        member: _DcEnum
+
+        @computed_field
+        @property
+        def mutated_label(self) -> str:
+            self.member.label = "mutated_dc"
+            return self.member.label
+
+    class _OuterModel(BaseModel):
+        dc: _NestedPdc
+
+    ro_outer = freeze_model(_OuterModel(dc=_NestedPdc(member=_DcEnum.ITEM)))
+    with pytest.raises(TypeError, match="Enum singletons"):
+        ro_outer.model_dump()
+    assert _DcEnum.ITEM.label == "orig"
+
+    # M2: validate_config on a ReadOnlyModelProxy enforces serialisation isolation guard.
+    class _MutConfig(SUEWSConfig):
+        custom_enum: _DcEnum = _DcEnum.ITEM
+
+        @field_serializer("custom_enum")
+        def _ser_enum(self, val: _DcEnum) -> int:
+            val.label = "mutated_engine"
+            return val.value
+
+    ro_mut_cfg = freeze_model(_MutConfig())
+    with pytest.raises(TypeError, match="Enum singletons"):
+        ro_mut_cfg.model_dump()
+    report = validate_config(ro_mut_cfg, pipeline="B", forcing="off")
+    assert report.has_errors
+    assert _DcEnum.ITEM.label == "orig"
+
+
+def test_r10_r6_masked_array_type_noop_nan_keys_memoryview_enum_drift_and_cycles() -> (
+    None
+):
+    """Cover R5 m1-m8: masked arrays, type no-ops, NaN keys, memoryview, enum drift/hash, cycles."""
+    import array  # noqa: PLC0415
+    from enum import StrEnum  # noqa: PLC0415
+
+    # m1: NumPy masked array is rejected explicitly instead of silently losing its mask.
+    masked = np.ma.array([1.0, 2.0], mask=[False, True])
+
+    class _ArrModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object
+
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_ArrModel(payload=masked))
+    with pytest.raises(TypeError, match="NumPy subclass"):
+        ConfigPatch("a", "set", masked)
+
+    # m2: bytes vs bytearray and StrEnum vs str are not dropped as no-ops.
+    class _SE(StrEnum):
+        A = "a"
+
+    assert (
+        len(
+            normalise_patches(
+                [ConfigPatch("x", "set", bytearray(b"a"), default_wrapped=False)],
+                {"x": b"a"},
+            )
+        )
+        == 1
+    )
+    assert (
+        len(
+            normalise_patches(
+                [ConfigPatch("x", "set", "a", default_wrapped=False)],
+                {"x": _SE.A},
+            )
+        )
+        == 1
+    )
+
+    # m3: Distinct NaN mapping keys do not collapse during no-op detection.
+    nan_a = float("nan")
+    nan_b = float("nan")
+    nan_norm = normalise_patches(
+        [ConfigPatch("x", "set", {nan_a: 9, nan_b: 2}, replace_raw=True)],
+        {"x": {nan_a: 1, nan_b: 2}},
+    )
+    assert len(nan_norm) == 1
+
+    # m4: memoryview preserves format and shape across freeze, property, and unwrap_copy.
+    class _MvModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object
+
+        @property
+        def first(self) -> int:
+            return int(self.payload[0])
+
+    buf = array.array("I", [257])
+    ro_mv = freeze_model(_MvModel(payload=memoryview(buf)))
+    buf[0] = 999
+    assert ro_mv.first == 257
+    unwrapped_mv = ro_mv.unwrap_copy().payload
+    assert unwrapped_mv.format == "I"
+    assert unwrapped_mv[0] == 257
+
+
+def test_r10_r6_enum_drift_identity_hash_and_object_array_cycles() -> None:
+    """Cover R5 m5-m8: enum drift/identity-hash and self-referential object array/enum cycles."""
+
+    # m5 & m6: Enum snapshots freeze name/value/hash against live _value_/_name_ tampering & keep object.__hash__.
+    class _IdHashEnum(Enum):
+        ITEM = 1
+        __hash__ = object.__hash__
+
+    ro_id_enum = deep_freeze(_IdHashEnum.ITEM)
+    assert ro_id_enum == _IdHashEnum.ITEM
+    assert hash(ro_id_enum) == hash(_IdHashEnum.ITEM)
+
+    class _DriftEnum(Enum):
+        ITEM = 1
+
+    class _DriftModel(BaseModel):
+        e: _DriftEnum
+
+    ro_drift = freeze_model(_DriftModel(e=_DriftEnum.ITEM))
+    orig_hash = hash(ro_drift.e)
+    _DriftEnum.ITEM._value_ = 2
+    _DriftEnum.ITEM._name_ = "RENAMED"
+    try:
+        assert ro_drift.e.name == "ITEM"
+        assert ro_drift.e.value == 1
+        assert hash(ro_drift.e) == orig_hash
+        assert ro_drift.model_dump(mode="json") == {"e": 1}
+    finally:
+        _DriftEnum.ITEM._value_ = 1
+        _DriftEnum.ITEM._name_ = "ITEM"
+
+    # m7 & m8: Self-referential object array and cyclic Enum attrs raise TypeError instead of RecursionError.
+    class _ObjArrModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object
+
+    self_arr = np.empty(1, dtype=object)
+    self_arr[0] = self_arr
+    with pytest.raises(TypeError, match="cyclic container"):
+        deep_freeze(self_arr)
+    ro_self_arr = freeze_model(_ObjArrModel(payload=self_arr))
+    with pytest.raises(TypeError, match="cyclic container"):
+        _ = ro_self_arr.payload
+
+    class _CyclicEnum(Enum):
+        ITEM = 1
+
+    _CyclicEnum.ITEM.peer = _CyclicEnum.ITEM
+    try:
+        with pytest.raises(TypeError, match="mutable payload"):
+            deep_freeze(_CyclicEnum.ITEM)
+    finally:
+        del _CyclicEnum.ITEM.peer

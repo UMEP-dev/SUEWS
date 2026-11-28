@@ -600,7 +600,26 @@ def _load_source_in_memory(
     from ..core.config import SUEWSConfig  # noqa: PLC0415
 
     if isinstance(source, ReadOnlyModelProxy):
-        source = _unwrap_model_for_validation(source)
+        try:
+            source = _unwrap_model_for_validation(source)
+        except TypeError as exc:
+            return (
+                None,
+                None,
+                PhaseReport(
+                    phase=first_phase,
+                    issues=[
+                        Issue(
+                            phase=first_phase,
+                            severity=SEVERITY_ERROR,
+                            code=f"{first_phase}.CONFIG_CONSISTENCY.INVALID_MODEL_STATE",
+                            message=f"Could not serialise read-only config proxy safely: {exc}",
+                            category="CONFIG_CONSISTENCY",
+                        )
+                    ],
+                    yaml_in=None,
+                ),
+            )
 
     if isinstance(source, SUEWSConfig):
         validated_copy, pre_dump_err = _validate_suews_config_before_dump(
@@ -1186,13 +1205,8 @@ class ValidationEngine:
             )
 
         first_phase = pipeline_norm[0]
-        unwrapped_source: Any = (
-            _unwrap_model_for_validation(source)
-            if isinstance(source, ReadOnlyModelProxy)
-            else source
-        )
         raw_data, source_path, load_error = _load_source_in_memory(
-            unwrapped_source, first_phase=first_phase
+            source, first_phase=first_phase
         )
         if load_error is not None:
             return ValidationReport(
@@ -1200,6 +1214,11 @@ class ValidationEngine:
                 _render_mode=mode_norm,
                 _render_science_fixes=fixes_norm,
             )
+        unwrapped_source: Any = (
+            _unwrap_model_for_validation(source)
+            if isinstance(source, ReadOnlyModelProxy)
+            else source
+        )
 
         policy_issues = _build_policy_issues(
             raw_data, mode_norm=mode_norm, first_phase=first_phase

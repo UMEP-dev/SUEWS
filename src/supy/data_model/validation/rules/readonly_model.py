@@ -16,6 +16,7 @@ from dataclasses import dataclass, fields as dc_fields, is_dataclass
 import datetime
 from enum import Enum, Flag
 import functools
+import math
 from types import (
     BuiltinMethodType,
     FunctionType,
@@ -29,7 +30,7 @@ import weakref
 
 import numpy as np
 from pydantic import BaseModel
-from pydantic_core import PydanticUndefinedType
+from pydantic_core import PydanticUndefinedType, to_jsonable_python
 
 from ..pipeline.document import (
     _ENUM_INTERNAL_ATTRS,
@@ -65,7 +66,7 @@ _DATACLASS_STATE: dict[
         dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]],
     ],
 ] = {}
-_ENUM_STATE: dict[int, tuple[Enum, Any, Mapping[str, Any]]] = {}
+_ENUM_STATE: dict[int, tuple[Enum, str, Any, int | None, Mapping[str, Any]]] = {}
 
 _MODEL_EXTRA_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     PydanticUndefinedType,
@@ -308,6 +309,24 @@ def _detach_callable(
     return False, None
 
 
+def _detach_memoryview(value: memoryview) -> memoryview:
+    """Return a detached read-only memoryview preserving C-contiguous format and shape."""
+    if not value.c_contiguous:
+        raise TypeError(
+            "Cannot safely detach non-contiguous memoryview without altering layout"
+        )
+    raw_view = memoryview(value.tobytes())
+    if value.format == "B" and value.ndim == 1:
+        return raw_view
+    try:
+        return raw_view.cast(value.format, shape=value.shape)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            f"Cannot safely detach memoryview with format {value.format!r} "
+            f"and shape {value.shape!r}"
+        ) from exc
+
+
 def _detach_numpy_or_buffer(
     value: Any,
     memo: dict[int, Any],
@@ -315,11 +334,11 @@ def _detach_numpy_or_buffer(
     reject_enums: bool,
     wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
 ) -> tuple[bool, Any]:
-    """Detach NumPy arrays, structured scalars, and byte buffers."""
+    """Detach exact NumPy arrays, structured scalars, and byte buffers."""
     obj_id = id(value)
     result: Any = None
     handled = True
-    if isinstance(value, np.ndarray):
+    if type(value) is np.ndarray:
         detached_dtype = deepcopy(value.dtype)
         out_arr: np.ndarray[Any, Any] = np.empty(value.shape, dtype=detached_dtype)
         memo[obj_id] = out_arr
@@ -331,7 +350,7 @@ def _detach_numpy_or_buffer(
         else:
             np.copyto(out_arr, value, casting="unsafe")
         return True, out_arr
-    if isinstance(value, np.void):
+    if type(value) is np.void:
         detached_dtype = deepcopy(value.dtype)
         if value.dtype.names and value.dtype.hasobject:
             detached_fields = tuple(
@@ -348,7 +367,7 @@ def _detach_numpy_or_buffer(
     elif type(value) is bytearray:
         result = bytearray(value)
     elif type(value) is memoryview:
-        result = memoryview(bytes(value))
+        result = _detach_memoryview(value)
     else:
         handled = False
     if handled:
@@ -798,7 +817,7 @@ def _enum_proxy_equals(member: Enum, frozen_value: Any, other: object) -> bool |
             f"Cannot safely compare Enum proxy with custom __eq__ on {type(member).__name__!r}"
         )
     if isinstance(other, ReadOnlyEnumProxy):
-        other_member, other_val, _ = _ENUM_STATE[id(other)]
+        other_member, _other_name, other_val, _other_hash, _ = _ENUM_STATE[id(other)]
         return _compare_enum_members(member, frozen_value, other_member, other_val)
     if isinstance(other, Enum):
         return _compare_enum_members(member, frozen_value, other, other.value)
@@ -807,15 +826,17 @@ def _enum_proxy_equals(member: Enum, frozen_value: Any, other: object) -> bool |
     return NotImplemented
 
 
-def _enum_proxy_hash(member: Enum, frozen_value: Any) -> int:
-    """Hash an enum proxy purely without invoking custom user ``__hash__`` hooks."""
+def _compute_enum_snapshot_hash(
+    member: Enum, frozen_name: str, frozen_value: Any
+) -> int | None:
+    """Compute a snapshotted hash for *member* when its ``__hash__`` is standard."""
     member_hash = type(member).__hash__
     if member_hash not in _STD_ENUM_HASH_METHODS:
-        raise TypeError(
-            f"Cannot safely hash Enum proxy with custom __hash__ on {type(member).__name__!r}"
-        )
-    if member_hash in {Enum.__hash__, object.__hash__}:
-        return Enum.__hash__(member)
+        return None
+    if member_hash is object.__hash__:
+        return object.__hash__(member)
+    if member_hash is Enum.__hash__:
+        return hash(frozen_name)
     return hash(frozen_value)
 
 
@@ -849,10 +870,18 @@ class ReadOnlyEnumProxy:
                 f"Cannot safely freeze Enum member {type(member).__name__}.{member.name} "
                 "with mutable payload"
             )
+        frozen_name = str(member.name)
         frozen_value = _wrap_readonly(member.value)
+        frozen_hash = _compute_enum_snapshot_hash(member, frozen_name, frozen_value)
         extra_attrs = _snapshot_enum_extra_attrs(member)
         key = id(self)
-        _ENUM_STATE[key] = (member, frozen_value, extra_attrs)
+        _ENUM_STATE[key] = (
+            member,
+            frozen_name,
+            frozen_value,
+            frozen_hash,
+            extra_attrs,
+        )
         weakref.finalize(self, _ENUM_STATE.pop, key, None)
 
     @property
@@ -862,20 +891,20 @@ class ReadOnlyEnumProxy:
 
     @property
     def name(self) -> str:
-        """Name of the wrapped ``Enum`` member."""
-        return _ENUM_STATE[id(self)][0].name
+        """Snapshotted name of the wrapped ``Enum`` member."""
+        return _ENUM_STATE[id(self)][1]
 
     @property
     def value(self) -> Any:
         """Frozen value of the wrapped ``Enum`` member."""
-        return _materialise_readonly(_ENUM_STATE[id(self)][1])
+        return _materialise_readonly(_ENUM_STATE[id(self)][2])
 
     def unwrap_copy(self) -> Enum:
         """Reject unwrapping because ``Enum`` members are shared process-wide singletons."""
-        member = _ENUM_STATE[id(self)][0]
+        member, frozen_name, _val, _hash, _extra = _ENUM_STATE[id(self)]
         raise TypeError(
             f"Cannot produce an independent copy of Enum singleton "
-            f"{type(member).__name__}.{member.name}; inspect the ReadOnlyEnumProxy "
+            f"{type(member).__name__}.{frozen_name}; inspect the ReadOnlyEnumProxy "
             "or read .value instead"
         )
 
@@ -886,7 +915,7 @@ class ReadOnlyEnumProxy:
                 f"Read-only enum view {self.enum_type.__name__!r} "
                 f"does not expose private attribute {name!r}"
             )
-        extra_attrs = _ENUM_STATE[id(self)][2]
+        extra_attrs = _ENUM_STATE[id(self)][4]
         if name in extra_attrs:
             return extra_attrs[name]
         raise AttributeError(
@@ -909,17 +938,22 @@ class ReadOnlyEnumProxy:
 
     def __eq__(self, other: object) -> bool:
         """Compare snapshotted enum equality without leaking the live singleton."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, _name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         return _enum_proxy_equals(member, frozen_value, other)
 
     def __hash__(self) -> int:
-        """Hash the wrapped ``Enum`` member purely without custom user hooks."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
-        return _enum_proxy_hash(member, frozen_value)
+        """Return the snapshotted hash of the wrapped ``Enum`` member without user hooks."""
+        member, _name, _value, frozen_hash, _extra = _ENUM_STATE[id(self)]
+        if frozen_hash is None:
+            raise TypeError(
+                f"Cannot safely hash Enum proxy with custom __hash__ on "
+                f"{type(member).__name__!r}"
+            )
+        return frozen_hash
 
     def __bool__(self) -> bool:
         """Compute truthiness purely from snapshotted state without calling live enum hooks."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, _name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         cls = type(member)
         cls_bool = getattr(cls, "__bool__", None)
         if cls_bool not in _STD_ENUM_BOOL_METHODS:
@@ -937,7 +971,7 @@ class ReadOnlyEnumProxy:
 
     def __int__(self) -> int:
         """Support ``int()`` conversion purely from snapshotted state."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, _name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         cls = type(member)
         cls_int = getattr(cls, "__int__", None)
         if isinstance(member, int) and not isinstance(member, bool):
@@ -963,7 +997,7 @@ class ReadOnlyEnumProxy:
 
     def __index__(self) -> int:
         """Support integer indexing for ``IntEnum`` / ``IntFlag`` proxies purely from snapshot."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, _name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         cls = type(member)
         if isinstance(member, int) and not isinstance(member, bool):
             if getattr(cls, "__index__", None) is not int.__index__:
@@ -975,7 +1009,7 @@ class ReadOnlyEnumProxy:
 
     def __float__(self) -> float:
         """Support ``float()`` conversion purely from snapshotted state."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, _name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         cls = type(member)
         cls_float = getattr(cls, "__float__", None)
         if isinstance(member, (int, float)) and not isinstance(member, bool):
@@ -994,18 +1028,18 @@ class ReadOnlyEnumProxy:
 
     def __str__(self) -> str:
         """Return a pure string representation built from snapshotted enum state."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, frozen_name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         if isinstance(member, str):
             return str(frozen_value)
         if isinstance(member, int) and not isinstance(member, bool):
             return str(int(frozen_value))
-        return f"{type(member).__name__}.{member.name}"
+        return f"{type(member).__name__}.{frozen_name}"
 
     def __repr__(self) -> str:
         """Return a pure representation built from snapshotted enum metadata."""
-        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        member, frozen_name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
         return (
-            f"ReadOnlyEnumProxy(<{type(member).__name__}.{member.name}: "
+            f"ReadOnlyEnumProxy(<{type(member).__name__}.{frozen_name}: "
             f"{_safe_repr_value(frozen_value, set())}>)"
         )
 
@@ -1277,14 +1311,17 @@ def _has_custom_dunder(root: Any, dunder: str) -> bool:
     return False
 
 
-def _get_allowed_enum_dump_serializers() -> frozenset[Any]:
-    """Return the exact pure SUEWS core serializer functions permitted on Enum-bearing models."""
+def _get_allowed_enum_dump_hooks() -> tuple[
+    frozenset[Any], frozenset[tuple[type[Any], str]]
+]:
+    """Return exact pure SUEWS core serializers and computed fields allowed on Enum models."""
     from ...core.human_activity import IrrigationParams  # noqa: PLC0415
     from ...core.hydro import StorageDrainParams  # noqa: PLC0415
     from ...core.site import (  # noqa: PLC0415
         SiteProperties,
         SnowParams,
         SoilObservationConfig,
+        StebbsProperties,
     )
     from ...core.type import RefValue  # noqa: PLC0415
 
@@ -1297,36 +1334,86 @@ def _get_allowed_enum_dump_serializers() -> frozenset[Any]:
         SoilObservationConfig._serialise_soil_observation_field,
         StorageDrainParams._dump_storage,
     )
-    return frozenset(getattr(fn, "__func__", fn) for fn in funcs)
+    return (
+        frozenset(getattr(fn, "__func__", fn) for fn in funcs),
+        frozenset({(StebbsProperties, "deep_soil_temperature")}),
+    )
 
 
-def _schema_has_disallowed_serializer(schema: Any, allowed: frozenset[Any]) -> bool:
-    """Return True if *schema* contains any custom plain/wrap serializer outside *allowed*."""
+def _schema_has_disallowed_hook(
+    schema: Any,
+    allowed_sers: frozenset[Any],
+    allowed_computed: frozenset[tuple[type[Any], str]],
+) -> bool:
+    """Return True if *schema* contains any custom serializer or computed field outside allowlists."""
     seen: set[int] = set()
-    stack: list[Any] = [schema]
+    stack: list[tuple[Any, type[Any] | None]] = [(schema, None)]
     while stack:
-        node = stack.pop()
+        node, owner_cls = stack.pop()
         if isinstance(node, dict):
             node_id = id(node)
             if node_id in seen:
                 continue
             seen.add(node_id)
+            next_owner = (
+                node.get("cls", owner_cls)
+                if node.get("type") in {"model", "dataclass"}
+                else owner_cls
+            )
             ser = node.get("serialization")
             if isinstance(ser, dict) and ser.get("type") in {
                 "function-plain",
                 "function-wrap",
             }:
                 fn = ser.get("function")
-                if getattr(fn, "__func__", fn) not in allowed:
+                if getattr(fn, "__func__", fn) not in allowed_sers:
                     return True
-            stack.extend(node.values())
+            if (
+                node.get("type") == "computed-field"
+                and (next_owner, node.get("property_name")) not in allowed_computed
+            ):
+                return True
+            stack.extend((v, next_owner) for v in node.values())
         elif isinstance(node, (list, tuple)):
             node_id = id(node)
             if node_id in seen:
                 continue
             seen.add(node_id)
-            stack.extend(node)
+            stack.extend((item, owner_cls) for item in node)
     return False
+
+
+def _pydantic_type_has_disallowed_hooks(
+    cls: type[Any],
+    allowed_sers: frozenset[Any],
+    allowed_computed: frozenset[tuple[type[Any], str]],
+) -> bool:
+    """Return True if a Pydantic model or dataclass defines disallowed serializers or computed fields."""
+    decorators = getattr(cls, "__pydantic_decorators__", None)
+    if decorators is not None:
+        if any(
+            getattr(dec.func, "__func__", dec.func) not in allowed_sers
+            for dec in decorators.field_serializers.values()
+        ) or any(
+            getattr(dec.func, "__func__", dec.func) not in allowed_sers
+            for dec in decorators.model_serializers.values()
+        ):
+            return True
+        if any(
+            (cls, name) not in allowed_computed
+            for name in getattr(decorators, "computed_fields", {})
+        ):
+            return True
+    computed_fields = getattr(cls, "model_computed_fields", None)
+    if isinstance(computed_fields, Mapping) and any(
+        (cls, name) not in allowed_computed for name in computed_fields
+    ):
+        return True
+    return _schema_has_disallowed_hook(
+        getattr(cls, "__pydantic_core_schema__", None),
+        allowed_sers,
+        allowed_computed,
+    )
 
 
 def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -> None:
@@ -1338,7 +1425,7 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
             "Cannot safely run custom fallback serializer on a model containing "
             "live Enum singletons without exposing writable singleton state"
         )
-    allowed_sers = _get_allowed_enum_dump_serializers()
+    allowed_sers, allowed_computed = _get_allowed_enum_dump_hooks()
     visited: set[int] = set()
     stack: list[Any] = [root]
     while stack:
@@ -1356,31 +1443,20 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
         if obj_id in visited:
             continue
         visited.add(obj_id)
-        if isinstance(obj, BaseModel):
-            model_cls = type(obj)
-            decorators = model_cls.__pydantic_decorators__
-            has_disallowed_field_ser = any(
-                getattr(dec.func, "__func__", dec.func) not in allowed_sers
-                for dec in decorators.field_serializers.values()
+        if (
+            isinstance(obj, BaseModel)
+            or (is_dataclass(obj) and not isinstance(obj, type))
+        ) and (
+            _pydantic_type_has_disallowed_hooks(
+                type(obj), allowed_sers, allowed_computed
             )
-            has_disallowed_model_ser = any(
-                getattr(dec.func, "__func__", dec.func) not in allowed_sers
-                for dec in decorators.model_serializers.values()
+            and _contains_enum(obj)
+        ):
+            raise TypeError(
+                f"Cannot safely run custom serializer or computed field on "
+                f"{type(obj).__name__!r} containing live Enum singletons without "
+                "exposing writable singleton state or altering Enum semantics"
             )
-            has_schema_ser = _schema_has_disallowed_serializer(
-                getattr(model_cls, "__pydantic_core_schema__", None), allowed_sers
-            )
-            if (
-                has_disallowed_field_ser
-                or has_disallowed_model_ser
-                or has_schema_ser
-                or model_cls.model_computed_fields
-            ) and _contains_enum(obj):
-                raise TypeError(
-                    f"Cannot safely run custom serializer or computed field on "
-                    f"{model_cls.__name__!r} containing live Enum singletons without "
-                    "exposing writable singleton state or altering Enum semantics"
-                )
         stack.extend(_iter_snapshot_children(obj, None))
 
 
@@ -1690,14 +1766,18 @@ def _freeze_ndarray_spec(
     | None = None,
     active: set[int] | None = None,
 ) -> Any:
-    """Wrap *value* using immutable backing storage or frozen nested containers."""
+    """Wrap exact ``ndarray``/``np.void`` values using immutable storage or frozen containers."""
+    if type(value) not in {np.ndarray, np.void}:
+        raise TypeError(
+            f"ReadOnlyModelProxy cannot safely freeze NumPy subclass {type(value).__name__!r}"
+        )
     if active is None:
         active = set()
-    if isinstance(value, np.void):
+    if type(value) is np.void:
         if value.dtype.names:
             return _freeze_mapping_entries({
                 name: _wrap_readonly(
-                    _safe_snapshot_copy(value[name]),
+                    value[name],
                     enum_snapshots,
                     field_snapshots,
                     active,
@@ -1713,13 +1793,13 @@ def _freeze_ndarray_spec(
         try:
             if value.ndim == 0:
                 return _wrap_readonly(
-                    _safe_snapshot_copy(value.item()),
+                    value.item(),
                     enum_snapshots,
                     field_snapshots,
                     active,
                 )
             return _wrap_readonly(
-                _safe_snapshot_copy(value.tolist()),
+                value.tolist(),
                 enum_snapshots,
                 field_snapshots,
                 active,
@@ -1971,6 +2051,22 @@ class ReadOnlyModelProxy:
             target, has_user_fallback=kwargs.get("fallback") is not None
         )
         working_copy = _safe_snapshot_copy(target)
+        if (
+            enum_snapshots
+            and _is_json_dump_mode(args, kwargs)
+            and _enum_snapshots_drifted(enum_snapshots)
+        ):
+            py_args = ("python", *args[1:]) if args else ()
+            py_kwargs = {**kwargs, "mode": "python"} if not args else dict(kwargs)
+            dumped_py = working_copy.model_dump(*py_args, **py_kwargs)
+            substituted = _replace_enums_with_snapshotted_values(
+                dumped_py, enum_snapshots
+            )
+            return to_jsonable_python(
+                substituted,
+                round_trip=bool(kwargs.get("round_trip", False)),
+                serialize_unknown=True,
+            )
         dumped = working_copy.model_dump(*args, **kwargs)
         return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
@@ -2125,9 +2221,70 @@ class ReadOnlyModelProxy:
         return sorted(names)
 
 
+def _enum_snapshots_drifted(
+    enum_snapshots: Mapping[int, ReadOnlyEnumProxy],
+) -> bool:
+    """Return True if any snapshotted Enum singleton had its live ``_name_`` or ``_value_`` mutated."""
+    for proxy in enum_snapshots.values():
+        member, frozen_name, frozen_value, _frozen_hash, _extra = _ENUM_STATE[id(proxy)]
+        if member.name != frozen_name:
+            return True
+        live_val = member.value
+        if live_val is frozen_value:
+            continue
+        if (
+            isinstance(live_val, float)
+            and isinstance(frozen_value, float)
+            and math.isnan(live_val)
+            and math.isnan(frozen_value)
+        ):
+            continue
+        if live_val != frozen_value:
+            return True
+    return False
+
+
+def _replace_enums_with_snapshotted_values(
+    value: Any, enum_snapshots: Mapping[int, ReadOnlyEnumProxy]
+) -> Any:
+    """Substitute live ``Enum`` members with their snapshotted values before JSON conversion."""
+    result: Any = value
+    if isinstance(value, Enum):
+        proxy = enum_snapshots.get(id(value))
+        result = (
+            _replace_enums_with_snapshotted_values(proxy.value, enum_snapshots)
+            if proxy is not None
+            else value.value
+        )
+    elif isinstance(value, ReadOnlyEnumProxy):
+        result = _replace_enums_with_snapshotted_values(value.value, enum_snapshots)
+    elif isinstance(value, Mapping):
+        result = {
+            _replace_enums_with_snapshotted_values(
+                k, enum_snapshots
+            ): _replace_enums_with_snapshotted_values(v, enum_snapshots)
+            for k, v in value.items()
+        }
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        result = type(value)(
+            _replace_enums_with_snapshotted_values(item, enum_snapshots)
+            for item in value
+        )
+    return result
+
+
+def _is_json_dump_mode(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> bool:
+    """Return True when ``model_dump(*args, **kwargs)`` requests JSON mode."""
+    if args:
+        return args[0] == "json"
+    return kwargs.get("mode") == "json"
+
+
 def _unwrap_model_for_validation(proxy: ReadOnlyModelProxy) -> BaseModel:
-    """Return a detached working model copy for the validation engine."""
-    return _safe_snapshot_copy(_PROXY_STATE[id(proxy)][0])
+    """Return a detached working model copy for the validation engine after isolation checks."""
+    target = _PROXY_STATE[id(proxy)][0]
+    _validate_enum_dump_isolation(target, has_user_fallback=False)
+    return _safe_snapshot_copy(target)
 
 
 def freeze_model(model: BaseModel | ReadOnlyModelProxy) -> ReadOnlyModelProxy:

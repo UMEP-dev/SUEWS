@@ -4454,17 +4454,19 @@ fn apply_site_overrides(
 //   numbers when numeric (rejecting NaN/Inf). `store_min` retains the legacy
 //   fallback to `state_limit` when still `0.0`.
 // - `[1]` (`drain_eq`), `[2]` (`drain_coef_1`), `[3]` (`drain_coef_2`), and
-//   `[5]` (`store_cap`): `SUEWS_cal_Water` (`suews_ctrl_driver.f95`) calls
-//   `drainage` for every non-water surface `1..nsurf-1` whenever
-//   `NonWaterFraction /= 0`, where `suews_ctrl_type.f95` defines
-//   `NonWaterFraction = 1 - sfr_surf(WaterSurf)` (even when individual
-//   non-water `sfr == 0` or `water.sfr` drifts within the sum tolerance, e.g.
-//   `0.99995`). Any supplied non-null value on a non-water surface while
-//   `(1.0 - water.sfr) != 0.0` is therefore validated strictly
-//   (`parse_optional_i32` for `drain_eq`, `parse_optional_numeric` for
-//   coefficients and `store_cap`). Placeholders are only relaxed where
-//   `drainage` is provably never called (`water` or exact `water.sfr == 1.0`,
-//   where `NaN`/`Inf` remain rejected).
+//   `[5]` (`store_cap`): `SUEWS_cal_Water` (`suews_ctrl_driver.f95`) enters the
+//   non-water drainage loop whenever `NonWaterFraction /= 0`, where
+//   `suews_ctrl_type.f95` defines `NonWaterFraction = 1 - sfr_surf(WaterSurf)`,
+//   and guards `CALL drainage` on `sfr_surf(is) > 0.0D0` (#2441, with
+//   `drainage` in `suews_phys_waterdist.f95` deterministically initialising
+//   `drain_is = 0.0D0`). Any explicitly supplied non-null value on a non-water
+//   surface while `(1.0 - water.sfr) != 0.0` (including zero-area non-water
+//   surfaces and `water.sfr` drift within the sum tolerance, e.g. `0.99995`)
+//   is still validated conservatively (`parse_optional_i32` for `drain_eq`,
+//   `parse_optional_numeric` for coefficients and `store_cap`), while omitted
+//   or `null` leaves on zero-area surfaces remain permitted. Non-numeric
+//   placeholders on these four leaves relax only on `water` or exact
+//   `water.sfr == 1.0` (where `NaN`/`Inf` remain rejected).
 //   - `[1]` (`drain_eq`): required explicit integer selector on every active
 //     non-water surface (`sfr > 0`, `require_i32`) so placeholder-only blocks
 //     cannot silently retain selector 0.
@@ -4499,7 +4501,7 @@ fn apply_drainage_overrides(
             }
         }
         let active = surface_name != "water" && fractions[surface_idx] > 0.0;
-        let kernel_may_call_drainage = surface_name != "water" && non_water_fraction_active;
+        let strict_non_water_drainage = surface_name != "water" && non_water_fraction_active;
         let sdp_path = ["properties", "land_cover", surface_name, "storedrainprm"];
         let drainage = get_path(site_root, &sdp_path);
         if active
@@ -4547,11 +4549,13 @@ fn apply_drainage_overrides(
                 // coefficient checks. Whole floats remain valid.
                 state.phenology_state.store_drain_prm[surface_idx][1] =
                     require_i32(sdp_root, &["drain_eq"], &sdp_at)? as f64;
-            } else if kernel_may_call_drainage {
-                // `SUEWS_cal_Water` invokes `drainage` across all non-water
-                // surfaces whenever `NonWaterFraction = 1 - sfr_surf(WaterSurf) /= 0`;
-                // reject malformed supplied selectors on zero-area surfaces
-                // instead of silently retaining selector 0.
+            } else if strict_non_water_drainage {
+                // While `NonWaterFraction = 1 - sfr_surf(WaterSurf) /= 0`,
+                // reject malformed supplied selectors on zero-area non-water
+                // surfaces instead of silently retaining selector 0 (omitted
+                // or `null` selectors remain allowed; `SUEWS_cal_Water` skips
+                // `sfr_surf(is) <= 0` and `drainage` initialises `drain_is = 0`
+                // per #2441).
                 if let Some(v) = parse_optional_i32(sdp_root, &["drain_eq"], &sdp_at)? {
                     state.phenology_state.store_drain_prm[surface_idx][1] = v as f64;
                 }
@@ -4568,7 +4572,7 @@ fn apply_drainage_overrides(
             for (key, slot) in [("drain_coef_1", 2), ("drain_coef_2", 3)] {
                 let value = if required {
                     Some(require_numeric(sdp_root, &[key], &sdp_at)?)
-                } else if kernel_may_call_drainage {
+                } else if strict_non_water_drainage {
                     parse_optional_numeric(sdp_root, &[key], &sdp_at)?
                 } else {
                     require_if_active_numeric(sdp_root, &[key], &sdp_at, false)?
@@ -4600,7 +4604,7 @@ fn apply_drainage_overrides(
         ];
         let store_cap = if store_cap_required {
             Some(require_numeric(site_root, &store_cap_path, &site_at)?)
-        } else if kernel_may_call_drainage {
+        } else if strict_non_water_drainage {
             parse_optional_numeric(site_root, &store_cap_path, &site_at)?
         } else {
             require_if_active_numeric(site_root, &store_cap_path, &site_at, false)?
@@ -7608,12 +7612,11 @@ mod tests {
             assert!(err.contains("mapping"), "{err}");
         }
 
-        // Because `SUEWS_cal_Water` invokes `drainage` across every non-water
-        // surface whenever `NonWaterFraction > 0` (even on `sfr == 0`),
-        // malformed kernel-read drainage leaves (`drain_eq`, `drain_coef_1`,
-        // `drain_coef_2`, `store_cap`) on a zero-area non-water surface must
-        // still be rejected, while unread `store_min`/`store_max` relax
-        // placeholders (#2363) and all leaves reject non-finite IEEE inputs.
+        // While `NonWaterFraction /= 0`, explicitly supplied malformed
+        // kernel-read drainage leaves (`drain_eq`, `drain_coef_1`,
+        // `drain_coef_2`, `store_cap`) on a zero-area non-water surface are
+        // still rejected conservatively, while unread `store_min`/`store_max`
+        // relax placeholders (#2363) and all leaves reject non-finite IEEE inputs.
         for (slot_idx, field, kernel_read) in [
             (0, "store_min", false),
             (1, "drain_eq", true),
@@ -7723,8 +7726,8 @@ mod tests {
 
         // Wet zero-area non-water surface regressions: explicit initial wetness
         // (`state: 1.0`) with malformed `drain_eq: TBD` or `drain_coef_1: TBD`
-        // under `NonWaterFraction > 0` must be rejected rather than retaining 0
-        // and reaching Fortran's wet-surface `drainage` branch.
+        // under `NonWaterFraction /= 0` is conservatively rejected rather than
+        // silently retaining selector 0.
         for (block_yaml, expected_field) in [
             ("{drain_eq: TBD}", "drain_eq"),
             (
@@ -7761,9 +7764,9 @@ mod tests {
 
         // Fraction-sum drift regression: all six non-water fractions 0.0 with
         // `water.sfr = 0.99995` passes the 1e-4 sum check without normalising,
-        // so Fortran still evaluates `NonWaterFraction = 1 - 0.99995 != 0` and
-        // invokes `drainage`. Malformed selectors/coefficients on wet zero-area
-        // surfaces must therefore still be rejected.
+        // so `NonWaterFraction = 1 - 0.99995 != 0` remains active and malformed
+        // supplied selectors/coefficients on zero-area non-water surfaces are
+        // still rejected.
         for (block_yaml, expected_field) in [
             ("{drain_eq: TBD}", "drain_eq"),
             (

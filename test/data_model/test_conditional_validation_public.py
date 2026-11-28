@@ -123,6 +123,10 @@ def test_missing_internal_shading_defaults_to_disabled():
 
 def test_internal_shading_rejects_invalid_mode():
     data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
     _site_properties(data)["stebbs"]["internal_shading"] = {"value": 3}
 
     with pytest.raises(ValueError) as excinfo:
@@ -136,6 +140,10 @@ def test_internal_shading_rejects_invalid_mode():
 @pytest.mark.parametrize("input_route", ["model", "dict", "yaml"])
 def test_constant_internal_shading_requires_reduction_factor(input_route, tmp_path):
     data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
     stebbs = _site_properties(data)["stebbs"]
     stebbs["internal_shading"] = {"value": 1}
     stebbs.pop("reduction_factor_shading")
@@ -162,6 +170,10 @@ def test_constant_internal_shading_requires_reduction_factor(input_route, tmp_pa
 )
 def test_controlled_internal_shading_requires_both_thresholds(missing_field):
     data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
     stebbs = _site_properties(data)["stebbs"]
     stebbs.update({
         "internal_shading": {"value": 2},
@@ -209,6 +221,10 @@ def test_valid_internal_shading_configuration_loads(shading_mode):
 )
 def test_internal_shading_rejects_out_of_range_parameters(field, value):
     data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
     stebbs = _site_properties(data)["stebbs"]
     stebbs.update({
         "internal_shading": {"value": 2},
@@ -274,6 +290,10 @@ def test_missing_destination_waste_heat_defaults_to_indoor():
 @pytest.mark.parametrize("destination", [-1, 2])
 def test_destination_waste_heat_rejects_invalid_value(destination):
     data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
     _site_properties(data)["stebbs"]["destination_waste_heat"] = {"value": destination}
 
     with pytest.raises(ValueError) as excinfo:
@@ -338,6 +358,10 @@ def test_fraction_convective_heating_accepts_valid_fraction(fraction, wrapped):
 )
 def test_fraction_convective_heating_rejects_invalid_fraction(fraction):
     data = _sample_config()
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": True,
+        "parameter_source": "default",
+    }
     _site_properties(data)["stebbs"]["fraction_convective_heating"] = {
         "value": fraction
     }

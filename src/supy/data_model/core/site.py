@@ -6,6 +6,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    SerializationInfo,
     computed_field,
     field_serializer,
     field_validator,
@@ -18,17 +19,22 @@ from .type import (
     FlexibleRefValue,
     _SNOW_ACTIVE_CONTEXT,
     _SOIL_OBSERVED_CONTEXT,
+    _STEBBS_ACTIVE_CONTEXT,
     _SchemeActiveGuard,
     _WeakConfigRef,
     df_from_col_items,
     df_from_cols,
+    is_finite_real_number,
     merge_df_state_col_items,
     merge_df_state_cols,
     normalise_inactive_float_value,
+    normalise_inactive_stebbs_scalar,
     reject_bool_input,
     resolve_snow_use_code,
     resolve_soil_moisture_code,
+    resolve_stebbs_method_code,
     serialise_relaxed_ref_float,
+    serialise_relaxed_ref_value,
 )
 from .unit_metadata import (
     ConditionalUnitCase,
@@ -2481,6 +2487,215 @@ class ArchetypeProperties(DataModelBase):
     _BRIDGE_ONLY_FIELDS: ClassVar[frozenset] = frozenset(
         {"hhs0", "age_0_4", "age_5_11", "age_12_18", "age_19_64", "age_65plus"}
     )
+    _ARCHETYPE_INT_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"archetype_building_count", "occupants"}
+    )
+    _ARCHETYPE_PROFILE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "profile_metabolism",
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
+        }
+    )
+    _ARCHETYPE_NON_SCALAR_FIELDS: ClassVar[frozenset[str]] = (
+        frozenset({"archetype_name", "ref"}) | _ARCHETYPE_PROFILE_FIELDS
+    )
+
+    _stebbs_validation_active: bool = PrivateAttr(default=True)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_stebbs_validation_active(self) -> bool:
+        """Return True when STEBBS archetype constraints apply (standalone or ``stebbsmethod != 0``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            code = resolve_stebbs_method_code(physics)
+            return code is None or code != 0
+        return bool(getattr(self, "_stebbs_validation_active", True))
+
+    def _make_stebbs_guard(self) -> _SchemeActiveGuard:
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        return _SchemeActiveGuard(
+            "stebbs",
+            active=bool(getattr(self, "_stebbs_validation_active", True)),
+            config=parent_cfg,
+        )
+
+    def _sync_stebbs_validation_state(
+        self,
+        *,
+        active: bool,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise cached STEBBS activation state, owner weakref, and RefValue guards."""
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_stebbs_validation_active", active)
+        guard = self._make_stebbs_guard()
+        for field_name in type(self)._BRIDGE_ONLY_FIELDS:
+            current = getattr(self, field_name, None)
+            if isinstance(current, RefValue):
+                current._bind_non_optional(field_name, "number", guard=guard)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_archetype_properties(
+        cls, data: Any, handler: Any
+    ) -> "ArchetypeProperties":
+        """Relax ArchetypeProperties bounds/placeholders when STEBBS is disabled inside SUEWSConfig."""
+        if isinstance(data, ArchetypeProperties):
+            return handler(data)
+        stebbs_active = _STEBBS_ACTIVE_CONTEXT.get()
+        if stebbs_active is None or not isinstance(data, Mapping):
+            return handler(data)
+        if stebbs_active:
+            inst = handler(data)
+            inst._sync_stebbs_validation_state(active=True)
+            return inst
+
+        renamed = apply_field_renames(
+            dict(data), ARCHETYPEPROPERTIES_RENAMES, cls.__name__
+        )
+        renamed = apply_field_renames(
+            renamed, ARCHETYPEPROPERTIES_PASCAL_RENAMES, cls.__name__
+        )
+        renamed = apply_field_renames(
+            renamed, ARCHETYPEPROPERTIES_DEV3_RENAMES, cls.__name__
+        )
+        renamed = apply_field_renames(
+            renamed, ARCHETYPEPROPERTIES_DEV6_RENAMES, cls.__name__
+        )
+        renamed = apply_field_renames(
+            renamed, ARCHETYPEPROPERTIES_DEV7_RENAMES, cls.__name__
+        )
+        renamed = apply_field_renames(
+            renamed, ARCHETYPEPROPERTIES_DEV12_RENAMES, cls.__name__
+        )
+        stashed: dict[str, Any] = {}
+        stripped: dict[str, Any] = {}
+        for key, val in renamed.items():
+            if key in cls._ARCHETYPE_PROFILE_FIELDS and (
+                val is None
+                or (
+                    isinstance(val, Mapping)
+                    and "value" in val
+                    and val["value"] is None
+                    and set(val.keys()) <= {"value", "ref"}
+                )
+            ):
+                stashed[key] = None
+                continue
+            if key in cls.model_fields and key not in cls._ARCHETYPE_NON_SCALAR_FIELDS:
+                ok, normalised = normalise_inactive_stebbs_scalar(
+                    val,
+                    allow_null=True,
+                    allow_string=True,
+                    int_preferred=(key in cls._ARCHETYPE_INT_FIELDS),
+                )
+                if ok:
+                    stashed[key] = normalised
+                    continue
+            stripped[key] = val
+
+        inst = handler(stripped)
+        for field_name, norm_val in stashed.items():
+            object.__setattr__(inst, field_name, norm_val)
+            inst.model_fields_set.add(field_name)
+        inst._sync_stebbs_validation_state(active=False)
+        return inst
+
+    @model_validator(mode="after")
+    def _reject_non_finite_archetype_scalars(self) -> "ArchetypeProperties":
+        """Reject NaN/Inf on supplied building_archetype scalars."""
+        for field_name in type(self).model_fields:
+            if field_name in type(self)._ARCHETYPE_NON_SCALAR_FIELDS:
+                continue
+            raw = getattr(self, field_name, None)
+            val = raw.value if isinstance(raw, RefValue) else raw
+            if (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and not math.isfinite(float(val))
+            ):
+                raise ValueError(
+                    f"building_archetype.{field_name} must be a finite number, got {val!r}"
+                )
+        return self
+
+    @field_serializer("*", mode="wrap")
+    def _serialise_archetype_field(
+        self, value: Any, handler: Any, info: SerializationInfo
+    ) -> Any:
+        field_name = info.field_name
+        if field_name in type(self)._ARCHETYPE_NON_SCALAR_FIELDS:
+            return handler(value)
+        expected = (
+            (int,)
+            if field_name in type(self)._ARCHETYPE_INT_FIELDS
+            else (int, float)
+        )
+        return serialise_relaxed_ref_value(
+            value, handler, info, expected_scalar_types=expected
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name in type(self).model_fields
+            and name not in type(self)._ARCHETYPE_NON_SCALAR_FIELDS
+        ):
+            raw_check = (
+                value.value
+                if isinstance(value, RefValue)
+                else (
+                    value["value"]
+                    if isinstance(value, Mapping) and "value" in value
+                    else value
+                )
+            )
+            if (
+                isinstance(raw_check, numbers.Real)
+                and not isinstance(raw_check, bool)
+                and not math.isfinite(float(raw_check))
+            ):
+                raise ValueError(
+                    f"building_archetype.{name} must be a finite number, got {raw_check!r}"
+                )
+            if not self._is_stebbs_validation_active():
+                ok, normalised = normalise_inactive_stebbs_scalar(
+                    value,
+                    allow_null=True,
+                    allow_string=True,
+                    int_preferred=(name in type(self)._ARCHETYPE_INT_FIELDS),
+                )
+                if ok:
+                    if (
+                        isinstance(normalised, RefValue)
+                        and name in type(self)._BRIDGE_ONLY_FIELDS
+                    ):
+                        normalised._bind_non_optional(
+                            name, "number", guard=self._make_stebbs_guard()
+                        )
+                    object.__setattr__(self, name, normalised)
+                    self.model_fields_set.add(name)
+                    return
+            super().__setattr__(name, value)
+            if name in type(self)._BRIDGE_ONLY_FIELDS:
+                bound = getattr(self, name, None)
+                if isinstance(bound, RefValue):
+                    bound._bind_non_optional(
+                        name, "number", guard=self._make_stebbs_guard()
+                    )
+            return
+        super().__setattr__(name, value)
+
+    def validate_non_null_ref_values(self, _path: str = "") -> None:
+        """Skip non-null RefValue enforcement on ArchetypeProperties while STEBBS is disabled."""
+        if not self._is_stebbs_validation_active():
+            return
+        super().validate_non_null_ref_values(_path)
 
     _ARCHETYPE_LEGACY_COL_NAMES: ClassVar[Dict[str, str]] = {
         # Fortran bridge (src/suews_bridge/src/building_archetype_prm.rs,
@@ -2558,6 +2773,7 @@ class ArchetypeProperties(DataModelBase):
             "profile_setpoint_temperature_cooling_air": CoolingSetpointProfile,
         }
 
+        stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
         default_instance = cls()
         params: Dict[str, object] = {}
 
@@ -2572,11 +2788,14 @@ class ArchetypeProperties(DataModelBase):
                 col = (col_name, "0")
                 if col in df.columns:
                     value = df.loc[grid_id, col]
-                    params[field_name] = (
-                        getattr(default_instance, field_name)
-                        if pd.isna(value)
-                        else value
-                    )
+                    if pd.isna(value):
+                        params[field_name] = (
+                            None
+                            if stebbs_inactive
+                            else getattr(default_instance, field_name)
+                        )
+                    else:
+                        params[field_name] = value
                 else:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
@@ -2604,7 +2823,11 @@ class ArchetypeProperties(DataModelBase):
             if col in df.columns:
                 value = df.loc[grid_id, col]
                 if pd.isna(value):
-                    params[field_name] = getattr(default_instance, field_name)
+                    params[field_name] = (
+                        None
+                        if stebbs_inactive
+                        else getattr(default_instance, field_name)
+                    )
                 else:
                     params[field_name] = RefValue(value)
             else:
@@ -2919,7 +3142,8 @@ class StebbsProperties(DataModelBase):
     def deep_soil_temperature(self) -> Optional[float]:
         """Return the annual mean as the initial deep soil temperature."""
         annual = self.temperature_air_annual_mean
-        return annual.value if isinstance(annual, RefValue) else annual
+        val = annual.value if isinstance(annual, RefValue) else annual
+        return float(val) if is_finite_real_number(val) else None
 
     temperature_air_month_mean_diffmax: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
@@ -3179,19 +3403,109 @@ class StebbsProperties(DataModelBase):
     )
     ref: Optional[Reference] = None
 
+    _STEBBS_INT_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"daylight_control", "internal_shading", "destination_waste_heat"}
+    )
+    _STEBBS_LITERAL_FIELDS: ClassVar[dict[str, tuple[int, ...]]] = {
+        "internal_shading": (0, 1, 2),
+        "destination_waste_heat": (0, 1),
+    }
+    _STEBBS_PROFILE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"profile_flow_hot_water", "profile_appliance"}
+    )
+    _STEBBS_NON_SCALAR_FIELDS: ClassVar[frozenset[str]] = (
+        frozenset({"ref"}) | _STEBBS_PROFILE_FIELDS
+    )
+
+    _stebbs_validation_active: bool = PrivateAttr(default=True)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_stebbs_validation_active(self) -> bool:
+        """Return True when STEBBS parameter constraints apply (standalone or ``stebbsmethod != 0``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            code = resolve_stebbs_method_code(physics)
+            return code is None or code != 0
+        return bool(getattr(self, "_stebbs_validation_active", True))
+
+    def _sync_stebbs_validation_state(
+        self,
+        *,
+        active: bool,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise cached STEBBS activation state and owning ``SUEWSConfig`` weakref."""
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_stebbs_validation_active", active)
+
     @model_validator(mode="wrap")
     @classmethod
     def _check_deep_soil_temperature(cls, data, handler):
-        """Accept a matching emitted value, but never store it as input."""
+        """Enforce computed ``deep_soil_temperature`` and relax inactive STEBBS fields."""
+        if isinstance(data, StebbsProperties):
+            return handler(data)
         given = None
-        if isinstance(data, dict):
+        if isinstance(data, Mapping):
             data = dict(data)
             given = data.pop("deep_soil_temperature", None)
-            if isinstance(given, dict):
+            if isinstance(given, Mapping):
                 given = given.get("value")
             elif isinstance(given, RefValue):
                 given = given.value
-        result = handler(data)
+
+        stebbs_active = _STEBBS_ACTIVE_CONTEXT.get()
+        if stebbs_active is False and isinstance(data, Mapping):
+            renamed = apply_field_renames(
+                dict(data), STEBBSPROPERTIES_RENAMES, cls.__name__
+            )
+            renamed = apply_field_renames(
+                renamed, STEBBSPROPERTIES_DEV3_RENAMES, cls.__name__
+            )
+            renamed = apply_field_renames(
+                renamed, STEBBSPROPERTIES_DEV8_RENAMES_PYDANTIC, cls.__name__
+            )
+            renamed = apply_field_renames(
+                renamed, STEBBSPROPERTIES_DEV12_RENAMES, cls.__name__
+            )
+            stashed: dict[str, Any] = {}
+            stripped: dict[str, Any] = {}
+            for key, val in renamed.items():
+                if key in cls._STEBBS_PROFILE_FIELDS and (
+                    val is None
+                    or (
+                        isinstance(val, Mapping)
+                        and "value" in val
+                        and val["value"] is None
+                        and set(val.keys()) <= {"value", "ref"}
+                    )
+                ):
+                    stashed[key] = None
+                    continue
+                if key in cls.model_fields and key not in cls._STEBBS_NON_SCALAR_FIELDS:
+                    ok, normalised = normalise_inactive_stebbs_scalar(
+                        val,
+                        allow_null=True,
+                        allow_string=True,
+                        int_preferred=(key in cls._STEBBS_INT_FIELDS),
+                    )
+                    if ok:
+                        stashed[key] = normalised
+                        continue
+                stripped[key] = val
+            result = handler(stripped)
+            for field_name, norm_val in stashed.items():
+                object.__setattr__(result, field_name, norm_val)
+                result.model_fields_set.add(field_name)
+            result._sync_stebbs_validation_state(active=False)
+        else:
+            result = handler(data)
+            if stebbs_active is True:
+                result._sync_stebbs_validation_state(active=True)
+
         if given is not None and given != result.deep_soil_temperature:
             raise ValueError(
                 "deep_soil_temperature is not an input: it is set to "
@@ -3200,8 +3514,28 @@ class StebbsProperties(DataModelBase):
         return result
 
     @model_validator(mode="after")
+    def _reject_non_finite_stebbs_scalars(self) -> "StebbsProperties":
+        """Reject NaN/Inf on supplied STEBBS scalars."""
+        for field_name in type(self).model_fields:
+            if field_name in type(self)._STEBBS_NON_SCALAR_FIELDS:
+                continue
+            raw = getattr(self, field_name, None)
+            val = raw.value if isinstance(raw, RefValue) else raw
+            if (
+                isinstance(val, numbers.Real)
+                and not isinstance(val, bool)
+                and not math.isfinite(float(val))
+            ):
+                raise ValueError(
+                    f"stebbs.{field_name} must be a finite number, got {val!r}"
+                )
+        return self
+
+    @model_validator(mode="after")
     def _validate_internal_shading_parameters(self) -> "StebbsProperties":
-        """Require explicit active parameters whenever shading is enabled."""
+        """Require explicit active parameters whenever shading is enabled under active STEBBS."""
+        if _STEBBS_ACTIVE_CONTEXT.get() is False or not self._is_stebbs_validation_active():
+            return self
         from ..validation.rules.hard_invariants import check_stebbs_internal_shading
 
         shading_mode = (
@@ -3230,6 +3564,65 @@ class StebbsProperties(DataModelBase):
         if violations:
             raise ValueError(violations[0].message)
         return self
+
+    @field_serializer("*", mode="wrap")
+    def _serialise_stebbs_field(
+        self, value: Any, handler: Any, info: SerializationInfo
+    ) -> Any:
+        field_name = info.field_name
+        if (
+            field_name in type(self)._STEBBS_NON_SCALAR_FIELDS
+            or field_name == "deep_soil_temperature"
+        ):
+            return handler(value)
+        if field_name in type(self)._STEBBS_LITERAL_FIELDS:
+            return serialise_relaxed_ref_value(
+                value,
+                handler,
+                info,
+                allowed_literals=type(self)._STEBBS_LITERAL_FIELDS[field_name],
+            )
+        expected = (
+            (int,) if field_name in type(self)._STEBBS_INT_FIELDS else (int, float)
+        )
+        return serialise_relaxed_ref_value(
+            value, handler, info, expected_scalar_types=expected
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name in type(self).model_fields
+            and name not in type(self)._STEBBS_NON_SCALAR_FIELDS
+        ):
+            raw_check = (
+                value.value
+                if isinstance(value, RefValue)
+                else (
+                    value["value"]
+                    if isinstance(value, Mapping) and "value" in value
+                    else value
+                )
+            )
+            if (
+                isinstance(raw_check, numbers.Real)
+                and not isinstance(raw_check, bool)
+                and not math.isfinite(float(raw_check))
+            ):
+                raise ValueError(
+                    f"stebbs.{name} must be a finite number, got {raw_check!r}"
+                )
+            if not self._is_stebbs_validation_active():
+                ok, normalised = normalise_inactive_stebbs_scalar(
+                    value,
+                    allow_null=True,
+                    allow_string=True,
+                    int_preferred=(name in type(self)._STEBBS_INT_FIELDS),
+                )
+                if ok:
+                    object.__setattr__(self, name, normalised)
+                    self.model_fields_set.add(name)
+                    return
+        super().__setattr__(name, value)
 
     def _to_df_state_cols(self, grid_id: int) -> dict:
         tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
@@ -3264,6 +3657,7 @@ class StebbsProperties(DataModelBase):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
+        stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
         tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
         default_instance = cls()
         params: Dict[str, object] = {}
@@ -3293,7 +3687,11 @@ class StebbsProperties(DataModelBase):
             if col in df.columns:
                 value = df.loc[grid_id, col]
                 if pd.isna(value):
-                    params[field_name] = getattr(default_instance, field_name)
+                    params[field_name] = (
+                        None
+                        if stebbs_inactive
+                        else getattr(default_instance, field_name)
+                    )
                 else:
                     params[field_name] = RefValue(value)
             else:
@@ -4000,6 +4398,7 @@ class SiteProperties(DataModelBase):
 
     _snow_validation_active: bool = PrivateAttr(default=True)
     _soil_obs_validation_active: bool = PrivateAttr(default=True)
+    _stebbs_validation_active: bool = PrivateAttr(default=True)
     _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
 
     def _is_snow_validation_active(self) -> bool:
@@ -4026,11 +4425,23 @@ class SiteProperties(DataModelBase):
             return code is None or code == 1
         return bool(getattr(self, "_soil_obs_validation_active", True))
 
+    def _is_stebbs_validation_active(self) -> bool:
+        """Return True when STEBBS block requirements apply (standalone or ``stebbsmethod != 0``)."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            code = resolve_stebbs_method_code(physics)
+            return code is None or code != 0
+        return bool(getattr(self, "_stebbs_validation_active", True))
+
     def _sync_snow_validation_state(
         self,
         *,
         active: bool,
         soil_obs_active: bool | None = None,
+        stebbs_active: bool | None = None,
         config: Any | None = None,
     ) -> None:
         """Synchronise cached scheme activation states and owning ``SUEWSConfig`` weakref."""
@@ -4039,55 +4450,65 @@ class SiteProperties(DataModelBase):
         object.__setattr__(self, "_snow_validation_active", active)
         if soil_obs_active is not None:
             object.__setattr__(self, "_soil_obs_validation_active", soil_obs_active)
+        if stebbs_active is not None:
+            object.__setattr__(self, "_stebbs_validation_active", stebbs_active)
 
     @model_validator(mode="wrap")
     @classmethod
     def _contextualise_optional_snow_block(
         cls, data: Any, handler: Any
     ) -> "SiteProperties":
-        """Permit ``properties.snow: null`` inside SUEWSConfig when ``snow_use == 0``."""
+        """Permit null scheme blocks (``snow``, ``stebbs``, ``building_archetype``) when their scheme is off."""
         if isinstance(data, SiteProperties):
             return handler(data)
         snow_active = _SNOW_ACTIVE_CONTEXT.get()
         soil_obs_active = _SOIL_OBSERVED_CONTEXT.get()
-        if snow_active is None or not isinstance(data, Mapping):
+        stebbs_active = _STEBBS_ACTIVE_CONTEXT.get()
+        if not isinstance(data, Mapping):
             inst = handler(data)
+            if snow_active is not None:
+                object.__setattr__(inst, "_snow_validation_active", bool(snow_active))
             if soil_obs_active is not None:
                 object.__setattr__(
                     inst, "_soil_obs_validation_active", bool(soil_obs_active)
                 )
-            return inst
-        if snow_active:
-            inst = handler(data)
-            object.__setattr__(inst, "_snow_validation_active", True)
-            if soil_obs_active is not None:
+            if stebbs_active is not None:
                 object.__setattr__(
-                    inst, "_soil_obs_validation_active", bool(soil_obs_active)
-                )
-            return inst
-
-        had_null_snow = "snow" in data and data["snow"] is None
-        if not had_null_snow:
-            inst = handler(data)
-            object.__setattr__(inst, "_snow_validation_active", False)
-            if soil_obs_active is not None:
-                object.__setattr__(
-                    inst, "_soil_obs_validation_active", bool(soil_obs_active)
+                    inst, "_stebbs_validation_active", bool(stebbs_active)
                 )
             return inst
 
-        stripped = {k: v for k, v in data.items() if k != "snow"}
-        inst = handler(stripped)
-        object.__setattr__(inst, "_snow_validation_active", False)
+        null_blocks: list[str] = []
+        if snow_active is False and "snow" in data and data["snow"] is None:
+            null_blocks.append("snow")
+        if stebbs_active is False:
+            if "stebbs" in data and data["stebbs"] is None:
+                null_blocks.append("stebbs")
+            if "building_archetype" in data and data["building_archetype"] is None:
+                null_blocks.append("building_archetype")
+
+        payload = (
+            {k: v for k, v in data.items() if k not in null_blocks}
+            if null_blocks
+            else data
+        )
+        inst = handler(payload)
+        if snow_active is not None:
+            object.__setattr__(inst, "_snow_validation_active", bool(snow_active))
         if soil_obs_active is not None:
             object.__setattr__(
                 inst, "_soil_obs_validation_active", bool(soil_obs_active)
             )
-        object.__setattr__(inst, "snow", None)
-        inst.model_fields_set.add("snow")
+        if stebbs_active is not None:
+            object.__setattr__(
+                inst, "_stebbs_validation_active", bool(stebbs_active)
+            )
+        for block_name in null_blocks:
+            object.__setattr__(inst, block_name, None)
+            inst.model_fields_set.add(block_name)
         return inst
 
-    @field_serializer("snow", mode="wrap")
+    @field_serializer("snow", "stebbs", "building_archetype", mode="wrap")
     def _serialise_optional_snow(self, value: Any, handler: Any) -> Any:
         if value is None:
             return None
@@ -4102,12 +4523,25 @@ class SiteProperties(DataModelBase):
             object.__setattr__(self, "snow", None)
             self.model_fields_set.add("snow")
             return
+        if (
+            name in ("stebbs", "building_archetype")
+            and value is None
+            and not self._is_stebbs_validation_active()
+        ):
+            object.__setattr__(self, name, None)
+            self.model_fields_set.add(name)
+            return
         snow_token = None
         soil_token = None
+        stebbs_token = None
         if name in ("snow", "land_cover"):
             snow_token = _SNOW_ACTIVE_CONTEXT.set(self._is_snow_validation_active())
         if name in ("soil_observation", "land_cover"):
             soil_token = _SOIL_OBSERVED_CONTEXT.set(self._is_soil_observation_active())
+        if name in ("stebbs", "building_archetype"):
+            stebbs_token = _STEBBS_ACTIVE_CONTEXT.set(
+                self._is_stebbs_validation_active()
+            )
         try:
             super().__setattr__(name, value)
         finally:
@@ -4115,6 +4549,8 @@ class SiteProperties(DataModelBase):
                 _SNOW_ACTIVE_CONTEXT.reset(snow_token)
             if soil_token is not None:
                 _SOIL_OBSERVED_CONTEXT.reset(soil_token)
+            if stebbs_token is not None:
+                _STEBBS_ACTIVE_CONTEXT.reset(stebbs_token)
         parent_ref = getattr(self, "_parent_config_ref", None)
         parent_cfg = parent_ref.get() if parent_ref is not None else None
         if name == "snow":
@@ -4129,6 +4565,20 @@ class SiteProperties(DataModelBase):
             if isinstance(assigned, SoilObservationConfig):
                 assigned._sync_soil_obs_validation_state(
                     active=self._is_soil_observation_active(),
+                    config=parent_cfg,
+                )
+        elif name == "stebbs":
+            assigned = getattr(self, "stebbs", None)
+            if isinstance(assigned, StebbsProperties):
+                assigned._sync_stebbs_validation_state(
+                    active=self._is_stebbs_validation_active(),
+                    config=parent_cfg,
+                )
+        elif name == "building_archetype":
+            assigned = getattr(self, "building_archetype", None)
+            if isinstance(assigned, ArchetypeProperties):
+                assigned._sync_stebbs_validation_state(
+                    active=self._is_stebbs_validation_active(),
                     config=parent_cfg,
                 )
 
@@ -4209,6 +4659,23 @@ class SiteProperties(DataModelBase):
                 ohm_threshold_summer_winter=None,
                 ohm_threshold_wet_dry=None,
             )
+        stebbs_obj = (
+            self.stebbs
+            if self.stebbs is not None
+            else StebbsProperties.model_construct(
+                **{field_name: None for field_name in StebbsProperties.model_fields}
+            )
+        )
+        archetype_obj = (
+            self.building_archetype
+            if self.building_archetype is not None
+            else ArchetypeProperties.model_construct(
+                **{
+                    field_name: None
+                    for field_name in ArchetypeProperties.model_fields
+                }
+            )
+        )
         for sub in (
             self.lumps,
             self.spartacus,
@@ -4218,8 +4685,8 @@ class SiteProperties(DataModelBase):
             snow_obj,
             self.land_cover,
             self.vertical_layers,
-            self.stebbs,
-            self.building_archetype,
+            stebbs_obj,
+            archetype_obj,
         ):
             if hasattr(sub, "_to_df_state_items"):
                 items.extend(sub._to_df_state_items(grid_id))

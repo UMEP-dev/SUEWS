@@ -1,11 +1,22 @@
+from collections.abc import Mapping
 from enum import Enum, StrEnum
 import inspect
-from typing import List, Optional, Union
+import math
+import numbers
+from typing import Any, ClassVar, List, Optional, Union
 import warnings
 
 import numpy as np
 import pandas as pd
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    SerializationInfo,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 import yaml
 
 from ..._env import _user_warning_stacklevel
@@ -34,11 +45,19 @@ from .type import (
     DataModelBase,
     FlexibleRefValue,
     Reference,
-    reject_bool_input,
     RefValue,
+    _STEBBS_ACTIVE_CONTEXT,
+    _SchemeActiveGuard,
+    _WeakConfigRef,
     df_from_col_items,
     df_from_cols,
     merge_df_state_col_items,
+    normalise_inactive_stebbs_scalar,
+    reject_bool_input,
+    reject_null_value,
+    resolve_stebbs_enabled_bool,
+    resolve_stebbs_method_code,
+    serialise_relaxed_ref_value,
 )
 
 
@@ -895,6 +914,142 @@ class StebbsPhysics(DataModelBase):
 
     ref: Optional[Reference] = None
 
+    _STEBBS_SUBORDINATE_SWITCH_ENUMS: ClassVar[dict[str, type[Enum]]] = {
+        "capacitance": RCMethod,
+        "setpoint": SetpointMethod,
+        "same_albedo_wall": SameAlbedoWall,
+        "same_albedo_roof": SameAlbedoRoof,
+        "same_emissivity_wall": SameEmissivityWall,
+        "same_emissivity_roof": SameEmissivityRoof,
+    }
+    _stebbs_validation_active: bool = PrivateAttr(default=True)
+    _parent_config_ref: _WeakConfigRef | None = PrivateAttr(default=None)
+
+    def _is_stebbs_validation_active(self) -> bool:
+        """Return True when STEBBS subordinate switch checks apply."""
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            code = resolve_stebbs_method_code(physics)
+            return code is None or code != 0
+        enabled_bool = resolve_stebbs_enabled_bool(getattr(self, "enabled", None))
+        if enabled_bool is True or enabled_bool is None:
+            return True
+        return bool(getattr(self, "_stebbs_validation_active", True))
+
+    def _make_stebbs_guard(self) -> _SchemeActiveGuard:
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        return _SchemeActiveGuard(
+            "stebbs",
+            active=bool(getattr(self, "_stebbs_validation_active", True)),
+            config=parent_cfg,
+        )
+
+    def _sync_stebbs_validation_state(
+        self,
+        *,
+        active: bool,
+        config: Any | None = None,
+    ) -> None:
+        """Synchronise cached STEBBS activation state, owner weakref, and RefValue guards."""
+        if config is not None:
+            object.__setattr__(self, "_parent_config_ref", _WeakConfigRef(config))
+        object.__setattr__(self, "_stebbs_validation_active", active)
+        guard = self._make_stebbs_guard()
+        for field_name in type(self)._STEBBS_SUBORDINATE_SWITCH_ENUMS:
+            current = getattr(self, field_name, None)
+            if isinstance(current, RefValue):
+                expected_kind = type(self)._non_optional_ref_fields.get(
+                    field_name, "value"
+                )
+                current._bind_non_optional(field_name, expected_kind, guard=guard)
+
+    @classmethod
+    def _is_valid_subordinate_switch_input(cls, field_name: str, raw: Any) -> bool:
+        enum_cls = cls._STEBBS_SUBORDINATE_SWITCH_ENUMS[field_name]
+        if isinstance(raw, Mapping):
+            if "value" not in raw or not (set(raw.keys()) <= {"value", "ref"}):
+                return False
+            ref_raw = raw.get("ref")
+            if ref_raw is not None and not isinstance(ref_raw, (Mapping, Reference)):
+                return False
+        try:
+            coerced = coerce_nested_to_flat(field_name, raw)
+        except ValueError:
+            return False
+        inner = (
+            coerced.value
+            if isinstance(coerced, RefValue)
+            else (
+                coerced["value"]
+                if isinstance(coerced, Mapping) and "value" in coerced
+                else coerced
+            )
+        )
+        if isinstance(inner, np.generic):
+            inner = inner.item()
+        if isinstance(inner, enum_cls):
+            return True
+        if isinstance(inner, bool):
+            return False
+        if isinstance(inner, (int, float)):
+            try:
+                fval = float(inner)
+            except OverflowError:
+                return False
+            if math.isfinite(fval) and fval.is_integer():
+                return int(fval) in {m.value for m in enum_cls}
+        return False
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_stebbs_physics(cls, data: Any, handler: Any) -> "StebbsPhysics":
+        """Resolve ``enabled`` before validating subordinate STEBBS switches."""
+        if isinstance(data, StebbsPhysics):
+            return handler(data)
+        if not isinstance(data, Mapping):
+            return handler(data)
+
+        values = fold_stebbs_public_key_aliases(dict(data), cls.__name__)
+        if "enabled" in values:
+            enabled_bool = resolve_stebbs_enabled_bool(values["enabled"])
+            inactive = enabled_bool is False
+        else:
+            inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
+
+        if not inactive:
+            inst = handler(values)
+            inst._sync_stebbs_validation_state(active=True)
+            return inst
+
+        stashed: dict[str, Any] = {}
+        stripped: dict[str, Any] = {}
+        for key, val in values.items():
+            if key in cls._STEBBS_SUBORDINATE_SWITCH_ENUMS:
+                if cls._is_valid_subordinate_switch_input(key, val):
+                    stripped[key] = val
+                    continue
+                ok, normalised = normalise_inactive_stebbs_scalar(
+                    val,
+                    allow_null=True,
+                    allow_string=True,
+                    int_preferred=True,
+                )
+                if ok:
+                    stashed[key] = normalised
+                    continue
+            stripped[key] = val
+
+        inst = handler(stripped)
+        for field_name, norm_val in stashed.items():
+            object.__setattr__(inst, field_name, norm_val)
+            inst.model_fields_set.add(field_name)
+        inst._sync_stebbs_validation_state(active=False)
+        return inst
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_public_key_aliases(cls, values):
@@ -919,6 +1074,74 @@ class StebbsPhysics(DataModelBase):
         # Accept readable method tokens under the nested STEBBS surface while
         # keeping the canonical stored shape as the existing enum code.
         return coerce_nested_to_flat(info.field_name, value)
+
+    @field_serializer(
+        "capacitance",
+        "setpoint",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
+        mode="wrap",
+    )
+    def _serialise_stebbs_subordinate_switch(
+        self, value: Any, handler: Any, info: SerializationInfo
+    ) -> Any:
+        enum_cls = type(self)._STEBBS_SUBORDINATE_SWITCH_ENUMS[info.field_name]
+        return serialise_relaxed_ref_value(
+            value, handler, info, expected_scalar_types=(enum_cls,)
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in type(self)._STEBBS_SUBORDINATE_SWITCH_ENUMS:
+            if not self._is_stebbs_validation_active():
+                if not type(self)._is_valid_subordinate_switch_input(name, value):
+                    ok, normalised = normalise_inactive_stebbs_scalar(
+                        value,
+                        allow_null=True,
+                        allow_string=True,
+                        int_preferred=True,
+                    )
+                    if ok:
+                        if isinstance(normalised, RefValue):
+                            expected_kind = type(self)._non_optional_ref_fields.get(
+                                name, "value"
+                            )
+                            normalised._bind_non_optional(
+                                name, expected_kind, guard=self._make_stebbs_guard()
+                            )
+                        object.__setattr__(self, name, normalised)
+                        self.model_fields_set.add(name)
+                        return
+            super().__setattr__(name, value)
+            bound = getattr(self, name, None)
+            if isinstance(bound, RefValue):
+                expected_kind = type(self)._non_optional_ref_fields.get(name, "value")
+                bound._bind_non_optional(
+                    name, expected_kind, guard=self._make_stebbs_guard()
+                )
+            return
+        super().__setattr__(name, value)
+        if name == "enabled":
+            enabled_bool = resolve_stebbs_enabled_bool(getattr(self, "enabled", None))
+            object.__setattr__(
+                self, "_stebbs_validation_active", enabled_bool is not False
+            )
+
+    def validate_non_null_ref_values(self, _path: str = "") -> None:
+        """Enforce master switches unconditionally; skip subordinate switches while STEBBS is disabled."""
+        if self._is_stebbs_validation_active():
+            super().validate_non_null_ref_values(_path)
+            return
+        non_opt = type(self)._non_optional_ref_fields
+        for field_name in ("enabled", "parameters"):
+            val = getattr(self, field_name, None)
+            field_path = f"{_path}.{field_name}" if _path else field_name
+            expected_kind = non_opt.get(field_name, "value")
+            if val is None or (isinstance(val, RefValue) and val.value is None):
+                reject_null_value(None, field_path, expected_kind=expected_kind)
+            elif isinstance(val, dict) and "value" in val and val["value"] is None:
+                reject_null_value(None, field_path, expected_kind=expected_kind)
 
 
 # Required physics switches under ``model.physics`` and nested
@@ -1390,12 +1613,20 @@ class ModelPhysics(DataModelBase):
         parameters = (
             parameters.value if isinstance(parameters, RefValue) else parameters
         )
-        cols[("stebbsmethod", "0")] = 0 if not bool(enabled) else int(parameters)
+        stebbs_enabled = bool(enabled)
+        cols[("stebbsmethod", "0")] = 0 if not stebbs_enabled else int(parameters)
 
         for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
             value = getattr(stebbs, member_name)
             val = value.value if isinstance(value, RefValue) else value
-            cols[(col_name, "0")] = int(val)
+            if not stebbs_enabled and (
+                val is None
+                or isinstance(val, str)
+                or (isinstance(val, float) and not val.is_integer())
+            ):
+                cols[(col_name, "0")] = val
+            else:
+                cols[(col_name, "0")] = int(val)
 
         return cols
 
@@ -1527,9 +1758,31 @@ class ModelPhysics(DataModelBase):
         for member_name, (col_name, default_enum) in stebbs_col_defaults.items():
             try:
                 value = df.loc[grid_id, (col_name, "0")]
-                stebbs_props[member_name] = RefValue(int(value))
             except KeyError:
                 stebbs_props[member_name] = RefValue(int(default_enum))
+                continue
+            if stebbsmethod == 0:
+                if value is None or (
+                    isinstance(value, numbers.Real)
+                    and not isinstance(value, bool)
+                    and math.isnan(float(value))
+                ):
+                    stebbs_props[member_name] = None
+                elif pd.isna(value):
+                    stebbs_props[member_name] = None
+                elif isinstance(value, str):
+                    stebbs_props[member_name] = RefValue(value)
+                elif (
+                    isinstance(value, numbers.Real)
+                    and not isinstance(value, bool)
+                    and math.isfinite(float(value))
+                    and float(value).is_integer()
+                ):
+                    stebbs_props[member_name] = RefValue(int(value))
+                else:
+                    stebbs_props[member_name] = RefValue(value)
+            else:
+                stebbs_props[member_name] = RefValue(int(value))
         properties["stebbs"] = StebbsPhysics(**stebbs_props)
 
         return cls(**properties)

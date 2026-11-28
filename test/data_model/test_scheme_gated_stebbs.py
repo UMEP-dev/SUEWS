@@ -1,0 +1,731 @@
+"""Scheme-gated validation tests for STEBBS and building archetype (#2363, #2348).
+
+Enforces the standing validation principle: STEBBS subordinate physics switches,
+``StebbsProperties``, and ``ArchetypeProperties`` constraints are not enforced
+while STEBBS is inactive (``stebbs.enabled == False`` / ``stebbsmethod == 0``),
+while remaining strictly validated when STEBBS is active (``stebbsmethod != 0``),
+on standalone model construction, and after live post-construction activation.
+"""
+
+from __future__ import annotations
+
+import copy
+from importlib.resources import files
+import json
+from pathlib import Path
+import warnings
+
+from pydantic import ValidationError
+import pytest
+import yaml
+
+from supy._run_rust import config_to_engine_yaml
+from supy.data_model.configuration.publisher import generate_json_schema
+from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.model import (
+    REQUIRED_STEBBS_SWITCHES,
+    ModelPhysics,
+    RCMethod,
+    SameAlbedoWall,
+    SetpointMethod,
+    StebbsPhysics,
+)
+from supy.data_model.core.site import ArchetypeProperties, StebbsProperties
+from supy.data_model.core.type import RefValue
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.cfg,
+    pytest.mark.core,
+    pytest.mark.contract("C-VALID", "C-EMIT", "C-ROUNDTRIP"),
+]
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture(scope="module")
+def sample_dict() -> dict:
+    """Load packaged sample configuration (``stebbs.enabled: false``)."""
+    text = (
+        files("supy")
+        .joinpath("sample_data", "sample_config.yml")
+        .read_text(encoding="utf-8")
+    )
+    return yaml.safe_load(text)
+
+
+def _assert_clean_json_dump(cfg: SUEWSConfig) -> dict:
+    """Dump *cfg* in JSON mode and verify no Pydantic serialisation warnings occur."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        dumped = cfg.model_dump(exclude_none=True, mode="json")
+    ser_warnings = [
+        w for w in caught if "PydanticSerializationUnexpectedValue" in str(w.message)
+    ]
+    assert not ser_warnings, f"Unexpected serialisation warnings: {ser_warnings}"
+    return dumped
+
+
+def _enable_stebbs(data: dict, *, parameters: int = 1) -> None:
+    """Enable STEBBS cleanly on *data* with default or provided parameters."""
+    physics = data["model"]["physics"]
+    physics.pop("stebbsmethod", None)
+    physics.pop("stebbs_method", None)
+    physics["stebbs"] = {
+        "enabled": True,
+        "parameters": parameters,
+        "capacitance": 0,
+        "setpoint": 0,
+        "same_albedo_wall": 0,
+        "same_albedo_roof": 0,
+        "same_emissivity_wall": 0,
+        "same_emissivity_roof": 0,
+    }
+
+
+def _disable_stebbs(data: dict) -> None:
+    physics = data["model"]["physics"]
+    physics.pop("stebbsmethod", None)
+    physics.pop("stebbs_method", None)
+    physics["stebbs"] = {
+        "enabled": False,
+        "parameters": 1,
+        "capacitance": 0,
+        "setpoint": 0,
+        "same_albedo_wall": 0,
+        "same_albedo_roof": 0,
+        "same_emissivity_wall": 0,
+        "same_emissivity_roof": 0,
+    }
+
+
+# =============================================================================
+# 1. Inactive STEBBS subordinate physics switches
+# =============================================================================
+
+
+@pytest.mark.parametrize("switch_name", REQUIRED_STEBBS_SWITCHES)
+@pytest.mark.parametrize(
+    "relaxed_value",
+    [
+        None,
+        {"value": None},
+        "TBD",
+        {"value": "TBD"},
+        "",
+        -999,
+        {"value": 99},
+    ],
+)
+def test_inactive_stebbs_relaxes_subordinate_switches(
+    sample_dict: dict, tmp_path: Path, switch_name: str, relaxed_value: object
+) -> None:
+    """When ``stebbs.enabled`` is False, subordinate switches accept null/placeholder/relaxed values."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"][switch_name] = relaxed_value
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    _assert_clean_json_dump(cfg)
+    yaml_text = config_to_engine_yaml(cfg, for_file_output=False)
+    assert isinstance(yaml_text, str) and yaml_text
+
+    # YAML round-trip preserves explicit nulls and placeholders without error.
+    out_yaml = tmp_path / f"{switch_name}.yml"
+    cfg.to_yaml(str(out_yaml))
+    reloaded = SUEWSConfig.from_yaml(str(out_yaml))
+    reloaded.validate_for_engine()
+    if relaxed_value is None:
+        assert getattr(reloaded.model.physics.stebbs, switch_name) is None
+    elif isinstance(relaxed_value, dict) and relaxed_value.get("value") is None:
+        raw_val = getattr(reloaded.model.physics.stebbs, switch_name)
+        assert isinstance(raw_val, RefValue) and raw_val.value is None
+
+    # DataFrame state round-trip succeeds cleanly.
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    rebuilt.validate_for_engine()
+    assert [s.gridiv for s in rebuilt.sites] == [s.gridiv for s in cfg.sites]
+
+
+def test_inactive_stebbs_resolves_valid_readable_names_and_skips_same_surface_checks(
+    sample_dict: dict,
+) -> None:
+    """Inactive STEBBS keeps valid readable switch names resolved and skips same_albedo/emissivity checks."""
+    data = copy.deepcopy(sample_dict)
+    data["model"]["physics"]["stebbs"] = {
+        "enabled": False,
+        "capacitance": "parameterise",
+        "setpoint": {"value": "scheduled"},
+        "same_albedo_wall": "enabled",
+        "same_albedo_roof": 1,
+        "same_emissivity_wall": "enabled",
+        "same_emissivity_roof": 1,
+    }
+    # Deliberately introduce mismatched wall/roof albedo & emissivity across layers
+    # and against building_archetype -- must NOT fail while STEBBS is disabled.
+    vl = data["sites"][0]["properties"]["vertical_layers"]
+    vl["walls"][0]["alb"] = {"value": 0.1}
+    vl["walls"][1]["alb"] = {"value": 0.9}
+    vl["walls"][0]["emis"] = {"value": 0.7}
+    vl["walls"][1]["emis"] = {"value": 0.95}
+    vl["roofs"][0]["alb"] = {"value": 0.2}
+    vl["roofs"][1]["alb"] = {"value": 0.8}
+    vl["roofs"][0]["emis"] = {"value": 0.6}
+    vl["roofs"][1]["emis"] = {"value": 0.99}
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    stebbs_phys = cfg.model.physics.stebbs
+    assert stebbs_phys.capacitance.value == RCMethod.PARAMETERISE
+    assert stebbs_phys.setpoint.value == SetpointMethod.SCHEDULED
+    assert stebbs_phys.same_albedo_wall.value == SameAlbedoWall.ENABLED
+
+
+@pytest.mark.parametrize(
+    "physics_patch",
+    [
+        {"stebbsmethod": 0, "rcmethod": "TBD", "setpointmethod": None},
+        {"stebbs": "none", "rcmethod": {"value": "TBD"}, "same_albedo_wall": 1},
+        {"stebbs": {"value": 0}, "outer_cap_fraction": -999},
+        {"stebbs": {"capacitance": "TBD", "setpoint": None}},
+    ],
+)
+def test_inactive_stebbs_legacy_and_omitted_enabled_forms(
+    sample_dict: dict, physics_patch: dict
+) -> None:
+    """Flat ``stebbsmethod: 0``, ``stebbs: none``, and omitted ``stebbs.enabled`` relax subordinate switches."""
+    data = copy.deepcopy(sample_dict)
+    physics = data["model"]["physics"]
+    physics.pop("stebbs", None)
+    physics.update(physics_patch)
+    # Also mismatch wall albedo so same_albedo_wall=1 proves same-surface is gated.
+    data["sites"][0]["properties"]["vertical_layers"]["walls"][0]["alb"] = {
+        "value": 0.1
+    }
+    data["sites"][0]["properties"]["vertical_layers"]["walls"][1]["alb"] = {
+        "value": 0.8
+    }
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    _assert_clean_json_dump(cfg)
+    assert cfg.model.physics.stebbs.enabled == False  # noqa: E712
+
+
+# =============================================================================
+# 2. Inactive STEBBS properties & building_archetype
+# =============================================================================
+
+
+@pytest.mark.parametrize(
+    ("mutator", "description"),
+    [
+        (
+            lambda d: d["sites"][0]["properties"].__setitem__("stebbs", None),
+            "null properties.stebbs block",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].pop("stebbs", None),
+            "omitted properties.stebbs block",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].__setitem__(
+                "building_archetype", None
+            ),
+            "null properties.building_archetype block",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].pop("building_archetype", None),
+            "omitted properties.building_archetype block",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].update(
+                convection_coefficient_wall_internal=-999.0,
+                depth_ground=0.0,
+                efficiency_heating_system_air=1.5,
+                fraction_convective_heating=-0.2,
+                setpoint_temperature_heating_water=150.0,
+                internal_shading=3,
+                destination_waste_heat=-1,
+                volume_hot_water={"value": "TBD"},
+                temperature_air_annual_mean="TBD",
+                profile_appliance=None,
+                profile_flow_hot_water={"value": None},
+            ),
+            "relaxed/null/placeholder StebbsProperties fields",
+        ),
+        (
+            lambda d: (
+                d["sites"][0]["properties"]["stebbs"].__setitem__(
+                    "internal_shading", {"value": 1}
+                ),
+                d["sites"][0]["properties"]["stebbs"].pop(
+                    "reduction_factor_shading", None
+                ),
+            ),
+            "internal_shading=1 without reduction_factor_shading when STEBBS off",
+        ),
+        (
+            lambda d: (
+                d["sites"][0]["properties"]["stebbs"].__setitem__(
+                    "internal_shading", {"value": 2}
+                ),
+                d["sites"][0]["properties"]["stebbs"].pop(
+                    "temperature_threshold_shading", None
+                ),
+                d["sites"][0]["properties"]["stebbs"].pop(
+                    "radiation_threshold_shading", None
+                ),
+            ),
+            "internal_shading=2 without thresholds when STEBBS off",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].update(
+                archetype_height=-10.0,
+                thickness_wall=0.0,
+                ratio_window_to_wall=1.8,
+                occupants=-5,
+                setpoint_temperature_heating_air=45.0,
+                setpoint_temperature_cooling_air=5.0,
+                area_footprint={"value": "TBD"},
+                hhs0={"value": None},
+                age_0_4=-0.5,
+                age_65plus={"value": "TBD"},
+                profile_metabolism=None,
+                profile_setpoint_temperature_heating_air={"value": None},
+            ),
+            "relaxed/null/placeholder ArchetypeProperties fields",
+        ),
+        (
+            lambda d: (
+                d["sites"][0]["properties"]["stebbs"].pop("volume_hot_water", None),
+                d["sites"][0]["properties"]["stebbs"].__setitem__(
+                    "DHWWaterVolume", -999.0
+                ),
+            ),
+            "legacy renamed StebbsProperties field with sentinel",
+        ),
+    ],
+)
+def test_inactive_stebbs_relaxes_properties_and_archetype(
+    sample_dict: dict, tmp_path: Path, mutator, description: str
+) -> None:
+    """When STEBBS is inactive, relaxed/null/placeholder STEBBS and archetype blocks load and export."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    mutator(data)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    _assert_clean_json_dump(cfg)
+    yaml_text = config_to_engine_yaml(cfg, for_file_output=False)
+    assert isinstance(yaml_text, str) and yaml_text, description
+
+    # YAML round-trip
+    out_yaml = tmp_path / "inactive_stebbs.yml"
+    cfg.to_yaml(str(out_yaml))
+    reloaded = SUEWSConfig.from_yaml(str(out_yaml))
+    reloaded.validate_for_engine()
+
+    # df_state round-trip
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    rebuilt.validate_for_engine()
+    assert [s.gridiv for s in rebuilt.sites] == [s.gridiv for s in cfg.sites], (
+        description
+    )
+
+
+def test_inactive_stebbs_preserves_explicit_null_blocks_across_yaml_roundtrip(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Explicit ``properties.stebbs: null`` and ``building_archetype: null`` survive ``to_yaml``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"] = None
+    data["sites"][0]["properties"]["building_archetype"] = None
+
+    cfg = SUEWSConfig.from_dict(data)
+    assert cfg.sites[0].properties.stebbs is None
+    assert cfg.sites[0].properties.building_archetype is None
+
+    out_yaml = tmp_path / "null_blocks.yml"
+    cfg.to_yaml(str(out_yaml))
+    reloaded = SUEWSConfig.from_yaml(str(out_yaml))
+    assert reloaded.sites[0].properties.stebbs is None
+    assert reloaded.sites[0].properties.building_archetype is None
+
+
+# =============================================================================
+# 3. Structural / non-finite / master-switch invariants stay strictly enforced
+# =============================================================================
+
+
+@pytest.mark.parametrize(
+    ("mutator", "pattern"),
+    [
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__("enabled", None),
+            r"enabled",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "enabled", {"value": None}
+            ),
+            r"enabled",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__("parameters", None),
+            r"parameters",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "capacitance", float("nan")
+            ),
+            r"capacitance",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "setpoint", {"value": float("inf")}
+            ),
+            r"setpoint",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "capacitance", [1, 2]
+            ),
+            r"capacitance",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "depth_ground", float("nan")
+            ),
+            r"depth_ground",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "fraction_convective_heating", {"value": float("inf")}
+            ),
+            r"fraction_convective_heating",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].__setitem__(
+                "thickness_wall", {"value": float("nan")}
+            ),
+            r"thickness_wall",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "deep_soil_temperature", {"value": 99.0}
+            ),
+            r"deep_soil_temperature is not an input",
+        ),
+    ],
+)
+def test_inactive_stebbs_still_rejects_master_nulls_nonfinite_and_structural_errors(
+    sample_dict: dict, mutator, pattern: str
+) -> None:
+    """Master-switch nulls, NaN/Inf, container shapes, and deep_soil_temperature mismatches always fail."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    mutator(data)
+
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig.from_dict(data)
+
+
+# =============================================================================
+# 4. Active STEBBS (stebbsmethod 1 and 2) remains strictly validated
+# =============================================================================
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize(
+    ("mutator", "pattern"),
+    [
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__("capacitance", None),
+            r"capacitance",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "capacitance", {"value": None}
+            ),
+            r"capacitance",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__("capacitance", "TBD"),
+            r"capacitance",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__("setpoint", -999),
+            r"setpoint",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "same_albedo_wall", "TBD"
+            ),
+            r"same_albedo_wall",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].__setitem__("stebbs", None),
+            r"stebbs",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].__setitem__(
+                "building_archetype", None
+            ),
+            r"building_archetype|archetype_name",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "depth_ground", -1.0
+            ),
+            r"depth_ground",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "depth_ground", "TBD"
+            ),
+            r"depth_ground",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "internal_shading", 3
+            ),
+            r"internal_shading",
+        ),
+        (
+            lambda d: (
+                d["sites"][0]["properties"]["stebbs"].__setitem__(
+                    "internal_shading", 1
+                ),
+                d["sites"][0]["properties"]["stebbs"].pop(
+                    "reduction_factor_shading", None
+                ),
+            ),
+            r"reduction_factor_shading",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "destination_waste_heat", 2
+            ),
+            r"destination_waste_heat",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].__setitem__(
+                "thickness_wall", -0.5
+            ),
+            r"thickness_wall",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].__setitem__(
+                "ratio_window_to_wall", 1.5
+            ),
+            r"ratio_window_to_wall",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].__setitem__(
+                "hhs0", {"value": None}
+            ),
+            r"hhs0",
+        ),
+    ],
+)
+def test_active_stebbs_enforces_strict_validation(
+    sample_dict: dict, parameters: int, mutator, pattern: str
+) -> None:
+    """When STEBBS is active (parameters=1 or 2), all switch/property/archetype rules remain strict."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    mutator(data)
+
+    with pytest.raises(ValueError, match=pattern):
+        SUEWSConfig.from_dict(data)
+
+
+def test_active_stebbs_same_albedo_and_emissivity_checks_remain_strict(
+    sample_dict: dict,
+) -> None:
+    """When STEBBS is active, ``same_albedo_*`` / ``same_emissivity_*`` mismatches are rejected."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=1)
+    data["model"]["physics"]["stebbs"]["same_albedo_wall"] = 1
+    data["sites"][0]["properties"]["vertical_layers"]["walls"][0]["alb"] = {
+        "value": 0.1
+    }
+    data["sites"][0]["properties"]["vertical_layers"]["walls"][1]["alb"] = {
+        "value": 0.8
+    }
+
+    with pytest.raises(ValueError, match="all walls albedo values must be identical"):
+        SUEWSConfig.from_dict(data)
+
+
+# =============================================================================
+# 5. Standalone construction & explicit StebbsPhysics(enabled=False)
+# =============================================================================
+
+
+def test_standalone_models_remain_strict() -> None:
+    """Standalone construction without inactive STEBBS context stays strictly validated."""
+    with pytest.raises(ValidationError):
+        StebbsPhysics(capacitance="TBD")
+    with pytest.raises(ValidationError):
+        StebbsPhysics(enabled=True, capacitance="TBD")
+    with pytest.raises(ValidationError):
+        StebbsProperties(depth_ground=-1.0)
+    with pytest.raises(ValidationError):
+        StebbsProperties(internal_shading=1)
+    with pytest.raises(ValidationError):
+        ArchetypeProperties(thickness_wall=-1.0)
+    with pytest.raises(ValidationError):
+        ArchetypeProperties(hhs0={"value": None})
+
+    # Explicit enabled=False on StebbsPhysics / ModelPhysics relaxes subordinate switches.
+    sp_off = StebbsPhysics(enabled=False, capacitance="TBD", setpoint=None)
+    assert sp_off.enabled is False
+    assert sp_off.capacitance == "TBD"
+    assert sp_off.setpoint is None
+
+    mp_off = ModelPhysics(stebbs={"enabled": False, "capacitance": "TBD"})
+    assert mp_off.stebbs.capacitance == "TBD"
+
+
+# =============================================================================
+# 6. Live post-construction transitions, RefValue guards, and deep-copy isolation
+# =============================================================================
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize(
+    ("setup_inactive", "pattern"),
+    [
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__("capacitance", "TBD"),
+            r"capacitance",
+        ),
+        (
+            lambda d: d["model"]["physics"]["stebbs"].__setitem__(
+                "setpoint", {"value": None}
+            ),
+            r"setpoint",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].__setitem__("stebbs", None),
+            r"stebbs",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"].__setitem__(
+                "building_archetype", None
+            ),
+            r"building_archetype|archetype_name",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["stebbs"].__setitem__(
+                "depth_ground", -5.0
+            ),
+            r"depth_ground",
+        ),
+        (
+            lambda d: (
+                d["sites"][0]["properties"]["stebbs"].__setitem__(
+                    "internal_shading", 1
+                ),
+                d["sites"][0]["properties"]["stebbs"].pop(
+                    "reduction_factor_shading", None
+                ),
+            ),
+            r"reduction_factor_shading",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].__setitem__(
+                "thickness_wall", -2.0
+            ),
+            r"thickness_wall",
+        ),
+        (
+            lambda d: d["sites"][0]["properties"]["building_archetype"].__setitem__(
+                "hhs0", {"value": None}
+            ),
+            r"hhs0",
+        ),
+    ],
+)
+def test_live_inactive_to_active_transition_rejects_relaxed_values(
+    sample_dict: dict, parameters: int, setup_inactive, pattern: str
+) -> None:
+    """Flipping ``stebbs.enabled`` False -> True blocks engine handoff on previously relaxed values."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["parameters"] = parameters
+    setup_inactive(data)
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+
+    # Activate STEBBS in-place and verify validate_for_engine / to_df_state / engine YAML reject.
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match=pattern):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match=pattern):
+        cfg.to_df_state()
+    with pytest.raises(ValueError, match=pattern):
+        config_to_engine_yaml(cfg, for_file_output=False)
+
+
+def test_live_refvalue_guard_and_deepcopy_isolation(sample_dict: dict) -> None:
+    """Live ``RefValue.value = None`` respects parent ``stebbs.enabled`` and isolates deep copies."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["capacitance"] = {"value": 0}
+    data["sites"][0]["properties"]["building_archetype"]["hhs0"] = {"value": 0.0}
+
+    cfg = SUEWSConfig.from_dict(data)
+    cloned = copy.deepcopy(cfg)
+
+    # While inactive on original, in-place RefValue.value = None succeeds.
+    cfg.model.physics.stebbs.capacitance.value = None
+    cfg.sites[0].properties.building_archetype.hhs0.value = None
+    cfg.validate_for_engine()
+
+    # Activating STEBBS on the deep copy does NOT affect the original, and blocks null on the copy.
+    cloned.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="capacitance"):
+        cloned.model.physics.stebbs.capacitance.value = None
+    with pytest.raises(ValueError, match="hhs0"):
+        cloned.sites[0].properties.building_archetype.hhs0.value = None
+
+    # Original remains inactive and valid.
+    cfg.validate_for_engine()
+
+    # Reset relaxed capacitance/hhs0, then replace site.properties.stebbs via dict
+    # to confirm dict assignment inherits parent STEBBS state and fails on activation.
+    cfg.model.physics.stebbs.capacitance = 0
+    cfg.sites[0].properties.building_archetype.hhs0 = 0.0
+    cfg.sites[0].properties.stebbs = {"depth_ground": -5.0}
+    assert cfg.sites[0].properties.stebbs.depth_ground == -5.0
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="depth_ground"):
+        cfg.validate_for_engine()
+
+
+# =============================================================================
+# 7. JSON Schema invariance (zero schema drift)
+# =============================================================================
+
+
+def test_json_schema_unchanged() -> None:
+    """Scheme-gated STEBBS validation leaves committed ``schema.json`` byte-for-byte invariant."""
+    committed_path = (
+        PROJECT_ROOT / "docs" / "source" / "inputs" / "tables" / "schema.json"
+    )
+    committed = json.loads(committed_path.read_text(encoding="utf-8"))
+    generated = generate_json_schema()
+    assert generated == committed

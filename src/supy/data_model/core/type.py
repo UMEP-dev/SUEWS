@@ -663,6 +663,9 @@ _SNOW_ACTIVE_CONTEXT: ContextVar[bool | None] = ContextVar(
 _SOIL_OBSERVED_CONTEXT: ContextVar[bool | None] = ContextVar(
     "_SOIL_OBSERVED_CONTEXT", default=None
 )
+_STEBBS_ACTIVE_CONTEXT: ContextVar[bool | None] = ContextVar(
+    "_STEBBS_ACTIVE_CONTEXT", default=None
+)
 
 _SNOW_USE_NAME_CODES: dict[str, int] = {
     "disabled": 0,
@@ -674,6 +677,17 @@ _SOIL_MOISTURE_NAME_CODES: dict[str, int] = {
     "observed": 1,
     "observed_volumetric": 1,
     "observed_gravimetric": 2,
+}
+_STEBBS_BOOL_TRUE: frozenset[str] = frozenset({"1", "true", "t", "yes", "y", "on"})
+_STEBBS_BOOL_FALSE: frozenset[str] = frozenset({"0", "false", "f", "no", "n", "off"})
+_STEBBS_METHOD_NAME_CODES: dict[str, int] = {
+    "none": 0,
+    "default": 1,
+    "provided": 2,
+}
+_STEBBS_PARAM_SOURCE_CODES: dict[str, int] = {
+    "default": 1,
+    "provided": 2,
 }
 
 
@@ -734,6 +748,148 @@ def resolve_soil_moisture_code(value: Any) -> int | None:
         if fval.is_integer() and int(fval) in (0, 1, 2):
             return int(fval)
     return None
+
+
+def resolve_stebbs_enabled_bool(value: Any) -> bool | None:
+    """Resolve a raw ``stebbs.enabled`` scalar to bool; ``None`` if null or malformed."""
+    raw = _unwrap_selector_raw(value)
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        try:
+            fval = float(raw)
+        except OverflowError:
+            return None
+        if math.isfinite(fval) and fval.is_integer() and int(fval) in (0, 1):
+            return bool(int(fval))
+        return None
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        if text in _STEBBS_BOOL_TRUE:
+            return True
+        if text in _STEBBS_BOOL_FALSE:
+            return False
+    return None
+
+
+def _resolve_stebbs_param_source_code(value: Any) -> int | None:
+    """Resolve ``stebbs.parameters`` to 1 (DEFAULT) or 2 (PROVIDED); ``None`` if invalid."""
+    raw = _unwrap_selector_raw(value)
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        try:
+            num = float(text)
+        except ValueError:
+            return _STEBBS_PARAM_SOURCE_CODES.get(text.rsplit(".", 1)[-1])
+        if math.isfinite(num) and num.is_integer() and int(num) in (1, 2):
+            return int(num)
+        return None
+    if isinstance(raw, (int, float)) and math.isfinite(float(raw)):
+        fval = float(raw)
+        if fval.is_integer() and int(fval) in (1, 2):
+            return int(fval)
+    return None
+
+
+def _resolve_legacy_stebbs_scalar(value: Any) -> int | None:
+    """Resolve legacy flat ``stebbs`` / ``stebbsmethod`` scalar to 0, 1, or 2."""
+    if isinstance(value, Mapping) and not (
+        "value" in value and set(value.keys()) <= {"value", "ref"}
+    ):
+        return None
+    raw = _unwrap_selector_raw(value)
+    if isinstance(raw, bool):
+        return int(raw)
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        try:
+            num = float(text)
+        except ValueError:
+            return _STEBBS_METHOD_NAME_CODES.get(text.rsplit(".", 1)[-1])
+        if math.isfinite(num) and num.is_integer() and int(num) in (0, 1, 2):
+            return int(num)
+        return None
+    if isinstance(raw, (int, float)) and math.isfinite(float(raw)):
+        fval = float(raw)
+        if fval.is_integer() and int(fval) in (0, 1, 2):
+            return int(fval)
+    return None
+
+
+def resolve_stebbs_method_code(physics: Any) -> int | None:
+    """Resolve ``model.physics`` (model or raw mapping) to composed ``stebbsmethod`` (0/1/2).
+
+    Returns ``0`` when STEBBS is cleanly disabled (or omitted, since
+    ``StebbsPhysics.enabled`` defaults to ``False``), ``1`` or ``2`` when
+    enabled, and ``None`` when the STEBBS master switch is missing/null/
+    malformed or carries conflicting aliases (staying conservative/strict).
+    """
+    if physics is None:
+        return 0
+
+    if isinstance(physics, Mapping):
+        master_keys = [
+            key for key in ("stebbs", "stebbsmethod", "stebbs_method") if key in physics
+        ]
+        if len(master_keys) > 1:
+            return None
+        if not master_keys:
+            return 0
+        key = master_keys[0]
+        entry = physics[key]
+        if key != "stebbs":
+            return _resolve_legacy_stebbs_scalar(entry)
+
+        if entry is None:
+            return None
+        if not isinstance(entry, (Mapping, int, float, bool, str, RefValue)) and hasattr(
+            entry, "enabled"
+        ):
+            enabled_bool = resolve_stebbs_enabled_bool(getattr(entry, "enabled", None))
+            if enabled_bool is False:
+                return 0
+            if enabled_bool is None:
+                return None
+            return _resolve_stebbs_param_source_code(
+                getattr(entry, "parameters", None)
+            )
+        if isinstance(entry, Mapping):
+            is_ref_scalar = "value" in entry and set(entry.keys()) <= {"value", "ref"}
+            if is_ref_scalar:
+                return _resolve_legacy_stebbs_scalar(entry)
+            if "value" in entry:
+                # Ambiguous hybrid mapping (e.g. legacy value mixed with nested keys).
+                return None
+            if "enabled" in entry:
+                enabled_bool = resolve_stebbs_enabled_bool(entry["enabled"])
+                if enabled_bool is False:
+                    return 0
+                if enabled_bool is None:
+                    return None
+            else:
+                return 0
+            has_params = "parameters" in entry
+            has_source = "parameter_source" in entry
+            if has_params and has_source:
+                return None
+            if has_params:
+                return _resolve_stebbs_param_source_code(entry["parameters"])
+            if has_source:
+                return _resolve_stebbs_param_source_code(entry["parameter_source"])
+            return 1
+        return _resolve_legacy_stebbs_scalar(entry)
+
+    stebbs = getattr(physics, "stebbs", None)
+    if stebbs is None:
+        return None
+    enabled_bool = resolve_stebbs_enabled_bool(getattr(stebbs, "enabled", None))
+    if enabled_bool is False:
+        return 0
+    if enabled_bool is None:
+        return None
+    return _resolve_stebbs_param_source_code(getattr(stebbs, "parameters", None))
 
 
 def is_finite_real_number(value: Any) -> bool:
@@ -822,6 +978,115 @@ def normalise_inactive_float_value(
     )
 
 
+_NON_FINITE_STRINGS: frozenset[str] = frozenset(
+    {"nan", "+nan", "-nan", "inf", "+inf", "-inf", "infinity", "+infinity", "-infinity"}
+)
+
+
+def _coerce_inactive_stebbs_scalar(
+    inner: Any,
+    *,
+    allow_null: bool,
+    allow_string: bool,
+    int_preferred: bool,
+) -> tuple[bool, Any]:
+    """Coerce a bare scalar inside an inactive STEBBS/archetype field."""
+    if isinstance(inner, np.generic):
+        inner = inner.item()
+    if inner is None:
+        return (True, None) if allow_null else (False, inner)
+    if isinstance(inner, bool):
+        return (False, inner)
+    if isinstance(inner, Enum):
+        inner = inner.value
+    if isinstance(inner, str):
+        if not allow_string:
+            return (False, inner)
+        if inner.strip().lower() in _NON_FINITE_STRINGS:
+            return (False, inner)
+        return (True, inner)
+    if isinstance(inner, (int, float)):
+        try:
+            fval = float(inner)
+        except OverflowError:
+            return (False, inner)
+        if not math.isfinite(fval):
+            return (False, inner)
+        if int_preferred and fval.is_integer():
+            return (True, int(fval))
+        return (True, fval)
+    return (False, inner)
+
+
+def normalise_inactive_stebbs_scalar(
+    raw: Any,
+    *,
+    allow_null: bool = True,
+    allow_string: bool = True,
+    int_preferred: bool = False,
+) -> tuple[bool, Any]:
+    """Normalise an inactive STEBBS/archetype scalar or switch without active bounds.
+
+    Accepts ``None``, finite numbers, and non-NaN/Inf placeholder strings (bare,
+    ``RefValue``-wrapped, or ``{"value": ..., "ref": ...}``). Rejects booleans,
+    non-finite numbers (``NaN``/``Inf``), containers, and mappings with extra
+    keys so structural defects and native non-finite guards stay enforced.
+    """
+    if isinstance(raw, np.generic):
+        raw = raw.item()
+
+    if isinstance(raw, RefValue):
+        ok, inner = _coerce_inactive_stebbs_scalar(
+            raw.value,
+            allow_null=allow_null,
+            allow_string=allow_string,
+            int_preferred=int_preferred,
+        )
+        if not ok:
+            return (False, raw)
+        rv = (
+            RefValue.model_construct(value=None, ref=raw.ref)
+            if inner is None
+            else RefValue(value=inner, ref=raw.ref)
+        )
+        return (True, rv)
+
+    if (
+        isinstance(raw, Mapping)
+        and "value" in raw
+        and set(raw.keys()) <= {"value", "ref"}
+    ):
+        ok, inner = _coerce_inactive_stebbs_scalar(
+            raw["value"],
+            allow_null=allow_null,
+            allow_string=allow_string,
+            int_preferred=int_preferred,
+        )
+        ref_raw = raw.get("ref")
+        if not ok or (
+            ref_raw is not None and not isinstance(ref_raw, (Mapping, Reference))
+        ):
+            return (False, raw)
+        ref_obj = (
+            Reference.model_validate(ref_raw)
+            if isinstance(ref_raw, Mapping)
+            else ref_raw
+        )
+        rv = (
+            RefValue.model_construct(value=None, ref=ref_obj)
+            if inner is None
+            else RefValue(value=inner, ref=ref_obj)
+        )
+        return (True, rv)
+
+    return _coerce_inactive_stebbs_scalar(
+        raw,
+        allow_null=allow_null,
+        allow_string=allow_string,
+        int_preferred=int_preferred,
+    )
+
+
 def serialise_relaxed_ref_float(value: Any, handler: Any) -> Any:
     """Serialise relaxed inactive ``FlexibleRefValue(float)`` values without Pydantic warnings."""
     if value is None:
@@ -838,6 +1103,60 @@ def serialise_relaxed_ref_float(value: Any, handler: Any) -> Any:
             return out
         return handler(value)
     return handler(value)
+
+
+def serialise_relaxed_ref_value(
+    value: Any,
+    handler: Any,
+    info: Any = None,
+    *,
+    expected_scalar_types: tuple[type, ...] = (int, float),
+    allowed_literals: tuple[Any, ...] | None = None,
+) -> Any:
+    """Serialise relaxed inactive ``FlexibleRefValue(T)`` values without Pydantic warnings."""
+    if value is None:
+        return None
+
+    def _matches_expected(inner: Any) -> bool:
+        if inner is None or isinstance(inner, bool):
+            return False
+        if allowed_literals is not None:
+            return inner in allowed_literals
+        return isinstance(inner, expected_scalar_types)
+
+    is_json = getattr(info, "mode", "json") == "json"
+    exclude_none = bool(getattr(info, "exclude_none", False))
+    if isinstance(value, RefValue):
+        inner = value.value
+        # RefValue(0) auto-parametrises to RefValue[int], which triggers a
+        # Pydantic union warning against RefValue[Literal[...]]; emit the
+        # equivalent mapping directly whenever allowed_literals is set or the
+        # wrapped value is relaxed/non-conforming.
+        if allowed_literals is None and _matches_expected(inner):
+            return handler(value)
+        if is_json:
+            out: dict[str, Any] = {"value": inner}
+            if value.ref is not None:
+                out["ref"] = (
+                    value.ref.model_dump(mode="json", exclude_none=exclude_none)
+                    if hasattr(value.ref, "model_dump")
+                    else value.ref
+                )
+            elif not exclude_none:
+                out["ref"] = None
+            return out
+        return {
+            "value": inner,
+            "ref": (
+                value.ref.model_dump()
+                if hasattr(value.ref, "model_dump")
+                else value.ref
+            ),
+        }
+
+    if _matches_expected(value):
+        return handler(value)
+    return value
 
 
 class _WeakConfigRef:
@@ -880,7 +1199,7 @@ class _SchemeActiveGuard:
 
     def __init__(
         self,
-        scheme: Literal["snow", "soil_obs"],
+        scheme: Literal["snow", "soil_obs", "stebbs"],
         *,
         active: bool = True,
         config: Any | None = None,
@@ -897,6 +1216,9 @@ class _SchemeActiveGuard:
             if self._scheme == "snow":
                 raw = getattr(physics, "snow_use", None) if physics is not None else None
                 code = resolve_snow_use_code(raw)
+                return code is None or code != 0
+            if self._scheme == "stebbs":
+                code = resolve_stebbs_method_code(physics)
                 return code is None or code != 0
             raw = getattr(physics, "soil_moisture", None) if physics is not None else None
             code = resolve_soil_moisture_code(raw)

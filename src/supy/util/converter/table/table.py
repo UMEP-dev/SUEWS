@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 
 from ...._env import logger_supy, trv_supy_module
-from ...._load import load_SUEWS_nml_simple
+from ...._load import LEGACY_RUNCONTROL_KEY_ALIASES, load_SUEWS_nml_simple
 from ...._misc import path_insensitive
 from .legacy import LegacyTable, read_legacy_table, write_legacy_table
 from .profile_manager import ProfileManager
@@ -192,24 +192,56 @@ def _check_required_files(input_path, required_files):
     return all((input_path / f).exists() for f in required_files)
 
 
+def _iter_matching_files(directory: Path, *patterns: str) -> list[Path]:
+    """Return sorted files directly inside ``directory`` matching any glob case-insensitively."""
+    if not directory.is_dir():
+        return []
+    patterns_lower = tuple(pattern.lower() for pattern in patterns)
+    return sorted(
+        path
+        for path in directory.iterdir()
+        if path.is_file()
+        and any(fnmatch(path.name.lower(), pattern) for pattern in patterns_lower)
+    )
+
+
+def _has_matching_file(directory: Path, pattern: str) -> bool:
+    """Return True when ``pattern`` matches a file directly inside ``directory``."""
+    if not directory.is_dir():
+        return False
+    if any(ch in pattern for ch in "*?["):
+        return bool(_iter_matching_files(directory, pattern))
+    return (directory / pattern).is_file()
+
+
 def _check_specific_files(input_path, specific_files):
     """Check if specific files exist based on RunControl.nml paths."""
+    input_path = Path(input_path)
     # Try to read RunControl.nml to get actual input path
     runcontrol_path = input_path / "RunControl.nml"
 
     if runcontrol_path.exists():
         try:
             ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
-            fileinputpath = ser_nml.get("fileinputpath", "./input/")
+            raw_input_path = ser_nml.get("fileinputpath")
+            fileinputpath = (
+                raw_input_path.strip()
+                if isinstance(raw_input_path, str) and raw_input_path.strip()
+                else "./input/"
+            )
 
             if os.path.isabs(fileinputpath):
                 actual_input_dir = Path(fileinputpath)
             else:
                 actual_input_dir = (input_path / fileinputpath).resolve()
 
-            # Check in the actual input directory
+            search_dirs = [input_path, actual_input_dir]
+            if not actual_input_dir.is_dir():
+                search_dirs.append(input_path / "Input")
+
+            # Check in the actual input directory (falling back to Input/ when missing)
             for f in specific_files:
-                if not ((input_path / f).exists() or (actual_input_dir / f).exists()):
+                if not any(_has_matching_file(d, f) for d in search_dirs):
                     return False
             return True
         except Exception:
@@ -217,7 +249,10 @@ def _check_specific_files(input_path, specific_files):
 
     # Fallback: check root and Input/ subdirectory
     for f in specific_files:
-        if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
+        if not (
+            _has_matching_file(input_path, f)
+            or _has_matching_file(input_path / "Input", f)
+        ):
             return False
     return True
 
@@ -324,7 +359,13 @@ def _check_negative_columns(input_path, negative_columns):
 
 
 def _check_nml_parameters(input_path, check_nml):
-    """Check if required parameters exist in .nml files."""
+    """Check if required parameters exist in .nml files.
+
+    Each entry in ``params`` is either a parameter name (``str``) that must
+    exist case-insensitively in the namelist section, or an iterable of
+    equivalent alias names of which at least one must exist.
+    """
+    input_path = Path(input_path)
     for nml_file, params in check_nml.items():
         nml_path = input_path / nml_file
         if not nml_path.exists():
@@ -332,11 +373,18 @@ def _check_nml_parameters(input_path, check_nml):
 
         try:
             nml = f90nml.read(str(nml_path))
-            # Get the first (and usually only) section
-            section = next(iter(nml.values())) if nml else {}
-            # Check if ALL required parameters exist
+            section = (
+                nml["runcontrol"]
+                if nml_file.lower() == "runcontrol.nml" and "runcontrol" in nml
+                else (next(iter(nml.values())) if nml else {})
+            )
+            section_keys = {k.lower() for k in section}
+            # Check if ALL required parameters (or at least one alias per group) exist
             for param in params:
-                if param.lower() not in [k.lower() for k in section]:
+                if isinstance(param, str):
+                    if param.lower() not in section_keys:
+                        return False
+                elif not any(alias.lower() in section_keys for alias in param):
                     return False
         except Exception:
             return False
@@ -388,13 +436,22 @@ def detect_table_version(input_dir):
                 "SUEWS_SiteSelect.txt": ["h_std", "n_buildings"]  # Added in 2025a
             },
         },
-        # 2024a: Added diagnostic methods and SPARTACUS radiation scheme support
+        # 2024a: Added diagnostic/RSL methods and SPARTACUS radiation scheme support
         "2024a": {
             "required_files": ["RunControl.nml"],
-            # SPARTACUS files are part of 2024a specification
-            "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
-            # Also has new parameters in RunControl
-            "check_nml": {"RunControl.nml": ["rslmethod", "rsllevel", "faimethod"]},
+            # SPARTACUS and per-site GridLayout files are part of 2024a specification
+            "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayout*.nml"],
+            # Accept both post-#864 (rslmethod/rsllevel) and historical 2024a
+            # (diagmethod/localclimatemethod) RunControl parameter names.
+            "check_nml": {
+                "RunControl.nml": [
+                    *(
+                        (canonical, legacy)
+                        for legacy, canonical in LEGACY_RUNCONTROL_KEY_ALIASES
+                    ),
+                    "faimethod",
+                ]
+            },
         },
         # 2023a: Removed DiagQS/DiagQN from RunControl, removed BaseT_HC from AnthropogenicEmission
         "2023a": {
@@ -584,9 +641,9 @@ def detect_table_version(input_dir):
                 f"Could not determine exact version, assuming {version}"
             )
 
-        # For versions without distinct table changes (e.g., 2023a, 2024a have same
-        # structure as 2021a/2020a), we may detect an earlier version. This is fine
-        # since the conversion rules are identical for these versions.
+        # For versions without distinct table changes (e.g., 2020a/2021a and
+        # 2018a/b/c have identical table structures), we may detect a sibling
+        # version. This is fine since the conversion rules are identical.
         logger_supy.info(f"Auto-detected table version: {version}")
         return version
 
@@ -1028,14 +1085,17 @@ def _prepare_output_dirs(
 
 
 def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
-    """Copy files matching patterns and optionally clean text files."""
+    """Copy files matching patterns (case-insensitively) and optionally clean text files."""
+    patterns_lower = tuple(p.lower() for p in file_patterns)
     for fileX in sorted(os.listdir(fromDir)):
-        if any(fnmatch(fileX, p) for p in file_patterns):
+        if any(fnmatch(fileX.lower(), p) for p in patterns_lower):
             file_src = os.path.join(fromDir, fileX)
+            if not os.path.isfile(file_src):
+                continue
             file_dst = os.path.join(toDir, fileX)
             copyfile(file_src, file_dst)
             convert_utf8(file_dst)
-            if clean_txt and fnmatch(fileX, "*.txt"):
+            if clean_txt and fnmatch(fileX.lower(), "*.txt"):
                 clean_legacy_table(file_dst)
 
 
@@ -1082,8 +1142,12 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
 
     # Move table files to Input directory
     list_table_input = sorted(
-        list(Path(toDir).glob("SUEWS*.txt"))
-        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+        _iter_matching_files(Path(toDir), "SUEWS*.txt")
+        + [
+            x
+            for x in _iter_matching_files(Path(toDir), "*.nml")
+            if x.name.lower() != "runcontrol.nml"
+        ]
     )
     for fileX in list_table_input:
         move(fileX.resolve(), path_input / fileX.name)
@@ -1133,13 +1197,13 @@ def _build_file_list(fromDir, fromVer):
             subdir = ""
 
         for fileX in sorted(os.listdir(input_dir)):
-            if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
+            if fnmatch(fileX.lower(), "suews_*.txt") or fnmatch(fileX.lower(), "*.nml"):
                 fileList.append((subdir, fileX))
                 logger_supy.debug(f"Found file in {subdir}: {fileX}")
 
     # Also check root for .nml files and txt files
     for fileX in sorted(os.listdir(fromDir)):
-        if fnmatch(fileX, "*.nml") or fnmatch(fileX, "*.txt"):
+        if fnmatch(fileX.lower(), "*.nml") or fnmatch(fileX.lower(), "*.txt"):
             fileList.append(("", fileX))
             logger_supy.debug(f"Found file in root: {fileX}")
 
@@ -1368,6 +1432,35 @@ def _apply_step_moves(toDir, harvested, fromVer, toVer):
                     if row and len(row) > vi and row[0] in item["values"]:
                         row[vi] = item["values"][row[0]]
             _write_table(path, header, rows)
+
+
+def _migrate_legacy_runcontrol_keys(path_runcontrol: Path) -> bool:
+    """Migrate pre-#864 RunControl aliases to canonical keys in place.
+
+    Preserves the legacy value when the canonical key is absent and gives
+    the canonical spelling precedence when both appear.
+    """
+    resolved_rc = Path(path_insensitive(path_runcontrol))
+    if not resolved_rc.is_file():
+        return False
+
+    nml = f90nml.read(str(resolved_rc))
+    if not nml:
+        return False
+
+    section_name = "runcontrol" if "runcontrol" in nml else next(iter(nml.keys()))
+    section = nml[section_name]
+    changed = False
+    for legacy_key, canonical_key in LEGACY_RUNCONTROL_KEY_ALIASES:
+        if legacy_key in section:
+            legacy_val = section.pop(legacy_key)
+            if canonical_key not in section:
+                section[canonical_key] = legacy_val
+            changed = True
+
+    if changed:
+        nml.write(str(resolved_rc), force=True)
+    return changed
 
 
 # a single conversion between two versions
@@ -1635,6 +1728,11 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     # Re-apply harvested cross-file moves over the Add defaults.
     _apply_step_moves(toDir, moved_values, fromVer, toVer)
 
+    # Migrate historical 2024a RunControl aliases (diagmethod/localclimatemethod)
+    # to canonical 2025a keys (rslmethod/rsllevel), preserving user values.
+    if fromVer == "2024a" and toVer == "2025a":
+        _migrate_legacy_runcontrol_keys(Path(toDir) / "RunControl.nml")
+
 
 def SUEWS_Converter_file(fileX, actionList):
     # actionList:[Action,File,Variable,Column,Value]
@@ -1887,14 +1985,8 @@ def convert_table(
         # flatten all file structures in tempDir_1
         path_input = source_input_dir
         list_table_input = sorted(
-            list(
-                path_input.glob("SUEWS_*.txt")
-            )  # Fixed: Added underscore to match SUEWS_*.txt files
-            + list(path_input.glob("*.nml"))
-            + list(Path(fromDir).resolve().glob("*.nml"))
-            + list(
-                Path(fromDir).resolve().glob("SUEWS_*.txt")
-            )  # Also check root for SUEWS_*.txt files
+            _iter_matching_files(path_input, "SUEWS_*.txt", "*.nml")
+            + _iter_matching_files(Path(fromDir).resolve(), "SUEWS_*.txt", "*.nml")
         )
         # copy flattened files into tempDir_1 for later processing
         # also convert all files to UTF-8 encoding in case inconsistent encoding exists
@@ -2071,8 +2163,12 @@ def convert_table(
     )
 
     list_table_input = sorted(
-        list(Path(toDir).glob("SUEWS*.txt"))
-        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+        _iter_matching_files(Path(toDir), "SUEWS*.txt")
+        + [
+            x
+            for x in _iter_matching_files(Path(toDir), "*.nml")
+            if x.name.lower() != "runcontrol.nml"
+        ]
     )
 
     for fileX in list_table_input:
@@ -2099,7 +2195,7 @@ def convert_table(
         expected_grid = f"GridLayout{ser_nml['filecode']}.nml"
         path_expected_grid = path_input / expected_grid
         if not path_expected_grid.exists():
-            grid_candidates = sorted(path_input.glob("GridLayout*.nml"))
+            grid_candidates = _iter_matching_files(path_input, "GridLayout*.nml")
             normalized = expected_grid.lower()
             matched_candidate = next(
                 (

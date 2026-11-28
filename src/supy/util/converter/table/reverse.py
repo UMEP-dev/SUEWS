@@ -38,6 +38,8 @@ from typing import Optional
 import f90nml
 
 from ...._env import logger_supy
+from ...._load import LEGACY_RUNCONTROL_KEY_ALIASES
+from ...._misc import path_insensitive
 from .legacy import LegacyTable, read_legacy_table, write_legacy_table
 from .table import rules
 
@@ -285,6 +287,35 @@ def capture_legacy_extras(src_dir, from_ver: str) -> dict:
                     candidate += 1
                 synthetic_day_night_code = candidate
 
+    # Capture pre-#864 RunControl aliases migrated or dropped at 2024a -> 2025a
+    # so reverse conversion restores original spellings and any displaced values.
+    runcontrol_aliases: dict[str, dict] = {}
+    path_from = set(forward_path(from_ver, TARGET_VER)[:-1])
+    if "2024a" in path_from:
+        rc_path = Path(path_insensitive(src_dir / "RunControl.nml"))
+        if rc_path.is_file():
+            rc_nml = f90nml.read(str(rc_path))
+            if rc_nml:
+                rc_sec = (
+                    rc_nml["runcontrol"]
+                    if "runcontrol" in rc_nml
+                    else next(iter(rc_nml.values()))
+                )
+                adds_canonical = "2023a" in path_from
+                for legacy_key, canonical_key in LEGACY_RUNCONTROL_KEY_ALIASES:
+                    if legacy_key in rc_sec:
+                        if canonical_key in rc_sec or adds_canonical:
+                            runcontrol_aliases[legacy_key] = {
+                                "canonical": canonical_key,
+                                "mode": "restore",
+                                "scalar": rc_sec[legacy_key],
+                            }
+                        else:
+                            runcontrol_aliases[legacy_key] = {
+                                "canonical": canonical_key,
+                                "mode": "rename",
+                            }
+
     extras_out: dict = {
         "from_ver": from_ver,
         "deleted": deleted,
@@ -294,6 +325,8 @@ def capture_legacy_extras(src_dir, from_ver: str) -> dict:
         extras_out["profile_codes"] = profile_codes
     if synthetic_day_night_code is not None:
         extras_out["synthetic_day_night_code"] = synthetic_day_night_code
+    if runcontrol_aliases:
+        extras_out["runcontrol_aliases"] = runcontrol_aliases
     return extras_out
 
 
@@ -608,6 +641,18 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     if (from_ver, to_ver) == ("2023a", "2024a"):
         for fname in _CREATED_AT_2024A:
             (d / fname).unlink(missing_ok=True)
+
+    # 1b. Undo historical RunControl alias migration (2024a -> 2025a).
+    if (from_ver, to_ver) == ("2024a", "2025a"):
+        rc_aliases = extras.get("runcontrol_aliases", {})
+        if rc_aliases:
+            rc_path = Path(path_insensitive(d / "RunControl.nml"))
+            if rc_path.is_file():
+                for legacy_key, spec in rc_aliases.items():
+                    if spec.get("mode") == "rename":
+                        _rename_nml_key(rc_path, spec["canonical"], legacy_key)
+                    elif spec.get("mode") == "restore":
+                        _restore_nml_key(rc_path, legacy_key, spec["scalar"])
 
     # 2. Undo Rename_File first, so column ops below see the source-side name.
     for _, r in step[step["Action"] == "Rename_File"].iterrows():

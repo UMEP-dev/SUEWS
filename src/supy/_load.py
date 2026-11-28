@@ -1944,6 +1944,13 @@ dict_RunControl_default = {
 }
 
 
+# Pre-#864 RunControl.nml parameter names mapped to their canonical spellings.
+LEGACY_RUNCONTROL_KEY_ALIASES: tuple[tuple[str, str], ...] = (
+    ("diagmethod", "rslmethod"),
+    ("localclimatemethod", "rsllevel"),
+)
+
+
 # load RunControl variables
 def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_default):
     # load RunControl variables
@@ -1952,6 +1959,14 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
         load_SUEWS_nml_simple(path_runcontrol).loc[:, "runcontrol"].to_dict()
     )
     dict_RunControl.update(dict_RunControl_x)
+
+    # Normalise pre-#864 RunControl aliases while preserving canonical precedence
+    # (check dict_RunControl_x so an explicit legacy key overrides dict_default).
+    for legacy_key, canonical_key in LEGACY_RUNCONTROL_KEY_ALIASES:
+        if legacy_key in dict_RunControl_x:
+            if canonical_key not in dict_RunControl_x:
+                dict_RunControl[canonical_key] = dict_RunControl_x[legacy_key]
+            dict_RunControl.pop(legacy_key, None)
 
     # load SPARTACUS-specific variables: do them here as they are globally set
     path_spartacus = (

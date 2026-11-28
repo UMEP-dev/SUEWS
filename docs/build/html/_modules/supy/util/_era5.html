@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util._era5 &#8212; SUEWS 2026.11.28.dev3 documentation</title>
+    <title>supy.util._era5 &#8212; SUEWS 2026.11.28.dev4 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../../_static/documentation_options.js?v=ec27d751"></script>
+    <script src="../../../_static/documentation_options.js?v=79325580"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.11.28.dev3" />
+  <meta name="docsearch:version" content="2026.11.28.dev4" />
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.11.28.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d535b6b872591a1befd849b73a438596973f5af" style="color: #31708f;">4d535b6</a>).
+        (2026.11.28.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/820a000706dd085d090ddf6f157a01ef9226e394" style="color: #31708f;">820a000</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.28.dev3 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.28.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.11.28.dev4 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.11.28.dev4 documentation - Home"/>
   
   
 </a></div>
@@ -1111,19 +1111,20 @@
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
     <span class="c1"># convert energy fluxes: [J m-2] to [W m-2]</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">"ssrd"</span><span class="p">,</span> <span class="s2">"strd"</span><span class="p">,</span> <span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]]</span> <span class="o">/=</span> <span class="n">SEC_PER_HOUR</span>
+    <span class="n">flux_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"ssrd"</span><span class="p">,</span> <span class="s2">"strd"</span><span class="p">,</span> <span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]</span>
+    <span class="n">df_forcing_grid</span><span class="p">[</span><span class="n">flux_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="p">[</span><span class="n">flux_cols</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">/</span> <span class="n">SEC_PER_HOUR</span>
 
     <span class="c1"># reverse the sign of qh and qe</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">df_forcing_grid</span><span class="p">[[</span><span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]]</span> <span class="o">=</span> <span class="o">-</span><span class="n">df_forcing_grid</span><span class="p">[[</span><span class="s2">"sshf"</span><span class="p">,</span> <span class="s2">"slhf"</span><span class="p">]]</span>
 
     <span class="c1"># convert rainfall: from [m] to [mm]</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"tp"</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">1000</span>
+    <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"tp"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"tp"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
 
     <span class="c1"># convert bulb temperature from K to degC</span>
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">Tair</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">t_z</span> <span class="o">-</span> <span class="n">C2K</span><span class="p">)</span>
 
     <span class="c1"># convert atmospheric pressure: [Pa] to [kPa]</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"p_z"</span><span class="p">]</span> <span class="o">/=</span> <span class="mi">1000</span>
+    <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"p_z"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"p_z"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span>
 
     <span class="c1"># renaming for consistency with SUEWS</span>
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
@@ -1152,15 +1153,16 @@
     <span class="p">)</span>
 
     <span class="c1"># corrections</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"RH"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">105</span><span class="p">),</span> <span class="mi">105</span>
+    <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"RH"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"RH"</span><span class="p">]</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">105</span><span class="p">),</span> <span class="mi">105</span>
     <span class="p">)</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"kdown"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"kdown"</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">"kdown"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"kdown"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"kdown"</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">df_forcing_grid</span><span class="p">[</span><span class="s2">"kdown"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
     <span class="p">)</span>
 
     <span class="c1"># trim decimals</span>
-    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">:]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">:]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">value_cols</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">4</span><span class="p">:]</span>
+    <span class="n">df_forcing_grid</span><span class="p">[</span><span class="n">value_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="p">[</span><span class="n">value_cols</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="c1"># coerce integer</span>
     <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">astype</span><span class="p">({</span>
@@ -1351,8 +1353,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.11.28.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d535b6b872591a1befd849b73a438596973f5af">4d535b6</a> |
+  <p>Version: 2026.11.28.dev4 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/820a000706dd085d090ddf6f157a01ef9226e394">820a000</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

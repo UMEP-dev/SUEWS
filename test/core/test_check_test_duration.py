@@ -1448,10 +1448,11 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
     assert "post-ci-summary" in cost_job["needs"]
     assert "post-ci-summary" in job["needs"]
     assert "cost_markers_pr" in job["needs"]
-    # Ready PR tiers (standard / physics-core), never smoke/core/cfg/physics-full/merge_group/schedule.
+    # Ready PR tiers (standard / physics-core / physics-full), never smoke/core/cfg/merge_group/schedule.
     assert "github.event_name == 'pull_request'" in job["if"]
     assert "needs.determine_matrix.outputs.test_tier == 'standard'" in job["if"]
     assert "needs.determine_matrix.outputs.test_tier == 'physics-core'" in job["if"]
+    assert "needs.determine_matrix.outputs.test_tier == 'physics-full'" in job["if"]
     assert {"tooling", "unit", "build_wheels"} <= set(job["needs"])
     assert "merge_group" not in job["if"]
     assert "schedule" not in job["if"]

@@ -605,10 +605,12 @@ jobs:
       buildplat_json: ${{ format('[["{0}", "{1}", "{2}"]]', matrix.buildplat[0], matrix.buildplat[1], matrix.buildplat[2]) }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
       gate_axis_schema: '2'
-      # The merge queue runs the Windows wheel at the smoke tier only (Linux
-      # carries the queue's full tier); every other event and platform runs
-      # the tier determine_matrix chose.
+      # The merge queue runs the Windows wheel's physics step at the smoke tier
+      # only (Linux carries the queue's full physics tier), while lane_test_tier
+      # keeps determine_matrix's full ready tier for native and os_compat so
+      # non-smoke Windows OS-compatibility tests still execute in the queue.
       test_tier: ${{ github.event_name == 'merge_group' && matrix.buildplat[1] == 'win' && 'smoke' || needs.determine_matrix.outputs.test_tier }}
+      lane_test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
       build_profile: ${{ inputs.build_profile || 'release' }}
       # Schema 2 wheel-backed lanes (#2349 W1-6):
@@ -1049,7 +1051,7 @@ jobs:
       always() &&
       github.event_name == 'pull_request' &&
       needs.determine_matrix.result == 'success' &&
-      (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-core') &&
+      (needs.determine_matrix.outputs.test_tier == 'standard' || needs.determine_matrix.outputs.test_tier == 'physics-core' || needs.determine_matrix.outputs.test_tier == 'physics-full') &&
       (needs.post-ci-summary.result == 'success' || needs.post-ci-summary.result == 'failure' || needs.post-ci-summary.result == 'skipped') &&
       (needs.tooling.result == 'success' || needs.tooling.result == 'failure' || needs.tooling.result == 'skipped') &&
       (needs.unit.result == 'success' || needs.unit.result == 'failure' || needs.unit.result == 'skipped') &&

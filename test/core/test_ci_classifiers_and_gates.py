@@ -2074,3 +2074,164 @@ def test_check_test_markers_wires_python_literals_ratchet() -> None:
     assert _matches_category(
         filters, "ci", "scripts/lint/python_literals_baseline.json"
     )
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="workflow layout shell step runs under bash on Linux CI only",
+)
+def test_windows_merge_group_os_compat_keeps_non_smoke_witness(
+    tmp_path: Path,
+) -> None:
+    """Windows merge_group narrows wheel physics to smoke while keeping ready-tier os_compat and native."""
+    caller = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    wheels = yaml.safe_load(
+        (REPO_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    bw_with = caller["jobs"]["build_wheels"]["with"]
+    assert bw_with["test_tier"] == (
+        "${{ github.event_name == 'merge_group' && matrix.buildplat[1] == 'win' "
+        "&& 'smoke' || needs.determine_matrix.outputs.test_tier }}"
+    )
+    assert bw_with["lane_test_tier"] == "${{ needs.determine_matrix.outputs.test_tier }}"
+    for lane_job_id in ("native_tests", "os_compat_tests", "abi3_smoke_tests"):
+        assert (
+            wheels["jobs"][lane_job_id]["with"]["test_tier"]
+            == "${{ inputs.lane_test_tier || inputs.test_tier }}"
+        )
+
+    mq_out = _run_determine_matrix(
+        tmp_path,
+        {
+            "GATE_AXIS_SCHEMA": "2",
+            "EVENT_NAME": "merge_group",
+            "PYTHON_CHANGED": "true",
+        },
+    )
+    assert mq_out["test_tier"] == "physics-full"
+    assert ["windows-2025", "win", "AMD64"] in json.loads(
+        mq_out["os_compat_buildplat"]
+    )
+
+    # Execute the reusable workflow's real layout step for the Windows merge_group cell:
+    # TIER='smoke' (wheel physics override) and LANE_TIER='physics-full'.
+    layout_step = next(
+        s
+        for s in wheels["jobs"]["layout"]["steps"]
+        if s.get("id") == "layout"
+    )
+    gh_out = tmp_path / "layout_out.txt"
+    gh_out.write_text("", encoding="utf-8")
+    proc = subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", layout_step["run"]],
+        cwd=REPO_ROOT,
+        env={
+            **os.environ,
+            "GITHUB_OUTPUT": str(gh_out),
+            "GATE_AXIS_SCHEMA": "2",
+            "API_PYTHON": "[]",
+            "TIER": "smoke",
+            "LANE_TIER": mq_out["test_tier"],
+            "SHARD_PYTHON": "",
+            "SHARD_COUNT": "1",
+            "BOOKEND_CORE": "false",
+            "FULL_PYTHON": "cp312",
+            "SPLIT_TESTS": "false",
+            "PHYSICS_SHARDS": "2",
+            "NATIVE_SHARDS": "1",
+            "ABI3_SMOKE_PYTHON": mq_out["abi3_smoke_python"],
+            "RUN_OS_COMPAT": "true",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    layout = dict(
+        line.split("=", 1)
+        for line in gh_out.read_text(encoding="utf-8").splitlines()
+        if "=" in line
+    )
+    assert layout["effective_split_tests"] == "false"
+    assert json.loads(layout["physics_shards"]) == [""]
+    os_cells = json.loads(layout["os_compat_cells"])
+    native_cells = json.loads(layout["native_cells"])
+    assert len(os_cells) == 1 and os_cells[0]["tier"] == "physics-full"
+    assert len(native_cells) == 1 and native_cells[0]["tier"] == "physics-full"
+
+    # Confirm the resulting os_compat marker expression selects the non-smoke
+    # Windows FileInputPath witness (while smoke would have dropped it).
+    witness = (
+        "test/data_model/test_convert_table_paths.py::"
+        "test_convert_table_rewrites_windows_fileinputpath_on_flat_run_dir"
+    )
+    tier_expr = subprocess.run(
+        [
+            sys.executable,
+            "scripts/suews/ci_tiers.py",
+            "--schema",
+            "2",
+            "os_compat",
+            os_cells[0]["tier"],
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    smoke_expr = subprocess.run(
+        [
+            sys.executable,
+            "scripts/suews/ci_tiers.py",
+            "--schema",
+            "2",
+            "os_compat",
+            "smoke",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    collect_ready = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-m",
+            tier_expr,
+            "test/data_model/test_convert_table_paths.py",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert collect_ready.returncode == 0, collect_ready.stdout + collect_ready.stderr
+    assert witness in collect_ready.stdout
+
+    collect_smoke = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-m",
+            smoke_expr,
+            "test/data_model/test_convert_table_paths.py",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert witness not in collect_smoke.stdout

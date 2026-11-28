@@ -422,6 +422,7 @@ def _make_shading_spec(
 
     def active_missing(base: dict[str, Any]) -> dict[str, Any]:
         d = copy.deepcopy(base)
+        d["model"]["physics"]["stebbs"] = {"enabled": True, "parameters": 1}
         stebbs = d["sites"][0]["properties"]["stebbs"]
         stebbs["internal_shading"] = {"value": active_mode}
         stebbs.pop(field, None)
@@ -429,6 +430,7 @@ def _make_shading_spec(
 
     def inactive_missing(base: dict[str, Any]) -> dict[str, Any]:
         d = copy.deepcopy(base)
+        d["model"]["physics"]["stebbs"] = {"enabled": True, "parameters": 1}
         stebbs = d["sites"][0]["properties"]["stebbs"]
         stebbs["internal_shading"] = {"value": inactive_mode}
         stebbs.pop(field, None)
@@ -436,6 +438,7 @@ def _make_shading_spec(
 
     def active_valid(base: dict[str, Any]) -> dict[str, Any]:
         d = copy.deepcopy(base)
+        d["model"]["physics"]["stebbs"] = {"enabled": True, "parameters": 1}
         stebbs = d["sites"][0]["properties"]["stebbs"]
         stebbs["internal_shading"] = {"value": active_mode}
         return d

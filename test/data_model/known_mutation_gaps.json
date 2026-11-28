@@ -750,26 +750,22 @@
         "spartacus_ehc_stebbs"
       ],
       "path_patterns": [
-        "sites[0].properties.building_archetype.*_roof",
-        "sites[0].properties.building_archetype.*_roof_external",
-        "sites[0].properties.building_archetype.*_roof_internal",
+        "sites[0].properties.building_archetype.fraction_heat_capacity_roof_external",
         "sites[0].properties.building_archetype.*_roof_outer",
-        "sites[0].properties.building_archetype.*_wall_outer",
-        "sites[0].properties.stebbs.convection_coefficient_roof_external",
-        "sites[0].properties.stebbs.convection_coefficient_roof_internal"
+        "sites[0].properties.building_archetype.*_wall_outer"
       ],
       "mutations": {
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
-      "category": "active_gap",
-      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); wall/window/ground STEBBS fields already reject explicit nulls.",
-      "owner_issue": "#2309",
+      "category": "inactive_optional",
+      "active_condition": "Inactive when capacitance=0 on spartacus_ehc_stebbs (RC_DEFAULT does not read roof fraction or outer-layer parameters; capacitance=1 and capacitance=2 strictly enforce them).",
+      "owner_issue": "#2083",
       "related_issues": [
-        "#1991",
-        "#2001"
+        "#2083",
+        "#2363"
       ],
-      "rationale": "STEBBS roof and outer-layer archetype fields escape _validate_stebbs required-field null checks even when STEBBS is enabled."
+      "rationale": "Capacitance-dependent roof fraction and outer-layer archetype fields remain nullable when capacitance=0 on spartacus_ehc_stebbs."
     },
     {
       "id": "stebbs-and-archetype-ref-null-inactive",
@@ -777,7 +773,6 @@
         "all_surfaces_baseline",
         "co2_methods",
         "snow_cold",
-        "observed_and_dyohm",
         "irrigation_and_dls"
       ],
       "path_patterns": [
@@ -803,6 +798,36 @@
         "#2087"
       ],
       "rationale": "STEBBS and building_archetype RefValue fields remain nullable when STEBBS is disabled."
+    },
+    {
+      "id": "stebbs-and-archetype-ref-null-inactive-dyohm",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.*",
+        "sites[0].properties.stebbs.*"
+      ],
+      "exclude_patterns": [
+        "sites[0].properties.building_archetype.archetype_name",
+        "sites[0].properties.building_archetype.profile_*",
+        "sites[0].properties.stebbs.profile_*",
+        "sites[0].properties.stebbs.reduction_factor_shading",
+        "sites[0].properties.stebbs.temperature_threshold_shading",
+        "sites[0].properties.stebbs.radiation_threshold_shading",
+        "sites[0].properties.stebbs.temperature_air_annual_mean"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.enabled=False on observed_and_dyohm (storage_heat=6); temperature_air_annual_mean is actively consumed by DyOHM deep-soil initialisation and rejects nulls.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2087"
+      ],
+      "rationale": "Non-DyOHM STEBBS and building_archetype RefValue fields remain nullable when STEBBS is disabled under DyOHM."
     },
     {
       "id": "stebbs-archetype-name-bare-null-inactive",
@@ -1164,31 +1189,6 @@
       "rationale": "HourlyProfile working_day/holiday mappings allow dict values of None and serialize them as null in engine YAML."
     },
     {
-      "id": "stebbs-144step-profile-slots-active",
-      "anchors": [
-        "spartacus_ehc_stebbs"
-      ],
-      "path_patterns": [
-        "sites[0].properties.stebbs.profile_appliance.*.*",
-        "sites[0].properties.stebbs.profile_flow_hot_water.*.*",
-        "sites[0].properties.building_archetype.profile_metabolism.*.*",
-        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.*.*",
-        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
-      ],
-      "mutations": {
-        "omit": "dropped",
-        "bare_null": "null_or_empty"
-      },
-      "category": "active_gap",
-      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting or nulling a 10-minute slot passes validation.",
-      "owner_issue": "#2309",
-      "related_issues": [
-        "#1991",
-        "#2001"
-      ],
-      "rationale": "144-step STEBBS profile dicts do not require complete slot coverage on omit and accept null slot entries."
-    },
-    {
       "id": "stebbs-144step-profile-slots-inactive",
       "anchors": [
         "all_surfaces_baseline",
@@ -1215,6 +1215,28 @@
         "#2083"
       ],
       "rationale": "144-step STEBBS profile slots are unused when STEBBS is disabled."
+    },
+    {
+      "id": "stebbs-144step-setpoint-profile-slots-inactive-constant",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.*.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "dropped"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.setpoint != 2 (spartacus_ehc_stebbs uses setpoint='constant'); strictly enforced when stebbs.setpoint == 2 (scheduled).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2083",
+        "#2363"
+      ],
+      "rationale": "144-step STEBBS heating and cooling setpoint profile slots are unused when setpoint is constant (0) or dependent (1), and Phase B science fixes explicitly nullify them."
     },
     {
       "id": "control-output-groups-element-omit",

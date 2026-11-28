@@ -19,6 +19,7 @@ WINDOWS = (
     ("2012-08-09", "2012-08-10"),
     ("2012-08-17", "2012-08-20"),
 )
+STARTUP_WINDOW = WINDOWS[0]
 COLUMNS = ([('SUEWS', name) for name in ("QN", "QF", "QS", "QH", "QE", "Ts", "RA")]
            + [('EHC', name) for name in ("dUdt_EHC", "QBot_EHC", "QIndoor_EHC", "QF_Air",
                                          "T_Indoor_EHC", "T_Deep_EHC")]
@@ -47,15 +48,40 @@ def build_sim(case, coupling=None):
     return sim
 
 
-def select_reference(frame):
-    """Select fixed windows without restarting or discarding preceding state."""
+def _select_windows(frame, windows):
+    """Select fixed half-open datetime windows ``[start, end)``."""
     times = frame.index.get_level_values("datetime")
     selected = pd.Series(False, index=frame.index)
-    for start, end in WINDOWS:
+    for start, end in windows:
         selected |= (times >= pd.Timestamp(start)) & (times < pd.Timestamp(end))
     result = frame.loc[selected, COLUMNS].copy()
     result.columns = ["|".join(column) for column in result.columns]
     return result
+
+
+def select_reference(frame):
+    """Select fixed windows without restarting or discarding preceding state."""
+    return _select_windows(frame, WINDOWS)
+
+
+def select_startup_reference(frame):
+    """Select the startup window ``STARTUP_WINDOW`` for the fast core witness."""
+    return _select_windows(frame, (STARTUP_WINDOW,))
+
+
+def read_reference_window_csv(case, window=STARTUP_WINDOW):
+    """Return the header and exact committed CSV rows inside ``[start, end)``."""
+    start, end = pd.Timestamp(window[0]), pd.Timestamp(window[1])
+    lines = (REFERENCE_DIR / f"{case}.csv").read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].split(",", 2)[:2] != ["grid", "datetime"]:
+        raise ValueError(f"Unexpected header in committed reference {case}.csv")
+    header, body = lines[0], lines[1:]
+    selected = [
+        line for line in body if start <= pd.Timestamp(line.split(",", 2)[1]) < end
+    ]
+    if not selected:
+        raise ValueError(f"No committed rows in {case}.csv for window {window}")
+    return "\n".join([header, *selected]) + "\n"
 
 
 def reference_csv(frame):

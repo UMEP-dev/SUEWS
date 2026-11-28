@@ -136,7 +136,8 @@ Two orthogonal markers compose with any primary axis: [decision: software mainta
   system (paths, encodings, symlinks/junctions, POSIX permissions, process
   spawning), run on Windows and macOS as well as Linux.
 - `e2e` -- marks a test that starts a subprocess (the CLI entry points or the
-  `suews-engine` binary), whose count the static gate caps (#2349 `W1-8`).
+  `suews-engine` binary); a static gate capping subprocess `e2e` counts is
+  planned in #2349 (`W1-8`).
 
 When two primary axes fit a file, pick the more expensive one (`native` over
 `unit`, `physics` over `native`); do not declare two primary axes on one file. [decision: software maintainer, 2026-11-26]
@@ -147,17 +148,29 @@ declaration is needed there (`AUTO_APPLIED_DIRS`). [fact: git grep -n 'AUTO_APPL
 These remain needed with the Rust backend because they guard the UMEP/QGIS
 plugin-facing API contracts rather than model physics.
 
-**Enforcement and legacy `api` compatibility shim:** Both the static CI lint
-(`scripts/lint/check_test_markers.py`) and the `pytest_collection_finish` hook
-in `test/conftest.py` enforce `AXIS_MARKERS = frozenset({"tooling", "unit", "native", "physics"})`
-and reject any new or unexempted test file that omits a primary axis, declares
-more than one primary axis, or uses the retired `api` marker. Only the exact
-repo-relative paths listed in `LOCKED_PR_FILE_AXES` retain the temporary `api`
-compatibility shim (mapped to their target primary axis at collection time by
-`test/conftest.py`) for still-open pre-`W1-4` pull requests until `W1-7`
-removes the shim. [fact: git grep -n 'LOCKED_PR_FILE_AXES' scripts/lint/check_test_markers.py test/conftest.py]
-If the lint fires, add `pytestmark = pytest.mark.<axis>` using one of the four
-primary axes -- do not use `pytest.mark.api` or bypass the lint.
+**Enforcement and legacy `api` compatibility shim:**
+
+- **Static AST lint (`scripts/lint/check_test_markers.py`):** checks every
+  pytest-discoverable file under `test/` (outside `AUTO_APPLIED_DIRS`) to
+  enforce exactly one primary axis from
+  `AXIS_MARKERS = frozenset({"tooling", "unit", "native", "physics"})` at
+  module level, reject conflicting nested axis decorators, and reject directly
+  authored `api` markers outside `LOCKED_PR_FILE_AXES`. [fact: git grep -n 'AXIS_MARKERS.*frozenset({"tooling", "unit", "native", "physics"})' scripts/lint/check_test_markers.py && git grep -n "LEGACY_SHIM_MARKER" scripts/lint/check_test_markers.py]
+- **Runtime collection hook (`test/conftest.py::pytest_collection_finish`):**
+  on full-tree pytest runs, enforces primary-axis cardinality per collected
+  item (every collected test carries exactly one marker in `AXIS_MARKERS`). [fact: git grep -n "def pytest_collection_finish" test/conftest.py && git grep -n "if len(axes) == 1:" test/conftest.py]
+- **Locked-PR compatibility mapping (`LOCKED_PR_FILE_AXES`):** exact
+  repo-relative paths for still-open pre-`W1-4` pull requests may keep legacy
+  `pytestmark = pytest.mark.api`; `test/conftest.py::pytest_collection_modifyitems`
+  attaches their mapped primary axis (and any `LOCKED_PR_FILE_EXTRA_MARKERS`)
+  at collection time. [fact: git grep -n 'LOCKED_PR_FILE_AXES' scripts/lint/check_test_markers.py test/conftest.py]
+- **Temporary Schema-1 `api` auto-marking:** until `W1-7` removes the
+  compatibility shim, `test/conftest.py::pytest_collection_modifyitems` also
+  auto-attaches `pytest.mark.api` at collection time to non-physics items
+  (`NON_PHYSICS_AXIS_MARKERS`). [fact: git grep -n "NON_PHYSICS_AXIS_MARKERS" test/conftest.py]
+  If the lint fires on a new or edited test file, add
+  `pytestmark = pytest.mark.<axis>` using one of the four primary axes -- do
+  not write `pytest.mark.api` in source files or bypass the lint. [decision: software maintainer, 2026-11-26]
 
 Where each axis runs in CI is stated once, in `.claude/rules/ci/conventions.md`
 ("Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-26]
@@ -325,12 +338,12 @@ Linux `cp312` lanes (`tooling`, `unit`, `native`, `physics`; also on
 `workflow_dispatch` with the `cost_markers` input) with `continue-on-error`, so
 drift is reported in the step summary and never reddens the run;
 `report_scheduled_run` prints the drift count in its own summary, and drift
-never counts as a failure. On a pull request that changes test files, the
-`cost_markers_pr` job runs the same check restricted to those files
-(`--test-file`) on the PR's own Linux `cp312` metrics and adds the result to
-the CI summary comment; it never gates, and it cannot judge tests the PR tier
-does not run (non-core `slow` tests on non-physics lanes, or non-smoke physics
-tests under `physics-core`). Run it locally on downloaded artefacts:
+never counts as a failure. [fact: git grep -n "cost_markers:" .github/workflows/build-publish_to_pypi.yml && git grep -n -- "--require-axis physics" .github/workflows/build-publish_to_pypi.yml]
+On a pull request that changes test files, the `cost_markers_pr` job runs the
+same check restricted to those files (`--test-file`) on the PR's own Linux
+`cp312` metrics and adds the result to the CI summary comment; it never gates,
+and it cannot judge tests the PR tier does not run (non-core `slow` tests on
+non-physics lanes, or non-smoke physics tests under `physics-core`). [fact: git grep -n "cost_markers_pr:" .github/workflows/build-publish_to_pypi.yml] Run it locally on downloaded artefacts:
 
 ```bash
 for axis in tooling unit native physics; do
@@ -384,8 +397,12 @@ simulation windows to what the assertion actually requires:
 4. **Mark cost honestly by the existing policy.** Assign `medium` and `slow`
    only by measured call-phase CPU seconds or a documented non-CPU cause (see
    "PR/CR placement" and "Cost thresholds" above). Never mark a test `slow`
-   merely to hide it from PR runs; essential `core` tests remain in the PR
-   tier. [decision: software maintainer, 2026-11-22]
+   merely to hide it from PR runs; on non-physics ready lanes (`tooling`,
+   `unit`, `native`, `os_compat`), essential `core` tests remain in the PR tier
+   via `(core or not slow)`, while on the `physics` axis full `-m physics`
+   (including `core` and `slow`) runs on the four automatic full-physics
+   coverage triggers in `.claude/rules/ci/conventions.md` ("Multi-Axis CI
+   Topology") rather than on Python-only `physics-core` PRs. [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26]
 
 **How to recognise violations.**
 - *From a diff (reviewers)*: a new `SUEWSSimulation.from_sample_data().run(...)`

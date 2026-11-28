@@ -2729,6 +2729,18 @@ def _bind_comp_target(
     return False
 
 
+def _fold_ast_alternatives(cands: list[ast.AST]) -> ast.AST:
+    """Fold multiple AST alternatives into a balanced ``IfExp`` tree preserving cardinality."""
+    if len(cands) == 1:
+        return cands[0]
+    mid = len(cands) // 2
+    return ast.IfExp(
+        test=ast.Name(id="__ast_guard_branch__", ctx=ast.Load()),
+        body=_fold_ast_alternatives(cands[:mid]),
+        orelse=_fold_ast_alternatives(cands[mid:]),
+    )
+
+
 def _expand_comprehension(
     node: ast.ListComp | ast.GeneratorExp,
     env: Mapping[str, ast.AST],
@@ -2760,8 +2772,10 @@ def _expand_comprehension(
     out: list[ast.AST] = []
     for cur_bind in bindings_list:
         bstate = _BindingState({k: [v] for k, v in cur_bind.items()})
-        substituted, _ = _substitute_expr_values(node.elt, bstate)
-        out.append(substituted[0] if substituted else node.elt)
+        substituted, sub_ov = _substitute_expr_values(node.elt, bstate)
+        if sub_ov or not substituted:
+            return None
+        out.append(_fold_ast_alternatives(substituted))
     return out
 
 
@@ -3012,6 +3026,32 @@ def _record_calls_in_lambda(
     _record_calls_in_expr(expr.body, inner, recorded, enclosing_state=None)
 
 
+def _record_calls_in_boolop(
+    expr: ast.BoolOp,
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+    enclosing_state: _BindingState | None,
+) -> None:
+    """Record calls in short-circuit ``and``/``or``, merging every early-exit state."""
+    if not expr.values:
+        return
+    cur = state.clone()
+    _record_calls_in_expr(
+        expr.values[0], cur, recorded, enclosing_state=enclosing_state
+    )
+    merged = cur.clone()
+    for val in expr.values[1:]:
+        enc_branch = None if enclosing_state is None else enclosing_state.clone()
+        _record_calls_in_expr(val, cur, recorded, enclosing_state=enc_branch)
+        merged = _merge_binding_states(merged, cur)
+        if enclosing_state is not None and enc_branch is not None:
+            m_enc = _merge_binding_states(enclosing_state, enc_branch)
+            enclosing_state.env = m_enc.env
+            enclosing_state.overflowed = m_enc.overflowed
+    state.env = merged.env
+    state.overflowed = merged.overflowed
+
+
 def _record_calls_in_expr(
     expr: ast.AST,
     state: _BindingState,
@@ -3034,21 +3074,34 @@ def _record_calls_in_expr(
         if enclosing_state is not None:
             _assign_eager_target(expr.target, expr.value, enclosing_state)
         return
+    if isinstance(expr, ast.BoolOp):
+        _record_calls_in_boolop(expr, state, recorded, enclosing_state)
+        return
     if isinstance(expr, ast.IfExp):
         _record_calls_in_expr(
             expr.test, state, recorded, enclosing_state=enclosing_state
         )
         body_state = state.clone()
         else_state = state.clone()
+        enc_body = None if enclosing_state is None else enclosing_state.clone()
+        enc_else = None if enclosing_state is None else enclosing_state.clone()
         _record_calls_in_expr(
-            expr.body, body_state, recorded, enclosing_state=enclosing_state
+            expr.body, body_state, recorded, enclosing_state=enc_body
         )
         _record_calls_in_expr(
-            expr.orelse, else_state, recorded, enclosing_state=enclosing_state
+            expr.orelse, else_state, recorded, enclosing_state=enc_else
         )
         merged = _merge_binding_states(body_state, else_state)
         state.env = merged.env
         state.overflowed = merged.overflowed
+        if (
+            enclosing_state is not None
+            and enc_body is not None
+            and enc_else is not None
+        ):
+            m_enc = _merge_binding_states(enc_body, enc_else)
+            enclosing_state.env = m_enc.env
+            enclosing_state.overflowed = m_enc.overflowed
         return
     for child in ast.iter_child_nodes(expr):
         _record_calls_in_expr(child, state, recorded, enclosing_state=enclosing_state)
@@ -3218,18 +3271,28 @@ def _step_try_stmt(
         else body_end
     )
     merged = normal_exit
+    is_try_star = hasattr(ast, "TryStar") and isinstance(stmt, ast.TryStar)
+    running_handler = handler_entry.clone()
     for handler in handlers:
+        h_in = running_handler.clone() if is_try_star else handler_entry.clone()
+        if handler.name:
+            h_in.env.pop(handler.name, None)
+            h_in.overflowed.discard(handler.name)
         h_state = _record_calls_in_stmt_order(
             handler.body,
-            handler_entry.clone(),
+            h_in,
             recorded,
             exc_accum=exc_accum,
             descend_defs=descend_defs,
             returns=returns,
         )
+        if is_try_star:
+            running_handler = _merge_binding_states(running_handler, h_state)
         merged = _merge_binding_states(merged, h_state)
     if finalbody:
-        finally_entry = _merge_binding_states(merged, handler_entry)
+        finally_entry = _merge_binding_states(
+            merged, running_handler if is_try_star else handler_entry
+        )
         merged = _record_calls_in_stmt_order(
             finalbody,
             finally_entry,
@@ -3314,18 +3377,26 @@ def _step_compound_stmt(
         )
     if isinstance(stmt, ast.Match):
         _record_calls_in_expr(stmt.subject, state, recorded)
+        fallthrough = state.clone()
         merged = state.clone()
         for case in stmt.cases:
-            c_state = _record_calls_in_stmt_order(
+            c_state = fallthrough.clone()
+            for cap_name in _collect_pattern_capture_names(case.pattern):
+                c_state.env.pop(cap_name, None)
+                c_state.overflowed.discard(cap_name)
+            if case.guard is not None:
+                _record_calls_in_expr(case.guard, c_state, recorded)
+                fallthrough = _merge_binding_states(fallthrough, c_state)
+            body_state = _record_calls_in_stmt_order(
                 case.body,
-                state.clone(),
+                c_state,
                 recorded,
                 exc_accum=exc_accum,
                 descend_defs=descend_defs,
                 returns=returns,
             )
-            merged = _merge_binding_states(merged, c_state)
-        return merged
+            merged = _merge_binding_states(merged, body_state)
+        return _merge_binding_states(merged, fallthrough)
     return state
 
 
@@ -4629,9 +4700,8 @@ def _walk_sim_calls_in_try(
     # An exception may occur at any intermediate point inside ``body``, so
     # any binding written within the ``try`` block cannot be assumed non-sim on
     # exception entry (even if restored later in the ``try`` body).
-    written_in_try = _collect_written_names_in_stmts(body)
     handler_entry = pre_state.clone()
-    handler_entry.kill(written_in_try)
+    handler_entry.kill(_collect_written_names_in_stmts(body))
     exit_states: list[_NonSimState] = []
 
     if orelse:
@@ -4641,12 +4711,17 @@ def _walk_sim_calls_in_try(
     else:
         exit_states.append(try_state)
 
+    is_try_star = hasattr(ast, "TryStar") and isinstance(stmt, ast.TryStar)
+    running_handler = handler_entry.clone()
     for handler in handlers:
-        h_state = handler_entry.clone()
+        h_state = running_handler.clone() if is_try_star else handler_entry.clone()
         if handler.name:
             h_state.kill({handler.name})
         cnt += _walk_sim_calls_in_block(handler.body, h_state)
         exit_states.append(h_state)
+        if is_try_star:
+            # Multiple except* handlers can execute sequentially on an ExceptionGroup.
+            running_handler.intersect_with(h_state)
 
     merged = exit_states[0].clone()
     for other in exit_states[1:]:
@@ -4655,7 +4730,9 @@ def _walk_sim_calls_in_try(
     if finalbody:
         # An unhandled exception type can jump directly from try_body to finally.
         finally_state = merged.clone()
-        finally_state.intersect_with(handler_entry)
+        finally_state.intersect_with(
+            running_handler if is_try_star else handler_entry
+        )
         cnt += _walk_sim_calls_in_block(finalbody, finally_state)
         merged = finally_state
 

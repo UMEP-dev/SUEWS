@@ -3164,3 +3164,58 @@ def test_ast_guards_keyword_eager_alt_union_with_suppress_trystar_set_and_big_ra
     assert "e2e-subprocess-cap: `suews-run`" not in err
     # range(10**30) must produce unresolvable-e2e-parametrize rather than raising OverflowError.
     assert "unresolvable-e2e-parametrize: test/core/test_r8_edges.py::test_huge_range_no_overflow_error" in err
+
+
+def test_ast_guards_comp_alternatives_boolop_match_guard_and_trystar_chain(
+    tmp_path: Path, capsys
+) -> None:
+    """Comprehension conditionals, BoolOp short-circuit, match guards, and multi-except*."""
+    src = (
+        "import subprocess\n"
+        "import unittest\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize('cmd', ['echo' if False else 'suews' for _ in range(11)])\n"
+        "def test_comp_ifexp_preserves_suews_cap(cmd):\n"
+        "    subprocess.run([cmd, '--help'])\n\n"
+        "def test_boolop_short_circuit_keeps_suews():\n"
+        "    cmd = 'suews-validate'\n"
+        "    False and (cmd := 'echo')\n"
+        "    subprocess.run([cmd, '--help'])\n\n"
+        "def test_match_guard_subprocess_caught():\n"
+        "    match 0:\n"
+        "        case _ if subprocess.run(['suews-mcp', '--version']).returncode == 0:\n"
+        "            pass\n\n"
+        "@pytest.mark.parametrize('case', [1, 2])\n"
+        "def test_trystar_multi_handler_sim_caught(case, sim):\n"
+        "    runner = unittest.TextTestRunner()\n"
+        "    try:\n"
+        "        raise ExceptionGroup('both', [ValueError(), TypeError()])\n"
+        "    except* ValueError:\n"
+        "        runner = sim\n"
+        "    except* TypeError:\n"
+        "        runner.run()\n\n"
+        "def test_trystar_multi_handler_subprocess_caught():\n"
+        "    cmd = 'echo'\n"
+        "    try:\n"
+        "        raise ExceptionGroup('both', [ValueError(), TypeError()])\n"
+        "    except* ValueError:\n"
+        "        cmd = 'suews-run'\n"
+        "    except* TypeError:\n"
+        "        subprocess.run([cmd, 'cfg.yml'])\n"
+    )
+    repo = _make_repo(
+        tmp_path / "repo_r9",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r9_edges.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "e2e-subprocess-cap: `suews`" in err
+    assert "missing-e2e-marker: test/core/test_r9_edges.py::test_boolop_short_circuit_keeps_suews" in err
+    assert "missing-e2e-marker: test/core/test_r9_edges.py::test_match_guard_subprocess_caught" in err
+    assert "parametrised-simulation: test/core/test_r9_edges.py::test_trystar_multi_handler_sim_caught" in err
+    assert "missing-e2e-marker: test/core/test_r9_edges.py::test_trystar_multi_handler_subprocess_caught" in err

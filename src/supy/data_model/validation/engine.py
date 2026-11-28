@@ -872,6 +872,26 @@ def _run_phase_a_in_memory(
     )
 
 
+def _prepare_typed_model_proxy(
+    typed_model: BaseModel | ReadOnlyModelProxy | None,
+) -> ReadOnlyModelProxy | None:
+    """Return a read-only proxy for Phase B rules without failing on private metadata."""
+    if isinstance(typed_model, ReadOnlyModelProxy):
+        return typed_model
+    if not isinstance(typed_model, BaseModel):
+        return None
+    try:
+        return freeze_model(typed_model)
+    except TypeError:
+        try:
+            clean_model = type(typed_model).model_validate(
+                typed_model.model_dump(mode="python")
+            )
+            return freeze_model(clean_model)
+        except Exception:  # noqa: BLE001
+            return None
+
+
 def _run_phase_b_in_memory(
     working_data: Any,
     *,
@@ -879,7 +899,7 @@ def _run_phase_b_in_memory(
     science_fixes: str,
     upstream_has_errors: bool,
     base_dir: Path | None = None,
-    typed_model: ReadOnlyModelProxy | None = None,
+    typed_model: BaseModel | ReadOnlyModelProxy | None = None,
 ) -> tuple[Any, PhaseReport]:
     """Run Phase B scientific checks and optional in-memory adjustments."""
     if not isinstance(working_data, Mapping):
@@ -924,12 +944,13 @@ def _run_phase_b_in_memory(
                 resolved_base_dir,
             )
         )
+        frozen_typed_model = _prepare_typed_model_proxy(typed_model)
         validation_context = ValidationContext(
             yaml_data=data,
             start_date=start_date,
             model_year=model_year,
             effective_fixes=effective_fixes,
-            typed_model=typed_model,
+            typed_model=frozen_typed_model,
         )
         validation_results = bound_notes + RulesRegistry(
             context=validation_context
@@ -1220,11 +1241,11 @@ class ValidationEngine:
                 bound_base_dir = Path(yaml_path_attr).resolve().parent
 
         if "B" in pipeline_norm and (not has_errors or continue_on_error):
-            typed_model_proxy = (
+            phase_b_typed_source: BaseModel | ReadOnlyModelProxy | None = (
                 source
                 if isinstance(source, ReadOnlyModelProxy)
                 else (
-                    freeze_model(unwrapped_source)
+                    unwrapped_source
                     if isinstance(unwrapped_source, BaseModel)
                     else None
                 )
@@ -1235,7 +1256,7 @@ class ValidationEngine:
                 science_fixes=fixes_norm,
                 upstream_has_errors=has_errors,
                 base_dir=bound_base_dir,
-                typed_model=typed_model_proxy,
+                typed_model=phase_b_typed_source,
             )
             phases.append(phase_b_report)
             if not phase_b_report.has_errors:

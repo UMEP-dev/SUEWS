@@ -9,12 +9,12 @@ caller.
 
 from __future__ import annotations
 
-from collections import deque
+from collections import Counter, OrderedDict, defaultdict, deque
 from collections.abc import Mapping, Sequence, Set as AbstractSet
 from copy import deepcopy
 from dataclasses import dataclass, fields as dc_fields, is_dataclass
 import datetime
-from enum import Enum
+from enum import Enum, Flag
 import functools
 from types import (
     BuiltinMethodType,
@@ -28,7 +28,7 @@ from typing import Any
 import weakref
 
 import numpy as np
-from pydantic import BaseModel, PlainSerializer, WrapSerializer
+from pydantic import BaseModel
 from pydantic_core import PydanticUndefinedType
 
 from ..pipeline.document import (
@@ -82,7 +82,7 @@ _PYDANTIC_INTERNAL_SLOTS: frozenset[str] = frozenset({
 
 
 def _iter_custom_slots(cls: type[Any], skip: frozenset[str]) -> tuple[str, ...]:
-    """Return unique custom ``__slots__`` attribute names across *cls* MRO."""
+    """Return unique custom ``__slots__`` attribute names across *cls* MRO (with name mangling)."""
     names: list[str] = []
     seen: set[str] = set()
     for base in cls.__mro__:
@@ -91,10 +91,17 @@ def _iter_custom_slots(cls: type[Any], skip: frozenset[str]) -> tuple[str, ...]:
             continue
         slot_iter = (slots,) if isinstance(slots, str) else slots
         for slot_name in slot_iter:
-            if slot_name in skip or slot_name in seen:
+            if slot_name in skip:
                 continue
-            seen.add(slot_name)
-            names.append(slot_name)
+            resolved_name = slot_name
+            if slot_name.startswith("__") and not slot_name.endswith("__"):
+                stripped = base.__name__.lstrip("_")
+                if stripped:
+                    resolved_name = f"_{stripped}{slot_name}"
+            if resolved_name in skip or resolved_name in seen:
+                continue
+            seen.add(resolved_name)
+            names.append(resolved_name)
     return tuple(names)
 
 
@@ -545,6 +552,66 @@ def _detach_suews_internal_ref(
     return False, None
 
 
+_SAFE_DEFAULTDICT_FACTORIES: frozenset[Any] = frozenset({
+    None,
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+    bytearray,
+    list,
+    tuple,
+    dict,
+    set,
+    frozenset,
+    deque,
+    OrderedDict,
+    Counter,
+})
+
+
+def _detach_mapping_value(
+    value: Any,
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+) -> tuple[bool, Any]:
+    """Detach supported mapping types while preserving ``defaultdict``/``OrderedDict``/``Counter``."""
+    val_type = type(value)
+    out_map: dict[Any, Any]
+    if val_type in {dict, MappingProxyType}:
+        out_map = {}
+    elif val_type is OrderedDict:
+        out_map = OrderedDict()
+    elif val_type is Counter:
+        out_map = Counter()
+    elif val_type is defaultdict:
+        factory = value.default_factory
+        safe_factory = (
+            factory
+            if factory in _SAFE_DEFAULTDICT_FACTORIES
+            else _detach_snapshot_tree(
+                factory, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+        )
+        out_map = defaultdict(safe_factory)
+    else:
+        return False, None
+    memo[id(value)] = out_map
+    for k, v in value.items():
+        out_map[
+            _detach_snapshot_tree(
+                k, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+        ] = _detach_snapshot_tree(
+            v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+    return True, out_map
+
+
 def _detach_container_or_object(
     value: Any,
     memo: dict[int, Any],
@@ -568,19 +635,8 @@ def _detach_container_or_object(
         replaced = value.replace(tzinfo=detached_tz)
         memo[id(value)] = replaced
         return replaced
-    if isinstance(value, (MappingProxyType, dict)):
-        out_dict: dict[Any, Any] = {}
-        memo[id(value)] = out_dict
-        for k, v in value.items():
-            out_dict[
-                _detach_snapshot_tree(
-                    k, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                )
-            ] = _detach_snapshot_tree(
-                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-            )
-        return out_dict
     for handler in (
+        _detach_mapping_value,
         _detach_suews_internal_ref,
         _detach_sequence_or_set,
         _detach_callable,
@@ -763,6 +819,21 @@ def _enum_proxy_hash(member: Enum, frozen_value: Any) -> int:
     return hash(frozen_value)
 
 
+_STD_ENUM_BOOL_METHODS = frozenset({
+    None,
+    int.__bool__,
+    float.__bool__,
+    bool.__bool__,
+    Flag.__bool__,
+})
+_STD_ENUM_LEN_METHODS = frozenset({
+    None,
+    str.__len__,
+    bytes.__len__,
+    tuple.__len__,
+})
+
+
 class ReadOnlyEnumProxy:
     """Deeply immutable proxy over an ``Enum`` member blocking attribute reassignment."""
 
@@ -847,46 +918,78 @@ class ReadOnlyEnumProxy:
         return _enum_proxy_hash(member, frozen_value)
 
     def __bool__(self) -> bool:
-        """Delegate truthiness to the underlying ``Enum`` member."""
-        return bool(_ENUM_STATE[id(self)][0])
+        """Compute truthiness purely from snapshotted state without calling live enum hooks."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        cls = type(member)
+        cls_bool = getattr(cls, "__bool__", None)
+        if cls_bool not in _STD_ENUM_BOOL_METHODS:
+            raise TypeError(
+                f"Cannot safely evaluate custom __bool__ on Enum proxy {cls.__name__!r}"
+            )
+        if cls_bool is None:
+            cls_len = getattr(cls, "__len__", None)
+            if cls_len not in _STD_ENUM_LEN_METHODS:
+                raise TypeError(
+                    f"Cannot safely evaluate custom __len__ on Enum proxy {cls.__name__!r}"
+                )
+            return bool(frozen_value) if cls_len is not None else True
+        return bool(frozen_value)
 
     def __int__(self) -> int:
-        """Support ``int()`` conversion for integer and ``__int__``-defining ``Enum`` proxies."""
+        """Support ``int()`` conversion purely from snapshotted state."""
         member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        cls = type(member)
+        cls_int = getattr(cls, "__int__", None)
         if isinstance(member, int) and not isinstance(member, bool):
-            return int(member)
+            if cls_int is not int.__int__:
+                raise TypeError(
+                    f"Cannot safely evaluate custom __int__ on Enum proxy {cls.__name__!r}"
+                )
+            return int(frozen_value)
         if (
-            hasattr(type(member), "__int__")
+            cls_int is not None
+            and cls.__module__.startswith("supy.data_model.")
             and isinstance(frozen_value, int)
             and not isinstance(frozen_value, bool)
         ):
             return int(frozen_value)
+        if cls_int is not None:
+            raise TypeError(
+                f"Cannot safely evaluate custom __int__ on Enum proxy {cls.__name__!r}"
+            )
         raise TypeError(
-            f"int() argument must be an integer Enum proxy, not {type(member).__name__!r}"
+            f"int() argument must be an integer Enum proxy, not {cls.__name__!r}"
         )
 
     def __index__(self) -> int:
-        """Support integer indexing for ``IntEnum`` / ``IntFlag`` proxies."""
-        member = _ENUM_STATE[id(self)][0]
+        """Support integer indexing for ``IntEnum`` / ``IntFlag`` proxies purely from snapshot."""
+        member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        cls = type(member)
         if isinstance(member, int) and not isinstance(member, bool):
-            return int(member)
-        raise TypeError(
-            f"'{type(member).__name__}' object cannot be interpreted as an integer"
-        )
+            if getattr(cls, "__index__", None) is not int.__index__:
+                raise TypeError(
+                    f"Cannot safely evaluate custom __index__ on Enum proxy {cls.__name__!r}"
+                )
+            return int(frozen_value)
+        raise TypeError(f"'{cls.__name__}' object cannot be interpreted as an integer")
 
     def __float__(self) -> float:
-        """Support ``float()`` conversion for numeric ``Enum`` proxies (e.g. ``TimezoneOffset``)."""
+        """Support ``float()`` conversion purely from snapshotted state."""
         member, frozen_value, _extra = _ENUM_STATE[id(self)]
+        cls = type(member)
+        cls_float = getattr(cls, "__float__", None)
         if isinstance(member, (int, float)) and not isinstance(member, bool):
-            return float(member)
-        if (
-            hasattr(type(member), "__float__")
-            and isinstance(frozen_value, (int, float))
-            and not isinstance(frozen_value, bool)
-        ):
+            if cls_float not in {float.__float__, int.__float__}:
+                raise TypeError(
+                    f"Cannot safely evaluate custom __float__ on Enum proxy {cls.__name__!r}"
+                )
             return float(frozen_value)
+        if cls_float is not None:
+            raise TypeError(
+                f"Cannot safely evaluate custom __float__ on Enum proxy {cls.__name__!r}"
+            )
         raise TypeError(
-            f"float() argument must be a numeric Enum proxy, not {type(member).__name__!r}"
+            f"float() argument must be a numeric Enum proxy, not {cls.__name__!r}"
         )
 
     def __str__(self) -> str:
@@ -1074,6 +1177,8 @@ def _is_standard_dataclass_hook(cls: type[Any], hook_name: str) -> bool:
 _STD_EQ_METHODS = frozenset({
     object.__eq__,
     dict.__eq__,
+    OrderedDict.__eq__,
+    Counter.__eq__,
     MappingProxyType.__eq__,
     list.__eq__,
     tuple.__eq__,
@@ -1172,6 +1277,58 @@ def _has_custom_dunder(root: Any, dunder: str) -> bool:
     return False
 
 
+def _get_allowed_enum_dump_serializers() -> frozenset[Any]:
+    """Return the exact pure SUEWS core serializer functions permitted on Enum-bearing models."""
+    from ...core.human_activity import IrrigationParams  # noqa: PLC0415
+    from ...core.hydro import StorageDrainParams  # noqa: PLC0415
+    from ...core.site import (  # noqa: PLC0415
+        SiteProperties,
+        SnowParams,
+        SoilObservationConfig,
+    )
+    from ...core.type import RefValue  # noqa: PLC0415
+
+    funcs = (
+        RefValue._serialize_with_value_key,
+        SiteProperties._serialise_optional_snow,
+        IrrigationParams._serialise_irrigation_doy,
+        SnowParams._serialise_snow_scalar,
+        SnowParams._serialise_snow_profile,
+        SoilObservationConfig._serialise_soil_observation_field,
+        StorageDrainParams._dump_storage,
+    )
+    return frozenset(getattr(fn, "__func__", fn) for fn in funcs)
+
+
+def _schema_has_disallowed_serializer(schema: Any, allowed: frozenset[Any]) -> bool:
+    """Return True if *schema* contains any custom plain/wrap serializer outside *allowed*."""
+    seen: set[int] = set()
+    stack: list[Any] = [schema]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            node_id = id(node)
+            if node_id in seen:
+                continue
+            seen.add(node_id)
+            ser = node.get("serialization")
+            if isinstance(ser, dict) and ser.get("type") in {
+                "function-plain",
+                "function-wrap",
+            }:
+                fn = ser.get("function")
+                if getattr(fn, "__func__", fn) not in allowed:
+                    return True
+            stack.extend(node.values())
+        elif isinstance(node, (list, tuple)):
+            node_id = id(node)
+            if node_id in seen:
+                continue
+            seen.add(node_id)
+            stack.extend(node)
+    return False
+
+
 def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -> None:
     """Reject ``model_dump`` when user serializers, computed fields, or fallback can see live enums."""
     if not _contains_enum(root):
@@ -1181,23 +1338,7 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
             "Cannot safely run custom fallback serializer on a model containing "
             "live Enum singletons without exposing writable singleton state"
         )
-    from ...core.site import SiteProperties  # noqa: PLC0415
-    from ...core.type import RefValue  # noqa: PLC0415
-
-    allowed_model_sers = frozenset({
-        getattr(
-            RefValue._serialize_with_value_key,
-            "__func__",
-            RefValue._serialize_with_value_key,
-        ),
-    })
-    allowed_field_sers = frozenset({
-        getattr(
-            SiteProperties._serialise_optional_snow,
-            "__func__",
-            SiteProperties._serialise_optional_snow,
-        ),
-    })
+    allowed_sers = _get_allowed_enum_dump_serializers()
     visited: set[int] = set()
     stack: list[Any] = [root]
     while stack:
@@ -1219,22 +1360,20 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
             model_cls = type(obj)
             decorators = model_cls.__pydantic_decorators__
             has_disallowed_field_ser = any(
-                getattr(dec.func, "__func__", dec.func) not in allowed_field_sers
+                getattr(dec.func, "__func__", dec.func) not in allowed_sers
                 for dec in decorators.field_serializers.values()
             )
             has_disallowed_model_ser = any(
-                getattr(dec.func, "__func__", dec.func) not in allowed_model_sers
+                getattr(dec.func, "__func__", dec.func) not in allowed_sers
                 for dec in decorators.model_serializers.values()
             )
-            has_annotated_ser = any(
-                isinstance(meta, (PlainSerializer, WrapSerializer))
-                for info in model_cls.model_fields.values()
-                for meta in info.metadata
+            has_schema_ser = _schema_has_disallowed_serializer(
+                getattr(model_cls, "__pydantic_core_schema__", None), allowed_sers
             )
             if (
                 has_disallowed_field_ser
                 or has_disallowed_model_ser
-                or has_annotated_ser
+                or has_schema_ser
                 or model_cls.model_computed_fields
             ) and _contains_enum(obj):
                 raise TypeError(
@@ -1503,6 +1642,8 @@ class ReadOnlyDataclassProxy:
             other_target = other
         else:
             return NotImplemented
+        if type(target).__eq__ is object.__eq__:
+            return self is other or target is other_target
         if (_contains_enum(target) or _contains_enum(other_target)) and (
             _has_custom_dunder(target, "__eq__")
             or _has_custom_dunder(other_target, "__eq__")
@@ -1516,6 +1657,8 @@ class ReadOnlyDataclassProxy:
     def __hash__(self) -> int:
         """Hash an isolated copy of the underlying dataclass without mutating snapshot."""
         target = _DATACLASS_STATE[id(self)][0]
+        if type(target).__hash__ is object.__hash__:
+            return object.__hash__(target)
         if _contains_enum(target) and _has_custom_dunder(target, "__hash__"):
             raise TypeError(
                 f"Cannot safely hash dataclass containing live Enum singletons "
@@ -1545,25 +1688,44 @@ def _freeze_ndarray_spec(
     enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
     field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]]
     | None = None,
+    active: set[int] | None = None,
 ) -> Any:
     """Wrap *value* using immutable backing storage or frozen nested containers."""
+    if active is None:
+        active = set()
     if isinstance(value, np.void):
         if value.dtype.names:
             return _freeze_mapping_entries({
                 name: _wrap_readonly(
-                    _safe_snapshot_copy(value[name]), enum_snapshots, field_snapshots
+                    _safe_snapshot_copy(value[name]),
+                    enum_snapshots,
+                    field_snapshots,
+                    active,
                 )
                 for name in value.dtype.names
             })
         return bytes(value)
     if value.dtype.hasobject:
-        if value.ndim == 0:
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("ReadOnlyModelProxy cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            if value.ndim == 0:
+                return _wrap_readonly(
+                    _safe_snapshot_copy(value.item()),
+                    enum_snapshots,
+                    field_snapshots,
+                    active,
+                )
             return _wrap_readonly(
-                _safe_snapshot_copy(value.item()), enum_snapshots, field_snapshots
+                _safe_snapshot_copy(value.tolist()),
+                enum_snapshots,
+                field_snapshots,
+                active,
             )
-        return _wrap_readonly(
-            _safe_snapshot_copy(value.tolist()), enum_snapshots, field_snapshots
-        )
+        finally:
+            active.discard(obj_id)
     return _FrozenArraySpec(value)
 
 
@@ -1577,27 +1739,53 @@ def _wrap_container_or_object(
     enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
     field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]]
     | None = None,
+    active: set[int] | None = None,
 ) -> Any:
     """Wrap containers, dataclasses, NumPy arrays, or reject unsupported mutable objects."""
+    if active is None:
+        active = set()
     if isinstance(value, Mapping):
-        return _freeze_mapping_entries({
-            _wrap_readonly(k, enum_snapshots, field_snapshots): _wrap_readonly(
-                v, enum_snapshots, field_snapshots
-            )
-            for k, v in value.items()
-        })
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("ReadOnlyModelProxy cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            return _freeze_mapping_entries({
+                _wrap_readonly(
+                    k, enum_snapshots, field_snapshots, active
+                ): _wrap_readonly(v, enum_snapshots, field_snapshots, active)
+                for k, v in value.items()
+            })
+        finally:
+            active.discard(obj_id)
     if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
         value, (str, bytes, bytearray, memoryview)
     ):
-        return _freeze_sequence_items([
-            _wrap_readonly(item, enum_snapshots, field_snapshots) for item in value
-        ])
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("ReadOnlyModelProxy cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            return _freeze_sequence_items([
+                _wrap_readonly(item, enum_snapshots, field_snapshots, active)
+                for item in value
+            ])
+        finally:
+            active.discard(obj_id)
     if isinstance(value, (set, frozenset, AbstractSet)):
-        return frozenset(
-            _wrap_readonly(item, enum_snapshots, field_snapshots) for item in value
-        )
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("ReadOnlyModelProxy cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            return frozenset(
+                _wrap_readonly(item, enum_snapshots, field_snapshots, active)
+                for item in value
+            )
+        finally:
+            active.discard(obj_id)
     if isinstance(value, (np.ndarray, np.void)):
-        return _freeze_ndarray_spec(value, enum_snapshots, field_snapshots)
+        return _freeze_ndarray_spec(value, enum_snapshots, field_snapshots, active)
     if is_dataclass(value) and not isinstance(value, type):
         return ReadOnlyDataclassProxy._from_detached(
             value,
@@ -1614,8 +1802,11 @@ def _wrap_readonly(
     enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None,
     field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]]
     | None = None,
+    active: set[int] | None = None,
 ) -> Any:
     """Recursively wrap a detached Pydantic/Python value as read-only."""
+    if active is None:
+        active = set()
     if isinstance(value, Enum):
         return (
             enum_snapshots[id(value)]
@@ -1624,7 +1815,10 @@ def _wrap_readonly(
         )
     if type(value) is slice:
         return _freeze_slice_value(
-            value, lambda bound: _wrap_readonly(bound, enum_snapshots, field_snapshots)
+            value,
+            lambda bound: _wrap_readonly(
+                bound, enum_snapshots, field_snapshots, active
+            ),
         )
     if (
         _is_exact_immutable_scalar(value)
@@ -1651,7 +1845,7 @@ def _wrap_readonly(
             enum_snapshots=enum_snapshots,
             field_snapshots=field_snapshots,
         )
-    return _wrap_container_or_object(value, enum_snapshots, field_snapshots)
+    return _wrap_container_or_object(value, enum_snapshots, field_snapshots, active)
 
 
 def _freeze_field_metadata_value(value: Any) -> Any:
@@ -1880,6 +2074,8 @@ class ReadOnlyModelProxy:
             other_target = other
         else:
             return NotImplemented
+        if type(target).__eq__ is object.__eq__:
+            return self is other or target is other_target
         if (_contains_enum(target) or _contains_enum(other_target)) and (
             _has_custom_dunder(target, "__eq__")
             or _has_custom_dunder(other_target, "__eq__")
@@ -1893,6 +2089,8 @@ class ReadOnlyModelProxy:
     def __hash__(self) -> int:
         """Hash an isolated copy of the underlying model without mutating snapshot."""
         target = _PROXY_STATE[id(self)][0]
+        if type(target).__hash__ is object.__hash__:
+            return object.__hash__(target)
         if _contains_enum(target) and _has_custom_dunder(target, "__hash__"):
             raise TypeError(
                 f"Cannot safely hash model containing live Enum singletons "

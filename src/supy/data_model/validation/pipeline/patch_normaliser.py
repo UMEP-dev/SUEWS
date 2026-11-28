@@ -42,6 +42,7 @@ from .document import (
     _ensure_parent_container,
     _is_list_index_token,
     _mapping_key_from_token,
+    _prepare_working_dict,
     apply_nullify_tree_at_tokens,
     canonicalise_token,
     deep_freeze,
@@ -131,19 +132,50 @@ def _numpy_strict_equal(left: Any, right: Any) -> bool:
     return bytes(left) == bytes(right)
 
 
+def _strict_hashable_key(value: Any) -> Any:
+    """Build a hashable key preserving exact type, NaN equality, and zero sign."""
+    val_type = type(value)
+    result: Any
+    if isinstance(value, (float, np.floating)):
+        result = (
+            (val_type, "nan")
+            if bool(np.isnan(value))
+            else (val_type, bool(np.signbit(value)), value)
+        )
+    elif isinstance(value, (complex, np.complexfloating)):
+        result = (
+            val_type,
+            _strict_hashable_key(value.real),
+            _strict_hashable_key(value.imag),
+        )
+    elif isinstance(value, Decimal):
+        result = (
+            (val_type, "snan" if value.is_snan() else "nan")
+            if value.is_nan()
+            else (val_type, value.is_signed(), value)
+        )
+    elif val_type is tuple:
+        result = (tuple, tuple(_strict_hashable_key(item) for item in value))
+    elif val_type is frozenset:
+        result = (frozenset, frozenset(_strict_hashable_key(item) for item in value))
+    else:
+        result = (val_type, value)
+    return result
+
+
 def _mapping_strict_equal(left: Mapping[Any, Any], right: Mapping[Any, Any]) -> bool:
-    """Compare two mappings strictly while distinguishing key types (e.g. ``1`` vs ``True``)."""
+    """Compare two mappings strictly while distinguishing key types and signed zeros."""
     if len(left) != len(right):
         return False
-    left_typed = {MappingKey(k): v for k, v in left.items()}
-    right_typed = {MappingKey(k): v for k, v in right.items()}
+    left_typed = {_strict_hashable_key(k): v for k, v in left.items()}
+    right_typed = {_strict_hashable_key(k): v for k, v in right.items()}
     return left_typed.keys() == right_typed.keys() and all(
         _strict_equal(left_typed[k], right_typed[k]) for k in left_typed
     )
 
 
 def _container_strict_equal(left: Any, right: Any) -> bool:
-    """Compare sequences, mappings, or sets strictly while keeping element types distinct."""
+    """Compare sequences, mappings, or sets strictly while keeping element types and zero sign distinct."""
     if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
         return (
             type(left) is type(right)
@@ -156,8 +188,8 @@ def _container_strict_equal(left: Any, right: Any) -> bool:
         return (
             type(left) is type(right)
             and len(left) == len(right)
-            and {MappingKey(item) for item in left}
-            == {MappingKey(item) for item in right}
+            and {_strict_hashable_key(item) for item in left}
+            == {_strict_hashable_key(item) for item in right}
         )
     return False
 
@@ -170,6 +202,12 @@ def _numeric_strict_equal(left: Any, right: Any) -> bool:
         return _float_strict_equal(left, right)
     if isinstance(left, (complex, np.complexfloating)):
         return _complex_strict_equal(left, right)
+    if isinstance(left, Decimal):
+        if left.is_nan() or right.is_nan():
+            return (
+                left.is_nan() and right.is_nan() and left.is_snan() == right.is_snan()
+            )
+        return bool(left == right) and left.is_signed() == right.is_signed()
     return bool(left == right)
 
 
@@ -881,7 +919,7 @@ def normalise_owned_patches(
         style_ledger = None
 
     _assert_no_aliased_containers(base_data)
-    working = _copy_payload(base_data)
+    working = _prepare_working_dict(target)
     recorded: list[tuple[int | None, ConfigPatch, Any]] = []
 
     for owner_idx, patch in owned_patches:

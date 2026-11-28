@@ -2754,3 +2754,174 @@ def test_r10_r4_tuple_nullify_proxy_eq_hash_custom_deepcopy_and_payload_enum_sca
     with pytest.raises(TypeError, match="Enum singletons"):
         _ = ro_nested_enum.mutate_nested_enum
     assert _SpyEnum.ITEM.label == "orig"
+
+
+def test_r10_r5_enum_hooks_nested_serializers_tuple_plan_and_engine() -> None:
+    """Cover R4 M1-M4: enum hooks, nested serializers, tuple plan consistency, and engine boundary."""
+    from typing import Annotated  # noqa: PLC0415
+
+    from pydantic import PlainSerializer  # noqa: PLC0415
+
+    from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
+
+    # M1: Enum __bool__/__int__/__float__ hooks never mutate the live singleton.
+    class _HookEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "orig"
+
+        def __bool__(self) -> bool:
+            self.label = "mutated_bool"
+            return True
+
+        def __int__(self) -> int:
+            self.label = "mutated_int"
+            return 99
+
+        def __float__(self) -> float:
+            self.label = "mutated_float"
+            return 99.0
+
+    ro_hook = deep_freeze(_HookEnum.ITEM)
+    with pytest.raises(TypeError, match="custom __bool__"):
+        bool(ro_hook)
+    with pytest.raises(TypeError, match="custom __int__"):
+        int(ro_hook)
+    with pytest.raises(TypeError, match="custom __float__"):
+        float(ro_hook)
+    assert _HookEnum.ITEM.label == "orig"
+
+    # M2: Nested Annotated[Enum, PlainSerializer(...)] inside container is blocked on model_dump.
+    class _SerEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "orig"
+
+    def _mut_ser(member: _SerEnum) -> int:
+        member.label = "mutated_ser"
+        return member.value
+
+    class _NestedSerModel(BaseModel):
+        items: list[Annotated[_SerEnum, PlainSerializer(_mut_ser)]]
+
+    ro_nser = freeze_model(_NestedSerModel(items=[_SerEnum.ITEM]))
+    with pytest.raises(TypeError, match="Enum singletons"):
+        ro_nser.model_dump(mode="json")
+    assert _SerEnum.ITEM.label == "orig"
+
+    # M3: PatchPlan.apply_to_dict and PatchPlan.normalised(base).apply_to_dict agree on tuple & frozen bases.
+    tuple_base = {"a": (1, 2)}
+    null_plan = PatchPlan(patches=[ConfigPatch("a", "nullify_tree")])
+    assert null_plan.apply_to_dict(tuple_base) == {"a": None}
+    assert null_plan.normalised(tuple_base).apply_to_dict(tuple_base) == {"a": None}
+    frozen_list_doc = ConfigDocument.from_dict({"a": [1, 2]})
+    frozen_view = frozen_list_doc.frozen_data()
+    assert null_plan.apply_to_dict(frozen_view) == {"a": [None, None]}
+    assert null_plan.normalised(frozen_view).apply_to_dict(frozen_view) == {
+        "a": [None, None]
+    }
+    assert frozen_list_doc.apply_patches(
+        frozen_list_doc.normalise_patches(null_plan.patches)
+    ).data == {"a": [None, None]}
+
+    # M4: Un-snapshotable private attribute on SUEWSConfig does not escape validate_config.
+    cfg = SUEWSConfig()
+    object.__setattr__(cfg, "_callback", lambda: None)
+    report = validate_config(cfg, pipeline="B", forcing="off")
+    assert report is not None
+
+
+def test_r10_r5_merge_keys_defaultdict_mangled_slots_cycles_identity_zero_sign_and_v0() -> (
+    None
+):
+    """Cover R4 m1-m7: wrapped merge keys, defaultdict, mangled slots, cycles, eq=False, zero sign, and V0."""
+    from collections import defaultdict  # noqa: PLC0415
+    from decimal import Decimal  # noqa: PLC0415
+
+    # m1: Merge keys inside wrapped mapping values preserve StyleLedger styles.
+    merge_yaml = (
+        "defaults: &defaults {x: 1}\n"
+        "label: 'quoted'\n"
+        "wrapped:\n"
+        "  value:\n"
+        "    <<: *defaults\n"
+        "    y: 2\n"
+    )
+    merge_ledger = StyleLedger.from_yaml_text(merge_yaml)
+    assert merge_ledger.get("label") is not None
+    assert merge_ledger.get("label").scalar_style == "'"
+    assert merge_ledger.get("wrapped.value.x") is not None
+
+    # m2: defaultdict factory preserved across snapshot & unwrap_copy.
+    class _DDModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        counts: defaultdict[str, int]
+
+    dd = defaultdict(int, {"a": 1})
+    ro_dd = freeze_model(_DDModel(counts=dd))
+    unwrapped_dd = ro_dd.unwrap_copy()
+    assert isinstance(unwrapped_dd.counts, defaultdict)
+    assert unwrapped_dd.counts["missing"] == 0
+    assert "missing" not in dd
+
+    # m3: Name-mangled private slots preserved across snapshot & unwrap_copy.
+    @dataclass
+    class _MangledSlotDC:
+        __slots__ = ("__cache", "x")
+        x: int
+
+        def __post_init__(self) -> None:
+            self.__cache = [self.x * 2]
+
+        @property
+        def doubled(self) -> int:
+            return self.__cache[0]
+
+    ro_mangled = ReadOnlyDataclassProxy(_MangledSlotDC(5))
+    assert ro_mangled.doubled == 10
+    assert ro_mangled.unwrap_copy().doubled == 10
+
+    # m4: Cyclic containers raise TypeError instead of RecursionError on read & deep_freeze.
+    cyc: list[object] = []
+    cyc.append(cyc)
+    with pytest.raises(TypeError, match="cyclic container"):
+        deep_freeze(cyc)
+
+    class _CyclicModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object
+
+    ro_cyc = freeze_model(_CyclicModel(payload=cyc))
+    with pytest.raises(TypeError, match="cyclic container"):
+        _ = ro_cyc.payload
+
+    # m5: Identity-equality dataclass proxy is equal to itself and has stable hash.
+    @dataclass(eq=False)
+    class _IdDC:
+        x: int
+
+    ro_id = ReadOnlyDataclassProxy(_IdDC(1))
+    ro_id_alias = ro_id
+    assert ro_id == ro_id_alias
+    assert hash(ro_id) == hash(ro_id_alias)
+
+    # m6: Strict no-op check preserves signed-zero changes in sets and Decimal.
+    set_norm = normalise_patches(
+        [ConfigPatch("s", "set", {-0.0}, default_wrapped=False)],
+        {"s": {0.0}},
+    )
+    assert len(set_norm) == 1
+    dec_norm = normalise_patches(
+        [ConfigPatch("d", "set", Decimal("-0"), default_wrapped=False)],
+        {"d": Decimal("0")},
+    )
+    assert len(dec_norm) == 1
+
+    # m7: Zero-itemsize NumPy arrays materialise cleanly as read-only views.
+    zero_arr = np.empty((2,), dtype="V0")
+    frozen_zero = deep_freeze(zero_arr)
+    assert frozen_zero.shape == (2,)
+    assert frozen_zero.dtype == np.dtype("V0")
+    assert not frozen_zero.flags.writeable

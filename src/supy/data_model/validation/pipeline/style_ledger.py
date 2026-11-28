@@ -112,6 +112,11 @@ def _classify_mapping_node(
     loader: yaml.SafeLoader | None = None,
 ) -> tuple[WrapperStyle | None, yaml.Node | None, yaml.Node | None, tuple[Any, ...]]:
     """Classify a PyYAML mapping node as ``ref_value``, ``ref_only``, or plain section."""
+    if loader is not None and any(
+        isinstance(key_node, yaml.ScalarNode) and key_node.tag == _YAML_MERGE_TAG
+        for key_node, _ in node.value
+    ):
+        loader.flatten_mapping(node)
     keys: list[Any] = []
     value_node: yaml.Node | None = None
     ref_node: yaml.Node | None = None
@@ -574,11 +579,6 @@ def _walk_yaml_mapping(
     entries: dict[str, PathStyle],
     val_loader: yaml.SafeLoader,
 ) -> None:
-    if any(
-        isinstance(key_node, yaml.ScalarNode) and key_node.tag == _YAML_MERGE_TAG
-        for key_node, _ in node.value
-    ):
-        val_loader.flatten_mapping(node)
     wrapper_kind, val_node, ref_node, key_order = _classify_mapping_node(
         node, val_loader
     )

@@ -35,12 +35,12 @@ from ..rules.hard_invariants import (
 from .document import (
     ConfigDocument,
     ConfigPatch,
+    _prepare_working_dict,
     apply_patches_in_place,
     is_ref_only,
     is_ref_wrapper,
     read_scalar,
     site_gridid,
-    thaw_copy,
     unwrap_entry,
 )
 from .patch_normaliser import (
@@ -270,7 +270,7 @@ class PatchPlan:
     ) -> dict[str, Any]:
         """Apply all patches to *yaml_data* (returning a single copy unless ``in_place``)."""
         if not in_place:
-            copied = thaw_copy(yaml_data)
+            copied = _prepare_working_dict(yaml_data)
             apply_patches_in_place(copied, self.patches)
             return copied
         assert isinstance(yaml_data, dict)

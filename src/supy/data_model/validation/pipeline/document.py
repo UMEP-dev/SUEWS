@@ -201,8 +201,13 @@ def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
                 "__weakref__",
             }:
                 continue
+            resolved_name = slot_name
+            if slot_name.startswith("__") and not slot_name.endswith("__"):
+                stripped = cls.__name__.lstrip("_")
+                if stripped:
+                    resolved_name = f"_{stripped}{slot_name}"
             try:
-                slot_val = getattr(value, slot_name)
+                slot_val = getattr(value, resolved_name)
             except AttributeError:
                 continue
             if not _is_deeply_immutable_payload(slot_val, seen):
@@ -258,7 +263,12 @@ class _FrozenArraySpec:
     def materialise(self) -> np.ndarray[Any, Any]:
         """Return a fresh zero-copy read-only NumPy view over immutable bytes."""
         buf, dtype, shape = _FROZEN_ARRAY_STATE[id(self)]
-        return np.frombuffer(buf, dtype=deepcopy(dtype)).reshape(shape)
+        detached_dtype = deepcopy(dtype)
+        if detached_dtype.itemsize == 0:
+            arr: np.ndarray[Any, Any] = np.empty(shape, dtype=detached_dtype)
+            arr.setflags(write=False)
+            return arr
+        return np.frombuffer(buf, dtype=detached_dtype).reshape(shape)
 
     def __copy__(self) -> _FrozenArraySpec:
         return self
@@ -523,6 +533,8 @@ def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
     if value is None or type(value) in {bool, int, float, str, bytes}:
         return value
+    if isinstance(value, (MappingProxyType, _ReadOnlyMaterialisingMapping)):
+        return thaw_copy(value)
     if isinstance(value, Mapping):
         return {_copy_payload(k): _copy_payload(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -534,6 +546,21 @@ def _copy_payload(value: Any) -> Any:
     if isinstance(value, frozenset):
         return frozenset(_copy_payload(item) for item in value)
     return _copy_non_container_payload(value)
+
+
+def _prepare_working_dict(target: ConfigDocument | Mapping[str, Any]) -> dict[str, Any]:
+    """Prepare a detached mutable root mapping with consistent list/tuple semantics.
+
+    Frozen views (:class:`ConfigDocument`, :class:`~types.MappingProxyType`,
+    ``_ReadOnlyMaterialisingMapping``) thaw frozen sequence tuples back into
+    mutable lists; plain mutable mappings preserve literal tuples identically
+    to :func:`apply_patches_in_place`.
+    """
+    if isinstance(target, ConfigDocument):
+        return thaw_copy(target.data)
+    if isinstance(target, (MappingProxyType, _ReadOnlyMaterialisingMapping)):
+        return thaw_copy(target)
+    return _copy_payload(target)
 
 
 def _freeze_mapping_entries(entries: dict[Any, Any]) -> Mapping[Any, Any]:
@@ -548,17 +575,27 @@ def _freeze_sequence_items(items: list[Any]) -> tuple[Any, ...]:
     return tuple(items)
 
 
-def _freeze_numpy_value(value: np.ndarray[Any, Any] | np.void) -> Any:
+def _freeze_numpy_value(
+    value: np.ndarray[Any, Any] | np.void, active: set[int]
+) -> Any:
     if isinstance(value, np.void):
         if value.dtype.names:
             return _freeze_mapping_entries({
-                name: _deep_freeze_internal(value[name]) for name in value.dtype.names
+                name: _deep_freeze_internal(value[name], active)
+                for name in value.dtype.names
             })
         return bytes(value)
     if value.dtype.hasobject:
-        if value.ndim == 0:
-            return _deep_freeze_internal(deepcopy(value.item()))
-        return _deep_freeze_internal(deepcopy(value.tolist()))
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("deep_freeze cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            if value.ndim == 0:
+                return _deep_freeze_internal(deepcopy(value.item()), active)
+            return _deep_freeze_internal(deepcopy(value.tolist()), active)
+        finally:
+            active.discard(obj_id)
     return _FrozenArraySpec(value)
 
 
@@ -586,31 +623,59 @@ def _freeze_model_or_object(value: Any) -> Any:
     )
 
 
-def _freeze_container_value(value: Any) -> Any:
+def _freeze_container_value(value: Any, active: set[int]) -> Any:
     """Freeze containers, NumPy values, models, dataclasses, or reject unsupported types."""
     if isinstance(value, Mapping):
-        return _freeze_mapping_entries({
-            _deep_freeze_internal(k): _deep_freeze_internal(v) for k, v in value.items()
-        })
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("deep_freeze cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            return _freeze_mapping_entries({
+                _deep_freeze_internal(k, active): _deep_freeze_internal(v, active)
+                for k, v in value.items()
+            })
+        finally:
+            active.discard(obj_id)
     if isinstance(value, (list, tuple, deque, Sequence)) and not isinstance(
         value, (str, bytes, bytearray, memoryview)
     ):
-        return _freeze_sequence_items([_deep_freeze_internal(item) for item in value])
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("deep_freeze cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            return _freeze_sequence_items([
+                _deep_freeze_internal(item, active) for item in value
+            ])
+        finally:
+            active.discard(obj_id)
     if isinstance(value, (set, frozenset, AbstractSet)):
-        return frozenset(_deep_freeze_internal(item) for item in value)
+        obj_id = id(value)
+        if obj_id in active:
+            raise TypeError("deep_freeze cannot safely freeze cyclic container")
+        active.add(obj_id)
+        try:
+            return frozenset(_deep_freeze_internal(item, active) for item in value)
+        finally:
+            active.discard(obj_id)
     if isinstance(value, (np.ndarray, np.void)):
-        return _freeze_numpy_value(value)
+        return _freeze_numpy_value(value, active)
     return _freeze_model_or_object(value)
 
 
-def _deep_freeze_internal(value: Any) -> Any:
+def _deep_freeze_internal(value: Any, active: set[int] | None = None) -> Any:
     """Recursively freeze values, keeping NumPy arrays as lazy :class:`_FrozenArraySpec`."""
+    if active is None:
+        active = set()
     if isinstance(value, Enum):
         from ..rules.readonly_model import ReadOnlyEnumProxy  # noqa: PLC0415
 
         return ReadOnlyEnumProxy(value)
     if type(value) is slice:
-        return _freeze_slice_value(value, _deep_freeze_internal)
+        return _freeze_slice_value(
+            value, lambda bound: _deep_freeze_internal(bound, active)
+        )
     if _is_exact_immutable_scalar(value) or isinstance(
         value,
         (
@@ -620,7 +685,7 @@ def _deep_freeze_internal(value: Any) -> Any:
         ),
     ):
         return value
-    return _freeze_container_value(value)
+    return _freeze_container_value(value, active)
 
 
 def deep_freeze(value: Any) -> Any:

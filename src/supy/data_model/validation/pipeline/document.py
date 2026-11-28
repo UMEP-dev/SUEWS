@@ -310,7 +310,14 @@ def _read_instance_dict(obj: Any) -> dict[str, Any] | None:
     if desc is None:
         return None
     inst_dict = desc.__get__(obj, type(obj))
-    return inst_dict if isinstance(inst_dict, dict) else None
+    if inst_dict is None:
+        return None
+    if type(inst_dict) is not dict:
+        raise TypeError(
+            f"Cannot safely freeze or read {type(obj).__name__!r}: __dict__ is "
+            f"{type(inst_dict).__name__!r}, not builtin dict"
+        )
+    return inst_dict
 
 
 def _write_instance_dict(obj: Any, new_dict: dict[str, Any]) -> None:

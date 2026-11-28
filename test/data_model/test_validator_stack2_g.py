@@ -4734,3 +4734,125 @@ def test_r17_proxy_validation_copy_hooks_plain_class_defaults_and_literal_dict_d
         "settings": {"type": "format"},
         "nested": {"type": ["to-string", "format"]},
     }
+
+
+def test_r18_substituted_serializer_dict_storage_classvar_unwrap_and_scalar_sub_noop() -> (
+    None
+):
+    """Cover Astra R8 M1 & M2: serializer substitution and dict-subclass storage isolation."""
+    from pydantic import PrivateAttr  # noqa: PLC0415
+    from pydantic_core import SchemaSerializer, core_schema  # noqa: PLC0415
+
+    from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
+
+    # M1: Class-level substituted SchemaSerializer is bypassed on direct, Any-nested, and validate_config dumps.
+    ser_events: list[str] = []
+
+    def _evil_ser(v: object) -> dict[str, int]:
+        ser_events.append(type(v).__name__)
+        return {"x": 999}
+
+    class _SubSerInner(BaseModel):
+        x: int = 5
+
+    _SubSerInner.__pydantic_serializer__ = SchemaSerializer(
+        core_schema.model_schema(
+            _SubSerInner,
+            core_schema.model_fields_schema({
+                "x": core_schema.model_field(core_schema.int_schema())
+            }),
+            serialization=core_schema.plain_serializer_function_ser_schema(_evil_ser),
+        )
+    )
+
+    class _SubSerOuter(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        nested: object
+
+    assert freeze_model(_SubSerInner(x=7)).model_dump(mode="json") == {"x": 7}
+    assert freeze_model(_SubSerOuter(nested=_SubSerInner(x=8))).model_dump(
+        mode="json"
+    ) == {"nested": {"x": 8}}
+
+    class _SubSerConfig(SUEWSConfig):
+        pass
+
+    _SubSerConfig.__pydantic_serializer__ = SchemaSerializer(
+        core_schema.any_schema(
+            serialization=core_schema.plain_serializer_function_ser_schema(_evil_ser)
+        )
+    )
+    assert (
+        validate_config(freeze_model(_SubSerConfig()), pipeline="C", forcing="off")
+        is not None
+    )
+    assert ser_events == []
+
+    # M2: Custom dict subclass in __dict__ or __pydantic_private__ is rejected before items() runs.
+    dict_events: list[str] = []
+
+    class _SpyStorageDict(dict):  # type: ignore[type-arg]
+        def items(self):  # type: ignore[override]
+            dict_events.append("items")
+            return super().items()
+
+    class _PrivModel(BaseModel):
+        x: int = 1
+        _p: int = PrivateAttr(default=2)
+
+    m_dict_sub = _PrivModel()
+    object.__setattr__(m_dict_sub, "__dict__", _SpyStorageDict({"x": 1}))
+    with pytest.raises(TypeError, match="not builtin dict"):
+        freeze_model(m_dict_sub)
+    m_priv_sub = _PrivModel()
+    object.__setattr__(m_priv_sub, "__pydantic_private__", _SpyStorageDict({"_p": 2}))
+    with pytest.raises(TypeError, match="not builtin dict"):
+        freeze_model(m_priv_sub)
+    assert dict_events == []
+
+
+def test_r18_classvar_unwrap_isolation_and_scalar_subclass_noop() -> None:
+    """Cover Astra R8 M3 & m1: mutable ClassVar unwrap_copy rejection and scalar-subclass state no-op."""
+    from typing import ClassVar  # noqa: PLC0415
+
+    # M3: unwrap_copy rejects BaseModel and dataclass exposing shared mutable ClassVar; immutable ClassVar passes.
+    class _MutClassVarModel(BaseModel):
+        shared: ClassVar[list[int]] = []
+        x: int = 1
+
+    @dataclass
+    class _MutClassVarDC:
+        x: int = 1
+
+    _MutClassVarDC.shared = []  # type: ignore[attr-defined]
+
+    class _ImmClassVarModel(BaseModel):
+        tag: ClassVar[str] = "ok"
+        x: int = 1
+
+    with pytest.raises(TypeError, match="shared mutable class attribute"):
+        freeze_model(_MutClassVarModel()).unwrap_copy()
+    with pytest.raises(TypeError, match="shared mutable class attribute"):
+        ReadOnlyDataclassProxy(_MutClassVarDC()).unwrap_copy()
+    assert _MutClassVarModel.shared == [] and _MutClassVarDC.shared == []
+    assert freeze_model(_ImmClassVarModel()).unwrap_copy().tag == "ok"
+
+    # m1: Equal-text str subclass instances with different mutable attributes are NOT dropped as no-ops.
+    class _TaggedStr(str):
+        pass
+
+    s1 = _TaggedStr("same")
+    s1.tags = ["a"]  # type: ignore[attr-defined]
+    s2 = _TaggedStr("same")
+    s2.tags = ["b"]  # type: ignore[attr-defined]
+    s3 = _TaggedStr("same")
+    s3.tags = ["a"]  # type: ignore[attr-defined]
+    kept = normalise_patches(
+        [ConfigPatch("k", "set", s2, replace_raw=True)],
+        {"k": s1},
+    )
+    assert len(kept) == 1
+    assert (
+        normalise_patches([ConfigPatch("k", "set", s3, replace_raw=True)], {"k": s1})
+        == []
+    )

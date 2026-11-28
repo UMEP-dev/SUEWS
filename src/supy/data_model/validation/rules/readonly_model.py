@@ -292,6 +292,11 @@ def _clone_base_model(
     _write_instance_dict(cloned, cloned_dict)
     fields_set = _read_pydantic_internal(value, "__pydantic_fields_set__")
     if fields_set is not None:
+        if type(fields_set) is not set:
+            raise TypeError(
+                f"Cannot safely detach BaseModel {model_cls.__name__!r}: "
+                f"__pydantic_fields_set__ is {type(fields_set).__name__!r}, not builtin set"
+            )
         cloned_fields_set: set[Any] = set()
         for item in fields_set:
             _assert_safe_hashable_key(item)
@@ -305,6 +310,11 @@ def _clone_base_model(
     if extra is None:
         _write_pydantic_internal(cloned, "__pydantic_extra__", None)
     else:
+        if type(extra) is not dict:
+            raise TypeError(
+                f"Cannot safely detach BaseModel {model_cls.__name__!r}: "
+                f"__pydantic_extra__ is {type(extra).__name__!r}, not builtin dict"
+            )
         _write_pydantic_internal(
             cloned,
             "__pydantic_extra__",
@@ -316,6 +326,11 @@ def _clone_base_model(
     if private is None:
         _write_pydantic_internal(cloned, "__pydantic_private__", None)
     else:
+        if type(private) is not dict:
+            raise TypeError(
+                f"Cannot safely detach BaseModel {model_cls.__name__!r}: "
+                f"__pydantic_private__ is {type(private).__name__!r}, not builtin dict"
+            )
         cloned_private = _detach_attr_mapping(
             private, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
         )
@@ -1663,7 +1678,7 @@ def _iter_snapshot_children(
         children.extend(_iter_instance_state_children(obj, _PYDANTIC_INTERNAL_SLOTS))
         for attr in ("__pydantic_extra__", "__pydantic_private__"):
             mapping = _read_pydantic_internal(obj, attr)
-            if isinstance(mapping, Mapping):
+            if type(mapping) is dict:
                 children.append(mapping)
     elif is_dataclass(obj) and not isinstance(obj, type):
         children.extend(
@@ -1682,12 +1697,19 @@ def _iter_snapshot_children(
                 and not _is_descriptor(raw_cls_attr)
             ):
                 children.append(raw_cls_attr)
-    elif isinstance(obj, Mapping):
+    elif type(obj) in {
+        dict,
+        OrderedDict,
+        Counter,
+        defaultdict,
+        MappingProxyType,
+        _ReadOnlyMaterialisingMapping,
+    }:
         for k, v in obj.items():
             children.extend((k, v))
     elif isinstance(obj, tuple) and not isinstance(obj, _ReadOnlyMaterialisingTuple):
         children.extend(tuple.__iter__(obj))
-    elif isinstance(obj, (list, deque, set, frozenset)):
+    elif type(obj) in {list, deque, set, frozenset}:
         children.extend(obj)
     elif type(obj) is slice:
         children.extend((obj.start, obj.stop, obj.step))
@@ -2232,6 +2254,255 @@ def _pydantic_type_has_disallowed_hooks(
     )
 
 
+_PYDANTIC_CLASS_META_ATTRS: frozenset[str] = frozenset({
+    "model_config",
+    "model_fields",
+    "model_computed_fields",
+    "model_extra",
+    "model_fields_set",
+    "__pydantic_core_schema__",
+    "__pydantic_validator__",
+    "__pydantic_serializer__",
+    "__pydantic_decorators__",
+    "__pydantic_generic_metadata__",
+    "__pydantic_complete__",
+    "__pydantic_custom_init__",
+    "__pydantic_parent_namespace__",
+    "__pydantic_post_init__",
+    "__pydantic_root_model__",
+    "__pydantic_fields__",
+    "__pydantic_computed_fields__",
+    "__pydantic_setattr_handlers__",
+    "__pydantic_private__",
+    "__pydantic_extra__",
+    "__pydantic_fields_set__",
+    "__class_vars__",
+    "__private_attributes__",
+    "__signature__",
+    "__abstractmethods__",
+    "_abc_impl",
+    "__fields__",
+})
+_DATACLASS_CLASS_META_ATTRS: frozenset[str] = frozenset({
+    "__dataclass_params__",
+    "__dataclass_fields__",
+    "__match_args__",
+    "__replace__",
+})
+
+
+def _find_mutable_class_attr(
+    cls: type[Any],
+    *,
+    stop_bases: frozenset[type[Any]],
+    skip_names: frozenset[str],
+) -> str | None:
+    """Return the first mutable or Enum class attribute name exposed on *cls*'s MRO, or None."""
+    for base in cls.__mro__:
+        if base in stop_bases:
+            continue
+        for attr_name, attr_val in base.__dict__.items():
+            if attr_name in skip_names:
+                continue
+            if isinstance(attr_val, _SAFE_CLASS_DESCRIPTOR_TYPES):
+                continue
+            if not _is_deeply_immutable_class_const(attr_val, set()):
+                return attr_name
+    return None
+
+
+def _assert_exportable_class_attrs(root: Any) -> None:
+    """Reject exporting mutable clones of models/dataclasses exposing shared mutable class attributes."""
+    visited: set[int] = set()
+    stack: list[Any] = [root]
+    while stack:
+        obj = stack.pop()
+        if (
+            obj is None
+            or _is_exact_immutable_scalar(obj)
+            or _is_copy_on_read_scalar(obj)
+            or isinstance(obj, Enum)
+        ):
+            continue
+        obj_id = id(obj)
+        if obj_id in visited:
+            continue
+        visited.add(obj_id)
+        if isinstance(obj, BaseModel):
+            bad_attr = _find_mutable_class_attr(
+                type(obj),
+                stop_bases=frozenset({BaseModel, object}),
+                skip_names=_CLASS_META_DUNDERS | _PYDANTIC_CLASS_META_ATTRS,
+            )
+            if bad_attr is not None:
+                raise TypeError(
+                    f"Cannot produce an independent copy of BaseModel "
+                    f"{type(obj).__name__!r} exposing shared mutable class attribute "
+                    f"{bad_attr!r}"
+                )
+        elif is_dataclass(obj) and not isinstance(obj, type):
+            declared = frozenset(f.name for f in dc_fields(type(obj)))
+            bad_attr = _find_mutable_class_attr(
+                type(obj),
+                stop_bases=frozenset({object}),
+                skip_names=_CLASS_META_DUNDERS
+                | _DATACLASS_CLASS_META_ATTRS
+                | _PYDANTIC_CLASS_META_ATTRS
+                | declared,
+            )
+            if bad_attr is not None:
+                raise TypeError(
+                    f"Cannot produce an independent copy of dataclass "
+                    f"{type(obj).__name__!r} exposing shared mutable class attribute "
+                    f"{bad_attr!r}"
+                )
+        stack.extend(_iter_snapshot_children(obj, None))
+
+
+_STD_INIT_SUBCLASS_HOOKS: frozenset[Any] = frozenset({
+    object.__dict__["__init_subclass__"],
+    typing.Generic.__dict__["__init_subclass__"],
+})
+
+
+def _make_vetted_shadow_class(
+    cls: type[Any], shadow_cache: dict[type[Any], type[Any]]
+) -> type[Any]:
+    """Build an ephemeral shadow class with no prebuilt serializer and no custom ``__init_subclass__``."""
+    cached = shadow_cache.get(cls)
+    if cached is not None:
+        return cached
+    init_sub = _find_class_attr(cls, "__init_subclass__")[1]
+    ns: dict[str, Any] = {
+        "__pydantic_serializer__": None,
+        "__pydantic_complete__": False,
+        "__slots__": (),
+    }
+    if init_sub in _STD_INIT_SUBCLASS_HOOKS:
+        shadow = type.__new__(type(cls), cls.__name__, (cls,), ns)
+    elif issubclass(cls, BaseModel) and not _iter_custom_slots(
+        cls, _PYDANTIC_INTERNAL_SLOTS
+    ):
+        shadow = type.__new__(type(BaseModel), cls.__name__, (BaseModel,), ns)
+    else:
+        raise TypeError(
+            f"Cannot safely compile vetted serializer for {cls.__name__!r} with "
+            "custom __init_subclass__"
+        )
+    shadow_cache[cls] = shadow
+    return shadow
+
+
+def _rewrite_schema_with_shadows(
+    node: Any,
+    shadow_cache: dict[type[Any], type[Any]],
+    memo: dict[int, Any],
+) -> Any:
+    """Clone a vetted ``pydantic_core`` schema tree replacing model/dataclass ``cls`` with shadow classes."""
+    if isinstance(node, dict):
+        node_id = id(node)
+        if node_id in memo:
+            return memo[node_id]
+        out: dict[str, Any] = dict(node)
+        memo[node_id] = out
+        node_type = node.get("type")
+        if (
+            isinstance(node_type, str)
+            and node_type in {"model", "dataclass"}
+            and isinstance(node.get("cls"), type)
+            and (
+                issubclass(node["cls"], BaseModel)
+                or (
+                    is_dataclass(node["cls"])
+                    and _find_class_attr(node["cls"], "__pydantic_core_schema__")[0]
+                )
+            )
+        ):
+            out["cls"] = _make_vetted_shadow_class(node["cls"], shadow_cache)
+        for key in _SCHEMA_CHILD_KEYS:
+            if key in node:
+                out[key] = _rewrite_schema_with_shadows(node[key], shadow_cache, memo)
+        for key in _SCHEMA_MAP_OR_SEQ_KEYS:
+            if key not in node:
+                continue
+            child = node[key]
+            if isinstance(child, dict):
+                out[key] = {
+                    k: _rewrite_schema_with_shadows(v, shadow_cache, memo)
+                    for k, v in child.items()
+                }
+            elif isinstance(child, (list, tuple)):
+                out[key] = _rewrite_schema_with_shadows(child, shadow_cache, memo)
+        return out
+    if isinstance(node, list):
+        return [_rewrite_schema_with_shadows(item, shadow_cache, memo) for item in node]
+    if isinstance(node, tuple):
+        return tuple(
+            _rewrite_schema_with_shadows(item, shadow_cache, memo) for item in node
+        )
+    return node
+
+
+def _dump_with_vetted_serializers(
+    working_copy: BaseModel, *args: Any, **kwargs: Any
+) -> Any:
+    """Execute ``model_dump`` using serializers compiled directly from vetted core schemas."""
+    from ...core.type import RefValue  # noqa: PLC0415
+
+    shadow_cache: dict[type[Any], type[Any]] = {}
+    compiled: dict[type[Any], SchemaSerializer] = {}
+    reclassed: list[tuple[Any, type[Any]]] = []
+    visited: set[int] = set()
+    stack: list[Any] = [working_copy]
+    try:
+        while stack:
+            obj = stack.pop()
+            if (
+                obj is None
+                or _is_exact_immutable_scalar(obj)
+                or _is_copy_on_read_scalar(obj)
+                or isinstance(obj, Enum)
+            ):
+                continue
+            obj_id = id(obj)
+            if obj_id in visited:
+                continue
+            visited.add(obj_id)
+            stack.extend(_iter_snapshot_children(obj, None))
+            if isinstance(obj, BaseModel) or (
+                is_dataclass(obj)
+                and not isinstance(obj, type)
+                and _find_class_attr(type(obj), "__pydantic_core_schema__")[0]
+            ):
+                obj_cls = type(obj)
+                ser = compiled.get(obj_cls)
+                if ser is None:
+                    raw_schema = _find_class_attr(obj_cls, "__pydantic_core_schema__")[
+                        1
+                    ]
+                    rewritten = _rewrite_schema_with_shadows(
+                        raw_schema, shadow_cache, {}
+                    )
+                    ser = SchemaSerializer(rewritten)
+                    compiled[obj_cls] = ser
+                    shadow_cls = _make_vetted_shadow_class(obj_cls, shadow_cache)
+                    type.__setattr__(shadow_cls, "__pydantic_serializer__", ser)
+                else:
+                    shadow_cls = shadow_cache[obj_cls]
+                obj.__class__ = shadow_cls
+                reclassed.append((obj, obj_cls))
+
+        root_orig_cls = reclassed[0][1] if reclassed else type(working_copy)
+        root_ser = compiled[root_orig_cls]
+        raw_dump = _find_class_attr(root_orig_cls, "model_dump")[1]
+        if raw_dump is RefValue.__dict__["model_dump"] and kwargs.get("mode") == "json":
+            return RefValue.model_dump(working_copy, **kwargs)
+        return root_ser.to_python(working_copy, *args, **kwargs)
+    finally:
+        for obj, orig_cls in reclassed:
+            obj.__class__ = orig_cls
+
+
 def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -> None:
     """Enforce vetted-hook isolation on ``model_dump`` independently of Enum presence."""
     if has_user_fallback:
@@ -2569,7 +2840,9 @@ class ReadOnlyDataclassProxy:
 
     def unwrap_copy(self) -> Any:
         """Return an independent mutable deep copy of the underlying dataclass."""
-        return _safe_snapshot_copy(_DATACLASS_STATE[id(self)][0], reject_enums=True)
+        target = _DATACLASS_STATE[id(self)][0]
+        _assert_exportable_class_attrs(target)
+        return _safe_snapshot_copy(target, reject_enums=True)
 
     def __copy__(self) -> ReadOnlyDataclassProxy:
         """Return ``self`` because ``ReadOnlyDataclassProxy`` is deeply immutable."""
@@ -2901,8 +3174,6 @@ class ReadOnlyModelProxy:
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return a fresh detached dictionary serialisation of a working model copy."""
-        from ...core.type import RefValue  # noqa: PLC0415
-
         target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
         _validate_enum_dump_isolation(
             target, has_user_fallback=kwargs.get("fallback") is not None
@@ -2913,18 +3184,15 @@ class ReadOnlyModelProxy:
                 "_name_ or _value_ was mutated externally"
             )
         working_copy = _safe_snapshot_copy(target)
-        raw_dump = _find_class_attr(type(working_copy), "model_dump")[1]
-        dump_fn = (
-            RefValue.model_dump
-            if raw_dump is RefValue.__dict__["model_dump"]
-            else BaseModel.model_dump
-        )
-        dumped = dump_fn(working_copy, *args, **kwargs)
+        dumped = _dump_with_vetted_serializers(working_copy, *args, **kwargs)
+        _assert_exportable_class_attrs(dumped)
         return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
     def unwrap_copy(self) -> BaseModel:
         """Return an independent mutable deep copy of the underlying model."""
-        return _safe_snapshot_copy(_PROXY_STATE[id(self)][0], reject_enums=True)
+        target = _PROXY_STATE[id(self)][0]
+        _assert_exportable_class_attrs(target)
+        return _safe_snapshot_copy(target, reject_enums=True)
 
     def to_typed_view(self) -> Any:
         """Convert this read-only model into a deeply frozen :class:`TypedConfigView`."""

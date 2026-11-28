@@ -46,6 +46,7 @@ from .pipeline.report_schema import (
 )
 from .rules.readonly_model import (
     ReadOnlyModelProxy,
+    _dump_with_vetted_serializers,
     _safe_snapshot_copy,
     _unwrap_model_for_validation,
     freeze_model,
@@ -399,7 +400,9 @@ def _restore_explicit_and_non_optional_nulls(
                     )
 
 
-def _validate_dict_backed_profile_keys(config_copy: SUEWSConfig) -> None:
+def _validate_dict_backed_profile_keys(
+    config_copy: SUEWSConfig, *, from_readonly_proxy: bool = False
+) -> None:
     """Validate hourly and 10-minute profile keys on a Python-mode dump before JSON coercion.
 
     Catches mixed integer/string key collisions (such as ``1`` alongside ``"1"``)
@@ -414,7 +417,11 @@ def _validate_dict_backed_profile_keys(config_copy: SUEWSConfig) -> None:
         normalise_ten_minute_profile_mapping,
     )
 
-    raw_py = config_copy.model_dump(mode="python", round_trip=True)
+    raw_py = (
+        _dump_with_vetted_serializers(config_copy, mode="python", round_trip=True)
+        if from_readonly_proxy
+        else config_copy.model_dump(mode="python", round_trip=True)
+    )
     sites = raw_py.get("sites") if isinstance(raw_py, Mapping) else None
     if not isinstance(sites, list):
         return
@@ -533,7 +540,9 @@ def _validate_suews_config_before_dump(
             ])
     validators.append((
         "PROFILE_KEY_ERROR",
-        lambda: _validate_dict_backed_profile_keys(config_copy),
+        lambda: _validate_dict_backed_profile_keys(
+            config_copy, from_readonly_proxy=from_readonly_proxy
+        ),
     ))
     validators.append((
         "SENESCENCE_STATE_ERROR",
@@ -603,7 +612,7 @@ def _dump_suews_config(
 
     source_for_dump = config if dumped_copy is None else dumped_copy
     raw_data = (
-        BaseModel.model_dump(
+        _dump_with_vetted_serializers(
             source_for_dump, exclude_none=True, mode="json", round_trip=True
         )
         if from_readonly_proxy

@@ -25,7 +25,16 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 import datetime
 from decimal import Decimal
+from enum import Enum
 from fractions import Fraction
+from pathlib import (
+    Path,
+    PosixPath,
+    PurePath,
+    PurePosixPath,
+    PureWindowsPath,
+    WindowsPath,
+)
 from typing import Any
 
 import numpy as np
@@ -313,8 +322,61 @@ def _strict_equal_same_type(left: Any, right: Any) -> bool:
     return bool(left == right)
 
 
+_EXACT_STATELESS_SCALARS: frozenset[type[Any]] = frozenset({
+    type(None),
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+    bytearray,
+    slice,
+    Decimal,
+    Fraction,
+    Path,
+    PosixPath,
+    WindowsPath,
+    PurePath,
+    PurePosixPath,
+    PureWindowsPath,
+    datetime.date,
+    datetime.time,
+    datetime.datetime,
+    datetime.timedelta,
+    datetime.timezone,
+})
+
+
+def _extra_scalar_state_equal(left: Any, right: Any) -> bool:
+    """Compare extra instance state on scalar subclasses, failing conservatively on slots."""
+    cls = type(left)
+    if (
+        cls in _EXACT_STATELESS_SCALARS
+        or left is right
+        or isinstance(left, (Enum, np.generic))
+    ):
+        return True
+    from .document import _read_instance_dict  # noqa: PLC0415
+
+    if any(
+        base.__dict__.get("__slots__")
+        for base in cls.__mro__
+        if base not in _EXACT_STATELESS_SCALARS and base is not object
+    ):
+        return False
+    try:
+        left_dict = _read_instance_dict(left)
+        right_dict = _read_instance_dict(right)
+    except TypeError:
+        return False
+    if not left_dict and not right_dict:
+        return True
+    return _container_strict_equal(left_dict or {}, right_dict or {})
+
+
 def _strict_equal(left: Any, right: Any) -> bool:
-    """Compare two config values strictly, keeping scalar types and zero sign distinct."""
+    """Compare two config values strictly, keeping scalar types, zero sign, and subclass state distinct."""
     if isinstance(left, (np.ndarray, np.void)) or isinstance(
         right, (np.ndarray, np.void)
     ):
@@ -322,14 +384,18 @@ def _strict_equal(left: Any, right: Any) -> bool:
     if isinstance(left, _STRICT_NUMERIC_TYPES) or isinstance(
         right, _STRICT_NUMERIC_TYPES
     ):
-        return _numeric_strict_equal(left, right)
+        return _numeric_strict_equal(left, right) and _extra_scalar_state_equal(
+            left, right
+        )
     if isinstance(left, (list, tuple, Mapping, set, frozenset)) or isinstance(
         right, (list, tuple, Mapping, set, frozenset)
     ):
         return _container_strict_equal(left, right)
     if type(left) is not type(right):
         return False
-    return _strict_equal_same_type(left, right)
+    return _strict_equal_same_type(left, right) and _extra_scalar_state_equal(
+        left, right
+    )
 
 
 def _classify_raw_entry(

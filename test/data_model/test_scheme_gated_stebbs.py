@@ -1603,6 +1603,105 @@ def test_standalone_model_physics_to_df_state_rejects_invalid_active_subordinate
         physics.to_df_state(1)
 
 
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize("setpoint_mode", [0, 1])
+def test_active_non_scheduled_setpoint_allows_nullified_setpoint_profile_slots(
+    sample_dict: dict, tmp_path: Path, parameters: int, setpoint_mode: int
+) -> None:
+    """Active STEBBS with ``setpoint`` 0/1 accepts Phase-B-nullified setpoint profile slots but rejects NaN/Inf."""
+    null_day = {str(i): None for i in range(1, 145)}
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    data["model"]["physics"]["stebbs"]["setpoint"] = setpoint_mode
+    arch = data["sites"][0]["properties"]["building_archetype"]
+    arch["profile_setpoint_temperature_heating_air"] = {
+        "working_day": copy.deepcopy(null_day),
+        "holiday": copy.deepcopy(null_day),
+    }
+    arch["profile_setpoint_temperature_cooling_air"] = {
+        "working_day": copy.deepcopy(null_day),
+        "holiday": copy.deepcopy(null_day),
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    exported = tmp_path / f"stebbs_setpoint_{setpoint_mode}_p{parameters}.yml"
+    cfg.to_yaml(exported)
+    reloaded = SUEWSConfig.from_yaml(str(exported))
+    assert (
+        reloaded.sites[
+            0
+        ].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day[
+            "1"
+        ]
+        is None
+    )
+
+    df_state = reloaded.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert (
+        rebuilt.sites[
+            0
+        ].properties.building_archetype.profile_setpoint_temperature_heating_air
+        is None
+    )
+    rebuilt.validate_for_engine()
+
+    # Still reject non-finite values on inactive setpoint profile slots.
+    reloaded.sites[
+        0
+    ].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day[
+        "1"
+    ] = float("nan")
+    with pytest.raises(ValueError, match="finite"):
+        reloaded.validate_for_engine()
+    reloaded.sites[
+        0
+    ].properties.building_archetype.profile_setpoint_temperature_heating_air.working_day[
+        "1"
+    ] = None
+
+    # Switching live to scheduled setpoints (setpoint=2) must immediately reject null slots.
+    reloaded.model.physics.stebbs.setpoint = SetpointMethod.SCHEDULED
+    with pytest.raises(ValueError, match="profile_setpoint_temperature_heating_air"):
+        reloaded.validate_for_engine()
+    with pytest.raises(ValueError, match="profile_setpoint_temperature_heating_air"):
+        reloaded.to_yaml(tmp_path / "should_fail_scheduled.yml")
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize(
+    "profile_field",
+    [
+        "profile_setpoint_temperature_heating_air",
+        "profile_setpoint_temperature_cooling_air",
+    ],
+)
+def test_active_scheduled_setpoint_rejects_null_and_incomplete_setpoint_profiles(
+    sample_dict: dict, parameters: int, profile_field: str
+) -> None:
+    """Active STEBBS with ``setpoint=2`` (scheduled) requires complete finite 144-slot setpoint profiles."""
+    # Null slot rejected
+    data_null = copy.deepcopy(sample_dict)
+    _enable_stebbs(data_null, parameters=parameters)
+    data_null["model"]["physics"]["stebbs"]["setpoint"] = 2
+    data_null["sites"][0]["properties"]["building_archetype"][profile_field][
+        "working_day"
+    ]["1"] = None
+    with pytest.raises((ValidationError, ValueError), match=profile_field):
+        SUEWSConfig.from_dict(data_null)
+
+    # Incomplete (< 144 slots) rejected
+    data_sparse = copy.deepcopy(sample_dict)
+    _enable_stebbs(data_sparse, parameters=parameters)
+    data_sparse["model"]["physics"]["stebbs"]["setpoint"] = 2
+    data_sparse["sites"][0]["properties"]["building_archetype"][profile_field][
+        "holiday"
+    ].pop("144")
+    with pytest.raises((ValidationError, ValueError), match=profile_field):
+        SUEWSConfig.from_dict(data_sparse)
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

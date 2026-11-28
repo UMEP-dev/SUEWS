@@ -1217,6 +1217,28 @@
       "rationale": "144-step STEBBS profile slots are unused when STEBBS is disabled."
     },
     {
+      "id": "stebbs-144step-setpoint-profile-slots-inactive-constant",
+      "anchors": [
+        "spartacus_ehc_stebbs"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.*.*",
+        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
+      ],
+      "mutations": {
+        "omit": "dropped",
+        "bare_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.setpoint != 2 (spartacus_ehc_stebbs uses setpoint='constant'); strictly enforced when stebbs.setpoint == 2 (scheduled).",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2083",
+        "#2363"
+      ],
+      "rationale": "144-step STEBBS heating and cooling setpoint profile slots are unused when setpoint is constant (0) or dependent (1), and Phase B science fixes explicitly nullify them."
+    },
+    {
       "id": "control-output-groups-element-omit",
       "anchors": [
         "all_surfaces_baseline",

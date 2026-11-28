@@ -45,6 +45,7 @@ from .model import (
     OutputTimestampReference,
     REQUIRED_PHYSICS_OPTIONS,
     REQUIRED_STEBBS_SWITCHES,
+    SetpointMethod,
     StebbsPhysics,
 )
 from .profile import (
@@ -2081,6 +2082,11 @@ class SUEWSConfig(DataModelBase):
             return self
 
         errors: list[str] = []
+        setpoint_profiles_active = False
+        setpoint_profile_fields = frozenset({
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
+        })
         tok = _STEBBS_ACTIVE_CONTEXT.set(True)
         try:
             stebbs_phys = getattr(physics, "stebbs", None) if physics is not None else None
@@ -2098,6 +2104,13 @@ class SUEWSConfig(DataModelBase):
                 except (ValidationError, ValueError) as exc:
                     errors.append(f"model.physics.stebbs: {exc}")
                 else:
+                    setpoint_val = _unwrap_value(
+                        getattr(validated_phys, "setpoint", None)
+                    )
+                    setpoint_profiles_active = setpoint_val in (
+                        SetpointMethod.SCHEDULED,
+                        SetpointMethod.SCHEDULED.value,
+                    )
                     guard = stebbs_phys._make_stebbs_guard()
                     for switch_name in StebbsPhysics._STEBBS_SUBORDINATE_SWITCH_ENUMS:
                         orig_val = getattr(stebbs_phys, switch_name, None)
@@ -2294,9 +2307,28 @@ class SUEWSConfig(DataModelBase):
                             arch_props._make_stebbs_guard(),
                         )
                         for p_name in ArchetypeProperties._ARCHETYPE_PROFILE_FIELDS:
+                            prof = getattr(arch_props, p_name, None)
+                            if (
+                                p_name in setpoint_profile_fields
+                                and not setpoint_profiles_active
+                            ):
+                                # Setpoint profiles are not consumed when setpoint != 2
+                                # (CONSTANT/DEPENDENT), and Phase B science fixes
+                                # explicitly nullify their entries. Keep rejecting
+                                # non-finite slot values.
+                                if isinstance(prof, TenMinuteProfile):
+                                    for day_key in ("working_day", "holiday"):
+                                        day_map = getattr(prof, day_key, None)
+                                        if isinstance(day_map, Mapping):
+                                            for step_k, step_v in day_map.items():
+                                                if is_non_finite_value(step_v):
+                                                    errors.append(
+                                                        f"{site_name}: properties.building_archetype.{p_name}.{day_key}.{step_k} ({step_v!r}) must be finite"
+                                                    )
+                                continue
                             errors.extend(
                                 _check_active_ten_minute_profile(
-                                    getattr(arch_props, p_name, None),
+                                    prof,
                                     f"{site_name}: properties.building_archetype.{p_name}",
                                 )
                             )

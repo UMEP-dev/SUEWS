@@ -3091,23 +3091,57 @@ def _step_compound_stmt(
     return state
 
 
+def _bind_unpacked_candidates(
+    target: ast.AST,
+    candidates: list[ast.AST],
+    state: _BindingState,
+    *,
+    overflowed: bool,
+) -> None:
+    """Bind ``target`` (name or tuple/list) to already-evaluated ``candidates``."""
+    if isinstance(target, ast.Name):
+        kept, cap_ov = _compact_ast_candidates(candidates)
+        state.env[target.id] = kept
+        if overflowed or cap_ov:
+            state.overflowed.add(target.id)
+        else:
+            state.overflowed.discard(target.id)
+        return
+    if isinstance(target, (ast.Tuple, ast.List)) and not any(
+        isinstance(e, ast.Starred) for e in target.elts
+    ):
+        ncols = len(target.elts)
+        columns: list[list[ast.AST]] = [[] for _ in range(ncols)]
+        all_unpacked = bool(candidates)
+        for cand in candidates:
+            if isinstance(cand, (ast.Tuple, ast.List)) and len(cand.elts) == ncols:
+                for idx, item in enumerate(cand.elts):
+                    columns[idx].append(item)
+            else:
+                all_unpacked = False
+                break
+        if all_unpacked:
+            for sub_target, col_vals in zip(target.elts, columns):
+                _bind_unpacked_candidates(
+                    sub_target, col_vals, state, overflowed=overflowed
+                )
+            return
+    for name in _iter_assigned_names(target):
+        state.env.pop(name, None)
+        if overflowed:
+            state.overflowed.add(name)
+        else:
+            state.overflowed.discard(name)
+
+
 def _assign_eager_target(
     target: ast.AST,
     value: ast.AST,
     state: _BindingState,
 ) -> None:
-    """Eagerly substitute ``value`` in ``state`` and bind ``target``."""
-    if not isinstance(target, ast.Name):
-        for name in _iter_assigned_names(target):
-            state.env.pop(name, None)
-            state.overflowed.discard(name)
-        return
+    """Eagerly substitute ``value`` in ``state`` and bind ``target`` (supporting unpacking)."""
     subst_vals, overflowed = _substitute_expr_values(value, state)
-    state.env[target.id] = subst_vals
-    if overflowed:
-        state.overflowed.add(target.id)
-    else:
-        state.overflowed.discard(target.id)
+    _bind_unpacked_candidates(target, subst_vals, state, overflowed=overflowed)
 
 
 def _step_single_stmt(
@@ -3713,13 +3747,13 @@ def _parse_single_parametrize_decorator(
     dec: ast.AST,
     mod_env: Mapping[str, ast.AST],
     ast_value_env: Mapping[str, ast.AST],
-) -> tuple[bool, list[tuple[dict[str, ast.AST], set[str]]] | None]:
-    """Parse one ``@pytest.mark.parametrize`` decorator into ``(is_param, cases)``."""
+) -> tuple[bool, list[str], list[tuple[dict[str, ast.AST], set[str]]] | None]:
+    """Parse one ``@pytest.mark.parametrize`` decorator into ``(is_param, names, cases)``."""
     is_param, resolved = _normalise_parametrize_call(dec, mod_env, ast_value_env)
     if not is_param:
-        return (False, None)
+        return (False, [], None)
     if resolved is None:
-        return (True, None)
+        return (True, [], None)
 
     argnames_node: ast.AST | None = resolved.args[0] if resolved.args else None
     argvalues_node: ast.AST | None = resolved.args[1] if len(resolved.args) >= 2 else None
@@ -3729,48 +3763,51 @@ def _parse_single_parametrize_decorator(
         elif kw.arg == "argvalues" and argvalues_node is None:
             argvalues_node = kw.value
 
-    if argvalues_node is None:
-        return (True, None)
-    raw_items = _expand_static_sequence(argvalues_node, ast_value_env)
-    if raw_items is None:
-        return (True, None)
     param_names = (
         _extract_parametrize_argnames(argnames_node) if argnames_node is not None else []
     )
+    if argvalues_node is None:
+        return (True, param_names, None)
+    raw_items = _expand_static_sequence(argvalues_node, ast_value_env)
+    if raw_items is None:
+        return (True, param_names, None)
     cases = [
         _parse_parametrize_case_item(item, param_names, mod_env) for item in raw_items
     ]
-    return (True, cases)
+    return (True, param_names, cases)
 
 
 def _expand_parametrize_cases(
     decorators: list[ast.AST],
     mod_env: Mapping[str, ast.AST],
     ast_value_env: Mapping[str, ast.AST],
-) -> tuple[list[tuple[dict[str, ast.AST], set[str]]], bool]:
-    """Expand ``@pytest.mark.parametrize`` decorators into ``(cases, unresolvable)``."""
+) -> tuple[list[tuple[dict[str, ast.AST], set[str]]], bool, set[str]]:
+    """Expand ``@pytest.mark.parametrize`` into ``(cases, unresolvable, unresolvable_names)``."""
     cases: list[tuple[dict[str, ast.AST], set[str]]] = [({}, set())]
     unresolvable = False
+    unresolvable_names: set[str] = set()
     for dec in decorators:
-        is_param, dec_cases = _parse_single_parametrize_decorator(
+        is_param, param_names, dec_cases = _parse_single_parametrize_decorator(
             dec, mod_env, ast_value_env
         )
         if not is_param:
             continue
         if dec_cases is None:
             unresolvable = True
+            unresolvable_names.update(param_names)
             continue
         if not dec_cases:
-            return ([], False)
+            return ([], False, set())
         if len(cases) * len(dec_cases) > _MAX_EXPANDED_CASES:
             unresolvable = True
+            unresolvable_names.update(param_names)
             continue
         cases = [
             ({**base_bind, **new_bind}, base_marks | new_marks)
             for base_bind, base_marks in cases
             for new_bind, new_marks in dec_cases
         ]
-    return (cases, unresolvable)
+    return (cases, unresolvable, unresolvable_names)
 
 
 class _NonSimState:
@@ -4124,10 +4161,31 @@ def _build_test_entry_state(
     return entry_state
 
 
+def _argv_head_references_names(
+    cmd_arg: ast.AST,
+    env: Mapping[str, list[ast.AST]],
+    names: frozenset[str],
+) -> bool:
+    """Return True if an executable-bearing slot of ``cmd_arg`` references any name in ``names``."""
+    if not names:
+        return False
+    for elems in _flatten_argv_variants(cmd_arg, env):
+        if not elems:
+            continue
+        if _expr_references_overflowed(elems[0], set(names)):
+            return True
+        if _is_python_executable_expr(elems[0], env) and any(
+            _expr_references_overflowed(el, set(names)) for el in elems[1:]
+        ):
+            return True
+    return False
+
+
 def _collect_test_subprocess_clis(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
     ctx: _FileAstGuardContext,
     param_bindings: Mapping[str, list[ast.AST]] | None = None,
+    unresolvable_params: frozenset[str] = frozenset(),
 ) -> tuple[set[str], bool]:
     """Collect canonical SUEWS CLI commands invoked via subprocess by ``fn``."""
     entry_state = _build_test_entry_state(fn, ctx.mod_state, param_bindings)
@@ -4144,7 +4202,13 @@ def _collect_test_subprocess_clis(
                     cmd_arg, call_state, ctx.mod_state, ctx.helper_return_exprs
                 )
                 found.update(clis)
-                overflowed = overflowed or ov
+                if ov or (
+                    not clis
+                    and _argv_head_references_names(
+                        cmd_arg, call_state.env, unresolvable_params
+                    )
+                ):
+                    overflowed = True
         elif isinstance(call.func, ast.Name) and call.func.id in ctx.helper_clis:
             callee = call.func.id
             found.update(ctx.helper_clis[callee])
@@ -4160,7 +4224,23 @@ def _collect_test_subprocess_clis(
                     call_state,
                 )
                 found.update(fwd_clis)
-                overflowed = overflowed or fwd_ov
+                if fwd_ov or (
+                    not fwd_clis
+                    and unresolvable_params
+                    and any(
+                        _argv_head_references_names(
+                            arg_expr, call_state.env, unresolvable_params
+                        )
+                        for p in forwarded
+                        for arg_expr in _bound_call_arg_candidates(
+                            call,
+                            p,
+                            ctx.helper_param_positions.get(callee, {}),
+                            ctx.helper_param_defaults.get(callee, {}),
+                        )
+                    )
+                ):
+                    overflowed = True
     return (found, overflowed)
 
 
@@ -4274,7 +4354,7 @@ def _record_function_subprocess_results(
     base_is_e2e: bool,
 ) -> None:
     """Evaluate subprocess CLI invocations per expanded case and update ``snapshot``."""
-    cases, has_unresolvable = _expand_parametrize_cases(
+    cases, has_unresolvable, unresolvable_names = _expand_parametrize_cases(
         all_decs, ctx.mod_env, ctx.ast_value_env
     )
     if not cases:
@@ -4287,9 +4367,12 @@ def _record_function_subprocess_results(
     e2e_cli_counts: dict[str, int] = {}
     overflow_clis: set[str] = set()
     any_overflow = False
+    unres_frozen = frozenset(unresolvable_names)
 
     for case_e2e, bind_map, weight in groups:
-        clis, overflowed = _collect_test_subprocess_clis(fn, ctx, bind_map)
+        clis, overflowed = _collect_test_subprocess_clis(
+            fn, ctx, bind_map, unresolvable_params=unres_frozen
+        )
         if overflowed:
             any_overflow = True
             overflow_clis.update(clis)
@@ -4490,18 +4573,20 @@ def _is_pytest_collected_class(
     mro: list[ast.ClassDef],
 ) -> bool:
     """Return True when pytest will collect ``cls`` under default collection rules."""
+    explicit_test_flag: bool | None = None
     for anc in mro:
         flag = _extract_class_test_flag(anc)
         if flag is not None:
-            if not flag:
-                return False
+            explicit_test_flag = flag
             break
+    if explicit_test_flag is False:
+        return False
     is_testcase = any(
         _is_testcase_base_expr(base) for anc in mro for base in anc.bases
     )
     if is_testcase:
         return True
-    if not cls.name.startswith("Test"):
+    if explicit_test_flag is None and not cls.name.startswith("Test"):
         return False
     return not any(
         isinstance(defn, (ast.FunctionDef, ast.AsyncFunctionDef))

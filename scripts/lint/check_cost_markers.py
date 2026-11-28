@@ -1101,12 +1101,16 @@ def _coerce_advisory_float(
     *,
     name: str,
     allow_zero: bool,
+    allow_none: bool = True,
     fallback: float | None,
     advisory_errors: list[str],
 ) -> float | None:
     """Parse and validate an advisory threshold without ever raising or exiting non-zero."""
     if raw is None:
-        return None
+        if allow_none:
+            return None
+        advisory_errors.append(f"invalid {name} None (expected a finite number)")
+        return fallback
     try:
         value = float(raw)
     except (TypeError, ValueError, OverflowError):
@@ -1131,7 +1135,7 @@ def check_costs(
     phase: str = DEFAULT_PHASE,
     sources: Iterable[str] = (),
     test_files: Iterable[str] | None = None,
-    explosion_seconds: float | str = PARAMETRISE_EXPLOSION_CPU_SECONDS,
+    explosion_seconds: float | str | None = PARAMETRISE_EXPLOSION_CPU_SECONDS,
     baseline_tests: Iterable[TestCost] | None = None,
     budget_warn_seconds: float | str | None = None,
 ) -> Report:
@@ -1153,10 +1157,12 @@ def check_costs(
         explosion_seconds,
         name="--parametrize-budget-seconds",
         allow_zero=False,
+        allow_none=False,
         fallback=PARAMETRISE_EXPLOSION_CPU_SECONDS,
         advisory_errors=advisory_errors,
     )
-    assert safe_explosion is not None
+    if safe_explosion is None:
+        safe_explosion = PARAMETRISE_EXPLOSION_CPU_SECONDS
     safe_budget = _coerce_advisory_float(
         budget_warn_seconds,
         name="--budget-warn",

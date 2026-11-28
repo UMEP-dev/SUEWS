@@ -982,13 +982,17 @@ def test_advisory_boundary_isolates_malformed_baseline_nonfinite_and_invalid_cli
     assert payload["ok"] is True
     assert len(payload["advisory_errors"]) == 2
 
-    # 2) Python entry point check_costs(..., explosion_seconds=0) degrades to advisory_errors.
-    report = checker.check_costs(
-        [checker.TestCost("test/core/test_ok.py::test_fast", (), 1.5, 1.5, "unit.json")],
-        explosion_seconds=0,
-    )
-    assert report.ok is True
-    assert report.advisory_errors
+    # 2) Python entry point check_costs(..., explosion_seconds=0 or None) degrades to advisory_errors.
+    for bad_expl in (0, None):
+        report = checker.check_costs(
+            [checker.TestCost("test/core/test_ok.py::test_fast", (), 1.5, 1.5, "unit.json")],
+            explosion_seconds=bad_expl,
+        )
+        assert report.ok is True
+        assert report.explosion_threshold_seconds == pytest.approx(
+            checker.PARAMETRISE_EXPLOSION_CPU_SECONDS
+        )
+        assert report.advisory_errors
 
     # 3) Baseline containing [null], huge int (OverflowError), and 1e309 (Infinity)
     #    must never crash or emit non-standard JSON Infinity, exercising each exact failure path.

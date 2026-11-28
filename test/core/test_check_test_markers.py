@@ -2911,3 +2911,87 @@ def test_ast_guards_with_args_helper_returns_match_captures_and_parent_traversal
             == 1
         )
         assert "parent traversal" in capsys.readouterr().err
+
+
+def test_ast_guards_expansion_overflow_tuple_unpacking_and_explicit_test_flag(
+    tmp_path: Path, capsys
+) -> None:
+    """Expansion overflow with param executable, tuple unpacking, and __test__ = True."""
+    src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "@pytest.mark.e2e\n"
+        "@pytest.mark.parametrize('exe', ['suews'] * 2049)\n"
+        "def test_expansion_overflow_param_exe(exe):\n"
+        "    subprocess.run([exe, '--help'])\n\n"
+        "def test_tuple_unpacking_suews():\n"
+        "    exe, option = 'suews-validate', '--help'\n"
+        "    subprocess.run([exe, option])\n\n"
+        "def test_tuple_unpacking_harmless():\n"
+        "    exe, option = 'git', '--version'\n"
+        "    subprocess.run([exe, option])\n\n"
+        "class CliChecks:\n"
+        "    __test__ = True\n"
+        "    def test_direct_flag(self):\n"
+        "        subprocess.run(['suews-mcp', '--version'])\n\n"
+        "class _ExplicitBase:\n"
+        "    __test__ = True\n"
+        "    def test_inherited_flag(self):\n"
+        "        subprocess.run(['suews-run', 'cfg.yml'])\n\n"
+        "class InheritedChecks(_ExplicitBase):\n"
+        "    pass\n\n"
+        "class ExplicitWithInitNotCollected:\n"
+        "    __test__ = True\n"
+        "    def __init__(self):\n"
+        "        pass\n"
+        "    def test_ignored_init(self):\n"
+        "        subprocess.run(['suews-schema', 'export'])\n"
+    )
+    repo = _make_repo(
+        tmp_path / "repo_r6",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r6_edges.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "subprocess-analysis-overflow: test/core/test_r6_edges.py::test_expansion_overflow_param_exe" in err
+    assert "missing-e2e-marker: test/core/test_r6_edges.py::test_tuple_unpacking_suews" in err
+    assert "test_tuple_unpacking_harmless" not in err
+    assert "missing-e2e-marker: test/core/test_r6_edges.py::CliChecks::test_direct_flag" in err
+    assert "missing-e2e-marker: test/core/test_r6_edges.py::InheritedChecks::test_inherited_flag" in err
+    assert "ExplicitWithInitNotCollected" not in err
+
+    # Differential check against real pytest --collect-only for __test__ = True rules.
+    probe_file = tmp_path / "test_collect_probe.py"
+    probe_file.write_text(
+        "class CliChecks:\n"
+        "    __test__ = True\n"
+        "    def test_direct(self):\n"
+        "        assert True\n\n"
+        "class _ExplicitBase:\n"
+        "    __test__ = True\n"
+        "    def test_inherited(self):\n"
+        "        assert True\n\n"
+        "class InheritedChecks(_ExplicitBase):\n"
+        "    pass\n\n"
+        "class ExplicitWithInit:\n"
+        "    __test__ = True\n"
+        "    def __init__(self):\n"
+        "        pass\n"
+        "    def test_skipped(self):\n"
+        "        assert True\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts=", str(probe_file)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert "CliChecks::test_direct" in proc.stdout
+    assert "InheritedChecks::test_inherited" in proc.stdout
+    assert "ExplicitWithInit::test_skipped" not in proc.stdout

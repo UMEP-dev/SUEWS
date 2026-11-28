@@ -1130,11 +1130,82 @@ jobs:
             exit 0
           fi
           BASELINE_SCHEMA="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path("scripts/lint/test_duration_baseline.json").read_text(encoding="utf-8")).get("schema_version", 1))')"
-          if [ "${GATE_AXIS_SCHEMA:-1}" = "2" ] && [ "${BASELINE_SCHEMA}" -lt 2 ]; then
-            echo "test_duration_baseline.json on base branch is schema ${BASELINE_SCHEMA}; waiting for Schema 2 baseline refresh (W1-5b)."
-            exit 0
-          fi
           mkdir -p ci-metrics
+          METRICS_ROOT="ci-metrics"
+          # Transitional Schema-1 baseline bridge: until W1-5b refreshes
+          # scripts/lint/test_duration_baseline.json to schema_version 2, map the
+          # complete Schema-2 tooling + unit + native metrics onto a merged
+          # legacy `api` lane so PRs retain live duration-regression and
+          # cost-marker advisory reporting during the transition.
+          if [ "${GATE_AXIS_SCHEMA:-1}" = "2" ] && [ "${BASELINE_SCHEMA}" -lt 2 ]; then
+            METRICS_ROOT="ci-metrics-v1"
+            python - <<'PY'
+          import json
+          import re
+          import shutil
+          from pathlib import Path
+
+          src = Path("ci-metrics")
+          dst = Path("ci-metrics-v1")
+          if dst.exists():
+              shutil.rmtree(dst)
+          dst.mkdir(parents=True, exist_ok=True)
+
+          shard_re = re.compile(r"shard-(\d+)-of-(\d+)")
+          merged_tests = []
+          exit_code = 0
+          complete = True
+          for lane in ("tooling", "unit", "native"):
+              lane_dir = src / lane
+              lane_files = []
+              if lane_dir.is_dir():
+                  for p in sorted(lane_dir.rglob("*.json")):
+                      if p.name.startswith("inventory-"):
+                          continue
+                      try:
+                          data = json.loads(p.read_text(encoding="utf-8"))
+                      except (OSError, ValueError):
+                          continue
+                      if isinstance(data, dict) and isinstance(data.get("tests"), list):
+                          lane_files.append((p, data))
+              if not lane_files:
+                  complete = False
+                  break
+              # Verify any sharded lane has all 1..N shards before merging.
+              shards = [shard_re.search(p.stem) for p, _ in lane_files]
+              if any(m is not None for m in shards):
+                  if not all(m is not None for m in shards):
+                      complete = False
+                      break
+                  totals = {int(m.group(2)) for m in shards if m is not None}
+                  indices = {int(m.group(1)) for m in shards if m is not None}
+                  if len(totals) != 1 or indices != set(range(1, next(iter(totals)) + 1)):
+                      complete = False
+                      break
+              for _, data in lane_files:
+                  merged_tests.extend(data["tests"])
+                  rc = (data.get("result") or {}).get("exit_code", 0)
+                  if rc not in (0, None):
+                      exit_code = rc
+
+          if complete and merged_tests:
+              api_dir = dst / "api" / "ci-metrics-api-cp312-manylinux-x86_64"
+              api_dir.mkdir(parents=True, exist_ok=True)
+              (api_dir / "api-cp312-manylinux-x86_64.json").write_text(
+                  json.dumps(
+                      {
+                          "schema_version": 2,
+                          "inventory": {"node_count": len(merged_tests)},
+                          "result": {"exit_code": exit_code},
+                          "tests": merged_tests,
+                      }
+                  ),
+                  encoding="utf-8",
+              )
+          if (src / "physics").is_dir():
+              shutil.copytree(src / "physics", dst / "physics")
+          PY
+          fi
           # File names are PR data: read them into an array through jq, never
           # into the text of a command.
           mapfile -t files < <(printf '%s' "$TESTS_FILES" | jq -r '.[] | select(test("^test/.+\\.py$"))')
@@ -1144,7 +1215,7 @@ jobs:
           else
             for f in "${files[@]}"; do args+=(--test-file "$f"); done
           fi
-          python scripts/lint/check_test_duration.py ci-metrics \
+          python scripts/lint/check_test_duration.py "$METRICS_ROOT" \
             --baseline scripts/lint/test_duration_baseline.json \
             "${args[@]}" \
             --annotations \

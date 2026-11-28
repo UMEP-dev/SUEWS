@@ -310,10 +310,7 @@ def test_tier_tables_match_the_workflow_expressions() -> None:
         )
     }
     assert physics == ci_tiers.PHYSICS_TIERS_V2
-    assert (
-        f"-p scripts.suews.pytest_include_nodes --suews-include-node {EXACT_REFERENCE_TEST}"
-        in cibw_cmd
-    )
+    assert f"--suews-include-node {EXACT_REFERENCE_TEST}" in cibw_cmd
 
     api_workflow = yaml.safe_load(
         (
@@ -395,52 +392,69 @@ def test_guard_is_wired_into_the_gate() -> None:
     assert "scripts.suews.pytest_inventory" in api_workflow
 
 
-def test_pytest_include_nodes_keeps_witness_alongside_mark_filter_and_fails_closed(
+def test_suews_include_node_keeps_witness_and_fails_closed(
     tmp_path: Path,
 ) -> None:
-    """pytest_include_nodes retains the witness under -m and fails closed if absent."""
+    """conftest --suews-include-node retains the witness under -m, preserves order, and fails closed."""
     (tmp_path / "pytest.ini").write_text(
         "[pytest]\nmarkers =\n"
         "    physics: physics\n"
         "    smoke: smoke\n"
         "    core: core\n"
         "    medium: medium\n"
-        "    slow: slow\n",
+        "    slow: slow\n"
+        "    contract: contract\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "conftest.py").write_text(
+        (PROJECT_ROOT / "test/conftest.py").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     (tmp_path / "test_sample.py").write_text(
         "import pytest\n"
-        "@pytest.mark.physics\n"
+        "pytestmark = [pytest.mark.physics, pytest.mark.contract('C-RESPONSE')]\n"
         "@pytest.mark.smoke\n"
-        "def test_fast_smoke():\n"
+        "def test_alpha_smoke():\n"
         "    assert True\n"
-        "@pytest.mark.physics\n"
         "@pytest.mark.core\n"
         "@pytest.mark.slow\n"
         "def test_exact_witness():\n"
         "    assert True\n"
-        "@pytest.mark.physics\n"
+        "@pytest.mark.smoke\n"
+        "def test_beta_smoke():\n"
+        "    assert True\n"
         "@pytest.mark.slow\n"
         "def test_other_slow():\n"
         "    assert True\n",
         encoding="utf-8",
     )
-    full_env = {**os.environ, "PYTHONPATH": str(PROJECT_ROOT)}
+    # Verify custom hook reordering on surviving items is preserved (not re-sorted).
+    (tmp_path / "reorder_plugin.py").write_text(
+        "import pytest\n"
+        "@pytest.hookimpl(trylast=True)\n"
+        "def pytest_collection_modifyitems(items):\n"
+        "    items[:] = list(reversed(items))\n",
+        encoding="utf-8",
+    )
+    full_env = {**os.environ, "PYTHONPATH": f"{tmp_path}{os.pathsep}{PROJECT_ROOT}"}
+    full_env.pop("SUEWS_SOURCE_LANE_ONLY", None)
+    base_cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-o",
+        "addopts=",
+        "-c",
+        str(tmp_path / "pytest.ini"),
+        "-m",
+        "physics and smoke and not (medium or slow)",
+    ]
+
     ok = subprocess.run(
         [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-o",
-            "addopts=",
-            "-c",
-            str(tmp_path / "pytest.ini"),
-            "-p",
-            "scripts.suews.pytest_include_nodes",
+            *base_cmd,
             "--suews-include-node",
             "test_sample.py::test_exact_witness",
-            "-m",
-            "physics and smoke and not (medium or slow)",
             "--collect-only",
             "-q",
             str(tmp_path / "test_sample.py"),
@@ -452,30 +466,54 @@ def test_pytest_include_nodes_keeps_witness_alongside_mark_filter_and_fails_clos
         check=False,
     )
     assert ok.returncode == 0, ok.stdout + ok.stderr
-    assert "test_sample.py::test_fast_smoke" in ok.stdout
+    assert "test_sample.py::test_alpha_smoke" in ok.stdout
     assert "test_sample.py::test_exact_witness" in ok.stdout
+    assert "test_sample.py::test_beta_smoke" in ok.stdout
     assert "test_sample.py::test_other_slow" not in ok.stdout
 
-    # Also verify real execution under xdist + pytest_ci_metrics records both
-    # the smoke test and the included witness in one metrics artefact.
+    # Another trylast plugin's ordering is preserved.
+    reordered = subprocess.run(
+        [
+            *base_cmd,
+            "-p",
+            "reorder_plugin",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert reordered.returncode == 0, reordered.stdout + reordered.stderr
+    collected_lines = [
+        line.strip()
+        for line in reordered.stdout.splitlines()
+        if line.strip().startswith("test_sample.py::")
+    ]
+    assert set(collected_lines) == {
+        "test_sample.py::test_beta_smoke",
+        "test_sample.py::test_exact_witness",
+        "test_sample.py::test_alpha_smoke",
+    }
+    assert collected_lines.index(
+        "test_sample.py::test_beta_smoke"
+    ) < collected_lines.index("test_sample.py::test_alpha_smoke")
+
+    # Real execution under xdist + pytest_ci_metrics records smoke tests and
+    # the included witness in one metrics artefact.
     metrics_path = tmp_path / "physics-cp312-manylinux-x86_64.json"
     run_xdist = subprocess.run(
         [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-o",
-            "addopts=",
-            "-c",
-            str(tmp_path / "pytest.ini"),
+            *base_cmd,
             "-p",
             "scripts.suews.pytest_ci_metrics",
-            "-p",
-            "scripts.suews.pytest_include_nodes",
             "--suews-include-node",
             "test_sample.py::test_exact_witness",
-            "-m",
-            "physics and smoke and not (medium or slow)",
             "-n",
             "2",
             "--dist",
@@ -491,27 +529,18 @@ def test_pytest_include_nodes_keeps_witness_alongside_mark_filter_and_fails_clos
     )
     assert run_xdist.returncode == 0, run_xdist.stdout + run_xdist.stderr
     recorded = json.loads(metrics_path.read_text(encoding="utf-8"))
-    recorded_ids = {t["node_id"] for t in recorded["tests"]}
-    assert recorded_ids == {
-        "test_sample.py::test_fast_smoke",
+    assert {t["node_id"] for t in recorded["tests"]} == {
+        "test_sample.py::test_alpha_smoke",
         "test_sample.py::test_exact_witness",
+        "test_sample.py::test_beta_smoke",
     }
 
+    # Missing node ID fails closed.
     missing = subprocess.run(
         [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-o",
-            "addopts=",
-            "-c",
-            str(tmp_path / "pytest.ini"),
-            "-p",
-            "scripts.suews.pytest_include_nodes",
+            *base_cmd,
             "--suews-include-node",
             "test_sample.py::test_renamed_or_deleted",
-            "-m",
-            "physics and smoke and not (medium or slow)",
             "--collect-only",
             "-q",
             str(tmp_path / "test_sample.py"),
@@ -524,6 +553,49 @@ def test_pytest_include_nodes_keeps_witness_alongside_mark_filter_and_fails_clos
     )
     assert missing.returncode == 4, missing.stdout + missing.stderr
     assert "did not match any collected test" in missing.stderr + missing.stdout
+
+    # Unsupported combinations (-k and --suews-shard) fail closed.
+    with_k = subprocess.run(
+        [
+            *base_cmd,
+            "-k",
+            "alpha",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert with_k.returncode == 4, with_k.stdout + with_k.stderr
+    assert "cannot be combined with -k" in with_k.stderr + with_k.stdout
+
+    with_shard = subprocess.run(
+        [
+            *base_cmd,
+            "-p",
+            "scripts.suews.pytest_shard",
+            "--suews-shard",
+            "1/2",
+            "--suews-include-node",
+            "test_sample.py::test_exact_witness",
+            "--collect-only",
+            "-q",
+            str(tmp_path / "test_sample.py"),
+        ],
+        cwd=tmp_path,
+        env=full_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert with_shard.returncode == 4, with_shard.stdout + with_shard.stderr
+    assert "cannot be combined with --suews-shard" in with_shard.stderr + with_shard.stdout
 
 
 def test_inventory_is_not_read_as_pytest_metrics(tmp_path: Path) -> None:

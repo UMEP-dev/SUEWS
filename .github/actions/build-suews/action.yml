@@ -315,19 +315,20 @@ runs:
         # hypothesis backs test/physics/test_numerics_properties.py and is
         # pinned to the same version as the dev extra, so a property test sees
         # the same generated inputs locally and on every CI lane. It is
-        # installed in this lane and in test-api-cross-python-reusable.yml
-        # because collection imports every test module regardless of the
-        # marker filter.
+        # installed in this lane and in test-source-lane-reusable.yml /
+        # test-wheel-lane-reusable.yml because collection imports every test
+        # module regardless of the marker filter.
         # The pull-request and merge-queue layout runs the Linux physics tier in
         # separate shard jobs on the uploaded wheel (build-wheels-reusable.yml,
         # `physics`), so the wheel uploads as soon as it is repaired.
         CIBW_TEST_SKIP: ${{ inputs.skip_tests == 'true' && '*' || '' }}
         CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
         # Test tiers: choose subset based on path detection and trigger.
-        # gh#1300: physics tests are binary-determined, so one run per
-        # (OS, arch) on the build Python is sufficient. API tests (Python
-        # wrapper surface) run separately per (platform x Python) via
-        # test-api-cross-python-reusable.yml.
+        # Physics tests are binary-determined, so one run per (OS, arch) on the
+        # build Python is sufficient. Pure-Python source lanes (`tooling`,
+        # `unit`) run via test-source-lane-reusable.yml, and wheel-backed lanes
+        # (`native`, `os_compat`, `abi3_smoke`) run per platform via
+        # test-wheel-lane-reusable.yml.
         # Always include --durations=10 to show slowest tests in output.
         # Keep the runner-detected worker budget: GitHub-hosted CPU capacity is
         # the constraint, so adding workers can increase contention. Work

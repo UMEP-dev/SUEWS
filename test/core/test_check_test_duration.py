@@ -1466,8 +1466,11 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
         in checkout["with"]["sparse-checkout"]
     )
 
-    # Downloads both unsharded and N-sharded Linux cp312 artefacts (legacy api + Schema 2 lanes) into separate subdirectories.
-    for lane in ("api", "tooling", "unit", "native", "physics"):
+    # Downloads both unsharded and N-sharded Linux cp312 Schema 2 artefacts into separate subdirectories.
+    assert not any(
+        s.get("name") == "Download the Linux cp312 api metrics" for s in job["steps"]
+    )
+    for lane in ("tooling", "unit", "native", "physics"):
         dl = next(
             s
             for s in job["steps"]

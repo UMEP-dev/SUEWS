@@ -1,28 +1,4 @@
 {
-  "Build and test (manylinux x86_64) / API cross-CPython tests / *": [
-    "Build and test (manylinux x86_64) / wheel | *",
-    "Build MCP package",
-    "Determine build matrix",
-    "Build and test (manylinux x86_64) / test layout"
-  ],
-  "Build and test (macosx arm64) / API cross-CPython tests / *": [
-    "Build and test (macosx arm64) / wheel | *",
-    "Build MCP package",
-    "Determine build matrix",
-    "Build and test (macosx arm64) / test layout"
-  ],
-  "Build and test (macosx x86_64) / API cross-CPython tests / *": [
-    "Build and test (macosx x86_64) / wheel | *",
-    "Build MCP package",
-    "Determine build matrix",
-    "Build and test (macosx x86_64) / test layout"
-  ],
-  "Build and test (win AMD64) / API cross-CPython tests / *": [
-    "Build and test (win AMD64) / wheel | *",
-    "Build MCP package",
-    "Determine build matrix",
-    "Build and test (win AMD64) / test layout"
-  ],
   "Build and test (manylinux x86_64) / Native tests / *": [
     "Build and test (manylinux x86_64) / wheel | *",
     "Build MCP package",

@@ -192,24 +192,47 @@ def _check_required_files(input_path, required_files):
     return all((input_path / f).exists() for f in required_files)
 
 
+def _has_matching_file(directory: Path, pattern: str) -> bool:
+    """Return True when ``pattern`` matches a file directly inside ``directory``."""
+    if not directory.is_dir():
+        return False
+    if any(ch in pattern for ch in "*?["):
+        pattern_lower = pattern.lower()
+        return any(
+            path.is_file() and fnmatch(path.name.lower(), pattern_lower)
+            for path in directory.iterdir()
+        )
+    return (directory / pattern).is_file()
+
+
 def _check_specific_files(input_path, specific_files):
     """Check if specific files exist based on RunControl.nml paths."""
+    input_path = Path(input_path)
     # Try to read RunControl.nml to get actual input path
     runcontrol_path = input_path / "RunControl.nml"
 
     if runcontrol_path.exists():
         try:
             ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
-            fileinputpath = ser_nml.get("fileinputpath", "./input/")
+            raw_input_path = ser_nml.get("fileinputpath")
+            fileinputpath = (
+                raw_input_path.strip()
+                if isinstance(raw_input_path, str) and raw_input_path.strip()
+                else "./input/"
+            )
 
             if os.path.isabs(fileinputpath):
                 actual_input_dir = Path(fileinputpath)
             else:
                 actual_input_dir = (input_path / fileinputpath).resolve()
 
-            # Check in the actual input directory
+            search_dirs = [input_path, actual_input_dir]
+            if not actual_input_dir.is_dir():
+                search_dirs.append(input_path / "Input")
+
+            # Check in the actual input directory (falling back to Input/ when missing)
             for f in specific_files:
-                if not ((input_path / f).exists() or (actual_input_dir / f).exists()):
+                if not any(_has_matching_file(d, f) for d in search_dirs):
                     return False
             return True
         except Exception:
@@ -217,7 +240,10 @@ def _check_specific_files(input_path, specific_files):
 
     # Fallback: check root and Input/ subdirectory
     for f in specific_files:
-        if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
+        if not (
+            _has_matching_file(input_path, f)
+            or _has_matching_file(input_path / "Input", f)
+        ):
             return False
     return True
 
@@ -324,7 +350,13 @@ def _check_negative_columns(input_path, negative_columns):
 
 
 def _check_nml_parameters(input_path, check_nml):
-    """Check if required parameters exist in .nml files."""
+    """Check if required parameters exist in .nml files.
+
+    Each entry in ``params`` is either a parameter name (``str``) that must
+    exist case-insensitively in the namelist section, or an iterable of
+    equivalent alias names of which at least one must exist.
+    """
+    input_path = Path(input_path)
     for nml_file, params in check_nml.items():
         nml_path = input_path / nml_file
         if not nml_path.exists():
@@ -332,11 +364,18 @@ def _check_nml_parameters(input_path, check_nml):
 
         try:
             nml = f90nml.read(str(nml_path))
-            # Get the first (and usually only) section
-            section = next(iter(nml.values())) if nml else {}
-            # Check if ALL required parameters exist
+            section = (
+                nml["runcontrol"]
+                if nml_file.lower() == "runcontrol.nml" and "runcontrol" in nml
+                else (next(iter(nml.values())) if nml else {})
+            )
+            section_keys = {k.lower() for k in section}
+            # Check if ALL required parameters (or at least one alias per group) exist
             for param in params:
-                if param.lower() not in [k.lower() for k in section]:
+                if isinstance(param, str):
+                    if param.lower() not in section_keys:
+                        return False
+                elif not any(alias.lower() in section_keys for alias in param):
                     return False
         except Exception:
             return False
@@ -388,13 +427,20 @@ def detect_table_version(input_dir):
                 "SUEWS_SiteSelect.txt": ["h_std", "n_buildings"]  # Added in 2025a
             },
         },
-        # 2024a: Added diagnostic methods and SPARTACUS radiation scheme support
+        # 2024a: Added diagnostic/RSL methods and SPARTACUS radiation scheme support
         "2024a": {
             "required_files": ["RunControl.nml"],
-            # SPARTACUS files are part of 2024a specification
-            "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
-            # Also has new parameters in RunControl
-            "check_nml": {"RunControl.nml": ["rslmethod", "rsllevel", "faimethod"]},
+            # SPARTACUS and per-site GridLayout files are part of 2024a specification
+            "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayout*.nml"],
+            # Accept both post-#864 (rslmethod/rsllevel) and historical 2024a
+            # (diagmethod/localclimatemethod) RunControl parameter names.
+            "check_nml": {
+                "RunControl.nml": [
+                    ("rslmethod", "diagmethod"),
+                    ("rsllevel", "localclimatemethod"),
+                    "faimethod",
+                ]
+            },
         },
         # 2023a: Removed DiagQS/DiagQN from RunControl, removed BaseT_HC from AnthropogenicEmission
         "2023a": {
@@ -584,9 +630,9 @@ def detect_table_version(input_dir):
                 f"Could not determine exact version, assuming {version}"
             )
 
-        # For versions without distinct table changes (e.g., 2023a, 2024a have same
-        # structure as 2021a/2020a), we may detect an earlier version. This is fine
-        # since the conversion rules are identical for these versions.
+        # For versions without distinct table changes (e.g., 2020a/2021a and
+        # 2018a/b/c have identical table structures), we may detect a sibling
+        # version. This is fine since the conversion rules are identical.
         logger_supy.info(f"Auto-detected table version: {version}")
         return version
 

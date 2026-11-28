@@ -269,9 +269,12 @@ class TestTableVersionDetectionAndHelpers:
         [
             ("2016a", {"2016a"}),
             ("2018a", {"2018a", "2018b"}),
+            ("2018b", {"2018a", "2018b"}),
             ("2018c", {"2018c", "2018b", "2018a"}),
             ("2019a", {"2019a"}),
             ("2020a", {"2020a", "2021a"}),
+            ("2021a", {"2021a"}),
+            ("2024a", {"2024a"}),
             ("2025a", {"2025a"}),
         ],
     )
@@ -282,6 +285,162 @@ class TestTableVersionDetectionAndHelpers:
             pytest.skip(f"legacy_format fixture {fixture_ver} not present")
         detected = table_mod.detect_table_version(fixture_dir)
         assert detected in expected_set
+
+    @pytest.mark.parametrize(
+        ("nml_body", "gridlayout_name"),
+        [
+            pytest.param(
+                '&RunControl\nFileInputPath="./Input/"\ndiagMethod=2\nLocalClimateMethod=0\nFAIMethod=0\n/\n',
+                "GridLayoutLondon.nml",
+                id="historical-2024a-keys-custom-gridlayout",
+            ),
+            pytest.param(
+                '&RunControl\nFileInputPath="./Input/"\nrslmethod=2\nrsllevel=0\nfaimethod=0\n/\n',
+                "GridLayoutCustom.nml",
+                id="modern-2024a-keys-custom-gridlayout",
+            ),
+            pytest.param(
+                '&RunControl\nFileInputPath="./Input/"\nrslmethod=2\nLocalClimateMethod=0\nFAIMethod=0\n/\n',
+                "GridLayoutKc.nml",
+                id="mixed-alias-2024a-keys",
+            ),
+            pytest.param(
+                "&RunControl\ndiagMethod=2\nLocalClimateMethod=0\nFAIMethod=0\n/\n",
+                "gridlayoutsitea.nml",
+                id="omitted-fileinputpath-input-subdir-fallback-lowercase-gridlayout",
+            ),
+        ],
+    )
+    def test_detect_table_version_2024a_aliases_and_gridlayout_variants(
+        self, tmp_path, nml_body, gridlayout_name
+    ):
+        """detect_table_version recognises both historical and post-#864 2024a sets."""
+        dir_2024 = tmp_path / "site_2024a"
+        inp_2024 = dir_2024 / "Input"
+        inp_2024.mkdir(parents=True)
+        (dir_2024 / "RunControl.nml").write_text(nml_body, encoding="utf-8")
+        (inp_2024 / "SUEWS_SPARTACUS.nml").write_text(
+            "&Spartacus\n/\n", encoding="utf-8"
+        )
+        (inp_2024 / gridlayout_name).write_text("&dim\nnlayer=3\n/\n", encoding="utf-8")
+        _write_simple_table(
+            inp_2024 / "SUEWS_Irrigation.txt", ["Code", "H_maintain"], [["1", "0.5"]]
+        )
+        _write_simple_table(
+            inp_2024 / "SUEWS_AnthropogenicEmission.txt",
+            ["Code", "BaseT_HC"],
+            [["1", "10"]],
+        )
+        assert table_mod.detect_table_version(dir_2024) == "2024a"
+
+    def test_detect_table_version_2024a_boundaries_and_conversion_chain(self, tmp_path):
+        """2024a detection rejects incomplete sets, preserves 2021a/2025a, and aligns with convert_table."""
+
+        def _make_base_2021a_dir(name: str, nml_body: str) -> tuple[Path, Path]:
+            root = tmp_path / name
+            inp = root / "Input"
+            inp.mkdir(parents=True)
+            (root / "RunControl.nml").write_text(nml_body, encoding="utf-8")
+            _write_simple_table(
+                inp / "SUEWS_Irrigation.txt", ["Code", "H_maintain"], [["1", "0.5"]]
+            )
+            _write_simple_table(
+                inp / "SUEWS_AnthropogenicEmission.txt",
+                ["Code", "BaseT_HC"],
+                [["1", "10"]],
+            )
+            return root, inp
+
+        # Partial RunControl keys (DiagMethod only, lacking faimethod/localclimatemethod)
+        # must not match 2024a even when SPARTACUS and GridLayout files exist.
+        partial_dir, partial_inp = _make_base_2021a_dir(
+            "partial_2024a",
+            '&RunControl\nFileInputPath="./Input/"\nDiagMethod=2\n/\n',
+        )
+        (partial_inp / "SUEWS_SPARTACUS.nml").write_text(
+            "&Spartacus\n/\n", encoding="utf-8"
+        )
+        (partial_inp / "GridLayouttest.nml").write_text(
+            "&dim\nnlayer=1\n/\n", encoding="utf-8"
+        )
+        assert table_mod.detect_table_version(partial_dir) == "2021a"
+
+        # Missing GridLayout*.nml (or a directory masquerading as one) must not match 2024a.
+        no_grid_dir, no_grid_inp = _make_base_2021a_dir(
+            "missing_gridlayout",
+            '&RunControl\nFileInputPath="./Input/"\ndiagMethod=2\nLocalClimateMethod=0\nFAIMethod=0\n/\n',
+        )
+        (no_grid_inp / "SUEWS_SPARTACUS.nml").write_text(
+            "&Spartacus\n/\n", encoding="utf-8"
+        )
+        (no_grid_inp / "GridLayoutFake.nml").mkdir()
+        assert table_mod.detect_table_version(no_grid_dir) == "2021a"
+
+        # Missing SUEWS_SPARTACUS.nml (only pre-2024a Spartacus.nml) must not match 2024a.
+        old_spart_dir, old_spart_inp = _make_base_2021a_dir(
+            "old_spartacus_name",
+            '&RunControl\nFileInputPath="./Input/"\ndiagMethod=2\nLocalClimateMethod=0\nFAIMethod=0\n/\n',
+        )
+        (old_spart_inp / "Spartacus.nml").write_text(
+            "&Spartacus\n/\n", encoding="utf-8"
+        )
+        (old_spart_inp / "GridLayoutKc.nml").write_text(
+            "&dim\nnlayer=3\n/\n", encoding="utf-8"
+        )
+        assert table_mod.detect_table_version(old_spart_dir) == "2021a"
+
+        # 2025a takes precedence over 2024a even with historical 2024a RunControl keys.
+        dir_2025, inp_2025 = _make_base_2021a_dir(
+            "v2025a_with_legacy_keys",
+            '&RunControl\nFileInputPath="./Input/"\ndiagMethod=2\nLocalClimateMethod=0\nFAIMethod=0\n/\n',
+        )
+        (inp_2025 / "SUEWS_SPARTACUS.nml").write_text(
+            "&Spartacus\n/\n", encoding="utf-8"
+        )
+        (inp_2025 / "GridLayoutKc.nml").write_text(
+            "&dim\nnlayer=3\n/\n", encoding="utf-8"
+        )
+        _write_simple_table(
+            inp_2025 / "SUEWS_SiteSelect.txt",
+            ["Grid", "n_buildings", "h_std"],
+            [["1", "150", "5.0"]],
+        )
+        assert table_mod.detect_table_version(dir_2025) == "2025a"
+
+        # Empty alias group in _check_nml_parameters returns False safely.
+        assert (
+            table_mod._check_nml_parameters(dir_2025, {"RunControl.nml": [()]}) is False
+        )
+
+        # Vendored 2024a converts cleanly to 2025a when driven by detect_table_version.
+        fixture_2024 = _LEGACY_FORMAT_ROOT / "2024a"
+        assert fixture_2024.is_dir(), f"Missing vendored fixture: {fixture_2024}"
+        detected_2024 = table_mod.detect_table_version(fixture_2024)
+        assert detected_2024 == "2024a"
+        out_2025 = tmp_path / "converted_2024a_to_2025a"
+        table_mod.convert_table(
+            str(fixture_2024),
+            str(out_2025),
+            detected_2024,
+            "2025a",
+            validate_profiles=False,
+        )
+        assert table_mod.detect_table_version(out_2025) == "2025a"
+
+        # Forward conversion from 2020a -> 2024a produces a directory detected as 2024a.
+        fixture_2020 = _LEGACY_TABLES_ROOT / "2020a"
+        assert (fixture_2020 / "RunControl.nml").is_file(), (
+            f"Missing vendored fixture: {fixture_2020}"
+        )
+        out_2024 = tmp_path / "converted_2020a_to_2024a"
+        table_mod.convert_table(
+            str(fixture_2020),
+            str(out_2024),
+            "2020a",
+            "2024a",
+            validate_profiles=False,
+        )
+        assert table_mod.detect_table_version(out_2024) == "2024a"
 
     def test_detect_table_version_synthetic_2024a_2023a_2017a_empty_and_absolute_path(
         self, tmp_path

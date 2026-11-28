@@ -8,7 +8,9 @@ This module provides a robust profile management system that:
 """
 
 from collections.abc import Iterable, Sequence
+from decimal import Decimal, InvalidOperation
 import logging
+import math
 from pathlib import Path
 from typing import ClassVar
 
@@ -16,6 +18,42 @@ import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_profile_code(raw_value: object) -> int | None:
+    """Parse a rule value as an exact integer profile code, or return None."""
+    result: int | None = None
+    if isinstance(raw_value, (bool, np.bool_)) or pd.isna(raw_value):
+        return None
+    if isinstance(raw_value, (int, np.integer)):
+        result = int(raw_value)
+    elif isinstance(raw_value, (float, np.floating)):
+        val = float(raw_value)
+        if math.isfinite(val) and val.is_integer():
+            result = int(val)
+    elif isinstance(raw_value, str):
+        text = raw_value.strip()
+        if text:
+            try:
+                result = int(text)
+            except ValueError:
+                try:
+                    dec = Decimal(text)
+                except InvalidOperation:
+                    dec = None
+                if (
+                    dec is not None
+                    and dec.is_finite()
+                    and dec == dec.to_integral_value()
+                    and dec.adjusted() < 18
+                ):
+                    result = int(dec)
+    else:
+        try:
+            result = int(raw_value)
+        except (ValueError, TypeError):
+            result = None
+    return result
 
 
 class ProfileManager:
@@ -388,17 +426,8 @@ class ProfileManager:
         for idx, row in rules_df.iterrows():
             # Check if this rule involves a profile field
             if row["Variable"] in profile_fields and row["Action"] == "Add":
-                raw_value = row["Value"]
-                if isinstance(raw_value, (bool, np.bool_)) or pd.isna(raw_value):
-                    continue
-                if (
-                    isinstance(raw_value, (float, np.floating))
-                    and not raw_value.is_integer()
-                ):
-                    continue
-                try:
-                    code = int(raw_value)
-                except (ValueError, TypeError):
+                code = _parse_profile_code(row["Value"])
+                if code is None:
                     # Value is not a simple integer code
                     continue
 

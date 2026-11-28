@@ -283,6 +283,29 @@ class TestProfileManager:
         mgr_nr = validate_and_fix_profiles(norules_dir, norules_dir / "absent.csv")
         assert 999 in mgr_nr.available_profiles
 
+        # Case 4: numeric float-formatted CSV (e.g. 404.0, 404.5, NaN) resolves
+        # integral decimal codes while leaving fractional/missing tokens untouched.
+        float_dir = tmp_path / "case_float_csv"
+        float_dir.mkdir()
+        _write_legacy_profiles(float_dir / "SUEWS_Profiles.txt", {10: 1.0})
+        float_rules_path = float_dir / "rules.csv"
+        pd.DataFrame({
+            "Action": ["Add", "Add", "Add"],
+            "Variable": ["SnowClearingProfWD", "TraffProfWD", "PopProfWD"],
+            "Value": [404.0, 404.5, np.nan],
+        }).to_csv(float_rules_path, index=False)
+
+        mgr_float = validate_and_fix_profiles(float_dir, float_rules_path)
+        assert (float_dir / "rules.csv.bak").is_file()
+        updated_float_csv = pd.read_csv(
+            float_rules_path, dtype=str, keep_default_na=False
+        )
+        assert updated_float_csv.loc[0, "Value"] == "999"
+        assert updated_float_csv.loc[1, "Value"] == "404.5"
+        assert updated_float_csv.loc[2, "Value"] == ""
+        assert 404 in mgr_float.missing_profiles
+        assert 404 in mgr_float.available_profiles
+
 
 class TestTableVersionDetectionAndHelpers:
     """Tests for version detection, file/column mutations, and path utilities in table.py."""

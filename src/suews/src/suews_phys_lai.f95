@@ -65,6 +65,18 @@ CONTAINS
       INTEGER :: summer_reset_day ! DOY when growth season ends and senescence season starts
       INTEGER :: winter_reset_day ! DOY when senescence season ends and growth season starts
 
+      ! Where observed LAI is supplied, validate and assign it without reading
+      ! inactive GDD/SDD phenology parameters (base_t_gdd, base_t_sdd,
+      ! gdd_base, sdd_base, lai_min, lai_max, lai_power) (#2363).
+      IF (lai_calc_yes == 0) THEN
+         CALL observed_lai( &
+            lai_obs=lai_obs, &
+            lai_id_next=lai_id_next, &
+            valid=valid_observed_lai &
+         )
+         RETURN
+      END IF
+
       CALL get_reset_days( &
          lat=lat, &
          summer_reset_day=summer_reset_day, &
@@ -74,16 +86,6 @@ CONTAINS
       ! Snapshot incoming accumulators for each vegetation surface
       gdd_id_prev = gdd_id
       sdd_id_prev = sdd_id
-
-      ! Where observed LAI is supplied, validate and assign it before updating GDD/SDD
-      IF (lai_calc_yes == 0) THEN
-         CALL observed_lai( &
-            lai_obs=lai_obs, &
-            lai_id_next=lai_id_next, &
-            valid=valid_observed_lai &
-         )
-         IF (.NOT. valid_observed_lai) RETURN
-      END IF
 
       ! Growth and senescence season flags depend only on DOY and hemisphere
       CALL update_growth_state( &

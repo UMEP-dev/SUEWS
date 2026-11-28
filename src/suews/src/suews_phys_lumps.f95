@@ -83,7 +83,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(NVEGSURF) :: LAI_id_prev ! LAI(id-1,iv), LAI at the beginning of today
 
       REAL(KIND(1D0)), DIMENSION(3) :: LAImax !Max LAI [m2 m-2]
-      REAL(KIND(1D0)), DIMENSION(3) :: LAImin !Min LAI [m2 m-2]
+      INTEGER :: iv_lumps
 
       ! REAL(KIND(1D0)), INTENT(out) :: QH_LUMPS
       ! REAL(KIND(1D0)), INTENT(out) :: QE_LUMPS !turbulent fluxes: QH, QE
@@ -96,7 +96,7 @@ CONTAINS
       ! INTEGER::iv
 
       REAL(KIND(1D0)), DIMENSION(3) :: sfrVeg ! veg surface fractions [-]                             !,start
-      REAL(KIND(1D0)) :: VegPhen, VegMax, VegMin, & !Vegetation phenology for LUMPS
+      REAL(KIND(1D0)) :: VegPhen, VegMax, & !Vegetation phenology for LUMPS
                          psyc_s, & !Psychometric constant
                          alpha_sl, alpha_in, & !Parameters used in LUMPS QH and QE calculations
                          beta, & !Beta parameter used in LUMPS QH and QE calculations [W m-2]
@@ -160,7 +160,6 @@ CONTAINS
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
                LAImax = [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max]
-               LAImin = [evetrPrm%lai%lai_min, dectrPrm%lai%lai_min, grassPrm%lai%lai_min]
 
                tlv = lv_J_kg/tstep_real !Latent heat of vapourisation per timestep
                ! initialize VegPhenLumps to output
@@ -208,9 +207,19 @@ CONTAINS
                ! VegPhen=0
                ! VegMax=0
                ! VegMin=0
-               VegPhen = DOT_PRODUCT(sfrVeg, LAI_id_prev)
-               VegMax = DOT_PRODUCT(sfrVeg, LAImax)
-               VegMin = DOT_PRODUCT(sfrVeg, LAImin)
+               IF (ALL(sfrVeg > 0.0D0)) THEN
+                  VegPhen = DOT_PRODUCT(sfrVeg, LAI_id_prev)
+                  VegMax = DOT_PRODUCT(sfrVeg, LAImax)
+               ELSE
+                  VegPhen = 0.0D0
+                  VegMax = 0.0D0
+                  DO iv_lumps = 1, NVEGSURF
+                     IF (sfrVeg(iv_lumps) > 0.0D0) THEN
+                        VegPhen = VegPhen + sfrVeg(iv_lumps)*LAI_id_prev(iv_lumps)
+                        VegMax = VegMax + sfrVeg(iv_lumps)*LAImax(iv_lumps)
+                     END IF
+                  END DO
+               END IF
 
                ! DO iv=ivConif,ivGrass   !Normalized LAI for vegetation
                !    VegPhen = sfr_surf(iv+2)*LAI(id-1,iv) + VegPhen

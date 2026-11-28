@@ -109,6 +109,8 @@ CONTAINS
       INTEGER :: &
          iu, & !1=weekday OR 2=weekend
          ih
+      LOGICAL :: calc_co2 ! whether anthropogenic CO2 calculations are active (EmissionsMethod >= 11)
+      LOGICAL :: use_detailed_qf ! whether detailed traffic/building QF split is active (sub-method 4..6)
       CHARACTER(LEN=80) :: err_msg
 
       REAL(KIND(1D0)) :: &
@@ -134,6 +136,8 @@ CONTAINS
       QF_SAHP_heating = 0
       QF_SAHP_cooling = 0
       NumCapita = 0.0D0
+      calc_co2 = (EmissionsMethod >= 11)
+      use_detailed_qf = (MOD(EmissionsMethod, 10) >= 4 .AND. MOD(EmissionsMethod, 10) <= 6)
 
       ! Transfer HDD/CDD values to local explict variables
       HDD_daily = HDD_id(7)
@@ -166,7 +170,11 @@ CONTAINS
       ! PRINT*, 'AHDorNorT old:',AHDorNorT
       PopDorNorT = get_Prof_SpecTime_inst(ih, imin, 0, PopProf_24hr(:, iu)) ! 1=night, 2=day, 1-2=transition
       ActDorNorT = get_Prof_SpecTime_inst(ih, imin, 0, HumActivity_24hr(:, iu)) ! 1=night, 2=day, 1-2=transition
-      TraffDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, TraffProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers is equal to 1
+      IF (use_detailed_qf) THEN
+         TraffDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, TraffProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers is equal to 1
+      ELSE
+         TraffDorNorT = 0.0D0
+      END IF
       AHDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, AHProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers is equal to 1
 
       ! Diurnal profile times population density [cap ha-1]
@@ -175,8 +183,12 @@ CONTAINS
       QF_metab = (PopDensNighttime*MinQFMetab*((2 - ActDorNorT) + (2 - PopDorNorT))/2 + &
                   PopDensDaytime(iu)*MaxQFMetab*((ActDorNorT - 1) + (PopDorNorT - 1))/2)/10000 !W m-2
 
-      Fc_metab = (PopDensNighttime*MinFCMetab*((2 - ActDorNorT) + (2 - PopDorNorT))/2 + &
-                  PopDensDaytime(iu)*MaxFCMetab*((ActDorNorT - 1) + (PopDorNorT - 1))/2)/10000 !umol m-2 s-1
+      IF (calc_co2) THEN
+         Fc_metab = (PopDensNighttime*MinFCMetab*((2 - ActDorNorT) + (2 - PopDorNorT))/2 + &
+                     PopDensDaytime(iu)*MaxFCMetab*((ActDorNorT - 1) + (PopDorNorT - 1))/2)/10000 !umol m-2 s-1
+      ELSE
+         Fc_metab = 0.0D0
+      END IF
 
       !----------------------------------------------------------------------------------------------------
       !Different methods to calculate the anthopogenic heat and CO2 emissions.
@@ -276,32 +288,39 @@ CONTAINS
             QF_build = QF_SAHP_heating + QF_SAHP_cooling + (QF_SAHP_base - QF_metab) !If human metabolism greater than Base QF, remove this from the heating/cooling contribution also
          END IF
 
-         ! Consider the various components of QF_build to calculate Fc_build
-         ! Assume all A/C electric, so QF_SAHP_ac is not associated with any local CO2 emissions
-         ! HDD part is building energy use, split between electricity (no local emissions CO2) and combustion (CO2) heating...
-         Fc_build = QF_SAHP_heating*FrFossilFuel_Heat*EF_umolCO2perJ
+         IF (calc_co2) THEN
+            ! Consider the various components of QF_build to calculate Fc_build
+            ! Assume all A/C electric, so QF_SAHP_ac is not associated with any local CO2 emissions
+            ! HDD part is building energy use, split between electricity (no local emissions CO2) and combustion (CO2) heating...
+            Fc_build = QF_SAHP_heating*FrFossilFuel_Heat*EF_umolCO2perJ
 
-         ! ... and there is also a temperature-independent contribution from building energy use.
-         IF ((QF_SAHP_base - QF_metab) > 0) THEN
-            Fc_build = Fc_build + QF_SAHP_base*QF0_BEU(iu)*FrFossilFuel_NonHeat*EF_umolCO2perJ
-         END IF
+            ! ... and there is also a temperature-independent contribution from building energy use.
+            IF ((QF_SAHP_base - QF_metab) > 0) THEN
+               Fc_build = Fc_build + QF_SAHP_base*QF0_BEU(iu)*FrFossilFuel_NonHeat*EF_umolCO2perJ
+            END IF
 
-         ! Remainder of temperature-independent part must be traffic
-         !QF_traff = (QF_SAHP_base-QF_metab)*(1.0-QF0_BEU(iu))
-         QF_traff = QF_SAHP_base*(1.0 - QF0_BEU(iu)) - QF_metab
+            ! Remainder of temperature-independent part must be traffic
+            !QF_traff = (QF_SAHP_base-QF_metab)*(1.0-QF0_BEU(iu))
+            QF_traff = QF_SAHP_base*(1.0 - QF0_BEU(iu)) - QF_metab
 
-         ! Divide QF by energy emission factor and multiply by CO2 factor
-         Fc_traff = QF_traff/EnEF_v_Jkm*FcEF_v_kgkm(iu)*1E3*1E6/44
+            ! Divide QF by energy emission factor and multiply by CO2 factor
+            Fc_traff = QF_traff/EnEF_v_Jkm*FcEF_v_kgkm(iu)*1E3*1E6/44
 
-         !CO2 point source [kg C day-1] * 1e3 g kg-1 * 1e6 umol mol-1 /(12 g mol-1 * m-2)
-         IF (CO2PointSource > 0) THEN
-            Fc_point = CO2PointSource*1E3*1E6/(12*60*60*24*SurfaceArea)
+            !CO2 point source [kg C day-1] * 1e3 g kg-1 * 1e6 umol mol-1 /(12 g mol-1 * m-2)
+            IF (CO2PointSource > 0) THEN
+               Fc_point = CO2PointSource*1E3*1E6/(12*60*60*24*SurfaceArea)
+            ELSE
+               Fc_point = 0
+            END IF
+
+            ! Sum components to give anthropogenic CO2 flux [umol m-2 s-1]
+            Fc_anthro = Fc_metab + Fc_traff + Fc_build + Fc_point
          ELSE
-            Fc_point = 0
+            Fc_build = 0.0D0
+            Fc_traff = 0.0D0
+            Fc_point = 0.0D0
+            Fc_anthro = 0.0D0
          END IF
-
-         ! Sum components to give anthropogenic CO2 flux [umol m-2 s-1]
-         Fc_anthro = Fc_metab + Fc_traff + Fc_build + Fc_point
 
       ELSEIF (EmissionsMethod >= 4 .AND. EmissionsMethod <= 6 .OR. &
               EmissionsMethod >= 14 .AND. EmissionsMethod <= 16 .OR. &
@@ -314,15 +333,23 @@ CONTAINS
          IF (TrafficUnits == 1) THEN ! [veh km m-2 day-1]
             ! Calculate using mean traffic rate [veh km m-2 day-1] * emission factor [J km-1]
             QF_traff = TrafficRate(iu)/(60*60*24)*EnEF_v_Jkm*TraffDorNorT
-            ! Use mean traffic rate [veh km m-2 s-1] * emission factor [kg km-1] * 1e3 g kg-1 /44 g mol-1 * 1e6 umol mol-1
-            Fc_traff = TrafficRate(iu)/(60*60*24)*FcEF_v_kgkm(iu)*1E3*1E6/44*TraffDorNorT
+            IF (calc_co2) THEN
+               ! Use mean traffic rate [veh km m-2 s-1] * emission factor [kg km-1] * 1e3 g kg-1 /44 g mol-1 * 1e6 umol mol-1
+               Fc_traff = TrafficRate(iu)/(60*60*24)*FcEF_v_kgkm(iu)*1E3*1E6/44*TraffDorNorT
+            ELSE
+               Fc_traff = 0.0D0
+            END IF
 
          ELSEIF (TrafficUnits == 2) THEN ! [veh km cap-1 day-1]
             DP_x_RhoPop_traff = TraffDorNorT*NumCapita(iu)/10000 ! [cap m-2]
             ! Use mean traffic rate [veh km cap-1 day-1] * emission factor [J km-1]
             QF_traff = TrafficRate(iu)/(60*60*24)*EnEF_v_Jkm*DP_x_RhoPop_traff
-            ! Use mean traffic rate [veh km cap-1 day-1] * emission factor [kg km-1] * 1e3 g kg-1 /44 g mol-1 * 1e6 umol mol-1
-            Fc_traff = TrafficRate(iu)/(60*60*24)*FcEF_v_kgkm(iu)*1E3*1E6/44*DP_x_RhoPop_traff
+            IF (calc_co2) THEN
+               ! Use mean traffic rate [veh km cap-1 day-1] * emission factor [kg km-1] * 1e3 g kg-1 /44 g mol-1 * 1e6 umol mol-1
+               Fc_traff = TrafficRate(iu)/(60*60*24)*FcEF_v_kgkm(iu)*1E3*1E6/44*DP_x_RhoPop_traff
+            ELSE
+               Fc_traff = 0.0D0
+            END IF
 
          ELSE ! If TrafficUnits doesn't match possible units
             CALL ErrorHint(75, 'Check TrafficUnits', TrafficUnits, -999D0, INT(TrafficUnits), modState)
@@ -341,16 +368,22 @@ CONTAINS
             QF_build = 0.0D0
          END IF
 
-         ! Consider the various components of QF_build to calculate Fc_build
-         Fc_build = QF_SAHP_heating*FrFossilFuel_Heat*EF_umolCO2perJ
-         ! ... and there is also a temperature-independent contribution from building energy use
-         Fc_build = Fc_build + QF_SAHP_base*QF0_BEU(iu)*FrFossilFuel_NonHeat*EF_umolCO2perJ
+         IF (calc_co2) THEN
+            ! Consider the various components of QF_build to calculate Fc_build
+            ! (uses QF_SAHP_base before adding QF_traff and QF_metab below)
+            Fc_build = QF_SAHP_heating*FrFossilFuel_Heat*EF_umolCO2perJ
+            ! ... and there is also a temperature-independent contribution from building energy use
+            Fc_build = Fc_build + QF_SAHP_base*QF0_BEU(iu)*FrFossilFuel_NonHeat*EF_umolCO2perJ
 
-         !CO2 point source [kg C day-1] * 1e3 g kg-1 * 1e6 umol mol-1 /(12 g mol-1 * m-2)
-         IF (CO2PointSource > 0) THEN
-            Fc_point = CO2PointSource*1E3*1E6/(12*60*60*24*SurfaceArea)
+            !CO2 point source [kg C day-1] * 1e3 g kg-1 * 1e6 umol mol-1 /(12 g mol-1 * m-2)
+            IF (CO2PointSource > 0) THEN
+               Fc_point = CO2PointSource*1E3*1E6/(12*60*60*24*SurfaceArea)
+            ELSE
+               Fc_point = 0
+            END IF
          ELSE
-            Fc_point = 0
+            Fc_build = 0.0D0
+            Fc_point = 0.0D0
          END IF
 
          ! Add other QF components to QF_SAHP_base (because if AnthropEmissionsMethod = 4, QF calculated above is building part only)
@@ -360,7 +393,11 @@ CONTAINS
          QF_SAHP = QF_metab + QF_traff + QF_build
 
          ! Sum components to give anthropogenic CO2 flux [umol m-2 s-1]
-         Fc_anthro = Fc_metab + Fc_traff + Fc_build + Fc_point
+         IF (calc_co2) THEN
+            Fc_anthro = Fc_metab + Fc_traff + Fc_build + Fc_point
+         ELSE
+            Fc_anthro = 0.0D0
+         END IF
 
       END IF
 

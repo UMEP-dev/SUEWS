@@ -1520,41 +1520,6 @@ CONTAINS
                QF_obs => forcing%QF_obs &
                )
 
-               AH_MIN(1) = ahemisPrm%anthro_heat%ah_min_working
-               AH_MIN(2) = ahemisPrm%anthro_heat%ah_min_holiday
-               AH_SLOPE_Heating(1) = ahemisPrm%anthro_heat%ah_slope_heating_working
-               AH_SLOPE_Heating(2) = ahemisPrm%anthro_heat%ah_slope_heating_holiday
-               AH_SLOPE_Cooling(1) = ahemisPrm%anthro_heat%ah_slope_cooling_working
-               AH_SLOPE_Cooling(2) = ahemisPrm%anthro_heat%ah_slope_cooling_holiday
-
-               TrafficRate(1) = ahemisPrm%traffic_rate_working
-               TrafficRate(2) = ahemisPrm%traffic_rate_holiday
-
-               PopDensDaytime(1) = ahemisPrm%anthro_heat%pop_density_daytime_working
-               PopDensDaytime(2) = ahemisPrm%anthro_heat%pop_density_daytime_holiday
-               QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
-               QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
-               Qf_A(1) = ahemisPrm%anthro_heat%qf_a_working
-               Qf_A(2) = ahemisPrm%anthro_heat%qf_a_holiday
-               Qf_B(1) = ahemisPrm%anthro_heat%qf_b_working
-               Qf_B(2) = ahemisPrm%anthro_heat%qf_b_holiday
-               Qf_C(1) = ahemisPrm%anthro_heat%qf_c_working
-               Qf_C(2) = ahemisPrm%anthro_heat%qf_c_holiday
-               BaseT_Heating(1) = ahemisPrm%anthro_heat%baset_heating_working
-               BaseT_Heating(2) = ahemisPrm%anthro_heat%baset_heating_holiday
-               BaseT_Cooling(1) = ahemisPrm%anthro_heat%baset_cooling_working
-               BaseT_Cooling(2) = ahemisPrm%anthro_heat%baset_cooling_holiday
-
-               AHProf_24hr(:, 1) = ahemisPrm%anthro_heat%ahprof_24hr_working
-               AHProf_24hr(:, 2) = ahemisPrm%anthro_heat%ahprof_24hr_holiday
-               HumActivity_24hr(:, 1) = ahemisPrm%hum_activity_24hr_working
-               HumActivity_24hr(:, 2) = ahemisPrm%hum_activity_24hr_holiday
-               PopProf_24hr(:, 1) = ahemisPrm%anthro_heat%popprof_24hr_working
-               PopProf_24hr(:, 2) = ahemisPrm%anthro_heat%popprof_24hr_holiday
-               TraffProf_24hr(:, 1) = ahemisPrm%traff_prof_24hr_working
-               TraffProf_24hr(:, 2) = ahemisPrm%traff_prof_24hr_holiday
-               TrafficUnits = ahemisPrm%traffic_units
-
                IF (EmissionsMethod == 0) THEN ! use observed qf
                   qf = QF_obs
                   ! Observed QF carries no split by source. Fallback: the
@@ -1563,8 +1528,47 @@ CONTAINS
                   ! value; it omits the heating and cooling terms that the
                   ! modelled methods attribute to buildings, so it is likely
                   ! low in winter. Diagnostic only (EHC output group).
-                  ehcDiag%qf_build = QF0_BEU(cal_weekday_index(DayofWeek_id(1)))*qf
+                  IF (config%StorageHeatMethod == SHM_EHC) THEN
+                     QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
+                     QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
+                     ehcDiag%qf_build = QF0_BEU(cal_weekday_index(DayofWeek_id(1)))*qf
+                  END IF
                ELSEIF ((EmissionsMethod > 0 .AND. EmissionsMethod <= 6) .OR. EmissionsMethod >= 11) THEN
+                  AH_MIN(1) = ahemisPrm%anthro_heat%ah_min_working
+                  AH_MIN(2) = ahemisPrm%anthro_heat%ah_min_holiday
+                  AH_SLOPE_Heating(1) = ahemisPrm%anthro_heat%ah_slope_heating_working
+                  AH_SLOPE_Heating(2) = ahemisPrm%anthro_heat%ah_slope_heating_holiday
+                  AH_SLOPE_Cooling(1) = ahemisPrm%anthro_heat%ah_slope_cooling_working
+                  AH_SLOPE_Cooling(2) = ahemisPrm%anthro_heat%ah_slope_cooling_holiday
+
+                  TrafficRate(1) = ahemisPrm%traffic_rate_working
+                  TrafficRate(2) = ahemisPrm%traffic_rate_holiday
+
+                  PopDensDaytime(1) = ahemisPrm%anthro_heat%pop_density_daytime_working
+                  PopDensDaytime(2) = ahemisPrm%anthro_heat%pop_density_daytime_holiday
+                  QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
+                  QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
+                  Qf_A(1) = ahemisPrm%anthro_heat%qf_a_working
+                  Qf_A(2) = ahemisPrm%anthro_heat%qf_a_holiday
+                  Qf_B(1) = ahemisPrm%anthro_heat%qf_b_working
+                  Qf_B(2) = ahemisPrm%anthro_heat%qf_b_holiday
+                  Qf_C(1) = ahemisPrm%anthro_heat%qf_c_working
+                  Qf_C(2) = ahemisPrm%anthro_heat%qf_c_holiday
+                  BaseT_Heating(1) = ahemisPrm%anthro_heat%baset_heating_working
+                  BaseT_Heating(2) = ahemisPrm%anthro_heat%baset_heating_holiday
+                  BaseT_Cooling(1) = ahemisPrm%anthro_heat%baset_cooling_working
+                  BaseT_Cooling(2) = ahemisPrm%anthro_heat%baset_cooling_holiday
+
+                  AHProf_24hr(:, 1) = ahemisPrm%anthro_heat%ahprof_24hr_working
+                  AHProf_24hr(:, 2) = ahemisPrm%anthro_heat%ahprof_24hr_holiday
+                  HumActivity_24hr(:, 1) = ahemisPrm%hum_activity_24hr_working
+                  HumActivity_24hr(:, 2) = ahemisPrm%hum_activity_24hr_holiday
+                  PopProf_24hr(:, 1) = ahemisPrm%anthro_heat%popprof_24hr_working
+                  PopProf_24hr(:, 2) = ahemisPrm%anthro_heat%popprof_24hr_holiday
+                  TraffProf_24hr(:, 1) = ahemisPrm%traff_prof_24hr_working
+                  TraffProf_24hr(:, 2) = ahemisPrm%traff_prof_24hr_holiday
+                  TrafficUnits = ahemisPrm%traffic_units
+
                   ! choose temperature for anthropogenic heat flux calculation
                   Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
 
@@ -1888,6 +1892,7 @@ CONTAINS
          ! Safely resolve roof/wall surface temps without MERGE on
          ! possibly-unallocated or zero-length allocatable arrays.
          IF (config%StorageHeatMethod == SHM_STEBBS &
+             .AND. (config%stebbsmethod == STEBBS_DEFAULT .OR. config%stebbsmethod == STEBBS_PROVIDED) &
              .AND. ALLOCATED(stebbsState%buildings)) THEN
             IF (SIZE(stebbsState%buildings) >= 1) THEN
                IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
@@ -2550,6 +2555,7 @@ CONTAINS
                      modState, & ! input/output:
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
+                  IF (supy_error_flag()) RETURN
                END IF
 
                IF (StorageHeatMethod == SHM_ANOHM) THEN

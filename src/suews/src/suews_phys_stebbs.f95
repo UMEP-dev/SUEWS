@@ -556,7 +556,10 @@ MODULE module_phys_stebbs_couple
    END TYPE
 END MODULE module_phys_stebbs_couple
 MODULE module_phys_stebbs
-   USE module_ctrl_const_options, ONLY: SETPOINT_CONSTANT, SETPOINT_DEPENDENT, SETPOINT_SCHEDULED
+   USE module_ctrl_const_options, ONLY: &
+      SETPOINT_CONSTANT, SETPOINT_DEPENDENT, SETPOINT_SCHEDULED, &
+      STEBBS_DEFAULT, STEBBS_PROVIDED
+   USE module_ctrl_error_state, ONLY: supy_error_flag
 
    USE module_phys_stebbs_precision, ONLY: rprc
    ! use modulestebbs, ONLY: blds, cases, resolution
@@ -708,6 +711,15 @@ CONTAINS
       INTEGER :: n_floors
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
+
+      ! Guard against direct calls when STEBBS is disabled (#2363): return
+      ! missing-sentinel output without allocating buildings or reading
+      ! inactive STEBBS / building_archtype parameters.
+      IF (config%stebbsmethod /= STEBBS_DEFAULT .AND. config%stebbsmethod /= STEBBS_PROVIDED) THEN
+         dataOutLineSTEBBS = -999.0D0
+         RETURN
+      END IF
+
       ASSOCIATE ( &
          timestep => clock%timer%tstep, &
          dt_start => clock%timer%dt_since_start, &
@@ -785,6 +797,10 @@ CONTAINS
             ! stebbs_bldg_init == 1 never clobber evolved building temperatures.
             IF (stebbs_bldg_init == 0) THEN
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer, modState%errorState)
+               IF (supy_error_flag()) THEN
+                  dataOutLineSTEBBS = -999.0D0
+                  RETURN
+               END IF
                stebbs_bldg_init = 1
             END IF
 
@@ -2418,7 +2434,10 @@ END SUBROUTINE tstep
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer, errorState)
 
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG, error_state
-   USE module_ctrl_const_options, ONLY: SETPOINT_SCHEDULED, RC_DEFAULT, RC_PROVIDED, RC_PARAMETERISE
+   USE module_ctrl_const_options, ONLY: &
+      SETPOINT_SCHEDULED, RC_DEFAULT, RC_PROVIDED, RC_PARAMETERISE, &
+      STEBBS_DEFAULT, STEBBS_PROVIDED
+   USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_phys_stebbs_func, ONLY: calculate_x1
    USE module_ctrl_const_physconst, ONLY: C2K, sec_per_hour
    IMPLICIT NONE
@@ -2434,6 +2453,13 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    INTEGER, INTENT(IN) :: num_layer
 
    CALL self%ALLOCATE(num_layer)
+
+   ! Keep Textroof_C / Textwall_C allocated (zero-initialised) so downstream
+   ! ASSOCIATE / ALLOCATED checks stay safe under gfortran 14+, without
+   ! reading or validating inactive STEBBS / archetype parameters (#2363).
+   IF (config%stebbsmethod /= STEBBS_DEFAULT .AND. config%stebbsmethod /= STEBBS_PROVIDED) THEN
+      RETURN
+   END IF
 
    self%Textwall_C = stebbsState%wall_outdoor_surface_temperature
    self%Textroof_C = stebbsState%roof_outdoor_surface_temperature
@@ -2649,8 +2675,10 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    ELSEIF (config%rcmethod == RC_PARAMETERISE) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
+      IF (supy_error_flag()) RETURN
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
+      IF (supy_error_flag()) RETURN
       IF (self%weighting_factor_heatcapacity_wall > 1) THEN
          CALL errorState%report( &
             message='Wall_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer', &

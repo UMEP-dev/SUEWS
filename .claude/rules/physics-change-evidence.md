@@ -317,7 +317,8 @@ Together: an output-moving change cannot merge without a refresh, and a refresh 
 
 ## What `physics-full` adds over `standard`
 
-Today: the continuation matrix. Comparing those two tier definitions directly,
+Today: the continuation matrix and the full-year `ehc_facets` EHC reference
+test. Comparing those two tier definitions directly,
 the physics axis of `standard` runs `-m "physics and (core or not slow)"` and
 `physics-full` runs `-m physics`, so the delta between `standard` and
 `physics-full` is `physics and slow and not core`. [fact: git grep -n 'STANDARD_EXPR = "physics and (core or not slow)"' scripts/lint/check_physics_tier_delta.py && git grep -n 'DELTA_EXPR = "physics and slow and not core"' scripts/lint/check_physics_tier_delta.py]
@@ -325,22 +326,36 @@ the physics axis of `standard` runs `-m "physics and (core or not slow)"` and
 classification label additionally brings in the non-smoke `physics` tests
 between `physics-core` and `standard`; see `.claude/rules/ci/conventions.md`,
 "Multi-Axis CI Topology" and "Test Tier Assignment by Event", for full event
-selection.) The `physics and slow and not core` set is the module
-`test/physics/test_continuation_matrix.py`: the parametrised
-`test_continuation_matrix` (chunked, checkpoint-resumed and streamed
-runs against an uninterrupted run, crossed with the default, leap-day,
-snow, SPARTACUS, STEBBS, dual-timescale EHC, DyOHM, DyOHM-building,
-irrigation and CO2 modes) and its
-negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
-not `core` on purpose: #2100 asks for this restart verification to stay out of
-`standard` and `physics-core`, so it runs whenever CI selects full `-m physics`
-and not on Python-only PRs that remain at `physics-core` (see
-`.claude/rules/ci/conventions.md`, "Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26] The two `slow`
-physics regressions
-(`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`
-and `::TestSTEBBSOutput::test_stebbs_building_energy_outputs`) are also `core`
-and run in `standard`. Before this module (9 September 2026, master at
-`ce29700498`) the two tiers collected the same 178 physics nodes.
+selection.) The `physics and slow and not core` set holds two entries:
+
+- `test/physics/test_continuation_matrix.py`: the parametrised
+  `test_continuation_matrix` (chunked, checkpoint-resumed and streamed
+  runs against an uninterrupted run, crossed with the default, leap-day,
+  snow, SPARTACUS, STEBBS, dual-timescale EHC, DyOHM, DyOHM-building,
+  irrigation and CO2 modes) and its
+  negative control `test_checkpoint_perturbation_is_detected`. It is `slow` and
+  not `core` on purpose: #2100 asks for this restart verification to stay out of
+  `standard` and `physics-core`, so it runs whenever CI selects full `-m physics`
+  and not on Python-only PRs that remain at `physics-core` (see
+  `.claude/rules/ci/conventions.md`, "Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26]
+- `test/core/test_ehc_reference.py::test_default_ehc_matches_committed_reference[ehc_facets]`:
+  the full-year SPARTACUS-facet implicit EHC exact reference (~280-310 CPU-s).
+  It is `slow` and not `core` on purpose under #2349 (`W1-5a`): the fast
+  startup-window witness `test_default_ehc_startup_matches_committed_reference`
+  (covering both `ehc_slab` and `ehc_facets` on the committed `2012-01-01` to
+  `2012-01-03` window) and full-year `ehc_slab` remain `core` in `standard`,
+  while the full-year `ehc_facets` reference runs in `physics-full` and nightly
+  tiers. [decision: software maintainer, 2026-11-24]
+
+Other `slow` physics regressions that also carry `core` (including
+`test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation_full_year`,
+`::TestSTEBBSOutput::test_stebbs_building_energy_outputs`,
+`test/core/test_sample_output_exact.py::test_sample_run_reproduces_reference_exactly`,
+`test/core/test_ehc_reference.py::test_default_ehc_matches_committed_reference[ehc_slab]`,
+and `test/core/test_ehc_implicit.py::test_stability_control_checkpoint_after_august_cycle[*]`)
+continue to run in `standard`. Before the continuation matrix (9 September
+2026, master at `ce29700498`) the two tiers collected the same 178 physics
+nodes.
 
 A collection check keeps this paragraph honest.
 `test/core/test_physics_tier_delta.py::test_physics_full_tier_adds_exactly_what_the_rule_records`
@@ -360,6 +375,7 @@ collect with.
 
 <!-- physics-full-only nodes: begin -->
 ```text
+test/core/test_ehc_reference.py::test_default_ehc_matches_committed_reference[ehc_facets]
 test/physics/test_continuation_matrix.py::test_continuation_matrix[*]
 test/physics/test_continuation_matrix.py::test_checkpoint_perturbation_is_detected
 ```

@@ -856,9 +856,25 @@ CONTAINS
             ELSE
                ! air temperature and wind speed at building/half building height from RSL
                ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL, modState%errorState)
+               IF (supy_error_flag()) THEN
+                  dataOutLineSTEBBS = -999.0D0
+                  RETURN
+               END IF
                ws_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineURSL, modState%errorState)
+               IF (supy_error_flag()) THEN
+                  dataOutLineSTEBBS = -999.0D0
+                  RETURN
+               END IF
                Tair_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineTRSL, modState%errorState)
+               IF (supy_error_flag()) THEN
+                  dataOutLineSTEBBS = -999.0D0
+                  RETURN
+               END IF
                Tair_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineTRSL, modState%errorState)
+               IF (supy_error_flag()) THEN
+                  dataOutLineSTEBBS = -999.0D0
+                  RETURN
+               END IF
             END IF
             sout%Tair_exch_bh = Tair_bh
             sout%Tair_exch_hbh = Tair_hbh

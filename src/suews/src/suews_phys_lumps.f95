@@ -158,8 +158,14 @@ CONTAINS
 
                LAI_id_prev = phenState%LAI_id
 
-               ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-               LAImax = [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max]
+               ! surface fractions for veg surfaces
+               sfrVeg = sfr_surf(ivConif + 2:ivGrass + 2)
+
+               ! Copy LAImax only for vegetation surfaces actually present (#2363).
+               LAImax = 0.0D0
+               IF (sfrVeg(1) > 0.0D0) LAImax(1) = evetrPrm%lai%lai_max
+               IF (sfrVeg(2) > 0.0D0) LAImax(2) = dectrPrm%lai%lai_max
+               IF (sfrVeg(3) > 0.0D0) LAImax(3) = grassPrm%lai%lai_max
 
                tlv = lv_J_kg/tstep_real !Latent heat of vapourisation per timestep
                ! initialize VegPhenLumps to output
@@ -167,9 +173,6 @@ CONTAINS
 
                ! initialize rain-related variables
                RainBucket = 0.
-
-               ! surface fractions fro veg surfaces
-               sfrVeg = sfr_surf(ivConif + 2:ivGrass + 2)
 
                ! Calculate slope of the saturation vapour pressure vs air temp.
                s_hPa = slope_svp(Temp_C)

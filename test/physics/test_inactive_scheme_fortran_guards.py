@@ -1,28 +1,35 @@
 """Regression tests for Fortran inactive-scheme parameter guards (#2363, #2348).
 
-Verifies at both the direct Fortran-kernel level (with literal IEEE NaN,
-zero denominators, and -999 sentinels) and end-to-end through ``SUEWSSimulation``
-that inactive-scheme parameters are not read and cannot corrupt outputs or
-trigger errors:
+Verifies at both the direct Fortran-kernel level (with literal IEEE quiet NaN,
+zero denominators, -999 sentinels, and strict IEEE exception-flag checks for
+``ieee_invalid`` and ``ieee_divide_by_zero``) and end-to-end through
+``SUEWSSimulation`` that inactive-scheme parameters are not read and cannot
+corrupt active outputs or trigger errors:
 
 - ``STEBBSmethod == 0`` (``STEBBS_NONE``): ``stebbsonlinecouple`` and
   ``gen_building`` ignore inactive STEBBS and ``building_archtype`` fields while
   preserving safe ``Textroof_C`` / ``Textwall_C`` allocation for downstream
-  ``ASSOCIATE`` blocks.
-- ``LAImethod == 0`` (observed LAI): ``update_gddlai``, ``update_Veg``, and
-  ``LUMPS_cal_QHQE`` ignore inactive GDD/SDD phenology parameters and
-  ``lai_min``; absent vegetation surfaces (``sfr == 0``) are also guarded in
-  ``update_Veg``.
-- ``EmissionsMethod`` inactive sub-schemes: ``update_DailyState_Day`` ignores
-  inactive heating/cooling base temperatures (``emissions=0`` ignores both;
-  L11 sub-methods ``1, 4, ...`` ignore cooling base temperatures), and
-  ``AnthropogenicEmissions`` ignores inactive CO2 parameters (and inactive
-  traffic profiles for sub-methods ``1..3``) when ``emissions`` is in ``1..6``.
+  ``ASSOCIATE`` blocks; incompatible ``StorageHeatMethod == SHM_STEBBS`` with
+  ``STEBBSmethod == 0`` is rejected cleanly before consuming ``QS_stebbs``.
+- ``LAImethod == 0`` (observed LAI) and absent vegetation (``sfr == 0``):
+  ``SUEWS_cal_DailyState`` and ``update_gddlai`` ignore inactive GDD/SDD
+  phenology parameters and ``lai_power`` while preserving active observed-LAI
+  vegetation updates (albedo, deciduous storage capacity, porosity) for present
+  vegetation; absent vegetation surfaces (``sfr == 0``) are skipped in
+  ``SUEWS_cal_DailyState``, ``update_gddlai``, ``update_Veg``, and
+  ``LUMPS_cal_QHQE``.
+- ``EmissionsMethod`` inactive sub-schemes: ``SUEWS_cal_DailyState`` and
+  ``update_DailyState_Day`` ignore inactive heating/cooling base temperatures;
+  ``SUEWS_cal_AnthropogenicEmission`` and ``AnthropogenicEmissions`` ignore
+  inactive CO2, cooling, L11/J11, and detailed-traffic parameters; and
+  ``SUEWS_cal_BiogenCO2`` does not read biogenic CO2 parameters when
+  ``EmissionsMethod < 11``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 import subprocess
 
 from conftest import TIMESTEPS_PER_DAY, require_fortran_probe_toolchain
@@ -39,54 +46,64 @@ pytestmark = [
     pytest.mark.contract("C-RESPONSE", "C-NATIVE-ERROR"),
 ]
 
-N_DAYS = 2
-RUN_STEPS = TIMESTEPS_PER_DAY * N_DAYS
-
-
-def _assert_frames_bit_identical(
-    df_a: pd.DataFrame,
-    df_b: pd.DataFrame,
-    *,
-    groups: tuple[str, ...] = ("SUEWS", "DailyState"),
-) -> None:
-    """Assert selected output groups match bit-for-bit (including NaN masks)."""
-    for group in groups:
-        sub_a = df_a.xs(group, level="group", axis=1)
-        sub_b = df_b.xs(group, level="group", axis=1)
-        assert list(sub_a.columns) == list(sub_b.columns)
-        arr_a = sub_a.to_numpy(dtype=np.float64)
-        arr_b = sub_b.to_numpy(dtype=np.float64)
-        nan_a = np.isnan(arr_a)
-        nan_b = np.isnan(arr_b)
-        assert np.array_equal(nan_a, nan_b), f"{group}: NaN mask differed"
-        bits_a = arr_a[~nan_a].view(np.uint64)
-        bits_b = arr_b[~nan_b].view(np.uint64)
-        n_diff = int(np.count_nonzero(bits_a != bits_b))
-        assert n_diff == 0, f"{group}: {n_diff} finite cell(s) differed at bit level"
+# Two full days so DailyState midnight rollover, update_gddlai, and update_Veg execute.
+RUN_STEPS = 2 * TIMESTEPS_PER_DAY
+STEBBS_FIXTURE_CONFIG = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "data_test"
+    / "stebbs_test"
+    / "sample_config.yml"
+)
 
 
 def _run_short_sim(
-    base_config,
-    df_forcing_base: pd.DataFrame,
+    base_cfg,
+    df_forcing: pd.DataFrame,
     *,
     mutate_config: Callable | None = None,
     mutate_forcing: Callable | None = None,
 ) -> pd.DataFrame:
-    """Run a deterministic two-day simulation from a defensive copy."""
-    cfg = base_config.model_copy(deep=True)
-    cfg.model.control.start_time = None
-    cfg.model.control.end_time = None
+    """Run a two-day SUEWSSimulation with optional config/forcing mutators."""
+    cfg = base_cfg.model_copy(deep=True)
     if mutate_config is not None:
         mutate_config(cfg)
-
-    df_forcing = df_forcing_base.iloc[:RUN_STEPS].copy()
+    forcing = df_forcing.copy()
     if mutate_forcing is not None:
-        mutate_forcing(df_forcing)
+        mutate_forcing(forcing)
+    sim = SUEWSSimulation()
+    sim.update_config(cfg, auto_load_forcing=False)
+    sim.update_forcing(forcing)
+    result = sim.run(
+        start_date=forcing.index[0],
+        end_date=forcing.index[-1],
+        n_jobs=1,
+    )
+    return result.df
 
-    sim = SUEWSSimulation(cfg)
-    sim.update_forcing(df_forcing)
-    res = sim.run(start_date=df_forcing.index[0], end_date=df_forcing.index[-1])
-    return res.df
+
+def _assert_frames_bit_identical(
+    df_base: pd.DataFrame,
+    df_mut: pd.DataFrame,
+    *,
+    groups: tuple[str, ...] = ("SUEWS", "DailyState"),
+) -> None:
+    """Assert two output DataFrames match bit-for-bit across selected groups."""
+    for grp in groups:
+        if grp not in df_base.columns.get_level_values("group"):
+            continue
+        a = df_base.xs(grp, level="group", axis=1).to_numpy(dtype=np.float64)
+        b = df_mut.xs(grp, level="group", axis=1).to_numpy(dtype=np.float64)
+        assert a.shape == b.shape, (
+            f"Shape mismatch in group {grp}: {a.shape} vs {b.shape}"
+        )
+        nan_a = np.isnan(a)
+        nan_b = np.isnan(b)
+        assert np.array_equal(nan_a, nan_b), f"NaN mask differs in group {grp}"
+        valid = ~nan_a
+        assert np.array_equal(a[valid].view(np.uint64), b[valid].view(np.uint64)), (
+            f"Bitwise output mismatch in group {grp}"
+        )
 
 
 def _set_val(container, attr: str, value) -> None:
@@ -96,6 +113,27 @@ def _set_val(container, attr: str, value) -> None:
         current.value = value
     else:
         setattr(container, attr, value)
+
+
+def _poison_stebbs_and_archetype(cfg) -> None:
+    """Set extreme STEBBS and building_archetype values while STEBBS is disabled."""
+    cfg.model.physics.stebbs.enabled = False
+    _set_val(cfg.model.physics.stebbs, "capacitance", RCMethod.PARAMETERISE)
+    props = cfg.sites[0].properties
+    arch = props.building_archetype
+    _set_val(arch, "area_footprint", 99999.0)
+    _set_val(arch, "area_wall_external", 88888.0)
+    _set_val(arch, "ratio_window_to_wall", 0.99)
+    _set_val(arch, "thickness_wall", 5.0)
+    _set_val(arch, "thickness_wall_outer", 4.5)
+    _set_val(arch, "conductivity_wall", 99.0)
+    _set_val(arch, "density_wall", 9999.0)
+    _set_val(arch, "specific_heat_capacity_wall", 9999.0)
+    stebbs = props.stebbs
+    _set_val(stebbs, "thermal_conductivity_ground", 50.0)
+    _set_val(stebbs, "depth_ground", 25.0)
+    _set_val(stebbs, "convection_coefficient_wall_external", 99.0)
+    _set_val(stebbs, "convection_coefficient_roof_external", 99.0)
 
 
 @pytest.fixture(scope="module")
@@ -114,32 +152,11 @@ def test_stebbs_disabled_ignores_inactive_stebbs_and_archetype_parameters(
     def configure_disabled_baseline(cfg) -> None:
         cfg.model.physics.stebbs.enabled = False
 
-    def configure_disabled_extreme(cfg) -> None:
-        cfg.model.physics.stebbs.enabled = False
-        # Even with RC_PARAMETERISE selected on the inactive STEBBS sub-switch,
-        # extreme archetype / STEBBS properties must never be evaluated.
-        _set_val(cfg.model.physics.stebbs, "capacitance", RCMethod.PARAMETERISE)
-        props = cfg.sites[0].properties
-        arch = props.building_archetype
-        _set_val(arch, "area_footprint", 99999.0)
-        _set_val(arch, "area_wall_external", 88888.0)
-        _set_val(arch, "ratio_window_to_wall", 0.99)
-        _set_val(arch, "thickness_wall", 5.0)
-        _set_val(arch, "thickness_wall_outer", 4.5)
-        _set_val(arch, "conductivity_wall", 99.0)
-        _set_val(arch, "density_wall", 9999.0)
-        _set_val(arch, "specific_heat_capacity_wall", 9999.0)
-        stebbs = props.stebbs
-        _set_val(stebbs, "thermal_conductivity_ground", 50.0)
-        _set_val(stebbs, "depth_ground", 25.0)
-        _set_val(stebbs, "convection_coefficient_wall_external", 99.0)
-        _set_val(stebbs, "convection_coefficient_roof_external", 99.0)
-
     df_base = _run_short_sim(
         base_cfg, df_forcing, mutate_config=configure_disabled_baseline
     )
     df_mut = _run_short_sim(
-        base_cfg, df_forcing, mutate_config=configure_disabled_extreme
+        base_cfg, df_forcing, mutate_config=_poison_stebbs_and_archetype
     )
 
     _assert_frames_bit_identical(
@@ -149,15 +166,53 @@ def test_stebbs_disabled_ignores_inactive_stebbs_and_archetype_parameters(
     assert np.isfinite(df_mut.xs("SUEWS", level="group", axis=1)["QS"]).all()
 
 
-def test_observed_lai_ignores_inactive_phenology_and_lai_min_parameters(
+def test_ehc_with_stebbs_disabled_ignores_inactive_stebbs_archetype_parameters(
     _two_day_sample,
 ):
-    """laimethod=0 outputs are bit-identical under perturbed GDD/SDD/lai_min params."""
+    """Active EHC (storage_heat=5) stays unaffected by extreme inactive STEBBS fields."""
+    base_cfg, df_forcing = _two_day_sample
+
+    def configure_ehc_base(cfg) -> None:
+        cfg.model.physics.net_radiation = 3
+        cfg.model.physics.storage_heat = 5
+        cfg.model.physics.ehc_surface_coupling = "implicit"
+        cfg.model.physics.stebbs.enabled = False
+
+    def configure_ehc_extreme(cfg) -> None:
+        configure_ehc_base(cfg)
+        _poison_stebbs_and_archetype(cfg)
+
+    df_base = _run_short_sim(base_cfg, df_forcing, mutate_config=configure_ehc_base)
+    df_mut = _run_short_sim(base_cfg, df_forcing, mutate_config=configure_ehc_extreme)
+
+    _assert_frames_bit_identical(df_base, df_mut, groups=("SUEWS", "DailyState", "EHC"))
+    assert np.isfinite(df_mut.xs("SUEWS", level="group", axis=1)["QS"]).all()
+
+
+def test_active_stebbs_produces_finite_building_outputs():
+    """Active STEBBS (storage_heat=7, stebbs enabled) continues to produce finite outputs."""
+    sim = SUEWSSimulation(STEBBS_FIXTURE_CONFIG)
+    df_forcing = sim.forcing.df.loc["2017-08-26":"2017-08-26"].iloc[:24].copy()
+    df_forcing["rain"] = df_forcing["rain"].clip(lower=0)
+    sim.update_forcing(df_forcing)
+    result = sim.run(
+        start_date=df_forcing.index[0],
+        end_date=df_forcing.index[-1],
+        n_jobs=1,
+    )
+    stebbs = result.df.xs("STEBBS", level="group", axis=1)
+    for col in ("Tair_ind", "QN_bldg_FA", "QS_total_FA", "QH_bldg_FA"):
+        vals = stebbs[col].to_numpy(dtype=np.float64)
+        assert np.isfinite(vals).all(), f"Active STEBBS column {col} became non-finite"
+
+
+def test_observed_lai_ignores_inactive_phenology_parameters(_two_day_sample):
+    """laimethod=0 ignores GDD/SDD/lai_power while preserving active vegetation updates."""
     base_cfg, df_forcing = _two_day_sample
 
     def add_varying_observed_lai(df: pd.DataFrame) -> None:
         # Vary observed LAI across the two days so LAI_id /= LAI_id_prev in
-        # update_Veg, proving update_Veg does not divide by (lai_max - lai_min).
+        # update_Veg, proving active observed-LAI vegetation updates still run.
         n_half = TIMESTEPS_PER_DAY
         lai_vals = np.concatenate([
             np.full(n_half, 1.5),
@@ -177,7 +232,6 @@ def test_observed_lai_ignores_inactive_phenology_and_lai_min_parameters(
             _set_val(lai, "base_temperature_senescence", -25.0)
             _set_val(lai, "gdd_base", 9999.0)
             _set_val(lai, "sdd_base", -9999.0)
-            _set_val(lai, "lai_min", 0.05)
             _set_val(lai.lai_power, "growth_lai", 9.0)
             _set_val(lai.lai_power, "growth_gdd", 9.0)
             _set_val(lai.lai_power, "senescence_lai", 9.0)
@@ -200,6 +254,10 @@ def test_observed_lai_ignores_inactive_phenology_and_lai_min_parameters(
     ds = df_mut.xs("DailyState", level="group", axis=1).dropna(how="all")
     for col in ("LAI_EveTr", "LAI_DecTr", "LAI_Grass", "AlbDecTr", "Porosity"):
         assert np.isfinite(ds[col]).all(), f"{col} became non-finite under laimethod=0"
+    # Active observed-LAI response must still update vegetation properties across days.
+    assert ds["LAI_DecTr"].iloc[-1] != ds["LAI_DecTr"].iloc[0]
+    assert ds["AlbDecTr"].iloc[-1] != ds["AlbDecTr"].iloc[0]
+    assert ds["Porosity"].iloc[-1] != ds["Porosity"].iloc[0]
 
 
 def test_observed_emissions_ignores_inactive_base_temps_and_co2_parameters(
@@ -311,18 +369,76 @@ def test_heat_only_emissions_ignores_inactive_co2_and_submethod_parameters(
         np.testing.assert_array_equal(ds["HDD2_c"].to_numpy(), 0.0)
 
 
+@pytest.mark.parametrize(
+    "emissions_code",
+    [11, 12],
+    ids=["L11-inst-with-co2", "J11-with-co2"],
+)
+def test_co2_enabled_emissions_ignores_inactive_submethod_parameters(
+    _two_day_sample,
+    emissions_code: int,
+):
+    """CO2-enabled emissions (11, 12) remain active while ignoring inactive fields."""
+    base_cfg, df_forcing = _two_day_sample
+
+    def configure_base(cfg) -> None:
+        cfg.model.physics.emissions = EmissionsMethod(emissions_code)
+
+    def configure_perturbed(cfg) -> None:
+        cfg.model.physics.emissions = EmissionsMethod(emissions_code)
+        ae = cfg.sites[0].properties.anthropogenic_emissions
+        heat = ae.heat
+        co2 = ae.co2
+        # Simple CO2 sub-methods (11..13) do not consume traffic_rate.
+        _set_val(co2.traffic_rate, "working_day", 99.0)
+        _set_val(co2.traffic_rate, "holiday", 99.0)
+        if emissions_code == 11:
+            # L11 instantaneous does not consume cooling base temp or J11 Qf_A/B/C.
+            _set_val(heat.baset_cooling, "working_day", -30.0)
+            _set_val(heat.baset_cooling, "holiday", -30.0)
+            _set_val(heat.ah_slope_cooling, "working_day", 99.0)
+            _set_val(heat.ah_slope_cooling, "holiday", 99.0)
+            _set_val(heat.qf_a, "working_day", 99.0)
+            _set_val(heat.qf_b, "working_day", 99.0)
+            _set_val(heat.qf_c, "working_day", 99.0)
+        elif emissions_code == 12:
+            # J11 does not consume L11 ah_min or L11 heating/cooling slopes.
+            _set_val(heat.ah_min, "working_day", 99.0)
+            _set_val(heat.ah_slope_heating, "working_day", 99.0)
+            _set_val(heat.ah_slope_cooling, "working_day", 99.0)
+
+    df_base = _run_short_sim(base_cfg, df_forcing, mutate_config=configure_base)
+    df_mut = _run_short_sim(base_cfg, df_forcing, mutate_config=configure_perturbed)
+
+    _assert_frames_bit_identical(df_base, df_mut, groups=("SUEWS", "DailyState"))
+    suews = df_mut.xs("SUEWS", level="group", axis=1)
+    assert np.isfinite(suews["Fc"]).all()
+    assert np.any(suews["Fc"].to_numpy() != 0.0)
+
+
 def test_native_fortran_guards_survive_nan_and_zero_inactive_parameters(tmp_path):
-    """Direct Fortran probe verifies NaN / -999 / zero denominators stay inert."""
+    """Direct Fortran probe verifies NaN / -999 / zero denominators stay inert.
+
+    Checks IEEE exception flags (``ieee_invalid`` and ``ieee_divide_by_zero``)
+    around every guarded call so silent NaN comparisons or divisions cannot pass.
+    """
     compiler, suews = require_fortran_probe_toolchain(
         "Native inactive-scheme guard probe",
-        libraries=("libsuewsphys.a", "libsuewsutil.a", "libspartacus.a"),
+        libraries=(
+            "libsuewsdriver.a",
+            "libsuewsphys.a",
+            "libsuewsutil.a",
+            "libspartacus.a",
+        ),
         modules=(
             "module_ctrl_const_options.mod",
+            "module_ctrl_driver.mod",
             "module_ctrl_error_state.mod",
             "module_ctrl_type.mod",
             "module_phys_anthro.mod",
             "module_phys_dailystate.mod",
             "module_phys_lai.mod",
+            "module_phys_lumps.mod",
             "module_phys_stebbs.mod",
         ),
     )
@@ -330,20 +446,30 @@ def test_native_fortran_guards_survive_nan_and_zero_inactive_parameters(tmp_path
     source.write_text(
         """program inactive_guards_probe
 use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
-use module_ctrl_const_allocate, only: ncolumnsDataOutSTEBBS, nsurf, nvegsurf
-use module_ctrl_const_options, only: STEBBS_NONE, RC_PARAMETERISE
+use, intrinsic :: ieee_exceptions, only: ieee_invalid, ieee_divide_by_zero, &
+   ieee_set_flag, ieee_get_flag
+use module_ctrl_const_allocate, only: &
+   ncolumnsDataOutSTEBBS, ncolumnsDataOutSPARTACUS, nsurf, nvegsurf, &
+   PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
+   ivConif, ivDecid, ivGrass
+use module_ctrl_const_options, only: &
+   STEBBS_NONE, RC_PARAMETERISE, SHM_STEBBS
+use module_ctrl_driver, only: SUEWS_cal_Main, SUEWS_cal_Qn, SUEWS_cal_BiogenCO2
 use module_ctrl_error_state, only: reset_supy_error, supy_error_flag
 use module_ctrl_type, only: &
-   SUEWS_CLOCK, SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_STATE, &
-   STEBBS_STATE, STEBBS_PRM, BUILDING_ARCHETYPE_PRM, STEBBS_BLDG, error_state
+   SUEWS_CLOCK, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_STATE, &
+   STEBBS_STATE, STEBBS_PRM, BUILDING_ARCHETYPE_PRM, STEBBS_BLDG, error_state, &
+   output_line
 use module_phys_stebbs, only: stebbsonlinecouple
 use module_phys_lai, only: update_gddlai
-use module_phys_dailystate, only: update_DailyState_Day, update_Veg
+use module_phys_dailystate, only: SUEWS_cal_DailyState, update_DailyState_Day, update_Veg
 use module_phys_anthro, only: AnthropogenicEmissions
+use module_phys_lumps, only: LUMPS_cal_QHQE
 implicit none
 
 real(kind(1d0)) :: qnan
 type(SUEWS_CLOCK) :: clock
+type(SUEWS_TIMER) :: timer
 type(SUEWS_CONFIG) :: config
 type(SUEWS_FORCING) :: forcing
 type(SUEWS_SITE) :: siteInfo
@@ -353,7 +479,9 @@ type(STEBBS_PRM) :: stebbsPrm
 type(BUILDING_ARCHETYPE_PRM) :: arch
 type(STEBBS_BLDG) :: bldg
 type(error_state) :: errState
+type(output_line) :: outLine
 real(kind(1d0)) :: dtLine(5), outSTEBBS(ncolumnsDataOutSTEBBS - 5)
+real(kind(1d0)) :: outSPARTACUS(ncolumnsDataOutSPARTACUS - 5)
 
 ! DailyState / LAI / Veg locals
 real(kind(1d0)) :: lai_obs(nvegsurf), lai_prev(nvegsurf), lai_next(nvegsurf)
@@ -391,7 +519,9 @@ stebbsPrm%external_ground_conductivity = qnan
 stebbsState%wall_outdoor_surface_temperature = qnan
 stebbsState%roof_outdoor_surface_temperature = qnan
 
+call clear_fpe()
 call gen_building(stebbsState, stebbsPrm, arch, config, bldg, 3, errState)
+call assert_no_fpe(101)
 if (supy_error_flag()) stop 10
 if (.not. allocated(bldg%Textroof_C) .or. size(bldg%Textroof_C) /= 3) stop 11
 if (.not. allocated(bldg%Textwall_C) .or. size(bldg%Textwall_C) /= 3) stop 12
@@ -402,66 +532,211 @@ siteInfo%building_archtype = arch
 siteInfo%stebbs = stebbsPrm
 dtLine = 0.0d0
 outSTEBBS = 0.0d0
+call clear_fpe()
 call stebbsonlinecouple(clock, config, forcing, siteInfo, modState, dtLine, 3, outSTEBBS)
+call assert_no_fpe(102)
 if (supy_error_flag()) stop 15
 if (allocated(modState%stebbsState%buildings)) stop 16
 if (any(outSTEBBS /= -999.0d0)) stop 17
 
 ! -------------------------------------------------------------------------
-! 2. update_gddlai with lai_calc_yes == 0: must not read NaN/sentinel
-!    base_t_gdd, base_t_sdd, gdd_base, sdd_base, lai_min, lai_max, lai_power.
+! 2. StorageHeatMethod == SHM_STEBBS with STEBBSmethod == STEBBS_NONE:
+!    SUEWS_cal_Qn and SUEWS_cal_Main must reject the incompatible pair
+!    before consuming poisoned QS_stebbs or uninitialised STEBBS state.
 ! -------------------------------------------------------------------------
 call reset_supy_error()
-lai_obs = [1.2d0, 2.4d0, 3.6d0]
-lai_prev = [1.0d0, 1.0d0, 1.0d0]
-gdd = [10.0d0, 20.0d0, 30.0d0]
-sdd = [-1.0d0, -2.0d0, -3.0d0]
-base_t_gdd = qnan
-base_t_sdd = -999.0d0
-gdd_base = qnan
-sdd_base = qnan
-lai_min = -999.0d0
-lai_max = qnan
-lai_power = qnan
+config%StorageHeatMethod = SHM_STEBBS
+config%stebbsmethod = STEBBS_NONE
+modState%stebbsState%QS_stebbs = qnan
+modState%heatState%qs = 0.0d0
+outSPARTACUS = 0.0d0
+call clear_fpe()
+call SUEWS_cal_Qn(clock, config, forcing, siteInfo, modState, outSPARTACUS)
+call assert_no_fpe(103)
+if (.not. supy_error_flag()) stop 18
+if (any(outSPARTACUS /= -999.0d0)) stop 19
 
-call update_gddlai( &
-   id=120, lai_calc_yes=0, lat=51.5d0, lai_obs=lai_obs, &
-   t_min_id_prev=5.0d0, t_max_id_prev=20.0d0, &
-   base_t_gdd=base_t_gdd, base_t_sdd=base_t_sdd, &
-   gdd_base=gdd_base, sdd_base=sdd_base, &
-   lai_min=lai_min, lai_max=lai_max, lai_power=lai_power, &
-   lai_id_prev=lai_prev, gdd_id=gdd, sdd_id=sdd, lai_id_next=lai_next)
-if (supy_error_flag()) stop 20
-if (any(lai_next /= lai_obs)) stop 21
-if (any(gdd /= [10.0d0, 20.0d0, 30.0d0])) stop 22
-if (any(sdd /= [-1.0d0, -2.0d0, -3.0d0])) stop 23
+call reset_supy_error()
+timer%iy = 2012
+timer%id = 120
+timer%it = 12
+timer%imin = 0
+timer%isec = 0
+timer%tstep = 300
+timer%tstep_prev = 300
+timer%dt_since_start = 300
+modState%stebbsState%QS_stebbs = qnan
+modState%heatState%qs = 0.0d0
+call clear_fpe()
+call SUEWS_cal_Main(timer, forcing, config, siteInfo, modState, outLine)
+call assert_no_fpe(104)
+if (.not. supy_error_flag()) stop 20
+if (.not. ieee_is_finite(modState%heatState%qs)) stop 21
+config%StorageHeatMethod = 1
 
 ! -------------------------------------------------------------------------
-! 3. update_Veg with lai_calc_yes == 0 (sentinel lai_min / NaN lai_max) and
-!    with absent vegetation (sfr_veg == 0, NaN albedo/porosity bounds).
+! 3. Full SUEWS_cal_DailyState closing-step path:
+!    (a) Modelled LAI (LAImethod=1) with absent DecidSurf (sfr=0) poisoned
+!        with NaN GDD/SDD/LAI/albedo/capacity/porosity -> must not trigger
+!        error 117 or IEEE_INVALID, while active EveTr/Grass update cleanly.
+!    (b) Observed LAI (LAImethod=0) with NaN GDD/SDD/lai_power and varying
+!        observed LAI -> must update active albedo/capacity/porosity without
+!        raising errors or IEEE_INVALID.
 ! -------------------------------------------------------------------------
+call reset_supy_error()
+clock%timer%tstep = 300
+clock%timer%tstep_prev = 300
+clock%timer%dt_since_start = 86400
+clock%nsh_real = 12.0d0
+clock%id_day = 150
+clock%dayofWeek_day = [2, 5, 2]
+clock%elapsed_sec_of_day = 86400
+clock%first_step_of_run = .false.
+clock%first_step_of_day = .false.
+clock%last_step_of_day = .true.
+clock%prev_step_closed_day = .false.
+clock%first_step_of_deliv_day_st = .false.
+
+config%LAImethod = 1
+config%EmissionsMethod = 0
+config%RSLLevel = 0
+config%WaterUseMethod = 0
+
+siteInfo%lat = 51.5d0
+siteInfo%sfr_surf = 0.0d0
+siteInfo%sfr_surf(PavSurf) = 0.5d0
+siteInfo%sfr_surf(ConifSurf) = 0.25d0
+siteInfo%sfr_surf(DecidSurf) = 0.0d0
+siteInfo%sfr_surf(GrassSurf) = 0.25d0
+
+! Active EveTr and Grass phenology/albedo bounds
+siteInfo%lc_evetr%lai%base_temperature = 5.0d0
+siteInfo%lc_evetr%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_evetr%lai%gdd_base = 300.0d0
+siteInfo%lc_evetr%lai%sdd_base = -450.0d0
+siteInfo%lc_evetr%lai%lai_min = 4.0d0
+siteInfo%lc_evetr%lai%lai_max = 5.1d0
+siteInfo%lc_evetr%lai%lai_power = [0.03d0, 0.0005d0, 0.03d0, 0.0005d0]
+siteInfo%lc_evetr%Alb_Min = 0.10d0
+siteInfo%lc_evetr%Alb_Max = 0.14d0
+
+siteInfo%lc_grass%lai%base_temperature = 5.0d0
+siteInfo%lc_grass%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_grass%lai%gdd_base = 300.0d0
+siteInfo%lc_grass%lai%sdd_base = -450.0d0
+siteInfo%lc_grass%lai%lai_min = 1.6d0
+siteInfo%lc_grass%lai%lai_max = 5.9d0
+siteInfo%lc_grass%lai%lai_power = [0.03d0, 0.0005d0, 0.03d0, 0.0005d0]
+siteInfo%lc_grass%Alb_Min = 0.18d0
+siteInfo%lc_grass%Alb_Max = 0.22d0
+
+! Poison ALL parameters of absent DecidSurf with literal NaN
+siteInfo%lc_dectr%lai%base_temperature = qnan
+siteInfo%lc_dectr%lai%base_temperature_senescence = qnan
+siteInfo%lc_dectr%lai%gdd_base = qnan
+siteInfo%lc_dectr%lai%sdd_base = qnan
+siteInfo%lc_dectr%lai%lai_min = qnan
+siteInfo%lc_dectr%lai%lai_max = qnan
+siteInfo%lc_dectr%lai%lai_power = qnan
+siteInfo%lc_dectr%Alb_Min = qnan
+siteInfo%lc_dectr%Alb_Max = qnan
+siteInfo%lc_dectr%capacity_min_deciduous = qnan
+siteInfo%lc_dectr%capacity_max_deciduous = qnan
+siteInfo%lc_dectr%porosity_min_deciduous = qnan
+siteInfo%lc_dectr%porosity_max_deciduous = qnan
+
+! Poison inactive heating/cooling base temps for EmissionsMethod=0
+siteInfo%anthroEmis%anthro_heat%BaseT_Heating_working = qnan
+siteInfo%anthroEmis%anthro_heat%BaseT_Heating_holiday = qnan
+siteInfo%anthroEmis%anthro_heat%BaseT_Cooling_working = qnan
+siteInfo%anthroEmis%anthro_heat%BaseT_Cooling_holiday = qnan
+
+forcing%kdown = 250.0d0
+forcing%Temp_C = 18.0d0
+forcing%rain = 0.0d0
+forcing%LAI_evetr = 4.2d0
+forcing%LAI_dectr = 2.0d0
+forcing%LAI_grass = 2.5d0
+
+modState%flagState%i_iter = 1
+modState%phenState%Tmin_id = 12.0d0
+modState%phenState%Tmax_id = 22.0d0
+modState%phenState%lenDay_id = 12.0d0
+modState%phenState%LAI_id = [4.2d0, 1.0d0, 2.5d0]
+modState%phenState%GDD_id = [100.0d0, 0.0d0, 100.0d0]
+modState%phenState%SDD_id = [0.0d0, 0.0d0, 0.0d0]
+modState%phenState%albEveTr_id = 0.11d0
+modState%phenState%albDecTr_id = 0.14d0
+modState%phenState%albGrass_id = 0.19d0
+modState%phenState%DecidCap_id = 0.5d0
+modState%phenState%porosity_id = 0.45d0
+modState%phenState%storage_drain_params = 0.0d0
+modState%anthroEmisState%HDD_id = 0.0d0
+
+call clear_fpe()
+call SUEWS_cal_DailyState(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(105)
+if (supy_error_flag()) stop 22
+if (.not. ieee_is_finite(modState%phenState%LAI_id(ivConif))) stop 23
+if (.not. ieee_is_finite(modState%phenState%LAI_id(ivGrass))) stop 24
+if (abs(modState%phenState%LAI_id(ivDecid) - 1.0d0) > 1.0d-12) stop 25
+if (abs(modState%phenState%albDecTr_id - 0.14d0) > 1.0d-12) stop 26
+
+! Now test LAImethod=0 with present DecidSurf, varying observed LAI, and
+! NaN GDD/SDD/lai_power: active vegetation updates must run cleanly.
+call reset_supy_error()
+config%LAImethod = 0
+siteInfo%sfr_surf(DecidSurf) = 0.25d0
+siteInfo%sfr_surf(PavSurf) = 0.25d0
+siteInfo%lc_dectr%lai%lai_min = 1.0d0
+siteInfo%lc_dectr%lai%lai_max = 3.0d0
+siteInfo%lc_dectr%Alb_Min = 0.12d0
+siteInfo%lc_dectr%Alb_Max = 0.18d0
+siteInfo%lc_dectr%capacity_min_deciduous = 0.3d0
+siteInfo%lc_dectr%capacity_max_deciduous = 0.8d0
+siteInfo%lc_dectr%porosity_min_deciduous = 0.2d0
+siteInfo%lc_dectr%porosity_max_deciduous = 0.6d0
+siteInfo%lc_evetr%lai%base_temperature = qnan
+siteInfo%lc_evetr%lai%base_temperature_senescence = qnan
+siteInfo%lc_evetr%lai%gdd_base = qnan
+siteInfo%lc_evetr%lai%sdd_base = qnan
+siteInfo%lc_evetr%lai%lai_power = qnan
+siteInfo%lc_grass%lai%base_temperature = qnan
+siteInfo%lc_grass%lai%base_temperature_senescence = qnan
+siteInfo%lc_grass%lai%gdd_base = qnan
+siteInfo%lc_grass%lai%sdd_base = qnan
+siteInfo%lc_grass%lai%lai_power = qnan
+
+modState%phenState%LAI_id = [4.2d0, 1.0d0, 2.5d0]
+modState%phenState%albDecTr_id = 0.14d0
+modState%phenState%DecidCap_id = 0.5d0
+modState%phenState%porosity_id = 0.45d0
+forcing%LAI_evetr = 4.2d0
+forcing%LAI_dectr = 2.0d0
+forcing%LAI_grass = 2.5d0
+
+call clear_fpe()
+call SUEWS_cal_DailyState(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(106)
+if (supy_error_flag()) stop 27
+! deltaLAI = (2 - 1)/(3 - 1) = 0.5 -> albDecTr: 0.14 + (0.18 - 0.12)*0.5 = 0.17
+if (abs(modState%phenState%albDecTr_id - 0.17d0) > 1.0d-12) stop 28
+! porChange = (0.2 - 0.6)*0.5 = -0.2 -> porosity: 0.45 - 0.20 = 0.25
+if (abs(modState%phenState%porosity_id - 0.25d0) > 1.0d-12) stop 29
+! CapChange = (0.3 - 0.8)*0.5 = -0.25 -> DecidCap: 0.5 - (-0.25) = 0.75
+if (abs(modState%phenState%DecidCap_id - 0.75d0) > 1.0d-12) stop 30
+
+! Direct update_Veg probe with all surfaces absent and NaN bounds
 decid_cap = 0.5d0
 alb_dec = 0.14d0
 alb_eve = 0.10d0
 alb_gra = 0.20d0
 poros = 0.45d0
 store_drain = 0.0d0
-call update_Veg( &
-   LAImax=[qnan, qnan, qnan], LAIMin=[-999.0d0, -999.0d0, -999.0d0], &
-   AlbMax_DecTr=0.18d0, AlbMax_EveTr=0.12d0, AlbMax_Grass=0.25d0, &
-   AlbMin_DecTr=0.12d0, AlbMin_EveTr=0.08d0, AlbMin_Grass=0.15d0, &
-   CapMax_dec=0.8d0, CapMin_dec=0.3d0, &
-   PorMax_dec=0.6d0, PorMin_dec=0.2d0, &
-   LAI_id=lai_obs, LAI_id_prev=lai_prev, &
-   DecidCap_id=decid_cap, albDecTr_id=alb_dec, albEveTr_id=alb_eve, &
-   albGrass_id=alb_gra, porosity_id=poros, StoreDrainPrm=store_drain, &
-   lai_calc_yes=0)
-if (.not. (ieee_is_finite(decid_cap) .and. ieee_is_finite(alb_dec) .and. &
-           ieee_is_finite(alb_eve) .and. ieee_is_finite(alb_gra) .and. &
-           ieee_is_finite(poros))) stop 30
-if (abs(decid_cap - 0.5d0) > 1.0d-12 .or. abs(poros - 0.45d0) > 1.0d-12) stop 31
-
 sfr_zero = 0.0d0
+lai_obs = [1.2d0, 2.4d0, 3.6d0]
+lai_prev = [1.0d0, 1.0d0, 1.0d0]
+call clear_fpe()
 call update_Veg( &
    LAImax=[qnan, qnan, qnan], LAIMin=[qnan, qnan, qnan], &
    AlbMax_DecTr=qnan, AlbMax_EveTr=qnan, AlbMax_Grass=qnan, &
@@ -471,10 +746,11 @@ call update_Veg( &
    LAI_id=lai_obs, LAI_id_prev=lai_prev, &
    DecidCap_id=decid_cap, albDecTr_id=alb_dec, albEveTr_id=alb_eve, &
    albGrass_id=alb_gra, porosity_id=poros, StoreDrainPrm=store_drain, &
-   lai_calc_yes=1, sfr_veg=sfr_zero)
+   sfr_veg=sfr_zero)
+call assert_no_fpe(107)
 if (.not. (ieee_is_finite(decid_cap) .and. ieee_is_finite(alb_dec) .and. &
            ieee_is_finite(alb_eve) .and. ieee_is_finite(alb_gra) .and. &
-           ieee_is_finite(poros))) stop 32
+           ieee_is_finite(poros))) stop 31
 
 ! -------------------------------------------------------------------------
 ! 4. update_DailyState_Day with calc_hdd=.false., calc_cdd=.false. and
@@ -484,19 +760,21 @@ tmin_id = 15.0d0
 tmax_id = 15.0d0
 lenday_id = 0.0d0
 hdd_id = 0.0d0
+call clear_fpe()
 call update_DailyState_Day( &
    DayofWeek_id=[2, 1, 1], avkdn=200.0d0, Tair=12.0d0, Precip=1.5d0, &
    BaseT_Heating=[qnan, -999.0d0], BaseT_Cooling=[-999.0d0, qnan], &
    nsh_real=12.0d0, Tmin_id=tmin_id, Tmax_id=tmax_id, lenDay_id=lenday_id, &
    HDD_id=hdd_id, calc_hdd=.false., calc_cdd=.false.)
+call assert_no_fpe(108)
 if (hdd_id(1) /= 0.0d0 .or. hdd_id(2) /= 0.0d0) stop 40
 if (abs(hdd_id(3) - 12.0d0) > 1.0d-12 .or. abs(hdd_id(5) - 1.5d0) > 1.0d-12) stop 41
 if (abs(tmin_id - 12.0d0) > 1.0d-12 .or. abs(tmax_id - 15.0d0) > 1.0d-12) stop 42
 
 ! -------------------------------------------------------------------------
-! 5. AnthropogenicEmissions for emissions=1..6 with NaN CO2 parameters,
-!    EnEF_v_Jkm=0.0 (for 1..3), NaN TraffProf_24hr (for 1..3), and
-!    NaN BaseT_Cooling (for 1, 4).
+! 5. AnthropogenicEmissions for emissions=1..6 and SUEWS_cal_BiogenCO2 for
+!    emissions < 11 with literal NaN inactive CO2/biogenic/traffic/cooling
+!    parameters and zero EnEF_v_Jkm denominator (for 1..3).
 ! -------------------------------------------------------------------------
 ah_prof = 1.0d0
 hum_prof = 1.5d0
@@ -513,6 +791,7 @@ do em = 1, 6
    else
       traff_prof = 1.0d0
    end if
+   call clear_fpe()
    call AnthropogenicEmissions( &
       CO2PointSource=qnan, EmissionsMethod=em, &
       it=12, imin=0, DLS=0, DayofWeek_id=[2, 1, 1], &
@@ -537,13 +816,92 @@ do em = 1, 6
       AHProf_24hr=ah_prof, HumActivity_24hr=hum_prof, &
       TraffProf_24hr=traff_prof, PopProf_24hr=pop_prof, &
       SurfaceArea=1.0d6, QF_build_out=qf_build_out)
+   call assert_no_fpe(110 + em)
    if (supy_error_flag()) stop 50
    if (.not. ieee_is_finite(qf_sahp) .or. .not. ieee_is_finite(qf_build_out)) stop 51
    if (fc_anthro /= 0.0d0 .or. fc_metab /= 0.0d0 .or. fc_traff /= 0.0d0 .or. &
        fc_build /= 0.0d0 .or. fc_point /= 0.0d0) stop 52
 end do
 
+! SUEWS_cal_BiogenCO2 with EmissionsMethod=2 and poisoned biogenic CO2 params
+call reset_supy_error()
+config%EmissionsMethod = 2
+siteInfo%lc_evetr%bioco2%alpha_bioco2 = qnan
+siteInfo%lc_dectr%bioco2%beta_bioco2 = qnan
+siteInfo%lc_grass%bioco2%theta_bioco2 = qnan
+siteInfo%lc_evetr%bioco2%resp_a = qnan
+siteInfo%lc_dectr%bioco2%resp_b = qnan
+siteInfo%lc_grass%bioco2%min_res_bioco2 = qnan
+modState%anthroEmisState%Fc_anthro = 0.0d0
+call clear_fpe()
+call SUEWS_cal_BiogenCO2(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(120)
+if (supy_error_flag()) stop 53
+if (modState%anthroEmisState%Fc_biogen /= 0.0d0 .or. &
+    modState%anthroEmisState%Fc /= 0.0d0) stop 54
+
+! -------------------------------------------------------------------------
+! 6. LUMPS_cal_QHQE with mixed present/absent vegetation (DecidSurf sfr=0)
+!    and NaN lai_max/lai_min on the absent surface.
+! -------------------------------------------------------------------------
+call reset_supy_error()
+siteInfo%sfr_surf = 0.0d0
+siteInfo%sfr_surf(PavSurf) = 0.5d0
+siteInfo%sfr_surf(ConifSurf) = 0.25d0
+siteInfo%sfr_surf(DecidSurf) = 0.0d0
+siteInfo%sfr_surf(GrassSurf) = 0.25d0
+siteInfo%lc_evetr%lai%lai_max = 5.1d0
+siteInfo%lc_grass%lai%lai_max = 5.9d0
+siteInfo%lc_dectr%lai%lai_max = qnan
+siteInfo%lc_dectr%lai%lai_min = qnan
+siteInfo%lumps%veg_type = 1
+siteInfo%lumps%drain_rate = 0.25d0
+siteInfo%lumps%rain_max_res = 10.0d0
+siteInfo%lumps%rain_cover = 1.0d0
+config%SnowUse = 0
+clock%tstep_real = 300.0d0
+clock%nsh_real = 12.0d0
+forcing%Temp_C = 18.0d0
+forcing%pres = 1013.0d0
+forcing%rain = 0.0d0
+modState%flagState%i_iter = 1
+modState%atmState%av_cp = 1005.0d0
+modState%atmState%lv_J_kg = 2.45d6
+modState%heatState%qn = 200.0d0
+modState%heatState%qf = 20.0d0
+modState%heatState%qs = 30.0d0
+modState%snowState%qm = 0.0d0
+modState%phenState%LAI_id = [4.0d0, qnan, 2.5d0]
+
+call clear_fpe()
+call LUMPS_cal_QHQE(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(121)
+if (supy_error_flag()) stop 60
+if (.not. ieee_is_finite(modState%heatState%QH_LUMPS)) stop 61
+if (.not. ieee_is_finite(modState%heatState%QE_LUMPS)) stop 62
+if (.not. ieee_is_finite(modState%phenState%veg_phen_lumps)) stop 63
+
 write(*, '(a)') 'all inactive-scheme Fortran guards passed'
+
+contains
+
+subroutine clear_fpe()
+   call ieee_set_flag(ieee_invalid, .false.)
+   call ieee_set_flag(ieee_divide_by_zero, .false.)
+end subroutine clear_fpe
+
+subroutine assert_no_fpe(code)
+   integer, intent(in) :: code
+   logical :: inv_flag, divz_flag
+   call ieee_get_flag(ieee_invalid, inv_flag)
+   call ieee_get_flag(ieee_divide_by_zero, divz_flag)
+   if (inv_flag .or. divz_flag) then
+      write(*, '(a,i0,a,l1,a,l1)') 'FPE raised at checkpoint ', code, &
+         ' invalid=', inv_flag, ' divzero=', divz_flag
+      stop 99
+   end if
+end subroutine assert_no_fpe
+
 end program inactive_guards_probe
 """,
         encoding="ascii",
@@ -557,6 +915,7 @@ end program inactive_guards_probe
             str(suews / "mod"),
             "-L",
             str(suews / "lib"),
+            "-lsuewsdriver",
             "-lsuewsphys",
             "-lsuewsutil",
             "-lspartacus",

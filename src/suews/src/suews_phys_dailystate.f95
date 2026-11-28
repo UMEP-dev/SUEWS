@@ -9,7 +9,7 @@ MODULE module_phys_dailystate
       DOW_THURSDAY, DOW_FRIDAY, DOW_SATURDAY
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
-   use module_phys_lai, only: update_gddlai
+   use module_phys_lai, only: update_gddlai, has_valid_absent_lai_params
    USE module_ctrl_const_physconst, ONLY: sec_per_day
    IMPLICIT NONE
 
@@ -95,6 +95,14 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Cooling
 
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: sfr_veg
+      LOGICAL, DIMENSION(nvegsurf) :: run_veg_lai
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: BaseT
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: BaseTe
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: GDDBase
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: SDDBase
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: LAIMin
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: LAIMax
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
       REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK) :: DayWat ! Days of watering allowed (DOW_SUNDAY..DOW_SATURDAY) [-]
       REAL(KIND(1D0)), DIMENSION(NDAYS_WEEK) :: DayWatPer ! Fraction of properties irrigating (DOW_SUNDAY..DOW_SATURDAY) [-]
@@ -195,42 +203,21 @@ CONTAINS
                H_maintain => irrPrm%H_maintain, &
                AlbMax_EveTr => evetrPrm%Alb_Max, &
                AlbMin_EveTr => evetrPrm%Alb_Min, &
-               evetrLAIPower => evetrPrm%lai%lai_power, &
                AlbMax_DecTr => dectrPrm%Alb_Max, &
                AlbMin_DecTr => dectrPrm%Alb_Min, &
                CapMax_dec => dectrPrm%capacity_max_deciduous, &
                CapMin_dec => dectrPrm%capacity_min_deciduous, &
                PorMax_dec => dectrPrm%porosity_max_deciduous, &
                PorMin_dec => dectrPrm%porosity_min_deciduous, &
-               dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &
-               BaseT => [evetrPrm%lai%base_temperature, &
-                         dectrPrm%lai%base_temperature, &
-                         grassPrm%lai%base_temperature], &
-               BaseTe => [evetrPrm%lai%base_temperature_senescence, &
-                          dectrPrm%lai%base_temperature_senescence, &
-                          grassPrm%lai%base_temperature_senescence], &
-               GDDBase => [evetrPrm%lai%gdd_base, &
-                           dectrPrm%lai%gdd_base, &
-                           grassPrm%lai%gdd_base], &
-               SDDBase => [evetrPrm%lai%sdd_base, &
-                           dectrPrm%lai%sdd_base, &
-                           grassPrm%lai%sdd_base], &
-               LAIMin => [evetrPrm%lai%lai_min, &
-                          dectrPrm%lai%lai_min, &
-                          grassPrm%lai%lai_min], &
-               LAIMax => [evetrPrm%lai%lai_max, &
-                          dectrPrm%lai%lai_max, &
-                          grassPrm%lai%lai_max], &
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
                                 bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, &
                                 dectrPrm%soil%soil_store_capacity, &
                                 grassPrm%soil%soil_store_capacity, &
                                 bsoilPrm%soil%soil_store_capacity, &
-                                waterPrm%soil%soil_store_capacity], &
-               grassLAIPower => grassPrm%lai%lai_power &
+                                waterPrm%soil%soil_store_capacity] &
                )
 
                ! Pack weekday irrigation schedules by named day-of-week index
@@ -277,12 +264,105 @@ CONTAINS
                                    ahemisPrm%anthro_heat%BaseT_Cooling_holiday]
                END IF
 
+               sfr_veg = [siteInfo%sfr_surf(ConifSurf), &
+                          siteInfo%sfr_surf(DecidSurf), &
+                          siteInfo%sfr_surf(GrassSurf)]
+
+               ! Copy LAI bounds only for vegetation surfaces present (consumed
+               ! by update_Veg under both observed and modelled LAI), and copy
+               ! GDD/SDD phenology parameters only when LAI is modelled (#2363).
+               ! For absent surfaces (sfr == 0) under modelled LAI, preserve
+               ! existing diagnostic DailyState evolution when their phenology
+               ! parameters are valid and finite, and skip them cleanly when
+               ! sentinel/non-finite parameters are supplied.
+               BaseT = 0.0D0
+               BaseTe = 0.0D0
+               GDDBase = 0.0D0
+               SDDBase = 0.0D0
+               LAIMin = 0.0D0
+               LAIMax = 0.0D0
+               LAIPower = 0.0D0
+               run_veg_lai = .FALSE.
+
+               IF (sfr_veg(ivConif) > 0.0D0) THEN
+                  LAIMin(ivConif) = evetrPrm%lai%lai_min
+                  LAIMax(ivConif) = evetrPrm%lai%lai_max
+               END IF
+               IF (sfr_veg(ivDecid) > 0.0D0) THEN
+                  LAIMin(ivDecid) = dectrPrm%lai%lai_min
+                  LAIMax(ivDecid) = dectrPrm%lai%lai_max
+               END IF
+               IF (sfr_veg(ivGrass) > 0.0D0) THEN
+                  LAIMin(ivGrass) = grassPrm%lai%lai_min
+                  LAIMax(ivGrass) = grassPrm%lai%lai_max
+               END IF
+
                IF (LAICalcYes /= 0) THEN
-                  LAIPower(:, 1) = evetrLAIPower
-                  LAIPower(:, 2) = dectrLAIPower
-                  LAIPower(:, 3) = grassLAIPower
-               ELSE
-                  LAIPower = 0.0D0
+                  run_veg_lai(ivConif) = (sfr_veg(ivConif) > 0.0D0)
+                  IF (.NOT. run_veg_lai(ivConif)) THEN
+                     run_veg_lai(ivConif) = has_valid_absent_lai_params( &
+                        evetrPrm%lai%base_temperature, &
+                        evetrPrm%lai%base_temperature_senescence, &
+                        evetrPrm%lai%gdd_base, &
+                        evetrPrm%lai%sdd_base, &
+                        evetrPrm%lai%lai_min, &
+                        evetrPrm%lai%lai_max, &
+                        evetrPrm%lai%lai_power, &
+                        LAI_id_prev(ivConif))
+                  END IF
+                  IF (run_veg_lai(ivConif)) THEN
+                     LAIMin(ivConif) = evetrPrm%lai%lai_min
+                     LAIMax(ivConif) = evetrPrm%lai%lai_max
+                     BaseT(ivConif) = evetrPrm%lai%base_temperature
+                     BaseTe(ivConif) = evetrPrm%lai%base_temperature_senescence
+                     GDDBase(ivConif) = evetrPrm%lai%gdd_base
+                     SDDBase(ivConif) = evetrPrm%lai%sdd_base
+                     LAIPower(:, ivConif) = evetrPrm%lai%lai_power
+                  END IF
+
+                  run_veg_lai(ivDecid) = (sfr_veg(ivDecid) > 0.0D0)
+                  IF (.NOT. run_veg_lai(ivDecid)) THEN
+                     run_veg_lai(ivDecid) = has_valid_absent_lai_params( &
+                        dectrPrm%lai%base_temperature, &
+                        dectrPrm%lai%base_temperature_senescence, &
+                        dectrPrm%lai%gdd_base, &
+                        dectrPrm%lai%sdd_base, &
+                        dectrPrm%lai%lai_min, &
+                        dectrPrm%lai%lai_max, &
+                        dectrPrm%lai%lai_power, &
+                        LAI_id_prev(ivDecid))
+                  END IF
+                  IF (run_veg_lai(ivDecid)) THEN
+                     LAIMin(ivDecid) = dectrPrm%lai%lai_min
+                     LAIMax(ivDecid) = dectrPrm%lai%lai_max
+                     BaseT(ivDecid) = dectrPrm%lai%base_temperature
+                     BaseTe(ivDecid) = dectrPrm%lai%base_temperature_senescence
+                     GDDBase(ivDecid) = dectrPrm%lai%gdd_base
+                     SDDBase(ivDecid) = dectrPrm%lai%sdd_base
+                     LAIPower(:, ivDecid) = dectrPrm%lai%lai_power
+                  END IF
+
+                  run_veg_lai(ivGrass) = (sfr_veg(ivGrass) > 0.0D0)
+                  IF (.NOT. run_veg_lai(ivGrass)) THEN
+                     run_veg_lai(ivGrass) = has_valid_absent_lai_params( &
+                        grassPrm%lai%base_temperature, &
+                        grassPrm%lai%base_temperature_senescence, &
+                        grassPrm%lai%gdd_base, &
+                        grassPrm%lai%sdd_base, &
+                        grassPrm%lai%lai_min, &
+                        grassPrm%lai%lai_max, &
+                        grassPrm%lai%lai_power, &
+                        LAI_id_prev(ivGrass))
+                  END IF
+                  IF (run_veg_lai(ivGrass)) THEN
+                     LAIMin(ivGrass) = grassPrm%lai%lai_min
+                     LAIMax(ivGrass) = grassPrm%lai%lai_max
+                     BaseT(ivGrass) = grassPrm%lai%base_temperature
+                     BaseTe(ivGrass) = grassPrm%lai%base_temperature_senescence
+                     GDDBase(ivGrass) = grassPrm%lai%gdd_base
+                     SDDBase(ivGrass) = grassPrm%lai%sdd_base
+                     LAIPower(:, ivGrass) = grassPrm%lai%lai_power
+                  END IF
                END IF
 
                ! Right-closed day boundaries and accumulated-day calendar identity
@@ -397,7 +477,9 @@ CONTAINS
                         lai_power=LAIPower, &
                         lai_id_prev=LAI_id_prev, &
                         gdd_id=GDD_id, sdd_id=SDD_id, & !inout
-                        lai_id_next=LAI_id) !output
+                        lai_id_next=LAI_id, & !output
+                        sfr_veg=sfr_veg, &
+                        run_veg=run_veg_lai)
                      IF (supy_error_flag()) RETURN
 
                      CALL update_Veg( &
@@ -413,10 +495,7 @@ CONTAINS
                         albGrass_id, &
                         porosity_id, &
                         StoreDrainPrm, &
-                        lai_calc_yes=LAICalcYes, &
-                        sfr_veg=[siteInfo%sfr_surf(ConifSurf), &
-                                 siteInfo%sfr_surf(DecidSurf), &
-                                 siteInfo%sfr_surf(GrassSurf)])
+                        sfr_veg=sfr_veg)
                   END IF
                END IF !End of section done only at the end of each day (i.e. only once per day)
 
@@ -509,7 +588,6 @@ CONTAINS
       albGrass_id, &
       porosity_id, &
       StoreDrainPrm, &
-      lai_calc_yes, &
       sfr_veg) !output
 
       IMPLICIT NONE
@@ -537,11 +615,9 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: porosity_id
 
       REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(inout) :: StoreDrainPrm
-      INTEGER, INTENT(IN), OPTIONAL :: lai_calc_yes
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN), OPTIONAL :: sfr_veg
 
       INTEGER :: iv
-      LOGICAL :: do_lai_scaling
       LOGICAL, DIMENSION(nvegsurf) :: active_veg
 
       REAL(KIND(1D0)) :: albChangeDecTr
@@ -568,36 +644,54 @@ CONTAINS
       albChangeEveTr = 0
       albChangeGrass = 0
 
-      do_lai_scaling = .TRUE.
-      IF (PRESENT(lai_calc_yes)) do_lai_scaling = (lai_calc_yes /= 0)
       active_veg = .TRUE.
       IF (PRESENT(sfr_veg)) active_veg = (sfr_veg > 0.0D0)
 
-      IF (do_lai_scaling) THEN
-         iv = ivDecid
-         IF (active_veg(iv) .AND. (LAI_id(iv) - LAI_id_prev(iv)) /= 0 .AND. &
-             ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv)) .AND. &
-             LAIMin(iv) >= 0.0D0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
-            deltaLAIDecTr = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
-            albChangeDecTr = (AlbMax_DecTr - AlbMin_DecTr)*deltaLAIDecTr
-            CapChange = (CapMin_dec - CapMax_dec)*deltaLAIDecTr
-            porChange = (PorMin_dec - PorMax_dec)*deltaLAIDecTr
+      ! Use nested IF blocks (Fortran does not guarantee short-circuiting of
+      ! .AND.) so absent vegetation surfaces never evaluate NaN comparisons or
+      ! arithmetic (#2363). Active vegetation updates remain enabled for both
+      ! observed and modelled LAI.
+      iv = ivDecid
+      IF (active_veg(iv)) THEN
+         IF (ieee_is_finite(LAI_id(iv)) .AND. ieee_is_finite(LAI_id_prev(iv))) THEN
+            IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0.0D0) THEN
+               IF (ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv))) THEN
+                  IF (LAIMin(iv) >= 0.0D0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
+                     deltaLAIDecTr = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
+                     albChangeDecTr = (AlbMax_DecTr - AlbMin_DecTr)*deltaLAIDecTr
+                     CapChange = (CapMin_dec - CapMax_dec)*deltaLAIDecTr
+                     porChange = (PorMin_dec - PorMax_dec)*deltaLAIDecTr
+                  END IF
+               END IF
+            END IF
          END IF
+      END IF
 
-         iv = ivConif
-         IF (active_veg(iv) .AND. (LAI_id(iv) - LAI_id_prev(iv)) /= 0 .AND. &
-             ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv)) .AND. &
-             LAIMin(iv) >= 0.0D0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
-            deltaLAIEveTr = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
-            albChangeEveTr = (AlbMax_EveTr - AlbMin_EveTr)*deltaLAIEveTr
+      iv = ivConif
+      IF (active_veg(iv)) THEN
+         IF (ieee_is_finite(LAI_id(iv)) .AND. ieee_is_finite(LAI_id_prev(iv))) THEN
+            IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0.0D0) THEN
+               IF (ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv))) THEN
+                  IF (LAIMin(iv) >= 0.0D0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
+                     deltaLAIEveTr = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
+                     albChangeEveTr = (AlbMax_EveTr - AlbMin_EveTr)*deltaLAIEveTr
+                  END IF
+               END IF
+            END IF
          END IF
+      END IF
 
-         iv = ivGrass
-         IF (active_veg(iv) .AND. (LAI_id(iv) - LAI_id_prev(iv)) /= 0 .AND. &
-             ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv)) .AND. &
-             LAIMin(iv) >= 0.0D0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
-            deltaLAIGrass = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
-            albChangeGrass = (AlbMax_Grass - AlbMin_Grass)*deltaLAIGrass
+      iv = ivGrass
+      IF (active_veg(iv)) THEN
+         IF (ieee_is_finite(LAI_id(iv)) .AND. ieee_is_finite(LAI_id_prev(iv))) THEN
+            IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0.0D0) THEN
+               IF (ieee_is_finite(LAIMin(iv)) .AND. ieee_is_finite(LAImax(iv))) THEN
+                  IF (LAIMin(iv) >= 0.0D0 .AND. (LAImax(iv) - LAIMin(iv)) > 0.0D0) THEN
+                     deltaLAIGrass = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
+                     albChangeGrass = (AlbMax_Grass - AlbMin_Grass)*deltaLAIGrass
+                  END IF
+               END IF
+            END IF
          END IF
       END IF
 

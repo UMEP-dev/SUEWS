@@ -1132,18 +1132,19 @@ jobs:
           BASELINE_SCHEMA="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path("scripts/lint/test_duration_baseline.json").read_text(encoding="utf-8")).get("schema_version", 1))')"
           mkdir -p ci-metrics
           METRICS_ROOT="ci-metrics"
+          extra_args=()
           # Transitional Schema-1 baseline bridge: until W1-5b refreshes
-          # scripts/lint/test_duration_baseline.json to schema_version 2, map the
-          # complete Schema-2 tooling + unit + native metrics onto a merged
-          # legacy `api` lane so PRs retain live duration-regression and
-          # cost-marker advisory reporting during the transition.
+          # scripts/lint/test_duration_baseline.json to schema_version 2, stage
+          # each complete Schema-2 tooling/unit/native artefact byte-for-byte as
+          # its own legacy `api` shard so every runner keeps independent
+          # normalisation and original session metadata/exit codes intact.
           if [ "${GATE_AXIS_SCHEMA:-1}" = "2" ] && [ "${BASELINE_SCHEMA}" -lt 2 ]; then
             METRICS_ROOT="ci-metrics-v1"
+            extra_args+=(--min-reference-matches 3)
             python - <<'PY'
-          import json
-          import re
           import shutil
           from pathlib import Path
+          from scripts.lint import check_test_duration as ctd
 
           src = Path("ci-metrics")
           dst = Path("ci-metrics-v1")
@@ -1151,57 +1152,40 @@ jobs:
               shutil.rmtree(dst)
           dst.mkdir(parents=True, exist_ok=True)
 
-          shard_re = re.compile(r"shard-(\d+)-of-(\d+)")
-          merged_tests = []
-          exit_code = 0
+          api_files = []
           complete = True
           for lane in ("tooling", "unit", "native"):
               lane_dir = src / lane
-              lane_files = []
+              lane_items = []
               if lane_dir.is_dir():
-                  for p in sorted(lane_dir.rglob("*.json")):
-                      if p.name.startswith("inventory-"):
-                          continue
-                      try:
-                          data = json.loads(p.read_text(encoding="utf-8"))
-                      except (OSError, ValueError):
-                          continue
-                      if isinstance(data, dict) and isinstance(data.get("tests"), list):
-                          lane_files.append((p, data))
-              if not lane_files:
+                  for p in sorted(ctd.cost_markers.iter_artefact_paths([lane_dir])):
+                      loaded = ctd.load_artefacts([p], allowed_lanes=(lane,))
+                      if loaded:
+                          lane_items.append((p, loaded[0]))
+              artefacts = [art for _, art in lane_items]
+              if (
+                  not artefacts
+                  or ctd._check_measurement_validity(artefacts) is not None
+                  or ctd._check_artefact_and_shard_completeness(artefacts) is not None
+              ):
                   complete = False
                   break
-              # Verify any sharded lane has all 1..N shards before merging.
-              shards = [shard_re.search(p.stem) for p, _ in lane_files]
-              if any(m is not None for m in shards):
-                  if not all(m is not None for m in shards):
-                      complete = False
-                      break
-                  totals = {int(m.group(2)) for m in shards if m is not None}
-                  indices = {int(m.group(1)) for m in shards if m is not None}
-                  if len(totals) != 1 or indices != set(range(1, next(iter(totals)) + 1)):
-                      complete = False
-                      break
-              for _, data in lane_files:
-                  merged_tests.extend(data["tests"])
-                  rc = (data.get("result") or {}).get("exit_code", 0)
-                  if rc not in (0, None):
-                      exit_code = rc
+              api_files.extend(p for p, _ in lane_items)
 
-          if complete and merged_tests:
-              api_dir = dst / "api" / "ci-metrics-api-cp312-manylinux-x86_64"
-              api_dir.mkdir(parents=True, exist_ok=True)
-              (api_dir / "api-cp312-manylinux-x86_64.json").write_text(
-                  json.dumps(
-                      {
-                          "schema_version": 2,
-                          "inventory": {"node_count": len(merged_tests)},
-                          "result": {"exit_code": exit_code},
-                          "tests": merged_tests,
-                      }
-                  ),
-                  encoding="utf-8",
-              )
+          if complete and 1 <= len(api_files) <= ctd.MAX_SHARD_TOTAL:
+              total = len(api_files)
+              for idx, p in enumerate(api_files, start=1):
+                  shard_dir = (
+                      dst
+                      / "api"
+                      / f"ci-metrics-api-cp312-manylinux-x86_64-shard-{idx}-of-{total}"
+                  )
+                  shard_dir.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(
+                      p,
+                      shard_dir
+                      / f"api-cp312-manylinux-x86_64-shard-{idx}-of-{total}.json",
+                  )
           if (src / "physics").is_dir():
               shutil.copytree(src / "physics", dst / "physics")
           PY
@@ -1217,6 +1201,7 @@ jobs:
           fi
           python scripts/lint/check_test_duration.py "$METRICS_ROOT" \
             --baseline scripts/lint/test_duration_baseline.json \
+            "${extra_args[@]}" \
             "${args[@]}" \
             --annotations \
             --json duration-guard.json \
@@ -1226,6 +1211,8 @@ jobs:
         if: github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
         with:
           script: |
             const fs = require('fs');
@@ -1239,7 +1226,13 @@ jobs:
               return;
             }
             const report = JSON.parse(fs.readFileSync('duration-guard.json', 'utf8'));
-            await summaryMod.postDurationGuard({ github, context, core, report });
+            await summaryMod.postDurationGuard({
+              github,
+              context,
+              core,
+              report,
+              testTier: process.env.TEST_TIER,
+            });
 
       - name: Explain why a fork PR gets no duration-guard comment
         if: github.event.pull_request.head.repo.full_name != github.repository

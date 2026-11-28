@@ -1486,6 +1486,15 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
     assert check_step["env"]["TESTS_FILES"] == (
         "${{ needs.detect-changes.outputs.tests-files || '[]' }}"
     )
+    comment_step = next(
+        s
+        for s in job["steps"]
+        if s.get("name") == "Add the duration-guard result to the CI summary comment"
+    )
+    assert comment_step["env"]["TEST_TIER"] == (
+        "${{ needs.determine_matrix.outputs.test_tier }}"
+    )
+    assert "testTier: process.env.TEST_TIER" in comment_step["with"]["script"]
 
     # New script and baseline are covered by .github/path-filters.yml.
     filters = yaml.safe_load(

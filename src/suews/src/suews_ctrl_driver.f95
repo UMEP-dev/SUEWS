@@ -229,6 +229,15 @@ CONTAINS
          CALL sync_error_to_state(modState, clock%timer)
          RETURN
       END IF
+      IF (config%StorageHeatMethod == SHM_STEBBS .AND. &
+          config%stebbsmethod /= STEBBS_DEFAULT .AND. &
+          config%stebbsmethod /= STEBBS_PROVIDED) THEN
+         CALL set_supy_error( &
+            106, &
+            'SUEWS_cal_Main: StorageHeatMethod == SHM_STEBBS (7) requires an active STEBBSmethod (1 or 2)')
+         CALL sync_error_to_state(modState, clock%timer)
+         RETURN
+      END IF
       ehcDiag%ehc_dudt = -999.0D0
       ehcDiag%ehc_q_bottom = -999.0D0
       ehcDiag%ehc_q_indoor = -999.0D0
@@ -1472,6 +1481,17 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: PopProf_24hr ! diurnal profile of population [-]
 
       REAL(KIND(1D0)) :: TrafficUnits ! traffic units choice [-]
+      REAL(KIND(1D0)) :: EF_umolCO2perJ
+      REAL(KIND(1D0)) :: EnEF_v_Jkm
+      REAL(KIND(1D0)), DIMENSION(2) :: FcEF_v_kgkm
+      REAL(KIND(1D0)) :: FrFossilFuel_Heat
+      REAL(KIND(1D0)) :: FrFossilFuel_NonHeat
+      REAL(KIND(1D0)) :: MaxFCMetab
+      REAL(KIND(1D0)) :: MinFCMetab
+      REAL(KIND(1D0)) :: CO2PointSource
+      INTEGER :: emissions_sub
+      LOGICAL :: calc_co2
+      LOGICAL :: use_detailed_qf
 
       INTEGER, PARAMETER :: notUsedI = -999
       REAL(KIND(1D0)), PARAMETER :: notUsed = -999
@@ -1492,17 +1512,9 @@ CONTAINS
             ASSOCIATE ( &
                EmissionsMethod => config%EmissionsMethod, &
                RSLLevel => config%RSLLevel, &
-               EF_umolCO2perJ => ahemisPrm%ef_umol_co2_per_j, &
-               EnEF_v_Jkm => ahemisPrm%en_ef_v_jkm, &
-               FcEF_v_kgkm => ahemisPrm%fc_ef_v_kgkm, &
-               FrFossilFuel_Heat => ahemisPrm%fr_fossil_fuel_heat, &
-               FrFossilFuel_NonHeat => ahemisPrm%fr_fossil_fuel_non_heat, &
-               MaxFCMetab => ahemisPrm%max_fc_metab, &
                MaxQFMetab => ahemisPrm%max_qf_metab, &
-               MinFCMetab => ahemisPrm%min_fc_metab, &
                MinQFMetab => ahemisPrm%min_qf_metab, &
                PopDensNighttime => ahemisPrm%anthro_heat%pop_density_nighttime, &
-               CO2PointSource => siteInfo%CO2PointSource, &
                SurfaceArea => siteInfo%SurfaceArea, &
                HDD_id => anthroEmisState%HDD_id, &
                imin => clock%imin_st, &
@@ -1520,41 +1532,6 @@ CONTAINS
                QF_obs => forcing%QF_obs &
                )
 
-               AH_MIN(1) = ahemisPrm%anthro_heat%ah_min_working
-               AH_MIN(2) = ahemisPrm%anthro_heat%ah_min_holiday
-               AH_SLOPE_Heating(1) = ahemisPrm%anthro_heat%ah_slope_heating_working
-               AH_SLOPE_Heating(2) = ahemisPrm%anthro_heat%ah_slope_heating_holiday
-               AH_SLOPE_Cooling(1) = ahemisPrm%anthro_heat%ah_slope_cooling_working
-               AH_SLOPE_Cooling(2) = ahemisPrm%anthro_heat%ah_slope_cooling_holiday
-
-               TrafficRate(1) = ahemisPrm%traffic_rate_working
-               TrafficRate(2) = ahemisPrm%traffic_rate_holiday
-
-               PopDensDaytime(1) = ahemisPrm%anthro_heat%pop_density_daytime_working
-               PopDensDaytime(2) = ahemisPrm%anthro_heat%pop_density_daytime_holiday
-               QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
-               QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
-               Qf_A(1) = ahemisPrm%anthro_heat%qf_a_working
-               Qf_A(2) = ahemisPrm%anthro_heat%qf_a_holiday
-               Qf_B(1) = ahemisPrm%anthro_heat%qf_b_working
-               Qf_B(2) = ahemisPrm%anthro_heat%qf_b_holiday
-               Qf_C(1) = ahemisPrm%anthro_heat%qf_c_working
-               Qf_C(2) = ahemisPrm%anthro_heat%qf_c_holiday
-               BaseT_Heating(1) = ahemisPrm%anthro_heat%baset_heating_working
-               BaseT_Heating(2) = ahemisPrm%anthro_heat%baset_heating_holiday
-               BaseT_Cooling(1) = ahemisPrm%anthro_heat%baset_cooling_working
-               BaseT_Cooling(2) = ahemisPrm%anthro_heat%baset_cooling_holiday
-
-               AHProf_24hr(:, 1) = ahemisPrm%anthro_heat%ahprof_24hr_working
-               AHProf_24hr(:, 2) = ahemisPrm%anthro_heat%ahprof_24hr_holiday
-               HumActivity_24hr(:, 1) = ahemisPrm%hum_activity_24hr_working
-               HumActivity_24hr(:, 2) = ahemisPrm%hum_activity_24hr_holiday
-               PopProf_24hr(:, 1) = ahemisPrm%anthro_heat%popprof_24hr_working
-               PopProf_24hr(:, 2) = ahemisPrm%anthro_heat%popprof_24hr_holiday
-               TraffProf_24hr(:, 1) = ahemisPrm%traff_prof_24hr_working
-               TraffProf_24hr(:, 2) = ahemisPrm%traff_prof_24hr_holiday
-               TrafficUnits = ahemisPrm%traffic_units
-
                IF (EmissionsMethod == 0) THEN ! use observed qf
                   qf = QF_obs
                   ! Observed QF carries no split by source. Fallback: the
@@ -1563,8 +1540,103 @@ CONTAINS
                   ! value; it omits the heating and cooling terms that the
                   ! modelled methods attribute to buildings, so it is likely
                   ! low in winter. Diagnostic only (EHC output group).
-                  ehcDiag%qf_build = QF0_BEU(cal_weekday_index(DayofWeek_id(1)))*qf
+                  IF (config%StorageHeatMethod == SHM_EHC) THEN
+                     QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
+                     QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
+                     ehcDiag%qf_build = QF0_BEU(cal_weekday_index(DayofWeek_id(1)))*qf
+                  END IF
                ELSEIF ((EmissionsMethod > 0 .AND. EmissionsMethod <= 6) .OR. EmissionsMethod >= 11) THEN
+                  emissions_sub = MOD(EmissionsMethod, 10)
+                  calc_co2 = (EmissionsMethod >= 11)
+                  use_detailed_qf = (emissions_sub >= 4 .AND. emissions_sub <= 6)
+
+                  ! Zero-initialise optional sub-method inputs so inactive
+                  ! fields are never read before entering AnthropogenicEmissions (#2363).
+                  AH_MIN = 0.0D0
+                  AH_SLOPE_Heating = 0.0D0
+                  AH_SLOPE_Cooling = 0.0D0
+                  BaseT_Heating = 0.0D0
+                  BaseT_Cooling = 0.0D0
+                  Qf_A = 0.0D0
+                  Qf_B = 0.0D0
+                  Qf_C = 0.0D0
+                  TrafficRate = 0.0D0
+                  TraffProf_24hr = 0.0D0
+                  TrafficUnits = 0.0D0
+                  EF_umolCO2perJ = 0.0D0
+                  EnEF_v_Jkm = 0.0D0
+                  FcEF_v_kgkm = 0.0D0
+                  FrFossilFuel_Heat = 0.0D0
+                  FrFossilFuel_NonHeat = 0.0D0
+                  MaxFCMetab = 0.0D0
+                  MinFCMetab = 0.0D0
+                  CO2PointSource = 0.0D0
+
+                  ! Parameters shared across all modelled emissions sub-methods (1..6, 11..46)
+                  PopDensDaytime(1) = ahemisPrm%anthro_heat%pop_density_daytime_working
+                  PopDensDaytime(2) = ahemisPrm%anthro_heat%pop_density_daytime_holiday
+                  QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
+                  QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
+                  AHProf_24hr(:, 1) = ahemisPrm%anthro_heat%ahprof_24hr_working
+                  AHProf_24hr(:, 2) = ahemisPrm%anthro_heat%ahprof_24hr_holiday
+                  HumActivity_24hr(:, 1) = ahemisPrm%hum_activity_24hr_working
+                  HumActivity_24hr(:, 2) = ahemisPrm%hum_activity_24hr_holiday
+                  PopProf_24hr(:, 1) = ahemisPrm%anthro_heat%popprof_24hr_working
+                  PopProf_24hr(:, 2) = ahemisPrm%anthro_heat%popprof_24hr_holiday
+
+                  ! Sub-method-specific QF temperature-response parameters
+                  IF (emissions_sub == 1 .OR. emissions_sub == 4) THEN
+                     AH_MIN(1) = ahemisPrm%anthro_heat%ah_min_working
+                     AH_MIN(2) = ahemisPrm%anthro_heat%ah_min_holiday
+                     AH_SLOPE_Heating(1) = ahemisPrm%anthro_heat%ah_slope_heating_working
+                     AH_SLOPE_Heating(2) = ahemisPrm%anthro_heat%ah_slope_heating_holiday
+                     BaseT_Heating(1) = ahemisPrm%anthro_heat%baset_heating_working
+                     BaseT_Heating(2) = ahemisPrm%anthro_heat%baset_heating_holiday
+                  ELSEIF (emissions_sub == 2 .OR. emissions_sub == 5) THEN
+                     Qf_A(1) = ahemisPrm%anthro_heat%qf_a_working
+                     Qf_A(2) = ahemisPrm%anthro_heat%qf_a_holiday
+                     Qf_B(1) = ahemisPrm%anthro_heat%qf_b_working
+                     Qf_B(2) = ahemisPrm%anthro_heat%qf_b_holiday
+                     Qf_C(1) = ahemisPrm%anthro_heat%qf_c_working
+                     Qf_C(2) = ahemisPrm%anthro_heat%qf_c_holiday
+                  ELSEIF (emissions_sub == 3 .OR. emissions_sub == 6) THEN
+                     AH_MIN(1) = ahemisPrm%anthro_heat%ah_min_working
+                     AH_MIN(2) = ahemisPrm%anthro_heat%ah_min_holiday
+                     AH_SLOPE_Heating(1) = ahemisPrm%anthro_heat%ah_slope_heating_working
+                     AH_SLOPE_Heating(2) = ahemisPrm%anthro_heat%ah_slope_heating_holiday
+                     AH_SLOPE_Cooling(1) = ahemisPrm%anthro_heat%ah_slope_cooling_working
+                     AH_SLOPE_Cooling(2) = ahemisPrm%anthro_heat%ah_slope_cooling_holiday
+                     BaseT_Heating(1) = ahemisPrm%anthro_heat%baset_heating_working
+                     BaseT_Heating(2) = ahemisPrm%anthro_heat%baset_heating_holiday
+                     BaseT_Cooling(1) = ahemisPrm%anthro_heat%baset_cooling_working
+                     BaseT_Cooling(2) = ahemisPrm%anthro_heat%baset_cooling_holiday
+                  END IF
+
+                  ! Traffic statistics are only consumed by detailed QF sub-methods (4..6)
+                  IF (use_detailed_qf) THEN
+                     TrafficRate(1) = ahemisPrm%traffic_rate_working
+                     TrafficRate(2) = ahemisPrm%traffic_rate_holiday
+                     TraffProf_24hr(:, 1) = ahemisPrm%traff_prof_24hr_working
+                     TraffProf_24hr(:, 2) = ahemisPrm%traff_prof_24hr_holiday
+                     TrafficUnits = ahemisPrm%traffic_units
+                  END IF
+
+                  ! EnEF_v_Jkm is consumed by detailed QF (4..6) and by simple CO2 (11..43)
+                  IF (use_detailed_qf .OR. calc_co2) THEN
+                     EnEF_v_Jkm = ahemisPrm%en_ef_v_jkm
+                  END IF
+
+                  ! CO2-specific parameters are only consumed when EmissionsMethod >= 11
+                  IF (calc_co2) THEN
+                     EF_umolCO2perJ = ahemisPrm%ef_umol_co2_per_j
+                     FcEF_v_kgkm = ahemisPrm%fc_ef_v_kgkm
+                     FrFossilFuel_Heat = ahemisPrm%fr_fossil_fuel_heat
+                     FrFossilFuel_NonHeat = ahemisPrm%fr_fossil_fuel_non_heat
+                     MaxFCMetab = ahemisPrm%max_fc_metab
+                     MinFCMetab = ahemisPrm%min_fc_metab
+                     CO2PointSource = siteInfo%CO2PointSource
+                  END IF
+
                   ! choose temperature for anthropogenic heat flux calculation
                   Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
 
@@ -1619,7 +1691,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: nsurf, NVegSurf, &
                                ivConif, ivDecid, ivGrass, &
                                ConifSurf, DecidSurf, GrassSurf, BSoilSurf
-      USE module_phys_biogenco2, ONLY: CO2_biogen
+      USE module_phys_biogenco2, ONLY: CO2_biogen, is_valid_bioco2_val
       USE module_phys_resist, ONLY: SurfaceResistance
       USE module_phys_atmmoiststab, ONLY: cal_AtmMoist
 
@@ -1654,6 +1726,17 @@ CONTAINS
       REAL(KIND(1D0)) :: unused_gc4     ! Conductance component 4 [mm s-1]
       REAL(KIND(1D0)) :: unused_gc5     ! Conductance component 5 [mm s-1]
       REAL(KIND(1D0)) :: unused_rs      ! Surface resistance [s m-1]
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: alpha_bioCO2
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: alpha_enh_bioCO2
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: beta_bioCO2
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: beta_enh_bioCO2
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: LAIMin
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: LAIMax
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: min_res_bioCO2
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: resp_a
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: resp_b
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: theta_bioCO2
+      REAL(KIND(1D0)), DIMENSION(NVegSurf) :: MaxConductance
 
       ASSOCIATE ( &
          atmState => modState%atmState, &
@@ -1699,29 +1782,6 @@ CONTAINS
             )
 
             ASSOCIATE ( &
-               alpha_bioCO2 => [evetrPrm%bioco2%alpha_bioco2, &
-                                dectrPrm%bioco2%alpha_bioco2, &
-                                grassPrm%bioco2%alpha_bioco2], &
-               alpha_enh_bioCO2 => [evetrPrm%bioco2%alpha_enh_bioco2, &
-                                    dectrPrm%bioco2%alpha_enh_bioco2, &
-                                    grassPrm%bioco2%alpha_enh_bioco2], &
-               beta_bioCO2 => [evetrPrm%bioco2%beta_bioCO2, &
-                               dectrPrm%bioco2%beta_bioCO2, &
-                               grassPrm%bioco2%beta_bioCO2], &
-               beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
-                                   dectrPrm%bioco2%beta_enh_bioco2, &
-                                   grassPrm%bioco2%beta_enh_bioco2], &
-               LAIMin => [evetrPrm%lai%lai_min, dectrPrm%lai%lai_min, grassPrm%lai%lai_min], &
-               LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
-               min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
-                                  dectrPrm%bioco2%min_res_bioCO2, &
-                                  grassPrm%bioco2%min_res_bioCO2], &
-               resp_a => [evetrPrm%bioco2%resp_a, dectrPrm%bioco2%resp_a, grassPrm%bioco2%resp_a], &
-               resp_b => [evetrPrm%bioco2%resp_b, dectrPrm%bioco2%resp_b, grassPrm%bioco2%resp_b], &
-               theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
-                                dectrPrm%bioco2%theta_bioCO2, &
-                                grassPrm%bioco2%theta_bioco2], &
-               MaxConductance => [evetrPrm%max_conductance, dectrPrm%max_conductance, grassPrm%max_conductance], &
                G_max => conductancePrm%g_max, &
                G_k => conductancePrm%g_k, &
                G_q_base => conductancePrm%g_q_base, &
@@ -1737,6 +1797,106 @@ CONTAINS
                )
 
                IF (EmissionsMethod >= 11) THEN
+                  ! Copy biogenic CO2 and vegetation parameters only when CO2
+                  ! calculations are active and only for present vegetation
+                  ! surfaces (sfr_surf > 0) (#2363).
+                  alpha_bioCO2 = 0.0D0
+                  alpha_enh_bioCO2 = 0.0D0
+                  beta_bioCO2 = 0.0D0
+                  beta_enh_bioCO2 = 0.0D0
+                  LAIMin = 0.0D0
+                  LAIMax = 0.0D0
+                  min_res_bioCO2 = 0.0D0
+                  resp_a = 0.0D0
+                  resp_b = 0.0D0
+                  theta_bioCO2 = 0.0D0
+                  MaxConductance = 0.0D0
+
+                  IF (sfr_surf(ConifSurf) > 0.0D0) THEN
+                     alpha_bioCO2(ivConif) = evetrPrm%bioco2%alpha_bioco2
+                     alpha_enh_bioCO2(ivConif) = evetrPrm%bioco2%alpha_enh_bioco2
+                     beta_bioCO2(ivConif) = evetrPrm%bioco2%beta_bioCO2
+                     beta_enh_bioCO2(ivConif) = evetrPrm%bioco2%beta_enh_bioCO2
+                     LAIMin(ivConif) = evetrPrm%lai%lai_min
+                     LAIMax(ivConif) = evetrPrm%lai%lai_max
+                     min_res_bioCO2(ivConif) = evetrPrm%bioco2%min_res_bioCO2
+                     resp_a(ivConif) = evetrPrm%bioco2%resp_a
+                     resp_b(ivConif) = evetrPrm%bioco2%resp_b
+                     theta_bioCO2(ivConif) = evetrPrm%bioco2%theta_bioCO2
+                     MaxConductance(ivConif) = evetrPrm%max_conductance
+                  ELSE IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN
+                     ! General Bellucco model (31..36): pass valid non-sentinel
+                     ! coefficients on absent surfaces to preserve legacy
+                     ! normalisation, or -999 sentinel when absent/poisoned.
+                     IF (is_valid_bioco2_val(evetrPrm%bioco2%alpha_bioco2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%beta_bioCO2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%theta_bioCO2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%alpha_enh_bioco2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%beta_enh_bioco2)) THEN
+                        alpha_bioCO2(ivConif) = evetrPrm%bioco2%alpha_bioco2
+                        alpha_enh_bioCO2(ivConif) = evetrPrm%bioco2%alpha_enh_bioco2
+                        beta_bioCO2(ivConif) = evetrPrm%bioco2%beta_bioCO2
+                        beta_enh_bioCO2(ivConif) = evetrPrm%bioco2%beta_enh_bioCO2
+                        theta_bioCO2(ivConif) = evetrPrm%bioco2%theta_bioCO2
+                     ELSE
+                        alpha_bioCO2(ivConif) = -999.0D0
+                        alpha_enh_bioCO2(ivConif) = -999.0D0
+                        beta_bioCO2(ivConif) = -999.0D0
+                        beta_enh_bioCO2(ivConif) = -999.0D0
+                        theta_bioCO2(ivConif) = -999.0D0
+                     END IF
+                  END IF
+                  IF (sfr_surf(DecidSurf) > 0.0D0) THEN
+                     alpha_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_bioco2
+                     alpha_enh_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_enh_bioco2
+                     beta_bioCO2(ivDecid) = dectrPrm%bioco2%beta_bioCO2
+                     beta_enh_bioCO2(ivDecid) = dectrPrm%bioco2%beta_enh_bioCO2
+                     LAIMin(ivDecid) = dectrPrm%lai%lai_min
+                     LAIMax(ivDecid) = dectrPrm%lai%lai_max
+                     min_res_bioCO2(ivDecid) = dectrPrm%bioco2%min_res_bioCO2
+                     resp_a(ivDecid) = dectrPrm%bioco2%resp_a
+                     resp_b(ivDecid) = dectrPrm%bioco2%resp_b
+                     theta_bioCO2(ivDecid) = dectrPrm%bioco2%theta_bioCO2
+                     MaxConductance(ivDecid) = dectrPrm%max_conductance
+                  ELSE IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN
+                     IF (is_valid_bioco2_val(dectrPrm%bioco2%alpha_bioco2) .AND. &
+                         is_valid_bioco2_val(dectrPrm%bioco2%beta_bioCO2) .AND. &
+                         is_valid_bioco2_val(dectrPrm%bioco2%theta_bioCO2)) THEN
+                        alpha_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_bioco2
+                        beta_bioCO2(ivDecid) = dectrPrm%bioco2%beta_bioCO2
+                        theta_bioCO2(ivDecid) = dectrPrm%bioco2%theta_bioCO2
+                     ELSE
+                        alpha_bioCO2(ivDecid) = -999.0D0
+                        beta_bioCO2(ivDecid) = -999.0D0
+                        theta_bioCO2(ivDecid) = -999.0D0
+                     END IF
+                  END IF
+                  IF (sfr_surf(GrassSurf) > 0.0D0) THEN
+                     alpha_bioCO2(ivGrass) = grassPrm%bioco2%alpha_bioco2
+                     alpha_enh_bioCO2(ivGrass) = grassPrm%bioco2%alpha_enh_bioco2
+                     beta_bioCO2(ivGrass) = grassPrm%bioco2%beta_bioCO2
+                     beta_enh_bioCO2(ivGrass) = grassPrm%bioco2%beta_enh_bioCO2
+                     LAIMin(ivGrass) = grassPrm%lai%lai_min
+                     LAIMax(ivGrass) = grassPrm%lai%lai_max
+                     min_res_bioCO2(ivGrass) = grassPrm%bioco2%min_res_bioCO2
+                     resp_a(ivGrass) = grassPrm%bioco2%resp_a
+                     resp_b(ivGrass) = grassPrm%bioco2%resp_b
+                     theta_bioCO2(ivGrass) = grassPrm%bioco2%theta_bioCO2
+                     MaxConductance(ivGrass) = grassPrm%max_conductance
+                  ELSE IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN
+                     IF (is_valid_bioco2_val(grassPrm%bioco2%alpha_bioco2) .AND. &
+                         is_valid_bioco2_val(grassPrm%bioco2%beta_bioCO2) .AND. &
+                         is_valid_bioco2_val(grassPrm%bioco2%theta_bioCO2)) THEN
+                        alpha_bioCO2(ivGrass) = grassPrm%bioco2%alpha_bioco2
+                        beta_bioCO2(ivGrass) = grassPrm%bioco2%beta_bioCO2
+                        theta_bioCO2(ivGrass) = grassPrm%bioco2%theta_bioCO2
+                     ELSE
+                        alpha_bioCO2(ivGrass) = -999.0D0
+                        beta_bioCO2(ivGrass) = -999.0D0
+                        theta_bioCO2(ivGrass) = -999.0D0
+                     END IF
+                  END IF
+
                   ! Initialise conductance functions for biogenic CO2 calculations
                   gfunc_use = gfunc
                   gfunc2 = gfunc_use
@@ -1885,9 +2045,22 @@ CONTAINS
          stebbsState => modState%stebbsState &
          )
 
+         ! Reject StorageHeatMethod == SHM_STEBBS when STEBBS is disabled
+         ! consistently with SUEWS_cal_Qs before consuming STEBBS state (#2363).
+         IF (config%StorageHeatMethod == SHM_STEBBS .AND. &
+             config%stebbsmethod /= STEBBS_DEFAULT .AND. &
+             config%stebbsmethod /= STEBBS_PROVIDED) THEN
+            dataOutLineSPARTACUS = -999.0D0
+            CALL set_supy_error( &
+               106, &
+               'SUEWS_cal_Qn: StorageHeatMethod == SHM_STEBBS (7) requires an active STEBBSmethod (1 or 2)')
+            RETURN
+         END IF
+
          ! Safely resolve roof/wall surface temps without MERGE on
          ! possibly-unallocated or zero-length allocatable arrays.
          IF (config%StorageHeatMethod == SHM_STEBBS &
+             .AND. (config%stebbsmethod == STEBBS_DEFAULT .OR. config%stebbsmethod == STEBBS_PROVIDED) &
              .AND. ALLOCATED(stebbsState%buildings)) THEN
             IF (SIZE(stebbsState%buildings) >= 1) THEN
                IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
@@ -2541,6 +2714,20 @@ CONTAINS
                   qn_use = qn
                END IF
 
+               ! Reject StorageHeatMethod == SHM_STEBBS when STEBBS is disabled
+               ! so stale or uninitialised QS_stebbs can never contaminate QS (#2363).
+               IF (StorageHeatMethod == SHM_STEBBS .AND. &
+                   config%stebbsmethod /= STEBBS_DEFAULT .AND. &
+                   config%stebbsmethod /= STEBBS_PROVIDED) THEN
+                  QS_surf = -999.0D0
+                  QS_roof = -999.0D0
+                  QS_wall = -999.0D0
+                  CALL set_supy_error( &
+                     106, &
+                     'SUEWS_cal_Qs: StorageHeatMethod == SHM_STEBBS (7) requires an active STEBBSmethod (1 or 2)')
+                  RETURN
+               END IF
+
                !==============use STEBBS to get localised surface temperature and storage heat flux==================
                ! MP 12 Sep 2024: STEBBS is a simplified BEM
                IF (config%stebbsmethod == STEBBS_DEFAULT .OR. config%stebbsmethod == STEBBS_PROVIDED) THEN
@@ -2550,6 +2737,7 @@ CONTAINS
                      modState, & ! input/output:
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
+                  IF (supy_error_flag()) RETURN
                END IF
 
                IF (StorageHeatMethod == SHM_ANOHM) THEN

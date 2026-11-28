@@ -16,7 +16,9 @@ CONTAINS
       lai_min, lai_max, lai_power, &
       lai_id_prev, &
       gdd_id, sdd_id, & !inout
-      lai_id_next) !output
+      lai_id_next, & !output
+      sfr_veg, & !optional input
+      run_veg) !optional input
 
       IMPLICIT NONE
 
@@ -49,6 +51,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: sdd_id ! Senescence degree days [K d]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: lai_id_prev ! LAI of previous day [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: lai_id_next ! Updated LAI for each veg surface [m2 m-2]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN), OPTIONAL :: sfr_veg ! Surface fractions of veg surfaces [-]
+      LOGICAL, DIMENSION(nvegsurf), INTENT(IN), OPTIONAL :: run_veg ! Explicit per-surface phenology execution mask [-]
 
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: gdd_id_prev ! GDD of previous day [K d]
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: sdd_id_prev ! SDD of previous day [K d]
@@ -60,10 +64,29 @@ CONTAINS
       INTEGER :: senescence_state ! State of senescence (0: not senescing, 1: senescing)
       INTEGER :: iv
       LOGICAL :: valid_observed_lai
+      LOGICAL, DIMENSION(nvegsurf) :: active_veg
+      LOGICAL, DIMENSION(nvegsurf) :: run_veg_local
 
       ! Hemisphere-specific fixed-DOY reset days for LAI phenology
       INTEGER :: summer_reset_day ! DOY when growth season ends and senescence season starts
       INTEGER :: winter_reset_day ! DOY when senescence season ends and growth season starts
+
+      ! Where observed LAI is supplied, validate and assign it without reading
+      ! inactive GDD/SDD phenology parameters (base_t_gdd, base_t_sdd,
+      ! gdd_base, sdd_base, lai_min, lai_max, lai_power) (#2363).
+      IF (lai_calc_yes == 0) THEN
+         CALL observed_lai( &
+            lai_obs=lai_obs, &
+            lai_id_next=lai_id_next, &
+            valid=valid_observed_lai &
+         )
+         RETURN
+      END IF
+
+      active_veg = .TRUE.
+      IF (PRESENT(sfr_veg)) active_veg = (sfr_veg > 0.0D0)
+      run_veg_local = .TRUE.
+      IF (PRESENT(run_veg)) run_veg_local = run_veg
 
       CALL get_reset_days( &
          lat=lat, &
@@ -74,16 +97,6 @@ CONTAINS
       ! Snapshot incoming accumulators for each vegetation surface
       gdd_id_prev = gdd_id
       sdd_id_prev = sdd_id
-
-      ! Where observed LAI is supplied, validate and assign it before updating GDD/SDD
-      IF (lai_calc_yes == 0) THEN
-         CALL observed_lai( &
-            lai_obs=lai_obs, &
-            lai_id_next=lai_id_next, &
-            valid=valid_observed_lai &
-         )
-         IF (.NOT. valid_observed_lai) RETURN
-      END IF
 
       ! Growth and senescence season flags depend only on DOY and hemisphere
       CALL update_growth_state( &
@@ -97,6 +110,22 @@ CONTAINS
 
       ! Loop through vegetation types (iv)
       DO iv = 1, nvegsurf
+         ! Skip absent vegetation surfaces whose phenology parameters are
+         ! omitted/sentinel/non-finite (#2363), while preserving diagnostic
+         ! DailyState evolution when an absent surface carries valid params.
+         IF (.NOT. run_veg_local(iv)) THEN
+            lai_id_next(iv) = lai_id_prev(iv)
+            CYCLE
+         END IF
+         IF (.NOT. active_veg(iv)) THEN
+            IF (.NOT. has_valid_absent_lai_params( &
+                base_t_gdd(iv), base_t_sdd(iv), gdd_base(iv), sdd_base(iv), &
+                lai_min(iv), lai_max(iv), lai_power(:, iv), lai_id_prev(iv))) THEN
+               lai_id_next(iv) = lai_id_prev(iv)
+               CYCLE
+            END IF
+         END IF
+
          ! Reset accumulators BEFORE computing today's degree-day increment so
          ! that boundary days (winter_reset_day / summer_reset_day) start the
          ! new season cleanly from zero without dropping today's increment or
@@ -126,6 +155,22 @@ CONTAINS
          )
 
          IF (lai_calc_yes /= 0) THEN
+            ! For absent surfaces (sfr == 0), skip only the specific singular
+            ! zero-base negative-exponent case if the active season/threshold
+            ! would actually fire, preserving valid zero-LAI growth when the
+            ! active season's exponent is non-negative (#2363).
+            IF (.NOT. active_veg(iv)) THEN
+               IF (lai_id_prev(iv) <= 0.0D0 .AND. &
+                   .NOT. (lai_min(iv) == 0.0D0 .AND. lai_max(iv) == 0.0D0)) THEN
+                  IF (((gdd_id(iv) >= gdd_base(iv)) .AND. (growth_state == 1) .AND. &
+                       (delta_gdd > 0.0D0) .AND. (lai_power(1, iv) < 0.0D0)) .OR. &
+                      ((sdd_id(iv) <= sdd_base(iv)) .AND. (senescence_state == 1) .AND. &
+                       (delta_sdd < 0.0D0) .AND. (lai_power(3, iv) < 0.0D0))) THEN
+                     lai_id_next(iv) = lai_id_prev(iv)
+                     CYCLE
+                  END IF
+               END IF
+            END IF
             CALL calculate_lai( &
                growth_state=growth_state, &
                senescence_state=senescence_state, &
@@ -149,6 +194,64 @@ CONTAINS
       END DO ! End of loop over veg surfaces
 
    END SUBROUTINE update_gddlai
+
+
+   PURE LOGICAL FUNCTION is_missing_sentinel(val) RESULT(is_missing)
+
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: val
+
+      ! Check finiteness before comparing so quiet NaNs never raise IEEE_INVALID.
+      ! Compare exactly against the representable -999.0D0 sentinel so nearby
+      ! valid negative thresholds (e.g. -999.0000005) are never rejected.
+      IF (.NOT. ieee_is_finite(val)) THEN
+         is_missing = .TRUE.
+         RETURN
+      END IF
+      is_missing = (val == -999.0D0)
+   END FUNCTION is_missing_sentinel
+
+
+   PURE LOGICAL FUNCTION has_valid_absent_lai_params( &
+      base_t_gdd, base_t_sdd, gdd_base, sdd_base, &
+      lai_min, lai_max, lai_power, lai_id_prev) RESULT(is_valid)
+
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: base_t_gdd
+      REAL(KIND(1D0)), INTENT(IN) :: base_t_sdd
+      REAL(KIND(1D0)), INTENT(IN) :: gdd_base
+      REAL(KIND(1D0)), INTENT(IN) :: sdd_base
+      REAL(KIND(1D0)), INTENT(IN) :: lai_min
+      REAL(KIND(1D0)), INTENT(IN) :: lai_max
+      REAL(KIND(1D0)), DIMENSION(4), INTENT(IN) :: lai_power
+      REAL(KIND(1D0)), INTENT(IN) :: lai_id_prev
+
+      INTEGER :: k
+
+      ! Check finiteness and exact -999.0D0 missing sentinels on EVERY consumed
+      ! coefficient BEFORE any ordering comparison so quiet NaNs never raise
+      ! IEEE_INVALID, finite -999 sentinels (e.g. lai_power=-999) never reach
+      ! calculate_lai, and legitimate negative thresholds (e.g. sdd_base=-1000)
+      ! are preserved (#2363).
+      is_valid = .FALSE.
+      IF (is_missing_sentinel(base_t_gdd)) RETURN
+      IF (is_missing_sentinel(base_t_sdd)) RETURN
+      IF (is_missing_sentinel(gdd_base)) RETURN
+      IF (is_missing_sentinel(sdd_base)) RETURN
+      IF (is_missing_sentinel(lai_min)) RETURN
+      IF (is_missing_sentinel(lai_max)) RETURN
+      IF (is_missing_sentinel(lai_id_prev)) RETURN
+      DO k = 1, 4
+         IF (is_missing_sentinel(lai_power(k))) RETURN
+      END DO
+
+      IF (lai_id_prev < 0.0D0) RETURN
+      IF (lai_min < 0.0D0 .OR. lai_max < 0.0D0) RETURN
+
+      is_valid = .TRUE.
+   END FUNCTION has_valid_absent_lai_params
 
 
    SUBROUTINE observed_lai( &

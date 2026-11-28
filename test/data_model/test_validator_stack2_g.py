@@ -1965,8 +1965,6 @@ def test_astra_r2_frozen_keys_bound_builtins_ip_and_eager_enum_snapshot() -> Non
         _EdgeProxyModel(
             keyed={label_key: 1},
             callback=items.append,
-            net=ipaddress.ip_network("192.0.2.0/24"),
-            addr=ipaddress.ip_address("192.0.2.1"),
         )
     )
     with pytest.raises(TypeError, match="cannot safely freeze"):
@@ -1975,13 +1973,13 @@ def test_astra_r2_frozen_keys_bound_builtins_ip_and_eager_enum_snapshot() -> Non
     with pytest.raises(TypeError, match="cannot safely freeze"):
         _ = ro_edge.callback
     assert items == []
-    # Major 8: mutable ipaddress objects are rejected on both surfaces.
+    # Major 8: mutable ipaddress objects (carrying shared class cache state) are rejected on both surfaces.
     with pytest.raises(TypeError, match="cannot safely freeze"):
         deep_freeze({"net": ipaddress.ip_network("192.0.2.0/24")})
-    with pytest.raises(TypeError, match="cannot safely freeze"):
-        _ = ro_edge.net
-    with pytest.raises(TypeError, match="cannot safely freeze"):
-        _ = ro_edge.addr
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_EdgeProxyModel(net=ipaddress.ip_network("192.0.2.0/24")))
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_EdgeProxyModel(addr=ipaddress.ip_address("192.0.2.1")))
 
     # Minor 9: Enum public attributes are snapshotted at freeze_model() time, before first read.
     class _MutableAttrAfterFreeze(Enum):
@@ -4678,3 +4676,61 @@ def test_r16_numpy_dtype_titles_and_non_function_serializers() -> None:
     with pytest.raises(TypeError, match="unvetted custom serializer"):
         freeze_model(_FmtModel(p=_FmtPayload())).model_dump(mode="json")
     assert ser_events == []
+
+
+def test_r17_proxy_validation_copy_hooks_plain_class_defaults_and_literal_dict_defaults() -> (
+    None
+):
+    """Cover Astra R7 M1, M2, m1: proxy validate_config copy hooks, plain mutable class defaults, literal dict defaults."""
+    from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
+
+    # M1: validate_config(freeze_model(sub_cfg), pipeline="C") never triggers subclass __deepcopy__.
+    deepcopy_events: list[str] = []
+
+    class _DeepcopySpyConfig(SUEWSConfig):
+        def __deepcopy__(self, memo: dict[int, object]) -> _DeepcopySpyConfig:
+            deepcopy_events.append("deepcopy")
+            return super().__deepcopy__(memo)
+
+    sub_cfg = _DeepcopySpyConfig()
+    ro_sub = freeze_model(sub_cfg)
+    report = validate_config(ro_sub, pipeline="C", forcing="off")
+    assert report is not None
+    assert deepcopy_events == []
+
+    # M2: Plain object and str subclass carrying mutable class defaults are rejected; immutable constants pass.
+    class _MutableClassBox:
+        items: list[int] = []  # noqa: RUF012
+
+    class _MutableStr(str):
+        tags: list[str] = []  # noqa: RUF012
+
+    class _ConstClassBox:
+        TAG = "immutable"
+        TUP = (1, 2)
+
+        def __init__(self) -> None:
+            self.value = [1]
+
+    class _Holder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object
+
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_Holder(payload=_MutableClassBox()))
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_Holder(payload=_MutableStr("x")))
+    assert _MutableClassBox.items == []
+    ro_const = freeze_model(_Holder(payload=_ConstClassBox()))
+    assert ro_const.unwrap_copy().payload.TAG == "immutable"
+
+    # m1: Literal dict defaults containing {"type": "format"} or {"type": ["a"]} do not trip serializer scan.
+    class _DictDefaultModel(BaseModel):
+        settings: dict[str, str] = {"type": "format"}
+        nested: dict[str, object] = {"type": ["to-string", "format"]}
+
+    ro_dd = freeze_model(_DictDefaultModel())
+    assert ro_dd.model_dump() == {
+        "settings": {"type": "format"},
+        "nested": {"type": ["to-string", "format"]},
+    }

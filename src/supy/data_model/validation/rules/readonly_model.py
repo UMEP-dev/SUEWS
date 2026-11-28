@@ -27,6 +27,7 @@ from types import (
     BuiltinMethodType,
     FunctionType,
     GenericAlias,
+    GetSetDescriptorType,
     MappingProxyType,
     MemberDescriptorType,
     MethodType,
@@ -615,6 +616,73 @@ def _detach_sequence_or_set(
     return handled, result
 
 
+_CLASS_META_DUNDERS: frozenset[str] = frozenset({
+    "__module__",
+    "__qualname__",
+    "__doc__",
+    "__dict__",
+    "__weakref__",
+    "__slots__",
+    "__annotations__",
+    "__firstlineno__",
+    "__static_attributes__",
+    "__type_params__",
+    "__orig_bases__",
+    "__parameters__",
+})
+_SAFE_CLASS_DESCRIPTOR_TYPES: tuple[type[Any], ...] = (
+    FunctionType,
+    staticmethod,
+    classmethod,
+    property,
+    MemberDescriptorType,
+    GetSetDescriptorType,
+    BuiltinMethodType,
+    MethodWrapperType,
+)
+
+
+def _is_deeply_immutable_class_const(value: Any, active: set[int]) -> bool:
+    """Return True iff *value* is a pure immutable non-Enum class constant."""
+    if isinstance(value, Enum):
+        return False
+    if _is_exact_immutable_scalar(value):
+        return True
+    val_type = type(value)
+    if val_type is slice:
+        return all(
+            _is_deeply_immutable_class_const(b, active)
+            for b in (value.start, value.stop, value.step)
+        )
+    if val_type in {tuple, frozenset}:
+        obj_id = id(value)
+        if obj_id in active:
+            return False
+        active.add(obj_id)
+        try:
+            return all(_is_deeply_immutable_class_const(item, active) for item in value)
+        finally:
+            active.discard(obj_id)
+    return False
+
+
+def _class_has_unsafe_class_attrs(
+    cls: type[Any], *, stop_bases: frozenset[type[Any]]
+) -> bool:
+    """Return True if *cls* exposes any mutable or Enum class attribute on its MRO."""
+    for base in cls.__mro__:
+        if base in stop_bases:
+            continue
+        for attr_name, attr_val in base.__dict__.items():
+            if attr_name in _CLASS_META_DUNDERS:
+                continue
+            if isinstance(attr_val, _SAFE_CLASS_DESCRIPTOR_TYPES):
+                continue
+            if not _is_deeply_immutable_class_const(attr_val, set()):
+                return True
+    return False
+
+
 def _detach_plain_instance(
     value: Any,
     memo: dict[int, Any],
@@ -630,6 +698,7 @@ def _detach_plain_instance(
         or val_cls.__new__ is not object.__new__
         or val_cls.__getattribute__ is not object.__getattribute__
         or val_cls.__reduce_ex__ is not object.__reduce_ex__
+        or _class_has_unsafe_class_attrs(val_cls, stop_bases=frozenset({object}))
     ):
         return False, None
     src_dict = _read_instance_dict(value)
@@ -694,10 +763,14 @@ def _detach_primitive_subclass(
     val_cls = type(value)
     for base in _PRIMITIVE_SUBCLASS_BASES:
         if issubclass(val_cls, base) and val_cls is not base:
-            if val_cls.__new__ is not base.__new__ or val_cls.__getattribute__ not in {
-                object.__getattribute__,
-                base.__getattribute__,
-            }:
+            if (
+                val_cls.__new__ is not base.__new__
+                or val_cls.__getattribute__
+                not in {object.__getattribute__, base.__getattribute__}
+                or _class_has_unsafe_class_attrs(
+                    val_cls, stop_bases=frozenset({object, *_PRIMITIVE_SUBCLASS_BASES})
+                )
+            ):
                 return False, None
             src_dict = _read_instance_dict(value)
             if _has_raw_attr(val_cls, src_dict, "__deepcopy__") or _has_raw_attr(
@@ -1981,6 +2054,51 @@ def _ser_schema_disallowed(ser: Any, allowed_sers: frozenset[Any]) -> bool:
     return ser_type not in _SAFE_SIMPLE_SER_TYPES
 
 
+_SCHEMA_CHILD_KEYS: tuple[str, ...] = (
+    "schema",
+    "items_schema",
+    "keys_schema",
+    "values_schema",
+    "extras_schema",
+    "extras_keys_schema",
+    "json_schema",
+    "json_schema_input_schema",
+    "python_schema",
+    "lax_schema",
+    "strict_schema",
+    "return_schema",
+    "var_args_schema",
+    "var_kwargs_schema",
+    "arguments_schema",
+    "computed_fields",
+    "definitions",
+    "steps",
+    "serialization",
+)
+_SCHEMA_MAP_OR_SEQ_KEYS: tuple[str, ...] = ("fields", "choices")
+
+
+def _push_schema_children(
+    node: dict[str, Any],
+    owner_cls: type[Any] | None,
+    stack: list[tuple[Any, type[Any] | None]],
+) -> None:
+    """Push only schema-bearing sub-nodes of a ``pydantic_core`` schema dict onto *stack*."""
+    for key in _SCHEMA_CHILD_KEYS:
+        if key in node:
+            child = node[key]
+            if isinstance(child, (dict, list, tuple)):
+                stack.append((child, owner_cls))
+    for key in _SCHEMA_MAP_OR_SEQ_KEYS:
+        if key not in node:
+            continue
+        child = node[key]
+        if isinstance(child, dict):
+            stack.extend((v, owner_cls) for v in child.values())
+        elif isinstance(child, (list, tuple)):
+            stack.append((child, owner_cls))
+
+
 def _schema_has_disallowed_hook(
     schema: Any,
     allowed_sers: frozenset[Any],
@@ -1997,11 +2115,11 @@ def _schema_has_disallowed_hook(
                 continue
             seen.add(node_id)
             node_type = node.get("type")
-            if node_type in {"to-string", "format"}:
+            if isinstance(node_type, str) and node_type in {"to-string", "format"}:
                 return True
             next_owner = (
                 node.get("cls", owner_cls)
-                if node_type in {"model", "dataclass"}
+                if isinstance(node_type, str) and node_type in {"model", "dataclass"}
                 else owner_cls
             )
             if "serialization" in node and _ser_schema_disallowed(
@@ -2013,7 +2131,7 @@ def _schema_has_disallowed_hook(
                 and (next_owner, node.get("property_name")) not in allowed_computed
             ):
                 return True
-            stack.extend((v, next_owner) for v in node.values())
+            _push_schema_children(node, next_owner, stack)
         elif isinstance(node, (list, tuple)):
             node_id = id(node)
             if node_id in seen:

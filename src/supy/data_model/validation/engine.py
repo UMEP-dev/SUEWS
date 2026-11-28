@@ -46,6 +46,7 @@ from .pipeline.report_schema import (
 )
 from .rules.readonly_model import (
     ReadOnlyModelProxy,
+    _safe_snapshot_copy,
     _unwrap_model_for_validation,
     freeze_model,
 )
@@ -466,7 +467,10 @@ def _validate_dict_backed_profile_keys(config_copy: SUEWSConfig) -> None:
 
 
 def _validate_suews_config_before_dump(
-    config: SUEWSConfig, *, first_phase: str
+    config: SUEWSConfig,
+    *,
+    first_phase: str,
+    from_readonly_proxy: bool = False,
 ) -> tuple[SUEWSConfig, PhaseReport | None]:
     """Validate live model shapes, profile keys, and senescence states on a deep copy.
 
@@ -479,10 +483,13 @@ def _validate_suews_config_before_dump(
     ``SUEWSConfig`` instance or letting malformed nested values escape as raw
     exceptions.
     """
+    from ..core.config import SUEWSConfig as _SUEWSConfig  # noqa: PLC0415
     from ..core.site import Site  # noqa: PLC0415
     from ..core.type import RefValue  # noqa: PLC0415
 
-    config_copy = deepcopy(config)
+    config_copy = (
+        _safe_snapshot_copy(config) if from_readonly_proxy else deepcopy(config)
+    )
 
     shape_errors = _validate_live_model_shapes(config_copy, ref_value_cls=RefValue)
     if shape_errors:
@@ -508,21 +515,37 @@ def _validate_suews_config_before_dump(
     if isinstance(config_copy.sites, list) and all(
         isinstance(site, Site) for site in config_copy.sites
     ):
-        validators.extend([
-            ("PROFILE_KEY_ERROR", config_copy.validate_hourly_profile_hours),
-            ("PROFILE_KEY_ERROR", config_copy.validate_ten_minute_profile_keys),
-        ])
+        if from_readonly_proxy:
+            validators.extend([
+                (
+                    "PROFILE_KEY_ERROR",
+                    lambda: _SUEWSConfig.validate_hourly_profile_hours(config_copy),
+                ),
+                (
+                    "PROFILE_KEY_ERROR",
+                    lambda: _SUEWSConfig.validate_ten_minute_profile_keys(config_copy),
+                ),
+            ])
+        else:
+            validators.extend([
+                ("PROFILE_KEY_ERROR", config_copy.validate_hourly_profile_hours),
+                ("PROFILE_KEY_ERROR", config_copy.validate_ten_minute_profile_keys),
+            ])
     validators.append((
         "PROFILE_KEY_ERROR",
         lambda: _validate_dict_backed_profile_keys(config_copy),
     ))
     validators.append((
         "SENESCENCE_STATE_ERROR",
-        config_copy._validate_senescence_states,
+        (lambda: _SUEWSConfig._validate_senescence_states(config_copy))
+        if from_readonly_proxy
+        else config_copy._validate_senescence_states,
     ))
     validators.append((
         "NON_NULL_VALUE_ERROR",
-        config_copy.validate_non_null_ref_values,
+        (lambda: _SUEWSConfig.validate_non_null_ref_values(config_copy))
+        if from_readonly_proxy
+        else config_copy.validate_non_null_ref_values,
     ))
 
     issues: list[Issue] = []
@@ -562,7 +585,10 @@ def _validate_suews_config_before_dump(
 
 
 def _dump_suews_config(
-    config: SUEWSConfig, *, dumped_copy: SUEWSConfig | None = None
+    config: SUEWSConfig,
+    *,
+    dumped_copy: SUEWSConfig | None = None,
+    from_readonly_proxy: bool = False,
 ) -> dict[str, Any]:
     """Serialise an in-memory ``SUEWSConfig`` to a YAML-equivalent dict.
 
@@ -576,8 +602,12 @@ def _dump_suews_config(
     from ..core.type import RefValue  # noqa: PLC0415
 
     source_for_dump = config if dumped_copy is None else dumped_copy
-    raw_data = source_for_dump.model_dump(
-        exclude_none=True, mode="json", round_trip=True
+    raw_data = (
+        BaseModel.model_dump(
+            source_for_dump, exclude_none=True, mode="json", round_trip=True
+        )
+        if from_readonly_proxy
+        else source_for_dump.model_dump(exclude_none=True, mode="json", round_trip=True)
     )
     _restore_explicit_and_non_optional_nulls(
         source_for_dump, raw_data, ref_value_cls=RefValue
@@ -611,7 +641,8 @@ def _load_source_in_memory(
     """Resolve *source* into ``(raw_data, source_path, error_report)`` without writes."""
     from ..core.config import SUEWSConfig  # noqa: PLC0415
 
-    if isinstance(source, ReadOnlyModelProxy):
+    from_readonly_proxy = isinstance(source, ReadOnlyModelProxy)
+    if from_readonly_proxy:
         try:
             source = _unwrap_model_for_validation(source)
         except TypeError as exc:
@@ -635,12 +666,18 @@ def _load_source_in_memory(
 
     if isinstance(source, SUEWSConfig):
         validated_copy, pre_dump_err = _validate_suews_config_before_dump(
-            source, first_phase=first_phase
+            source,
+            first_phase=first_phase,
+            from_readonly_proxy=from_readonly_proxy,
         )
         if pre_dump_err is not None:
             return None, None, pre_dump_err
         try:
-            dumped = _dump_suews_config(source, dumped_copy=validated_copy)
+            dumped = _dump_suews_config(
+                source,
+                dumped_copy=validated_copy,
+                from_readonly_proxy=from_readonly_proxy,
+            )
         except (ValueError, TypeError, AttributeError) as exc:
             return (
                 None,

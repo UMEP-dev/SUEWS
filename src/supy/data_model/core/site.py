@@ -2782,7 +2782,6 @@ class ArchetypeProperties(DataModelBase):
             "profile_setpoint_temperature_cooling_air": CoolingSetpointProfile,
         }
 
-        stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
         default_instance = cls()
         params: Dict[str, object] = {}
 
@@ -2798,11 +2797,7 @@ class ArchetypeProperties(DataModelBase):
                 if col in df.columns:
                     value = df.loc[grid_id, col]
                     if pd.isna(value):
-                        params[field_name] = (
-                            None
-                            if stebbs_inactive
-                            else getattr(default_instance, field_name)
-                        )
+                        params[field_name] = None
                     else:
                         params[field_name] = value
                 else:
@@ -2837,11 +2832,7 @@ class ArchetypeProperties(DataModelBase):
             if col in df.columns:
                 value = df.loc[grid_id, col]
                 if pd.isna(value):
-                    params[field_name] = (
-                        None
-                        if stebbs_inactive
-                        else getattr(default_instance, field_name)
-                    )
+                    params[field_name] = None
                 else:
                     params[field_name] = RefValue(value)
             else:
@@ -3695,7 +3686,6 @@ class StebbsProperties(DataModelBase):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
         tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
         default_instance = cls()
         params: Dict[str, object] = {}
@@ -3730,11 +3720,7 @@ class StebbsProperties(DataModelBase):
             if col in df.columns:
                 value = df.loc[grid_id, col]
                 if pd.isna(value):
-                    params[field_name] = (
-                        None
-                        if stebbs_inactive
-                        else getattr(default_instance, field_name)
-                    )
+                    params[field_name] = None
                 else:
                     params[field_name] = RefValue(value)
             else:

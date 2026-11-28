@@ -1741,10 +1741,33 @@ class ModelPhysics(DataModelBase):
         # conversion), so default it to 0 (STEBBS disabled) -- consistent with
         # `dict_RunControl_default` and the other newer STEBBS columns below --
         # rather than aborting. A present-but-invalid value is still rejected.
+        def _parse_strict_df_int(raw: Any, label: str) -> int:
+            if isinstance(raw, np.generic):
+                raw = raw.item()
+            if raw is None or isinstance(raw, bool):
+                raise ValueError(f"Invalid {label} value {raw!r}; expected an integer")
+            if isinstance(raw, int):
+                return raw
+            if isinstance(raw, float):
+                if math.isfinite(raw) and raw.is_integer():
+                    return int(raw)
+                raise ValueError(f"Invalid {label} value {raw!r}; expected an integer")
+            if isinstance(raw, str):
+                text = raw.strip()
+                try:
+                    return int(text)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Invalid {label} value {raw!r}; expected an integer"
+                    ) from exc
+            raise ValueError(f"Invalid {label} value {raw!r}; expected an integer")
+
         try:
-            stebbsmethod = int(df.loc[grid_id, ("stebbsmethod", "0")])
+            raw_stebbsmethod = df.loc[grid_id, ("stebbsmethod", "0")]
         except KeyError:
             stebbsmethod = int(StebbsMethod.NONE)
+        else:
+            stebbsmethod = _parse_strict_df_int(raw_stebbsmethod, "stebbsmethod")
         if stebbsmethod not in (0, 1, 2):
             raise ValueError(
                 f"Invalid stebbsmethod value {stebbsmethod}; expected 0, 1, or 2"
@@ -1800,7 +1823,9 @@ class ModelPhysics(DataModelBase):
                 else:
                     stebbs_props[member_name] = RefValue(value)
             else:
-                stebbs_props[member_name] = RefValue(int(value))
+                stebbs_props[member_name] = RefValue(
+                    _parse_strict_df_int(value, f"stebbs.{member_name}")
+                )
         properties["stebbs"] = StebbsPhysics(**stebbs_props)
 
         return cls(**properties)

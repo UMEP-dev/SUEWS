@@ -1536,6 +1536,58 @@ def test_active_stebbs_requires_complete_144_slot_ten_minute_profiles(
         cfg.validate_for_engine()
 
 
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize(
+    ("col_name", "expected_field"),
+    [
+        ("grounddepth", "depth_ground"),
+        ("wallthickness", "thickness_wall"),
+    ],
+)
+def test_active_df_state_explicit_nan_not_replaced_with_default(
+    sample_dict: dict, parameters: int, col_name: str, expected_field: str
+) -> None:
+    """Active ``from_df_state()`` keeps explicit NaN cells as None so engine validation rejects them."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    cfg = SUEWSConfig.from_dict(data)
+    df_state = cfg.to_df_state()
+    df_state.loc[1, (col_name, "0")] = float("nan")
+
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    with pytest.raises(ValueError, match=expected_field):
+        rebuilt.validate_for_engine()
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+def test_df_state_activation_rejects_non_integer_subordinate_and_master_switches(
+    sample_dict: dict, parameters: int
+) -> None:
+    """``from_df_state()`` rejects fractional floats instead of silently truncating via ``int()``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["capacitance"] = 1.5
+
+    cfg = SUEWSConfig.from_dict(data)
+    df_state = cfg.to_df_state()
+    assert df_state.loc[1, ("rcmethod", "0")] == 1.5
+
+    # Activating STEBBS in df_state with fractional rcmethod=1.5 must raise, not truncate to 1.
+    df_active = df_state.copy()
+    df_active.loc[1, ("stebbsmethod", "0")] = parameters
+    with pytest.raises(ValueError, match="capacitance"):
+        SUEWSConfig.from_df_state(df_active)
+
+    # Fractional stebbsmethod=0.5 must raise, not silently truncate to 0 (disabled).
+    df_bad_master = df_state.copy()
+    df_bad_master[("stebbsmethod", "0")] = df_bad_master[("stebbsmethod", "0")].astype(
+        float
+    )
+    df_bad_master.loc[1, ("stebbsmethod", "0")] = 0.5
+    with pytest.raises(ValueError, match="stebbsmethod"):
+        SUEWSConfig.from_df_state(df_bad_master)
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

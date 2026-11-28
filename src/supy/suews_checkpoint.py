@@ -11,7 +11,10 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from ._version_scm import __version__
+try:
+    from ._version_scm import __version__
+except ModuleNotFoundError:
+    __version__ = "0+unknown"
 
 CURRENT_CHECKPOINT_SCHEMA_VERSION = 4
 LEGACY_PRE_CLOCK_CHECKPOINT_SCHEMA_VERSION = 3

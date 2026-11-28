@@ -25,7 +25,10 @@ from typing import Any, Optional
 
 import pandas as pd
 
-from ._version_scm import __version__
+try:
+    from ._version_scm import __version__
+except ModuleNotFoundError:
+    __version__ = "0+unknown"
 
 PROVENANCE_FILENAME = "provenance.json"
 PROVENANCE_FORMAT_VERSION = 1

@@ -8,7 +8,12 @@ except ImportError:
 from ._env import trv_supy_module
 import json
 import sys
-from ._version_scm import __version__, __version_tuple__
+
+try:
+    from ._version_scm import __version__, __version_tuple__
+except ModuleNotFoundError:
+    __version__ = "0+unknown"
+    __version_tuple__ = ()
 
 
 import pandas as pd

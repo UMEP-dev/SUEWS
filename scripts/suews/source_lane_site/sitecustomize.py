@@ -96,7 +96,12 @@ def _chain_other_sitecustomize() -> None:
         if spec is None or spec.loader is None:
             continue
         chained = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(chained)
+        sys.modules[spec.name] = chained
+        try:
+            spec.loader.exec_module(chained)
+        except BaseException:
+            sys.modules.pop(spec.name, None)
+            raise
         break
 
 

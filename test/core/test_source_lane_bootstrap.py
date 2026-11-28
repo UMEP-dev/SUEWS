@@ -154,25 +154,39 @@ def test_compiled_extension_blocker_blocks_and_uninstalls_cleanly() -> None:
     assert not issubclass(slb.SourceLaneViolationError, ImportError)
 
 
-def test_activate_if_enabled_is_noop_when_unset(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_activate_if_enabled_is_noop_when_unset(tmp_path: Path) -> None:
     """Normal wheel mode (env unset or ``0``) installs no source-lane meta-path finders."""
-    meta_snapshot = list(sys.meta_path)
-    monkeypatch.setattr(sys, "meta_path", list(meta_snapshot))
-    monkeypatch.setitem(
-        slb._STATE, "disabled_finders", list(slb._STATE["disabled_finders"])
+    script = (
+        "import importlib.util, pathlib, sys\n"
+        f"spec = importlib.util.spec_from_file_location('slb_noop', {str(BOOTSTRAP_PATH)!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "sys.modules[spec.name] = mod\n"
+        "spec.loader.exec_module(mod)\n"
+        "before = list(sys.meta_path)\n"
+        f"assert mod.activate_if_enabled(pathlib.Path({str(REPO_ROOT)!r}), env={{}}) is False\n"
+        f"assert mod.activate_if_enabled(pathlib.Path({str(REPO_ROOT)!r}), env={{mod.SOURCE_LANE_ENV_VAR: '0'}}) is False\n"
+        "assert sys.meta_path == before\n"
+        "assert not mod.is_active()\n"
     )
-    slb.uninstall_guards()
-
-    assert slb.activate_if_enabled(REPO_ROOT, env={}) is False
-    assert (
-        slb.activate_if_enabled(REPO_ROOT, env={slb.SOURCE_LANE_ENV_VAR: "0"}) is False
+    clean_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR, slb.SOURCE_LANE_ROOT_ENV_VAR}
+    }
+    proc = subprocess.run(
+        [sys.executable, "-S", "-P", "-c", script],
+        cwd=tmp_path,
+        env=clean_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
     )
-    assert not any(
-        isinstance(f, (slb.CompiledExtensionBlocker, slb.VersionScmFallbackFinder))
-        for f in sys.meta_path
-    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
 @pytest.mark.e2e
@@ -1081,6 +1095,121 @@ def test_inherited_sitecustomize_bootstrap_reused_by_conftest_without_duplicates
 
     proc = subprocess.run(
         [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=child_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_deactivate_unwinds_switched_roots_and_detaches_parent_attrs(
+    tmp_path: Path,
+) -> None:
+    """Switching active checkout roots and evicting submodules unwinds cleanly."""
+    checkout_a = tmp_path / "checkout_a"
+    checkout_b = tmp_path / "checkout_b"
+    for root in (checkout_a, checkout_b):
+        (root / "src" / "supy").mkdir(parents=True)
+        (root / "mcp" / "src" / "suews_mcp").mkdir(parents=True)
+        (root / "src" / "supy" / "__init__.py").write_text(
+            f"ROOT = {root.name!r}\n", encoding="utf-8"
+        )
+
+    script = (
+        "import importlib.util, pathlib, sys\n"
+        f"spec = importlib.util.spec_from_file_location('slb_switch', {str(BOOTSTRAP_PATH)!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "sys.modules[spec.name] = mod\n"
+        "spec.loader.exec_module(mod)\n"
+        f"root_a = pathlib.Path({str(checkout_a)!r}).resolve()\n"
+        f"root_b = pathlib.Path({str(checkout_b)!r}).resolve()\n"
+        # 1. Switching roots while active unwinds BOTH roots' paths on deactivate
+        "before_path = list(sys.path)\n"
+        "mod.activate(root_a)\n"
+        "mod.activate(root_b)\n"
+        "assert str(root_b / 'src') in sys.path\n"
+        "assert mod.deactivate() is True\n"
+        "assert sys.path == before_path, (sys.path, before_path)\n"
+        # 2. When parent `supy` predates activation, evicting fallback `_version_scm`
+        #    also detaches the stale parent attribute so attribute & sys.modules stay aligned
+        "sys.path.insert(0, str(root_a / 'src'))\n"
+        "import supy\n"
+        "mod.activate(root_a)\n"
+        "from supy import _version_scm\n"
+        "assert supy._version_scm is _version_scm\n"
+        "mod.deactivate()\n"
+        "assert 'supy._version_scm' not in sys.modules\n"
+        "assert not hasattr(supy, '_version_scm')\n"
+    )
+    clean_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR, slb.SOURCE_LANE_ROOT_ENV_VAR}
+    }
+    proc = subprocess.run(
+        [sys.executable, "-S", "-P", "-c", script],
+        cwd=tmp_path,
+        env=clean_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_sitecustomize_chains_downstream_dataclass_hook_with_registered_module(
+    tmp_path: Path,
+) -> None:
+    """Chained downstream ``sitecustomize.py`` is registered in ``sys.modules`` before execution."""
+    site_dir = REPO_ROOT / "scripts" / "suews" / "source_lane_site"
+    downstream = tmp_path / "downstream_site"
+    downstream.mkdir()
+    (downstream / "sitecustomize.py").write_text(
+        "from __future__ import annotations\n"
+        "from dataclasses import dataclass\n"
+        "import os\n\n"
+        "@dataclass\n"
+        "class _HookRecord:\n"
+        "    label: str\n\n"
+        "os.environ['SUEWS_CHAINED_HOOK_SENTINEL'] = _HookRecord('chained_ok').label\n",
+        encoding="utf-8",
+    )
+    child_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {
+            "PYTHONPATH",
+            "SUEWS_CHAINED_HOOK_SENTINEL",
+            slb.SOURCE_LANE_ENV_VAR,
+            slb.SOURCE_LANE_ROOT_ENV_VAR,
+        }
+    }
+    child_env["PYTHONPATH"] = os.pathsep.join([str(site_dir), str(downstream)])
+    child_env[slb.SOURCE_LANE_ENV_VAR] = "1"
+    child_env[slb.SOURCE_LANE_ROOT_ENV_VAR] = str(REPO_ROOT)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import os, sys; "
+                "assert os.environ.get('SUEWS_CHAINED_HOOK_SENTINEL') == 'chained_ok'; "
+                "assert '_suews_chained_sitecustomize' in sys.modules"
+            ),
+        ],
         cwd=tmp_path,
         env=child_env,
         capture_output=True,

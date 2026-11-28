@@ -17,6 +17,7 @@ process mutations so normal wheel and editable test runs stay unchanged.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import contextlib
 import importlib.abc
 import importlib.machinery
 import importlib.util
@@ -417,13 +418,25 @@ def _is_source_lane_finder(finder: Any) -> bool:
     )
 
 
+def _evict_module(name: str) -> None:
+    """Remove ``name`` from ``sys.modules`` and detach its stale parent attribute."""
+    evicted = sys.modules.pop(name, None)
+    if evicted is None or "." not in name:
+        return
+    parent_name, attr_name = name.rsplit(".", 1)
+    parent = sys.modules.get(parent_name)
+    if parent is not None and getattr(parent, attr_name, None) is evicted:
+        with contextlib.suppress(AttributeError):
+            delattr(parent, attr_name)
+
+
 def _evict_synthetic_version_modules() -> None:
     """Remove synthetic ``_version_scm`` fallback modules from ``sys.modules``."""
     for name in _FALLBACK_VERSION_MODULES:
         module = sys.modules.get(name)
         spec = getattr(module, "__spec__", None) if module is not None else None
         if spec is not None and isinstance(spec.loader, VersionScmFallbackFinder):
-            sys.modules.pop(name, None)
+            _evict_module(name)
 
 
 def _loaded_owned_package_names() -> frozenset[str]:
@@ -438,19 +451,23 @@ def _loaded_owned_package_names() -> frozenset[str]:
     )
 
 
-def _snapshot_activation_baseline(resolved_root: Path) -> None:
-    """Capture reversible process state before transitioning inactive -> active."""
-    source_dirs = [
-        str(path)
-        for path in (resolved_root / "src", resolved_root / "mcp" / "src")
-        if path.is_dir()
-    ]
-    sys_path_ops: list[tuple[str, int | None]] = []
-    for entry in source_dirs:
+def _record_sys_path_ops(resolved_root: Path) -> None:
+    """Record any not-yet-tracked source directories from ``resolved_root`` for unwind."""
+    tracked = {entry for entry, _ in _STATE["sys_path_ops"]}
+    for path in (resolved_root / "src", resolved_root / "mcp" / "src"):
+        if not path.is_dir():
+            continue
+        entry = str(path)
+        if entry in tracked:
+            continue
         orig_idx = sys.path.index(entry) if entry in sys.path else None
-        sys_path_ops.append((entry, orig_idx))
+        _STATE["sys_path_ops"].append((entry, orig_idx))
+        tracked.add(entry)
 
-    _STATE["sys_path_ops"] = sys_path_ops
+
+def _snapshot_activation_baseline() -> None:
+    """Capture reversible process state before transitioning inactive -> active."""
+    _STATE["sys_path_ops"] = []
     _STATE["had_pythonpath"] = "PYTHONPATH" in os.environ
     _STATE["saved_pythonpath"] = os.environ.get("PYTHONPATH")
     _STATE["had_root_env"] = SOURCE_LANE_ROOT_ENV_VAR in os.environ
@@ -481,8 +498,13 @@ def _restore_activation_baseline() -> None:
         os.environ.pop(SOURCE_LANE_ROOT_ENV_VAR, None)
 
     pre_existing: frozenset[str] = _STATE["pre_existing_pkg_modules"]
-    for name in list(_loaded_owned_package_names() - pre_existing):
-        sys.modules.pop(name, None)
+    newly_loaded = sorted(
+        _loaded_owned_package_names() - pre_existing,
+        key=lambda mod_name: mod_name.count("."),
+        reverse=True,
+    )
+    for name in newly_loaded:
+        _evict_module(name)
 
     _STATE["active"] = False
     _STATE["repo_root"] = None
@@ -579,10 +601,11 @@ def activate(repo_root: Path | None = None) -> Path:
 
     first_activation = not _STATE["active"]
     if first_activation:
-        _snapshot_activation_baseline(resolved_root)
+        _snapshot_activation_baseline()
         _STATE["active"] = True
 
     try:
+        _record_sys_path_ops(resolved_root)
         configure_source_paths(resolved_root)
         install_guards(resolved_root)
         _STATE["repo_root"] = resolved_root

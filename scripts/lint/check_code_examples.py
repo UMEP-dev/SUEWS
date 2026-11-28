@@ -1042,6 +1042,58 @@ def extract_cli_shell_examples(
     return found
 
 
+_SOURCE_LANE_ENV_VAR = "SUEWS_SOURCE_LANE_ONLY"
+_SOURCE_LANE_TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})
+_SOURCE_LANE_FALSY: frozenset[str] = frozenset({"0", "false", "no", "off"})
+
+
+def _is_source_lane_only_active() -> bool:
+    """Return True when ``SUEWS_SOURCE_LANE_ONLY`` is enabled; fail closed on invalid tokens."""
+    raw = os.environ.get(_SOURCE_LANE_ENV_VAR)
+    if raw is None:
+        return False
+    normalised = raw.strip().lower()
+    if not normalised or normalised in _SOURCE_LANE_FALSY:
+        return False
+    if normalised in _SOURCE_LANE_TRUTHY:
+        return True
+    raise ValueError(
+        f"Invalid {_SOURCE_LANE_ENV_VAR}={raw!r}; expected one of "
+        f"{sorted(_SOURCE_LANE_TRUTHY)} or {sorted(_SOURCE_LANE_FALSY)}."
+    )
+
+
+def _source_lane_runner_prelude() -> str:
+    """Return a runner prelude activating source-lane guards when source-lane mode is active.
+
+    Adds only the approved checkout ``src/`` and ``mcp/src/`` paths via
+    ``scripts/suews/source_lane_bootstrap.activate()`` rather than forwarding
+    arbitrary host ``PYTHONPATH`` entries, preserving example isolation while
+    blocking compiled extensions and supplying the ``_version_scm`` fallback.
+    """
+    if not _is_source_lane_only_active():
+        return ""
+    repo_root = Path(__file__).resolve().parents[2]
+    bootstrap_path = repo_root / "scripts" / "suews" / "source_lane_bootstrap.py"
+    return (
+        "def _bootstrap_suews_source_lane() -> None:\n"
+        "    import importlib.util as _iu\n"
+        "    import pathlib as _pl\n"
+        "    import sys as _sys\n"
+        f"    _repo = _pl.Path({str(repo_root)!r})\n"
+        f"    _boot = _pl.Path({str(bootstrap_path)!r})\n"
+        "    _spec = _iu.spec_from_file_location('_suews_source_lane_bootstrap', _boot)\n"
+        "    if _spec is None or _spec.loader is None:\n"
+        "        raise RuntimeError(f'Unable to load source-lane bootstrap from {_boot}')\n"
+        "    _mod = _iu.module_from_spec(_spec)\n"
+        "    _sys.modules[_spec.name] = _mod\n"
+        "    _spec.loader.exec_module(_mod)\n"
+        "    _mod.activate(_repo)\n"
+        "_bootstrap_suews_source_lane()\n"
+        "del _bootstrap_suews_source_lane\n\n"
+    )
+
+
 def _isolated_env(temp_dir: Path) -> dict[str, str]:
     """Build a scrubbed environment so host config files cannot supply prerequisites."""
     env: dict[str, str] = {}
@@ -1057,15 +1109,8 @@ def _isolated_env(temp_dir: Path) -> dict[str, str]:
     ):
         if key in os.environ:
             env[key] = os.environ[key]
-    if os.environ.get("SUEWS_SOURCE_LANE_ONLY", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }:
-        env["SUEWS_SOURCE_LANE_ONLY"] = os.environ["SUEWS_SOURCE_LANE_ONLY"]
-        if "PYTHONPATH" in os.environ:
-            env["PYTHONPATH"] = os.environ["PYTHONPATH"]
+    if _is_source_lane_only_active():
+        env[_SOURCE_LANE_ENV_VAR] = os.environ[_SOURCE_LANE_ENV_VAR]
     temp_str = str(temp_dir)
     env["HOME"] = temp_str
     env["USERPROFILE"] = temp_str
@@ -1561,7 +1606,9 @@ def _start_contained_process(
     cleanup_done_path = path_ipc / "cleanup_done.txt"
     cleanup_error_path = path_ipc / "cleanup_error.txt"
     runner_script = path_ipc / "runner.py"
-    runner_script.write_text(runner_source, encoding="utf-8")
+    runner_script.write_text(
+        _source_lane_runner_prelude() + runner_source, encoding="utf-8"
+    )
 
     if os.name == "nt":
         cmd = [

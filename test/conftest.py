@@ -108,12 +108,15 @@ else:
             return True
         raise ValueError(f"Invalid {SOURCE_LANE_ENV_VAR}={raw!r}")
 
+    def _is_fallback_blocked(fullname: str) -> bool:
+        return fullname in _FALLBACK_BLOCKED_MODULES or any(
+            fullname.startswith(f"{name}.") for name in _FALLBACK_BLOCKED_MODULES
+        )
+
     class _FallbackCompiledBlocker(importlib.abc.MetaPathFinder):
         def find_spec(self, fullname, path, target=None):
             del path, target
-            if fullname in _FALLBACK_BLOCKED_MODULES or any(
-                fullname.startswith(f"{name}.") for name in _FALLBACK_BLOCKED_MODULES
-            ):
+            if _is_fallback_blocked(fullname):
                 raise SourceLaneViolationError(
                     f"Compiled extension {fullname!r} cannot be imported when "
                     f"{SOURCE_LANE_ENV_VAR}=1 (wheel-free source lane)."
@@ -129,7 +132,12 @@ else:
 
     def resolve_suews_cli_command(route: str = "suews", *, repo_root=None, env=None):
         """Return the installed SUEWS CLI console script command."""
-        del repo_root, env
+        del repo_root
+        if is_source_lane_only(env):
+            raise SourceLaneViolationError(
+                f"Cannot dispatch SUEWS CLI route {route!r} under "
+                f"{SOURCE_LANE_ENV_VAR}=1 without scripts/suews/source_lane_bootstrap.py."
+            )
         executable = Path(sysconfig.get_path("scripts")) / (
             route + (".exe" if os.name == "nt" else "")
         )
@@ -149,10 +157,21 @@ else:
         return offending
 
     try:
-        if is_source_lane_only() and not any(
-            isinstance(finder, _FallbackCompiledBlocker) for finder in sys.meta_path
-        ):
-            sys.meta_path.insert(0, _FallbackCompiledBlocker())
+        if is_source_lane_only():
+            _loaded_compiled = sorted(
+                name
+                for name, module in sys.modules.items()
+                if module is not None and _is_fallback_blocked(name)
+            )
+            if _loaded_compiled:
+                raise SourceLaneViolationError(
+                    f"Compiled extension module(s) already loaded in sys.modules under "
+                    f"{SOURCE_LANE_ENV_VAR}=1: {', '.join(_loaded_compiled)}"
+                )
+            if not any(
+                isinstance(finder, _FallbackCompiledBlocker) for finder in sys.meta_path
+            ):
+                sys.meta_path.insert(0, _FallbackCompiledBlocker())
     except ValueError as _exc:
         raise pytest.UsageError(str(_exc)) from _exc
 

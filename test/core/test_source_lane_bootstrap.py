@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import doctest
 import importlib.util
 import os
 from pathlib import Path
@@ -161,6 +162,8 @@ def test_activate_if_enabled_is_noop_when_unset(
     )
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_source_lane_blocks_compiled_extension_even_behind_importorskip(
     tmp_path: Path,
 ) -> None:
@@ -196,6 +199,8 @@ def test_source_lane_blocks_compiled_extension_even_behind_importorskip(
     assert "skipped" not in combined, combined
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_source_lane_blocks_compiled_only_conftest_fixtures(tmp_path: Path) -> None:
     """Compiled-only fixtures (e.g. ``suews_engine_bin``, ``completed_sample_sim``) fail loudly."""
     test_root = _setup_synthetic_source_repo(tmp_path)
@@ -222,6 +227,8 @@ def test_source_lane_blocks_compiled_only_conftest_fixtures(tmp_path: Path) -> N
     assert "SourceLaneViolationError" in combined, combined
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 @pytest.mark.parametrize("axis", ["native", "physics"])
 def test_source_lane_rejects_executing_native_and_physics_tests(
     tmp_path: Path, axis: str
@@ -249,6 +256,8 @@ def test_source_lane_rejects_executing_native_and_physics_tests(
     assert f"test_{axis}_blocked.py::test_blocked ({axis})" in combined, combined
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_source_lane_allows_collect_only_and_tooling_unit_execution(
     tmp_path: Path,
 ) -> None:
@@ -290,6 +299,8 @@ def test_source_lane_allows_collect_only_and_tooling_unit_execution(
     assert "2 passed" in combined, combined
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_normal_mode_unchanged_when_env_unset(tmp_path: Path) -> None:
     """Unset ``SUEWS_SOURCE_LANE_ONLY`` leaves ``native``/``physics`` execution untouched."""
     test_root = _setup_synthetic_source_repo(tmp_path)
@@ -313,6 +324,8 @@ def test_normal_mode_unchanged_when_env_unset(tmp_path: Path) -> None:
     assert "1 passed" in combined, combined
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_source_lane_invalid_env_value_fails_closed_in_pytest(tmp_path: Path) -> None:
     """Invalid ``SUEWS_SOURCE_LANE_ONLY`` value aborts pytest with ``USAGE_ERROR``."""
     test_root = _setup_synthetic_source_repo(tmp_path)
@@ -332,6 +345,8 @@ def test_source_lane_invalid_env_value_fails_closed_in_pytest(tmp_path: Path) ->
     assert slb.SOURCE_LANE_ENV_VAR in combined, combined
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_version_scm_fallback_provides_clean_checkout_metadata(tmp_path: Path) -> None:
     """Clean checkout without ``_version_scm.py`` imports ``supy`` and ``supy._version_scm``."""
     fake_src = tmp_path / "src"
@@ -414,6 +429,8 @@ def test_resolve_suews_cli_command_dispatches_python_in_source_lane() -> None:
         )
 
 
+@pytest.mark.e2e
+@pytest.mark.os_compat
 def test_source_lane_blocks_run_rust_bridge_load_while_keeping_pure_helpers(
     tmp_path: Path,
 ) -> None:
@@ -442,6 +459,7 @@ def test_source_lane_blocks_run_rust_bridge_load_while_keeping_pure_helpers(
     assert "1 passed" in combined, combined
 
 
+@pytest.mark.os_compat
 def test_configure_source_paths_normalises_relative_pythonpath(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -460,3 +478,156 @@ def test_configure_source_paths_normalises_relative_pythonpath(
     entries = os.environ["PYTHONPATH"].split(os.pathsep)
     assert entries[:3] == [str(src_dir), str(mcp_dir), str(extra_rel.resolve())]
     assert all(Path(entry).is_absolute() for entry in entries)
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_resolved_source_cli_command_activates_deterministically_when_child_env_unset(
+    tmp_path: Path,
+) -> None:
+    """A source-lane CLI command activates guards even if the child's env omits the var."""
+    cmd = slb.resolve_suews_cli_command(
+        "suews",
+        repo_root=REPO_ROOT,
+        env={slb.SOURCE_LANE_ENV_VAR: "1"},
+    )
+    child_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR}
+    }
+    proc = subprocess.run(
+        [*cmd, "--help"],
+        cwd=tmp_path,
+        env=child_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "SUEWS unified command-line interface" in proc.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_standalone_conftest_fallback_blocks_cached_modules_and_cli_dispatch(
+    tmp_path: Path,
+) -> None:
+    """Standalone ``conftest.py`` without bootstrap rejects cached compiled modules and CLI dispatch."""
+    test_root = tmp_path / "test"
+    test_root.mkdir(parents=True)
+    (tmp_path / "pyproject.toml").write_text(_SYNTHETIC_PYPROJECT, encoding="utf-8")
+    shutil.copy2(TEST_DIR / "conftest.py", test_root / "conftest.py")
+
+    # 1. Pre-cached compiled module in sys.modules fails loudly on conftest import.
+    cached_script = (
+        "import importlib.util, sys, types; "
+        "sys.modules['supy.suews_bridge'] = types.ModuleType('supy.suews_bridge'); "
+        f"spec = importlib.util.spec_from_file_location('conftest_standalone', {str(test_root / 'conftest.py')!r}); "
+        "mod = importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(mod)"
+    )
+    env_on = {**os.environ, slb.SOURCE_LANE_ENV_VAR: "1"}
+    cached_proc = subprocess.run(
+        [sys.executable, "-c", cached_script],
+        cwd=tmp_path,
+        env=env_on,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert cached_proc.returncode != 0
+    assert "SourceLaneViolationError" in cached_proc.stderr
+
+    # 2. Fallback resolve_suews_cli_command fails loudly under SUEWS_SOURCE_LANE_ONLY=1.
+    cli_script = (
+        "import importlib.util; "
+        f"spec = importlib.util.spec_from_file_location('conftest_standalone', {str(test_root / 'conftest.py')!r}); "
+        "mod = importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(mod); "
+        "mod.resolve_suews_cli_command('suews')"
+    )
+    cli_proc = subprocess.run(
+        [sys.executable, "-c", cli_script],
+        cwd=tmp_path,
+        env=env_on,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert cli_proc.returncode != 0
+    assert "SourceLaneViolationError" in cli_proc.stderr
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_code_examples_subprocess_blocks_bridge_and_keeps_host_pythonpath_isolated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``check_code_examples`` child runners activate source-lane guards without leaking host ``PYTHONPATH``."""
+    checker_path = REPO_ROOT / "scripts" / "lint" / "check_code_examples.py"
+    spec = importlib.util.spec_from_file_location(
+        "_suews_check_code_examples", checker_path
+    )
+    assert spec is not None and spec.loader is not None
+    checker = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, checker)
+    spec.loader.exec_module(checker)
+
+    # Create a host-only module on an unrelated PYTHONPATH directory.
+    host_only_dir = tmp_path / "host_only_pkg"
+    host_only_dir.mkdir()
+    (host_only_dir / "host_secret_mod.py").write_text("SECRET = 42\n", encoding="utf-8")
+
+    monkeypatch.setenv(slb.SOURCE_LANE_ENV_VAR, "1")
+    monkeypatch.setenv("PYTHONPATH", str(host_only_dir))
+
+    parser = doctest.DocTestParser()
+
+    # 1. Host-only module must NOT leak into the isolated example runner.
+    host_block = checker.ExampleBlock(
+        block_index=0,
+        examples=parser.get_examples(
+            ">>> import host_secret_mod\n>>> host_secret_mod.SECRET\n42\n"
+        ),
+        lines=(1, 3),
+        has_stated_output=True,
+    )
+    host_status, host_detail = checker.run_example_block(
+        host_block, name="host_isolation", timeout=30.0
+    )
+    assert host_status == "prerequisite-missing", (host_status, host_detail)
+    assert host_detail.get("exception_type") == "ModuleNotFoundError", host_detail
+
+    # 2. Compiled bridge import inside an example MUST fail loudly with SourceLaneViolationError.
+    bridge_block = checker.ExampleBlock(
+        block_index=0,
+        examples=parser.get_examples(">>> import supy.suews_bridge\n>>> 1\n1\n"),
+        lines=(1, 3),
+        has_stated_output=True,
+    )
+    bridge_status, bridge_detail = checker.run_example_block(
+        bridge_block, name="bridge_blocked", timeout=30.0
+    )
+    assert bridge_status == "error", (bridge_status, bridge_detail)
+    assert bridge_detail.get("exception_type") == "SourceLaneViolationError", (
+        bridge_detail
+    )
+
+    # 3. Clean checkout `supy` + `supy._version_scm` still import inside the runner.
+    supy_block = checker.ExampleBlock(
+        block_index=0,
+        examples=parser.get_examples(
+            ">>> import supy\n>>> from supy import _version_scm\n>>> isinstance(supy.__version__, str)\nTrue\n"
+        ),
+        lines=(1, 4),
+        has_stated_output=True,
+    )
+    supy_status, supy_detail = checker.run_example_block(
+        supy_block, name="supy_from_source", timeout=30.0
+    )
+    assert supy_status == "ok", (supy_status, supy_detail)

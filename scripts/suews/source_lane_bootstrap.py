@@ -401,10 +401,11 @@ def resolve_suews_cli_command(
     module_name, func_name = _CLI_ENTRY_POINTS[route]
     scripts_dir = str((resolved_root / "scripts" / "suews").resolve())
     snippet = (
-        "import importlib, pathlib, sys; "
+        "import importlib, os, pathlib, sys; "
+        f"os.environ.setdefault({SOURCE_LANE_ENV_VAR!r}, '1'); "
         f"sys.path.insert(0, {scripts_dir!r}); "
         "import source_lane_bootstrap as _slb; "
-        f"_slb.activate_if_enabled(pathlib.Path({str(resolved_root)!r})); "
+        f"_slb.activate(pathlib.Path({str(resolved_root)!r})); "
         f"sys.argv[0] = {route!r}; "
         f"getattr(importlib.import_module({module_name!r}), {func_name!r})()"
     )

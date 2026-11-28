@@ -77,6 +77,7 @@ from supy.data_model.validation.rules import (
     ReadOnlyEnumProxy,
     ReadOnlyFieldInfo,
     ReadOnlyModelProxy,
+    ReadOnlyTypeInfo,
     SiteView,
     SurfaceView,
     TypedConfigView,
@@ -632,7 +633,11 @@ def test_readonly_model_proxy_blocks_mutations_and_isolates_from_caller() -> Non
     ro = freeze_model(cfg)
     assert isinstance(ro, ReadOnlyModelProxy)
     assert freeze_model(ro) is ro
-    assert ro.model_type is SUEWSConfig
+    assert ro.model_type == ReadOnlyTypeInfo(
+        name="SUEWSConfig",
+        qualname="SUEWSConfig",
+        module=SUEWSConfig.__module__,
+    )
     assert ro == cfg
     assert isinstance(ro.model_fields_set, frozenset)
     assert isinstance(ro.sites, tuple)
@@ -3071,7 +3076,8 @@ def test_r10_r6_enum_drift_identity_hash_and_object_array_cycles() -> None:
         assert ro_drift.e.name == "ITEM"
         assert ro_drift.e.value == 1
         assert hash(ro_drift.e) == orig_hash
-        assert ro_drift.model_dump(mode="json") == {"e": 1}
+        with pytest.raises(TypeError, match="mutated externally"):
+            ro_drift.model_dump(mode="json")
     finally:
         _DriftEnum.ITEM._value_ = 1
         _DriftEnum.ITEM._name_ = "ITEM"
@@ -3098,3 +3104,128 @@ def test_r10_r6_enum_drift_identity_hash_and_object_array_cycles() -> None:
             deep_freeze(_CyclicEnum.ITEM)
     finally:
         del _CyclicEnum.ITEM.peer
+
+
+def test_r10_r7_model_dump_override_type_descriptors_bound_methods_and_engine_drift() -> (
+    None
+):
+    """Cover R6 M1-M4: overridden model_dump, ReadOnlyTypeInfo, MethodType rejection, and engine drift."""
+    from supy.data_model.core.model import NetRadiationMethod  # noqa: PLC0415
+    from supy.data_model.validation.engine import validate_config  # noqa: PLC0415
+
+    # M1: Overridden model_dump on an Enum-bearing model is rejected before execution.
+    class _OvEnum(Enum):
+        ITEM = 1
+
+        def __init__(self, _val: int) -> None:
+            self.label = "orig"
+
+    class _OvDumpModel(BaseModel):
+        e: _OvEnum = _OvEnum.ITEM
+
+        def model_dump(self, *args: object, **kwargs: object) -> dict[str, object]:
+            del args, kwargs
+            self.e.label = "mutated_override"
+            return {}
+
+    ro_ov = freeze_model(_OvDumpModel())
+    with pytest.raises(TypeError, match="Enum singletons"):
+        ro_ov.model_dump()
+    assert _OvEnum.ITEM.label == "orig"
+
+    # M2: enum_type, model_type, dataclass_type, and field annotations return immutable descriptors, never live classes.
+    frozen_e = deep_freeze(_OvEnum.ITEM)
+    assert isinstance(frozen_e.enum_type, ReadOnlyTypeInfo)
+    assert frozen_e.enum_type.name == "_OvEnum"
+    assert isinstance(ro_ov.model_type, ReadOnlyTypeInfo)
+    assert isinstance(ro_ov.model_fields["e"].annotation, ReadOnlyTypeInfo)
+    assert not isinstance(ro_ov.model_fields["e"].annotation, type)
+
+    # M3: Python MethodType bound methods are rejected so global state cannot be mutated.
+    events: list[int] = []
+
+    class _Sink:
+        def add(self, value: int) -> None:
+            events.append(value)
+
+    class _SinkModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        callback: object
+
+    with pytest.raises(TypeError, match="Python bound method"):
+        freeze_model(_SinkModel(callback=_Sink().add))
+    assert events == []
+
+    # M4: validate_config detects post-freeze Enum _value_ drift and returns structured error.
+    cfg = SUEWSConfig()
+    ro_cfg = freeze_model(cfg)
+    orig_val = NetRadiationMethod.LDOWN_AIR._value_
+    NetRadiationMethod.LDOWN_AIR._value_ = 9999
+    try:
+        report = validate_config(ro_cfg, pipeline="C", forcing="off")
+        assert report.has_errors
+    finally:
+        NetRadiationMethod.LDOWN_AIR._value_ = orig_val
+
+
+def test_r10_r7_list_subclass_tuple_cycle_slot_metadata_and_refvalue_eq() -> None:
+    """Cover R6 m1-m5: list subclass, tuple/list cycle identity, drift base64, slot metadata, RefValue eq."""
+    from supy.data_model.core.type import RefValue  # noqa: PLC0415
+
+    # m1: List subclasses are rejected explicitly instead of silently losing attributes.
+    class _Samples(list):
+        def __init__(self, values: list[float], unit: str) -> None:
+            super().__init__(values)
+            self.unit = unit
+
+    class _SampleModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        samples: object
+
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_SampleModel(samples=_Samples([1.0], "K")))
+
+    # m2: Tuple/list cycles preserve exact cycle object identity after snapshotting.
+    items: list[object] = []
+    payload = (items,)
+    items.append(payload)
+
+    class _CycleTupleModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object
+
+    unwrapped_cyc = freeze_model(_CycleTupleModel(payload=payload)).unwrap_copy()
+    assert unwrapped_cyc.payload[0][0] is unwrapped_cyc.payload
+    assert unwrapped_cyc.payload is not payload
+
+    # m3: Drift rejection preserves ConfigDict(ser_json_bytes="base64") contract (no silent UTF-8 fallback).
+    class _B64Enum(Enum):
+        ITEM = 1
+
+    class _B64Model(BaseModel):
+        model_config = ConfigDict(ser_json_bytes="base64")
+        e: _B64Enum = _B64Enum.ITEM
+        raw: bytes = b"\xff"
+
+    ro_b64 = freeze_model(_B64Model())
+    assert ro_b64.model_dump(mode="json") == {"e": 1, "raw": "_w=="}
+    _B64Enum.ITEM._value_ = 2
+    try:
+        with pytest.raises(TypeError, match="mutated externally"):
+            ro_b64.model_dump(mode="json")
+    finally:
+        _B64Enum.ITEM._value_ = 1
+
+    # m4: ReadOnlyFieldInfo, ReadOnlyTypeInfo, PathStyle, and StyleLedger have no writable __dict__.
+    info = ro_b64.model_fields["raw"]
+    assert not hasattr(info, "__dict__")
+    assert not hasattr(ro_b64.model_type, "__dict__")
+    ledger = StyleLedger.from_yaml_text("a: 1\n")
+    assert not hasattr(ledger, "__dict__")
+    assert not hasattr(ledger.get("a"), "__dict__")
+
+    # m5: Frozen RefValue preserves scalar equality.
+    ro_ref = freeze_model(RefValue(3))
+    assert ro_ref == 3
+    assert ro_ref != 4
+    assert RefValue(3) == ro_ref

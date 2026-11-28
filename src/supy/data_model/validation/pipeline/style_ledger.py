@@ -238,7 +238,7 @@ def _parse_yaml_entries(raw_text: str) -> dict[str, PathStyle] | None:
         loader.dispose()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PathStyle:
     """Recorded authoring style for one canonical YAML path."""
 
@@ -263,7 +263,7 @@ class PathStyle:
             object.__setattr__(self, "key_order", tuple(self.key_order))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class StyleLedger:
     """Immutable ledger of per-path YAML authoring style and provenance."""
 

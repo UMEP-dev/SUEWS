@@ -30,7 +30,7 @@ import weakref
 
 import numpy as np
 from pydantic import BaseModel
-from pydantic_core import PydanticUndefinedType, to_jsonable_python
+from pydantic_core import PydanticUndefinedType
 
 from ..pipeline.document import (
     _ENUM_INTERNAL_ATTRS,
@@ -256,36 +256,10 @@ def _detach_callable(
         memo[obj_id] = rebound
         return True, rebound
     if isinstance(value, MethodType):
-        bound_self = value.__self__
-        if isinstance(bound_self, type):
-            raise TypeError(
-                f"Cannot safely detach classmethod bound to class {bound_self.__name__!r}"
-            )
-        func = value.__func__
-        if (
-            func.__closure__ is not None
-            or (
-                func.__defaults__ is not None
-                and any(not _is_exact_immutable_scalar(d) for d in func.__defaults__)
-            )
-            or (
-                func.__kwdefaults__ is not None
-                and any(
-                    not _is_exact_immutable_scalar(d)
-                    for d in func.__kwdefaults__.values()
-                )
-            )
-        ):
-            raise TypeError(
-                f"Cannot safely detach bound method {func.__qualname__!r} with "
-                "mutable closure or default state"
-            )
-        copied_self = _detach_snapshot_tree(
-            bound_self, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        raise TypeError(
+            f"Cannot safely detach Python bound method "
+            f"{value.__func__.__qualname__!r} without sharing global state"
         )
-        rebound = MethodType(func, copied_self)
-        memo[obj_id] = rebound
-        return True, rebound
     if isinstance(value, functools.partial):
         out_partial = functools.partial(
             _detach_snapshot_tree(
@@ -384,7 +358,7 @@ def _detach_sequence_or_set(
 ) -> tuple[bool, Any]:
     """Detach list, deque, set, tuple, frozenset, and slice containers."""
     obj_id = id(value)
-    if isinstance(value, list):
+    if type(value) is list:
         out_list: list[Any] = []
         memo[obj_id] = out_list
         out_list.extend(
@@ -417,21 +391,25 @@ def _detach_sequence_or_set(
     result: Any = None
     handled = True
     if type(value) is tuple:
-        result = tuple(
+        items = [
             _detach_snapshot_tree(
                 item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
             )
             for item in value
-        )
+        ]
+        if obj_id in memo:
+            return True, memo[obj_id]
+        result = tuple(items)
     elif isinstance(value, tuple) and hasattr(type(value), "_fields"):
-        result = type(value)(
-            *(
-                _detach_snapshot_tree(
-                    item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                )
-                for item in value
+        items = [
+            _detach_snapshot_tree(
+                item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
             )
-        )
+            for item in value
+        ]
+        if obj_id in memo:
+            return True, memo[obj_id]
+        result = type(value)(*items)
     elif type(value) is frozenset:
         result = frozenset(
             _detach_snapshot_tree(
@@ -714,6 +692,7 @@ def _detach_snapshot_tree(
                 ReadOnlyDataclassProxy,
                 ReadOnlyEnumProxy,
                 ReadOnlyFieldInfo,
+                ReadOnlyTypeInfo,
                 _FrozenArraySpec,
                 _FrozenSliceSpec,
                 _ReadOnlyMaterialisingMapping,
@@ -885,9 +864,9 @@ class ReadOnlyEnumProxy:
         weakref.finalize(self, _ENUM_STATE.pop, key, None)
 
     @property
-    def enum_type(self) -> type[Enum]:
-        """Underlying ``Enum`` class."""
-        return type(_ENUM_STATE[id(self)][0])
+    def enum_type(self) -> ReadOnlyTypeInfo:
+        """Immutable type descriptor for the underlying ``Enum`` class."""
+        return _freeze_type_info(type(_ENUM_STATE[id(self)][0]))
 
     @property
     def name(self) -> str:
@@ -912,28 +891,28 @@ class ReadOnlyEnumProxy:
         """Resolve snapshotted public attributes on the wrapped ``Enum`` member."""
         if name.startswith("_"):
             raise AttributeError(
-                f"Read-only enum view {self.enum_type.__name__!r} "
+                f"Read-only enum view {self.enum_type.name!r} "
                 f"does not expose private attribute {name!r}"
             )
         extra_attrs = _ENUM_STATE[id(self)][4]
         if name in extra_attrs:
             return extra_attrs[name]
         raise AttributeError(
-            f"Read-only enum view {self.enum_type.__name__!r} has no readable attribute {name!r}"
+            f"Read-only enum view {self.enum_type.name!r} has no readable attribute {name!r}"
         )
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Reject every attribute assignment on the read-only enum proxy."""
         raise TypeError(
             f"Cannot mutate attribute {name!r} on read-only enum view "
-            f"{self.enum_type.__name__!r}"
+            f"{self.enum_type.name!r}"
         )
 
     def __delattr__(self, name: str) -> None:
         """Reject every attribute deletion on the read-only enum proxy."""
         raise TypeError(
             f"Cannot delete attribute {name!r} on read-only enum view "
-            f"{self.enum_type.__name__!r}"
+            f"{self.enum_type.name!r}"
         )
 
     def __eq__(self, other: object) -> bool:
@@ -1052,6 +1031,37 @@ class ReadOnlyEnumProxy:
         return self
 
 
+@dataclass(frozen=True, slots=True)
+class ReadOnlyTypeInfo:
+    """Deeply immutable type descriptor exposing class identity without the live class object."""
+
+    name: str
+    qualname: str
+    module: str
+
+    def __str__(self) -> str:
+        """Return the qualified name of the described type."""
+        return self.qualname
+
+
+def _freeze_type_info(cls: type[Any]) -> ReadOnlyTypeInfo:
+    """Build an immutable :class:`ReadOnlyTypeInfo` for *cls*."""
+    return ReadOnlyTypeInfo(
+        name=cls.__name__,
+        qualname=cls.__qualname__,
+        module=cls.__module__,
+    )
+
+
+def _freeze_annotation(annotation: Any) -> ReadOnlyTypeInfo | str | None:
+    """Snapshot a Pydantic field annotation without exposing live class objects."""
+    if annotation is None:
+        return None
+    if isinstance(annotation, type):
+        return _freeze_type_info(annotation)
+    return repr(annotation)
+
+
 _FIELD_INFO_ATTRS = (
     "name",
     "annotation",
@@ -1066,7 +1076,7 @@ _FIELD_INFO_ATTRS = (
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReadOnlyFieldInfo:
     """Deeply immutable snapshot of a Pydantic ``FieldInfo`` declaration."""
 
@@ -1083,7 +1093,7 @@ class ReadOnlyFieldInfo:
 
     def __getattribute__(self, name: str) -> Any:
         """Materialise lazy frozen specs into fresh views on every attribute read."""
-        return _materialise_readonly(super().__getattribute__(name))
+        return _materialise_readonly(object.__getattribute__(self, name))
 
     def __eq__(self, other: object) -> bool:
         """Compare stored field metadata without triggering ambiguous NumPy comparisons."""
@@ -1388,7 +1398,14 @@ def _pydantic_type_has_disallowed_hooks(
     allowed_sers: frozenset[Any],
     allowed_computed: frozenset[tuple[type[Any], str]],
 ) -> bool:
-    """Return True if a Pydantic model or dataclass defines disallowed serializers or computed fields."""
+    """Return True if a Pydantic model or dataclass defines disallowed serializers, dump overrides, or computed fields."""
+    from ...core.type import RefValue  # noqa: PLC0415
+
+    if issubclass(cls, BaseModel) and cls.model_dump not in {
+        BaseModel.model_dump,
+        RefValue.model_dump,
+    }:
+        return True
     decorators = getattr(cls, "__pydantic_decorators__", None)
     if decorators is not None:
         if any(
@@ -1648,15 +1665,15 @@ class ReadOnlyDataclassProxy:
         )
 
     @property
-    def dataclass_type(self) -> type[Any]:
-        """Underlying dataclass type."""
-        return type(_DATACLASS_STATE[id(self)][0])
+    def dataclass_type(self) -> ReadOnlyTypeInfo:
+        """Immutable type descriptor for the underlying dataclass."""
+        return _freeze_type_info(type(_DATACLASS_STATE[id(self)][0]))
 
     def __getattr__(self, name: str) -> Any:
         """Resolve declared dataclass fields and read-only properties."""
         if name.startswith("_"):
             raise AttributeError(
-                f"Read-only dataclass view {self.dataclass_type.__name__!r} "
+                f"Read-only dataclass view {self.dataclass_type.name!r} "
                 f"does not expose private attribute {name!r}"
             )
         target, cache, enum_snapshots, field_snapshots = _DATACLASS_STATE[id(self)]
@@ -1699,14 +1716,14 @@ class ReadOnlyDataclassProxy:
         """Reject every attribute assignment on the read-only dataclass proxy."""
         raise TypeError(
             f"Cannot mutate attribute {name!r} on read-only dataclass view "
-            f"{self.dataclass_type.__name__!r}"
+            f"{self.dataclass_type.name!r}"
         )
 
     def __delattr__(self, name: str) -> None:
         """Reject every attribute deletion on the read-only dataclass proxy."""
         raise TypeError(
             f"Cannot delete attribute {name!r} on read-only dataclass view "
-            f"{self.dataclass_type.__name__!r}"
+            f"{self.dataclass_type.name!r}"
         )
 
     def __eq__(self, other: object) -> bool:
@@ -1909,6 +1926,7 @@ def _wrap_readonly(
                 ReadOnlyModelProxy,
                 ReadOnlyDataclassProxy,
                 ReadOnlyEnumProxy,
+                ReadOnlyTypeInfo,
                 _FrozenArraySpec,
                 _FrozenSliceSpec,
                 _ReadOnlyMaterialisingMapping,
@@ -1948,7 +1966,7 @@ def _freeze_model_fields(model_cls: type[BaseModel]) -> Mapping[str, ReadOnlyFie
     for field_name, info in model_cls.model_fields.items():
         frozen[field_name] = ReadOnlyFieldInfo(
             name=field_name,
-            annotation=info.annotation,
+            annotation=_freeze_annotation(info.annotation),
             default=_freeze_field_metadata_value(info.default),
             is_required=bool(info.is_required()),
             alias=info.alias,
@@ -2029,15 +2047,15 @@ class ReadOnlyModelProxy:
         )
 
     @property
-    def model_type(self) -> type[BaseModel]:
-        """Underlying Pydantic ``BaseModel`` class."""
-        return type(_PROXY_STATE[id(self)][0])
+    def model_type(self) -> ReadOnlyTypeInfo:
+        """Immutable type descriptor for the underlying Pydantic ``BaseModel`` class."""
+        return _freeze_type_info(type(_PROXY_STATE[id(self)][0]))
 
     @property
     def model_fields(self) -> Mapping[str, ReadOnlyFieldInfo]:
         """Detached, deeply immutable view of the model's declared Pydantic fields."""
-        _target, _cache, _enums, field_snapshots = _PROXY_STATE[id(self)]
-        return field_snapshots[self.model_type]
+        target, _cache, _enums, field_snapshots = _PROXY_STATE[id(self)]
+        return field_snapshots[type(target)]
 
     @property
     def model_fields_set(self) -> frozenset[str]:
@@ -2050,23 +2068,12 @@ class ReadOnlyModelProxy:
         _validate_enum_dump_isolation(
             target, has_user_fallback=kwargs.get("fallback") is not None
         )
+        if enum_snapshots and _enum_snapshots_drifted(enum_snapshots):
+            raise TypeError(
+                "Cannot safely serialise frozen model after live Enum singleton "
+                "_name_ or _value_ was mutated externally"
+            )
         working_copy = _safe_snapshot_copy(target)
-        if (
-            enum_snapshots
-            and _is_json_dump_mode(args, kwargs)
-            and _enum_snapshots_drifted(enum_snapshots)
-        ):
-            py_args = ("python", *args[1:]) if args else ()
-            py_kwargs = {**kwargs, "mode": "python"} if not args else dict(kwargs)
-            dumped_py = working_copy.model_dump(*py_args, **py_kwargs)
-            substituted = _replace_enums_with_snapshotted_values(
-                dumped_py, enum_snapshots
-            )
-            return to_jsonable_python(
-                substituted,
-                round_trip=bool(kwargs.get("round_trip", False)),
-                serialize_unknown=True,
-            )
         dumped = working_copy.model_dump(*args, **kwargs)
         return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
@@ -2084,7 +2091,7 @@ class ReadOnlyModelProxy:
         """Resolve declared fields, computed fields, and read-only properties."""
         if name.startswith("_"):
             raise AttributeError(
-                f"Read-only model view {self.model_type.__name__!r} does not expose private attribute {name!r}"
+                f"Read-only model view {self.model_type.name!r} does not expose private attribute {name!r}"
             )
         target, cache, enum_snapshots, field_snapshots = _PROXY_STATE[id(self)]
         if name in cache:
@@ -2151,23 +2158,36 @@ class ReadOnlyModelProxy:
         """Reject every attribute assignment on the read-only proxy."""
         raise TypeError(
             f"Cannot mutate attribute {name!r} on read-only model view "
-            f"{self.model_type.__name__!r}"
+            f"{self.model_type.name!r}"
         )
 
     def __delattr__(self, name: str) -> None:
         """Reject every attribute deletion on the read-only proxy."""
         raise TypeError(
             f"Cannot delete attribute {name!r} on read-only model view "
-            f"{self.model_type.__name__!r}"
+            f"{self.model_type.name!r}"
         )
 
     def __eq__(self, other: object) -> bool:
         """Compare underlying model equality on isolated copies without mutating snapshot."""
+        from ...core.type import RefValue  # noqa: PLC0415
+
         target = _PROXY_STATE[id(self)][0]
         if isinstance(other, ReadOnlyModelProxy):
             other_target = _PROXY_STATE[id(other)][0]
         elif isinstance(other, BaseModel):
             other_target = other
+        elif isinstance(target, RefValue) and (
+            _is_exact_immutable_scalar(other)
+            or isinstance(other, (Enum, ReadOnlyEnumProxy))
+        ):
+            if isinstance(target.value, Enum):
+                return bool(self.value == other)
+            other_target = (
+                _ENUM_STATE[id(other)][0]
+                if isinstance(other, ReadOnlyEnumProxy)
+                else other
+            )
         else:
             return NotImplemented
         if type(target).__eq__ is object.__eq__:
@@ -2208,7 +2228,7 @@ class ReadOnlyModelProxy:
 
     def __dir__(self) -> list[str]:
         """List readable fields and inspection helpers exposed by the proxy."""
-        model_cls = self.model_type
+        model_cls = type(_PROXY_STATE[id(self)][0])
         names = set(model_cls.model_fields) | set(model_cls.model_computed_fields)
         names.update({
             "model_type",
@@ -2244,46 +2264,15 @@ def _enum_snapshots_drifted(
     return False
 
 
-def _replace_enums_with_snapshotted_values(
-    value: Any, enum_snapshots: Mapping[int, ReadOnlyEnumProxy]
-) -> Any:
-    """Substitute live ``Enum`` members with their snapshotted values before JSON conversion."""
-    result: Any = value
-    if isinstance(value, Enum):
-        proxy = enum_snapshots.get(id(value))
-        result = (
-            _replace_enums_with_snapshotted_values(proxy.value, enum_snapshots)
-            if proxy is not None
-            else value.value
-        )
-    elif isinstance(value, ReadOnlyEnumProxy):
-        result = _replace_enums_with_snapshotted_values(value.value, enum_snapshots)
-    elif isinstance(value, Mapping):
-        result = {
-            _replace_enums_with_snapshotted_values(
-                k, enum_snapshots
-            ): _replace_enums_with_snapshotted_values(v, enum_snapshots)
-            for k, v in value.items()
-        }
-    elif isinstance(value, (list, tuple, set, frozenset)):
-        result = type(value)(
-            _replace_enums_with_snapshotted_values(item, enum_snapshots)
-            for item in value
-        )
-    return result
-
-
-def _is_json_dump_mode(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> bool:
-    """Return True when ``model_dump(*args, **kwargs)`` requests JSON mode."""
-    if args:
-        return args[0] == "json"
-    return kwargs.get("mode") == "json"
-
-
 def _unwrap_model_for_validation(proxy: ReadOnlyModelProxy) -> BaseModel:
-    """Return a detached working model copy for the validation engine after isolation checks."""
-    target = _PROXY_STATE[id(proxy)][0]
+    """Return a detached working model copy for the validation engine after isolation and drift checks."""
+    target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(proxy)]
     _validate_enum_dump_isolation(target, has_user_fallback=False)
+    if enum_snapshots and _enum_snapshots_drifted(enum_snapshots):
+        raise TypeError(
+            "Cannot safely validate frozen model after live Enum singleton "
+            "_name_ or _value_ was mutated externally"
+        )
     return _safe_snapshot_copy(target)
 
 

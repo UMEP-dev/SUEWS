@@ -25,6 +25,7 @@ from .readonly_model import (
     ReadOnlyEnumProxy,
     ReadOnlyFieldInfo,
     ReadOnlyModelProxy,
+    ReadOnlyTypeInfo,
     freeze_model,
 )
 from .typed_view import (
@@ -48,6 +49,7 @@ __all__ = [
     "ReadOnlyEnumProxy",
     "ReadOnlyFieldInfo",
     "ReadOnlyModelProxy",
+    "ReadOnlyTypeInfo",
     "SiteView",
     "SurfaceView",
     "TypedConfigView",

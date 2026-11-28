@@ -20,6 +20,7 @@ from .type import (
     _SNOW_ACTIVE_CONTEXT,
     _SOIL_OBSERVED_CONTEXT,
     _STEBBS_ACTIVE_CONTEXT,
+    _STEBBS_SHARED_ACTIVE_FIELDS,
     _SchemeActiveGuard,
     _WeakConfigRef,
     df_from_col_items,
@@ -33,6 +34,7 @@ from .type import (
     resolve_snow_use_code,
     resolve_soil_moisture_code,
     resolve_stebbs_method_code,
+    resolve_stebbs_shared_temp_fields,
     serialise_relaxed_ref_float,
     serialise_relaxed_ref_value,
 )
@@ -3471,6 +3473,7 @@ class StebbsProperties(DataModelBase):
             renamed = apply_field_renames(
                 renamed, STEBBSPROPERTIES_DEV12_RENAMES, cls.__name__
             )
+            shared_active = _STEBBS_SHARED_ACTIVE_FIELDS.get()
             stashed: dict[str, Any] = {}
             stripped: dict[str, Any] = {}
             for key, val in renamed.items():
@@ -3485,7 +3488,11 @@ class StebbsProperties(DataModelBase):
                 ):
                     stashed[key] = None
                     continue
-                if key in cls.model_fields and key not in cls._STEBBS_NON_SCALAR_FIELDS:
+                if (
+                    key in cls.model_fields
+                    and key not in cls._STEBBS_NON_SCALAR_FIELDS
+                    and key not in shared_active
+                ):
                     ok, normalised = normalise_inactive_stebbs_scalar(
                         val,
                         allow_null=True,
@@ -3589,6 +3596,15 @@ class StebbsProperties(DataModelBase):
             value, handler, info, expected_scalar_types=expected
         )
 
+    def _active_shared_temp_fields(self) -> frozenset[str]:
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        if parent_cfg is not None:
+            model = getattr(parent_cfg, "model", None)
+            physics = getattr(model, "physics", None) if model is not None else None
+            return resolve_stebbs_shared_temp_fields(physics)
+        return _STEBBS_SHARED_ACTIVE_FIELDS.get()
+
     def __setattr__(self, name: str, value: Any) -> None:
         if (
             name in type(self).model_fields
@@ -3611,7 +3627,10 @@ class StebbsProperties(DataModelBase):
                 raise ValueError(
                     f"stebbs.{name} must be a finite number, got {raw_check!r}"
                 )
-            if not self._is_stebbs_validation_active():
+            if (
+                not self._is_stebbs_validation_active()
+                and name not in self._active_shared_temp_fields()
+            ):
                 ok, normalised = normalise_inactive_stebbs_scalar(
                     value,
                     allow_null=True,
@@ -4482,7 +4501,11 @@ class SiteProperties(DataModelBase):
         if snow_active is False and "snow" in data and data["snow"] is None:
             null_blocks.append("snow")
         if stebbs_active is False:
-            if "stebbs" in data and data["stebbs"] is None:
+            if (
+                "stebbs" in data
+                and data["stebbs"] is None
+                and not _STEBBS_SHARED_ACTIVE_FIELDS.get()
+            ):
                 null_blocks.append("stebbs")
             if "building_archetype" in data and data["building_archetype"] is None:
                 null_blocks.append("building_archetype")
@@ -4523,10 +4546,23 @@ class SiteProperties(DataModelBase):
             object.__setattr__(self, "snow", None)
             self.model_fields_set.add("snow")
             return
+        parent_ref = getattr(self, "_parent_config_ref", None)
+        parent_cfg = parent_ref.get() if parent_ref is not None else None
+        parent_physics = (
+            getattr(getattr(parent_cfg, "model", None), "physics", None)
+            if parent_cfg is not None
+            else None
+        )
+        shared_temp_active = (
+            resolve_stebbs_shared_temp_fields(parent_physics)
+            if parent_physics is not None
+            else _STEBBS_SHARED_ACTIVE_FIELDS.get()
+        )
         if (
             name in ("stebbs", "building_archetype")
             and value is None
             and not self._is_stebbs_validation_active()
+            and (name != "stebbs" or not shared_temp_active)
         ):
             object.__setattr__(self, name, None)
             self.model_fields_set.add(name)
@@ -4534,6 +4570,7 @@ class SiteProperties(DataModelBase):
         snow_token = None
         soil_token = None
         stebbs_token = None
+        shared_temp_token = None
         if name in ("snow", "land_cover"):
             snow_token = _SNOW_ACTIVE_CONTEXT.set(self._is_snow_validation_active())
         if name in ("soil_observation", "land_cover"):
@@ -4542,6 +4579,7 @@ class SiteProperties(DataModelBase):
             stebbs_token = _STEBBS_ACTIVE_CONTEXT.set(
                 self._is_stebbs_validation_active()
             )
+            shared_temp_token = _STEBBS_SHARED_ACTIVE_FIELDS.set(shared_temp_active)
         try:
             super().__setattr__(name, value)
         finally:
@@ -4551,8 +4589,8 @@ class SiteProperties(DataModelBase):
                 _SOIL_OBSERVED_CONTEXT.reset(soil_token)
             if stebbs_token is not None:
                 _STEBBS_ACTIVE_CONTEXT.reset(stebbs_token)
-        parent_ref = getattr(self, "_parent_config_ref", None)
-        parent_cfg = parent_ref.get() if parent_ref is not None else None
+            if shared_temp_token is not None:
+                _STEBBS_SHARED_ACTIVE_FIELDS.reset(shared_temp_token)
         if name == "snow":
             assigned = getattr(self, "snow", None)
             if isinstance(assigned, SnowParams):

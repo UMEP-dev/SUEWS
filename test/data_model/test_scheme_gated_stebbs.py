@@ -948,6 +948,202 @@ def test_to_yaml_preserves_ref_metadata_on_inactive_null_refvalues(
     )
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "temperature_air_annual_mean",
+        "temperature_air_month_mean_diffmax",
+        "temperature_air_indoor_initial",
+    ],
+)
+@pytest.mark.parametrize("bad_value", ["TBD", None])
+def test_ehc_implicit_and_dyohm_protect_shared_stebbs_temperatures_when_stebbs_off(
+    sample_dict: dict, field_name: str, bad_value
+) -> None:
+    """EHC implicit (5, coupling=1) and DyOHM (6) keep shared STEBBS temperatures strict."""
+    # EHC implicit consumes all three boundary temperatures even with STEBBS off.
+    data_ehc = copy.deepcopy(sample_dict)
+    _disable_stebbs(data_ehc)
+    data_ehc["model"]["physics"]["storage_heat"] = 5
+    data_ehc["model"]["physics"]["ehc_surface_coupling"] = 1
+    data_ehc["sites"][0]["properties"]["stebbs"][field_name] = bad_value
+    with pytest.raises((ValidationError, ValueError), match=field_name):
+        SUEWSConfig.from_dict(data_ehc)
+
+    # Pure-STEBBS fields (depth_ground, building_archetype) remain relaxed under EHC implicit.
+    data_ehc_pure = copy.deepcopy(sample_dict)
+    _disable_stebbs(data_ehc_pure)
+    data_ehc_pure["model"]["physics"]["storage_heat"] = 5
+    data_ehc_pure["model"]["physics"]["ehc_surface_coupling"] = 1
+    data_ehc_pure["sites"][0]["properties"]["stebbs"]["depth_ground"] = "TBD"
+    data_ehc_pure["sites"][0]["properties"]["building_archetype"] = None
+    cfg_ehc_pure = SUEWSConfig.from_dict(data_ehc_pure)
+    assert cfg_ehc_pure.sites[0].properties.stebbs.depth_ground == "TBD"
+    assert cfg_ehc_pure.sites[0].properties.building_archetype is None
+
+    # EHC explicit (coupling=0) relaxes all three temperatures when STEBBS is off.
+    data_ehc_exp = copy.deepcopy(sample_dict)
+    _disable_stebbs(data_ehc_exp)
+    data_ehc_exp["model"]["physics"]["storage_heat"] = 5
+    data_ehc_exp["model"]["physics"]["ehc_surface_coupling"] = 0
+    data_ehc_exp["sites"][0]["properties"]["stebbs"][field_name] = bad_value
+    cfg_exp = SUEWSConfig.from_dict(data_ehc_exp)
+    assert getattr(cfg_exp.sites[0].properties.stebbs, field_name) == bad_value
+
+    # DyOHM (6) consumes temperature_air_annual_mean even with STEBBS off.
+    if field_name == "temperature_air_annual_mean":
+        data_dyohm = copy.deepcopy(sample_dict)
+        _disable_stebbs(data_dyohm)
+        data_dyohm["model"]["physics"]["storage_heat"] = 6
+        data_dyohm["sites"][0]["properties"]["stebbs"][field_name] = bad_value
+        with pytest.raises((ValidationError, ValueError), match=field_name):
+            SUEWSConfig.from_dict(data_dyohm)
+
+
+def test_live_master_switch_assignments_normalised_and_validated(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Live assignments to ``stebbs.enabled`` and ``stebbs.parameters`` validate consistently."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["capacitance"] = "TBD"
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.model.physics.stebbs.enabled = "false"
+    assert cfg.model.physics.stebbs.enabled is False
+    df_state = cfg.to_df_state()
+    assert int(df_state.loc[1, ("stebbsmethod", "0")]) == 0
+
+    with pytest.raises((ValidationError, ValueError)):
+        cfg.model.physics.stebbs.parameters = 99
+    with pytest.raises((ValidationError, ValueError)):
+        cfg.model.physics.stebbs.enabled = "bogus"
+
+    # Even if bypassed with object.__setattr__, engine/YAML/DataFrame export rejects parameters=99.
+    object.__setattr__(cfg.model.physics.stebbs, "parameters", 99)
+    with pytest.raises(ValueError, match="stebbs"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="stebbs"):
+        cfg.to_yaml(tmp_path / "bad_master.yml")
+    with pytest.raises(ValueError, match="STEBBS"):
+        cfg.to_df_state()
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize(
+    ("section", "profile_field"),
+    [
+        ("stebbs", "profile_flow_hot_water"),
+        ("building_archetype", "profile_metabolism"),
+    ],
+)
+@pytest.mark.parametrize("bad_slot", [None, float("nan"), float("inf")])
+def test_active_stebbs_rejects_null_and_non_finite_ten_minute_profile_slots(
+    sample_dict: dict, parameters: int, section: str, profile_field: str, bad_slot
+) -> None:
+    """Active STEBBS rejects null and non-finite 10-minute profile slots for parameters=1 and 2."""
+    profile = {
+        "working_day": {str(i): (0.0 if i != 1 else bad_slot) for i in range(1, 145)},
+        "holiday": {str(i): 0.0 for i in range(1, 145)},
+    }
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    data["sites"][0]["properties"][section][profile_field] = copy.deepcopy(profile)
+    with pytest.raises((ValidationError, ValueError), match=profile_field):
+        SUEWSConfig.from_dict(data)
+
+    if bad_slot is None:
+        # Inactive load -> live activation must also reject null profile slots.
+        inactive = copy.deepcopy(sample_dict)
+        _disable_stebbs(inactive)
+        inactive["model"]["physics"]["stebbs"]["parameters"] = parameters
+        inactive["sites"][0]["properties"][section][profile_field] = copy.deepcopy(
+            profile
+        )
+        cfg = SUEWSConfig.from_dict(inactive)
+        cfg.validate_for_engine()
+        cfg.model.physics.stebbs.enabled = True
+        with pytest.raises(ValueError, match=profile_field):
+            cfg.validate_for_engine()
+
+
+def test_inactive_multi_site_null_ten_minute_profile_slots_roundtrip_df_state(
+    sample_dict: dict,
+) -> None:
+    """Multi-site df_state round-trip preserves inactive None profile slots despite pandas NaN."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    site1 = copy.deepcopy(data["sites"][0])
+    site2 = copy.deepcopy(data["sites"][0])
+    site1["name"] = "Site1"
+    site1["gridiv"] = 1
+    site2["name"] = "Site2"
+    site2["gridiv"] = 2
+    site1["properties"]["stebbs"]["profile_flow_hot_water"] = {
+        "working_day": {str(i): (None if i == 1 else 0.0) for i in range(1, 145)},
+        "holiday": {str(i): 0.0 for i in range(1, 145)},
+    }
+    site2["properties"]["stebbs"]["profile_flow_hot_water"] = {
+        "working_day": {str(i): 0.0 for i in range(1, 145)},
+        "holiday": {str(i): 0.0 for i in range(1, 145)},
+    }
+    data["sites"] = [site1, site2]
+
+    cfg = SUEWSConfig.from_dict(data)
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert (
+        rebuilt.sites[0].properties.stebbs.profile_flow_hot_water.working_day["1"]
+        is None
+    )
+    assert (
+        rebuilt.sites[1].properties.stebbs.profile_flow_hot_water.working_day["1"]
+        == 0.0
+    )
+
+
+def test_to_yaml_rejects_relaxed_values_after_live_stebbs_activation(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """Activating STEBBS in-place prevents ``to_yaml()`` from exporting relaxed/null values."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["capacitance"] = None
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.to_yaml(tmp_path / "inactive_ok.yml")
+
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="capacitance"):
+        cfg.to_yaml(tmp_path / "active_bad.yml")
+
+
+def test_standalone_stebbs_physics_guard_tracks_wrapped_enabled_value_mutations() -> (
+    None
+):
+    """Standalone StebbsPhysics guards follow in-place ``enabled.value`` mutations."""
+    phys = StebbsPhysics(enabled={"value": False}, capacitance={"value": 0})
+    phys.enabled.value = True
+    with pytest.raises(ValueError, match="capacitance"):
+        phys.capacitance.value = None
+
+    phys.enabled.value = False
+    phys.capacitance.value = None
+    assert phys.capacitance.value is None
+
+
+def test_inactive_stebbs_reference_rejects_extra_keys(sample_dict: dict) -> None:
+    """Inactive RefValue metadata still enforces ``extra='forbid'`` under ``from_dict``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"]["depth_ground"] = {
+        "value": "TBD",
+        "ref": {"typo": 123},
+    }
+    with pytest.raises((ValidationError, ValueError), match="typo"):
+        SUEWSConfig.from_dict(data)
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

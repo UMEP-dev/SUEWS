@@ -935,9 +935,7 @@ class StebbsPhysics(DataModelBase):
             code = resolve_stebbs_method_code(physics)
             return code is None or code != 0
         enabled_bool = resolve_stebbs_enabled_bool(getattr(self, "enabled", None))
-        if enabled_bool is True or enabled_bool is None:
-            return True
-        return bool(getattr(self, "_stebbs_validation_active", True))
+        return enabled_bool is not False
 
     def _make_stebbs_guard(self) -> _SchemeActiveGuard:
         parent_ref = getattr(self, "_parent_config_ref", None)
@@ -946,6 +944,7 @@ class StebbsPhysics(DataModelBase):
             "stebbs",
             active=bool(getattr(self, "_stebbs_validation_active", True)),
             config=parent_cfg,
+            owner=(self if parent_cfg is None else None),
         )
 
     def _sync_stebbs_validation_state(
@@ -1121,10 +1120,21 @@ class StebbsPhysics(DataModelBase):
                     name, expected_kind, guard=self._make_stebbs_guard()
                 )
             return
+        if name in ("enabled", "parameters"):
+            tok = _STEBBS_ACTIVE_CONTEXT.set(True)
+            try:
+                validated_master = type(self).model_validate({name: value})
+            finally:
+                _STEBBS_ACTIVE_CONTEXT.reset(tok)
+            coerced = getattr(validated_master, name)
+            super().__setattr__(name, coerced)
+            if name == "enabled":
+                enabled_bool = resolve_stebbs_enabled_bool(
+                    getattr(self, "enabled", None)
+                )
+                self._sync_stebbs_validation_state(active=(enabled_bool is not False))
+            return
         super().__setattr__(name, value)
-        if name == "enabled":
-            enabled_bool = resolve_stebbs_enabled_bool(getattr(self, "enabled", None))
-            self._sync_stebbs_validation_state(active=(enabled_bool is not False))
 
     def validate_non_null_ref_values(self, _path: str = "") -> None:
         """Enforce master switches unconditionally; skip subordinate switches while STEBBS is disabled."""
@@ -1605,14 +1615,13 @@ class ModelPhysics(DataModelBase):
         cols[("sw_dn_direct_frac", "0")] = float(direct_fraction)
 
         stebbs = self.stebbs
-        enabled = stebbs.enabled
-        enabled = enabled.value if isinstance(enabled, RefValue) else enabled
-        parameters = stebbs.parameters
-        parameters = (
-            parameters.value if isinstance(parameters, RefValue) else parameters
-        )
-        stebbs_enabled = bool(enabled)
-        cols[("stebbsmethod", "0")] = 0 if not stebbs_enabled else int(parameters)
+        stebbs_code = resolve_stebbs_method_code(self)
+        if stebbs_code is None:
+            raise ValueError(
+                "Invalid STEBBS master switch (model.physics.stebbs.enabled / parameters)"
+            )
+        stebbs_enabled = stebbs_code != 0
+        cols[("stebbsmethod", "0")] = stebbs_code
 
         for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
             value = getattr(stebbs, member_name)

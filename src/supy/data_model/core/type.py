@@ -25,6 +25,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    ValidationError,
     ValidationInfo,
     field_validator,
     model_serializer,
@@ -666,6 +667,123 @@ _SOIL_OBSERVED_CONTEXT: ContextVar[bool | None] = ContextVar(
 _STEBBS_ACTIVE_CONTEXT: ContextVar[bool | None] = ContextVar(
     "_STEBBS_ACTIVE_CONTEXT", default=None
 )
+_STEBBS_SHARED_ACTIVE_FIELDS: ContextVar[frozenset[str]] = ContextVar(
+    "_STEBBS_SHARED_ACTIVE_FIELDS", default=frozenset()
+)
+
+_EHC_IMPLICIT_STEBBS_TEMP_FIELDS: frozenset[str] = frozenset(
+    {
+        "temperature_air_annual_mean",
+        "temperature_air_month_mean_diffmax",
+        "temperature_air_indoor_initial",
+    }
+)
+_DYOHM_STEBBS_TEMP_FIELDS: frozenset[str] = frozenset({"temperature_air_annual_mean"})
+_STORAGE_HEAT_NAME_CODES: dict[str, int] = {
+    "none": 0,
+    "ohm": 1,
+    "observed": 2,
+    "anohm": 3,
+    "estm": 4,
+    "ehc": 5,
+    "dyohm": 6,
+    "stebbs": 7,
+    "dyohm_building": 8,
+    "dyohm_buildings": 8,
+    "dyohm_bldg": 8,
+    "dyohm_bldgs": 8,
+}
+
+
+def resolve_stebbs_shared_temp_fields(physics: Any) -> frozenset[str]:
+    """Return ``properties.stebbs`` temperature fields actively consumed by EHC/DyOHM.
+
+    Even when STEBBS is disabled, Fortran ``ehc_implicit_boundaries``
+    (``storage_heat == 5`` with implicit ``ehc_surface_coupling != 0``) consumes
+    ``temperature_air_annual_mean``, ``temperature_air_month_mean_diffmax``, and
+    ``temperature_air_indoor_initial``; DyOHM (``storage_heat in (6, 7, 8)``)
+    consumes ``temperature_air_annual_mean`` via ``deep_soil_temperature``.
+    """
+    if physics is None:
+        return frozenset()
+
+    raw_sh: Any = None
+    found_sh = False
+    raw_ehc_coupling: Any = None
+    found_coupling = False
+    if isinstance(physics, Mapping):
+        for key in ("storage_heat", "storageheatmethod"):
+            if key in physics:
+                raw_sh = physics[key]
+                found_sh = True
+                break
+        if "ehc_surface_coupling" in physics:
+            raw_ehc_coupling = physics["ehc_surface_coupling"]
+            found_coupling = True
+    else:
+        raw_sh = getattr(physics, "storage_heat", None)
+        found_sh = raw_sh is not None
+        raw_ehc_coupling = getattr(physics, "ehc_surface_coupling", None)
+        found_coupling = raw_ehc_coupling is not None
+
+    if not found_sh:
+        return frozenset()
+
+    sh_code: int | None = None
+    unwrapped_sh = _unwrap_selector_raw(raw_sh)
+    if isinstance(unwrapped_sh, Mapping):
+        if "ohm" in unwrapped_sh:
+            sh_code = 1
+        elif "ehc" in unwrapped_sh:
+            sh_code = 5
+    elif isinstance(unwrapped_sh, bool):
+        sh_code = None
+    elif isinstance(unwrapped_sh, (int, float)):
+        try:
+            fval = float(unwrapped_sh)
+        except OverflowError:
+            fval = math.nan
+        if math.isfinite(fval) and fval.is_integer():
+            sh_code = int(fval)
+    elif isinstance(unwrapped_sh, str):
+        text = unwrapped_sh.strip().lower()
+        if text in _STORAGE_HEAT_NAME_CODES:
+            sh_code = _STORAGE_HEAT_NAME_CODES[text]
+        else:
+            try:
+                fval = float(text)
+            except ValueError:
+                fval = math.nan
+            if math.isfinite(fval) and fval.is_integer():
+                sh_code = int(fval)
+
+    if sh_code == 5:
+        if not found_coupling or raw_ehc_coupling is None:
+            return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+        unwrapped_c = _unwrap_selector_raw(raw_ehc_coupling)
+        if unwrapped_c is None:
+            return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+        if isinstance(unwrapped_c, bool):
+            return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+        if isinstance(unwrapped_c, (int, float)):
+            try:
+                fval = float(unwrapped_c)
+            except OverflowError:
+                return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+            if math.isfinite(fval) and fval == 0.0:
+                return frozenset()
+            return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+        if isinstance(unwrapped_c, str):
+            text = unwrapped_c.strip().lower()
+            if text in ("0", "explicit"):
+                return frozenset()
+            return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+        return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+
+    if sh_code in (6, 7, 8):
+        return _DYOHM_STEBBS_TEMP_FIELDS
+
+    return frozenset()
 
 _SNOW_USE_NAME_CODES: dict[str, int] = {
     "disabled": 0,
@@ -962,7 +1080,7 @@ def normalise_inactive_float_value(
         ):
             return (False, raw)
         ref_obj = (
-            Reference.model_validate(ref_raw)
+            Reference.model_validate(ref_raw, extra="forbid")
             if isinstance(ref_raw, Mapping)
             else ref_raw
         )
@@ -1083,7 +1201,7 @@ def normalise_inactive_stebbs_scalar(
         ):
             return (False, raw)
         ref_obj = (
-            Reference.model_validate(ref_raw)
+            Reference.model_validate(ref_raw, extra="forbid")
             if isinstance(ref_raw, Mapping)
             else ref_raw
         )
@@ -1210,7 +1328,7 @@ class _SchemeActiveGuard:
     live physics switch (both active->inactive and inactive->active transitions).
     """
 
-    __slots__ = ("_config_ref", "_fallback_active", "_scheme")
+    __slots__ = ("_config_ref", "_fallback_active", "_owner_ref", "_scheme")
 
     def __init__(
         self,
@@ -1218,10 +1336,12 @@ class _SchemeActiveGuard:
         *,
         active: bool = True,
         config: Any | None = None,
+        owner: Any | None = None,
     ) -> None:
         self._scheme = scheme
         self._fallback_active = bool(active)
         self._config_ref = _WeakConfigRef(config)
+        self._owner_ref = _WeakConfigRef(owner)
 
     def __call__(self) -> bool:
         parent_cfg = self._config_ref.get()
@@ -1238,6 +1358,10 @@ class _SchemeActiveGuard:
             raw = getattr(physics, "soil_moisture", None) if physics is not None else None
             code = resolve_soil_moisture_code(raw)
             return code is None or code == 1
+        owner = self._owner_ref.get()
+        if owner is not None and self._scheme == "stebbs":
+            enabled_bool = resolve_stebbs_enabled_bool(getattr(owner, "enabled", None))
+            return enabled_bool is not False
         return self._fallback_active
 
     def __getstate__(self) -> tuple[str, bool]:
@@ -1246,12 +1370,15 @@ class _SchemeActiveGuard:
     def __setstate__(self, state: tuple[str, bool]) -> None:
         self._scheme, self._fallback_active = state
         self._config_ref = _WeakConfigRef(None)
+        self._owner_ref = _WeakConfigRef(None)
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "_SchemeActiveGuard":
         cloned = _SchemeActiveGuard(
             self._scheme,
             active=self._fallback_active,
             config=None,
+            owner=None,
         )
         cloned._config_ref = self._config_ref.__deepcopy__(memo)
+        cloned._owner_ref = self._owner_ref.__deepcopy__(memo)
         return cloned

@@ -73,12 +73,14 @@ from .type import (
     _SNOW_ACTIVE_CONTEXT,
     _SOIL_OBSERVED_CONTEXT,
     _STEBBS_ACTIVE_CONTEXT,
+    _STEBBS_SHARED_ACTIVE_FIELDS,
     df_from_cols,
     is_finite_real_number,
     merge_df_state_cols,
     resolve_snow_use_code,
     resolve_soil_moisture_code,
     resolve_stebbs_method_code,
+    resolve_stebbs_shared_temp_fields,
 )
 from .state import validate_sdd_id
 
@@ -828,6 +830,23 @@ class SUEWSConfig(DataModelBase):
         code = resolve_stebbs_method_code(physics_raw)
         return code is None or code != 0
 
+    @staticmethod
+    def _resolve_stebbs_shared_temp_fields_for_context(data: Any) -> frozenset[str]:
+        """Return ``properties.stebbs`` temperature fields actively consumed by EHC/DyOHM."""
+        if isinstance(data, SUEWSConfig):
+            return resolve_stebbs_shared_temp_fields(
+                getattr(getattr(data, "model", None), "physics", None)
+            )
+        if not isinstance(data, Mapping):
+            return frozenset()
+        model_raw = data.get("model")
+        physics_raw = (
+            model_raw.get("physics")
+            if isinstance(model_raw, Mapping)
+            else getattr(model_raw, "physics", None)
+        )
+        return resolve_stebbs_shared_temp_fields(physics_raw)
+
     @classmethod
     @contextmanager
     def _scheme_validation_context(
@@ -837,6 +856,7 @@ class SUEWSConfig(DataModelBase):
         snow_active: bool,
         soil_observed: bool,
         stebbs_active: bool = True,
+        stebbs_shared_active_fields: frozenset[str] = frozenset(),
     ):
         """Propagate scheme activation flags into nested model/site/surface/state validators."""
         from .human_activity import _IRRIGATION_MODELLED_CONTEXT
@@ -845,9 +865,13 @@ class SUEWSConfig(DataModelBase):
         tok_snow = _SNOW_ACTIVE_CONTEXT.set(snow_active)
         tok_soil = _SOIL_OBSERVED_CONTEXT.set(soil_observed)
         tok_stebbs = _STEBBS_ACTIVE_CONTEXT.set(stebbs_active)
+        tok_stebbs_shared = _STEBBS_SHARED_ACTIVE_FIELDS.set(
+            stebbs_shared_active_fields
+        )
         try:
             yield
         finally:
+            _STEBBS_SHARED_ACTIVE_FIELDS.reset(tok_stebbs_shared)
             _STEBBS_ACTIVE_CONTEXT.reset(tok_stebbs)
             _SOIL_OBSERVED_CONTEXT.reset(tok_soil)
             _SNOW_ACTIVE_CONTEXT.reset(tok_snow)
@@ -864,6 +888,9 @@ class SUEWSConfig(DataModelBase):
             snow_active=cls._resolve_snow_active_for_context(data),
             soil_observed=cls._resolve_soil_moisture_observed_for_context(data),
             stebbs_active=cls._resolve_stebbs_active_for_context(data),
+            stebbs_shared_active_fields=cls._resolve_stebbs_shared_temp_fields_for_context(
+                data
+            ),
         ):
             return handler(data)
 
@@ -1893,11 +1920,47 @@ class SUEWSConfig(DataModelBase):
         live ``False -> True`` activations and ``model_construct`` bypasses.
         """
         physics = getattr(getattr(self, "model", None), "physics", None)
+        stebbs_phys = getattr(physics, "stebbs", None) if physics is not None else None
         stebbs_code = resolve_stebbs_method_code(physics)
 
+        # Always validate STEBBS master switches (enabled and parameters) strictly,
+        # even when STEBBS is disabled, matching Rust field_renames.rs.
+        if stebbs_phys is not None:
+            master_tok = _STEBBS_ACTIVE_CONTEXT.set(True)
+            try:
+                validated_master = StebbsPhysics.model_validate(
+                    {
+                        "enabled": self._unwrap_ref_for_strict_validation(
+                            getattr(stebbs_phys, "enabled", None)
+                        ),
+                        "parameters": self._unwrap_ref_for_strict_validation(
+                            getattr(stebbs_phys, "parameters", None)
+                        ),
+                    }
+                )
+            except (ValidationError, ValueError) as exc:
+                raise ValueError(f"model.physics.stebbs: {exc}") from exc
+            finally:
+                _STEBBS_ACTIVE_CONTEXT.reset(master_tok)
+            for master_name in ("enabled", "parameters"):
+                orig_m = getattr(stebbs_phys, master_name, None)
+                coerced_m = getattr(validated_master, master_name)
+                coerced_inner = (
+                    coerced_m.value if isinstance(coerced_m, RefValue) else coerced_m
+                )
+                if isinstance(orig_m, RefValue):
+                    object.__setattr__(
+                        stebbs_phys,
+                        master_name,
+                        RefValue(value=coerced_inner, ref=orig_m.ref),
+                    )
+                else:
+                    object.__setattr__(stebbs_phys, master_name, coerced_m)
+            stebbs_code = resolve_stebbs_method_code(physics)
+
         if stebbs_code == 0:
+            shared_active = resolve_stebbs_shared_temp_fields(physics)
             non_finite_errors: list[str] = []
-            stebbs_phys = getattr(physics, "stebbs", None) if physics is not None else None
             if stebbs_phys is not None:
                 for switch_name in REQUIRED_STEBBS_SWITCHES:
                     val = _unwrap_value(getattr(stebbs_phys, switch_name, None))
@@ -1915,7 +1978,27 @@ class SUEWSConfig(DataModelBase):
                 if props is None:
                     continue
                 stebbs_props = getattr(props, "stebbs", None)
-                if stebbs_props is not None:
+                if stebbs_props is None:
+                    if shared_active:
+                        shared_list = ", ".join(sorted(shared_active))
+                        non_finite_errors.append(
+                            f"{site_name}: properties.stebbs cannot be null when active "
+                            f"storage-heat scheme consumes {shared_list}"
+                        )
+                else:
+                    for shared_field in sorted(shared_active):
+                        raw_shared = getattr(stebbs_props, shared_field, None)
+                        val_shared = _unwrap_value(raw_shared)
+                        if (
+                            val_shared is None
+                            or isinstance(val_shared, (bool, np.bool_))
+                            or not isinstance(val_shared, (int, float, np.number))
+                            or not math.isfinite(float(val_shared))
+                        ):
+                            non_finite_errors.append(
+                                f"{site_name}: stebbs.{shared_field} ({val_shared!r}) "
+                                "must be a finite number for active EHC/DyOHM boundary temperature"
+                            )
                     for field_name in StebbsProperties.model_fields:
                         if field_name in StebbsProperties._STEBBS_PROFILE_FIELDS:
                             prof = getattr(stebbs_props, field_name, None)
@@ -2063,6 +2146,30 @@ class SUEWSConfig(DataModelBase):
                     else:
                         object.__setattr__(target, field_name, coerced_val)
 
+            def _check_active_ten_minute_profile(
+                prof: Any, label: str
+            ) -> list[str]:
+                if not isinstance(prof, TenMinuteProfile):
+                    return []
+                bad: list[str] = []
+                for day_key in ("working_day", "holiday"):
+                    day_map = getattr(prof, day_key, None)
+                    if not isinstance(day_map, Mapping):
+                        bad.append(f"{label}.{day_key} must be a 10-minute mapping when STEBBS is enabled")
+                        continue
+                    for step_k, step_v in day_map.items():
+                        if (
+                            step_v is None
+                            or isinstance(step_v, (bool, np.bool_))
+                            or not isinstance(step_v, (int, float, np.number))
+                            or not math.isfinite(float(step_v))
+                        ):
+                            bad.append(
+                                f"{label}.{day_key}.{step_k} ({step_v!r}) must be a finite number when STEBBS is enabled"
+                            )
+                            break
+                return bad
+
             for i, site in enumerate(self.sites):
                 site_name = getattr(site, "name", f"Site {i}")
                 props = getattr(site, "properties", None)
@@ -2106,6 +2213,13 @@ class SUEWSConfig(DataModelBase):
                             StebbsProperties._STEBBS_NON_SCALAR_FIELDS,
                             guard=None,
                         )
+                        for p_name in StebbsProperties._STEBBS_PROFILE_FIELDS:
+                            errors.extend(
+                                _check_active_ten_minute_profile(
+                                    getattr(stebbs_props, p_name, None),
+                                    f"{site_name}: properties.stebbs.{p_name}",
+                                )
+                            )
 
                 arch_props = getattr(props, "building_archetype", None)
                 if arch_props is None:
@@ -2149,6 +2263,13 @@ class SUEWSConfig(DataModelBase):
                             ArchetypeProperties._ARCHETYPE_NON_SCALAR_FIELDS,
                             arch_props._make_stebbs_guard(),
                         )
+                        for p_name in ArchetypeProperties._ARCHETYPE_PROFILE_FIELDS:
+                            errors.extend(
+                                _check_active_ten_minute_profile(
+                                    getattr(arch_props, p_name, None),
+                                    f"{site_name}: properties.building_archetype.{p_name}",
+                                )
+                            )
         finally:
             _STEBBS_ACTIVE_CONTEXT.reset(tok)
 
@@ -6809,6 +6930,9 @@ class SUEWSConfig(DataModelBase):
                     prepared
                 ),
                 stebbs_active=cls._resolve_stebbs_active_for_context(prepared),
+                stebbs_shared_active_fields=cls._resolve_stebbs_shared_temp_fields_for_context(
+                    prepared
+                ),
             ):
                 try:
                     prepared["model"] = Model.model_validate(
@@ -6830,6 +6954,9 @@ class SUEWSConfig(DataModelBase):
                     prepared
                 ),
                 stebbs_active=cls._resolve_stebbs_active_for_context(prepared),
+                stebbs_shared_active_fields=cls._resolve_stebbs_shared_temp_fields_for_context(
+                    prepared
+                ),
             ):
                 validated_sites = []
                 for index, raw_site in enumerate(raw_sites):
@@ -7489,11 +7616,13 @@ class SUEWSConfig(DataModelBase):
         snow_code = resolve_snow_use_code(model.physics.snow_use)
         soil_code = resolve_soil_moisture_code(model.physics.soil_moisture)
         stebbs_code = resolve_stebbs_method_code(model.physics)
+        stebbs_shared_active = resolve_stebbs_shared_temp_fields(model.physics)
         with cls._scheme_validation_context(
             water_use_modelled=water_use_code == 0,
             snow_active=snow_code is None or snow_code != 0,
             soil_observed=soil_code is None or soil_code == 1,
             stebbs_active=stebbs_code is None or stebbs_code != 0,
+            stebbs_shared_active_fields=stebbs_shared_active,
         ):
             # Create list of sites
             sites = []
@@ -7557,6 +7686,14 @@ class SUEWSConfig(DataModelBase):
         ):
             self.validate_hourly_profile_hours()
             self.validate_ten_minute_profile_keys()
+            if not isinstance(self.model, dict):
+                self.validate_stebbs_parameters()
+                if self._needs_stebbs_validation():
+                    stebbs_export_issues: list[str] = []
+                    for idx, site in enumerate(self.sites):
+                        stebbs_export_issues.extend(self._validate_stebbs(site, idx))
+                    if stebbs_export_issues:
+                        raise ValueError("; ".join(stebbs_export_issues))
 
         self._validate_senescence_states()
         # Use mode='json' to serialize enums as their values. round_trip
@@ -7592,8 +7729,11 @@ class SUEWSConfig(DataModelBase):
             return entry
 
         phys_obj = getattr(self.model, "physics", None) if not isinstance(self.model, dict) else None
+        stebbs_inactive_for_yaml = (
+            resolve_stebbs_method_code(phys_obj) == 0 if phys_obj is not None else False
+        )
         stebbs_phys_obj = getattr(phys_obj, "stebbs", None) if phys_obj is not None else None
-        if isinstance(stebbs_phys_obj, StebbsPhysics):
+        if stebbs_inactive_for_yaml and isinstance(stebbs_phys_obj, StebbsPhysics):
             stebbs_phys_dict = (
                 config_dict.setdefault("model", {})
                 .setdefault("physics", {})
@@ -7645,32 +7785,33 @@ class SUEWSConfig(DataModelBase):
                                 soil_obs_dict[field_name] = None
                             elif isinstance(raw, RefValue) and raw.value is None:
                                 soil_obs_dict[field_name] = {"value": None}
-                    stebbs_obj = getattr(props_obj, "stebbs", None)
-                    if stebbs_obj is None:
-                        props_dict["stebbs"] = None
-                    elif isinstance(stebbs_obj, StebbsProperties):
-                        stebbs_dict = props_dict.setdefault("stebbs", {})
-                        for field_name in stebbs_obj.model_fields_set:
-                            if field_name == "ref":
-                                continue
-                            raw = getattr(stebbs_obj, field_name, None)
-                            if raw is None:
-                                stebbs_dict[field_name] = None
-                            elif isinstance(raw, RefValue) and raw.value is None:
-                                stebbs_dict[field_name] = _null_ref_yaml_entry(raw)
-                    arch_obj = getattr(props_obj, "building_archetype", None)
-                    if arch_obj is None:
-                        props_dict["building_archetype"] = None
-                    elif isinstance(arch_obj, ArchetypeProperties):
-                        arch_dict = props_dict.setdefault("building_archetype", {})
-                        for field_name in arch_obj.model_fields_set:
-                            if field_name == "ref":
-                                continue
-                            raw = getattr(arch_obj, field_name, None)
-                            if raw is None:
-                                arch_dict[field_name] = None
-                            elif isinstance(raw, RefValue) and raw.value is None:
-                                arch_dict[field_name] = _null_ref_yaml_entry(raw)
+                    if stebbs_inactive_for_yaml:
+                        stebbs_obj = getattr(props_obj, "stebbs", None)
+                        if stebbs_obj is None:
+                            props_dict["stebbs"] = None
+                        elif isinstance(stebbs_obj, StebbsProperties):
+                            stebbs_dict = props_dict.setdefault("stebbs", {})
+                            for field_name in stebbs_obj.model_fields_set:
+                                if field_name == "ref":
+                                    continue
+                                raw = getattr(stebbs_obj, field_name, None)
+                                if raw is None:
+                                    stebbs_dict[field_name] = None
+                                elif isinstance(raw, RefValue) and raw.value is None:
+                                    stebbs_dict[field_name] = _null_ref_yaml_entry(raw)
+                        arch_obj = getattr(props_obj, "building_archetype", None)
+                        if arch_obj is None:
+                            props_dict["building_archetype"] = None
+                        elif isinstance(arch_obj, ArchetypeProperties):
+                            arch_dict = props_dict.setdefault("building_archetype", {})
+                            for field_name in arch_obj.model_fields_set:
+                                if field_name == "ref":
+                                    continue
+                                raw = getattr(arch_obj, field_name, None)
+                                if raw is None:
+                                    arch_dict[field_name] = None
+                                elif isinstance(raw, RefValue) and raw.value is None:
+                                    arch_dict[field_name] = _null_ref_yaml_entry(raw)
 
                 init_obj = getattr(site_obj, "initial_states", None)
                 init_dict = site_dict.get("initial_states")

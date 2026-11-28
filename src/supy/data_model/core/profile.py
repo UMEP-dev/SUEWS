@@ -995,15 +995,27 @@ class TenMinuteProfile(DataModelBase):
         Returns:
             TenMinuteProfile: Instance of TenMinuteProfile
         """
+        allow_inactive_nulls = _STEBBS_ACTIVE_CONTEXT.get() is False
+
+        def _normalise_cell(raw_val: Any) -> Any:
+            if allow_inactive_nulls and raw_val is not None:
+                if isinstance(raw_val, (float, np.floating)) and math.isnan(
+                    float(raw_val)
+                ):
+                    return None
+                if raw_val is pd.NA:
+                    return None
+            return raw_val
+
         # Extract working day values (index 0)
         working_day = {
-            str(i + 1): df.loc[grid_id, (param_name, f"({i}, 0)")]
+            str(i + 1): _normalise_cell(df.loc[grid_id, (param_name, f"({i}, 0)")])
             for i in range(144)
         }
 
         # Extract holiday values (index 1)
         holiday = {
-            str(i + 1): df.loc[grid_id, (param_name, f"({i}, 1)")]
+            str(i + 1): _normalise_cell(df.loc[grid_id, (param_name, f"({i}, 1)")])
             for i in range(144)
         }
 

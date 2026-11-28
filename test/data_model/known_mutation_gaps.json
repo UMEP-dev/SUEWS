@@ -773,7 +773,6 @@
         "all_surfaces_baseline",
         "co2_methods",
         "snow_cold",
-        "observed_and_dyohm",
         "irrigation_and_dls"
       ],
       "path_patterns": [
@@ -799,6 +798,36 @@
         "#2087"
       ],
       "rationale": "STEBBS and building_archetype RefValue fields remain nullable when STEBBS is disabled."
+    },
+    {
+      "id": "stebbs-and-archetype-ref-null-inactive-dyohm",
+      "anchors": [
+        "observed_and_dyohm"
+      ],
+      "path_patterns": [
+        "sites[0].properties.building_archetype.*",
+        "sites[0].properties.stebbs.*"
+      ],
+      "exclude_patterns": [
+        "sites[0].properties.building_archetype.archetype_name",
+        "sites[0].properties.building_archetype.profile_*",
+        "sites[0].properties.stebbs.profile_*",
+        "sites[0].properties.stebbs.reduction_factor_shading",
+        "sites[0].properties.stebbs.temperature_threshold_shading",
+        "sites[0].properties.stebbs.radiation_threshold_shading",
+        "sites[0].properties.stebbs.temperature_air_annual_mean"
+      ],
+      "mutations": {
+        "bare_null": "dropped",
+        "wrapped_null": "null_or_empty"
+      },
+      "category": "inactive_optional",
+      "active_condition": "Inactive when stebbs.enabled=False on observed_and_dyohm (storage_heat=6); temperature_air_annual_mean is actively consumed by DyOHM deep-soil initialisation and rejects nulls.",
+      "owner_issue": "#2083",
+      "related_issues": [
+        "#2087"
+      ],
+      "rationale": "Non-DyOHM STEBBS and building_archetype RefValue fields remain nullable when STEBBS is disabled under DyOHM."
     },
     {
       "id": "stebbs-archetype-name-bare-null-inactive",
@@ -1172,17 +1201,16 @@
         "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
       ],
       "mutations": {
-        "omit": "dropped",
-        "bare_null": "null_or_empty"
+        "omit": "dropped"
       },
       "category": "active_gap",
-      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting or nulling a 10-minute slot passes validation.",
+      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting a 10-minute slot passes validation whilst explicit null slots are rejected.",
       "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
       ],
-      "rationale": "144-step STEBBS profile dicts do not require complete slot coverage on omit and accept null slot entries."
+      "rationale": "144-step STEBBS profile dicts do not yet require complete slot coverage on omit."
     },
     {
       "id": "stebbs-144step-profile-slots-inactive",

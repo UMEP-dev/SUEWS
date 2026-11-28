@@ -7,7 +7,7 @@ import sys
 import pytest
 
 pytestmark = [
-    pytest.mark.unit,
+    pytest.mark.native,
     pytest.mark.os_compat,
     pytest.mark.contract("C-ERROR"),
 ]

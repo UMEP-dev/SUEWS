@@ -1,0 +1,281 @@
+# Reusable workflow: install a built cp312-abi3 wheel into the target CPython
+# interpreter(s) and run one Schema 2 wheel-backed lane (`native`, `os_compat`,
+# or `abi3_smoke`).
+#
+# Called by build-wheels-reusable.yml under GATE_AXIS_SCHEMA=2 (#2349 W1-6).
+# Each cell carries `{"python_version", "shard", "tier", "lane"}` emitted by
+# `scripts/suews/ci_test_layout.py --schema 2`. Marker expressions are resolved
+# from `scripts/suews/ci_tiers.py --schema 2` so workflow and core-guard
+# definitions stay in lockstep.
+
+name: Wheel test lane (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      buildplat_json:
+        description: 'JSON array of [runner, platform_name, arch] triples'
+        required: true
+        type: string
+      cells_json:
+        description: >-
+          JSON array of Schema 2 cells per platform, each
+          {"python_version", "shard", "tier", "lane"}, from
+          scripts/suews/ci_test_layout.py --schema 2.
+        required: true
+        type: string
+      test_tier:
+        description: 'Test tier of the calling run (smoke|core|cfg|physics-core|standard|physics-full|all)'
+        required: true
+        type: string
+      build_python:
+        description: 'Build-floor CPython tag that produced the abi3 wheel artefact (e.g. cp312 or cp313)'
+        required: false
+        type: string
+        default: 'cp312'
+      install_mcp:
+        description: 'Download and install suews-mcp-dist alongside the supy wheel (required for os_compat protocol tests and Linux inventory collection)'
+        required: false
+        type: boolean
+        default: true
+      serial_platforms:
+        description: >-
+          Comma-separated platform names (manylinux, macosx, win) whose lane
+          runs in one process instead of on xdist workers.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  wheel_lane:
+    name: ${{ matrix.cell.lane }} | ${{ matrix.cell.python_version }} | ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(inputs.buildplat_json) }}
+        cell: ${{ fromJson(inputs.cells_json) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve Python version (cp312 -> 3.12)
+        id: pyver
+        shell: bash
+        env:
+          PV: ${{ matrix.cell.python_version }}
+        run: |
+          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ steps.pyver.outputs.spec }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          cache-suffix: ${{ matrix.cell.lane }}-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+
+      - name: Download wheel for this platform
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: wheelhouse/
+
+      - name: Download MCP distribution
+        if: inputs.install_mcp
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: suews-mcp-dist
+          path: mcp-dist/
+
+      - name: Resolve Schema 2 pytest marker expression
+        id: marker
+        shell: bash
+        env:
+          LANE: ${{ matrix.cell.lane }}
+          TIER: ${{ matrix.cell.tier || inputs.test_tier }}
+        run: |
+          EXPR="$(python scripts/suews/ci_tiers.py --schema 2 "$LANE" "$TIER")"
+          echo "expr=${EXPR}" >> "$GITHUB_OUTPUT"
+          echo "Wheel lane ${LANE} (${TIER}): -m '${EXPR}'"
+
+      - name: Choose the xdist worker count for this platform
+        id: workers
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.buildplat[1] }}
+          LANE: ${{ matrix.cell.lane }}
+          SERIAL_PLATFORMS: ${{ inputs.serial_platforms }}
+        run: |
+          # Measured in #1786: Linux -n 4, Windows -n 4, macOS -n 2.
+          # abi3_smoke runs only ~3 smoke tests, so keep it single-process to
+          # avoid xdist worker startup overhead.
+          if [[ "$LANE" == "abi3_smoke" ]]; then
+            WORKERS=1
+          else
+            case "$PLATFORM" in
+              manylinux) WORKERS=4 ;;
+              win)       WORKERS=4 ;;
+              macosx)    WORKERS=2 ;;
+              *)         WORKERS=1 ;;
+            esac
+          fi
+          SERIAL_LIST=",${SERIAL_PLATFORMS// /},"
+          if [[ "$SERIAL_LIST" == *",${PLATFORM},"* ]]; then
+            echo "::notice::${LANE} lane on ${PLATFORM} serialised through serial_platforms"
+            WORKERS=1
+          fi
+          if [[ "$WORKERS" -gt 1 ]]; then
+            echo "xdist_args=-n ${WORKERS} --dist worksteal" >> "$GITHUB_OUTPUT"
+          else
+            echo "xdist_args=" >> "$GITHUB_OUTPUT"
+          fi
+          echo "count=${WORKERS}" >> "$GITHUB_OUTPUT"
+
+      - name: Install wheel and run Schema 2 lane tests
+        shell: bash
+        env:
+          LANE: ${{ matrix.cell.lane }}
+          TIER: ${{ matrix.cell.tier || inputs.test_tier }}
+          INSTALL_MCP: ${{ inputs.install_mcp }}
+          MARKER_EXPR: ${{ steps.marker.outputs.expr }}
+          XDIST_ARGS: ${{ steps.workers.outputs.xdist_args }}
+          SHARD: ${{ matrix.cell.shard }}
+          SUEWS_CI_METRICS: ci-metrics/${{ matrix.cell.lane }}-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}.json
+        run: |
+          set -euo pipefail
+          EXTRA_WHEELS=()
+          if [[ "$INSTALL_MCP" == "true" ]]; then
+            EXTRA_WHEELS=(mcp-dist/*.whl)
+          fi
+          uv pip install --python "$(python -c 'import sys; print(sys.executable)')" \
+            pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0 \
+            wheelhouse/*.whl "${EXTRA_WHEELS[@]}"
+
+          if [[ "$INSTALL_MCP" == "true" && ( "$LANE" == "native" || "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ) ]]; then
+            export SUEWS_REQUIRE_INSTALLED_CLI=1
+            python - <<'PY'
+          from pathlib import Path
+          import shutil
+          import sys
+          import sysconfig
+
+          from mcp.client.session import ClientSession
+          from mcp.client.stdio import StdioServerParameters, stdio_client
+
+          active_bin_dir = Path(sysconfig.get_path("scripts"))
+          command = shutil.which("suews-mcp", path=str(active_bin_dir))
+          if command is None:
+              raise SystemExit(
+                  f"suews-mcp is not installed in {active_bin_dir} "
+                  f"for {sys.executable}"
+              )
+          for exe in ("suews", "suews-validate", "suews-mcp"):
+              in_bin = shutil.which(exe, path=str(active_bin_dir))
+              if in_bin is None:
+                  raise SystemExit(
+                      f"{exe} is not installed in {active_bin_dir} "
+                      f"for {sys.executable}"
+                  )
+              on_path = shutil.which(exe)
+              if on_path is None:
+                  raise SystemExit(
+                      f"{exe} is installed at {in_bin} but not discoverable on PATH"
+                  )
+          print(f"CLI and MCP executables available in {active_bin_dir}; suews-mcp={command}")
+          PY
+            if [[ "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ]]; then
+              python -m pytest --collect-only test/mcp/test_protocol_handshake.py \
+                -m "$MARKER_EXPR" -q
+            fi
+            if [[ "$LANE" == "native" && ( "$TIER" == "physics-core" || "$TIER" == "standard" || "$TIER" == "physics-full" || "$TIER" == "all" ) ]]; then
+              for witness in \
+                test/mcp/test_tool_readiness.py \
+                test/mcp/test_tool_schema_search.py \
+                test/mcp/test_canonical_questions_cli.py \
+                test/mcp/test_tool_validate_cli.py \
+                test/mcp/test_real_cli_smoke.py \
+                test/mcp/test_boundary_paths_cli.py \
+                test/core/test_cli_validation.py; do
+                python -m pytest --collect-only "$witness" -m "$MARKER_EXPR" -q
+              done
+            fi
+          fi
+
+          SHARD_ARGS=()
+          if [[ -n "$SHARD" ]]; then
+            SHARD_ARGS=(-p scripts.suews.pytest_shard --suews-shard "${SHARD/-of-//}")
+          fi
+          # shellcheck disable=SC2086
+          python -m pytest -p scripts.suews.pytest_ci_metrics test \
+            -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS "${SHARD_ARGS[@]}"
+
+          if [[ "$INSTALL_MCP" == "true" && ( "$LANE" == "native" || "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ) ]]; then
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metrics_path = Path(os.environ["SUEWS_CI_METRICS"])
+          payload = json.loads(metrics_path.read_text(encoding="utf-8"))
+          watched_prefixes = (
+              "test/mcp/test_tool_readiness.py::",
+              "test/mcp/test_tool_schema_search.py::",
+              "test/mcp/test_canonical_questions_cli.py::",
+              "test/mcp/test_tool_validate_cli.py::",
+              "test/mcp/test_real_cli_smoke.py::",
+              "test/mcp/test_boundary_paths_cli.py::",
+              "test/mcp/test_protocol_handshake.py::",
+              "test/core/test_cli_validation.py::",
+          )
+          skipped = [
+              t["node_id"]
+              for t in payload.get("tests", [])
+              if t.get("outcome") == "skipped"
+              and any(t.get("node_id", "").startswith(p) for p in watched_prefixes)
+          ]
+          if skipped:
+              raise SystemExit(
+                  "Installed-CLI witness test(s) unexpectedly skipped in wheel lane: "
+                  + ", ".join(skipped)
+              )
+          PY
+          fi
+
+      # The core-test guard (scripts/suews/check_core_guard.py --schema 2)
+      # compares every Linux lane against the whole suite's inventory, so the
+      # Linux cp312 native cell (unsharded or shard 1, with both supy and
+      # suews-mcp installed) records every collected node id and its markers
+      # with no -m and no shard split.
+      - name: Record the test inventory for the core-test guard
+        if: >-
+          (success() || failure()) &&
+          matrix.cell.lane == 'native' &&
+          matrix.buildplat[1] == 'manylinux' &&
+          matrix.cell.python_version == inputs.build_python &&
+          (matrix.cell.shard == '' || startsWith(matrix.cell.shard, '1-of-'))
+        shell: bash
+        env:
+          INVENTORY_PATH: ci-metrics/inventory-${{ inputs.build_python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
+        run: |
+          python -m pytest -p scripts.suews.pytest_inventory --collect-only -q \
+            -p no:cacheprovider test \
+            --suews-inventory "$INVENTORY_PATH" \
+            > /dev/null
+
+      - name: Upload Schema 2 lane test metrics
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-${{ matrix.cell.lane }}-${{ matrix.cell.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}
+          path: ci-metrics/*.json
+          if-no-files-found: error
+          retention-days: 14

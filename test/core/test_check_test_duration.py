@@ -1448,9 +1448,12 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
     assert "post-ci-summary" in cost_job["needs"]
     assert "post-ci-summary" in job["needs"]
     assert "cost_markers_pr" in job["needs"]
-    # Standard PR tier only (not smoke/core/cfg/physics-full/merge_group/schedule).
+    # Ready PR tiers (standard / physics-core / physics-full), never smoke/core/cfg/merge_group/schedule.
     assert "github.event_name == 'pull_request'" in job["if"]
     assert "needs.determine_matrix.outputs.test_tier == 'standard'" in job["if"]
+    assert "needs.determine_matrix.outputs.test_tier == 'physics-core'" in job["if"]
+    assert "needs.determine_matrix.outputs.test_tier == 'physics-full'" in job["if"]
+    assert {"tooling", "unit", "build_wheels"} <= set(job["needs"])
     assert "merge_group" not in job["if"]
     assert "schedule" not in job["if"]
 
@@ -1463,23 +1466,16 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
         in checkout["with"]["sparse-checkout"]
     )
 
-    # Downloads both unsharded and N-sharded Linux cp312 API and physics artefacts into separate subdirectories.
-    api_dl = next(
-        s
-        for s in job["steps"]
-        if s.get("name") == "Download the Linux cp312 api metrics"
-    )
-    assert api_dl["with"]["pattern"] == "ci-metrics-api-cp312-manylinux-x86_64*"
-    assert not api_dl["with"].get("merge-multiple")
-
-    phys_dl = next(
-        s
-        for s in job["steps"]
-        if s.get("name") == "Download the Linux cp312 physics metrics"
-    )
-    assert phys_dl["with"]["pattern"] == "ci-metrics-physics-cp312-manylinux-x86_64*"
-    assert "name" not in phys_dl["with"]
-    assert not phys_dl["with"].get("merge-multiple")
+    # Downloads both unsharded and N-sharded Linux cp312 artefacts (legacy api + Schema 2 lanes) into separate subdirectories.
+    for lane in ("api", "tooling", "unit", "native", "physics"):
+        dl = next(
+            s
+            for s in job["steps"]
+            if s.get("name") == f"Download the Linux cp312 {lane} metrics"
+        )
+        assert dl["with"]["pattern"] == f"ci-metrics-{lane}-cp312-manylinux-x86_64*"
+        assert "name" not in dl["with"]
+        assert not dl["with"].get("merge-multiple")
 
     # PR test-file list is passed via env + jq, never interpolated into the command.
     check_step = next(
@@ -1491,6 +1487,15 @@ def test_committed_baseline_and_workflow_wiring_satisfy_guard_contracts() -> Non
     assert check_step["env"]["TESTS_FILES"] == (
         "${{ needs.detect-changes.outputs.tests-files || '[]' }}"
     )
+    comment_step = next(
+        s
+        for s in job["steps"]
+        if s.get("name") == "Add the duration-guard result to the CI summary comment"
+    )
+    assert comment_step["env"]["TEST_TIER"] == (
+        "${{ needs.determine_matrix.outputs.test_tier }}"
+    )
+    assert "testTier: process.env.TEST_TIER" in comment_step["with"]["script"]
 
     # New script and baseline are covered by .github/path-filters.yml.
     filters = yaml.safe_load(

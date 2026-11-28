@@ -23,7 +23,7 @@ from supy.data_model.core.human_activity import AnthropogenicHeat, CO2Params
 from supy.util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
 
 pytestmark = [
-    pytest.mark.api,
+    pytest.mark.native,
     pytest.mark.cfg,
     pytest.mark.core,
     pytest.mark.contract("C-VALID", "C-MIGRATE", "C-EMIT"),

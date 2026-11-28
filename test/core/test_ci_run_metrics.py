@@ -191,6 +191,8 @@ def test_new_ci_observability_surfaces_trigger_normal_ci() -> None:
     assert "- '.github/workflows/ci-metrics-overhead.yml'" in path_filters
     assert "- '.github/workflows/build-wheels-reusable.yml'" in path_filters
     assert "- '.github/workflows/test-api-cross-python-reusable.yml'" in path_filters
+    assert "- '.github/workflows/test-source-lane-reusable.yml'" in path_filters
+    assert "- '.github/workflows/test-wheel-lane-reusable.yml'" in path_filters
     assert "- '.github/workflows/tolerance-spread-reusable.yml'" in path_filters
     assert "- '.github/ci-metrics-needs.json'" in path_filters
 
@@ -261,16 +263,15 @@ def test_api_lane_runs_measured_xdist_workers_with_a_serial_escape_hatch() -> No
 
 @pytest.mark.core
 def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api() -> None:
-    """Pull requests run no macOS api cell and shard the build-Python cells.
+    """Schema 2 splits full physics and Linux native while keeping physics-core in wheel build.
 
-    Ready pull requests and the merge queue split the Linux wheel's tests into
-    parallel jobs: physics shards in the wheel's manylinux image and the
-    build-Python api cell as four shards; on a pull request the newer bookend
-    runs the core-bookend tier in one job. Windows (on a labelled PR) splits
-    every api cell (cp312 and cp315) into two shards via ``shard_python: all``.
-    The layout itself is scripts/suews/ci_test_layout.py; the api reusable
-    workflow runs whatever cells it is given, with each shard's job and
-    artefact named after the shard.
+    Under GATE_AXIS_SCHEMA=2, source lanes (`tooling`, `unit`) start at t=0
+    without waiting for wheels, `physics-core` stays inside the wheel job,
+    full-physics Linux runs (`standard`, `physics-full`) split physics shards
+    in manylinux, and per-OS wheel lanes (`native`, `os_compat`, `abi3_smoke`)
+    are laid out by `scripts/suews/ci_test_layout.py --schema 2`. Legacy
+    Schema 1 inputs and `test-api-cross-python-reusable.yml` remain intact
+    until W1-7 retires the compatibility shim.
     """
     root = Path(__file__).resolve().parents[2]
     caller = yaml.safe_load(
@@ -278,12 +279,13 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
             encoding="utf-8"
         )
     )
-    layout = "(github.event_name == 'pull_request' || inputs.pr_api_lane)"
+    assert caller["env"]["GATE_AXIS_SCHEMA"] == "2"
     chain_with = caller["jobs"]["build_wheels"]["with"]
-    assert chain_with["run_api_tests"].endswith(
-        f"&& !({layout} && matrix.buildplat[1] == 'macosx') "
-        "&& !(github.event_name == 'merge_group' && matrix.buildplat[1] != 'manylinux') }}"
-    )
+    assert chain_with["gate_axis_schema"] == "2"
+    assert "native_buildplat" in chain_with["run_native_tests"]
+    assert "os_compat_buildplat" in chain_with["run_os_compat"]
+    assert "abi3_smoke_buildplat" in chain_with["run_abi3_smoke"]
+    assert "abi3_smoke_python" in chain_with["abi3_smoke_python_json"]
     ready = (
         "(needs.determine_matrix.outputs.test_tier == 'standard' || "
         "needs.determine_matrix.outputs.test_tier == 'physics-full')"
@@ -291,12 +293,19 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     assert "matrix.buildplat[1] == 'manylinux'" in chain_with["split_tests"]
     assert ready in chain_with["split_tests"]
     assert "github.event_name == 'merge_group'" in chain_with["split_tests"]
-    assert ready in chain_with["api_bookend_core"]
-    assert "merge_group" not in chain_with["api_bookend_core"]
-    assert chain_with["api_shard_count"] == "${{ matrix.buildplat[1] == 'manylinux' && 4 || 2 }}"
     assert "physics-full' && 3 || 2" in chain_with["physics_shards"]
+    assert "matrix.buildplat[1] == 'manylinux'" in chain_with["native_shards"]
+    unit_with = caller["jobs"]["unit"]["with"]
+    pr_dispatch = "(github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)"
+    assert pr_dispatch in unit_with["shard_count"]
+    assert pr_dispatch in chain_with["native_shards"]
+    assert pr_dispatch in chain_with["split_tests"]
     dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
     assert dispatch_inputs["pr_api_lane"]["default"] is False
+    assert "Schema 2" in dispatch_inputs["pr_api_lane"]["description"]
+    assert "source unit" in dispatch_inputs["pr_api_lane"]["description"]
+    assert "physics-core" in dispatch_inputs["test_tier"]["options"]
+    assert "physics-full" in dispatch_inputs["test_tier"]["options"]
 
     wheels = yaml.safe_load(
         (root / ".github/workflows/build-wheels-reusable.yml").read_text(
@@ -304,21 +313,36 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
         )
     )
     wheel_inputs = wheels[True]["workflow_call"]["inputs"]
+    assert wheel_inputs["gate_axis_schema"]["default"] == "1"
     assert not wheel_inputs["api_shard_python"]["default"]
     assert wheel_inputs["split_tests"]["default"] is False
     assert wheel_inputs["api_bookend_core"]["default"] is False
+    assert wheel_inputs["run_native_tests"]["default"] is False
+    assert wheel_inputs["run_os_compat"]["default"] is False
+    assert wheel_inputs["run_abi3_smoke"]["default"] is False
     jobs = wheels["jobs"]
     assert jobs["api_cross_python"]["with"]["cells_json"] == (
         "${{ needs.layout.outputs.api_cells }}"
     )
+    assert "inputs.gate_axis_schema != '2'" in jobs["api_cross_python"]["if"]
+    assert jobs["native_tests"]["uses"].endswith("/test-wheel-lane-reusable.yml")
+    assert jobs["native_tests"]["with"]["cells_json"] == (
+        "${{ needs.layout.outputs.native_cells }}"
+    )
+    assert jobs["os_compat_tests"]["with"]["cells_json"] == (
+        "${{ needs.layout.outputs.os_compat_cells }}"
+    )
+    assert jobs["abi3_smoke_tests"]["with"]["cells_json"] == (
+        "${{ needs.layout.outputs.abi3_smoke_cells }}"
+    )
     build_step = next(s for s in jobs["build"]["steps"] if s.get("name") == "Build SUEWS wheels")
-    from scripts.suews.ci_test_layout import UNSHARDED_TIERS
+    from scripts.suews.ci_test_layout import SCHEMA_V2_UNSHARDED_TIERS
 
     assert (
         jobs["layout"]["outputs"]["effective_split_tests"]
         == "${{ steps.layout.outputs.effective_split_tests }}"
     )
-    for unsharded_tier in UNSHARDED_TIERS:
+    for unsharded_tier in SCHEMA_V2_UNSHARDED_TIERS:
         assert f"inputs.test_tier != '{unsharded_tier}'" in build_step["with"]["skip_tests"]
         assert f"inputs.test_tier != '{unsharded_tier}'" in jobs["fortran_probes"]["if"]
     assert build_step["with"]["skip_tests"].startswith("${{ inputs.split_tests &&")
@@ -334,13 +358,6 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     assert "-e SUEWS_REFERENCE_LANE " in run["run"]
     assert "inputs.build_profile != 'checked'" in run["env"]["SUEWS_REFERENCE_LANE"]
     assert run["env"]["SUEWS_BUILD_PROFILE"] == "${{ inputs.build_profile }}"
-    # Windows PRs pass 'all' to shard every api cell (cp312 and cp315); Linux
-    # PRs and merge_group pass the build Python tag (fromJson(...)[0]).
-    assert chain_with["api_shard_python"].startswith(
-        "${{ ((github.event_name == 'pull_request' || inputs.pr_api_lane) && "
-        "matrix.buildplat[1] == 'win') && 'all' ||"
-    )
-    assert "fromJson(needs.determine_matrix.outputs.python)[0] || ''" in chain_with["api_shard_python"]
     assert "SUEWS_FORTRAN_PROBES_PREBUILT=1" in run["run"]
     assert '"$MANYLINUX_IMAGE"' in run["run"]
     reference = next(
@@ -395,7 +412,7 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
 
 @pytest.mark.smoke
 def test_api_lane_consumes_mcp_artifact_after_build() -> None:
-    """The API matrix installs the MCP wheel only after both builds succeed."""
+    """Wheel lanes consuming suews-mcp-dist wait on both wheel and MCP builds."""
     root = Path(__file__).resolve().parents[2]
     caller = yaml.safe_load(
         (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
@@ -404,7 +421,13 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     )
     chain_job = caller["jobs"]["build_wheels"]
     assert {"determine_matrix", "build_mcp"} <= set(chain_job["needs"])
-    assert chain_job["with"]["run_api_tests"].startswith(
+    assert chain_job["with"]["run_native_tests"].startswith(
+        "${{ needs.build_mcp.result == 'success' && "
+    )
+    assert chain_job["with"]["run_os_compat"].startswith(
+        "${{ needs.build_mcp.result == 'success' && "
+    )
+    assert chain_job["with"]["run_abi3_smoke"].startswith(
         "${{ needs.build_mcp.result == 'success' && "
     )
 
@@ -415,35 +438,44 @@ def test_api_lane_consumes_mcp_artifact_after_build() -> None:
     )
     api_job = wheels_workflow["jobs"]["api_cross_python"]
     assert api_job["needs"] == ["layout", "build"]
-    assert api_job["if"] == "inputs.run_api_tests"
+    assert api_job["if"] == "inputs.gate_axis_schema != '2' && inputs.run_api_tests"
     assert api_job["uses"].endswith("/test-api-cross-python-reusable.yml")
 
-    api_workflow = (
-        root / ".github/workflows/test-api-cross-python-reusable.yml"
+    for lane_job_id, expects_mcp in (
+        ("native_tests", True),
+        ("os_compat_tests", True),
+        ("abi3_smoke_tests", True),
+    ):
+        lane_job = wheels_workflow["jobs"][lane_job_id]
+        assert lane_job["needs"] == ["layout", "build"]
+        assert lane_job["uses"].endswith("/test-wheel-lane-reusable.yml")
+        assert lane_job["with"]["install_mcp"] is expects_mcp
+
+    wheel_lane_workflow = (
+        root / ".github/workflows/test-wheel-lane-reusable.yml"
     ).read_text(encoding="utf-8")
-    assert "name: suews-mcp-dist" in api_workflow
-    assert "path: mcp-dist/" in api_workflow
-    assert "wheelhouse/*.whl mcp-dist/*.whl" in api_workflow
+    assert "name: suews-mcp-dist" in wheel_lane_workflow
+    assert "path: mcp-dist/" in wheel_lane_workflow
+    assert "mcp-dist/*.whl" in wheel_lane_workflow
 
     declared_needs = json.loads(
         (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
-    api_patterns = [
-        pattern
-        for pattern in declared_needs
-        if "/ API cross-CPython tests / " in pattern
-    ]
-    assert api_patterns
-    for pattern in api_patterns:
-        assert "Build MCP package" in declared_needs[pattern]
+    for group in ("Native tests", "OS compat tests", "API cross-CPython tests"):
+        patterns = [
+            pattern for pattern in declared_needs if f"/ {group} / " in pattern
+        ]
+        assert patterns, group
+        for pattern in patterns:
+            assert "Build MCP package" in declared_needs[pattern]
 
 
 @pytest.mark.smoke
 def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
-    """Each platform's api lane is chained behind that platform's wheel build.
+    """Each platform's wheel-backed lanes are chained behind that platform's wheel build.
 
-    The caller runs one reusable-workflow call per platform, so the api lane
-    inside it depends on one wheel, and the declared-needs graph read by
+    The caller runs one reusable-workflow call per platform, so the wheel lanes
+    inside it depend on one wheel, and the declared-needs graph read by
     analyse_ci_run.py says the same per platform.
     """
     root = Path(__file__).resolve().parents[2]
@@ -469,22 +501,42 @@ def test_api_lane_waits_for_its_own_platform_wheel_only() -> None:
         for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64")
     ]
     for platform in ("manylinux x86_64", "macosx arm64", "macosx x86_64", "win AMD64"):
-        api_job = f"Build and test ({platform}) / API cross-CPython tests / api | cp312 | x"
-        patterns = [k for k in declared_needs if fnmatchcase(api_job, k)]
-        dependencies = {d for k in patterns for d in declared_needs[k]}
-        wheels_waited_for = [
-            wheel
-            for wheel in wheel_jobs
-            if any(fnmatchcase(wheel, d) for d in dependencies)
-        ]
-        assert wheels_waited_for == [
-            f"Build and test ({platform}) / wheel | cp312 | {platform}"
-        ]
+        for lane_group, leaf in (
+            ("Native tests", "native | cp312 | x"),
+            ("OS compat tests", "os_compat | cp312 | x"),
+            ("ABI3 smoke tests", "abi3_smoke | cp315 | x"),
+            ("API cross-CPython tests", "api | cp312 | x"),
+        ):
+            lane_job = f"Build and test ({platform}) / {lane_group} / {leaf}"
+            patterns = [k for k in declared_needs if fnmatchcase(lane_job, k)]
+            dependencies = {d for k in patterns for d in declared_needs[k]}
+            wheels_waited_for = [
+                wheel
+                for wheel in wheel_jobs
+                if any(fnmatchcase(wheel, d) for d in dependencies)
+            ]
+            assert wheels_waited_for == [
+                f"Build and test ({platform}) / wheel | cp312 | {platform}"
+            ], (platform, lane_group)
     gate = declared_needs["PR build validation"]
     assert any(fnmatchcase(wheel_jobs[0], d) for d in gate)
     assert any(
         fnmatchcase(
-            "Build and test (win AMD64) / API cross-CPython tests / api | cp312 | win AMD64",
+            "Build and test (win AMD64) / Native tests / native | cp312 | win AMD64",
+            d,
+        )
+        for d in gate
+    )
+    assert any(
+        fnmatchcase(
+            "Source tests (tooling) / tooling | cp312 | manylinux x86_64",
+            d,
+        )
+        for d in gate
+    )
+    assert any(
+        fnmatchcase(
+            "Source tests (unit) / unit | cp312 | manylinux x86_64",
             d,
         )
         for d in gate
@@ -555,16 +607,12 @@ def test_full_matrices_build_macos_intel_but_skip_its_api_lanes(
 
 
 def test_api_platform_gate_finds_every_preset_runner_label() -> None:
-    """Every platform preset spells its runner label the way the gate looks it up.
+    """Every platform preset spells its runner label the way Schema 2 gates look it up.
 
-    The api lane now runs inside each platform's own reusable call, gated by
-    `run_api_tests`, which asks whether the api platform list contains that
-    platform's runner label wrapped in double quotes. The platform lists are
-    plain text built in determine-matrix.sh, so a preset written in any other
-    quoting shape makes the containment false: the lane is skipped, a skipped
-    inner job reports success, and the publish gate stays green over a run
-    that ran no api test at all. This pins the two shapes together, including
-    the closing quote that keeps `macos-15` from matching `macos-15-intel`.
+    The wheel-backed lanes (`native`, `os_compat`, `abi3_smoke`) run inside each
+    platform's reusable call, gated by containment checks against the platform
+    JSON lists emitted by `determine-matrix.sh` using double-quoted runner
+    labels so `macos-15` never matches `macos-15-intel`.
     """
     root = Path(__file__).resolve().parents[2]
     caller = yaml.safe_load(
@@ -572,16 +620,20 @@ def test_api_platform_gate_finds_every_preset_runner_label() -> None:
             encoding="utf-8"
         )
     )
-    run_api_tests = caller["jobs"]["build_wheels"]["with"]["run_api_tests"]
-
-    # The gate searches the api platform list (with the buildplat fallback for
-    # a PR that predates an api_buildplat change) for this rendering of the
-    # runner label.
-    assert "needs.determine_matrix.outputs.api_buildplat" in run_api_tests
-    assert "needs.determine_matrix.outputs.buildplat" in run_api_tests
-    key = re.search(r"format\('([^']*)', matrix\.buildplat\[0\]\)", run_api_tests)
-    assert key is not None, run_api_tests
-    template = key.group(1)
+    chain_with = caller["jobs"]["build_wheels"]["with"]
+    templates: set[str] = set()
+    for gate_key, output_key in (
+        ("run_native_tests", "native_buildplat"),
+        ("run_os_compat", "os_compat_buildplat"),
+        ("run_abi3_smoke", "abi3_smoke_buildplat"),
+    ):
+        expr = chain_with[gate_key]
+        assert f"needs.determine_matrix.outputs.{output_key}" in expr, gate_key
+        key = re.search(r"format\('([^']*)', matrix\.buildplat\[0\]\)", expr)
+        assert key is not None, expr
+        templates.add(key.group(1))
+    assert len(templates) == 1
+    (template,) = templates
     assert "{0}" in template
 
     script = (root / ".github/scripts/determine-matrix.sh").read_text(
@@ -643,6 +695,10 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
         root / ".github/workflows/test-api-cross-python-reusable.yml"
     ).read_text(encoding="utf-8")
 
+    assert "from mcp.client.session import ClientSession" in api_workflow
+    wheel_lane_workflow = (
+        root / ".github/workflows/test-wheel-lane-reusable.yml"
+    ).read_text(encoding="utf-8")
     for required in (
         "from mcp.client.session import ClientSession",
         "from mcp.client.stdio import StdioServerParameters, stdio_client",
@@ -653,6 +709,7 @@ def test_api_lane_requires_nonempty_mcp_protocol_collection() -> None:
         '-m "$MARKER_EXPR" -q',
     ):
         assert required in api_workflow
+        assert required in wheel_lane_workflow
 
     protocol_test = (root / "test/mcp/test_protocol_handshake.py").read_text(
         encoding="utf-8"
@@ -1809,3 +1866,155 @@ def test_determine_matrix_and_pr_gate_enforce_physics_or_numerics_override(
     )
     assert gate_labelled_built_wheels.returncode == 0
     assert "[OK] Wheel and physics build passed" in gate_labelled_built_wheels.stdout
+
+
+@pytest.mark.core
+def test_schema2_multi_axis_topology_wired_end_to_end() -> None:
+    """GATE_AXIS_SCHEMA=2 wires source lanes at t=0, wheel lanes, publish gates, and metrics DAG."""
+    root = Path(__file__).resolve().parents[2]
+    caller = yaml.safe_load(
+        (root / ".github/workflows/build-publish_to_pypi.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    source_wf = yaml.safe_load(
+        (root / ".github/workflows/test-source-lane-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    jobs = caller["jobs"]
+
+    # Source lanes start at t=0 without waiting for wheels or MCP builds.
+    for lane in ("tooling", "unit"):
+        job = jobs[lane]
+        assert job["uses"] == "$/.github/workflows/test-source-lane-reusable.yml"
+        assert job["with"]["lane"] == lane
+        assert "build_wheels" not in job["needs"]
+        assert "build_mcp" not in job["needs"]
+        assert "determine_matrix" in job["needs"]
+        assert lane in jobs["core_guard"]["needs"]
+        assert lane in jobs["pr-gate"]["needs"]
+        assert lane in jobs["deploy_testpypi"]["needs"]
+        assert lane in jobs["deploy_pypi"]["needs"]
+        assert f"needs.{lane}.result == 'success'" in jobs["deploy_testpypi"]["if"]
+        assert f"needs.{lane}.result == 'success'" in jobs["deploy_pypi"]["if"]
+
+    # Source reusable workflow activates SUEWS_SOURCE_LANE_ONLY=1 and never downloads wheels.
+    run_step = next(
+        s
+        for s in source_wf["jobs"]["source_lane"]["steps"]
+        if "wheel-free source lane" in str(s.get("name", ""))
+    )
+    assert run_step["env"]["SUEWS_SOURCE_LANE_ONLY"] == "1"
+    assert "download-artifact" not in (
+        root / ".github/workflows/test-source-lane-reusable.yml"
+    ).read_text(encoding="utf-8")
+
+    # post-ci-summary forwards all Schema 2 configuration env vars.
+    summary_env = jobs["post-ci-summary"]["steps"][1]["env"]
+    assert summary_env["GATE_AXIS_SCHEMA"] == "2"
+    for key in (
+        "SOURCE_LANES_JSON",
+        "SOURCE_PYTHON_JSON",
+        "NATIVE_PYTHON_JSON",
+        "NATIVE_BUILDPLAT_JSON",
+        "ABI3_SMOKE_PYTHON_JSON",
+        "ABI3_SMOKE_BUILDPLAT_JSON",
+        "OS_COMPAT_BUILDPLAT_JSON",
+        "PHYSICS_FULL_TRIGGER",
+    ):
+        assert key in summary_env, key
+
+    # Single required check name is preserved.
+    assert jobs["pr-gate"]["name"] == "PR build validation"
+
+    # analyse_run resolves a full Schema 2 PR DAG with zero config drift.
+    declared_needs = json.loads(
+        (root / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
+    )
+    run = {
+        "id": 2366,
+        "created_at": "2026-11-28T00:00:00Z",
+        "event": "pull_request",
+        "head_sha": "abc123",
+    }
+    schema2_jobs = {
+        "jobs": [
+            _job("Detect code changes", 0, 1, 8),
+            _job("Determine build matrix", 8, 9, 14),
+            _job("Build MCP package", 14, 15, 35),
+            _job("Check pytest marker axis", 0, 1, 15),
+            _job("Physics-change label", 14, 15, 19),
+            _job("Schema version audit / Require schema version bump", 0, 1, 12),
+            _job(
+                "Data-interface version audit / Validate data-interface version histories",
+                0,
+                1,
+                16,
+            ),
+            _job("Source tests (tooling) / layout", 14, 15, 20),
+            _job(
+                "Source tests (tooling) / tooling | cp312 | manylinux x86_64",
+                20,
+                22,
+                80,
+            ),
+            _job("Source tests (unit) / layout", 14, 15, 20),
+            _job(
+                "Source tests (unit) / unit | cp312 | manylinux x86_64",
+                20,
+                22,
+                110,
+            ),
+            _job(
+                "Source tests (unit) / unit | cp315 | manylinux x86_64",
+                20,
+                22,
+                105,
+            ),
+            _job("Build and test (manylinux x86_64) / test layout", 35, 36, 40),
+            _job(
+                "Build and test (manylinux x86_64) / wheel | cp312 | manylinux x86_64",
+                35,
+                38,
+                280,
+            ),
+            _job(
+                "Build and test (manylinux x86_64) / Native tests / native | cp312 | manylinux x86_64 shard 1-of-2",
+                280,
+                282,
+                360,
+            ),
+            _job(
+                "Build and test (manylinux x86_64) / OS compat tests / os_compat | cp312 | manylinux x86_64",
+                280,
+                282,
+                330,
+            ),
+            _job(
+                "Build and test (manylinux x86_64) / ABI3 smoke tests / abi3_smoke | cp315 | manylinux x86_64",
+                280,
+                282,
+                310,
+            ),
+            _job("Core-test guard (Linux)", 360, 362, 375),
+            _job("PR build validation", 375, 376, 382),
+        ]
+    }
+    metrics = analyse_run(run, schema2_jobs, declared_needs=declared_needs)
+    assert metrics["observed_critical_path"]["target_job"] == "PR build validation"
+    by_name = {j["name"]: j for j in metrics["jobs"]}
+    assert (
+        "Source tests (tooling) / tooling | cp312 | manylinux x86_64"
+        in by_name["Core-test guard (Linux)"]["declared_dependencies"]
+    )
+    assert (
+        "Source tests (unit) / unit | cp312 | manylinux x86_64"
+        in by_name["Core-test guard (Linux)"]["declared_dependencies"]
+    )
+    assert (
+        "Build and test (manylinux x86_64) / wheel | cp312 | manylinux x86_64"
+        in by_name[
+            "Build and test (manylinux x86_64) / Native tests / native | cp312 | manylinux x86_64 shard 1-of-2"
+        ]["declared_dependencies"]
+    )

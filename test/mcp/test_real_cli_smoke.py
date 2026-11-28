@@ -17,7 +17,7 @@ import shutil
 import pytest
 
 pytestmark = [
-    pytest.mark.unit,
+    pytest.mark.native,
     pytest.mark.os_compat,
     pytest.mark.e2e,
     pytest.mark.contract("C-API", "C-ERROR"),

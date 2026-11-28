@@ -1,0 +1,176 @@
+# Reusable workflow: run a Schema 2 wheel-free source-checkout test lane
+# (`tooling` or `unit`) on Linux starting at t=0 without waiting for a wheel.
+#
+# Called by build-publish_to_pypi.yml under GATE_AXIS_SCHEMA=2 (#2349 W1-6).
+# Activates `SUEWS_SOURCE_LANE_ONLY=1` (`scripts/suews/source_lane_bootstrap.py`),
+# which loads `supy` and `suews_mcp` directly from the checkout and blocks any
+# accidental import of compiled Rust/Fortran extensions or execution of `native`
+# or `physics` tests.
+
+name: Source-checkout tests (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      lane:
+        description: 'Schema 2 source lane: tooling or unit'
+        required: true
+        type: string
+      python_json:
+        description: 'JSON array of CPython tags to test (e.g. ["cp312"] or ["cp312","cp315"])'
+        required: true
+        type: string
+      test_tier:
+        description: 'Test tier (smoke|core|cfg|physics-core|standard|physics-full|all)'
+        required: true
+        type: string
+      shard_python:
+        description: 'Optional CPython tag to shard into shard_count shards (empty disables sharding)'
+        required: false
+        type: string
+        default: ''
+      shard_count:
+        description: 'Number of shards for shard_python (1 disables sharding; draft tiers never shard)'
+        required: false
+        type: number
+        default: 1
+
+permissions:
+  contents: read
+
+jobs:
+  layout:
+    name: layout
+    runs-on: ubuntu-latest
+    outputs:
+      cells: ${{ steps.layout.outputs.cells }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: scripts/suews
+          persist-credentials: false
+
+      - name: Lay out source-lane cells
+        id: layout
+        shell: bash
+        env:
+          LANE: ${{ inputs.lane }}
+          PYTHON_JSON: ${{ inputs.python_json }}
+          TIER: ${{ inputs.test_tier }}
+          SHARD_PYTHON: ${{ inputs.shard_python }}
+          SHARD_COUNT: ${{ inputs.shard_count }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from scripts.suews.ci_test_layout import UNSHARDED_TIERS, shard_labels
+
+          lane = os.environ["LANE"]
+          if lane not in {"tooling", "unit"}:
+              raise SystemExit(f"Unsupported source lane: {lane!r}")
+          pythons = json.loads(os.environ["PYTHON_JSON"])
+          if not isinstance(pythons, list) or not pythons:
+              raise SystemExit(f"python_json must be a non-empty JSON list, got {pythons!r}")
+          tier = os.environ["TIER"]
+          shard_python = os.environ.get("SHARD_PYTHON", "")
+          shard_count = int(os.environ.get("SHARD_COUNT", "1"))
+
+          cells = []
+          for py in pythons:
+              count = (
+                  shard_count
+                  if shard_python in {"all", py}
+                  and shard_count > 1
+                  and tier not in UNSHARDED_TIERS
+                  else 1
+              )
+              for label in shard_labels(count):
+                  cells.append({"python_version": py, "shard": label, "tier": tier})
+
+          line = f"cells={json.dumps(cells, separators=(',', ':'))}\n"
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as out:
+              out.write(line)
+          print(line, end="")
+          PY
+
+  source_lane:
+    name: ${{ inputs.lane }} | ${{ matrix.cell.python_version }} | manylinux x86_64${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}
+    needs: [layout]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJson(needs.layout.outputs.cells) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          filter: blob:none
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve Python version (cp312 -> 3.12)
+        id: pyver
+        shell: bash
+        env:
+          PV: ${{ matrix.cell.python_version }}
+        run: |
+          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ steps.pyver.outputs.spec }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            mcp/pyproject.toml
+          cache-suffix: source-${{ inputs.lane }}-${{ matrix.cell.python_version }}-manylinux-x86_64
+
+      - name: Resolve Schema 2 pytest marker expression
+        id: marker
+        shell: bash
+        env:
+          LANE: ${{ inputs.lane }}
+          TIER: ${{ matrix.cell.tier }}
+        run: |
+          EXPR="$(python scripts/suews/ci_tiers.py --schema 2 "$LANE" "$TIER")"
+          echo "expr=${EXPR}" >> "$GITHUB_OUTPUT"
+          echo "Source lane ${LANE} (${TIER}): -m '${EXPR}'"
+
+      - name: Install pure-Python dependencies and run wheel-free source lane
+        shell: bash
+        env:
+          LANE: ${{ inputs.lane }}
+          MARKER_EXPR: ${{ steps.marker.outputs.expr }}
+          SHARD: ${{ matrix.cell.shard }}
+          SUEWS_SOURCE_LANE_ONLY: '1'
+          SUEWS_CI_METRICS: ci-metrics/${{ inputs.lane }}-${{ matrix.cell.python_version }}-manylinux-x86_64${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}.json
+        run: |
+          set -euo pipefail
+          python scripts/security/export_pyproject_requirements.py > "$RUNNER_TEMP/requirements-core.txt"
+          python scripts/security/export_pyproject_requirements.py --pyproject mcp/pyproject.toml \
+            | grep -vx 'supy' > "$RUNNER_TEMP/requirements-mcp.txt"
+          uv pip install --python "$(python -c 'import sys; print(sys.executable)')" \
+            -r "$RUNNER_TEMP/requirements-core.txt" -r "$RUNNER_TEMP/requirements-mcp.txt" \
+            pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0
+          SHARD_ARGS=()
+          if [[ -n "$SHARD" ]]; then
+            SHARD_ARGS=(-p scripts.suews.pytest_shard --suews-shard "${SHARD/-of-//}")
+          fi
+          python -m pytest -p scripts.suews.pytest_ci_metrics test \
+            -m "$MARKER_EXPR" -v --tb=short --durations=25 -n 4 --dist worksteal "${SHARD_ARGS[@]}"
+
+      - name: Upload source-lane test metrics
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-${{ inputs.lane }}-${{ matrix.cell.python_version }}-manylinux-x86_64${{ matrix.cell.shard && format('-shard-{0}', matrix.cell.shard) || '' }}
+          path: ci-metrics/*.json
+          if-no-files-found: error
+          retention-days: 14

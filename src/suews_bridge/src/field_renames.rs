@@ -1730,13 +1730,60 @@ fn physics_name_to_code(field: &str, name: &str) -> Option<i64> {
         })
 }
 
-fn collapse_physics_scalar_entry(field: &str, entry: &mut Value) -> Result<bool, String> {
+fn stebbs_is_explicitly_disabled(physics: &serde_yaml::Mapping) -> bool {
+    let mut saw_zero = false;
+    for spelling in physics_field_key_spellings("stebbs") {
+        let Some(entry) = physics.get(Value::String(spelling)) else {
+            continue;
+        };
+        let scalar = match entry {
+            Value::Mapping(map) if is_stebbs_refvalue_scalar(map) => {
+                map.get(Value::String("value".into())).unwrap_or(entry)
+            }
+            _ => entry,
+        };
+        let is_zero = match scalar {
+            Value::Number(n) => {
+                n.as_i64() == Some(i64::from(StebbsMethod::None.as_i32()))
+                    || n.as_f64() == Some(f64::from(StebbsMethod::None.as_i32()))
+            }
+            _ => false,
+        };
+        if !is_zero {
+            return false;
+        }
+        saw_zero = true;
+    }
+    saw_zero
+}
+
+fn is_stebbs_subselector_field(field: &str) -> bool {
+    matches!(
+        field,
+        "capacitance"
+            | "setpoint"
+            | "same_albedo_wall"
+            | "same_albedo_roof"
+            | "same_emissivity_wall"
+            | "same_emissivity_roof"
+    )
+}
+
+fn collapse_physics_scalar_entry(
+    field: &str,
+    entry: &mut Value,
+    allow_unknown_name: bool,
+) -> Result<bool, String> {
     if let Some(name) = entry.as_str().map(|s| s.to_string()) {
         if name.trim().is_empty() {
             return Ok(false);
         }
-        let code = physics_name_to_code(field, &name)
-            .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
+        let Some(code) = physics_name_to_code(field, &name) else {
+            if allow_unknown_name {
+                return Ok(false);
+            }
+            return Err(format!("'{field}' got unknown scheme name '{name}'."));
+        };
         let mut flat = serde_yaml::Mapping::new();
         flat.insert(Value::String("value".into()), Value::Number(code.into()));
         *entry = Value::Mapping(flat);
@@ -1753,8 +1800,12 @@ fn collapse_physics_scalar_entry(field: &str, entry: &mut Value) -> Result<bool,
             if name.trim().is_empty() {
                 return Ok(false);
             }
-            let code = physics_name_to_code(field, &name)
-                .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
+            let Some(code) = physics_name_to_code(field, &name) else {
+                if allow_unknown_name {
+                    return Ok(false);
+                }
+                return Err(format!("'{field}' got unknown scheme name '{name}'."));
+            };
             map.insert(value_key, Value::Number(code.into()));
             return Ok(true);
         }
@@ -1775,13 +1826,15 @@ fn collapse_physics_names(root: &mut Value) -> Result<(), String> {
     };
 
     for (field, _) in PHYSICS_NAME_ALIASES_RS {
+        let allow_unknown_name =
+            is_stebbs_subselector_field(field) && stebbs_is_explicitly_disabled(physics);
         for spelling in physics_field_key_spellings(field) {
             let key = Value::String(spelling);
             let entry = match physics.get_mut(&key) {
                 Some(entry) => entry,
                 None => continue,
             };
-            collapse_physics_scalar_entry(field, entry)?;
+            collapse_physics_scalar_entry(field, entry, allow_unknown_name)?;
         }
     }
 
@@ -3464,5 +3517,64 @@ sites:
             props.get(Value::String("stebbs".into())).is_some(),
             "site-level stebbs section must survive"
         );
+    }
+
+    #[test]
+    fn inactive_stebbs_allows_placeholder_subselector_strings_and_keeps_active_strict() {
+        // Inactive nested STEBBS: unknown string placeholders on capacitance /
+        // setpoint survive normalisation for downstream inactive-guard handling,
+        // while recognised names still collapse to their numeric codes.
+        let nested_inactive = "\
+model:
+  physics:
+    stebbs:
+      enabled: false
+      capacitance: {value: TBD}
+      setpoint: TBD
+      same_albedo_wall: enabled
+";
+        let mut root: Value = from_str(nested_inactive).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(0));
+        assert_eq!(
+            root["model"]["physics"]["rcmethod"]["value"].as_str(),
+            Some("TBD")
+        );
+        assert_eq!(
+            root["model"]["physics"]["setpointmethod"].as_str(),
+            Some("TBD")
+        );
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+
+        // Inactive flat STEBBS (including readable `stebbs: none`): recognised
+        // names collapse while unknown placeholders are preserved.
+        let flat_inactive = "\
+model:
+  physics:
+    stebbs: none
+    capacitance: parameterise
+    setpoint: {value: TBD}
+";
+        let mut flat_root: Value = from_str(flat_inactive).unwrap();
+        normalize_field_names(&mut flat_root).unwrap();
+        assert_eq!(physics_i64(&flat_root, "stebbsmethod"), Some(0));
+        assert_eq!(physics_i64(&flat_root, "rcmethod"), Some(2));
+        assert_eq!(
+            flat_root["model"]["physics"]["setpointmethod"]["value"].as_str(),
+            Some("TBD")
+        );
+
+        // Active STEBBS (nested and flat): unknown subselector names remain strictly rejected.
+        for active_yaml in [
+            "model:\n  physics:\n    stebbs:\n      enabled: true\n      capacitance: {value: TBD}\n",
+            "model:\n  physics:\n    stebbs:\n      enabled: true\n      setpoint: TBD\n",
+            "model:\n  physics:\n    stebbsmethod: 1\n    rcmethod: TBD\n",
+            "model:\n  physics:\n    stebbs: {value: 2}\n    setpointmethod: {value: TBD}\n",
+        ] {
+            let mut active_root: Value = from_str(active_yaml).unwrap();
+            let err = normalize_field_names(&mut active_root)
+                .expect_err(&format!("active STEBBS must reject unknown name:\n{active_yaml}"));
+            assert!(err.contains("unknown scheme name"), "{err}");
+        }
     }
 }

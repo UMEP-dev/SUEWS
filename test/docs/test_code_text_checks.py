@@ -376,14 +376,78 @@ def test_colon_format_is_separate_from_unknown_names(name):
     assert codes == ({"PR01", "PR02"} if name == "invented" else set())
 
 
-def test_real_stale_parameter_survives_format_classification():
-    revision = checks.Revision(ROOT, "HEAD")
-    obj = supy.util.cal_g_kd
+@pytest.mark.parametrize(
+    ("kd_header", "expected_formats"),
+    [
+        ("kd : float", []),
+        ("kd: float", [{"format": "name-colon-type", "text": "kd: float"}]),
+    ],
+)
+def test_stale_parameter_survives_format_classification(
+    tmp_path, kd_header, expected_formats
+):
+    """A stale documented parameter stays a PR02 mismatch across format checks."""
+    source = (
+        '__all__ = ["cal_g_kd"]\n'
+        "def cal_g_kd(kd, g_kd, kd_max=1200.0):\n"
+        '    """Calculate solar radiation-related correction coefficient.\n\n'
+        "    Parameters\n"
+        "    ----------\n"
+        f"    {kd_header}\n"
+        "        Incoming solar radiation [W m-2]\n"
+        "    g2 : float\n"
+        "        Solar radiation-related correction parameter [-]\n"
+        "    kd_max : float, optional\n"
+        "        Maximum incoming solar radiation [W m-2], by default 1200.\n\n"
+        "    Returns\n"
+        "    -------\n"
+        "    float\n"
+        "        Solar radiation-related correction coefficient [-]\n"
+        '    """\n'
+        "    return kd / (g_kd + kd) / (kd_max / (g_kd + kd_max))\n"
+    )
+    package = tmp_path / "src/supy"
+    package.mkdir(parents=True)
+    file = package / "__init__.py"
+    file.write_text(source, encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["add", "."],
+        [
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+    ):
+        subprocess.run(
+            ["git", "-C", str(tmp_path), *args], check=True, capture_output=True
+        )
+    module = ModuleType("supy")
+    exec(compile(source, "fixture.py", "exec"), module.__dict__)
+    revision = checks.Revision(tmp_path, "HEAD")
+    obj = module.cal_g_kd
     status, detail = checks.parameter_check(
         obj, ast.get_docstring(revision.locate(obj).node)
     )
     assert status == "mismatch"
+    assert detail["formats"] == expected_formats
+    assert any(e["code"] == "PR01" and "g_kd" in e["message"] for e in detail["errors"])
     assert any(e["code"] == "PR02" and "g2" in e["message"] for e in detail["errors"])
+
+    findings = list(checks.python_results(revision, module))
+    summary = checks._summarise(findings)
+    assert summary["counts_by_check"]["parameters"]["mismatch"] == 1
+    assert summary["counts_by_check"]["parameters"]["format"] == 0
+    assert summary["format_deviations"] == len(expected_formats)
+    assert summary["format_definitions"] == (1 if expected_formats else 0)
+    assert len(summary["unknown_parameters"]) == 1
+    unknown = summary["unknown_parameters"][0]
+    assert unknown["definition"] == "supy.cal_g_kd"
+    assert any(e["code"] == "PR02" and "g2" in e["message"] for e in unknown["errors"])
 
 
 def test_model_field_descriptions_use_revision_source(tmp_path):

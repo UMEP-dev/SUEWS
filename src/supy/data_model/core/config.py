@@ -76,6 +76,7 @@ from .type import (
     _STEBBS_SHARED_ACTIVE_FIELDS,
     df_from_cols,
     is_finite_real_number,
+    is_non_finite_value,
     merge_df_state_cols,
     resolve_snow_use_code,
     resolve_soil_moisture_code,
@@ -1965,11 +1966,7 @@ class SUEWSConfig(DataModelBase):
             if stebbs_phys is not None:
                 for switch_name in REQUIRED_STEBBS_SWITCHES:
                     val = _unwrap_value(getattr(stebbs_phys, switch_name, None))
-                    if (
-                        isinstance(val, (int, float, np.number))
-                        and not isinstance(val, (bool, np.bool_))
-                        and not math.isfinite(float(val))
-                    ):
+                    if is_non_finite_value(val):
                         non_finite_errors.append(
                             f"model.physics.stebbs.{switch_name} ({val!r}) must be finite"
                         )
@@ -2044,23 +2041,15 @@ class SUEWSConfig(DataModelBase):
                                     day_map = getattr(prof, day_key, None)
                                     if isinstance(day_map, Mapping):
                                         for step_k, step_v in day_map.items():
-                                            if (
-                                                isinstance(step_v, (int, float, np.number))
-                                                and not isinstance(step_v, (bool, np.bool_))
-                                                and not math.isfinite(float(step_v))
-                                            ):
+                                            if is_non_finite_value(step_v):
                                                 non_finite_errors.append(
-                                                    f"{site_name}: stebbs.{field_name}.{day_key}[{step_k!r}] ({step_v!r}) must be finite"
+                                                    f"{site_name}: stebbs.{field_name}.{day_key}.{step_k} ({step_v!r}) must be finite"
                                                 )
                             continue
                         if field_name in StebbsProperties._STEBBS_NON_SCALAR_FIELDS:
                             continue
                         val = _unwrap_value(getattr(stebbs_props, field_name, None))
-                        if (
-                            isinstance(val, (int, float, np.number))
-                            and not isinstance(val, (bool, np.bool_))
-                            and not math.isfinite(float(val))
-                        ):
+                        if is_non_finite_value(val):
                             non_finite_errors.append(
                                 f"{site_name}: stebbs.{field_name} ({val!r}) must be finite"
                             )
@@ -2074,23 +2063,15 @@ class SUEWSConfig(DataModelBase):
                                     day_map = getattr(prof, day_key, None)
                                     if isinstance(day_map, Mapping):
                                         for step_k, step_v in day_map.items():
-                                            if (
-                                                isinstance(step_v, (int, float, np.number))
-                                                and not isinstance(step_v, (bool, np.bool_))
-                                                and not math.isfinite(float(step_v))
-                                            ):
+                                            if is_non_finite_value(step_v):
                                                 non_finite_errors.append(
-                                                    f"{site_name}: building_archetype.{field_name}.{day_key}[{step_k!r}] ({step_v!r}) must be finite"
+                                                    f"{site_name}: building_archetype.{field_name}.{day_key}.{step_k} ({step_v!r}) must be finite"
                                                 )
                             continue
                         if field_name in ArchetypeProperties._ARCHETYPE_NON_SCALAR_FIELDS:
                             continue
                         val = _unwrap_value(getattr(arch_props, field_name, None))
-                        if (
-                            isinstance(val, (int, float, np.number))
-                            and not isinstance(val, (bool, np.bool_))
-                            and not math.isfinite(float(val))
-                        ):
+                        if is_non_finite_value(val):
                             non_finite_errors.append(
                                 f"{site_name}: building_archetype.{field_name} ({val!r}) must be finite"
                             )
@@ -5070,6 +5051,10 @@ class SUEWSConfig(DataModelBase):
         require_drainage: Optional[bool] = None,
     ) -> None:
         """Validate scalar bounds, active-site requirements, and cross-field rules."""
+        # Normalise/revalidate STEBBS switches, properties, and archetype fields
+        # before conditional parameter checks so live numeric-string mutations
+        # (e.g. ratio_window_to_wall="0") are coerced before conditional gating.
+        self.validate_stebbs_parameters()
         bound_errors = self._check_execution_scalar_bounds()
         if bound_errors:
             raise ValueError("; ".join(bound_errors))
@@ -5127,7 +5112,6 @@ class SUEWSConfig(DataModelBase):
             self.validate_model_output_timestamp_reference()
         self.validate_site_required_fields()
         self.validate_snow_parameters()
-        self.validate_stebbs_parameters()
         self.validate_albedo_ranges()
         self.validate_deciduous_porosity_ranges()
         self.validate_building_layers()

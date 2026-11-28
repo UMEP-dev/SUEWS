@@ -1103,6 +1103,20 @@ _NON_FINITE_STRINGS: frozenset[str] = frozenset(
 )
 
 
+def is_non_finite_value(val: Any) -> bool:
+    """Return True when *val* is a non-finite number or a non-finite string literal."""
+    if isinstance(val, str):
+        return val.strip().lower() in _NON_FINITE_STRINGS
+    if isinstance(val, (int, float, np.number)) and not isinstance(
+        val, (bool, np.bool_)
+    ):
+        try:
+            return not math.isfinite(float(val))
+        except OverflowError:
+            return True
+    return False
+
+
 def _coerce_inactive_stebbs_scalar(
     inner: Any,
     *,

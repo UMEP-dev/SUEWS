@@ -1398,6 +1398,72 @@ def test_live_numeric_string_mutation_coerced_on_ehc_and_dyohm_activation(
     cfg.to_yaml(tmp_path / f"ehc_dyohm_sh{storage_heat}.yml")
 
 
+def test_inactive_null_and_empty_day_profile_does_not_fabricate_defaults_on_df_state(
+    sample_dict: dict,
+) -> None:
+    """``{'working_day': None, 'holiday': {}}`` stays unusable across df_state and fails on activation."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"]["profile_appliance"] = {
+        "working_day": None,
+        "holiday": {},
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert rebuilt.sites[0].properties.stebbs.profile_appliance is None
+
+    rebuilt.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="profile_appliance"):
+        rebuilt.validate_for_engine()
+
+
+def test_live_wwr_numeric_string_normalised_before_conditional_window_checks(
+    sample_dict: dict,
+) -> None:
+    """Mutating ``ratio_window_to_wall.value = '0'`` before activation excludes window params cleanly."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["building_archetype"]["ratio_window_to_wall"] = {
+        "value": "TBD"
+    }
+    data["sites"][0]["properties"]["building_archetype"]["thickness_window"] = None
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.sites[0].properties.building_archetype.ratio_window_to_wall.value = "0"
+    cfg.model.physics.stebbs.enabled = True
+
+    cfg.validate_for_engine()
+    assert cfg.sites[0].properties.building_archetype.ratio_window_to_wall.value == 0.0
+    config_to_engine_yaml(cfg, for_file_output=False)
+
+
+def test_live_non_finite_string_mutations_rejected_when_stebbs_inactive(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """In-place ``'nan'``/``'inf'`` string mutations on inactive profiles or RefValues fail export."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"]["depth_ground"] = {"value": "TBD"}
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.sites[0].properties.stebbs.profile_appliance.working_day["1"] = "nan"
+    with pytest.raises(ValueError, match="finite"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="finite"):
+        config_to_engine_yaml(cfg, for_file_output=False)
+    with pytest.raises(ValueError, match="finite"):
+        cfg.to_yaml(tmp_path / "bad_nan_profile.yml")
+
+    cfg.sites[0].properties.stebbs.profile_appliance.working_day["1"] = 0.0
+    cfg.sites[0].properties.stebbs.depth_ground.value = "inf"
+    with pytest.raises(ValueError, match="finite"):
+        cfg.validate_for_engine()
+    with pytest.raises(ValueError, match="finite"):
+        cfg.to_yaml(tmp_path / "bad_inf_scalar.yml")
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

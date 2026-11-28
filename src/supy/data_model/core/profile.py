@@ -955,15 +955,6 @@ class TenMinuteProfile(DataModelBase):
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
         cols = {("gridiv", "0"): grid_id}
         stebbs_inactive = _STEBBS_ACTIVE_CONTEXT.get() is False
-        if (
-            stebbs_inactive
-            and getattr(self, "working_day", None) is None
-            and getattr(self, "holiday", None) is None
-        ):
-            for day_idx in (0, 1):
-                for bin_idx in range(144):
-                    cols[(param_name, f"({bin_idx}, {day_idx})")] = None
-            return cols
         for day_idx, day_type in enumerate(("working_day", "holiday")):
             day_map = getattr(self, day_type)
             if day_map is None and stebbs_inactive:
@@ -976,6 +967,10 @@ class TenMinuteProfile(DataModelBase):
             normalised = normalise_ten_minute_profile_mapping(day_map)
             for bin_id, value in normalised.items():
                 cols[param_name, f"({int(bin_id) - 1}, {day_idx})"] = value
+        if stebbs_inactive and len(cols) == 1:
+            for day_idx in (0, 1):
+                for bin_idx in range(144):
+                    cols[(param_name, f"({bin_idx}, {day_idx})")] = None
         return cols
 
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:

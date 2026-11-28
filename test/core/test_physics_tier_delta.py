@@ -11,8 +11,8 @@ prove the check trips.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -22,7 +22,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.lint import check_physics_tier_delta as checker  # noqa: E402
+from scripts.lint import (  # ruff: ignore[module-import-not-at-top-of-file]
+    check_physics_tier_delta as checker,
+)
 
 pytestmark = [pytest.mark.tooling, pytest.mark.contract("C-TOOLING")]
 
@@ -148,16 +150,29 @@ def test_missing_rule_block_is_an_error() -> None:
 
 
 @pytest.mark.core
-def test_real_rule_records_the_continuation_matrix() -> None:
-    """The committed rule parses and, as its prose states, records the matrix."""
+def test_real_rule_records_physics_full_only_nodes() -> None:
+    """The committed rule parses and records the physics-full-only nodes."""
     rule_text = (REPO_ROOT / checker.RULE_PATH).read_text(encoding="utf-8")
+    ehc_ref = "test/core/test_ehc_reference.py"
     matrix = "test/physics/test_continuation_matrix.py"
+    ehc_facets = (
+        f"{ehc_ref}::test_default_ehc_matches_committed_reference[ehc_facets]"
+    )
 
     assert checker.parse_recorded_nodes(rule_text) == [
+        ehc_facets,
         f"{matrix}::test_continuation_matrix[*]",
         f"{matrix}::test_checkpoint_perturbation_is_detected",
     ]
     assert checker.check_against_rule(
+        [
+            ehc_facets,
+            f"{matrix}::test_continuation_matrix[chunk-default]",
+            f"{matrix}::test_checkpoint_perturbation_is_detected",
+        ],
+        REPO_ROOT,
+    ).ok
+    assert not checker.check_against_rule(
         [
             f"{matrix}::test_continuation_matrix[chunk-default]",
             f"{matrix}::test_checkpoint_perturbation_is_detected",

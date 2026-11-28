@@ -1625,3 +1625,344 @@ def test_find_orphan_test_files_accepts_custom_makefile_path(tmp_path: Path) -> 
 
     assert errors == []
     assert orphans == ["test/stray/test_bad.py"]
+
+
+# =============================================================================
+# Static AST guards (gh#2349 W1-8): parametrised simulation & subprocess e2e
+# =============================================================================
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_parametrised_simulation_guard_catches_direct_calls_and_allows_fixtures(
+    tmp_path: Path, capsys
+) -> None:
+    """Direct from_sample_data()/.run() inside @parametrize fails; fixture-injected passes."""
+    bad_direct = (
+        "import pytest\n"
+        "import supy as sp\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_direct_sample(x):\n"
+        "    sim = sp.SUEWSSimulation.from_sample_data()\n"
+        "    sim.run()\n"
+    )
+    bad_class = (
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "class TestParamClass:\n"
+        "    def test_method_run(self, x):\n"
+        "        sim = build_sim(x)\n"
+        "        sim.run()\n"
+    )
+    good_fixture = (
+        "import asyncio\n"
+        "import subprocess\n"
+        "import subprocess as sub\n"
+        "import pytest\n"
+        "import supy as sp\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.fixture(scope='module')\n"
+        "def shared_output():\n"
+        "    sim = sp.SUEWSSimulation.from_sample_data()\n"
+        "    return sim.run()\n\n"
+        "@pytest.mark.parametrize('col', ['QH', 'QE'])\n"
+        "def test_reads_fixture(shared_output, col):\n"
+        "    subprocess.run(['git', 'status'], check=False)\n"
+        "    sub.run(['echo', 'ok'], check=False)\n"
+        "    asyncio.run(dummy())\n"
+        "    assert col in shared_output\n\n"
+        "def test_non_parametrised_run():\n"
+        "    sim = sp.SUEWSSimulation.from_sample_data()\n"
+        "    sim.run()\n"
+    )
+
+    good_repo = _make_repo(
+        tmp_path / "good",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_good.py": good_fixture,
+        },
+    )
+    assert _run(good_repo) == 0, capsys.readouterr().err
+    capsys.readouterr()
+
+    bad_repo = _make_repo(
+        tmp_path / "bad",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_bad_direct.py": bad_direct,
+            "test/core/test_bad_class.py": bad_class,
+        },
+    )
+    rc = _run(bad_repo)
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "parametrized-simulation" in captured.err
+    assert "test/core/test_bad_direct.py::test_direct_sample" in captured.err
+    assert "test/core/test_bad_class.py::TestParamClass::test_method_run" in captured.err
+    assert captured.err.isascii()
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+@pytest.mark.parametrize(
+    ("call_snippet", "expected_cmd"),
+    [
+        ("subprocess.run(['suews', '--help'])", "suews"),
+        ("subprocess.Popen(['suews-validate', 'cfg.yml'])", "suews-validate"),
+        ("subprocess.check_output(['suews-mcp', '--version'])", "suews-mcp"),
+        ("subprocess.check_call(['suews-engine', 'run', 'cfg.yml'])", "suews-engine"),
+        ("subprocess.run(['suews-convert', 'in.nml'])", "suews-convert"),
+        ("subprocess.run(['suews-run', 'cfg.yml'])", "suews-run"),
+        ("subprocess.run(['suews-schema', 'export'])", "suews-schema"),
+        ("subprocess.run([sys.executable, '-m', 'supy.cmd.suews_cli', '--help'])", "python -m supy"),
+        ("subprocess.run([str(suews_engine_bin), 'run', str(cfg)])", "suews-engine"),
+    ],
+)
+def test_subprocess_e2e_guard_requires_e2e_marker_for_suews_clis(
+    tmp_path: Path, capsys, call_snippet: str, expected_cmd: str
+) -> None:
+    """Every SUEWS CLI subprocess call requires @pytest.mark.e2e."""
+    unmarked_src = (
+        "import subprocess\n"
+        "import sys\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def test_cli_unmarked(suews_engine_bin, cfg):\n"
+        f"    {call_snippet}\n"
+    )
+    marked_src = (
+        "import subprocess\n"
+        "import sys\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "@pytest.mark.e2e\n"
+        "def test_cli_marked(suews_engine_bin, cfg):\n"
+        f"    {call_snippet}\n"
+    )
+
+    bad_repo = _make_repo(
+        tmp_path / "unmarked",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_cli.py": unmarked_src,
+        },
+    )
+    rc_bad = _run(bad_repo)
+    err = capsys.readouterr().err
+    assert rc_bad == 1
+    assert "missing-e2e-marker" in err
+    assert expected_cmd in err
+
+    good_repo = _make_repo(
+        tmp_path / "marked",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_cli.py": marked_src,
+        },
+    )
+    assert _run(good_repo) == 0, capsys.readouterr().err
+
+
+def test_subprocess_e2e_guard_handles_helpers_class_module_marks_and_ignores_non_cli(
+    tmp_path: Path, capsys
+) -> None:
+    """Module/class e2e marks and helper forwarding work; non-CLI subprocesses stay exempt."""
+    helper_unmarked = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def _invoke(exe, cfg):\n"
+        "    cmd = [str(exe), 'run', str(cfg)]\n"
+        "    return subprocess.run(cmd)\n\n"
+        "def test_via_helper(suews_engine_bin, cfg):\n"
+        "    _invoke(suews_engine_bin, cfg)\n"
+    )
+    class_marked_and_non_cli = (
+        "import shutil\n"
+        "import subprocess\n"
+        "import sys\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.tooling\n\n"
+        "@pytest.mark.e2e\n"
+        "class TestCliGroup:\n"
+        "    def test_one(self):\n"
+        "        subprocess.run(['suews', '--version'])\n\n"
+        "def test_non_suews_subprocesses():\n"
+        "    compiler = shutil.which('gfortran')\n"
+        "    subprocess.run([compiler, 'probe.f95'])\n"
+        "    subprocess.run([sys.executable, '-m', 'pytest', '--version'])\n"
+        "    subprocess.run(['git', 'rev-parse', 'HEAD'])\n"
+    )
+
+    bad_repo = _make_repo(
+        tmp_path / "helper_bad",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_helper.py": helper_unmarked,
+        },
+    )
+    assert _run(bad_repo) == 1
+    assert "missing-e2e-marker" in capsys.readouterr().err
+
+    good_repo = _make_repo(
+        tmp_path / "good",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_ok_cli.py": class_marked_and_non_cli,
+        },
+    )
+    assert _run(good_repo) == 0, capsys.readouterr().err
+
+
+def test_e2e_subprocess_cap_counts_parametrised_nodes_and_enforces_limit(
+    tmp_path: Path, capsys
+) -> None:
+    """Stacked @parametrize nodes on @e2e CLI tests are counted against the per-command cap."""
+    over_cap_src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = [pytest.mark.native, pytest.mark.e2e]\n\n"
+        "@pytest.mark.parametrize('a', [1, 2, 3])\n"
+        "@pytest.mark.parametrize('b', [1, 2, 3, 4])\n"
+        "def test_twelve_cli_nodes(a, b):\n"
+        "    subprocess.run(['suews-validate', f'{a}_{b}.yml'])\n"
+    )
+    repo = _make_repo(
+        tmp_path / "over_cap",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_many.py": over_cap_src,
+        },
+    )
+    rc = _run(repo)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "e2e-subprocess-cap" in err
+    assert "`suews-validate` has 12 @pytest.mark.e2e subprocess test node(s)" in err
+
+    # With a raised cap of 12, the same tree passes cleanly.
+    rc_raised = check_test_markers.main(
+        ["check_test_markers.py", str(repo), "--e2e-cap", "12"]
+    )
+    assert rc_raised == 0, capsys.readouterr().err
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_ast_guards_baseline_ratchet_detects_new_and_stale_entries(
+    tmp_path: Path, capsys
+) -> None:
+    """Baseline ratchet accepts pinned debt, rejects new debt, and rejects stale entries."""
+    legacy_src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "import supy as sp\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_legacy_sim(x):\n"
+        "    sim = sp.SUEWSSimulation.from_sample_data()\n"
+        "    assert sim is not None\n\n"
+        "def test_legacy_unmarked_cli():\n"
+        "    subprocess.run(['suews-engine', 'run', 'cfg.yml'])\n"
+    )
+    repo = _make_repo(
+        tmp_path / "ratchet",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_legacy.py": legacy_src,
+        },
+    )
+    (repo / "scripts" / "lint").mkdir(parents=True)
+
+    # Missing baseline inside a repo with scripts/lint/ fails closed.
+    assert _run(repo) == 1
+    assert "missing AST guards baseline" in capsys.readouterr().err
+
+    # Writing the baseline records both legacy entries and passes immediately.
+    rc_write = check_test_markers.main(
+        ["check_test_markers.py", str(repo), "--write-ast-baseline"]
+    )
+    assert rc_write == 0, capsys.readouterr().err
+    capsys.readouterr()
+    assert _run(repo) == 0, capsys.readouterr().err
+    capsys.readouterr()
+
+    # Adding a second call in the baselined function (1 -> 2) fails immediately.
+    increased_src = legacy_src.replace(
+        "assert sim is not None", "sim.run()"
+    )
+    (repo / "test/core/test_legacy.py").write_text(increased_src, encoding="utf-8")
+    assert _run(repo) == 1
+    err_inc = capsys.readouterr().err
+    assert "parametrized-simulation" in err_inc
+    assert "(1 -> 2)" in err_inc
+
+    # Fixing the legacy debt without lowering the baseline fails as stale!
+    fixed_src = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_legacy_sim(shared_sim, x):\n"
+        "    assert shared_sim is not None\n\n"
+        "@pytest.mark.e2e\n"
+        "def test_legacy_unmarked_cli():\n"
+        "    subprocess.run(['suews-engine', 'run', 'cfg.yml'])\n"
+    )
+    (repo / "test/core/test_legacy.py").write_text(fixed_src, encoding="utf-8")
+    assert _run(repo) == 1
+    err_stale = capsys.readouterr().err
+    assert "baseline entries are stale" in err_stale
+    assert "--write-ast-baseline" in err_stale
+
+    # Refreshing the baseline lowers it to zero and passes again.
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo), "--write-ast-baseline"]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert _run(repo) == 0, capsys.readouterr().err
+
+
+def test_ast_guards_baseline_loader_rejects_malformed_payloads(tmp_path: Path) -> None:
+    """Baseline loader fails closed on wrong schema, unknown keys, bool counts, or bad caps."""
+    bad_payloads = [
+        '["not-an-object"]',
+        '{"schema_version": 99}',
+        '{"schema_version": 1, "extra_key": 1}',
+        '{"schema_version": 1, "parametrized_simulations": {"a::b": true}}',
+        '{"schema_version": 1, "unmarked_subprocess_e2e": {"a::b": ["unknown-cli"]}}',
+        '{"schema_version": 1, "e2e_command_caps": {"suews": 5}}',
+    ]
+    for idx, text in enumerate(bad_payloads):
+        path = tmp_path / f"bad_{idx}.json"
+        path.write_text(text, encoding="utf-8")
+        loaded, errs = check_test_markers.load_ast_guards_baseline(path)
+        assert loaded is None, text
+        assert errs, text
+
+
+def test_live_ast_guards_baseline_is_valid() -> None:
+    """Checked-in scripts/lint/test_ast_guards_baseline.json parses cleanly."""
+    baseline_path = REPO_ROOT / check_test_markers.AST_GUARDS_BASELINE_PATH
+    assert baseline_path.is_file()
+    loaded, errs = check_test_markers.load_ast_guards_baseline(baseline_path)
+    assert errs == []
+    assert loaded is not None
+
+
+def test_module_exec_without_sys_modules_registration() -> None:
+    """Loading check_test_markers.py like test/conftest.py (not in sys.modules) succeeds."""
+    spec = importlib.util.spec_from_file_location(
+        "_suews_isolated_check_test_markers", SCRIPT_PATH
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.name not in sys.modules
+    spec.loader.exec_module(mod)
+    assert mod.AXIS_MARKERS == check_test_markers.AXIS_MARKERS

@@ -638,3 +638,226 @@ def test_require_axis_supports_schema2_multi_axis_lanes_and_fails_closed(
     # Unknown axis is rejected directly by missing_required_axes.
     with pytest.raises(ValueError, match="unknown axis 'bogus'"):
         checker.missing_required_axes([], ["bogus"])
+
+
+# =============================================================================
+# Warn-only dynamic CPU budget reporting (gh#2349 W1-8)
+# =============================================================================
+
+
+def test_base_function_id_strips_param_suffix_and_normalises_paths() -> None:
+    """`base_function_id` preserves `file::[Class::]func` even when param IDs contain `::`."""
+    assert (
+        checker.base_function_id("test/a.py::TestX::test_y[1-a::b]")
+        == "test/a.py::TestX::test_y"
+    )
+    assert checker.base_function_id("./test\\a.py::test_plain") == "test/a.py::test_plain"
+    assert checker.base_function_id("test/a.py::test_p[case-1]") == "test/a.py::test_p"
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_parametrize_explosion_warns_without_changing_exit_code(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Non-slow parametrised functions exceeding node_count * median > 20s warn only."""
+    # 10 nodes x 2.5s median = 25.0s > 20.0s, yet each node is well under the 10s medium bar.
+    exploding = [
+        _record(f"test/unit/test_many.py::TestGrid::test_sweep[{i}]", call=2.5)
+        for i in range(10)
+    ]
+    # 9 fast nodes + 1 outlier spike: median=0.5s, 10 * 0.5 = 5.0 <= 20.0 (no explosion).
+    outlier_only = [
+        _record(f"test/unit/test_many.py::test_outlier[{i}]", call=0.5)
+        for i in range(9)
+    ] + [_record("test/unit/test_many.py::test_outlier[9]", call=15.0, markers=("medium",))]
+    # Slow-marked parametrised function is excluded from explosion warnings.
+    slow_param = [
+        _record(
+            f"test/unit/test_many.py::test_slow_sweep[{i}]",
+            call=35.0,
+            markers=("slow",),
+        )
+        for i in range(5)
+    ]
+    # Single-node medium test (25s) is not a parametrisation explosion.
+    single_medium = [
+        _record("test/unit/test_many.py::test_single_medium", call=25.0, markers=("medium",))
+    ]
+    # Exact boundary: 4 nodes x 5.0s = 20.0s (not strictly greater than 20.0).
+    at_boundary = [
+        _record(f"test/unit/test_many.py::test_boundary[{i}]", call=5.0)
+        for i in range(4)
+    ]
+
+    unit_dir = tmp_path / "unit"
+    unit_dir.mkdir()
+    artefact = _artefact(
+        unit_dir / "unit-cp312-linux-x86_64.json",
+        exploding + outlier_only + slow_param + single_medium + at_boundary,
+    )
+    out_json = tmp_path / "out.json"
+    summary_md = tmp_path / "summary.md"
+
+    # Exit code MUST stay 0: explosion warnings are strictly warn-only.
+    rc = checker.main([
+        str(artefact),
+        "--json",
+        str(out_json),
+        "--markdown",
+        str(summary_md),
+    ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "[OK]" in out
+    assert "[WARN] 1 parametrised non-slow function(s) exceed 20 CPU-s" in out
+    assert "test/unit/test_many.py::TestGrid::test_sweep" in out
+    assert "test_outlier" not in out
+    assert "test_slow_sweep" not in out
+    assert "test_single_medium" not in out
+    assert "test_boundary" not in out
+
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["flagged"] == 0
+    assert payload["parametrize_explosion_threshold_seconds"] == pytest.approx(20.0)
+    assert payload["parametrize_explosion_warnings"] == [
+        {
+            "function_id": "test/unit/test_many.py::TestGrid::test_sweep",
+            "node_count": 10,
+            "median_node_cpu": 2.5,
+            "estimated_cpu_seconds": 25.0,
+            "total_call_cpu": 25.0,
+            "threshold_seconds": 20.0,
+            "axis": "unit",
+        }
+    ]
+    md = summary_md.read_text(encoding="utf-8")
+    assert "### Parametrisation explosion warnings (warn-only)" in md
+    assert "`test/unit/test_many.py::TestGrid::test_sweep`" in md
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_per_axis_cpu_summary_supports_schema2_and_schema1_fallback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Per-axis CPU summary groups Schema-2 axes and falls back cleanly on Schema-1."""
+    s2_dir = tmp_path / "schema2"
+    for axis, cpu in (("tooling", 1.2), ("unit", 3.4), ("native", 5.6), ("physics", 7.8)):
+        d = s2_dir / axis
+        d.mkdir(parents=True)
+        _artefact(
+            d / f"{axis}-cp312-linux-x86_64.json",
+            [_record(f"test/core/test_{axis}.py::test_ok", call=cpu, markers=(axis,))],
+        )
+    s2_json = tmp_path / "s2.json"
+    assert checker.main([str(s2_dir), "--json", str(s2_json)]) == 0
+    s2_out = capsys.readouterr().out
+    assert "Axis call CPU summary: tooling=1.2 CPU-s (1), unit=3.4 CPU-s (1), native=5.6 CPU-s (1), physics=7.8 CPU-s (1)." in s2_out
+    s2_payload = json.loads(s2_json.read_text(encoding="utf-8"))
+    assert [row["axis"] for row in s2_payload["axis_cpu_summary"]] == [
+        "tooling",
+        "unit",
+        "native",
+        "physics",
+    ]
+
+    # Schema-1 fallback (`api` + `physics`).
+    s1_dir = tmp_path / "schema1"
+    for axis, cpu in (("api", 4.0), ("physics", 6.0)):
+        d = s1_dir / axis
+        d.mkdir(parents=True)
+        _artefact(
+            d / f"{axis}-cp312-manylinux-x86_64.json",
+            [_record(f"test/core/test_{axis}.py::test_ok", call=cpu, markers=(axis,))],
+        )
+    s1_json = tmp_path / "s1.json"
+    assert checker.main([str(s1_dir), "--json", str(s1_json)]) == 0
+    capsys.readouterr()
+    s1_payload = json.loads(s1_json.read_text(encoding="utf-8"))
+    assert [row["axis"] for row in s1_payload["axis_cpu_summary"]] == ["physics", "api"]
+
+
+@pytest.mark.smoke
+@pytest.mark.core
+def test_baseline_metrics_and_budget_warn_report_delta_without_failing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--baseline-metrics` + `--budget-warn` reports PR delta strictly warn-only."""
+    base_dir = tmp_path / "base" / "unit"
+    curr_dir = tmp_path / "curr" / "unit"
+    base_dir.mkdir(parents=True)
+    curr_dir.mkdir(parents=True)
+
+    _artefact(
+        base_dir / "unit-cp312-linux-x86_64.json",
+        [
+            _record("test/core/test_existing.py::test_a", call=2.0),
+            _record("test/core/test_other.py::test_b", call=3.0),
+        ],
+    )
+    _artefact(
+        curr_dir / "unit-cp312-linux-x86_64.json",
+        [
+            _record("test/core/test_existing.py::test_a", call=2.5),
+            _record("test/core/test_existing.py::test_new_heavy", call=8.0),
+            _record("test/core/test_other.py::test_b", call=3.0),
+        ],
+    )
+    out_json = tmp_path / "delta.json"
+    summary_md = tmp_path / "delta.md"
+
+    # Delta is +8.5 CPU-s across the restricted file, exceeding budget 5.0 -> WARN, rc=0!
+    rc = checker.main([
+        str(tmp_path / "curr"),
+        "--baseline-metrics",
+        str(tmp_path / "base"),
+        "--test-file",
+        "test/core/test_existing.py",
+        "--budget-warn",
+        "5.0",
+        "--json",
+        str(out_json),
+        "--markdown",
+        str(summary_md),
+    ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "[WARN] PR CPU budget (warn-only)" in out
+    assert "exceeds advisory budget 5 CPU-s" in out
+
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    delta = payload["budget_delta"]
+    assert delta["current_cpu_seconds"] == pytest.approx(10.5)
+    assert delta["baseline_cpu_seconds"] == pytest.approx(2.0)
+    assert delta["delta_cpu_seconds"] == pytest.approx(8.5)
+    assert delta["added_test_count"] == 1
+    assert delta["added_tests_cpu_seconds"] == pytest.approx(8.0)
+    assert delta["budget_seconds"] == pytest.approx(5.0)
+    assert delta["exceeded"] is True
+
+    md = summary_md.read_text(encoding="utf-8")
+    assert "### PR CPU budget delta (warn-only)" in md
+
+    # Bare `--budget-warn` uses DEFAULT_PR_ADDED_CPU_BUDGET_SECONDS (30.0) -> within budget.
+    rc_default = checker.main([
+        str(tmp_path / "curr"),
+        "--baseline-metrics",
+        str(tmp_path / "base"),
+        "--budget-warn",
+        "--json",
+        str(out_json),
+    ])
+    assert rc_default == 0
+    out_default = capsys.readouterr().out
+    assert "[INFO] PR CPU budget (warn-only)" in out_default
+    assert "within advisory budget 30 CPU-s" in out_default
+    payload_default = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload_default["budget_delta"]["exceeded"] is False
+
+    # Invalid thresholds fail closed with exit code 2.
+    assert checker.main([str(tmp_path / "curr"), "--parametrize-budget-seconds", "0"]) == 2
+    assert checker.main([str(tmp_path / "curr"), "--budget-warn", "-1"]) == 2
+    capsys.readouterr()

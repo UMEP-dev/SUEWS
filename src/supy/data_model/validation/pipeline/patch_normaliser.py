@@ -192,6 +192,14 @@ def _strict_hashable_key(value: Any) -> Any:
             if value.is_nan()
             else (val_type, value.is_signed(), value)
         )
+    elif isinstance(value, (np.datetime64, np.timedelta64)):
+        result = (
+            (val_type, value.dtype.str, "nat")
+            if bool(np.isnat(value))
+            else (val_type, value.dtype.str, value)
+        )
+    elif isinstance(value, np.generic):
+        result = (val_type, value.dtype.str, value)
     elif val_type is tuple:
         result = (tuple, tuple(_strict_hashable_key(item) for item in value))
     elif val_type is frozenset:
@@ -236,19 +244,28 @@ def _container_strict_equal(left: Any, right: Any) -> bool:
 
 
 def _numeric_strict_equal(left: Any, right: Any) -> bool:
-    """Compare numeric scalars strictly by exact type, value, NaN-equality, and zero sign."""
-    if type(left) is not type(right):
+    """Compare numeric/NumPy scalars strictly by exact type, dtype, NaN/NaT equality, and zero sign."""
+    if type(left) is not type(right) or (
+        isinstance(left, np.generic)
+        and not _dtype_strict_equal(left.dtype, right.dtype)
+    ):
         return False
+    if isinstance(left, (np.datetime64, np.timedelta64)):
+        return (
+            bool(np.isnat(left)) and bool(np.isnat(right))
+            if (bool(np.isnat(left)) or bool(np.isnat(right)))
+            else bool(left == right)
+        )
     if isinstance(left, (float, np.floating)):
         return _float_strict_equal(left, right)
     if isinstance(left, (complex, np.complexfloating)):
         return _complex_strict_equal(left, right)
     if isinstance(left, Decimal):
-        if left.is_nan() or right.is_nan():
-            return (
-                left.is_nan() and right.is_nan() and left.is_snan() == right.is_snan()
-            )
-        return bool(left == right) and left.is_signed() == right.is_signed()
+        return (
+            left.is_nan() and right.is_nan() and left.is_snan() == right.is_snan()
+            if (left.is_nan() or right.is_nan())
+            else (bool(left == right) and left.is_signed() == right.is_signed())
+        )
     return bool(left == right)
 
 
@@ -672,8 +689,6 @@ def _apply_atomic_nullify(
     applied = apply_nullify_tree_at_tokens(working, tokens, skip_keys=skip_set)
     if not applied:
         raise ValueError(f"Failed to apply 'nullify_tree' patch at path {patch.path!r}")
-    if not rel_snapshot:
-        return []
     return [
         (
             ConfigPatch(

@@ -11,12 +11,10 @@ from __future__ import annotations
 
 from collections import Counter, OrderedDict, defaultdict, deque
 from collections.abc import Mapping, Sequence, Set as AbstractSet
-from copy import deepcopy
 from dataclasses import dataclass, fields as dc_fields, is_dataclass
 import datetime
 from enum import Enum, Flag
 import functools
-import math
 from types import (
     BuiltinMethodType,
     FunctionType,
@@ -144,7 +142,7 @@ def _clone_base_model(
 ) -> BaseModel:
     """Clone a Pydantic ``BaseModel`` preserving ``PrivateAttr``, extras, and cycles."""
     model_cls = type(value)
-    cloned = model_cls.__new__(model_cls)
+    cloned = object.__new__(model_cls)
     memo[id(value)] = cloned
     src_dict = object.__getattribute__(value, "__dict__")
     cloned_dict = {
@@ -866,6 +864,8 @@ class ReadOnlyEnumProxy:
     __slots__ = ("__weakref__",)
 
     def __init__(self, member: Enum) -> None:
+        if id(self) in _ENUM_STATE:
+            raise TypeError("ReadOnlyEnumProxy instances cannot be re-initialised")
         if not isinstance(member, Enum):
             raise TypeError(
                 f"ReadOnlyEnumProxy requires an Enum member, got {type(member).__name__}"
@@ -1669,6 +1669,8 @@ class ReadOnlyDataclassProxy:
         _field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]]
         | None = None,
     ) -> None:
+        if id(self) in _DATACLASS_STATE:
+            raise TypeError("ReadOnlyDataclassProxy instances cannot be re-initialised")
         if not is_dataclass(instance) or isinstance(instance, type):
             raise TypeError(
                 f"ReadOnlyDataclassProxy requires a dataclass instance, got {type(instance).__name__}"
@@ -1784,16 +1786,9 @@ class ReadOnlyDataclassProxy:
         return bool(left_copy == right_copy)
 
     def __hash__(self) -> int:
-        """Hash an isolated copy of the underlying dataclass without unvetted user hooks."""
-        target = _DATACLASS_STATE[id(self)][0]
-        if type(target).__hash__ is object.__hash__:
-            return object.__hash__(target)
-        if _has_custom_dunder(target, "__hash__"):
-            raise TypeError(
-                f"Cannot safely hash dataclass with unvetted custom __hash__ "
-                f"on {type(target).__name__!r} (may access shared state or Enum singletons)"
-            )
-        return hash(_safe_snapshot_copy(target))
+        """Hash the frozen dataclass snapshot stably without unvetted hooks or Enum drift."""
+        target, _cache, enum_snapshots, _fields = _DATACLASS_STATE[id(self)]
+        return _stable_composite_hash(target, enum_snapshots, kind="dataclass")
 
     def unwrap_copy(self) -> Any:
         """Return an independent mutable deep copy of the underlying dataclass."""
@@ -1983,17 +1978,14 @@ def _wrap_readonly(
 
 
 def _freeze_field_metadata_value(value: Any) -> Any:
-    """Safely snapshot and freeze arbitrary Pydantic field metadata values."""
+    """Safely snapshot and freeze arbitrary Pydantic field metadata values without user hooks."""
     if _is_exact_immutable_scalar(value) or type(value) in _MODEL_EXTRA_IMMUTABLE_TYPES:
         return value
     try:
-        copied = deepcopy(value)
-    except (TypeError, ValueError):
-        copied = value
-    try:
+        copied = _safe_snapshot_copy(value)
         return _wrap_readonly(copied)
     except TypeError:
-        return repr(value)
+        return f"<{type(value).__name__}>"
 
 
 def _freeze_model_fields(model_cls: type[BaseModel]) -> Mapping[str, ReadOnlyFieldInfo]:
@@ -2042,6 +2034,8 @@ class ReadOnlyModelProxy:
         _field_snapshots: dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]]
         | None = None,
     ) -> None:
+        if id(self) in _PROXY_STATE:
+            raise TypeError("ReadOnlyModelProxy instances cannot be re-initialised")
         if not isinstance(model, BaseModel):
             raise TypeError(
                 f"ReadOnlyModelProxy requires a Pydantic BaseModel, got {type(model).__name__}"
@@ -2245,16 +2239,9 @@ class ReadOnlyModelProxy:
         return bool(left_copy == right_copy)
 
     def __hash__(self) -> int:
-        """Hash an isolated copy of the underlying model without unvetted user hooks."""
-        target = _PROXY_STATE[id(self)][0]
-        if type(target).__hash__ is object.__hash__:
-            return object.__hash__(target)
-        if _has_custom_dunder(target, "__hash__"):
-            raise TypeError(
-                f"Cannot safely hash model with unvetted custom __hash__ "
-                f"on {type(target).__name__!r} (may access shared state or Enum singletons)"
-            )
-        return hash(_safe_snapshot_copy(target))
+        """Hash the frozen model snapshot stably without unvetted hooks or Enum drift."""
+        target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
+        return _stable_composite_hash(target, enum_snapshots, kind="model")
 
     def __copy__(self) -> ReadOnlyModelProxy:
         """Return ``self`` because ``ReadOnlyModelProxy`` is deeply immutable."""
@@ -2283,25 +2270,59 @@ class ReadOnlyModelProxy:
         return sorted(names)
 
 
+def _has_nested_identity_hash(root: Any) -> bool:
+    """Return True if any non-Enum descendant of *root* relies on ``object.__hash__``."""
+    visited: set[int] = {id(root)}
+    stack: list[Any] = list(_iter_snapshot_children(root, None))
+    while stack:
+        obj = stack.pop()
+        if obj is None or _is_exact_immutable_scalar(obj) or isinstance(obj, Enum):
+            continue
+        obj_id = id(obj)
+        if obj_id in visited:
+            continue
+        visited.add(obj_id)
+        if type(obj).__hash__ is object.__hash__:
+            return True
+        stack.extend(_iter_snapshot_children(obj, None))
+    return False
+
+
+def _stable_composite_hash(
+    target: Any,
+    enum_snapshots: Mapping[int, ReadOnlyEnumProxy],
+    *,
+    kind: str,
+) -> int:
+    """Compute a stable hash for a detached snapshot using snapshotted Enum hashes."""
+    if type(target).__hash__ is object.__hash__:
+        return object.__hash__(target)
+    if _has_custom_dunder(target, "__hash__"):
+        raise TypeError(
+            f"Cannot safely hash {kind} with unvetted custom __hash__ "
+            f"on {type(target).__name__!r} (may access shared state or Enum singletons)"
+        )
+    if not enum_snapshots:
+        return hash(target)
+    if _has_nested_identity_hash(target):
+        raise TypeError(
+            f"Cannot safely hash composite {kind} mixing Enum singletons with "
+            f"nested identity-hashed objects on {type(target).__name__!r}"
+        )
+    return hash(_safe_snapshot_copy(target, wrap_enums=enum_snapshots))
+
+
 def _enum_snapshots_drifted(
     enum_snapshots: Mapping[int, ReadOnlyEnumProxy],
 ) -> bool:
     """Return True if any snapshotted Enum singleton had its live ``_name_`` or ``_value_`` mutated."""
+    from ..pipeline.patch_normaliser import _strict_equal  # noqa: PLC0415
+
     for proxy in enum_snapshots.values():
         member, frozen_name, frozen_value, _frozen_hash, _extra = _ENUM_STATE[id(proxy)]
-        if member.name != frozen_name:
+        if type(member.name) is not str or member.name != frozen_name:
             return True
-        live_val = member.value
-        if live_val is frozen_value:
-            continue
-        if (
-            isinstance(live_val, float)
-            and isinstance(frozen_value, float)
-            and math.isnan(live_val)
-            and math.isnan(frozen_value)
-        ):
-            continue
-        if live_val != frozen_value:
+        if not _strict_equal(member.value, frozen_value):
             return True
     return False
 

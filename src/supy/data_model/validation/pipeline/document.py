@@ -312,8 +312,10 @@ class _FrozenArraySpec:
     __slots__ = ("__weakref__",)
 
     def __init__(self, array: np.ndarray[Any, Any]) -> None:
-        detached_dtype = _validate_safe_numpy_dtype(array.dtype)
         key = id(self)
+        if key in _FROZEN_ARRAY_STATE:
+            raise TypeError("_FrozenArraySpec instances cannot be re-initialised")
+        detached_dtype = _validate_safe_numpy_dtype(array.dtype)
         _FROZEN_ARRAY_STATE[key] = (
             array.tobytes(),
             detached_dtype,
@@ -359,6 +361,8 @@ class _FrozenSliceSpec:
 
     def __init__(self, start: Any, stop: Any, step: Any) -> None:
         key = id(self)
+        if key in _FROZEN_SLICE_STATE:
+            raise TypeError("_FrozenSliceSpec instances cannot be re-initialised")
         _FROZEN_SLICE_STATE[key] = (start, stop, step)
         weakref.finalize(self, _FROZEN_SLICE_STATE.pop, key, None)
 
@@ -422,6 +426,10 @@ class _ReadOnlyMaterialisingMapping(Mapping[Any, Any]):
 
     def __init__(self, entries: dict[Any, Any]) -> None:
         key = id(self)
+        if key in _FROZEN_MAP_STATE:
+            raise TypeError(
+                "_ReadOnlyMaterialisingMapping instances cannot be re-initialised"
+            )
         _FROZEN_MAP_STATE[key] = entries
         weakref.finalize(self, _FROZEN_MAP_STATE.pop, key, None)
 
@@ -617,13 +625,13 @@ def _copy_payload(value: Any) -> Any:
 def _prepare_working_dict(target: ConfigDocument | Mapping[str, Any]) -> dict[str, Any]:
     """Prepare a detached mutable root mapping with consistent list/tuple semantics.
 
-    Frozen views (:class:`ConfigDocument`, :class:`~types.MappingProxyType`,
+    Explicitly frozen views (:class:`~types.MappingProxyType`,
     ``_ReadOnlyMaterialisingMapping``) thaw frozen sequence tuples back into
-    mutable lists; plain mutable mappings preserve literal tuples identically
-    to :func:`apply_patches_in_place`.
+    mutable lists; mutable :class:`ConfigDocument` data and plain mappings
+    preserve literal tuples identically to :func:`apply_patches_in_place`.
     """
     if isinstance(target, ConfigDocument):
-        return thaw_copy(target.data)
+        return _copy_payload(target.data)
     if isinstance(target, (MappingProxyType, _ReadOnlyMaterialisingMapping)):
         return thaw_copy(target)
     return _copy_payload(target)
@@ -1651,7 +1659,7 @@ class ConfigDocument:
         style_ledger: StyleLedger | None = None,
     ) -> ConfigDocument:
         """Construct a :class:`ConfigDocument` from an in-memory mapping."""
-        working = thaw_copy(data)
+        working = _prepare_working_dict(data)
         if style_ledger is not None:
             ledger = style_ledger
         elif raw_text is not None:
@@ -1694,7 +1702,7 @@ class ConfigDocument:
     def clone(self) -> ConfigDocument:
         """Return an independent deep copy of this document preserving its style ledger."""
         return ConfigDocument(
-            thaw_copy(self.data),
+            _copy_payload(self.data),
             source_path=self.source_path,
             raw_text=self.raw_text,
             style_ledger=self.style_ledger,

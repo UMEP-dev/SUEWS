@@ -654,7 +654,10 @@ class TypedConfigView:
         cls, config: BaseModel | ReadOnlyModelProxy
     ) -> TypedConfigView:
         """Construct a deeply immutable ``TypedConfigView`` from a ``SUEWSConfig`` or proxy."""
-        dumped = config.model_dump(mode="json", round_trip=True)
+        from .readonly_model import freeze_model  # noqa: PLC0415
+
+        frozen_proxy = freeze_model(config)
+        dumped = frozen_proxy.model_dump(mode="json", round_trip=True)
         return cls.from_mapping(dumped)
 
     @property

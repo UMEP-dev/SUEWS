@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import (
     Any,
     List,
@@ -289,6 +290,15 @@ def _is_stebbs_nested_block(entry):
     )
 
 
+def _unwrap_enum_scalar(raw):
+    """Unwrap an ``Enum`` or ``ReadOnlyEnumProxy`` to its underlying scalar value."""
+    if isinstance(raw, Enum) or (
+        type(raw).__name__ == "ReadOnlyEnumProxy" and hasattr(raw, "value")
+    ):
+        return raw.value
+    return raw
+
+
 def _legacy_stebbs_master_value(entry):
     """Compose the legacy tri-state ``stebbsmethod`` from a raw scalar."""
     entry = coerce_nested_to_flat("stebbs", entry)
@@ -297,7 +307,9 @@ def _legacy_stebbs_master_value(entry):
             "Legacy 'stebbs' mappings must use a 'value' key; use "
             "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
         )
-    raw = entry["value"] if isinstance(entry, Mapping) and "value" in entry else entry
+    raw = _unwrap_enum_scalar(
+        entry["value"] if isinstance(entry, Mapping) and "value" in entry else entry
+    )
     if isinstance(raw, bool):
         code = int(raw)
     elif isinstance(raw, int):
@@ -319,6 +331,7 @@ def _legacy_stebbs_master_value(entry):
 
 def _parse_stebbs_enabled_value(raw):
     """Parse ``stebbs.enabled`` with Pydantic-compatible bool coercion."""
+    raw = _unwrap_enum_scalar(raw)
     if isinstance(raw, bool):
         return raw
     if isinstance(raw, int):
@@ -337,6 +350,7 @@ def _parse_stebbs_enabled_value(raw):
 
 def _parse_stebbs_parameters_value(raw):
     """Parse ``stebbs.parameters`` with Pydantic-compatible enum coercion."""
+    raw = _unwrap_enum_scalar(raw)
     if isinstance(raw, bool):
         if raw:
             return 1

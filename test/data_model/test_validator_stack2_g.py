@@ -3363,3 +3363,200 @@ def test_r10_r8_dtype_metadata_noop_reflexive_eq_partial_state_and_cycles() -> N
     sub_pt.unit = "m"
     with pytest.raises(TypeError, match="opaque or custom copy semantics"):
         freeze_model(_ObjModel(val=sub_pt))
+
+
+def test_r10_r9_singleton_new_metadata_hooks_reinit_and_from_config_isolation() -> None:
+    """Cover R8 M1-M4: Singleton.__new__, metadata deepcopy/repr hooks, proxy re-init, TypedConfigView.from_config."""
+    from typing import ClassVar  # noqa: PLC0415
+
+    from pydantic import field_serializer  # noqa: PLC0415
+
+    # M1: BaseModel overriding __new__ as singleton still clones into an isolated snapshot.
+    class _SingletonModel(BaseModel):
+        cached: ClassVar[object] = None
+        x: int
+
+        def __new__(cls, **kwargs: object) -> _SingletonModel:
+            del kwargs
+            if cls.cached is None:
+                cls.cached = object.__new__(cls)
+            return cls.cached  # type: ignore[return-value]
+
+    orig_s = _SingletonModel(x=1)
+    ro_s = freeze_model(orig_s)
+    orig_s.x = 2
+    assert ro_s.x == 1
+
+    # M2: Field default/metadata with custom __deepcopy__/__repr__ never executes hooks on freeze.
+    hook_events: list[str] = []
+
+    class _HookDefault:
+        def __deepcopy__(self, _memo: dict[int, object]) -> _HookDefault:
+            hook_events.append("deepcopy")
+            return self
+
+        def __repr__(self) -> str:
+            hook_events.append("repr")
+            return "HookDefault"
+
+    class _MetaHookModel(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        payload: object = _HookDefault()
+
+    mh = _MetaHookModel(payload=None)
+    hook_events.clear()
+    ro_mh = freeze_model(mh)
+    assert hook_events == []
+    assert ro_mh.model_fields["payload"].default == "<_HookDefault>"
+
+    # M3: Existing model/dataclass/enum proxies reject __init__ re-initialisation.
+    @dataclass
+    class _SimpleDC:
+        v: int
+
+    class _SimpleE(Enum):
+        A = 1
+
+    ro_dc = ReadOnlyDataclassProxy(_SimpleDC(1))
+    ro_e = deep_freeze(_SimpleE.A)
+    with pytest.raises(TypeError, match="re-initialised"):
+        ro_s.__init__(_SingletonModel(x=9))
+    with pytest.raises(TypeError, match="re-initialised"):
+        ro_dc.__init__(_SimpleDC(9))
+    with pytest.raises(TypeError, match="re-initialised"):
+        ro_e.__init__(_SimpleE.A)
+    assert ro_s.x == 1
+    assert ro_dc.v == 1
+
+    # M4: TypedConfigView.from_config routes raw models through vetted serializer isolation.
+    class _MutSerCfg(BaseModel):
+        items: list[int] = Field(default_factory=lambda: [1])
+
+        @field_serializer("items")
+        def _mut_ser(self, val: list[int]) -> list[int]:
+            self.items.append(99)
+            return val
+
+    raw_mut = _MutSerCfg()
+    with pytest.raises(TypeError, match="unvetted"):
+        TypedConfigView.from_config(raw_mut)
+    assert raw_mut.items == [1]
+
+
+def test_r10_r9_composite_hash_enum_type_drift_stebbs_intenum_doc_tuples_and_temporal() -> (
+    None
+):
+    """Cover R8 m1-m6: stable composite hash, exact-type Enum drift, STEBBS IntEnum, doc tuples, drop_noops, temporal."""
+
+    # m1: Composite proxy hashes remain stable for nested eq=False tokens and post-freeze Enum _name_ changes.
+    @dataclass(eq=False)
+    class _EqFalseTok:
+        v: int
+
+    @dataclass(frozen=True)
+    class _TokHolder:
+        tok: _EqFalseTok
+
+    ro_th = ReadOnlyDataclassProxy(_TokHolder(_EqFalseTok(1)))
+    assert hash(ro_th) == hash(ro_th)
+
+    class _HashEnum(Enum):
+        ITEM = 1
+
+    @dataclass(frozen=True)
+    class _EnumHolderDC:
+        e: _HashEnum
+
+    ro_eh = ReadOnlyDataclassProxy(_EnumHolderDC(_HashEnum.ITEM))
+    h_before = hash(ro_eh)
+    _HashEnum.ITEM._name_ = "TAMPERED"
+    try:
+        assert hash(ro_eh) == h_before
+    finally:
+        _HashEnum.ITEM._name_ = "ITEM"
+
+    # m2: Enum drift detects 1 -> 1.0 / True and 0.0 -> -0.0 representation changes.
+    class _TypeDriftEnum(Enum):
+        ONE = 1
+        ZERO = 0.0
+
+    class _TypeDriftModel(BaseModel):
+        e: _TypeDriftEnum
+
+    ro_one = freeze_model(_TypeDriftModel(e=_TypeDriftEnum.ONE))
+    _TypeDriftEnum.ONE._value_ = 1.0
+    try:
+        with pytest.raises(TypeError, match="mutated externally"):
+            ro_one.model_dump(mode="json")
+    finally:
+        _TypeDriftEnum.ONE._value_ = 1
+
+    ro_zero = freeze_model(_TypeDriftModel(e=_TypeDriftEnum.ZERO))
+    _TypeDriftEnum.ZERO._value_ = -0.0
+    try:
+        with pytest.raises(TypeError, match="mutated externally"):
+            ro_zero.model_dump(mode="json")
+    finally:
+        _TypeDriftEnum.ZERO._value_ = 0.0
+
+    # m3: STEBBS IntEnum inputs work through PhysicsView.stebbs_method.
+    class _Choice(IntEnum):
+        DEFAULT = 1
+
+    assert (
+        PhysicsView({
+            "stebbs": {"enabled": True, "parameters": _Choice.DEFAULT}
+        }).stebbs_method
+        == 1
+    )
+    assert PhysicsView({"stebbs": _Choice.DEFAULT}).stebbs_method == 1
+
+    # m4: Raw tuple patches stay tuples across ConfigDocument.clone/apply_patches/normalise.
+    doc_t = ConfigDocument.from_dict({"a": 0}, normalise=False)
+    doc_t = doc_t.apply_patches([ConfigPatch("a", "set", (1, 2), replace_raw=True)])
+    assert isinstance(doc_t.data["a"], tuple)
+    assert isinstance(doc_t.apply_patches([]).data["a"], tuple)
+    norm_t = doc_t.normalise_patches([
+        ConfigPatch("a", "set", [1, 2], replace_raw=True)
+    ])
+    assert len(norm_t) == 1
+    assert isinstance(
+        doc_t.apply_patches(norm_t).apply_patches(invert_patches(norm_t)).data["a"],
+        tuple,
+    )
+
+    # m5: drop_noops=False preserves unexpanded nullify_tree on already-null target.
+    kept_null = normalise_patches(
+        [ConfigPatch("a", "nullify_tree")],
+        {"a": None},
+        expand_nullify_tree=False,
+        drop_noops=False,
+        coalesce=False,
+    )
+    assert len(kept_null) == 1
+    assert kept_null[0].action == "nullify_tree"
+    assert kept_null[0].old_value == {}
+
+    # m6: NumPy temporal scalar unit changes (D vs s) are NOT dropped as no-ops.
+    assert (
+        len(
+            normalise_patches(
+                [
+                    ConfigPatch(
+                        "t", "set", np.datetime64("2020-01-01", "s"), replace_raw=True
+                    )
+                ],
+                {"t": np.datetime64("2020-01-01", "D")},
+            )
+        )
+        == 1
+    )
+    assert (
+        len(
+            normalise_patches(
+                [ConfigPatch("d", "set", np.timedelta64(1, "s"), replace_raw=True)],
+                {"d": np.timedelta64(1000, "ms")},
+            )
+        )
+        == 1
+    )

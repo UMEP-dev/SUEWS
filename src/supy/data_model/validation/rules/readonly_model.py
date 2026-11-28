@@ -56,6 +56,7 @@ from ..pipeline.document import (
 
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
 _PARTIAL_IN_PROGRESS = object()
+_UNFREEZABLE_ENUM = object()
 _PROXY_STATE: dict[
     int,
     tuple[
@@ -90,9 +91,11 @@ _PYDANTIC_INTERNAL_SLOTS: frozenset[str] = frozenset({
 })
 
 
-def _iter_custom_slots(cls: type[Any], skip: frozenset[str]) -> tuple[str, ...]:
-    """Return unique custom ``__slots__`` attribute names across *cls* MRO (with name mangling)."""
-    names: list[str] = []
+def _iter_custom_slots(
+    cls: type[Any], skip: frozenset[str]
+) -> tuple[tuple[type[Any], str, MemberDescriptorType], ...]:
+    """Return ``(base, name, slot_descriptor)`` for custom ``__slots__``, rejecting shadowed slots."""
+    descriptors: list[tuple[type[Any], str, MemberDescriptorType]] = []
     seen: set[str] = set()
     for base in cls.__mro__:
         slots = base.__dict__.get("__slots__")
@@ -110,8 +113,16 @@ def _iter_custom_slots(cls: type[Any], skip: frozenset[str]) -> tuple[str, ...]:
             if resolved_name in skip or resolved_name in seen:
                 continue
             seen.add(resolved_name)
-            names.append(resolved_name)
-    return tuple(names)
+            slot_desc = base.__dict__.get(resolved_name)
+            found, top_attr = _find_class_attr(cls, resolved_name)
+            if found and top_attr is not slot_desc:
+                raise TypeError(
+                    f"Cannot safely freeze or read {cls.__name__!r}: slot "
+                    f"{resolved_name!r} is shadowed by {type(top_attr).__name__!r}"
+                )
+            if isinstance(slot_desc, MemberDescriptorType):
+                descriptors.append((base, resolved_name, slot_desc))
+    return tuple(descriptors)
 
 
 def _copy_slots(
@@ -121,17 +132,16 @@ def _copy_slots(
     *,
     skip: frozenset[str],
     reject_enums: bool,
-    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+    wrap_enums: Mapping[int, Any] | None,
 ) -> None:
-    """Copy non-skipped ``__slots__`` values from *src* to *dst* via detached traversal."""
-    for slot_name in _iter_custom_slots(type(src), skip):
+    """Copy non-skipped ``__slots__`` values directly via declaring slot descriptors."""
+    for base, _slot_name, slot_desc in _iter_custom_slots(type(src), skip):
         try:
-            slot_val = object.__getattribute__(src, slot_name)
+            slot_val = slot_desc.__get__(src, base)
         except AttributeError:
             continue
-        object.__setattr__(
+        slot_desc.__set__(
             dst,
-            slot_name,
             _detach_snapshot_tree(
                 slot_val,
                 memo,
@@ -612,28 +622,46 @@ def _detach_plain_instance(
 _PRIMITIVE_SUBCLASS_BASES: tuple[type[Any], ...] = (str, bytes, int, float, complex)
 
 
+def _clone_primitive_base_value(val_cls: type[Any], base: type[Any], value: Any) -> Any:
+    """Allocate a primitive subclass instance using non-overridable C extraction."""
+    if base is str:
+        return str.__new__(val_cls, str.__str__(value))
+    if base is bytes:
+        return bytes.__new__(val_cls, bytes.__getitem__(value, slice(None)))
+    if base is int:
+        return int.__new__(val_cls, int.__int__(value))
+    if base is float:
+        return float.__new__(val_cls, float.__float__(value))
+    return complex.__new__(
+        val_cls,
+        complex.real.__get__(value, complex),
+        complex.imag.__get__(value, complex),
+    )
+
+
 def _detach_primitive_subclass(
     value: Any,
     memo: dict[int, Any],
     *,
     reject_enums: bool,
-    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+    wrap_enums: Mapping[int, Any] | None,
 ) -> tuple[bool, Any]:
     """Detach subclasses of immutable primitive types (e.g. ``class Label(str)``)."""
-    if (
-        isinstance(value, type)
-        or hasattr(value, "__deepcopy__")
-        or hasattr(value, "__copy__")
-        or not isinstance(value, _PRIMITIVE_SUBCLASS_BASES)
-    ):
+    if isinstance(value, type) or not isinstance(value, _PRIMITIVE_SUBCLASS_BASES):
         return False, None
     skip = frozenset({"__dict__", "__weakref__"})
     val_cls = type(value)
     for base in _PRIMITIVE_SUBCLASS_BASES:
         if issubclass(val_cls, base) and val_cls is not base:
-            if val_cls.__new__ is not base.__new__:
+            if (
+                val_cls.__new__ is not base.__new__
+                or val_cls.__getattribute__
+                not in {object.__getattribute__, base.__getattribute__}
+                or hasattr(value, "__deepcopy__")
+                or hasattr(value, "__copy__")
+            ):
                 return False, None
-            cloned_sub = base.__new__(val_cls, value)
+            cloned_sub = _clone_primitive_base_value(val_cls, base, value)
             memo[id(value)] = cloned_sub
             if hasattr(value, "__dict__"):
                 src_dict = object.__getattribute__(value, "__dict__")
@@ -791,11 +819,26 @@ def _safe_enum_label(member: Enum) -> str:
     return type(member).__name__
 
 
+def _resolve_enum_snapshot(
+    value: Enum, enum_snapshots: Mapping[int, Any] | None
+) -> ReadOnlyEnumProxy:
+    """Return the pre-snapshotted ``ReadOnlyEnumProxy`` for *value*, failing on unfreezable markers."""
+    if enum_snapshots is not None and id(value) in enum_snapshots:
+        snap = enum_snapshots[id(value)]
+        if snap is _UNFREEZABLE_ENUM:
+            raise TypeError(
+                f"Cannot safely freeze Enum member {_safe_enum_label(value)} "
+                "with mutable payload or unsupported state at freeze time"
+            )
+        return snap
+    return ReadOnlyEnumProxy(value)
+
+
 def _detach_enum_value(
     value: Enum,
     *,
     reject_enums: bool,
-    wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
+    wrap_enums: Mapping[int, Any] | None,
 ) -> Any:
     """Apply export policy to an ``Enum`` member during snapshot detachment."""
     if reject_enums:
@@ -804,11 +847,7 @@ def _detach_enum_value(
             f"{_safe_enum_label(value)}"
         )
     if wrap_enums is not None:
-        return (
-            wrap_enums[id(value)]
-            if id(value) in wrap_enums
-            else ReadOnlyEnumProxy(value)
-        )
+        return _resolve_enum_snapshot(value, wrap_enums)
     return value
 
 
@@ -1329,9 +1368,9 @@ def _iter_instance_state_children(obj: Any, skip: frozenset[str]) -> list[Any]:
     out: list[Any] = []
     if hasattr(obj, "__dict__"):
         out.extend(object.__getattribute__(obj, "__dict__").values())
-    for slot_name in _iter_custom_slots(type(obj), skip):
+    for base, _slot_name, slot_desc in _iter_custom_slots(type(obj), skip):
         try:
-            out.append(object.__getattribute__(obj, slot_name))
+            out.append(slot_desc.__get__(obj, base))
         except AttributeError:
             continue
     return out
@@ -1851,8 +1890,12 @@ def _collect_proxy_snapshots(
             continue
         if isinstance(obj, Enum):
             obj_id = id(obj)
-            if obj_id not in enum_snapshots and _is_immutable_enum(obj):
-                enum_snapshots[obj_id] = ReadOnlyEnumProxy(obj)
+            if obj_id not in enum_snapshots:
+                enum_snapshots[obj_id] = (
+                    ReadOnlyEnumProxy(obj)
+                    if _is_immutable_enum(obj)
+                    else _UNFREEZABLE_ENUM  # type: ignore[assignment]
+                )
             continue
         obj_id = id(obj)
         if obj_id in visited:
@@ -2156,11 +2199,7 @@ def _wrap_readonly(
     if active is None:
         active = set()
     if isinstance(value, Enum):
-        return (
-            enum_snapshots[id(value)]
-            if enum_snapshots is not None and id(value) in enum_snapshots
-            else ReadOnlyEnumProxy(value)
-        )
+        return _resolve_enum_snapshot(value, enum_snapshots)
     if type(value) is slice:
         return _freeze_slice_value(
             value,
@@ -2698,10 +2737,13 @@ def _single_enum_drifted(proxy: ReadOnlyEnumProxy) -> bool:
 
 
 def _enum_snapshots_drifted(
-    enum_snapshots: Mapping[int, ReadOnlyEnumProxy],
+    enum_snapshots: Mapping[int, Any],
 ) -> bool:
-    """Return True if any snapshotted Enum singleton had its live ``_name_`` or ``_value_`` mutated."""
-    return any(_single_enum_drifted(proxy) for proxy in enum_snapshots.values())
+    """Return True if any snapshotted Enum singleton was unfreezable or drifted."""
+    return any(
+        proxy is _UNFREEZABLE_ENUM or _single_enum_drifted(proxy)
+        for proxy in enum_snapshots.values()
+    )
 
 
 def _unwrap_model_for_validation(proxy: ReadOnlyModelProxy) -> BaseModel:

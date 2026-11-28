@@ -131,8 +131,6 @@ _EXACT_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     Decimal,
     datetime.date,
     datetime.timedelta,
-    datetime.timezone,
-    ZoneInfo,
 })
 
 _COPY_ON_READ_SCALAR_TYPES: frozenset[type[Any]] = frozenset({
@@ -141,12 +139,6 @@ _COPY_ON_READ_SCALAR_TYPES: frozenset[type[Any]] = frozenset({
     PureWindowsPath,
     PosixPath,
     WindowsPath,
-})
-
-_SAFE_TZINFO_TYPES: frozenset[type[Any]] = frozenset({
-    type(None),
-    datetime.timezone,
-    ZoneInfo,
 })
 
 _NUMPY_IMMUTABLE_SCALARS = (
@@ -172,15 +164,33 @@ _FROZEN_MAP_STATE: dict[int, dict[Any, Any]] = {}
 _FROZEN_SET_STATE: dict[int, frozenset[Any]] = {}
 
 
+def _is_safe_tzinfo(tz: Any) -> bool:
+    """Return True when *tz* is ``None``, exact ``datetime.timezone`` with builtin parts, or exact ``ZoneInfo`` with exact ``str`` key."""
+    if tz is None:
+        return True
+    tz_type = type(tz)
+    if tz_type is datetime.timezone:
+        offset = tz.utcoffset(None)
+        name = tz.tzname(None)
+        return type(offset) is datetime.timedelta and (
+            name is None or type(name) is str
+        )
+    if tz_type is ZoneInfo:
+        return type(tz.key) is str
+    return False
+
+
 def _is_exact_immutable_scalar(value: Any) -> bool:
     """Return True only for strictly C-immutable primitive/stdlib/NumPy scalar types."""
     value_type = type(value)
     if value_type in _EXACT_IMMUTABLE_TYPES:
         return True
+    if value_type in {datetime.timezone, ZoneInfo}:
+        return _is_safe_tzinfo(value)
     if value_type is re.Pattern:
         return type(value.pattern) in {str, bytes}
     if value_type in {datetime.datetime, datetime.time}:
-        return type(value.tzinfo) in _SAFE_TZINFO_TYPES
+        return _is_safe_tzinfo(value.tzinfo)
     return (
         isinstance(value, _NUMPY_IMMUTABLE_SCALARS) and value_type.__module__ == "numpy"
     )
@@ -837,6 +847,38 @@ def _copy_non_container_payload(value: Any) -> Any:
     return deepcopy(value)
 
 
+def _copy_mapping_key(key: Any) -> Any:
+    """Copy a mapping/set key while preserving exact runtime dict-slot lookup semantics."""
+    if (
+        key is None
+        or type(key) is object
+        or _is_exact_immutable_scalar(key)
+        or isinstance(key, Enum)
+    ):
+        return key
+    if _is_copy_on_read_scalar(key):
+        return _clone_copy_on_read_scalar(key)
+    if isinstance(key, _ReadOnlyMaterialisingTuple):
+        return tuple(_copy_mapping_key(item) for item in key)
+    if isinstance(key, tuple):
+        return tuple(_copy_mapping_key(item) for item in tuple.__iter__(key))
+    if isinstance(key, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
+        return frozenset(_copy_mapping_key(item) for item in key)
+    if type(key) is slice:
+        return slice(
+            _copy_mapping_key(key.start),
+            _copy_mapping_key(key.stop),
+            _copy_mapping_key(key.step),
+        )
+    copied = _copy_non_container_payload(key)
+    if copied is not key and copied != key:
+        raise ValueError(
+            f"Unsupported identity-based mapping key of type {type(key).__name__!r}; "
+            "mapping keys must preserve equality across defensive copies"
+        )
+    return copied
+
+
 def _copy_payload(value: Any) -> Any:
     """Defensively copy *value* while preserving tuples and thawing read-only mappings."""
     if value is None or type(value) in {bool, int, float, str, bytes}:
@@ -844,15 +886,15 @@ def _copy_payload(value: Any) -> Any:
     if isinstance(value, (MappingProxyType, _ReadOnlyMaterialisingMapping)):
         return thaw_copy(value)
     if isinstance(value, Mapping):
-        return {_copy_payload(k): _copy_payload(v) for k, v in value.items()}
+        return {_copy_mapping_key(k): _copy_payload(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_copy_payload(item) for item in value]
     if isinstance(value, tuple):
         return tuple(_copy_payload(item) for item in value)
     if isinstance(value, set):
-        return {_copy_payload(item) for item in value}
+        return {_copy_mapping_key(item) for item in value}
     if isinstance(value, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
-        return frozenset(_copy_payload(item) for item in value)
+        return frozenset(_copy_mapping_key(item) for item in value)
     return _copy_non_container_payload(value)
 
 
@@ -1055,13 +1097,13 @@ def thaw_copy(value: Any) -> Any:
     if value is None or type(value) in {bool, int, float, str, bytes}:
         return value
     if isinstance(value, Mapping):
-        return {_copy_payload(k): thaw_copy(v) for k, v in value.items()}
+        return {_copy_mapping_key(k): thaw_copy(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [thaw_copy(item) for item in value]
     if isinstance(value, set):
-        return {_copy_payload(item) for item in value}
+        return {_copy_mapping_key(item) for item in value}
     if isinstance(value, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
-        return frozenset(_copy_payload(item) for item in value)
+        return frozenset(_copy_mapping_key(item) for item in value)
     return _thaw_non_container(value)
 
 

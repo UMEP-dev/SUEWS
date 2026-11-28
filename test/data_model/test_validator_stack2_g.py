@@ -4139,3 +4139,121 @@ def test_r12_namedtuple_iter_phase_b_fallback_re_pattern_and_enum_getters() -> N
     with pytest.raises(TypeError, match="overridden"):
         deep_freeze(_ChangingNameEnum.ITEM)
     assert enum_calls == []
+
+
+def test_r13_identity_keys_prim_sub_slots_tz_mutable_enum_and_nan_ledger() -> None:
+    """Cover Astra R3 findings: identity keys, str subclass hook, shadowed slot, timezone/ZoneInfo, late-mutated Enum, NaN ledger."""
+    # 1. Identity-based object() keys round-trip losslessly; custom identity keys fail closed.
+    obj_key = object()
+    obj_data: dict[object, object] = {obj_key: 1}
+    obj_patch = ConfigPatch(
+        "key", "set", 2, path_tokens=(MappingKey(obj_key),), default_wrapped=False
+    )
+    obj_norm = normalise_patches([obj_patch], obj_data)
+    assert obj_norm[0].had_original is True and obj_norm[0].old_value == 1
+    apply_patches_in_place(obj_data, obj_norm)
+    assert obj_data == {obj_key: 2}
+    apply_patches_in_place(obj_data, invert_patches(obj_norm))
+    assert obj_data == {obj_key: 1}
+
+    class _CustomIdKey:
+        pass
+
+    with pytest.raises(ValueError, match="identity-based mapping key"):
+        normalise_patches(
+            [ConfigPatch("k", "set", 2, path_tokens=(MappingKey(_CustomIdKey()),))],
+            {_CustomIdKey(): 1},
+        )
+
+    # 2. Primitive subclass cloning does not invoke overridden __str__ hooks.
+    class _HookLabel(str):
+        tags: list[str]
+
+        def __str__(self) -> str:
+            self.tags.append("called")
+            return str.__str__(self)
+
+    lbl = _HookLabel("x")
+    lbl.tags = []
+
+    class _AnyHolder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        x: object
+
+    ro_lbl = freeze_model(_AnyHolder(x=lbl))
+    assert lbl.tags == []
+    assert ro_lbl.unwrap_copy().x == "x" and lbl.tags == []
+
+    # 3. Shadowed inherited __slots__ raises before invoking property getters/setters.
+    slot_calls: list[object] = []
+
+    class _SlotParent:
+        __slots__ = ("x",)
+
+    class _SlotChild(_SlotParent):
+        __slots__ = ()
+
+        @property
+        def x(self) -> int:
+            slot_calls.append(self)
+            return 1
+
+    with pytest.raises(TypeError, match="shadowed"):
+        freeze_model(_AnyHolder(x=_SlotChild()))
+    assert slot_calls == []
+
+    # 4. datetime.timezone and ZoneInfo carrying str/timedelta subclasses are rejected.
+    class _SubName(str):
+        pass
+
+    class _SubDelta(datetime.timedelta):
+        pass
+
+    bad_name = _SubName("UTC")
+    bad_name.tags = []  # type: ignore[attr-defined]
+    bad_tz = datetime.timezone(datetime.timedelta(0), bad_name)
+    bad_tz_off = datetime.timezone(_SubDelta(hours=1))
+    bad_zi = ZoneInfo.no_cache(bad_name)
+    for bad_obj in (
+        bad_tz,
+        bad_tz_off,
+        bad_zi,
+        datetime.datetime(2024, 1, 1, tzinfo=bad_tz),
+        datetime.time(12, 0, tzinfo=bad_zi),
+    ):
+        with pytest.raises(TypeError):
+            deep_freeze({"t": bad_obj})
+        with pytest.raises(TypeError):
+            freeze_model(_AnyHolder(x=bad_obj))
+
+    # 5. Enum mutable at freeze_model time remains permanently rejected even if mutated immutable later.
+    class _LateChoice(Enum):
+        ITEM = 1
+
+        def __init__(self, _value: int) -> None:
+            self.tags: object = []
+
+    ro_late = freeze_model(_AnyHolder(x=_LateChoice.ITEM))
+    _LateChoice.ITEM.tags = ("after",)
+    with pytest.raises(TypeError, match="freeze time"):
+        _ = ro_late.x
+    with pytest.raises(TypeError):
+        ro_late.model_dump()
+
+    # 6. Distinct NaN keys colliding in StyleLedger do not restore another key's ref metadata.
+    n1, n2 = float("nan"), float("nan")
+    doc_nan = ConfigDocument.from_dict(
+        {
+            "p": {
+                n1: {"value": 1, "ref": {"ID": "first"}},
+                n2: {"value": 2, "ref": {"ID": "second"}},
+            }
+        },
+        normalise=False,
+    )
+    assert doc_nan.style_ledger.ref_metadata("p[nan]") is None
+    updated_nan = doc_nan.apply_patches([
+        ConfigPatch("p[n1]", "delete", path_tokens=("p", MappingKey(n1))),
+        ConfigPatch("p[n1]", "set", 3, path_tokens=("p", MappingKey(n1))),
+    ])
+    assert updated_nan.data["p"][n1] == {"value": 3}

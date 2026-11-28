@@ -194,10 +194,17 @@ def _walk_mapping_value(
         key_order=keys,
         is_container=bool(prefix),
     )
-    for key, val in node.items():
-        if isinstance(key, str) and key == "ref":
+    child_paths = [
+        (_join_key_path(prefix, key), val)
+        for key, val in node.items()
+        if not (isinstance(key, str) and key == "ref")
+    ]
+    path_counts: dict[str, int] = {}
+    for child_path, _val in child_paths:
+        path_counts[child_path] = path_counts.get(child_path, 0) + 1
+    for child_path, val in child_paths:
+        if path_counts[child_path] > 1:
             continue
-        child_path = _join_key_path(prefix, key)
         if isinstance(val, (Mapping, list, tuple)):
             _walk_python_data(val, child_path, entries)
         else:
@@ -614,15 +621,21 @@ def _walk_yaml_mapping(
         source_line=line,
         is_container=bool(prefix),
     )
+    yaml_children: list[tuple[str, yaml.Node]] = []
     for key_node, child_node in node.value:
         typed_key = _node_typed_key(key_node, val_loader)
         if typed_key is _NON_SCALAR_KEY or (
             isinstance(typed_key, str) and typed_key == "ref"
         ):
             continue
-        _walk_yaml_node(
-            child_node, _join_key_path(prefix, typed_key), entries, val_loader
-        )
+        yaml_children.append((_join_key_path(prefix, typed_key), child_node))
+    yaml_counts: dict[str, int] = {}
+    for child_path, _child_node in yaml_children:
+        yaml_counts[child_path] = yaml_counts.get(child_path, 0) + 1
+    for child_path, child_node in yaml_children:
+        if yaml_counts[child_path] > 1:
+            continue
+        _walk_yaml_node(child_node, child_path, entries, val_loader)
 
 
 def _walk_yaml_node(

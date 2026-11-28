@@ -295,8 +295,15 @@ def test_pull_request_test_layout_shards_linux_and_windows_and_drops_macos_api()
     assert "github.event_name == 'merge_group'" in chain_with["split_tests"]
     assert "physics-full' && 3 || 2" in chain_with["physics_shards"]
     assert "matrix.buildplat[1] == 'manylinux'" in chain_with["native_shards"]
+    unit_with = caller["jobs"]["unit"]["with"]
+    pr_dispatch = "(github.event_name == 'workflow_dispatch' && inputs.pr_api_lane == true)"
+    assert pr_dispatch in unit_with["shard_count"]
+    assert pr_dispatch in chain_with["native_shards"]
+    assert pr_dispatch in chain_with["split_tests"]
     dispatch_inputs = caller[True]["workflow_dispatch"]["inputs"]
     assert dispatch_inputs["pr_api_lane"]["default"] is False
+    assert "Schema 2" in dispatch_inputs["pr_api_lane"]["description"]
+    assert "source unit" in dispatch_inputs["pr_api_lane"]["description"]
     assert "physics-core" in dispatch_inputs["test_tier"]["options"]
     assert "physics-full" in dispatch_inputs["test_tier"]["options"]
 

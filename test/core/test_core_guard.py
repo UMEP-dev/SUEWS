@@ -6,6 +6,7 @@ for each way a core test can go missing before a merge.
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 from pathlib import Path
@@ -1342,3 +1343,99 @@ def test_wheel_lanes_and_core_guard_propagate_non_cp312_build_floor(
         ])
         == 0
     )
+
+
+def test_schema2_installed_cli_tests_routed_to_wheel_lanes() -> None:
+    """Every MCP/CLI test that requires installed console scripts runs in a wheel lane, not unit."""
+    cli_witness_files = (
+        "test/mcp/test_tool_readiness.py",
+        "test/mcp/test_tool_schema_search.py",
+        "test/mcp/test_canonical_questions_cli.py",
+        "test/mcp/test_tool_validate_cli.py",
+        "test/mcp/test_real_cli_smoke.py",
+        "test/mcp/test_boundary_paths_cli.py",
+        "test/mcp/test_protocol_handshake.py",
+        "test/core/test_cli_validation.py",
+    )
+
+    def _module_marks(path: Path) -> set[str]:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        marks: set[str] = set()
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(
+                isinstance(target, ast.Name) and target.id == "pytestmark"
+                for target in node.targets
+            ):
+                continue
+            for sub in ast.walk(node.value):
+                if (
+                    isinstance(sub, ast.Attribute)
+                    and isinstance(sub.value, ast.Attribute)
+                    and isinstance(sub.value.value, ast.Name)
+                    and sub.value.value.id == "pytest"
+                    and sub.value.attr == "mark"
+                ):
+                    marks.add(sub.attr)
+        return marks
+
+    # 1. No file in test/mcp/ or test/core/test_cli_validation.py that shells out
+    #    to installed console scripts (`shutil.which("suews"...)`) may be marked
+    #    `unit`, where wheels and console scripts are absent.
+    candidates = [
+        *sorted((PROJECT_ROOT / "test/mcp").glob("test_*.py")),
+        PROJECT_ROOT / "test/core/test_cli_validation.py",
+    ]
+    for path in candidates:
+        text = path.read_text(encoding="utf-8")
+        needs_installed_cli = any(
+            token in text
+            for token in (
+                'shutil.which("suews"',
+                'shutil.which("suews-validate"',
+                'shutil.which("suews-mcp"',
+            )
+        )
+        if not needs_installed_cli:
+            continue
+        marks = _module_marks(path)
+        assert "native" in marks, (
+            f"{path.relative_to(PROJECT_ROOT)} requires an installed CLI executable "
+            f"and must declare pytest.mark.native, got {sorted(marks)}"
+        )
+        assert "unit" not in marks, (
+            f"{path.relative_to(PROJECT_ROOT)} requires an installed CLI executable "
+            "and must not be routed to the wheel-free unit lane"
+        )
+
+    # 2. Every real-CLI witness file matches Schema 2 native ready/all tiers and
+    #    never matches unit.
+    for rel in cli_witness_files:
+        marks = _module_marks(PROJECT_ROOT / rel)
+        for tier in ("physics-core", "standard", "physics-full", "all"):
+            assert ci_tiers.matches(
+                ci_tiers.tier_expression("native", tier, schema=2), marks
+            ), f"{rel} not selected by Schema 2 native tier {tier!r}"
+            assert not ci_tiers.matches(
+                ci_tiers.tier_expression("unit", tier, schema=2), marks
+            ), f"{rel} must not be selected by Schema 2 unit tier {tier!r}"
+
+    # 3. The reusable wheel-lane workflow enforces executable presence and fails
+    #    closed if any watched installed-CLI witness skips.
+    wheel_lane = yaml.safe_load(
+        (PROJECT_ROOT / ".github/workflows/test-wheel-lane-reusable.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    run_step = next(
+        s
+        for s in wheel_lane["jobs"]["wheel_lane"]["steps"]
+        if s.get("name") == "Install wheel and run Schema 2 lane tests"
+    )
+    script = run_step["run"]
+    for exe in ('"suews"', '"suews-validate"', '"suews-mcp"'):
+        assert exe in script
+    for rel in cli_witness_files:
+        assert rel in script
+    assert "unexpectedly skipped in wheel lane" in script

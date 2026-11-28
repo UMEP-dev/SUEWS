@@ -144,6 +144,7 @@ jobs:
         shell: bash
         env:
           LANE: ${{ matrix.cell.lane }}
+          TIER: ${{ matrix.cell.tier || inputs.test_tier }}
           INSTALL_MCP: ${{ inputs.install_mcp }}
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
           XDIST_ARGS: ${{ steps.workers.outputs.xdist_args }}
@@ -159,7 +160,8 @@ jobs:
             pytest==9.1.1 pytest-xdist==3.8.0 pytest-timeout==2.4.0 hypothesis==6.168.0 \
             wheelhouse/*.whl "${EXTRA_WHEELS[@]}"
 
-          if [[ ( "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ) && "$INSTALL_MCP" == "true" ]]; then
+          if [[ "$INSTALL_MCP" == "true" && ( "$LANE" == "native" || "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ) ]]; then
+            export SUEWS_REQUIRE_INSTALLED_CLI=1
             python - <<'PY'
           from pathlib import Path
           import shutil
@@ -176,10 +178,36 @@ jobs:
                   f"suews-mcp is not installed in {active_bin_dir} "
                   f"for {sys.executable}"
               )
-          print(f"Protocol dependencies available; suews-mcp={command}")
+          for exe in ("suews", "suews-validate", "suews-mcp"):
+              in_bin = shutil.which(exe, path=str(active_bin_dir))
+              if in_bin is None:
+                  raise SystemExit(
+                      f"{exe} is not installed in {active_bin_dir} "
+                      f"for {sys.executable}"
+                  )
+              on_path = shutil.which(exe)
+              if on_path is None:
+                  raise SystemExit(
+                      f"{exe} is installed at {in_bin} but not discoverable on PATH"
+                  )
+          print(f"CLI and MCP executables available in {active_bin_dir}; suews-mcp={command}")
           PY
-            python -m pytest --collect-only test/mcp/test_protocol_handshake.py \
-              -m "$MARKER_EXPR" -q
+            if [[ "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ]]; then
+              python -m pytest --collect-only test/mcp/test_protocol_handshake.py \
+                -m "$MARKER_EXPR" -q
+            fi
+            if [[ "$LANE" == "native" && ( "$TIER" == "physics-core" || "$TIER" == "standard" || "$TIER" == "physics-full" || "$TIER" == "all" ) ]]; then
+              for witness in \
+                test/mcp/test_tool_readiness.py \
+                test/mcp/test_tool_schema_search.py \
+                test/mcp/test_canonical_questions_cli.py \
+                test/mcp/test_tool_validate_cli.py \
+                test/mcp/test_real_cli_smoke.py \
+                test/mcp/test_boundary_paths_cli.py \
+                test/core/test_cli_validation.py; do
+                python -m pytest --collect-only "$witness" -m "$MARKER_EXPR" -q
+              done
+            fi
           fi
 
           SHARD_ARGS=()
@@ -189,6 +217,38 @@ jobs:
           # shellcheck disable=SC2086
           python -m pytest -p scripts.suews.pytest_ci_metrics test \
             -m "$MARKER_EXPR" -v --tb=short --durations=25 $XDIST_ARGS "${SHARD_ARGS[@]}"
+
+          if [[ "$INSTALL_MCP" == "true" && ( "$LANE" == "native" || "$LANE" == "os_compat" || "$LANE" == "abi3_smoke" ) ]]; then
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metrics_path = Path(os.environ["SUEWS_CI_METRICS"])
+          payload = json.loads(metrics_path.read_text(encoding="utf-8"))
+          watched_prefixes = (
+              "test/mcp/test_tool_readiness.py::",
+              "test/mcp/test_tool_schema_search.py::",
+              "test/mcp/test_canonical_questions_cli.py::",
+              "test/mcp/test_tool_validate_cli.py::",
+              "test/mcp/test_real_cli_smoke.py::",
+              "test/mcp/test_boundary_paths_cli.py::",
+              "test/mcp/test_protocol_handshake.py::",
+              "test/core/test_cli_validation.py::",
+          )
+          skipped = [
+              t["node_id"]
+              for t in payload.get("tests", [])
+              if t.get("outcome") == "skipped"
+              and any(t.get("node_id", "").startswith(p) for p in watched_prefixes)
+          ]
+          if skipped:
+              raise SystemExit(
+                  "Installed-CLI witness test(s) unexpectedly skipped in wheel lane: "
+                  + ", ".join(skipped)
+              )
+          PY
+          fi
 
       # The core-test guard (scripts/suews/check_core_guard.py --schema 2)
       # compares every Linux lane against the whole suite's inventory, so the

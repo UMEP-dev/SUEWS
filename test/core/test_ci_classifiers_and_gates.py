@@ -9,7 +9,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
-import re
 import shutil
 import subprocess
 import sys
@@ -632,15 +631,10 @@ def test_ready_tests_only_pr_matches_merge_queue_standard_tier_and_collects_api_
     # Draft PRs retain fast smoke feedback.
     assert draft_tests["test_tier"] == "smoke"
 
-    # Extract the real marker expressions from test-api-cross-python-reusable.yml.
-    api_wf = (
-        REPO_ROOT / ".github/workflows/test-api-cross-python-reusable.yml"
-    ).read_text(encoding="utf-8")
-    smoke_match = re.search(r"smoke\)\s+EXPR='([^']+)'", api_wf)
-    standard_match = re.search(r"standard\)\s+EXPR='([^']+)'", api_wf)
-    assert smoke_match is not None and standard_match is not None
-    smoke_expr = smoke_match.group(1)
-    standard_expr = standard_match.group(1)
+    # Read the Schema 1 marker expressions from scripts/suews/ci_tiers.py
+    # (test-api-cross-python-reusable.yml was retired in W1-7a).
+    smoke_expr = ci_tiers.API_TIERS["smoke"]
+    standard_expr = ci_tiers.API_TIERS["standard"]
 
     # Prove on a planted non-smoke API test module that smoke silently deselects it
     # while the newly selected standard tier executes and catches the failure.
@@ -1261,13 +1255,19 @@ def test_consolidated_producers_wired_into_build_workflow_and_metrics_graph() ->
                 65,
             ),
             _synth_job(
+                "Build and test (manylinux x86_64) / test layout",
+                20,
+                21,
+                25,
+            ),
+            _synth_job(
                 "Build and test (manylinux x86_64) / wheel | cp312 | manylinux x86_64",
                 20,
                 22,
                 100,
             ),
             _synth_job(
-                "Build and test (manylinux x86_64) / API cross-CPython tests / api | cp312 | manylinux x86_64",
+                "Build and test (manylinux x86_64) / Native tests / native | cp312 | manylinux x86_64",
                 100,
                 102,
                 140,
@@ -1470,15 +1470,15 @@ def test_merge_queue_runs_linux_full_and_windows_smoke_without_macos(
 
 
 def test_nested_leaf_job_names_say_what_the_job_does() -> None:
-    """The wheel build and the api lane under one caller group have distinct leaves.
+    """The wheel build and wheel-backed lanes under one caller group have distinct leaves.
 
     The checks list shows "<caller group> / <leaf>", and both reusable jobs
     used to name their leaf "cp312-<platform> <arch>", so the wheel build and
-    the api cell read the same. Render both leaves for one cell and check that
-    they differ, that each says what it does, and that the critical-path needs
-    map tells them apart.
+    the test lane read the same. Render the wheel leaf and each Schema 2
+    wheel-lane leaf for one platform and check that they differ, that each says
+    what it does, and that the critical-path needs map tells them apart.
     """
-    cell = {
+    base_cell = {
         "${{ matrix.python }}": "cp312",
         "${{ matrix.cell.python_version }}": "cp312",
         "${{ matrix.buildplat[1] }}": "win",
@@ -1486,37 +1486,52 @@ def test_nested_leaf_job_names_say_what_the_job_does() -> None:
         "${{ matrix.cell.shard && format(' shard {0}', matrix.cell.shard) || '' }}": "",
     }
 
-    def render(workflow: str, job: str) -> str:
+    def render(workflow: str, job: str, extra: dict[str, str] | None = None) -> str:
         data = yaml.safe_load(
             (REPO_ROOT / ".github/workflows" / workflow).read_text(encoding="utf-8")
         )
         name = data["jobs"][job]["name"]
-        for expr, value in cell.items():
+        for expr, value in {**base_cell, **(extra or {})}.items():
             name = name.replace(expr, value)
         assert "${{" not in name, name
         return name
 
     wheel_leaf = render("build-wheels-reusable.yml", "build")
-    api_leaf = render("test-api-cross-python-reusable.yml", "api_cross_python")
-    assert wheel_leaf != api_leaf
-    assert wheel_leaf.startswith("wheel") and api_leaf.startswith("api")
-    for leaf in (wheel_leaf, api_leaf):
-        assert "cp312" in leaf and "win AMD64" in leaf
-        assert leaf.isascii()
+    assert wheel_leaf.startswith("wheel")
+    assert "cp312" in wheel_leaf and "win AMD64" in wheel_leaf
+    assert wheel_leaf.isascii()
 
     needs = json.loads(
         (REPO_ROOT / ".github/ci-metrics-needs.json").read_text(encoding="utf-8")
     )
     group = "Build and test (win AMD64)"
     wheel_job = f"{group} / {wheel_leaf}"
-    api_job = f"{group} / API cross-CPython tests / {api_leaf}"
-    api_deps = {d for k, deps in needs.items() if fnmatchcase(api_job, k) for d in deps}
-    # The api cell waits on its own platform's wheel build, and no wheel
-    # pattern mistakes the api cell for a wheel build.
-    assert any(fnmatchcase(wheel_job, d) for d in api_deps)
     wheel_patterns = {d for deps in needs.values() for d in deps if "/ wheel" in d}
     assert wheel_patterns
-    assert not any(fnmatchcase(api_job, d) for d in wheel_patterns)
+
+    for lane_name, lane_group in (
+        ("native", "Native tests"),
+        ("os_compat", "OS compat tests"),
+        ("abi3_smoke", "ABI3 smoke tests"),
+    ):
+        lane_leaf = render(
+            "test-wheel-lane-reusable.yml",
+            "wheel_lane",
+            {"${{ matrix.cell.lane }}": lane_name},
+        )
+        assert wheel_leaf != lane_leaf
+        assert lane_leaf.startswith(lane_name)
+        assert "cp312" in lane_leaf and "win AMD64" in lane_leaf
+        assert lane_leaf.isascii()
+
+        lane_job = f"{group} / {lane_group} / {lane_leaf}"
+        lane_deps = {
+            d for k, deps in needs.items() if fnmatchcase(lane_job, k) for d in deps
+        }
+        # Each wheel lane waits on its own platform's wheel build, and no wheel
+        # pattern mistakes a wheel-lane cell for a wheel build.
+        assert any(fnmatchcase(wheel_job, d) for d in lane_deps), lane_job
+        assert not any(fnmatchcase(lane_job, d) for d in wheel_patterns), lane_job
 
 
 # ---- Dual-schema determine-matrix.sh contracts (#2349 W1-3b) ----
@@ -2134,13 +2149,8 @@ def test_windows_merge_group_os_compat_keeps_non_smoke_witness(
         env={
             **os.environ,
             "GITHUB_OUTPUT": str(gh_out),
-            "GATE_AXIS_SCHEMA": "2",
-            "API_PYTHON": "[]",
             "TIER": "smoke",
             "LANE_TIER": mq_out["test_tier"],
-            "SHARD_PYTHON": "",
-            "SHARD_COUNT": "1",
-            "BOOKEND_CORE": "false",
             "FULL_PYTHON": "cp312",
             "SPLIT_TESTS": "false",
             "PHYSICS_SHARDS": "2",

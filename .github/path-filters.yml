@@ -86,7 +86,6 @@ ci:
   # CI workflows and build tooling
   - '.github/path-filters.yml'
   - '.github/ci-metrics-needs.json'
-  - '.github/workflows/benchmark-pytest-scheduler.yml'
   - '.github/workflows/benchmark-checkout-provenance.yml'
   - '.github/workflows/build-publish_to_pypi.yml'
   - '.github/workflows/build-wheels-reusable.yml'
@@ -100,7 +99,6 @@ ci:
   - '.github/workflows/rust-clippy.yml'
   - '.github/workflows/rust-test.yml'
   - '.github/workflows/schema-version-audit.yml'
-  - '.github/workflows/test-api-cross-python-reusable.yml'
   - '.github/workflows/test-source-lane-reusable.yml'
   - '.github/workflows/test-wheel-lane-reusable.yml'
   - '.github/workflows/tolerance-spread-reusable.yml'

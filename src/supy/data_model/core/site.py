@@ -2745,11 +2745,14 @@ class ArchetypeProperties(DataModelBase):
 
         for field_name in ten_minute_profile_fields:
             profile = getattr(self, field_name)
-            if profile is None:
-                continue
             col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(
                 field_name, field_name
             ).lower()
+            if profile is None:
+                for day_idx in (0, 1):
+                    for bin_idx in range(144):
+                        cols[(col_name, f"({bin_idx}, {day_idx})")] = None
+                continue
             merge_df_state_cols(
                 cols, profile._to_df_state_cols(grid_id, col_name), fill_na=True
             )
@@ -2808,12 +2811,20 @@ class ArchetypeProperties(DataModelBase):
                 ).lower()
                 has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
-                    try:
-                        params[field_name] = ten_minute_profile_classes[
-                            field_name
-                        ].from_df_state(df, grid_id, col_name)
-                    except KeyError:
-                        params[field_name] = getattr(default_instance, field_name)
+                    if stebbs_inactive and all(
+                        (col_name, f"({bin_idx}, {day_idx})") in df.columns
+                        and pd.isna(df.loc[grid_id, (col_name, f"({bin_idx}, {day_idx})")])
+                        for day_idx in (0, 1)
+                        for bin_idx in range(144)
+                    ):
+                        params[field_name] = None
+                    else:
+                        try:
+                            params[field_name] = ten_minute_profile_classes[
+                                field_name
+                            ].from_df_state(df, grid_id, col_name)
+                        except KeyError:
+                            params[field_name] = getattr(default_instance, field_name)
                 else:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
@@ -3658,9 +3669,12 @@ class StebbsProperties(DataModelBase):
 
         for field_name in tenmin_profile_fields:
             profile = getattr(self, field_name)
-            if profile is None:
-                continue
             col_name = self._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            if profile is None:
+                for day_idx in (0, 1):
+                    for bin_idx in range(144):
+                        cols[(col_name, f"({bin_idx}, {day_idx})")] = None
+                continue
             merge_df_state_cols(
                 cols, profile._to_df_state_cols(grid_id, col_name), fill_na=True
             )
@@ -3691,12 +3705,20 @@ class StebbsProperties(DataModelBase):
                 ).lower()
                 has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
-                    try:
-                        params[field_name] = TenMinuteProfile.from_df_state(
-                            df, grid_id, col_name
-                        )
-                    except KeyError:
-                        params[field_name] = getattr(default_instance, field_name)
+                    if stebbs_inactive and all(
+                        (col_name, f"({bin_idx}, {day_idx})") in df.columns
+                        and pd.isna(df.loc[grid_id, (col_name, f"({bin_idx}, {day_idx})")])
+                        for day_idx in (0, 1)
+                        for bin_idx in range(144)
+                    ):
+                        params[field_name] = None
+                    else:
+                        try:
+                            params[field_name] = TenMinuteProfile.from_df_state(
+                                df, grid_id, col_name
+                            )
+                        except KeyError:
+                            params[field_name] = getattr(default_instance, field_name)
                 else:
                     params[field_name] = getattr(default_instance, field_name)
                 continue

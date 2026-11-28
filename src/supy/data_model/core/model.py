@@ -966,6 +966,17 @@ class StebbsPhysics(DataModelBase):
                 )
                 current._bind_non_optional(field_name, expected_kind, guard=guard)
 
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> "StebbsPhysics":
+        """Rebind standalone subordinate guards to the cloned ``StebbsPhysics`` owner."""
+        cloned = super().__deepcopy__(memo)
+        parent_ref = getattr(cloned, "_parent_config_ref", None)
+        if parent_ref is None or parent_ref.get() is None:
+            enabled_bool = resolve_stebbs_enabled_bool(
+                getattr(cloned, "enabled", None)
+            )
+            cloned._sync_stebbs_validation_state(active=(enabled_bool is not False))
+        return cloned
+
     @classmethod
     def _is_valid_subordinate_switch_input(cls, field_name: str, raw: Any) -> bool:
         enum_cls = cls._STEBBS_SUBORDINATE_SWITCH_ENUMS[field_name]

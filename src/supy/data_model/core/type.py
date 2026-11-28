@@ -764,7 +764,7 @@ def resolve_stebbs_shared_temp_fields(physics: Any) -> frozenset[str]:
         if unwrapped_c is None:
             return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
         if isinstance(unwrapped_c, bool):
-            return _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
+            return frozenset() if unwrapped_c is False else _EHC_IMPLICIT_STEBBS_TEMP_FIELDS
         if isinstance(unwrapped_c, (int, float)):
             try:
                 fval = float(unwrapped_c)

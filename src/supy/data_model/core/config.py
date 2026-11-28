@@ -1949,11 +1949,12 @@ class SUEWSConfig(DataModelBase):
                     coerced_m.value if isinstance(coerced_m, RefValue) else coerced_m
                 )
                 if isinstance(orig_m, RefValue):
-                    object.__setattr__(
-                        stebbs_phys,
-                        master_name,
-                        RefValue(value=coerced_inner, ref=orig_m.ref),
+                    synced_m = RefValue(value=coerced_inner, ref=orig_m.ref)
+                    expected_kind = StebbsPhysics._non_optional_ref_fields.get(
+                        master_name, "value"
                     )
+                    synced_m._bind_non_optional(master_name, expected_kind)
+                    object.__setattr__(stebbs_phys, master_name, synced_m)
                 else:
                     object.__setattr__(stebbs_phys, master_name, coerced_m)
             stebbs_code = resolve_stebbs_method_code(physics)
@@ -3354,21 +3355,22 @@ class SUEWSConfig(DataModelBase):
                 "fraction_heat_capacity_roof_external",
             ]
         elif rcmethod_val == 2:
+            # gen_building() calls calculate_x1 unconditionally for BOTH wall and
+            # roof when rcmethod == 2 (suews_phys_stebbs.f95:2692-2697), even
+            # when ratio_window_to_wall == 1.0.
             outer_params = [
                 "thickness_roof_outer",
                 "conductivity_roof_outer",
                 "density_roof_outer",
                 "specific_heat_capacity_roof_outer",
+                "thickness_wall_outer",
+                "conductivity_wall_outer",
+                "density_wall_outer",
+                "specific_heat_capacity_wall_outer",
+                "thickness_wall",
+                "density_wall",
+                "specific_heat_capacity_wall",
             ]
-            if wwr_val != 1.0:
-                outer_params.extend(
-                    [
-                        "thickness_wall_outer",
-                        "conductivity_wall_outer",
-                        "density_wall_outer",
-                        "specific_heat_capacity_wall_outer",
-                    ]
-                )
             archetype_required = [*archetype_required, *outer_params]
 
         # Validate stebbs required params

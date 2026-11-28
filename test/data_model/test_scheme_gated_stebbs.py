@@ -1144,6 +1144,95 @@ def test_inactive_stebbs_reference_rejects_extra_keys(sample_dict: dict) -> None
         SUEWSConfig.from_dict(data)
 
 
+@pytest.mark.parametrize("parameters", [1, 2])
+def test_active_capacitance_2_requires_wall_outer_even_when_wwr_is_one(
+    sample_dict: dict, parameters: int
+) -> None:
+    """``capacitance=2`` rejects null wall-outer params even when ``ratio_window_to_wall == 1.0``."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    data["model"]["physics"]["stebbs"]["capacitance"] = 2
+    data["sites"][0]["properties"]["building_archetype"]["ratio_window_to_wall"] = 1.0
+    data["sites"][0]["properties"]["building_archetype"]["thickness_wall_outer"] = None
+    with pytest.raises((ValidationError, ValueError), match="thickness_wall_outer"):
+        SUEWSConfig.from_dict(data)
+
+
+@pytest.mark.parametrize(
+    ("section", "profile_field"),
+    [
+        ("stebbs", "profile_flow_hot_water"),
+        ("building_archetype", "profile_metabolism"),
+    ],
+)
+def test_inactive_null_profile_survives_df_state_roundtrip_and_rejects_on_activation(
+    sample_dict: dict, section: str, profile_field: str
+) -> None:
+    """Whole-profile null (or wrapped null) stays None through df_state and fails on activation."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"][section][profile_field] = {"value": None}
+
+    cfg = SUEWSConfig.from_dict(data)
+    assert getattr(getattr(cfg.sites[0].properties, section), profile_field) is None
+
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert getattr(getattr(rebuilt.sites[0].properties, section), profile_field) is None
+
+    rebuilt.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match=profile_field):
+        rebuilt.validate_for_engine()
+
+
+def test_boolean_explicit_ehc_coupling_consistent_across_constructors(
+    sample_dict: dict,
+) -> None:
+    """``ehc_surface_coupling=False`` is classified as explicit (0) by both ``SUEWSConfig`` and ``from_dict``."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["storage_heat"] = 5
+    data["model"]["physics"]["ehc_surface_coupling"] = False
+    data["sites"][0]["properties"]["stebbs"]["temperature_air_indoor_initial"] = "TBD"
+
+    cfg_direct = SUEWSConfig(**copy.deepcopy(data))
+    cfg_from_dict = SUEWSConfig.from_dict(copy.deepcopy(data))
+    assert cfg_direct.sites[0].properties.stebbs.temperature_air_indoor_initial == "TBD"
+    assert (
+        cfg_from_dict.sites[0].properties.stebbs.temperature_air_indoor_initial == "TBD"
+    )
+
+
+def test_wrapped_master_switches_retain_non_null_guards_after_config_load(
+    sample_dict: dict,
+) -> None:
+    """Wrapped ``stebbs.enabled`` and ``stebbs.parameters`` reject ``.value = None`` immediately."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["enabled"] = {"value": False}
+    data["model"]["physics"]["stebbs"]["parameters"] = {"value": 1}
+
+    cfg = SUEWSConfig.from_dict(data)
+    with pytest.raises(ValueError, match="enabled"):
+        cfg.model.physics.stebbs.enabled.value = None
+    with pytest.raises(ValueError, match="parameters"):
+        cfg.model.physics.stebbs.parameters.value = None
+
+
+def test_standalone_stebbs_physics_deepcopy_preserves_live_guard_owner() -> None:
+    """Deep-copied standalone ``StebbsPhysics`` keeps subordinate guards bound to the copy."""
+    phys = StebbsPhysics(enabled={"value": False}, capacitance={"value": 0})
+    cloned = copy.deepcopy(phys)
+
+    cloned.enabled.value = True
+    with pytest.raises(ValueError, match="capacitance"):
+        cloned.capacitance.value = None
+
+    # Original remains unaffected and disabled.
+    phys.capacitance.value = None
+    assert phys.capacitance.value is None
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

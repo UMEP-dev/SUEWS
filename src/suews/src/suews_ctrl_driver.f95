@@ -3178,17 +3178,20 @@ CONTAINS
 
             IF (NonWaterFraction /= 0) THEN !Soil states only calculated if soil exists. LJ June 2017
                DO is = 1, nsurf - 1
-
-                  CALL drainage( &
-                     is, & ! input:
-                     state_id(is), &
-                     StoreDrainPrm(6, is), &
-                     StoreDrainPrm(2, is), &
-                     StoreDrainPrm(3, is), &
-                     StoreDrainPrm(4, is), &
-                     nsh_real, &
-                     drain_surf(is), & ! output
-                     modState)
+                  IF (sfr_surf(is) > 0.0D0) THEN
+                     CALL drainage( &
+                        is, & ! input:
+                        state_id(is), &
+                        StoreDrainPrm(6, is), &
+                        StoreDrainPrm(2, is), &
+                        StoreDrainPrm(3, is), &
+                        StoreDrainPrm(4, is), &
+                        nsh_real, &
+                        drain_surf(is), & ! output
+                        modState)
+                  ELSE
+                     drain_surf(is) = 0.0D0
+                  END IF
 
                   ! !HCW added and changed to StoreDrainPrm(6,is) here 20 Feb 2015
                   ! drain_per_tstep=drain_per_tstep+(drain(is)*sfr_surf(is)/NonWaterFraction)   !No water body included

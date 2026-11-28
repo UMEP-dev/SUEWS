@@ -543,19 +543,20 @@ def format_df_forcing(df_forcing_raw):
     df_forcing_grid = df_forcing_raw.copy()
 
     # convert energy fluxes: [J m-2] to [W m-2]
-    df_forcing_grid.loc[:, ["ssrd", "strd", "sshf", "slhf"]] /= SEC_PER_HOUR
+    flux_cols = ["ssrd", "strd", "sshf", "slhf"]
+    df_forcing_grid[flux_cols] = df_forcing_grid[flux_cols].astype(float) / SEC_PER_HOUR
 
     # reverse the sign of qh and qe
-    df_forcing_grid.loc[:, ["sshf", "slhf"]] *= -1
+    df_forcing_grid[["sshf", "slhf"]] = -df_forcing_grid[["sshf", "slhf"]]
 
     # convert rainfall: from [m] to [mm]
-    df_forcing_grid.loc[:, "tp"] *= 1000
+    df_forcing_grid["tp"] = df_forcing_grid["tp"].astype(float) * 1000
 
     # convert bulb temperature from K to degC
     df_forcing_grid = df_forcing_grid.assign(Tair=df_forcing_grid.t_z - C2K)
 
     # convert atmospheric pressure: [Pa] to [kPa]
-    df_forcing_grid.loc[:, "p_z"] /= 1000
+    df_forcing_grid["p_z"] = df_forcing_grid["p_z"].astype(float) / 1000
 
     # renaming for consistency with SUEWS
     df_forcing_grid = df_forcing_grid.rename(
@@ -584,15 +585,16 @@ def format_df_forcing(df_forcing_raw):
     )
 
     # corrections
-    df_forcing_grid.loc[:, "RH"] = df_forcing_grid.loc[:, "RH"].where(
-        df_forcing_grid.loc[:, "RH"].between(0.001, 105), 105
+    df_forcing_grid["RH"] = df_forcing_grid["RH"].where(
+        df_forcing_grid["RH"].between(0.001, 105), 105
     )
-    df_forcing_grid.loc[:, "kdown"] = df_forcing_grid.loc[:, "kdown"].where(
-        df_forcing_grid.loc[:, "kdown"] > 0, 0
+    df_forcing_grid["kdown"] = df_forcing_grid["kdown"].where(
+        df_forcing_grid["kdown"] > 0, 0
     )
 
     # trim decimals
-    df_forcing_grid.iloc[:, 4:] = df_forcing_grid.iloc[:, 4:].round(2)
+    value_cols = df_forcing_grid.columns[4:]
+    df_forcing_grid[value_cols] = df_forcing_grid[value_cols].round(2)
 
     # coerce integer
     df_forcing_grid = df_forcing_grid.astype({

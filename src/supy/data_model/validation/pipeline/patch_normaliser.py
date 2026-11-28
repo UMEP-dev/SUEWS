@@ -173,6 +173,15 @@ def _numpy_strict_equal(left: Any, right: Any) -> bool:
     return bytes(left) == bytes(right)
 
 
+def _tzinfo_strict_key(tz: Any) -> Any:
+    """Return a strict hashable representation for *tz* preserving ``datetime.timezone`` names."""
+    if tz is None:
+        return None
+    if type(tz) is datetime.timezone:
+        return (datetime.timezone, tz.utcoffset(None), tz.tzname(None))
+    return (type(tz), tz)
+
+
 def _strict_hashable_key(value: Any) -> Any:
     """Build a hashable key preserving exact type, NaN equality, and zero sign."""
     val_type = type(value)
@@ -204,7 +213,9 @@ def _strict_hashable_key(value: Any) -> Any:
     elif isinstance(value, np.generic):
         result = (val_type, value.dtype.str, value)
     elif isinstance(value, (datetime.datetime, datetime.time)):
-        result = (val_type, value, value.fold, type(value.tzinfo), value.tzinfo)
+        result = (val_type, value, value.fold, _tzinfo_strict_key(value.tzinfo))
+    elif val_type is datetime.timezone:
+        result = _tzinfo_strict_key(value)
     elif val_type is tuple:
         result = (tuple, tuple(_strict_hashable_key(item) for item in value))
     elif val_type is frozenset:
@@ -289,13 +300,15 @@ def _strict_equal_same_type(left: Any, right: Any) -> bool:
             and _strict_equal(left.stop, right.stop)
             and _strict_equal(left.step, right.step)
         )
+    if type(left) is datetime.timezone:
+        return left.utcoffset(None) == right.utcoffset(None) and left.tzname(
+            None
+        ) == right.tzname(None)
     if isinstance(left, (datetime.datetime, datetime.time)):
         return (
             bool(left == right)
             and left.fold == right.fold
-            and (left.tzinfo is None) == (right.tzinfo is None)
-            and type(left.tzinfo) is type(right.tzinfo)
-            and bool(left.tzinfo == right.tzinfo)
+            and _strict_equal(left.tzinfo, right.tzinfo)
         )
     return bool(left == right)
 

@@ -43,15 +43,18 @@ from ..pipeline.document import (
     _FrozenArraySpec,
     _FrozenScalarSpec,
     _FrozenSliceSpec,
+    _get_instance_dict_descriptor,
     _is_copy_on_read_scalar,
     _is_exact_immutable_scalar,
     _is_immutable_enum,
     _materialise_frozen,
     _read_enum_raw_name_value,
+    _read_instance_dict,
     _ReadOnlyMaterialisingFrozenSet,
     _ReadOnlyMaterialisingMapping,
     _ReadOnlyMaterialisingTuple,
     _validate_safe_numpy_dtype,
+    _write_instance_dict,
 )
 
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
@@ -94,9 +97,9 @@ _PYDANTIC_INTERNAL_SLOTS: frozenset[str] = frozenset({
 def _iter_custom_slots(
     cls: type[Any], skip: frozenset[str]
 ) -> tuple[tuple[type[Any], str, MemberDescriptorType], ...]:
-    """Return ``(base, name, slot_descriptor)`` for custom ``__slots__``, rejecting shadowed slots."""
+    """Return ``(base, name, slot_descriptor)`` for every distinct custom slot, rejecting shadowed slots."""
     descriptors: list[tuple[type[Any], str, MemberDescriptorType]] = []
-    seen: set[str] = set()
+    seen_descs: set[int] = set()
     for base in cls.__mro__:
         slots = base.__dict__.get("__slots__")
         if not slots:
@@ -110,18 +113,20 @@ def _iter_custom_slots(
                 stripped = base.__name__.lstrip("_")
                 if stripped:
                     resolved_name = f"_{stripped}{slot_name}"
-            if resolved_name in skip or resolved_name in seen:
+            if resolved_name in skip:
                 continue
-            seen.add(resolved_name)
             slot_desc = base.__dict__.get(resolved_name)
             found, top_attr = _find_class_attr(cls, resolved_name)
-            if found and top_attr is not slot_desc:
+            if found and not isinstance(top_attr, MemberDescriptorType):
                 raise TypeError(
                     f"Cannot safely freeze or read {cls.__name__!r}: slot "
                     f"{resolved_name!r} is shadowed by {type(top_attr).__name__!r}"
                 )
             if isinstance(slot_desc, MemberDescriptorType):
-                descriptors.append((base, resolved_name, slot_desc))
+                desc_id = id(slot_desc)
+                if desc_id not in seen_descs:
+                    seen_descs.add(desc_id)
+                    descriptors.append((base, resolved_name, slot_desc))
     return tuple(descriptors)
 
 
@@ -184,12 +189,11 @@ def _read_stored_field(target: Any, name: str) -> Any:
         raise TypeError(
             f"Cannot safely read field {name!r} backed by unvetted descriptor on {cls.__name__!r}"
         )
-    if hasattr(target, "__dict__"):
-        inst_dict = object.__getattribute__(target, "__dict__")
-        if name in inst_dict:
-            return inst_dict[name]
+    inst_dict = _read_instance_dict(target)
+    if inst_dict is not None and name in inst_dict:
+        return inst_dict[name]
     if found_cls_attr and isinstance(raw_cls_attr, MemberDescriptorType):
-        return object.__getattribute__(target, name)
+        return raw_cls_attr.__get__(target, cls)
     if found_cls_attr:
         return raw_cls_attr
     raise AttributeError(name)
@@ -228,28 +232,31 @@ def _clone_base_model(
     """Clone a Pydantic ``BaseModel`` preserving ``PrivateAttr``, extras, and cycles."""
     model_cls = type(value)
     _assert_standard_getattribute(model_cls)
+    src_dict = _read_instance_dict(value)
+    if src_dict is None:
+        raise TypeError(
+            f"Cannot safely detach BaseModel {model_cls.__name__!r} without __dict__"
+        )
     cloned = object.__new__(model_cls)
     memo[id(value)] = cloned
-    src_dict = object.__getattribute__(value, "__dict__")
-    cloned_dict = {
-        k: _detach_snapshot_tree(
+    cloned_dict = {}
+    for k, v in src_dict.items():
+        _assert_safe_hashable_key(k)
+        cloned_dict[k] = _detach_snapshot_tree(
             v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
         )
-        for k, v in src_dict.items()
-    }
-    object.__setattr__(cloned, "__dict__", cloned_dict)
+    _write_instance_dict(cloned, cloned_dict)
     fields_set = _read_pydantic_internal(value, "__pydantic_fields_set__")
     if fields_set is not None:
-        _write_pydantic_internal(
-            cloned,
-            "__pydantic_fields_set__",
-            {
+        cloned_fields_set: set[Any] = set()
+        for item in fields_set:
+            _assert_safe_hashable_key(item)
+            cloned_fields_set.add(
                 _detach_snapshot_tree(
                     item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
                 )
-                for item in fields_set
-            },
-        )
+            )
+        _write_pydantic_internal(cloned, "__pydantic_fields_set__", cloned_fields_set)
     extra = _read_pydantic_internal(value, "__pydantic_extra__")
     if extra is None:
         _write_pydantic_internal(cloned, "__pydantic_extra__", None)
@@ -265,16 +272,13 @@ def _clone_base_model(
     if private is None:
         _write_pydantic_internal(cloned, "__pydantic_private__", None)
     else:
-        _write_pydantic_internal(
-            cloned,
-            "__pydantic_private__",
-            {
-                k: _detach_snapshot_tree(
-                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                )
-                for k, v in private.items()
-            },
-        )
+        cloned_private: dict[Any, Any] = {}
+        for k, v in private.items():
+            _assert_safe_hashable_key(k)
+            cloned_private[k] = _detach_snapshot_tree(
+                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+        _write_pydantic_internal(cloned, "__pydantic_private__", cloned_private)
     _copy_slots(
         value,
         cloned,
@@ -296,18 +300,18 @@ def _clone_dataclass(
     """Clone a dataclass instance preserving declared fields (incl. class-backed defaults), extra state, and cycles."""
     dc_cls = type(value)
     _assert_standard_getattribute(dc_cls)
+    src_dict = _read_instance_dict(value)
     cloned_dc = object.__new__(dc_cls)
     memo[id(value)] = cloned_dc
     cloned_dict: dict[str, Any] | None = None
-    if hasattr(value, "__dict__"):
-        src_dict = object.__getattribute__(value, "__dict__")
-        cloned_dict = {
-            k: _detach_snapshot_tree(
+    if src_dict is not None:
+        cloned_dict = {}
+        for k, v in src_dict.items():
+            _assert_safe_hashable_key(k)
+            cloned_dict[k] = _detach_snapshot_tree(
                 v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
             )
-            for k, v in src_dict.items()
-        }
-        object.__setattr__(cloned_dc, "__dict__", cloned_dict)
+        _write_instance_dict(cloned_dc, cloned_dict)
     _copy_slots(
         value,
         cloned_dc,
@@ -328,16 +332,14 @@ def _clone_dataclass(
                 f"Cannot safely detach dataclass field {fname!r} backed by "
                 f"unvetted descriptor on {dc_cls.__name__!r}"
             )
-        detached_default = _detach_snapshot_tree(
-            raw_cls_attr, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-        )
-        if cloned_dict is not None:
-            cloned_dict[fname] = detached_default
-        elif not _is_exact_immutable_scalar(raw_cls_attr):
+        if cloned_dict is None:
             raise TypeError(
-                f"Cannot safely detach mutable class-backed default for slotted "
+                f"Cannot safely detach class-backed default for slotted "
                 f"dataclass field {fname!r} on {dc_cls.__name__!r}"
             )
+        cloned_dict[fname] = _detach_snapshot_tree(
+            raw_cls_attr, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
     return cloned_dc
 
 
@@ -396,9 +398,10 @@ def _detach_callable(
                     for k, v in value.keywords.items()
                 },
             )
-            extra_dict = getattr(value, "__dict__", None)
+            extra_dict = _read_instance_dict(value)
             if extra_dict:
                 for attr_name, attr_val in extra_dict.items():
+                    _assert_safe_hashable_key(attr_name)
                     setattr(
                         out_partial,
                         attr_name,
@@ -516,6 +519,7 @@ def _detach_sequence_or_set(
         out_set: set[Any] = set()
         memo[obj_id] = out_set
         for item in value:
+            _assert_safe_hashable_key(item)
             out_set.add(
                 _detach_snapshot_tree(
                     item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
@@ -536,7 +540,7 @@ def _detach_sequence_or_set(
         isinstance(value, tuple)
         and hasattr(type(value), "_fields")
         and type(value).__iter__ is tuple.__iter__
-        and not hasattr(value, "__dict__")
+        and _get_instance_dict_descriptor(type(value)) is None
         and not _iter_custom_slots(type(value), frozenset({"__dict__", "__weakref__"}))
     ):
         _assert_standard_getattribute(type(value))
@@ -548,12 +552,15 @@ def _detach_sequence_or_set(
         ]
         result = memo[obj_id] if obj_id in memo else tuple.__new__(type(value), items)
     elif type(value) is frozenset:
-        result = frozenset(
-            _detach_snapshot_tree(
-                item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        detached_fs_items: list[Any] = []
+        for item in value:
+            _assert_safe_hashable_key(item)
+            detached_fs_items.append(
+                _detach_snapshot_tree(
+                    item, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                )
             )
-            for item in value
-        )
+        result = frozenset(detached_fs_items)
     elif type(value) is slice:
         result = slice(
             _detach_snapshot_tree(
@@ -589,25 +596,22 @@ def _detach_plain_instance(
         or hasattr(value, "__deepcopy__")
         or hasattr(value, "__copy__")
         or type(value).__reduce_ex__ is not object.__reduce_ex__
-        or not (
-            hasattr(value, "__dict__") or bool(_iter_custom_slots(type(value), skip))
-        )
     ):
+        return False, None
+    src_dict = _read_instance_dict(value)
+    has_slots = bool(_iter_custom_slots(type(value), skip))
+    if src_dict is None and not has_slots:
         return False, None
     cloned_obj = object.__new__(type(value))
     memo[id(value)] = cloned_obj
-    if hasattr(value, "__dict__"):
-        src_dict = object.__getattribute__(value, "__dict__")
-        object.__setattr__(
-            cloned_obj,
-            "__dict__",
-            {
-                k: _detach_snapshot_tree(
-                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                )
-                for k, v in src_dict.items()
-            },
-        )
+    if src_dict is not None:
+        cloned_inst_dict: dict[str, Any] = {}
+        for k, v in src_dict.items():
+            _assert_safe_hashable_key(k)
+            cloned_inst_dict[k] = _detach_snapshot_tree(
+                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+        _write_instance_dict(cloned_obj, cloned_inst_dict)
     _copy_slots(
         value,
         cloned_obj,
@@ -661,20 +665,17 @@ def _detach_primitive_subclass(
                 or hasattr(value, "__copy__")
             ):
                 return False, None
+            src_dict = _read_instance_dict(value)
             cloned_sub = _clone_primitive_base_value(val_cls, base, value)
             memo[id(value)] = cloned_sub
-            if hasattr(value, "__dict__"):
-                src_dict = object.__getattribute__(value, "__dict__")
-                object.__setattr__(
-                    cloned_sub,
-                    "__dict__",
-                    {
-                        k: _detach_snapshot_tree(
-                            v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                        )
-                        for k, v in src_dict.items()
-                    },
-                )
+            if src_dict is not None:
+                cloned_sub_dict: dict[str, Any] = {}
+                for k, v in src_dict.items():
+                    _assert_safe_hashable_key(k)
+                    cloned_sub_dict[k] = _detach_snapshot_tree(
+                        v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                    )
+                _write_instance_dict(cloned_sub, cloned_sub_dict)
             _copy_slots(
                 value,
                 cloned_sub,
@@ -755,6 +756,7 @@ def _detach_mapping_value(
         return False, None
     memo[id(value)] = out_map
     for k, v in value.items():
+        _assert_safe_hashable_key(k)
         out_map[
             _detach_snapshot_tree(
                 k, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
@@ -928,11 +930,8 @@ def _safe_snapshot_copy(
 def _snapshot_enum_extra_attrs(member: Enum) -> Mapping[str, Any]:
     """Snapshot and freeze non-private custom attributes on *member* without custom hooks."""
     attrs: dict[str, Any] = {}
-    try:
-        inst_dict = object.__getattribute__(member, "__dict__")
-    except AttributeError:
-        inst_dict = None
-    if isinstance(inst_dict, dict):
+    inst_dict = _read_instance_dict(member)
+    if inst_dict is not None:
         for attr_name, attr_val in inst_dict.items():
             if attr_name.startswith("_") or attr_name in _ENUM_INTERNAL_ATTRS:
                 continue
@@ -1366,8 +1365,9 @@ class ReadOnlyFieldInfo:
 def _iter_instance_state_children(obj: Any, skip: frozenset[str]) -> list[Any]:
     """Return values from ``__dict__`` and custom ``__slots__`` on *obj*."""
     out: list[Any] = []
-    if hasattr(obj, "__dict__"):
-        out.extend(object.__getattribute__(obj, "__dict__").values())
+    inst_dict = _read_instance_dict(obj)
+    if inst_dict is not None:
+        out.extend(inst_dict.values())
     for base, _slot_name, slot_desc in _iter_custom_slots(type(obj), skip):
         try:
             out.append(slot_desc.__get__(obj, base))
@@ -1410,7 +1410,7 @@ def _iter_non_container_children(obj: Any) -> list[Any]:
             children.append(bound_self)
     elif isinstance(obj, functools.partial):
         children.extend((obj.func, obj.args, obj.keywords))
-        extra_dict = getattr(obj, "__dict__", None)
+        extra_dict = _read_instance_dict(obj)
         if extra_dict:
             children.append(extra_dict)
     elif not isinstance(obj, (type, bytearray, memoryview)):
@@ -1439,11 +1439,7 @@ def _iter_snapshot_children(
         children.extend(
             _iter_instance_state_children(obj, frozenset({"__dict__", "__weakref__"}))
         )
-        inst_dict = (
-            object.__getattribute__(obj, "__dict__")
-            if hasattr(obj, "__dict__")
-            else None
-        )
+        inst_dict = _read_instance_dict(obj)
         for dc_field in dc_fields(type(obj)):
             if inst_dict is not None and dc_field.name in inst_dict:
                 continue
@@ -1544,6 +1540,15 @@ _STD_HASH_METHODS = frozenset({
 })
 
 
+def _assert_safe_hashable_key(value: Any) -> None:
+    """Reject mapping keys or set elements with unvetted ``__hash__`` or ``__eq__`` hooks."""
+    if _has_custom_dunder(value, "__hash__") or _has_custom_dunder(value, "__eq__"):
+        raise TypeError(
+            f"Cannot safely detach mapping key or set element of type "
+            f"{type(value).__name__!r} with unvetted __hash__ or __eq__"
+        )
+
+
 def _has_custom_dunder(root: Any, dunder: str) -> bool:
     """Return True if any reachable object in *root* defines a non-standard ``__eq__``/``__hash__``."""
     from ...core.type import RefValue  # noqa: PLC0415
@@ -1558,11 +1563,7 @@ def _has_custom_dunder(root: Any, dunder: str) -> bool:
     stack: list[Any] = [root]
     while stack:
         obj = stack.pop()
-        if (
-            obj is None
-            or _is_exact_immutable_scalar(obj)
-            or _is_copy_on_read_scalar(obj)
-        ):
+        if _is_already_detached_scalar_or_proxy(obj) or _is_copy_on_read_scalar(obj):
             continue
         if isinstance(obj, Enum):
             if getattr(type(obj), dunder, None) not in std_enum_hooks:

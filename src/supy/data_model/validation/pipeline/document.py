@@ -24,7 +24,7 @@ from enum import Enum
 from fractions import Fraction
 from pathlib import Path, PosixPath, PurePosixPath, PureWindowsPath, WindowsPath
 import re
-from types import MappingProxyType, MemberDescriptorType
+from types import GetSetDescriptorType, MappingProxyType, MemberDescriptorType
 from typing import TYPE_CHECKING, Any, Literal
 import weakref
 from zoneinfo import ZoneInfo
@@ -285,15 +285,46 @@ def _read_enum_raw_name_value(member: Enum) -> tuple[Any, Any]:
     )
 
 
+def _get_instance_dict_descriptor(cls: type[Any]) -> GetSetDescriptorType | None:
+    """Return the verified C ``__dict__`` descriptor for *cls*, rejecting shadowed descriptors."""
+    for base in cls.__mro__:
+        if "__dict__" in base.__dict__:
+            raw_attr = base.__dict__["__dict__"]
+            if isinstance(raw_attr, GetSetDescriptorType):
+                return raw_attr
+            raise TypeError(
+                f"Cannot safely freeze or read {cls.__name__!r}: __dict__ is "
+                f"shadowed by {type(raw_attr).__name__!r}"
+            )
+    return None
+
+
+def _read_instance_dict(obj: Any) -> dict[str, Any] | None:
+    """Read *obj*'s real instance ``__dict__`` via its verified descriptor without invoking properties."""
+    desc = _get_instance_dict_descriptor(type(obj))
+    if desc is None:
+        return None
+    inst_dict = desc.__get__(obj, type(obj))
+    return inst_dict if isinstance(inst_dict, dict) else None
+
+
+def _write_instance_dict(obj: Any, new_dict: dict[str, Any]) -> None:
+    """Write *obj*'s real instance ``__dict__`` via its verified descriptor."""
+    desc = _get_instance_dict_descriptor(type(obj))
+    if desc is None:
+        raise TypeError(f"{type(obj).__name__!r} has no instance __dict__")
+    desc.__set__(obj, new_dict)
+
+
 def _enum_extra_attrs_immutable(value: Enum, seen: set[int]) -> bool:
     """Return True when all custom instance/slot attributes of *value* are immutable."""
     if not _enum_has_standard_accessors(value):
         return False
     try:
-        inst_dict = object.__getattribute__(value, "__dict__")
-    except AttributeError:
-        inst_dict = None
-    if isinstance(inst_dict, dict) and any(
+        inst_dict = _read_instance_dict(value)
+    except TypeError:
+        return False
+    if inst_dict is not None and any(
         not _is_deeply_immutable_payload(attr_val, seen)
         for attr_name, attr_val in inst_dict.items()
         if attr_name not in _ENUM_INTERNAL_ATTRS
@@ -858,11 +889,9 @@ def _copy_mapping_key(key: Any) -> Any:
         return key
     if _is_copy_on_read_scalar(key):
         return _clone_copy_on_read_scalar(key)
-    if isinstance(key, _ReadOnlyMaterialisingTuple):
+    if type(key) in {tuple, _ReadOnlyMaterialisingTuple}:
         return tuple(_copy_mapping_key(item) for item in key)
-    if isinstance(key, tuple):
-        return tuple(_copy_mapping_key(item) for item in tuple.__iter__(key))
-    if isinstance(key, (frozenset, _ReadOnlyMaterialisingFrozenSet)):
+    if type(key) in {frozenset, _ReadOnlyMaterialisingFrozenSet}:
         return frozenset(_copy_mapping_key(item) for item in key)
     if type(key) is slice:
         return slice(
@@ -871,10 +900,12 @@ def _copy_mapping_key(key: Any) -> Any:
             _copy_mapping_key(key.step),
         )
     copied = _copy_non_container_payload(key)
-    if copied is not key and copied != key:
+    if copied is not key and (
+        type(copied) is not type(key) or copied != key or hash(copied) != hash(key)
+    ):
         raise ValueError(
             f"Unsupported identity-based mapping key of type {type(key).__name__!r}; "
-            "mapping keys must preserve equality across defensive copies"
+            "mapping keys must preserve type, hash, and equality across defensive copies"
         )
     return copied
 

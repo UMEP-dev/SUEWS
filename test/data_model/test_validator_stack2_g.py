@@ -4257,3 +4257,117 @@ def test_r13_identity_keys_prim_sub_slots_tz_mutable_enum_and_nan_ledger() -> No
         ConfigPatch("p[n1]", "set", 3, path_tokens=("p", MappingKey(n1))),
     ])
     assert updated_nan.data["p"][n1] == {"value": 3}
+
+
+def test_r14_key_hash_dict_prop_tuple_sub_key_redeclared_slot_slotted_default_and_tzname() -> (
+    None
+):
+    """Cover Astra R4 findings: key __hash__ hook, __dict__ property, tuple-sub keys, redeclared slots, slotted scalar default, tzname."""
+    from dataclasses import field as dc_field  # noqa: PLC0415
+
+    # 1. Mapping/set reconstruction rejects keys with unvetted __hash__ before invoking them.
+    hash_captured: list[object] = []
+
+    class _SpyHashKey:
+        def __init__(self, payload: list[int]) -> None:
+            self.payload = payload
+
+        def __hash__(self) -> int:
+            hash_captured.append(self)
+            return 1
+
+    class _Holder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        a: object
+        b: object = None
+
+    shared = [1]
+    spy_key = _SpyHashKey(shared)
+    h_dict = _Holder(a={spy_key: 1}, b=shared)
+    h_tup = _Holder(a={(spy_key, 1): 1}, b=shared)
+    h_set = _Holder(a={spy_key}, b=shared)
+    hash_captured.clear()
+    for holder in (h_dict, h_tup, h_set):
+        with pytest.raises(TypeError, match="unvetted __hash__"):
+            freeze_model(holder)
+    assert hash_captured == []
+
+    # 2. Shadowed __dict__ property raises without invoking the property or mutating caller state.
+    dict_calls: list[str] = []
+
+    @dataclass
+    class _EvilDictDC:
+        items: list[int]
+
+        @property
+        def __dict__(self) -> dict[str, object]:  # type: ignore[override]
+            dict_calls.append("called")
+            self.items.append(99)
+            return {"items": self.items}
+
+    orig_dc = _EvilDictDC([1])
+    with pytest.raises(TypeError, match="__dict__ is shadowed"):
+        ReadOnlyDataclassProxy(orig_dc)
+    assert dict_calls == [] and orig_dc.items == [1]
+
+    # 3. Identity-hashed tuple and frozenset subclasses as mapping keys fail closed.
+    class _IdTuple(tuple):  # type: ignore[type-arg]
+        __eq__ = object.__eq__
+        __hash__ = object.__hash__
+
+    class _IdFrozenSet(frozenset):  # type: ignore[type-arg]
+        __eq__ = object.__eq__
+        __hash__ = object.__hash__
+
+    for bad_key in (_IdTuple((1, 2)), _IdFrozenSet((1, 2))):
+        with pytest.raises(ValueError, match="identity-based mapping key"):
+            normalise_patches(
+                [
+                    ConfigPatch(
+                        "p[k]", "set", "new", path_tokens=("p", MappingKey(bad_key))
+                    )
+                ],
+                {"p": {bad_key: "old"}},
+            )
+
+    # 4. Redeclared inherited __slots__ preserves both parent and child slot storage on unwrap_copy.
+    class _SlotBase:
+        __slots__ = ("x",)
+
+    class _SlotDerived(_SlotBase):
+        __slots__ = ("x",)
+
+    sd = _SlotDerived()
+    _SlotBase.x.__set__(sd, [10])
+    _SlotDerived.x.__set__(sd, [20])
+    unwrapped_sd = freeze_model(_Holder(a=sd)).unwrap_copy().a
+    assert _SlotBase.x.__get__(unwrapped_sd, _SlotBase) == [10]
+    assert _SlotDerived.x.__get__(unwrapped_sd, _SlotDerived) == [20]
+
+    # 5. Slotted dataclass with scalar init=False class-backed default is rejected (no live class leak).
+    @dataclass
+    class _SlottedScalarDefault:
+        __slots__ = ()
+        x: int = dc_field(init=False, default=1)
+
+    with pytest.raises(TypeError, match="class-backed default"):
+        ReadOnlyDataclassProxy(_SlottedScalarDefault())
+
+    # 6. No-op detection preserves datetime.timezone name changes (and hash-key distinctions).
+    tz_a = datetime.timezone(datetime.timedelta(hours=1), "A")
+    tz_b = datetime.timezone(datetime.timedelta(hours=1), "B")
+    dt_a = datetime.datetime(2024, 1, 1, tzinfo=tz_a)
+    dt_b = datetime.datetime(2024, 1, 1, tzinfo=tz_b)
+    norm_tz = normalise_patches(
+        [ConfigPatch("t", "set", dt_b, replace_raw=True)],
+        {"t": dt_a},
+    )
+    assert len(norm_tz) == 1
+    replayed_tz = {"t": dt_a}
+    apply_patches_in_place(replayed_tz, norm_tz)
+    assert replayed_tz["t"].tzname() == "B"
+    norm_tz_key = normalise_patches(
+        [ConfigPatch("m", "set", {dt_b: 1}, replace_raw=True)],
+        {"m": {dt_a: 1}},
+    )
+    assert len(norm_tz_key) == 1

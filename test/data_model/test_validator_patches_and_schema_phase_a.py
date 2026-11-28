@@ -674,19 +674,19 @@ def test_phase_a_rejects_out_of_range_nlayer_as_error(
 def test_patch_plan_apply_to_dict_copies_once_and_preserves_input(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """PatchPlan.apply_to_dict performs a single thaw_copy without mutating the caller's dict."""
+    """PatchPlan.apply_to_dict performs a single working copy without mutating the caller's dict."""
     from supy.data_model.validation.pipeline import patches as patches_mod
     from supy.data_model.validation.pipeline.document import ConfigPatch
 
     copy_calls = 0
-    real_thaw_copy = patches_mod.thaw_copy
+    real_prepare = patches_mod._prepare_working_dict
 
-    def _counting_thaw(obj):
+    def _counting_prepare(obj):
         nonlocal copy_calls
         copy_calls += 1
-        return real_thaw_copy(obj)
+        return real_prepare(obj)
 
-    monkeypatch.setattr(patches_mod, "thaw_copy", _counting_thaw)
+    monkeypatch.setattr(patches_mod, "_prepare_working_dict", _counting_prepare)
 
     source = {"sites": [{"properties": {"lat": {"value": 51.5}}}]}
     snapshot = deepcopy(source)

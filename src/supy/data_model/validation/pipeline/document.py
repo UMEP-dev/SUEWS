@@ -1153,7 +1153,7 @@ def _can_resolve_parent(
             continue
         if _is_list_index_token(token):
             assert isinstance(token, int)
-            if not isinstance(probe, list) or not (0 <= token < len(probe)):
+            if not isinstance(probe, (list, tuple)) or not (0 <= token < len(probe)):
                 return False
             probe = probe[token]
             continue

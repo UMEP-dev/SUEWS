@@ -1464,6 +1464,78 @@ def test_live_non_finite_string_mutations_rejected_when_stebbs_inactive(
         cfg.to_yaml(tmp_path / "bad_inf_scalar.yml")
 
 
+@pytest.mark.parametrize("parameters", [1, 2])
+def test_active_constant_setpoint_with_null_setpoint_profiles_roundtrips_df_state(
+    sample_dict: dict, parameters: int
+) -> None:
+    """Active STEBBS with ``setpoint=0`` and null setpoint profiles round-trips cleanly via df_state."""
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    data["model"]["physics"]["stebbs"]["setpoint"] = 0
+    data["sites"][0]["properties"]["building_archetype"][
+        "profile_setpoint_temperature_heating_air"
+    ] = None
+    data["sites"][0]["properties"]["building_archetype"][
+        "profile_setpoint_temperature_cooling_air"
+    ] = None
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert (
+        rebuilt.sites[
+            0
+        ].properties.building_archetype.profile_setpoint_temperature_heating_air
+        is None
+    )
+    assert (
+        rebuilt.sites[
+            0
+        ].properties.building_archetype.profile_setpoint_temperature_cooling_air
+        is None
+    )
+    rebuilt.validate_for_engine()
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+def test_active_stebbs_requires_complete_144_slot_ten_minute_profiles(
+    sample_dict: dict, parameters: int
+) -> None:
+    """Active STEBBS rejects incomplete 10-minute profiles on load, live activation, and df_state."""
+    sparse_profile = {"working_day": {"1": 0.0}, "holiday": {"1": 0.0}}
+
+    # Direct active construction
+    active_data = copy.deepcopy(sample_dict)
+    _enable_stebbs(active_data, parameters=parameters)
+    active_data["sites"][0]["properties"]["stebbs"]["profile_flow_hot_water"] = (
+        copy.deepcopy(sparse_profile)
+    )
+    with pytest.raises((ValidationError, ValueError), match="profile_flow_hot_water"):
+        SUEWSConfig.from_dict(active_data)
+
+    # Inactive load -> live activation
+    inactive_data = copy.deepcopy(sample_dict)
+    _disable_stebbs(inactive_data)
+    inactive_data["model"]["physics"]["stebbs"]["parameters"] = parameters
+    inactive_data["sites"][0]["properties"]["stebbs"]["profile_flow_hot_water"] = (
+        copy.deepcopy(sparse_profile)
+    )
+    cfg = SUEWSConfig.from_dict(inactive_data)
+    df_state = cfg.to_df_state()
+    df_state.loc[1, ("stebbsmethod", "0")] = parameters
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    assert rebuilt.sites[0].properties.stebbs.profile_flow_hot_water.working_day == {
+        "1": 0.0
+    }
+    with pytest.raises(ValueError, match="profile_flow_hot_water"):
+        rebuilt.validate_for_engine()
+
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="profile_flow_hot_water"):
+        cfg.validate_for_engine()
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

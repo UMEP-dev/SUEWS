@@ -1014,44 +1014,26 @@ class TenMinuteProfile(DataModelBase):
                     return None
             return raw_val
 
-        if allow_inactive_nulls:
-            wd_cols = [
-                (i, (param_name, f"({i}, 0)"))
-                for i in range(144)
-                if (param_name, f"({i}, 0)") in df.columns
-            ]
-            hol_cols = [
-                (i, (param_name, f"({i}, 1)"))
-                for i in range(144)
-                if (param_name, f"({i}, 1)") in df.columns
-            ]
-            working_day = (
-                {str(i + 1): _normalise_cell(df.loc[grid_id, col]) for i, col in wd_cols}
-                if wd_cols
-                else None
-            )
-            holiday = (
-                {
-                    str(i + 1): _normalise_cell(df.loc[grid_id, col])
-                    for i, col in hol_cols
-                }
-                if hol_cols
-                else None
-            )
-            return cls.model_validate({"working_day": working_day, "holiday": holiday})
-
-        # Extract working day values (index 0)
-        working_day = {
-            str(i + 1): _normalise_cell(df.loc[grid_id, (param_name, f"({i}, 0)")])
+        wd_cols = [
+            (i, (param_name, f"({i}, 0)"))
             for i in range(144)
-        }
-
-        # Extract holiday values (index 1)
-        holiday = {
-            str(i + 1): _normalise_cell(df.loc[grid_id, (param_name, f"({i}, 1)")])
+            if (param_name, f"({i}, 0)") in df.columns
+        ]
+        hol_cols = [
+            (i, (param_name, f"({i}, 1)"))
             for i in range(144)
-        }
-
+            if (param_name, f"({i}, 1)") in df.columns
+        ]
+        working_day = (
+            {str(i + 1): _normalise_cell(df.loc[grid_id, col]) for i, col in wd_cols}
+            if wd_cols
+            else None
+        )
+        holiday = (
+            {str(i + 1): _normalise_cell(df.loc[grid_id, col]) for i, col in hol_cols}
+            if hol_cols
+            else None
+        )
         return cls.model_validate({"working_day": working_day, "holiday": holiday})
 
 

@@ -49,6 +49,7 @@ from .model import (
 )
 from .profile import (
     _CANONICAL_HOUR_KEY_SET,
+    CANONICAL_TEN_MINUTE_KEYS,
     DAY_NIGHT_HOURLY_PROFILE_NAMES,
     TenMinuteProfile,
     normalise_hourly_profile_mapping,
@@ -2174,6 +2175,17 @@ class SUEWSConfig(DataModelBase):
                     day_map = getattr(prof, day_key, None)
                     if not isinstance(day_map, Mapping):
                         bad.append(f"{label}.{day_key} must be a 10-minute mapping when STEBBS is enabled")
+                        continue
+                    missing_steps = [
+                        step_k
+                        for step_k in CANONICAL_TEN_MINUTE_KEYS
+                        if step_k not in day_map
+                    ]
+                    if missing_steps:
+                        bad.append(
+                            f"{label}.{day_key}.{missing_steps[0]} is missing "
+                            f"({len(missing_steps)} of 144 ten-minute slots missing when STEBBS is enabled)"
+                        )
                         continue
                     for step_k, step_v in day_map.items():
                         if (

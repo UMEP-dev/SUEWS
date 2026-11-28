@@ -1189,30 +1189,6 @@
       "rationale": "HourlyProfile working_day/holiday mappings allow dict values of None and serialize them as null in engine YAML."
     },
     {
-      "id": "stebbs-144step-profile-slots-active",
-      "anchors": [
-        "spartacus_ehc_stebbs"
-      ],
-      "path_patterns": [
-        "sites[0].properties.stebbs.profile_appliance.*.*",
-        "sites[0].properties.stebbs.profile_flow_hot_water.*.*",
-        "sites[0].properties.building_archetype.profile_metabolism.*.*",
-        "sites[0].properties.building_archetype.profile_setpoint_temperature_heating_air.*.*",
-        "sites[0].properties.building_archetype.profile_setpoint_temperature_cooling_air.*.*"
-      ],
-      "mutations": {
-        "omit": "dropped"
-      },
-      "category": "active_gap",
-      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); omitting a 10-minute slot passes validation whilst explicit null slots are rejected.",
-      "owner_issue": "#2309",
-      "related_issues": [
-        "#1991",
-        "#2001"
-      ],
-      "rationale": "144-step STEBBS profile dicts do not yet require complete slot coverage on omit."
-    },
-    {
       "id": "stebbs-144step-profile-slots-inactive",
       "anchors": [
         "all_surfaces_baseline",

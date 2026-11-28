@@ -2815,7 +2815,7 @@ class ArchetypeProperties(DataModelBase):
                 ).lower()
                 has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
-                    if stebbs_inactive and all(
+                    if all(
                         (col_name, f"({bin_idx}, {day_idx})") in df.columns
                         and pd.isna(df.loc[grid_id, (col_name, f"({bin_idx}, {day_idx})")])
                         for day_idx in (0, 1)
@@ -2823,12 +2823,9 @@ class ArchetypeProperties(DataModelBase):
                     ):
                         params[field_name] = None
                     else:
-                        try:
-                            params[field_name] = ten_minute_profile_classes[
-                                field_name
-                            ].from_df_state(df, grid_id, col_name)
-                        except KeyError:
-                            params[field_name] = getattr(default_instance, field_name)
+                        params[field_name] = ten_minute_profile_classes[
+                            field_name
+                        ].from_df_state(df, grid_id, col_name)
                 else:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
@@ -3713,7 +3710,7 @@ class StebbsProperties(DataModelBase):
                 ).lower()
                 has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
-                    if stebbs_inactive and all(
+                    if all(
                         (col_name, f"({bin_idx}, {day_idx})") in df.columns
                         and pd.isna(df.loc[grid_id, (col_name, f"({bin_idx}, {day_idx})")])
                         for day_idx in (0, 1)
@@ -3721,12 +3718,9 @@ class StebbsProperties(DataModelBase):
                     ):
                         params[field_name] = None
                     else:
-                        try:
-                            params[field_name] = TenMinuteProfile.from_df_state(
-                                df, grid_id, col_name
-                            )
-                        except KeyError:
-                            params[field_name] = getattr(default_instance, field_name)
+                        params[field_name] = TenMinuteProfile.from_df_state(
+                            df, grid_id, col_name
+                        )
                 else:
                     params[field_name] = getattr(default_instance, field_name)
                 continue

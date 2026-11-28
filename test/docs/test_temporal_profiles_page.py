@@ -23,6 +23,7 @@ PROFILE_CLASSES = {
         profile.DayProfile,
         profile.WeeklyProfile,
         profile.HourlyProfile,
+        profile.DayNightHourlyProfile,
         profile.TenMinuteProfile,
         profile.HeatingSetpointProfile,
         profile.CoolingSetpointProfile,

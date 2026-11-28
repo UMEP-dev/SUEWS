@@ -22,6 +22,7 @@ from shutil import copyfile, move, rmtree
 import sys
 from tempfile import TemporaryDirectory
 import textwrap
+from typing import Optional
 
 # ignore warnings raised by numpy when reading-in -9 lines
 import warnings
@@ -1567,6 +1568,24 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 
     logger_supy.info(f"filesToConvert: {filesToConvert}")
 
+    # Resolve collision-safe day/night default profile code (uniform 1.0 on
+    # [1.0, 2.0]) before applying this step's Add rules so conversion never
+    # aliases onto a user-owned profile code and remains self-contained even
+    # when validate_profiles=False.
+    day_night_sentinel = str(ProfileManager.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+    step_actions = rules.iloc[posRules]
+    added_day_night = (
+        (step_actions["Action"] == "Add")
+        & (step_actions["Value"].astype(str).str.strip() == day_night_sentinel)
+    ).any()
+    resolved_day_night_code: Optional[str] = None
+    if added_day_night:
+        profiles_path = Path(toDir) / "SUEWS_Profiles.txt"
+        resolved_day_night_code = str(
+            ProfileManager(profiles_path if profiles_path.exists() else None)
+            .resolve_day_night_default_code(Path(toDir))
+        )
+
     for fileX in filesToConvert:
         logger_supy.info(f"working on file: {fileX}")
 
@@ -1590,10 +1609,20 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
                 )
                 continue
 
-            actionList = actionList[:, 2:]
+            actionList = actionList[:, 2:].copy()
             # actionList = np.array(actionList.tolist())[:, 2:].astype('S140')
             # prepend toDir to fileX
             actionList[:, 1] = os.path.join(toDir, fileX)
+            if (
+                resolved_day_night_code is not None
+                and resolved_day_night_code != day_night_sentinel
+            ):
+                for row_idx in range(len(actionList)):
+                    if (
+                        str(actionList[row_idx, 0]) == "Add"
+                        and str(actionList[row_idx, 4]).strip() == day_night_sentinel
+                    ):
+                        actionList[row_idx, 4] = resolved_day_night_code
             # print('actionList:', actionList)
             SUEWS_Converter_file(os.path.join(toDir, fileX), actionList)
         except Exception as e:

@@ -14,7 +14,7 @@
   "columns": 82,
   "hash_format": "SHA-256 with CRLF folded to LF",
   "files": {
-    "sample_config.yml": "2bb709002e9dcf1c657d14ca8333ac8301b144267ce2e2f31da6949ace873bc3",
+    "sample_config.yml": "0219ab9818855e55b1f0bf96ac23ab5e43218c12e2d2ef2ca6b7cd2d50ceada2",
     "test_2017_data_15_mp.txt": "c3632f3329acc0391ebb8e605a106dd457540bd15a93a3524ae1156506257106",
     "sample_output_stebbs.csv": "e98a2dd854f993033881b9c83bcdc853369d9c6da8e3c2f4751725fc8b6c30bc"
   }

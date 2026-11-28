@@ -209,13 +209,18 @@ def test_all_seven_profiles_normalise_across_config_export_and_simulation(
     """Zero-padded keys across all 7 profiles normalise on load, YAML export, and engine export."""
     raw = _load_sample_dict()
     props = raw["sites"][0]["properties"]
+    profile_bases = {
+        ("anthropogenic_emissions", "heat", "popprof_24hr"): 1.1,
+        ("anthropogenic_emissions", "co2", "profile_human_activity_24hr"): 1.2,
+    }
     for idx, rel_path in enumerate(SEVEN_PROFILE_PATHS, start=1):
+        base = profile_bases.get(rel_path, float(idx))
         _set_nested(
             props,
             rel_path,
             {
-                "working_day": _make_zero_padded_hours(base=float(idx)),
-                "holiday": _make_zero_padded_hours(base=float(idx) + 0.5),
+                "working_day": _make_zero_padded_hours(base=base),
+                "holiday": _make_zero_padded_hours(base=base + 0.5),
             },
         )
 
@@ -263,14 +268,15 @@ def test_all_seven_profiles_normalise_across_config_export_and_simulation(
     )
 
     for idx, rel_path in enumerate(SEVEN_PROFILE_PATHS, start=1):
+        base = profile_bases.get(rel_path, float(idx))
         for dumped in (exported_data, engine_data):
             prof = _get_nested(dumped["sites"][0]["properties"], rel_path)
             assert tuple(prof["working_day"].keys()) == CANONICAL_HOUR_KEYS
             assert tuple(prof["holiday"].keys()) == CANONICAL_HOUR_KEYS
-            assert prof["working_day"]["1"] == pytest.approx(idx + 0.01)
-            assert prof["working_day"]["9"] == pytest.approx(idx + 0.09)
-            assert prof["working_day"]["24"] == pytest.approx(idx + 0.24)
-            assert prof["holiday"]["1"] == pytest.approx(idx + 0.51)
+            assert prof["working_day"]["1"] == pytest.approx(base + 0.01)
+            assert prof["working_day"]["9"] == pytest.approx(base + 0.09)
+            assert prof["working_day"]["24"] == pytest.approx(base + 0.24)
+            assert prof["holiday"]["1"] == pytest.approx(base + 0.51)
 
     # 5. to_df_state preserves canonical hourly values cleanly
     df_state = cfg_from_yaml.to_df_state()

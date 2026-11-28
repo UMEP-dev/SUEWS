@@ -1,15 +1,24 @@
 from collections.abc import Callable
 from copy import deepcopy
-from typing import Dict, Optional
+import math
+from typing import Annotated, Dict, Optional
 
+import numpy as np
 import pandas as pd
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from .field_renames import RAW_YAML_FIELD_RENAMES
-from .type import DataModelBase, Reference, df_from_cols
+from .type import DataModelBase, Reference, df_from_cols, is_finite_real_number
 
 CANONICAL_HOUR_KEYS: tuple[str, ...] = tuple(str(hour) for hour in range(1, 25))
 _CANONICAL_HOUR_KEY_SET: frozenset[str] = frozenset(CANONICAL_HOUR_KEYS)
+DAY_NIGHT_PROFILE_MIN: float = 1.0
+DAY_NIGHT_PROFILE_MAX: float = 2.0
+DAY_NIGHT_PROFILE_DEFAULT: float = 1.0
+DAY_NIGHT_HOURLY_PROFILE_NAMES: frozenset[str] = frozenset({
+    "anthropogenic_emissions.heat.popprof_24hr",
+    "anthropogenic_emissions.co2.profile_human_activity_24hr",
+})
 CANONICAL_TEN_MINUTE_KEYS: tuple[str, ...] = tuple(str(step) for step in range(1, 145))
 _CANONICAL_TEN_MINUTE_KEY_SET: frozenset[str] = frozenset(CANONICAL_TEN_MINUTE_KEYS)
 
@@ -537,8 +546,10 @@ class HourlyProfile(DataModelBase):
     (``working_day``) and one for holidays (``holiday``). Each set is a
     mapping keyed by the hour, ``"1"`` to ``"24"``, where ``"1"`` is the
     first hour of the day, starting at 00:00; all 24 keys must be present.
-    The two sets are given together. A profile left out of the
-    configuration takes a uniform 1/24 in both sets.
+    The two sets are given together. A generic profile left out of the
+    configuration takes a uniform 1/24 in both sets; ``popprof_24hr`` and
+    ``profile_human_activity_24hr`` instead default to a uniform 1.0 (night
+    level) on their ``[1.0, 2.0]`` transition scale.
 
     Used by the snow, irrigation, anthropogenic-heat, population, traffic
     and human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,
@@ -589,6 +600,11 @@ class HourlyProfile(DataModelBase):
         for k, val in normalised.items():
             if val is None:
                 out[k] = None
+            elif isinstance(val, (bool, np.bool_)):
+                raise ValueError(
+                    f"Hourly profile value for hour {k!r} must be a number, "
+                    f"not bool ({val!r})."
+                )
             else:
                 out[k] = float(val)
         return out
@@ -646,6 +662,153 @@ class HourlyProfile(DataModelBase):
         return cls(working_day=working_day, holiday=holiday)
 
 
+DayNightHourValue = Optional[
+    Annotated[
+        float,
+        Field(ge=DAY_NIGHT_PROFILE_MIN, le=DAY_NIGHT_PROFILE_MAX),
+    ]
+]
+
+
+class DayNightHourlyProfile(HourlyProfile):
+    """24-hour day/night transition profile bounded to ``[1.0, 2.0]``.
+
+    Used by ``popprof_24hr`` and ``profile_human_activity_24hr``, which the
+    anthropogenic emissions kernel consumes raw without normalisation
+    (``1.0`` = night, ``2.0`` = day, values in between = transition).
+
+    See :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment.
+    """
+
+    model_config = ConfigDict(title="Day/Night Hourly Profile")
+
+    working_day: Optional[Dict[str, DayNightHourValue]]
+    holiday: Optional[Dict[str, DayNightHourValue]]
+
+    @classmethod
+    def __init_default_values__(cls) -> Dict[str, Dict[str, float]]:
+        hourly_values = {
+            str(hour): DAY_NIGHT_PROFILE_DEFAULT for hour in range(1, 25)
+        }
+        return {"working_day": hourly_values.copy(), "holiday": hourly_values.copy()}
+
+    @field_validator("working_day", "holiday", mode="before")
+    @classmethod
+    def _validate_day_night_bounds_before(cls, v: object) -> object:
+        if not isinstance(v, dict):
+            return v
+        coerced = HourlyProfile.convert_keys_to_str(v)
+        bad_entries: list[str] = []
+        for hour, val in coerced.items():
+            if val is None:
+                continue
+            if not math.isfinite(val) or not (
+                DAY_NIGHT_PROFILE_MIN <= val <= DAY_NIGHT_PROFILE_MAX
+            ):
+                bad_entries.append(f"{hour}={val!r}")
+        if bad_entries:
+            preview = ", ".join(bad_entries[:6])
+            if len(bad_entries) > 6:
+                preview += f", ... ({len(bad_entries)} total)"
+            raise ValueError(
+                f"Day/night hourly profile values must be finite numbers in "
+                f"[{DAY_NIGHT_PROFILE_MIN}, {DAY_NIGHT_PROFILE_MAX}] "
+                "(1.0 = night, 2.0 = day, values in between = transition; "
+                f"read raw without normalisation). Out-of-range entries: {preview}."
+            )
+        return coerced
+
+    @classmethod
+    def from_df_state(
+        cls,
+        df: pd.DataFrame,
+        grid_id: int,
+        param_name: str,
+        *,
+        allow_inactive_sentinels: bool = False,
+    ) -> "DayNightHourlyProfile":
+        """Reconstruct a day/night profile from ``df_state``.
+
+        When *allow_inactive_sentinels* is ``True`` (anthropogenic emissions
+        disabled via ``emissionsmethod == 0``), exact ``NaN`` and legacy
+        ``-999`` sentinels are normalised to ``None`` (conditional absence)
+        while preserving rejection of ``+/-inf`` and finite out-of-range values.
+        """
+        from ...util._missing import SUEWS_MISSING  # noqa: PLC0415
+
+        def _normalise_cell(raw_val: object) -> object:
+            if not allow_inactive_sentinels or raw_val is None:
+                return raw_val
+            if isinstance(raw_val, (int, float, np.number)) and not isinstance(
+                raw_val, bool
+            ):
+                fval = float(raw_val)
+                if math.isnan(fval) or fval == SUEWS_MISSING:
+                    return None
+            return raw_val
+
+        working_day = {
+            str(hour + 1): _normalise_cell(
+                df.loc[grid_id, (param_name, f"({hour}, 0)")]
+            )
+            for hour in range(24)
+        }
+        holiday = {
+            str(hour + 1): _normalise_cell(
+                df.loc[grid_id, (param_name, f"({hour}, 1)")]
+            )
+            for hour in range(24)
+        }
+        return cls(working_day=working_day, holiday=holiday)
+
+
+def default_day_night_hourly_profile() -> DayNightHourlyProfile:
+    """Return a uniform 1.0 (night-level) 24-hour profile on the ``[1.0, 2.0]`` scale."""
+    hourly_values = {str(hour): DAY_NIGHT_PROFILE_DEFAULT for hour in range(1, 25)}
+    return DayNightHourlyProfile(
+        working_day=hourly_values.copy(),
+        holiday=hourly_values.copy(),
+    )
+
+
+def validate_day_night_hourly_profile(
+    profile: Optional[HourlyProfile], field_name: str
+) -> Optional[HourlyProfile]:
+    """Validate that non-null hourly values lie on the kernel's ``[1.0, 2.0]`` scale.
+
+    The anthropogenic emissions kernel reads ``popprof_24hr`` and
+    ``profile_human_activity_24hr`` raw without normalisation, weighting night
+    terms by ``(2 - x)`` and day terms by ``(x - 1)``. Values below ``1.0``
+    produce negative daytime weights and values above ``2.0`` produce negative
+    night-time weights.
+    """
+    if profile is None:
+        return None
+    bad_entries: list[str] = []
+    for day_type in ("working_day", "holiday"):
+        day_map = getattr(profile, day_type, None)
+        if not isinstance(day_map, dict):
+            continue
+        for hour, val in day_map.items():
+            if val is None:
+                continue
+            if not is_finite_real_number(val) or not (
+                DAY_NIGHT_PROFILE_MIN <= float(val) <= DAY_NIGHT_PROFILE_MAX
+            ):
+                bad_entries.append(f"{day_type}.{hour}={val!r}")
+    if bad_entries:
+        preview = ", ".join(bad_entries[:6])
+        if len(bad_entries) > 6:
+            preview += f", ... ({len(bad_entries)} total)"
+        raise ValueError(
+            f"{field_name} values must be finite numbers in "
+            f"[{DAY_NIGHT_PROFILE_MIN}, {DAY_NIGHT_PROFILE_MAX}] "
+            "(1.0 = night, 2.0 = day, values in between = transition; "
+            f"read raw without normalisation). Out-of-range entries: {preview}."
+        )
+    return profile
+
+
 class TenMinuteProfile(DataModelBase):
     """Two 10-minute mappings, ``working_day`` and ``holiday``, keyed ``"1"`` to ``"144"``.
 
@@ -690,6 +853,11 @@ class TenMinuteProfile(DataModelBase):
         for k, val in normalised.items():
             if val is None:
                 out[k] = None
+            elif isinstance(val, bool):
+                raise ValueError(
+                    f"Ten-minute profile value for step {k!r} must be a number, "
+                    f"not bool ({val!r})."
+                )
             else:
                 out[k] = float(val)
         return out

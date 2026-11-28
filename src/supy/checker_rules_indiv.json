@@ -770,9 +770,10 @@
     "humactivity_24hr": {
         "cat": "grid",
         "logic": "range",
+        "optional": false,
         "param": {
-            "max": "inf",
-            "min": 0
+            "max": 2,
+            "min": 1
         },
         "unit": "1"
     },
@@ -1242,9 +1243,10 @@
     "popprof_24hr": {
         "cat": "grid",
         "logic": "range",
+        "optional": false,
         "param": {
-            "max": "inf",
-            "min": 0
+            "max": 2,
+            "min": 1
         },
         "unit": "1"
     },

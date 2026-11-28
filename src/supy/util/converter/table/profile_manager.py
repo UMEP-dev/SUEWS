@@ -7,11 +7,12 @@ This module provides a robust profile management system that:
 4. Maintains a registry of available profiles
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 import logging
 from pathlib import Path
 from typing import ClassVar
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class ProfileManager:
         "NO_ACTIVITY": 0,  # No activity profile
         "UNIFORM": 1,  # Uniform distribution
         "PLACEHOLDER": 999,  # Placeholder for missing data
+        "DAY_NIGHT_DEFAULT": 99901,  # Uniform 1.0 (night level) on [1.0, 2.0] scale (#2043)
     }
 
     # Profile types that need to exist in SUEWS_Profiles.txt
@@ -210,6 +212,101 @@ class ProfileManager:
 
         return profiles_df
 
+    def ensure_profile_codes(self, output_path: Path, codes: Iterable[int]) -> bool:
+        """Materialise specific uniform-1.0 profile codes if missing from SUEWS_Profiles.txt.
+
+        Unlike ``ensure_required_profiles``, this preserves existing rows verbatim
+        and inserts only the requested missing codes before any ``-9`` table
+        terminator, so conversion rules can rely on their default codes even when
+        ``validate_profiles=False``.
+        """
+        profiles_file = output_path / "SUEWS_Profiles.txt"
+        self._prepare_profiles_df(f"write {profiles_file}")
+
+        requested = sorted({int(code) for code in codes if int(code) > 0})
+        missing = [code for code in requested if code not in self.available_profiles]
+        if not missing:
+            return False
+
+        new_lines = [
+            f"{code:4d}    " + "    ".join(["1.000"] * 24) + "\n" for code in missing
+        ]
+
+        if profiles_file.exists():
+            existing_lines = profiles_file.read_text(encoding="utf-8").splitlines(
+                keepends=True
+            )
+            insert_at = len(existing_lines)
+            for idx, line in enumerate(existing_lines):
+                tokens = line.split()
+                if tokens and tokens[0] == "-9":
+                    insert_at = idx
+                    break
+            prefix = existing_lines[:insert_at]
+            suffix = existing_lines[insert_at:]
+            if prefix and not prefix[-1].endswith(("\n", "\r")):
+                prefix[-1] = prefix[-1] + "\n"
+            profiles_file.write_text(
+                "".join(prefix + new_lines + suffix), encoding="utf-8"
+            )
+        else:
+            header = (
+                "    ".join(str(i) for i in range(1, 26))
+                + "\n"
+                + "Code    "
+                + "    ".join(str(i) for i in range(24))
+                + "\n"
+            )
+            profiles_file.write_text(
+                header + "".join(new_lines) + "-9\n-9\n", encoding="utf-8"
+            )
+
+        self.profiles_path = profiles_file
+        self.load_profiles()
+        if self._load_error is not None:
+            raise ValueError(
+                f"Reloading {profiles_file} failed after writing default profile "
+                f"code(s) {missing}: {self._load_error}"
+            ) from self._load_error
+        logger.info(
+            f"Materialised conversion default profile code(s) {missing} in {profiles_file}"
+        )
+        return True
+
+    def resolve_day_night_default_code(self, output_path: Path) -> int:
+        """Return a uniform-1.0 profile code in SUEWS_Profiles.txt without clobbering user rows.
+
+        Reuses ``DAY_NIGHT_DEFAULT`` (99901) only when it is absent (creating it)
+        or already holds twenty-four ``1.0`` values. If the table already defines
+        99901 with different values, allocates the next unused code (>= 99902),
+        materialises uniform ``1.0`` there, and leaves the user's 99901 untouched.
+        """
+        profiles_file = output_path / "SUEWS_Profiles.txt"
+        self._prepare_profiles_df(
+            f"resolve day/night default profile code for {profiles_file}"
+        )
+
+        preferred = int(self.DEFAULT_PROFILES["DAY_NIGHT_DEFAULT"])
+        if preferred in self.available_profiles and self.profile_data is not None:
+            row = self.profile_data.loc[preferred]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            vals = pd.to_numeric(row.iloc[:24], errors="coerce").to_numpy(dtype=float)
+            if (
+                len(vals) == 24
+                and bool(np.all(np.isfinite(vals)))
+                and bool(np.all(vals == 1.0))
+            ):
+                return preferred
+            candidate = preferred + 1
+            while candidate in self.available_profiles:
+                candidate += 1
+            self.ensure_profile_codes(output_path, [candidate])
+            return candidate
+
+        self.ensure_profile_codes(output_path, [preferred])
+        return preferred
+
     def ensure_required_profiles(self, output_path: Path):
         """Ensure all required profiles exist, creating defaults if needed.
 
@@ -221,8 +318,11 @@ class ProfileManager:
         # Validate existing profile table or initialise a 24-hour DataFrame before writing
         profiles_df = self._prepare_profiles_df(f"write {profiles_file}")
 
-        # Add default profiles if they don't exist
+        # Add default profiles if they don't exist (DAY_NIGHT_DEFAULT is resolved
+        # on demand per conversion step via resolve_day_night_default_code).
         for name, code in self.DEFAULT_PROFILES.items():
+            if name == "DAY_NIGHT_DEFAULT":
+                continue
             if code not in profiles_df.index and code > 0:
                 profiles_df.loc[code] = self.create_default_profile(
                     code, columns=profiles_df.columns

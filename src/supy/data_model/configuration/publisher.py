@@ -142,10 +142,55 @@ def generate_json_schema(
         ):
             schema["$defs"].pop(def_name, None)
 
+    # DayNightHourlyProfile [1.0, 2.0] bounds were introduced in dev24.
+    if version in SCHEMA_VERSIONS and Version(version) < Version("2026.6.dev24"):
+        _restore_historical_day_night_profiles(schema["$defs"])
+
     # Add examples
     schema["examples"] = [_get_minimal_example(version)]
 
     return schema
+
+
+def _restore_historical_day_night_profiles(definitions: Dict[str, Any]) -> None:
+    """Restore unconstrained HourlyProfile refs/descriptions published before schema 2026.6.dev24."""
+    heat_props = definitions.get("AnthropogenicHeat", {}).get("properties", {})
+    if "popprof_24hr" in heat_props:
+        heat_props["popprof_24hr"]["$ref"] = "#/$defs/HourlyProfile"
+        heat_props["popprof_24hr"]["description"] = (
+            "24-hour profile of population density"
+        )
+
+    co2_props = definitions.get("CO2Params", {}).get("properties", {})
+    if "profile_human_activity_24hr" in co2_props:
+        co2_props["profile_human_activity_24hr"]["anyOf"] = [
+            {"$ref": "#/$defs/HourlyProfile"},
+            {"type": "null"},
+        ]
+        co2_props["profile_human_activity_24hr"]["description"] = (
+            "24-hour profile of human activity"
+        )
+
+    hourly_def = definitions.get("HourlyProfile")
+    if isinstance(hourly_def, dict):
+        hourly_def["description"] = (
+            "24-hour profile for diurnal variations.\n\n"
+            "Holds two sets of 24 hourly values, one for working days\n"
+            "(``working_day``) and one for holidays (``holiday``). Each set is a\n"
+            'mapping keyed by the hour, ``"1"`` to ``"24"``, where ``"1"`` is the\n'
+            "first hour of the day, starting at 00:00; all 24 keys must be present.\n"
+            "The two sets are given together. A profile left out of the\n"
+            "configuration takes a uniform 1/24 in both sets.\n\n"
+            "Used by the snow, irrigation, anthropogenic-heat, population, traffic\n"
+            "and human-activity profiles: ``snow_profile_24hr``, ``wuprofa_24hr``,\n"
+            "``wuprofm_24hr``, ``ahprof_24hr``, ``popprof_24hr``,\n"
+            "``profile_traffic_24hr`` and ``profile_human_activity_24hr``.\n"
+            "The 10-minute STEBBS profiles use ``TenMinuteProfile`` and its setpoint\n"
+            "subclasses instead.\n\n"
+            "See :doc:`/inputs/yaml/temporal-profiles` for timing and value treatment."
+        )
+
+    definitions.pop("DayNightHourlyProfile", None)
 
 
 def _apply_dev17_doy_json_schema(definitions: Dict[str, Any]) -> None:

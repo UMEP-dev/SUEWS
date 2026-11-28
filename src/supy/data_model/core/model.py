@@ -1634,17 +1634,40 @@ class ModelPhysics(DataModelBase):
         stebbs_enabled = stebbs_code != 0
         cols[("stebbsmethod", "0")] = stebbs_code
 
-        for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
-            value = getattr(stebbs, member_name)
-            val = value.value if isinstance(value, RefValue) else value
-            if not stebbs_enabled and (
-                val is None
-                or isinstance(val, str)
-                or (isinstance(val, float) and not val.is_integer())
-            ):
-                cols[(col_name, "0")] = val
-            else:
+        if stebbs_enabled:
+            tok = _STEBBS_ACTIVE_CONTEXT.set(True)
+            try:
+                stebbs_payload = {}
+                for field_name in StebbsPhysics.model_fields:
+                    raw = getattr(stebbs, field_name)
+                    if isinstance(raw, RefValue):
+                        entry: dict[str, Any] = {"value": raw.value}
+                        if raw.ref is not None:
+                            entry["ref"] = raw.ref
+                        stebbs_payload[field_name] = entry
+                    else:
+                        stebbs_payload[field_name] = raw
+                validated_stebbs = StebbsPhysics.model_validate(stebbs_payload)
+            except ValueError as exc:
+                raise ValueError(f"Invalid active model.physics.stebbs: {exc}") from exc
+            finally:
+                _STEBBS_ACTIVE_CONTEXT.reset(tok)
+            for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
+                value = getattr(validated_stebbs, member_name)
+                val = value.value if isinstance(value, RefValue) else value
                 cols[(col_name, "0")] = int(val)
+        else:
+            for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
+                value = getattr(stebbs, member_name)
+                val = value.value if isinstance(value, RefValue) else value
+                if (
+                    val is None
+                    or isinstance(val, str)
+                    or (isinstance(val, float) and not val.is_integer())
+                ):
+                    cols[(col_name, "0")] = val
+                else:
+                    cols[(col_name, "0")] = int(val)
 
         return cols
 

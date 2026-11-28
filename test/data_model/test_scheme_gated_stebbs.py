@@ -1588,6 +1588,21 @@ def test_df_state_activation_rejects_non_integer_subordinate_and_master_switches
         SUEWSConfig.from_df_state(df_bad_master)
 
 
+@pytest.mark.parametrize(
+    "bad_cap", [1.5, {"value": 1.5}, 99, "TBD", None, {"value": None}]
+)
+def test_standalone_model_physics_to_df_state_rejects_invalid_active_subordinate_switches(
+    bad_cap,
+) -> None:
+    """Standalone ``ModelPhysics.to_df_state()`` validates active switches instead of truncating."""
+    physics = ModelPhysics(
+        stebbs={"enabled": False, "parameters": 2, "capacitance": bad_cap}
+    )
+    physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match="capacitance"):
+        physics.to_df_state(1)
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

@@ -1691,7 +1691,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: nsurf, NVegSurf, &
                                ivConif, ivDecid, ivGrass, &
                                ConifSurf, DecidSurf, GrassSurf, BSoilSurf
-      USE module_phys_biogenco2, ONLY: CO2_biogen
+      USE module_phys_biogenco2, ONLY: CO2_biogen, is_valid_bioco2_val
       USE module_phys_resist, ONLY: SurfaceResistance
       USE module_phys_atmmoiststab, ONLY: cal_AtmMoist
 
@@ -1824,6 +1824,27 @@ CONTAINS
                      resp_b(ivConif) = evetrPrm%bioco2%resp_b
                      theta_bioCO2(ivConif) = evetrPrm%bioco2%theta_bioCO2
                      MaxConductance(ivConif) = evetrPrm%max_conductance
+                  ELSE IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN
+                     ! General Bellucco model (31..36): pass valid non-sentinel
+                     ! coefficients on absent surfaces to preserve legacy
+                     ! normalisation, or -999 sentinel when absent/poisoned.
+                     IF (is_valid_bioco2_val(evetrPrm%bioco2%alpha_bioco2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%beta_bioCO2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%theta_bioCO2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%alpha_enh_bioco2) .AND. &
+                         is_valid_bioco2_val(evetrPrm%bioco2%beta_enh_bioco2)) THEN
+                        alpha_bioCO2(ivConif) = evetrPrm%bioco2%alpha_bioco2
+                        alpha_enh_bioCO2(ivConif) = evetrPrm%bioco2%alpha_enh_bioco2
+                        beta_bioCO2(ivConif) = evetrPrm%bioco2%beta_bioCO2
+                        beta_enh_bioCO2(ivConif) = evetrPrm%bioco2%beta_enh_bioCO2
+                        theta_bioCO2(ivConif) = evetrPrm%bioco2%theta_bioCO2
+                     ELSE
+                        alpha_bioCO2(ivConif) = -999.0D0
+                        alpha_enh_bioCO2(ivConif) = -999.0D0
+                        beta_bioCO2(ivConif) = -999.0D0
+                        beta_enh_bioCO2(ivConif) = -999.0D0
+                        theta_bioCO2(ivConif) = -999.0D0
+                     END IF
                   END IF
                   IF (sfr_surf(DecidSurf) > 0.0D0) THEN
                      alpha_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_bioco2
@@ -1837,6 +1858,18 @@ CONTAINS
                      resp_b(ivDecid) = dectrPrm%bioco2%resp_b
                      theta_bioCO2(ivDecid) = dectrPrm%bioco2%theta_bioCO2
                      MaxConductance(ivDecid) = dectrPrm%max_conductance
+                  ELSE IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN
+                     IF (is_valid_bioco2_val(dectrPrm%bioco2%alpha_bioco2) .AND. &
+                         is_valid_bioco2_val(dectrPrm%bioco2%beta_bioCO2) .AND. &
+                         is_valid_bioco2_val(dectrPrm%bioco2%theta_bioCO2)) THEN
+                        alpha_bioCO2(ivDecid) = dectrPrm%bioco2%alpha_bioco2
+                        beta_bioCO2(ivDecid) = dectrPrm%bioco2%beta_bioCO2
+                        theta_bioCO2(ivDecid) = dectrPrm%bioco2%theta_bioCO2
+                     ELSE
+                        alpha_bioCO2(ivDecid) = -999.0D0
+                        beta_bioCO2(ivDecid) = -999.0D0
+                        theta_bioCO2(ivDecid) = -999.0D0
+                     END IF
                   END IF
                   IF (sfr_surf(GrassSurf) > 0.0D0) THEN
                      alpha_bioCO2(ivGrass) = grassPrm%bioco2%alpha_bioco2
@@ -1850,6 +1883,18 @@ CONTAINS
                      resp_b(ivGrass) = grassPrm%bioco2%resp_b
                      theta_bioCO2(ivGrass) = grassPrm%bioco2%theta_bioCO2
                      MaxConductance(ivGrass) = grassPrm%max_conductance
+                  ELSE IF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN
+                     IF (is_valid_bioco2_val(grassPrm%bioco2%alpha_bioco2) .AND. &
+                         is_valid_bioco2_val(grassPrm%bioco2%beta_bioCO2) .AND. &
+                         is_valid_bioco2_val(grassPrm%bioco2%theta_bioCO2)) THEN
+                        alpha_bioCO2(ivGrass) = grassPrm%bioco2%alpha_bioco2
+                        beta_bioCO2(ivGrass) = grassPrm%bioco2%beta_bioCO2
+                        theta_bioCO2(ivGrass) = grassPrm%bioco2%theta_bioCO2
+                     ELSE
+                        alpha_bioCO2(ivGrass) = -999.0D0
+                        beta_bioCO2(ivGrass) = -999.0D0
+                        theta_bioCO2(ivGrass) = -999.0D0
+                     END IF
                   END IF
 
                   ! Initialise conductance functions for biogenic CO2 calculations

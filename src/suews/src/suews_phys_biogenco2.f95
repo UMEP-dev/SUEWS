@@ -1,10 +1,21 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_biogenco2
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite
    USE module_ctrl_const_physconst, ONLY: JtoumolPAR, KdntoPAR
    USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS
+
+   PURE LOGICAL FUNCTION is_valid_bioco2_val(val) RESULT(is_valid)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: val
+      IF (.NOT. ieee_is_finite(val)) THEN
+         is_valid = .FALSE.
+         RETURN
+      END IF
+      is_valid = (val /= -999.0D0)
+   END FUNCTION is_valid_bioco2_val
 !========================================================================================
 ! Created by HCW Aug 2016 to calculate biogenic component of CO2 flux.
 ! This subroutine is still under development and in the equations there might be bugs and
@@ -152,10 +163,28 @@ CONTAINS
 
       ELSEIF (EmissionsMethod >= 31 .AND. EmissionsMethod <= 36) THEN !General model, Bellucco et al. (2017)
          ! Not currently recommended as includes also some anthropogenic impacts. Should maybe be separate from other biogen choices?
-         ! Alpha and beta calculated as a function of vegetation cover fraction
+         ! Alpha and beta calculated as a function of vegetation cover fraction.
+         ! Preserve the exact legacy 3-surface formula whenever all three
+         ! surfaces are present OR carry finite non-sentinel coefficients, and
+         ! restrict to present surfaces only when an absent surface holds a
+         ! NaN or -999 sentinel (#2363).
          all_veg_present = (sfr_surf(ConifSurf) > 0.0D0 .AND. &
                             sfr_surf(DecidSurf) > 0.0D0 .AND. &
                             sfr_surf(GrassSurf) > 0.0D0)
+         IF (.NOT. all_veg_present) THEN
+            all_veg_present = &
+               is_valid_bioco2_val(alpha_bioCO2(ivConif)) .AND. &
+               is_valid_bioco2_val(alpha_bioCO2(ivDecid)) .AND. &
+               is_valid_bioco2_val(alpha_bioCO2(ivGrass)) .AND. &
+               is_valid_bioco2_val(beta_bioCO2(ivConif)) .AND. &
+               is_valid_bioco2_val(beta_bioCO2(ivDecid)) .AND. &
+               is_valid_bioco2_val(beta_bioCO2(ivGrass)) .AND. &
+               is_valid_bioco2_val(theta_bioCO2(ivConif)) .AND. &
+               is_valid_bioco2_val(theta_bioCO2(ivDecid)) .AND. &
+               is_valid_bioco2_val(theta_bioCO2(ivGrass)) .AND. &
+               is_valid_bioco2_val(alpha_enh_bioCO2(ivConif)) .AND. &
+               is_valid_bioco2_val(beta_enh_bioCO2(ivConif))
+         END IF
 
          IF (all_veg_present) THEN
             !Different alpha, beta and theta vegetation cover values should be same in BiogenCO2Method = 3.

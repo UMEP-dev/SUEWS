@@ -155,6 +155,22 @@ CONTAINS
          )
 
          IF (lai_calc_yes /= 0) THEN
+            ! For absent surfaces (sfr == 0), skip only the specific singular
+            ! zero-base negative-exponent case if the active season/threshold
+            ! would actually fire, preserving valid zero-LAI growth when the
+            ! active season's exponent is non-negative (#2363).
+            IF (.NOT. active_veg(iv)) THEN
+               IF (lai_id_prev(iv) <= 0.0D0 .AND. &
+                   .NOT. (lai_min(iv) == 0.0D0 .AND. lai_max(iv) == 0.0D0)) THEN
+                  IF (((gdd_id(iv) >= gdd_base(iv)) .AND. (growth_state == 1) .AND. &
+                       (delta_gdd > 0.0D0) .AND. (lai_power(1, iv) < 0.0D0)) .OR. &
+                      ((sdd_id(iv) <= sdd_base(iv)) .AND. (senescence_state == 1) .AND. &
+                       (delta_sdd < 0.0D0) .AND. (lai_power(3, iv) < 0.0D0))) THEN
+                     lai_id_next(iv) = lai_id_prev(iv)
+                     CYCLE
+                  END IF
+               END IF
+            END IF
             CALL calculate_lai( &
                growth_state=growth_state, &
                senescence_state=senescence_state, &
@@ -187,11 +203,13 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: val
 
       ! Check finiteness before comparing so quiet NaNs never raise IEEE_INVALID.
+      ! Compare exactly against the representable -999.0D0 sentinel so nearby
+      ! valid negative thresholds (e.g. -999.0000005) are never rejected.
       IF (.NOT. ieee_is_finite(val)) THEN
          is_missing = .TRUE.
          RETURN
       END IF
-      is_missing = (ABS(val + 999.0D0) <= 1.0D-6)
+      is_missing = (val == -999.0D0)
    END FUNCTION is_missing_sentinel
 
 
@@ -212,7 +230,7 @@ CONTAINS
 
       INTEGER :: k
 
-      ! Check finiteness and recognised -999 missing sentinels on EVERY consumed
+      ! Check finiteness and exact -999.0D0 missing sentinels on EVERY consumed
       ! coefficient BEFORE any ordering comparison so quiet NaNs never raise
       ! IEEE_INVALID, finite -999 sentinels (e.g. lai_power=-999) never reach
       ! calculate_lai, and legitimate negative thresholds (e.g. sdd_base=-1000)
@@ -231,9 +249,6 @@ CONTAINS
 
       IF (lai_id_prev < 0.0D0) RETURN
       IF (lai_min < 0.0D0 .OR. lai_max < 0.0D0) RETURN
-      IF (lai_id_prev == 0.0D0 .AND. .NOT. (lai_min == 0.0D0 .AND. lai_max == 0.0D0)) THEN
-         IF (lai_power(1) < 0.0D0 .OR. lai_power(3) < 0.0D0) RETURN
-      END IF
 
       is_valid = .TRUE.
    END FUNCTION has_valid_absent_lai_params

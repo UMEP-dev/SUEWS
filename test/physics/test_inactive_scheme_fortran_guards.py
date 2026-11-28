@@ -451,6 +451,7 @@ def test_native_fortran_guards_survive_nan_and_zero_inactive_parameters(tmp_path
             "module_ctrl_error_state.mod",
             "module_ctrl_type.mod",
             "module_phys_anthro.mod",
+            "module_phys_biogenco2.mod",
             "module_phys_dailystate.mod",
             "module_phys_lai.mod",
             "module_phys_lumps.mod",
@@ -470,7 +471,7 @@ use module_ctrl_const_allocate, only: &
 use module_ctrl_const_options, only: &
    STEBBS_NONE, RC_PARAMETERISE, SHM_STEBBS
 use module_ctrl_driver, only: SUEWS_cal_Main, SUEWS_cal_Qn, SUEWS_cal_BiogenCO2
-use module_ctrl_error_state, only: reset_supy_error, supy_error_flag
+use module_ctrl_error_state, only: reset_supy_error, supy_error_flag, get_supy_error
 use module_ctrl_type, only: &
    SUEWS_CLOCK, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_STATE, &
    STEBBS_STATE, STEBBS_PRM, BUILDING_ARCHETYPE_PRM, STEBBS_BLDG, error_state, &
@@ -479,10 +480,14 @@ use module_phys_stebbs, only: stebbsonlinecouple
 use module_phys_lai, only: update_gddlai
 use module_phys_dailystate, only: SUEWS_cal_DailyState, update_DailyState_Day, update_Veg
 use module_phys_anthro, only: AnthropogenicEmissions
+use module_phys_biogenco2, only: CO2_biogen
 use module_phys_lumps, only: LUMPS_cal_QHQE
 implicit none
 
 real(kind(1d0)) :: qnan
+integer :: err_code
+character(len=256) :: err_msg
+real(kind(1d0)) :: fc_bio_leaf, fc_photo_leaf, fc_respi_leaf, fc_photo_ref
 type(SUEWS_CLOCK) :: clock
 type(SUEWS_TIMER) :: timer
 type(SUEWS_CONFIG) :: config
@@ -569,6 +574,8 @@ call clear_fpe()
 call SUEWS_cal_Qn(clock, config, forcing, siteInfo, modState, outSPARTACUS)
 call assert_no_fpe(103)
 if (.not. supy_error_flag()) stop 18
+call get_supy_error(err_code, err_msg)
+if (err_code /= 106 .or. index(err_msg, 'SHM_STEBBS') == 0) stop 18
 if (any(outSPARTACUS /= -999.0d0)) stop 19
 
 call reset_supy_error()
@@ -586,6 +593,8 @@ call clear_fpe()
 call SUEWS_cal_Main(timer, forcing, config, siteInfo, modState, outLine)
 call assert_no_fpe(104)
 if (.not. supy_error_flag()) stop 20
+call get_supy_error(err_code, err_msg)
+if (err_code /= 106 .or. index(err_msg, 'SHM_STEBBS') == 0) stop 20
 if (.not. ieee_is_finite(modState%heatState%qs)) stop 21
 config%StorageHeatMethod = 1
 
@@ -848,6 +857,33 @@ call update_Veg( &
 call assert_no_fpe(124)
 if (abs(alb_eve - 0.17d0) > 1.0d-12) stop 37
 
+! 3e. Absent surface with zero initial LAI, lai_min=0, lai_max=3,
+!     lai_power=[0, 0.01, -1, 0.01] during growth season (delta_gdd=10) and
+!     nearby non-sentinel sdd_base=-999.0000005 must preserve valid growth
+!     to LAI=0.1 and GDD accumulation (negative senescence exponent unused).
+call reset_supy_error()
+config%LAImethod = 1
+siteInfo%sfr_surf(ConifSurf) = 0.0d0
+siteInfo%lc_evetr%lai%base_temperature = 7.0d0
+siteInfo%lc_evetr%lai%base_temperature_senescence = 10.0d0
+siteInfo%lc_evetr%lai%gdd_base = 100.0d0
+siteInfo%lc_evetr%lai%sdd_base = -999.0000005d0
+siteInfo%lc_evetr%lai%lai_min = 0.0d0
+siteInfo%lc_evetr%lai%lai_max = 3.0d0
+siteInfo%lc_evetr%lai%lai_power = [0.0d0, 0.01d0, -1.0d0, 0.01d0]
+modState%phenState%Tmin_id = 12.0d0
+modState%phenState%Tmax_id = 22.0d0
+modState%phenState%LAI_id = [0.0d0, 2.0d0, 2.5d0]
+modState%phenState%GDD_id = [150.0d0, 150.0d0, 150.0d0]
+modState%phenState%SDD_id = [0.0d0, 0.0d0, 0.0d0]
+call clear_fpe()
+call SUEWS_cal_DailyState(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(127)
+if (supy_error_flag()) stop 38
+! mean T=17, base_t=7 -> delta_gdd=10 -> GDD=160; LAI = 0**0 * 10 * 0.01 + 0 = 0.1
+if (abs(modState%phenState%GDD_id(ivConif) - 160.0d0) > 1.0d-12) stop 39
+if (abs(modState%phenState%LAI_id(ivConif) - 0.1d0) > 1.0d-12) stop 43
+
 ! -------------------------------------------------------------------------
 ! 4. update_DailyState_Day with calc_hdd=.false., calc_cdd=.false. and
 !    NaN / -999 BaseT_Heating / BaseT_Cooling.
@@ -1011,6 +1047,81 @@ if (supy_error_flag()) stop 58
 if (abs(modState%anthroEmisState%Fc_photo - (-16.25d0)) > 1.0d-12) stop 59
 if (.not. (ieee_is_finite(modState%anthroEmisState%Fc_biogen) .and. &
            ieee_is_finite(modState%anthroEmisState%Fc))) stop 64
+
+! Direct leaf CO2_biogen probes with literal NaNs in absent entries:
+! (a) Method 42 with literal NaN in absent DecidSurf beta_bioCO2
+call clear_fpe()
+call CO2_biogen( &
+   [0.05d0, qnan, 0.05d0], [0.01d0, qnan, 0.01d0], 400.0d0, &
+   [20.0d0, qnan, 20.0d0], [2.0d0, qnan, 2.0d0], BSoilSurf, &
+   ConifSurf, DecidSurf, 120.5d0, 42, 0.5d0, 0.5d0, GrassSurf, 1, &
+   120, 12, ivConif, ivDecid, ivGrass, [4.0d0, 1.0d0, 2.5d0], &
+   [4.0d0, qnan, 1.6d0], [5.0d0, qnan, 5.0d0], [0.6d0, qnan, 0.6d0], &
+   nsurf, nvegsurf, [1.5d0, qnan, 1.5d0], [0.05d0, qnan, 0.05d0], &
+   [0.5d0, 0.0d0, 0.25d0, 0.0d0, 0.25d0, 0.0d0, 0.0d0], &
+   [0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0], &
+   20.0d0, [0.8d0, qnan, 0.8d0], fc_bio_leaf, fc_photo_leaf, fc_respi_leaf)
+call assert_no_fpe(128)
+if (abs(fc_photo_leaf - (-16.25d0)) > 1.0d-12) stop 68
+
+! (b) Method 32 with absent ConifSurf (sfr=[0, 0.25, 0.25]) and literal NaNs
+!     for unequal present coefficients (exercises weighted present-only branch)
+call clear_fpe()
+call CO2_biogen( &
+   [qnan, 0.02d0, 0.04d0], [qnan, 0.01d0, 0.01d0], 400.0d0, &
+   [qnan, -2.0d0, -3.0d0], [qnan, 20.0d0, 20.0d0], BSoilSurf, &
+   ConifSurf, DecidSurf, 120.5d0, 32, 0.5d0, 0.5d0, GrassSurf, 1, &
+   120, 12, ivConif, ivDecid, ivGrass, [1.0d0, 2.0d0, 2.5d0], &
+   [qnan, 1.0d0, 1.6d0], [qnan, 5.0d0, 5.0d0], [qnan, 0.6d0, 0.6d0], &
+   nsurf, nvegsurf, [qnan, 1.5d0, 1.5d0], [qnan, 0.05d0, 0.05d0], &
+   [0.5d0, 0.0d0, 0.0d0, 0.25d0, 0.25d0, 0.0d0, 0.0d0], &
+   [0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0], &
+   20.0d0, [qnan, 0.8d0, 0.7d0], fc_bio_leaf, fc_photo_leaf, fc_respi_leaf)
+call assert_no_fpe(129)
+if (.not. (ieee_is_finite(fc_photo_leaf) .and. ieee_is_finite(fc_bio_leaf))) stop 69
+
+! (c) Method 32 with absent ConifSurf and VALID unequal coefficients
+!     [0.01, 0.02, 0.04] must preserve the exact legacy 3-surface denominator
+!     (0.03 / 0.07) through SUEWS_cal_BiogenCO2 as well as CO2_biogen directly.
+siteInfo%sfr_surf = 0.0d0
+siteInfo%sfr_surf(PavSurf) = 0.5d0
+siteInfo%sfr_surf(ConifSurf) = 0.0d0
+siteInfo%sfr_surf(DecidSurf) = 0.25d0
+siteInfo%sfr_surf(GrassSurf) = 0.25d0
+siteInfo%lc_evetr%bioco2%alpha_bioco2 = 0.01d0
+siteInfo%lc_dectr%bioco2%alpha_bioco2 = 0.02d0
+siteInfo%lc_grass%bioco2%alpha_bioco2 = 0.04d0
+siteInfo%lc_evetr%bioco2%alpha_enh_bioco2 = 0.0d0
+siteInfo%lc_evetr%bioco2%beta_bioco2 = -2.0d0
+siteInfo%lc_dectr%bioco2%beta_bioco2 = -2.0d0
+siteInfo%lc_grass%bioco2%beta_bioco2 = -3.0d0
+siteInfo%lc_evetr%bioco2%beta_enh_bioco2 = 20.0d0
+siteInfo%lc_evetr%bioco2%theta_bioco2 = 0.8d0
+siteInfo%lc_dectr%bioco2%theta_bioco2 = 0.8d0
+siteInfo%lc_grass%bioco2%theta_bioco2 = 0.7d0
+siteInfo%lc_dectr%lai%lai_min = 1.0d0
+siteInfo%lc_dectr%lai%lai_max = 5.0d0
+siteInfo%lc_dectr%bioco2%resp_a = 1.5d0
+siteInfo%lc_dectr%bioco2%resp_b = 0.05d0
+siteInfo%lc_dectr%bioco2%min_res_bioco2 = 0.6d0
+modState%phenState%LAI_id = [1.0d0, 2.0d0, 2.5d0]
+config%EmissionsMethod = 32
+call clear_fpe()
+call SUEWS_cal_BiogenCO2(clock, config, forcing, siteInfo, modState)
+call assert_no_fpe(130)
+call CO2_biogen( &
+   [0.01d0, 0.02d0, 0.04d0], [0.0d0, 0.0d0, 0.0d0], 400.0d0, &
+   [-2.0d0, -2.0d0, -3.0d0], [20.0d0, 20.0d0, 20.0d0], BSoilSurf, &
+   ConifSurf, DecidSurf, 120.5d0, 32, 0.5d0, 0.5d0, GrassSurf, 1, &
+   120, 12, ivConif, ivDecid, ivGrass, [1.0d0, 2.0d0, 2.5d0], &
+   [1.0d0, 1.0d0, 1.6d0], [5.0d0, 5.0d0, 5.0d0], [0.6d0, 0.6d0, 0.6d0], &
+   nsurf, nvegsurf, [1.5d0, 1.5d0, 1.5d0], [0.05d0, 0.05d0, 0.05d0], &
+   [0.5d0, 0.0d0, 0.0d0, 0.25d0, 0.25d0, 0.0d0, 0.0d0], &
+   [0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0], &
+   20.0d0, [0.8d0, 0.8d0, 0.7d0], fc_bio_leaf, fc_photo_ref, fc_respi_leaf)
+if (abs(modState%anthroEmisState%Fc_photo - fc_photo_ref) > 1.0d-12) stop 70
+! Verify legacy 3-surface denominator (0.03/0.07) differs from 2-surface (0.03/0.06)
+if (abs(fc_photo_ref - fc_photo_leaf) <= 1.0d-6) stop 71
 
 ! Active CO2-enabled AnthropogenicEmissions (em=11, 12, 15, 42) with poisoned
 ! inactive sub-method parameters must produce finite non-zero Fc_anthro.

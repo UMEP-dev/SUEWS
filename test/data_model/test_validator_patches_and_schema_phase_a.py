@@ -22,8 +22,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sysconfig
 
+from conftest import resolve_suews_cli_command
 import pytest
 import yaml
 
@@ -404,12 +404,8 @@ def test_patches_and_phase_a_hardening_regressions(monkeypatch) -> None:
 
 
 def _installed_suews_validate_cmd() -> list[str]:
-    """Return the installed ``suews validate`` console entry point command."""
-    executable = Path(sysconfig.get_path("scripts")) / (
-        "suews" + (".exe" if os.name == "nt" else "")
-    )
-    assert executable.is_file(), f"Missing installed command: {executable}"
-    return [str(executable), "validate"]
+    """Return the ``suews validate`` CLI command for wheel or source-lane runs."""
+    return [*resolve_suews_cli_command("suews"), "validate"]
 
 
 def _copy_sample_case(dst: Path) -> Path:

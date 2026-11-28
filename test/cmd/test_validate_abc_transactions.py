@@ -10,9 +10,9 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import sysconfig
 import time
 
+from conftest import resolve_suews_cli_command
 import pytest
 import yaml
 
@@ -71,11 +71,7 @@ def source(tmp_path):
 
 
 def _entry_point(route):
-    executable = Path(sysconfig.get_path("scripts")) / (
-        route + (".exe" if os.name == "nt" else "")
-    )
-    assert executable.is_file(), f"Missing installed command: {executable}"
-    return [str(executable)] + (["validate"] if route == "suews" else [])
+    return resolve_suews_cli_command(route) + (["validate"] if route == "suews" else [])
 
 
 def _command(route, source, science, mode="public", out_format="json"):

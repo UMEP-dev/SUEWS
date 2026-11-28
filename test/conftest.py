@@ -4,6 +4,7 @@ from collections.abc import Iterator
 import copy
 from functools import lru_cache
 import gzip
+import importlib.abc
 import importlib.metadata
 from importlib.resources import as_file
 import importlib.util
@@ -16,10 +17,17 @@ import shutil
 import stat
 import subprocess
 import sys
+import sysconfig
 from typing import NoReturn
 import urllib.parse
 import urllib.request
 import warnings
+
+from click.testing import CliRunner
+import pandas as pd
+import pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Make the standalone suews_mcp package importable when it is not pip-installed
 # (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather
@@ -27,16 +35,202 @@ import warnings
 # every conftest.py the bare module name `conftest`, and a per-subdirectory
 # conftest.py shadows this one — breaking `from conftest import TIMESTEPS_PER_DAY`
 # in test/physics and test/umep during collection (gh#1384 follow-up).
-_MCP_SRC = Path(__file__).resolve().parents[1] / "mcp" / "src"
+_MCP_SRC = _REPO_ROOT / "mcp" / "src"
 if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
     sys.path.insert(0, str(_MCP_SRC))
 
-from click.testing import CliRunner
-import pandas as pd
-import pytest
 
-import supy
-from supy._env import trv_supy_module
+def _load_source_lane_bootstrap():
+    """Load or reuse ``scripts/suews/source_lane_bootstrap.py`` beside ``test/``."""
+    bootstrap_script = (
+        _REPO_ROOT / "scripts" / "suews" / "source_lane_bootstrap.py"
+    ).resolve()
+    if not bootstrap_script.is_file():
+        return None
+    existing = sys.modules.get("_suews_source_lane_bootstrap")
+    existing_file = (
+        getattr(existing, "__file__", None) if existing is not None else None
+    )
+    if existing_file:
+        try:
+            if Path(existing_file).resolve() == bootstrap_script:
+                return existing
+        except OSError:
+            pass
+    spec = importlib.util.spec_from_file_location(
+        "_suews_source_lane_bootstrap", bootstrap_script
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            f"Unable to load source-lane bootstrap module from {bootstrap_script}"
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_SOURCE_LANE_BOOTSTRAP = _load_source_lane_bootstrap()
+_OWNED_SOURCE_LANE_CONFIGS: set[object] = set()
+
+if _SOURCE_LANE_BOOTSTRAP is not None:
+    SOURCE_LANE_ENV_VAR = _SOURCE_LANE_BOOTSTRAP.SOURCE_LANE_ENV_VAR
+    FORBIDDEN_SOURCE_LANE_AXES = _SOURCE_LANE_BOOTSTRAP.FORBIDDEN_SOURCE_LANE_AXES
+    SourceLaneViolationError = _SOURCE_LANE_BOOTSTRAP.SourceLaneViolationError
+    is_source_lane_only = _SOURCE_LANE_BOOTSTRAP.is_source_lane_only
+    require_compiled_runtime = _SOURCE_LANE_BOOTSTRAP.require_compiled_runtime
+    resolve_suews_cli_command = _SOURCE_LANE_BOOTSTRAP.resolve_suews_cli_command
+    _check_selected_items_for_source_lane = (
+        _SOURCE_LANE_BOOTSTRAP.check_selected_items_for_source_lane
+    )
+else:
+    # Standalone fallback used only when `test/conftest.py` is copied into an
+    # isolated synthetic tmp_path repo without `scripts/suews/`.
+    SOURCE_LANE_ENV_VAR = "SUEWS_SOURCE_LANE_ONLY"
+    FORBIDDEN_SOURCE_LANE_AXES: frozenset[str] = frozenset({"native", "physics"})
+    _FALLBACK_BLOCKED_MODULES: frozenset[str] = frozenset({
+        "suews_bridge",
+        "supy.suews_bridge",
+        "_suews_bridge",
+        "supy._suews_bridge",
+        "_supy_driver",
+        "supy._supy_driver",
+        "_suews_driver",
+        "supy._suews_driver",
+        "supy_driver",
+        "supy.supy_driver",
+    })
+
+    class SourceLaneViolationError(RuntimeError):
+        """Raised when a source-only lane attempts to load or run compiled code."""
+
+    def is_source_lane_only(env=None) -> bool:
+        """Return True when ``SUEWS_SOURCE_LANE_ONLY`` enables source-only mode."""
+        source = os.environ if env is None else env
+        raw = source.get(SOURCE_LANE_ENV_VAR)
+        if raw is None:
+            return False
+        normalised = raw.strip().lower()
+        if not normalised or normalised in {"0", "false", "no", "off"}:
+            return False
+        if normalised in {"1", "true", "yes", "on"}:
+            return True
+        raise ValueError(f"Invalid {SOURCE_LANE_ENV_VAR}={raw!r}")
+
+    def _is_fallback_blocked(fullname: str) -> bool:
+        return fullname in _FALLBACK_BLOCKED_MODULES or any(
+            fullname.startswith(f"{name}.") for name in _FALLBACK_BLOCKED_MODULES
+        )
+
+    class _FallbackCompiledBlocker(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path, target=None):
+            del path, target
+            if _is_fallback_blocked(fullname):
+                raise SourceLaneViolationError(
+                    f"Compiled extension {fullname!r} cannot be imported when "
+                    f"{SOURCE_LANE_ENV_VAR}=1 (wheel-free source lane)."
+                )
+
+    def require_compiled_runtime(feature: str, env=None) -> None:
+        """Raise ``SourceLaneViolationError`` in source-only mode."""
+        if is_source_lane_only(env):
+            raise SourceLaneViolationError(
+                f"{feature} requires the compiled SUEWS extension or binary and "
+                f"is forbidden when {SOURCE_LANE_ENV_VAR}=1."
+            )
+
+    def resolve_suews_cli_command(route: str = "suews", *, repo_root=None, env=None):
+        """Return the installed SUEWS CLI console script command."""
+        del repo_root
+        if is_source_lane_only(env):
+            raise SourceLaneViolationError(
+                f"Cannot dispatch SUEWS CLI route {route!r} under "
+                f"{SOURCE_LANE_ENV_VAR}=1 without scripts/suews/source_lane_bootstrap.py."
+            )
+        executable = Path(sysconfig.get_path("scripts")) / (
+            route + (".exe" if os.name == "nt" else "")
+        )
+        assert executable.is_file(), f"Missing installed command: {executable}"
+        return [str(executable)]
+
+    def _check_selected_items_for_source_lane(items) -> list[str]:
+        offending = []
+        for item in items:
+            if not hasattr(item, "iter_markers"):
+                continue
+            forbidden = sorted(
+                {m.name for m in item.iter_markers()} & FORBIDDEN_SOURCE_LANE_AXES
+            )
+            if forbidden:
+                offending.append(f"{item.nodeid} ({', '.join(forbidden)})")
+        return offending
+
+
+def pytest_configure(config) -> None:
+    """Activate source-lane guards for the lifetime of this pytest session."""
+    try:
+        enabled = is_source_lane_only()
+    except ValueError as exc:
+        raise pytest.UsageError(str(exc)) from exc
+    if not enabled:
+        return
+
+    owner_key = config if config is not None else "standalone"
+    if _SOURCE_LANE_BOOTSTRAP is not None:
+        was_active = _SOURCE_LANE_BOOTSTRAP.is_active()
+        _SOURCE_LANE_BOOTSTRAP.activate(_REPO_ROOT)
+        if not was_active:
+            _OWNED_SOURCE_LANE_CONFIGS.add(owner_key)
+        return
+
+    loaded_compiled = sorted(
+        name
+        for name, module in sys.modules.items()
+        if module is not None and _is_fallback_blocked(name)
+    )
+    if loaded_compiled:
+        raise SourceLaneViolationError(
+            f"Compiled extension module(s) already loaded in sys.modules under "
+            f"{SOURCE_LANE_ENV_VAR}=1: {', '.join(loaded_compiled)}"
+        )
+    if not any(
+        isinstance(finder, _FallbackCompiledBlocker) for finder in sys.meta_path
+    ):
+        sys.meta_path.insert(0, _FallbackCompiledBlocker())
+        _OWNED_SOURCE_LANE_CONFIGS.add(owner_key)
+
+
+def pytest_unconfigure(config) -> None:
+    """Tear down source-lane guards owned by this pytest session."""
+    owner_key = config if config is not None else "standalone"
+    if owner_key not in _OWNED_SOURCE_LANE_CONFIGS:
+        return
+    _OWNED_SOURCE_LANE_CONFIGS.discard(owner_key)
+    if _OWNED_SOURCE_LANE_CONFIGS:
+        return
+    if _SOURCE_LANE_BOOTSTRAP is not None:
+        _SOURCE_LANE_BOOTSTRAP.deactivate()
+    else:
+        sys.meta_path[:] = [
+            finder
+            for finder in sys.meta_path
+            if not isinstance(finder, _FallbackCompiledBlocker)
+        ]
+
+
+def _import_supy():
+    """Import ``supy`` lazily so conftest loading stays wheel- and supy-free."""
+    import supy  # noqa: PLC0415
+
+    return supy
+
+
+def _trv_supy_module():
+    """Return ``supy._env.trv_supy_module`` lazily."""
+    from supy._env import trv_supy_module  # noqa: PLC0415
+
+    return trv_supy_module
+
 
 # =============================================================================
 # Debug Decorators - Centralised to avoid duplication in test files
@@ -155,7 +349,11 @@ def _silence_platform_support_notice():
     that platform alone. Marking the notice as shown keeps every platform
     alike; ``test/core/test_platform_notice.py`` tests the notice itself.
     """
-    import supy._env as env
+    try:
+        import supy._env as env
+    except ModuleNotFoundError:
+        yield
+        return
 
     shown = env._platform_notice_shown
     env._platform_notice_shown = True
@@ -305,7 +503,7 @@ def _parse_sample_frames():
     itself. Go through ``load_sample_frames`` or ``sample_forcing_parsed``,
     both of which copy on hand-out.
     """
-    simulation = supy.SUEWSSimulation.from_sample_data()
+    simulation = _import_supy().SUEWSSimulation.from_sample_data()
     return simulation.state_init, simulation.forcing.df
 
 
@@ -328,7 +526,8 @@ def run_simulation(
     validate_forcing=True,
 ):
     """Run DataFrame fixtures through the supported OOP interface."""
-    simulation = supy.SUEWSSimulation.from_state(df_state_init)
+    require_compiled_runtime("conftest.run_simulation")
+    simulation = _import_supy().SUEWSSimulation.from_state(df_state_init)
     if validate_forcing:
         simulation.update_forcing(df_forcing)
     else:
@@ -508,14 +707,48 @@ def pytest_deselected(items):
         bucket.append(item)
 
 
+def pytest_runtest_setup(item):
+    """Forbid executing ``native`` or ``physics`` tests when ``SUEWS_SOURCE_LANE_ONLY=1``."""
+    try:
+        source_lane_only = is_source_lane_only()
+    except ValueError as exc:
+        raise pytest.UsageError(str(exc)) from exc
+    if not source_lane_only:
+        return
+    forbidden = sorted(
+        {m.name for m in item.iter_markers()} & FORBIDDEN_SOURCE_LANE_AXES
+    )
+    if forbidden:
+        raise SourceLaneViolationError(
+            f"Test {item.nodeid} carries forbidden compiled-axis marker(s) "
+            f"{', '.join(forbidden)} under {SOURCE_LANE_ENV_VAR}=1."
+        )
+
+
 def pytest_collection_finish(session):
-    """Enforce that every collected test carries exactly one primary axis (gh#2349 W1-4).
+    """Enforce source-lane axis restrictions and single-primary-axis full-tree lint (gh#2349).
 
     Rationale: the 4+1 dependency-axis topology requires every collected test
     to belong to exactly one of ``{tooling, unit, native, physics}`` with zero
-    orphans and zero overlap. Fail loudly at collection time on full-tree runs
-    so misclassified tests are caught before CI.
+    orphans and zero overlap, and forbids executing ``native`` or ``physics``
+    tests under ``SUEWS_SOURCE_LANE_ONLY=1``.
     """
+    try:
+        source_lane_only = is_source_lane_only()
+    except ValueError as exc:
+        raise pytest.UsageError(str(exc)) from exc
+
+    if source_lane_only and not session.config.option.collectonly:
+        forbidden_items = _check_selected_items_for_source_lane(session.items)
+        if forbidden_items:
+            bullet = "\n  - ".join(forbidden_items)
+            raise pytest.UsageError(
+                f"{SOURCE_LANE_ENV_VAR}=1 forbids executing `native` or `physics` "
+                "tests in a wheel-free source lane (select only `tooling` or "
+                "`unit` tests, or pass `--collect-only` for inventory collection):\n"
+                "  - " + bullet
+            )
+
     if not _invocation_targets_full_test_tree(session.config):
         return
 
@@ -601,7 +834,7 @@ def sample_yaml_path() -> Iterator[Path]:
     file-only ``as_file`` would hand back a config whose forcing cannot
     resolve under any non-filesystem loader.
     """
-    with as_file(trv_supy_module / "sample_data") as path_sample_dir:
+    with as_file(_trv_supy_module() / "sample_data") as path_sample_dir:
         yield path_sample_dir / "sample_config.yml"
 
 
@@ -615,8 +848,9 @@ def suews_engine_bin() -> Iterator[Path]:
     lifetime, and ensures owner-execute permission on POSIX if extracted to a
     temporary file.
     """
+    require_compiled_runtime("fixture suews_engine_bin")
     binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
-    bundled = trv_supy_module / "bin" / binary_name
+    bundled = _trv_supy_module() / "bin" / binary_name
     if bundled.is_file():
         with as_file(bundled) as bundled_path:
             path = Path(bundled_path)
@@ -642,8 +876,6 @@ def suews_engine_bin() -> Iterator[Path]:
 # =============================================================================
 # Native Fortran Probe Availability Policy (gh#2349 W1-1)
 # =============================================================================
-
-_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _is_editable_source_install(repo_root: Path = _REPO_ROOT) -> bool:
@@ -829,6 +1061,7 @@ def fortran_probe_unavailable(
     require_env_only: bool = False,
 ) -> NoReturn:
     """Fail when Fortran probes are required, otherwise skip with *reason*."""
+    require_compiled_runtime("conftest.fortran_probe_unavailable")
     required = (
         _fortran_probes_required_by_env()
         if require_env_only
@@ -865,6 +1098,7 @@ def require_fortran_probe_toolchain(
     repo_root : Path, optional
         Repository root directory; defaults to the enclosing checkout.
     """
+    require_compiled_runtime(f"Fortran probe toolchain ({description})")
     suews_dir = repo_root / "src" / "suews"
 
     if source_dir is not None and not source_dir.is_dir():
@@ -958,12 +1192,13 @@ def sample_ohm_48h_qs(sample_config_loaded, sample_data_loaded, tmp_path_factory
     copy of ``SUEWS`` ``QS`` and ``QS_Bldgs`` so shared session state cannot be
     mutated across tests.
     """
+    require_compiled_runtime("fixture sample_ohm_48h_qs")
     cfg = sample_config_loaded.model_copy(deep=True)
     cfg.model.physics.storage_heat = 1
     forcing = sample_data_loaded[1].iloc[: 2 * TIMESTEPS_PER_DAY].copy()
     path = tmp_path_factory.mktemp("ohm_48h_control") / "case.yml"
     cfg.to_yaml(path)
-    sim = supy.SUEWSSimulation()
+    sim = _import_supy().SUEWSSimulation()
     sim.update_config(path, auto_load_forcing=False)
     sim.update_forcing(forcing)
     output = sim.run(
@@ -990,6 +1225,7 @@ def continuation_reference_cache(tmp_path_factory):
     caller fresh deep copies so shared session references remain isolated
     across ``chunk``, ``checkpoint``, and ``stream`` mechanisms.
     """
+    require_compiled_runtime("fixture continuation_reference_cache")
     cache_root = tmp_path_factory.mktemp("continuation_references")
     cache: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
 
@@ -999,7 +1235,7 @@ def continuation_reference_cache(tmp_path_factory):
         forcing: pd.DataFrame,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         if key not in cache:
-            sim = supy.SUEWSSimulation()
+            sim = _import_supy().SUEWSSimulation()
             sim.update_config(yaml_path, auto_load_forcing=False)
             sim.update_forcing(forcing.copy())
             native = sim.run(
@@ -1139,7 +1375,7 @@ def short_sample_sim(short_sample_yaml_path):
     """
 
     def _sim():
-        return supy.SUEWSSimulation(str(short_sample_yaml_path))
+        return _import_supy().SUEWSSimulation(str(short_sample_yaml_path))
 
     return _sim
 
@@ -1159,7 +1395,8 @@ def completed_sample_sim(sample_yaml_path):
     none validates the full sample period. Limit the shared run to 24 steps so
     it does not retain the 105,408-row sample output for the whole session.
     """
-    sim = supy.SUEWSSimulation(str(sample_yaml_path))
+    require_compiled_runtime("fixture completed_sample_sim")
+    sim = _import_supy().SUEWSSimulation(str(sample_yaml_path))
     df_forcing_short = sim.forcing.df.iloc[:SHORT_RUN_STEPS].copy()
     sim.update_forcing(df_forcing_short)
     # The YAML requests the full sample year; bound the run explicitly so the
@@ -1199,9 +1436,10 @@ def sample_dailystate_full_year(sample_data_loaded):
     """
     import gc
 
+    require_compiled_runtime("fixture sample_dailystate_full_year")
     _record_reference_run("sample_dailystate_full_year", "full_year")
     df_state_init, df_forcing = sample_data_loaded
-    simulation = supy.SUEWSSimulation.from_state(df_state_init.copy())
+    simulation = _import_supy().SUEWSSimulation.from_state(df_state_init.copy())
     simulation.update_forcing(df_forcing)
     output = simulation.run()
     df_dailystate = output.df.loc[:, "DailyState"].dropna(how="all").copy()
@@ -1274,6 +1512,7 @@ def sample_run_cached(sample_data_loaded):
       itself test the act of running (deprecation warnings, kwargs like
       ``debug_mode``, multi-grid state, checkpoint continuation, ...).
     """
+    require_compiled_runtime("fixture sample_run_cached")
     df_state_init, df_forcing = sample_data_loaded
     cache: dict = {}
 
@@ -1283,7 +1522,7 @@ def sample_run_cached(sample_data_loaded):
             df_forcing_window = (
                 df_forcing if n_steps is None else df_forcing.iloc[:n_steps]
             )
-            simulation = supy.SUEWSSimulation.from_state(df_state_init.copy())
+            simulation = _import_supy().SUEWSSimulation.from_state(df_state_init.copy())
             simulation.update_forcing(df_forcing_window)
             output = simulation.run()
             cache[n_steps] = output.df, output.state_final
@@ -1332,7 +1571,7 @@ def _clone_suews_output(output):
         if output._kernel_warnings is not None
         else None
     )
-    return supy.SUEWSOutput(
+    return _import_supy().SUEWSOutput(
         df_output=df_output,
         df_state_final=df_state_final,
         config=config,
@@ -1361,6 +1600,7 @@ def sample_config_run_cached():
       so mutating the returned output, its DataFrames, ``attrs``,
       ``metadata``, or ``config`` cannot poison the session cache.
     """
+    require_compiled_runtime("fixture sample_config_run_cached")
     cache: dict = {}
 
     def _run(start_date=None, end_date=None):
@@ -1370,7 +1610,7 @@ def sample_config_run_cached():
                 "sample_config_run_cached",
                 f"start={start_date!r},end={end_date!r}",
             )
-            simulation = supy.SUEWSSimulation.from_sample_data()
+            simulation = _import_supy().SUEWSSimulation.from_sample_data()
             cache[key] = simulation.run(start_date=start_date, end_date=end_date)
         return _clone_suews_output(cache[key])
 
@@ -1511,6 +1751,7 @@ def stream_chunk_reference_dir(short_sample_sim, tmp_path_factory):
     the returned directory. Pass ``copy_dir=True`` when a test needs a private
     writable copy of the reference folder.
     """
+    require_compiled_runtime("fixture stream_chunk_reference_dir")
     dict_dir: dict = {}
 
     def _ref_dir(
@@ -1576,6 +1817,7 @@ def stream_chunk_reference_output(short_sample_sim, tmp_path_factory):
     back an independent deep copy via ``_clone_suews_output`` on every call so
     callers cannot poison the cache.
     """
+    require_compiled_runtime("fixture stream_chunk_reference_output")
     dict_output: dict = {}
 
     def _ref_output(

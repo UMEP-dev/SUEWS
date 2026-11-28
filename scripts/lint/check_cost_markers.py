@@ -61,8 +61,9 @@ the exit code):
   (`PARAMETRISE_EXPLOSION_CPU_SECONDS`, overridable via
   `--parametrize-budget-seconds`).
 - **Per-axis call CPU summary**: totals measured call CPU seconds per axis
-  (`tooling`, `unit`, `native`, `physics` on Schema-2 artefacts, falling back
-  gracefully to `api`/`physics` on Schema-1 or `unattributed` when unlabelled).
+  (`tooling`, `unit`, `native`, `physics` for multi-axis artefacts, also
+  recognising legacy `api`/`physics` axis labels on `schema_version: 2`
+  artefacts, or `unattributed` when unlabelled).
 - **Optional per-PR added-CPU delta**: when `--baseline-metrics` and/or
   `--budget-warn` is supplied, reports the CPU delta against the baseline (and
   whether it exceeds the advisory budget) without affecting the exit code.
@@ -78,7 +79,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 import json
 import math
@@ -660,6 +661,32 @@ def missing_required_axes(
     return missing
 
 
+def _safe_optional_call_float(
+    phase_map: Mapping[str, object],
+    *,
+    selected_phase: str,
+    selected_value: float,
+) -> float:
+    """Parse ``call`` phase seconds without failing selected-phase loading.
+
+    Returns ``math.nan`` when ``call`` is missing or non-numeric under another
+    selected phase so advisory diagnostics degrade cleanly to
+    ``advisory_errors`` without changing marker classification or exit status.
+    """
+    if selected_phase == "call":
+        return selected_value
+    if "call" not in phase_map:
+        return math.nan
+    raw = phase_map["call"]
+    if isinstance(raw, bool):
+        return math.nan
+    try:
+        value = float(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError, OverflowError):
+        return math.nan
+    return value if math.isfinite(value) else math.nan
+
+
 def load_tests(
     paths: Iterable[Path],
     *,
@@ -692,20 +719,20 @@ def load_tests(
             reasons = record.get("marker_reasons") or {}
             cpu_map = record["cpu_seconds"]
             wall_map = record["wall_seconds"]
-            call_cpu = (
-                float(cpu_map["call"]) if "call" in cpu_map else float(cpu_map[phase])
+            selected_cpu = float(cpu_map[phase])
+            selected_wall = float(wall_map[phase])
+            call_cpu = _safe_optional_call_float(
+                cpu_map, selected_phase=phase, selected_value=selected_cpu
             )
-            call_wall = (
-                float(wall_map["call"])
-                if "call" in wall_map
-                else float(wall_map[phase])
+            call_wall = _safe_optional_call_float(
+                wall_map, selected_phase=phase, selected_value=selected_wall
             )
             tests.append(
                 TestCost(
                     node_id=str(record["node_id"]),
                     markers=tuple(sorted(str(m) for m in record.get("markers", []))),
-                    cpu_seconds=float(cpu_map[phase]),
-                    wall_seconds=float(wall_map[phase]),
+                    cpu_seconds=selected_cpu,
+                    wall_seconds=selected_wall,
                     source=path.name,
                     outcome=str(record.get("outcome")),
                     marker_reasons=tuple(sorted((str(k), str(v)) for k, v in reasons.items())),
@@ -815,12 +842,20 @@ def _ordered_axes(axes: Iterable[str]) -> list[str]:
 
 
 def largest_per_axis_node(tests: Iterable[TestCost]) -> list[TestCost]:
-    """Keep one measurement per ``(axis, node_id)``: the largest call CPU cost seen."""
+    """Keep one measurement per ``(axis, node_id)``: the largest finite call CPU cost."""
     best: dict[tuple[str | None, str], TestCost] = {}
     for test in tests:
+        if test.measured and (
+            not math.isfinite(test.effective_call_cpu)
+            or not math.isfinite(test.effective_call_wall)
+        ):
+            raise ValueError(f"non-finite or missing call metrics for {test.node_id}")
         key = (test.axis, test.node_id)
         current = best.get(key)
-        if current is None or test.effective_call_cpu > current.effective_call_cpu:
+        if current is None or (
+            test.measured
+            and (not current.measured or test.effective_call_cpu > current.effective_call_cpu)
+        ):
             best[key] = test
     return [best[key] for key in sorted(best, key=lambda item: (item[0] or "", item[1]))]
 
@@ -963,6 +998,22 @@ def restrict_to_files(tests: Iterable[TestCost], test_files: Iterable[str]) -> l
     """Keep the tests whose node id lies in one of `test_files`."""
     wanted = {_posix_path(path) for path in test_files}
     return [test for test in tests if node_file(test.node_id) in wanted]
+
+
+def largest_call_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
+    """Keep one measured record per node id using the largest finite call-phase CPU cost."""
+    best: dict[str, TestCost] = {}
+    for test in tests:
+        if not test.measured:
+            continue
+        cpu = test.effective_call_cpu
+        wall = test.effective_call_wall
+        if not math.isfinite(cpu) or not math.isfinite(wall):
+            raise ValueError(f"non-finite or missing call metrics for {test.node_id}")
+        current = best.get(test.node_id)
+        if current is None or cpu > current.effective_call_cpu:
+            best[test.node_id] = test
+    return [best[node_id] for node_id in sorted(best)]
 
 
 def largest_per_node(tests: Iterable[TestCost]) -> list[TestCost]:
@@ -1117,8 +1168,9 @@ def check_costs(
     except (ValueError, TypeError, OverflowError) as exc:
         report.advisory_errors.append(f"axis summary unavailable: {exc}")
     try:
+        call_measured = [t for t in largest_call_per_node(raw_tests) if t.measured]
         report.explosion_warnings = detect_parametrize_explosions(
-            report.tests, threshold_seconds=safe_explosion
+            call_measured, threshold_seconds=safe_explosion
         )
     except (ValueError, TypeError, OverflowError) as exc:
         report.advisory_errors.append(f"parametrisation explosion check unavailable: {exc}")

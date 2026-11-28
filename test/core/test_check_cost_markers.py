@@ -739,10 +739,10 @@ def test_parametrize_explosion_warns_without_changing_exit_code(
 
 @pytest.mark.smoke
 @pytest.mark.core
-def test_per_axis_cpu_summary_supports_schema2_and_schema1_fallback(
+def test_per_axis_cpu_summary_supports_multi_axis_and_legacy_axis_labels(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Per-axis CPU summary groups Schema-2 axes and falls back cleanly on Schema-1."""
+    """Per-axis CPU summary orders 4-axis labels and recognises legacy `api`/`physics` labels."""
     s2_dir = tmp_path / "schema2"
     for axis, cpu in (("tooling", 1.2), ("unit", 3.4), ("native", 5.6), ("physics", 7.8)):
         d = s2_dir / axis
@@ -763,20 +763,23 @@ def test_per_axis_cpu_summary_supports_schema2_and_schema1_fallback(
         "physics",
     ]
 
-    # Schema-1 fallback (`api` + `physics`).
-    s1_dir = tmp_path / "schema1"
+    # Legacy `api`/`physics` axis labels inside metrics schema_version 2 artefacts.
+    legacy_dir = tmp_path / "legacy_axes"
     for axis, cpu in (("api", 4.0), ("physics", 6.0)):
-        d = s1_dir / axis
+        d = legacy_dir / axis
         d.mkdir(parents=True)
         _artefact(
             d / f"{axis}-cp312-manylinux-x86_64.json",
             [_record(f"test/core/test_{axis}.py::test_ok", call=cpu, markers=(axis,))],
         )
-    s1_json = tmp_path / "s1.json"
-    assert checker.main([str(s1_dir), "--json", str(s1_json)]) == 0
+    legacy_json = tmp_path / "legacy.json"
+    assert checker.main([str(legacy_dir), "--json", str(legacy_json)]) == 0
     capsys.readouterr()
-    s1_payload = json.loads(s1_json.read_text(encoding="utf-8"))
-    assert [row["axis"] for row in s1_payload["axis_cpu_summary"]] == ["physics", "api"]
+    legacy_payload = json.loads(legacy_json.read_text(encoding="utf-8"))
+    assert [row["axis"] for row in legacy_payload["axis_cpu_summary"]] == [
+        "physics",
+        "api",
+    ]
 
 
 @pytest.mark.smoke
@@ -1084,3 +1087,77 @@ def test_budget_delta_tracks_added_lane_execution_and_call_phase_under_setup_pha
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload["parametrize_explosion_warnings"] == []
     assert payload["axis_cpu_summary"][0]["total_cpu_seconds"] == pytest.approx(0.2)
+
+
+def test_setup_phase_isolates_null_call_and_deduplicates_explosions_by_call_cpu(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Under --phase setup, null call values degrade cleanly and explosions deduplicate by call CPU."""
+    # 1) Valid numeric setup with "call": null must NOT crash load_tests or alter exit code.
+    null_call = _artefact(
+        tmp_path / "unit-null-call.json",
+        [
+            {
+                "node_id": "test/core/test_s.py::test_setup_only",
+                "outcome": "passed",
+                "markers": ["unit"],
+                "cpu_seconds": {"setup": 1.0, "call": None, "teardown": 0.0, "total": 1.0},
+                "wall_seconds": {"setup": 1.0, "call": None, "teardown": 0.0, "total": 1.0},
+            }
+        ],
+    )
+    out_null = tmp_path / "out_null.json"
+    assert checker.main([str(null_call), "--phase", "setup", "--json", str(out_null)]) == 0
+    capsys.readouterr()
+    raw_null = out_null.read_text(encoding="utf-8")
+    assert "NaN" not in raw_null
+    parsed_null = json.loads(raw_null)
+    assert parsed_null["ok"] is True
+    assert parsed_null["measured"] == 1
+    assert parsed_null["advisory_errors"]
+
+    # 2) Two measurements per node: (setup=11, call=0.1) and (setup=0.1, call=11).
+    #    Under --phase setup, explosion check must deduplicate by call CPU (2 x 11 = 22 > 20).
+    dual_phase_a = _artefact(
+        tmp_path / "unit-a.json",
+        [
+            {
+                "node_id": f"test/core/test_m.py::test_p[{i}]",
+                "outcome": "passed",
+                "markers": ["unit"],
+                "cpu_seconds": {"setup": 11.0, "call": 0.1, "teardown": 0.0, "total": 11.1},
+                "wall_seconds": {"setup": 11.0, "call": 0.1, "teardown": 0.0, "total": 11.1},
+            }
+            for i in range(2)
+        ],
+    )
+    dual_phase_b = _artefact(
+        tmp_path / "unit-b.json",
+        [
+            {
+                "node_id": f"test/core/test_m.py::test_p[{i}]",
+                "outcome": "passed",
+                "markers": ["unit"],
+                "cpu_seconds": {"setup": 0.1, "call": 11.0, "teardown": 0.0, "total": 11.1},
+                "wall_seconds": {"setup": 0.1, "call": 11.0, "teardown": 0.0, "total": 11.1},
+            }
+            for i in range(2)
+        ],
+    )
+    out_dual = tmp_path / "out_dual.json"
+    assert (
+        checker.main([
+            str(dual_phase_a),
+            str(dual_phase_b),
+            "--phase",
+            "setup",
+            "--json",
+            str(out_dual),
+        ])
+        == 0
+    )
+    capsys.readouterr()
+    parsed_dual = json.loads(out_dual.read_text(encoding="utf-8"))
+    assert len(parsed_dual["parametrize_explosion_warnings"]) == 1
+    assert parsed_dual["parametrize_explosion_warnings"][0]["total_call_cpu"] == pytest.approx(22.0)
+    assert parsed_dual["axis_cpu_summary"][0]["total_cpu_seconds"] == pytest.approx(22.0)

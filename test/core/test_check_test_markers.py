@@ -2590,3 +2590,174 @@ def test_ast_guards_explicit_baseline_parent_symlink_and_cli_semantics(
     assert "test_non_suews_resolved_name_and_dash_c" not in err
     assert "missing-e2e-marker: test/core/test_cli_edge.py::test_as_posix_unmarked" in err
     assert "missing-e2e-marker: test/core/test_cli_edge.py::test_quoted_shell_path_unmarked" in err
+
+
+def test_ast_guards_shallow_ci_checkout_fails_closed_without_base_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """A depth-1 PR checkout with GITHUB_BASE_REF never compares baseline against HEAD."""
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+    legacy_src = (
+        "import pytest\n"
+        "import supy as sp\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_legacy(x):\n"
+        "    sim = sp.SUEWSSimulation.from_sample_data()\n"
+        "    assert sim is not None\n"
+    )
+    upstream = _make_repo(
+        tmp_path / "upstream",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_legacy.py": legacy_src,
+        },
+    )
+    (upstream / "scripts" / "lint").mkdir(parents=True)
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(upstream), "--init-ast-baseline"]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    for cmd in (
+        ["git", "-C", str(upstream), "init", "-b", "master"],
+        ["git", "-C", str(upstream), "add", "."],
+        ["git", "-C", str(upstream), "commit", "-m", "base"],
+        ["git", "-C", str(upstream), "checkout", "-b", "pr-bump"],
+    ):
+        subprocess.run(cmd, env=git_env, check=True, capture_output=True)
+
+    # Commit a manual increase on pr-bump.
+    bumped_src = legacy_src.replace("assert sim is not None", "sim.run()")
+    (upstream / "test/core/test_legacy.py").write_text(bumped_src, encoding="utf-8")
+    bpath = upstream / "scripts" / "lint" / "test_ast_guards_baseline.json"
+    payload = json.loads(bpath.read_text(encoding="utf-8"))
+    payload["parametrized_simulations"]["test/core/test_legacy.py::test_legacy"] = 2
+    bpath.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(upstream), "commit", "-am", "manual bump"],
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+
+    # 1) Depth-1 shallow clone of pr-bump with NO reachable origin -> MUST fail closed.
+    shallow_offline = tmp_path / "shallow_offline"
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--depth=1",
+            "--single-branch",
+            "--branch",
+            "pr-bump",
+            f"file://{upstream}",
+            str(shallow_offline),
+        ],
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(shallow_offline), "remote", "remove", "origin"],
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+    monkeypatch.setenv("GITHUB_BASE_REF", "master")
+    assert _run(shallow_offline) == 1
+    assert "shallow checkout" in capsys.readouterr().err
+
+    # 2) Depth-1 shallow clone WITH reachable origin -> fetches origin/master and catches bump!
+    shallow_online = tmp_path / "shallow_online"
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--depth=1",
+            "--single-branch",
+            "--branch",
+            "pr-bump",
+            f"file://{upstream}",
+            str(shallow_online),
+        ],
+        env=git_env,
+        check=True,
+        capture_output=True,
+    )
+    assert _run(shallow_online) == 1
+    assert "increased parametrised-simulation debt" in capsys.readouterr().err
+
+
+def test_ast_guards_conditional_marks_diamond_mro_try_intermediate_and_helper_overflow(
+    tmp_path: Path, capsys
+) -> None:
+    """Conditional param marks, diamond C3 MRO, intermediate try bindings, and helper overflow."""
+    seventy_branches = "\n".join(
+        f"    {'if' if i == 0 else 'elif'} x == {i}:\n        argv = ['echo', '{i}']"
+        for i in range(70)
+    ) + "\n    else:\n        argv = ['git', '--version']\n"
+
+    src = (
+        "import subprocess\n"
+        "import unittest\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "def _helper_overflow(x):\n"
+        f"{seventy_branches}"
+        "    return subprocess.run(argv)\n\n"
+        "@pytest.mark.parametrize(\n"
+        "    'x', [pytest.param(1, marks=pytest.mark.e2e if False else ())]\n"
+        ")\n"
+        "def test_false_conditional_e2e_mark(x):\n"
+        "    subprocess.run(['suews', '--help'])\n\n"
+        "@pytest.mark.parametrize(\n"
+        "    'x', [pytest.param(1, marks=pytest.mark.e2e if some_flag else ())]\n"
+        ")\n"
+        "def test_unresolved_conditional_e2e_mark(x):\n"
+        "    subprocess.run(['suews-validate', 'cfg.yml'])\n\n"
+        "class _Base:\n"
+        "    def test_cli(self):\n"
+        "        assert True\n\n"
+        "class _Left(_Base):\n"
+        "    pass\n\n"
+        "class _Right(_Base):\n"
+        "    def test_cli(self):\n"
+        "        subprocess.run(['suews-mcp', '--version'])\n\n"
+        "class TestDiamond(_Left, _Right):\n"
+        "    pass\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_try_intermediate_sim_caught(x, sim):\n"
+        "    runner = unittest.TextTestRunner()\n"
+        "    try:\n"
+        "        runner = sim\n"
+        "        might_raise()\n"
+        "        runner = unittest.TextTestRunner()\n"
+        "    except RuntimeError:\n"
+        "        runner.run()\n\n"
+        "def test_calls_overflowing_helper(x):\n"
+        "    _helper_overflow(x)\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r3_edges.py": src,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_r3_edges.py::test_false_conditional_e2e_mark" in err
+    assert "missing-e2e-marker: test/core/test_r3_edges.py::test_unresolved_conditional_e2e_mark" in err
+    assert "missing-e2e-marker: test/core/test_r3_edges.py::TestDiamond::test_cli" in err
+    assert "parametrised-simulation: test/core/test_r3_edges.py::test_try_intermediate_sim_caught" in err
+    assert "subprocess-analysis-overflow: test/core/test_r3_edges.py::test_calls_overflowing_helper" in err

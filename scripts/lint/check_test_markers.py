@@ -3119,9 +3119,10 @@ def _scan_single_helper(
     set[str],
     set[str],
     set[str],
+    bool,
     list[tuple[ast.Call, _BindingState]],
 ]:
-    """Inspect one module-level helper in statement order for CLI calls and forwarded params."""
+    """Inspect one module-level helper in statement order for CLI calls, params, and overflow."""
     pos_args = [
         *(arg.arg for arg in stmt.args.posonlyargs),
         *(arg.arg for arg in stmt.args.args),
@@ -3139,22 +3140,32 @@ def _scan_single_helper(
 
     clis: set[str] = set()
     forwarded: set[str] = set()
+    helper_overflow = False
     helper_calls: list[tuple[ast.Call, _BindingState]] = []
     for call, call_state in recorded:
         if _is_subprocess_call(call, subproc_aliases, subproc_funcs):
             cmd_arg = _extract_subprocess_cmd_arg(call)
             if cmd_arg is None:
                 continue
-            found_clis, _ = _resolve_subprocess_clis(
+            found_clis, ov = _resolve_subprocess_clis(
                 cmd_arg, call_state, mod_state, helper_return_exprs
             )
             clis.update(found_clis)
+            helper_overflow = helper_overflow or ov
             forwarded.update(
                 _extract_forwarded_param_names(cmd_arg, call_state.env, all_params)
             )
         elif isinstance(call.func, ast.Name):
             helper_calls.append((call, call_state))
-    return (param_pos, param_defaults, all_params, clis, forwarded, helper_calls)
+    return (
+        param_pos,
+        param_defaults,
+        all_params,
+        clis,
+        forwarded,
+        helper_overflow,
+        helper_calls,
+    )
 
 
 def _bound_call_arg_candidates(
@@ -3173,45 +3184,81 @@ def _bound_call_arg_candidates(
     return list(param_defaults.get(param_name, ()))
 
 
+def _propagate_single_helper_call(
+    helper_name: str,
+    call: ast.Call,
+    call_state: _BindingState,
+    helper_clis: dict[str, set[str]],
+    helper_forwarded: dict[str, set[str]],
+    helper_overflows: dict[str, bool],
+    helper_param_positions: Mapping[str, dict[str, int]],
+    helper_param_defaults: Mapping[str, dict[str, list[ast.AST]]],
+    helper_all_params: Mapping[str, set[str]],
+) -> bool:
+    """Propagate callee CLIs, overflow, and forwarded params for one helper call."""
+    callee = call.func.id if isinstance(call.func, ast.Name) else ""
+    if callee not in helper_clis:
+        return False
+    before = (
+        len(helper_clis[helper_name]),
+        len(helper_forwarded[helper_name]),
+        helper_overflows[helper_name],
+    )
+    helper_clis[helper_name].update(helper_clis[callee])
+    if helper_overflows.get(callee):
+        helper_overflows[helper_name] = True
+    callee_pos = helper_param_positions.get(callee, {})
+    callee_defs = helper_param_defaults.get(callee, {})
+    for param_name in helper_forwarded.get(callee, ()):
+        for arg_expr in _bound_call_arg_candidates(
+            call, param_name, callee_pos, callee_defs
+        ):
+            ov_flag = [_expr_references_overflowed(arg_expr, call_state.overflowed)]
+            helper_clis[helper_name].update(
+                _detect_suews_clis_in_expr(
+                    arg_expr, call_state.env, overflow_flag=ov_flag
+                )
+            )
+            if ov_flag[0]:
+                helper_overflows[helper_name] = True
+            helper_forwarded[helper_name].update(
+                _extract_forwarded_param_names(
+                    arg_expr, call_state.env, helper_all_params[helper_name]
+                )
+            )
+    after = (
+        len(helper_clis[helper_name]),
+        len(helper_forwarded[helper_name]),
+        helper_overflows[helper_name],
+    )
+    return after != before
+
+
 def _propagate_helper_clis(
     helper_clis: dict[str, set[str]],
     helper_forwarded: dict[str, set[str]],
+    helper_overflows: dict[str, bool],
     helper_param_positions: Mapping[str, dict[str, int]],
     helper_param_defaults: Mapping[str, dict[str, list[ast.AST]]],
     helper_all_params: Mapping[str, set[str]],
     helper_calls: Mapping[str, list[tuple[ast.Call, _BindingState]]],
 ) -> None:
-    """Propagate SUEWS CLI sets and forwarded-parameter edges across helper chains."""
+    """Propagate SUEWS CLI sets, overflow flags, and forwarded params across helper chains."""
     changed = True
     while changed:
         changed = False
         for helper_name, calls in helper_calls.items():
             for call, call_state in calls:
-                callee = call.func.id if isinstance(call.func, ast.Name) else ""
-                if callee not in helper_clis:
-                    continue
-                before_clis = len(helper_clis[helper_name])
-                before_fwd = len(helper_forwarded[helper_name])
-                helper_clis[helper_name].update(helper_clis[callee])
-                callee_pos = helper_param_positions.get(callee, {})
-                callee_defs = helper_param_defaults.get(callee, {})
-                for param_name in helper_forwarded.get(callee, ()):
-                    for arg_expr in _bound_call_arg_candidates(
-                        call, param_name, callee_pos, callee_defs
-                    ):
-                        helper_clis[helper_name].update(
-                            _detect_suews_clis_in_expr(arg_expr, call_state.env)
-                        )
-                        helper_forwarded[helper_name].update(
-                            _extract_forwarded_param_names(
-                                arg_expr,
-                                call_state.env,
-                                helper_all_params[helper_name],
-                            )
-                        )
-                if (
-                    len(helper_clis[helper_name]) > before_clis
-                    or len(helper_forwarded[helper_name]) > before_fwd
+                if _propagate_single_helper_call(
+                    helper_name,
+                    call,
+                    call_state,
+                    helper_clis,
+                    helper_forwarded,
+                    helper_overflows,
+                    helper_param_positions,
+                    helper_param_defaults,
+                    helper_all_params,
                 ):
                     changed = True
 
@@ -3227,11 +3274,12 @@ def _analyse_module_helpers(
     dict[str, dict[str, int]],
     dict[str, dict[str, list[ast.AST]]],
     dict[str, set[str]],
+    dict[str, bool],
 ]:
-    """Analyse module-level non-test helpers for SUEWS CLI subprocess calls.
+    """Analyse module-level non-test helpers for SUEWS CLI subprocess calls and overflows.
 
     Returns ``(helper_direct_clis, helper_param_positions, helper_param_defaults,
-    helper_forwarded_params)``.
+    helper_forwarded_params, helper_overflows)``.
     """
     helper_clis: dict[str, set[str]] = {}
     helper_calls: dict[str, list[tuple[ast.Call, _BindingState]]] = {}
@@ -3239,30 +3287,39 @@ def _analyse_module_helpers(
     helper_param_defaults: dict[str, dict[str, list[ast.AST]]] = {}
     helper_all_params: dict[str, set[str]] = {}
     helper_forwarded: dict[str, set[str]] = {}
+    helper_overflows: dict[str, bool] = {}
 
     for stmt in tree.body:
         if isinstance(
             stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
         ) and not stmt.name.startswith("test_"):
-            param_pos, param_defs, all_params, clis, forwarded, calls = (
-                _scan_single_helper(
-                    stmt,
-                    mod_state,
-                    subproc_aliases,
-                    subproc_funcs,
-                    helper_return_exprs,
-                )
+            (
+                param_pos,
+                param_defs,
+                all_params,
+                clis,
+                forwarded,
+                helper_ov,
+                calls,
+            ) = _scan_single_helper(
+                stmt,
+                mod_state,
+                subproc_aliases,
+                subproc_funcs,
+                helper_return_exprs,
             )
             helper_param_positions[stmt.name] = param_pos
             helper_param_defaults[stmt.name] = param_defs
             helper_all_params[stmt.name] = all_params
             helper_clis[stmt.name] = clis
             helper_forwarded[stmt.name] = forwarded
+            helper_overflows[stmt.name] = helper_ov
             helper_calls[stmt.name] = calls
 
     _propagate_helper_clis(
         helper_clis,
         helper_forwarded,
+        helper_overflows,
         helper_param_positions,
         helper_param_defaults,
         helper_all_params,
@@ -3273,6 +3330,7 @@ def _analyse_module_helpers(
         helper_param_positions,
         helper_param_defaults,
         helper_forwarded,
+        helper_overflows,
     )
 
 
@@ -3291,6 +3349,69 @@ def _extract_parametrize_argnames(node: ast.AST) -> list[str]:
     return []
 
 
+def _eval_static_bool(node: ast.AST) -> bool | None:
+    """Evaluate a literal boolean expression when statically known, else return ``None``."""
+    result: bool | None = None
+    if isinstance(node, ast.Constant):
+        result = bool(node.value)
+    elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        inner = _eval_static_bool(node.operand)
+        if inner is not None:
+            result = not inner
+    elif isinstance(node, ast.BoolOp):
+        vals = [_eval_static_bool(v) for v in node.values]
+        if isinstance(node.op, ast.And):
+            if False in vals:
+                result = False
+            elif all(v is True for v in vals):
+                result = True
+        elif isinstance(node.op, ast.Or):
+            if True in vals:
+                result = True
+            elif all(v is False for v in vals):
+                result = False
+    return result
+
+
+def _extract_guaranteed_param_marks(
+    node: ast.AST,
+    *,
+    mod_env: Mapping[str, ast.AST],
+    seen: frozenset[str] = frozenset(),
+) -> set[str]:
+    """Return marker names guaranteed to apply on every reachable branch of ``node``."""
+    direct = _direct_pytest_marker_name(node)
+    result: set[str] = set()
+    if direct is not None:
+        result = {direct}
+    elif isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        for elt in node.elts:
+            result.update(
+                _extract_guaranteed_param_marks(elt, mod_env=mod_env, seen=seen)
+            )
+    elif isinstance(node, ast.IfExp):
+        cond = _eval_static_bool(node.test)
+        if cond is True:
+            result = _extract_guaranteed_param_marks(
+                node.body, mod_env=mod_env, seen=seen
+            )
+        elif cond is False:
+            result = _extract_guaranteed_param_marks(
+                node.orelse, mod_env=mod_env, seen=seen
+            )
+        else:
+            result = _extract_guaranteed_param_marks(
+                node.body, mod_env=mod_env, seen=seen
+            ) & _extract_guaranteed_param_marks(
+                node.orelse, mod_env=mod_env, seen=seen
+            )
+    elif isinstance(node, ast.Name) and node.id in mod_env and node.id not in seen:
+        result = _extract_guaranteed_param_marks(
+            mod_env[node.id], mod_env=mod_env, seen=seen | {node.id}
+        )
+    return result
+
+
 def _parse_parametrize_case_item(
     raw_item: ast.AST,
     param_names: list[str],
@@ -3302,10 +3423,9 @@ def _parse_parametrize_case_item(
         case_values = list(raw_item.args)
         for kw in raw_item.keywords:
             if kw.arg == "marks":
-                m_names, _ = _validate_marker_expr(
-                    kw.value, mod_env=mod_env, local_lists={}, allow_refs=True
+                case_marks.update(
+                    _extract_guaranteed_param_marks(kw.value, mod_env=mod_env)
                 )
-                case_marks.update(m_names)
     elif len(param_names) > 1 and isinstance(raw_item, (ast.Tuple, ast.List)):
         case_values = list(raw_item.elts)
     else:
@@ -3569,19 +3689,26 @@ def _walk_sim_calls_in_loop(
     return cnt
 
 
+def _collect_written_names_in_stmts(stmts: list[ast.stmt]) -> set[str]:
+    """Return variable/import/def names bound inside ``stmts`` (excluding nested defs' bodies)."""
+    return _collect_written_names_in_stmt(ast.Module(body=stmts, type_ignores=[]))
+
+
 def _walk_sim_calls_in_try(
     stmt: ast.Try,
     state: _NonSimState,
 ) -> int:
-    """Walk a try/except/else/finally block soundly across exception paths."""
+    """Walk a try/except/else/finally block soundly across intermediate exception points."""
     pre_state = state.clone()
     try_state = pre_state.clone()
     cnt = _walk_sim_calls_in_block(stmt.body, try_state)
 
-    # Exception can occur at any point in try_state; only bindings holding both
-    # before and after the try body survive safely into except handlers.
+    # An exception may occur at any intermediate point inside ``stmt.body``, so
+    # any binding written within the ``try`` block cannot be assumed non-sim on
+    # exception entry (even if restored later in the ``try`` body).
+    written_in_try = _collect_written_names_in_stmts(stmt.body)
     handler_entry = pre_state.clone()
-    handler_entry.intersect_with(try_state)
+    handler_entry.kill(written_in_try)
     exit_states: list[_NonSimState] = []
 
     if stmt.orelse:
@@ -3603,7 +3730,11 @@ def _walk_sim_calls_in_try(
         merged.intersect_with(other)
 
     if stmt.finalbody:
-        cnt += _walk_sim_calls_in_block(stmt.finalbody, merged)
+        # An unhandled exception type can jump directly from try_body to finally.
+        finally_state = merged.clone()
+        finally_state.intersect_with(handler_entry)
+        cnt += _walk_sim_calls_in_block(stmt.finalbody, finally_state)
+        merged = finally_state
 
     state.mods = merged.mods
     state.classes = merged.classes
@@ -3744,6 +3875,8 @@ def _collect_test_subprocess_clis(
         elif isinstance(call.func, ast.Name) and call.func.id in ctx.helper_clis:
             callee = call.func.id
             found.update(ctx.helper_clis[callee])
+            if ctx.helper_overflows.get(callee):
+                overflowed = True
             forwarded = ctx.helper_forwarded.get(callee)
             if forwarded:
                 fwd_clis, fwd_ov = _resolve_forwarded_helper_clis(
@@ -3790,6 +3923,7 @@ class _FileAstGuardContext:
             self.helper_param_positions,
             self.helper_param_defaults,
             self.helper_forwarded,
+            self.helper_overflows,
         ) = _analyse_module_helpers(
             tree,
             self.mod_state,
@@ -4020,24 +4154,61 @@ def _is_testcase_base_expr(base: ast.AST) -> bool:
     return isinstance(base, ast.Attribute) and base.attr == "TestCase"
 
 
+def _c3_merge(seqs: list[list[ast.ClassDef]]) -> list[ast.ClassDef] | None:
+    """Perform Python C3 linearisation merge over non-empty class MRO sequences."""
+    result: list[ast.ClassDef] = []
+    pending = [list(seq) for seq in seqs if seq]
+    while pending:
+        candidate: ast.ClassDef | None = None
+        for seq in pending:
+            head = seq[0]
+            if not any(head.name in {c.name for c in other[1:]} for other in pending):
+                candidate = head
+                break
+        if candidate is None:
+            return None
+        result.append(candidate)
+        pending = [[c for c in seq if c.name != candidate.name] for seq in pending]
+        pending = [seq for seq in pending if seq]
+    return result
+
+
 def _resolve_local_mro(
     cls: ast.ClassDef,
     class_registry: Mapping[str, ast.ClassDef],
     *,
     seen: frozenset[str] = frozenset(),
 ) -> list[ast.ClassDef]:
-    """Return local-class MRO list starting with ``cls`` (avoiding cycles)."""
-    mro: list[ast.ClassDef] = [cls]
-    visited = set(seen) | {cls.name}
+    """Return Python C3 linearisation MRO over local classes (avoiding cycles)."""
+    next_seen = seen | {cls.name}
+    local_bases: list[ast.ClassDef] = []
+    base_names: set[str] = set()
     for base in cls.bases:
-        if isinstance(base, ast.Name) and base.id in class_registry and base.id not in visited:
-            for anc in _resolve_local_mro(
-                class_registry[base.id], class_registry, seen=frozenset(visited)
-            ):
-                if anc.name not in visited:
-                    visited.add(anc.name)
-                    mro.append(anc)
-    return mro
+        if (
+            isinstance(base, ast.Name)
+            and base.id in class_registry
+            and base.id not in next_seen
+            and base.id not in base_names
+        ):
+            base_names.add(base.id)
+            local_bases.append(class_registry[base.id])
+    if not local_bases:
+        return [cls]
+    parent_mros = [
+        _resolve_local_mro(base_cls, class_registry, seen=next_seen)
+        for base_cls in local_bases
+    ]
+    merged = _c3_merge([*parent_mros, local_bases])
+    if merged is not None:
+        return [cls, *merged]
+    fallback: list[ast.ClassDef] = [cls]
+    seen_fb = {cls.name}
+    for seq in parent_mros:
+        for anc in seq:
+            if anc.name not in seen_fb:
+                seen_fb.add(anc.name)
+                fallback.append(anc)
+    return fallback
 
 
 def _is_pytest_collected_class(
@@ -4803,18 +4974,83 @@ def _read_git_baseline_at_ref(
     )
 
 
-def _discover_trusted_base_ref(repo_root: Path) -> str | None:
-    """Discover a trusted git base revision for monotonic baseline ratchet comparison."""
-    env_base = os.environ.get("GITHUB_BASE_REF", "").strip()
-    candidates: list[str] = (
-        [f"origin/{env_base}", env_base, "HEAD^1", "HEAD"]
-        if env_base
-        else ["origin/master", "origin/main", "master", "main", "HEAD"]
-    )
-    for ref in candidates:
+_SAFE_GIT_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+
+
+def _is_git_repo(repo_root: Path) -> bool:
+    """Return True if ``repo_root`` lies inside a git work tree."""
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+    except OSError:
+        return False
+    return res.returncode == 0 and res.stdout.strip() == "true"
+
+
+def _try_fetch_origin_base_ref(repo_root: Path, base_branch: str) -> bool:
+    """Best-effort shallow fetch of ``origin/<base_branch>`` for shallow CI checkouts."""
+    if not _SAFE_GIT_REF_RE.fullmatch(base_branch) or ".." in base_branch:
+        return False
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    try:
+        res = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "fetch",
+                "--no-tags",
+                "--depth=1",
+                "origin",
+                f"+refs/heads/{base_branch}:refs/remotes/origin/{base_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=env,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return res.returncode == 0 and _git_ref_exists(repo_root, f"origin/{base_branch}")
+
+
+def _discover_github_base_ref(
+    repo_root: Path, env_base: str
+) -> tuple[str | None, str | None]:
+    """Resolve an independent trusted base ref when ``GITHUB_BASE_REF`` is set."""
+    if not _is_git_repo(repo_root):
+        return (None, None)
+    for ref in (f"origin/{env_base}", env_base):
         if _git_ref_exists(repo_root, ref):
-            return ref
-    return None
+            return (ref, None)
+    if _git_ref_exists(repo_root, "HEAD^2") and _git_ref_exists(repo_root, "HEAD^1"):
+        return ("HEAD^1", None)
+    if _try_fetch_origin_base_ref(repo_root, env_base):
+        return (f"origin/{env_base}", None)
+    return (
+        None,
+        f"unable to resolve independent trusted base ref for GITHUB_BASE_REF={env_base!r} "
+        f"(shallow checkout without base history); fetch origin/{env_base} "
+        "or pass --base-ref / --base-ast-baseline",
+    )
+
+
+def _discover_trusted_base_ref(repo_root: Path) -> tuple[str | None, str | None]:
+    """Discover a trusted git base revision; fail closed in shallow PR checkouts."""
+    env_base = os.environ.get("GITHUB_BASE_REF", "").strip()
+    if env_base:
+        return _discover_github_base_ref(repo_root, env_base)
+    for ref in ("origin/master", "origin/main", "master", "main", "HEAD"):
+        if _git_ref_exists(repo_root, ref):
+            return (ref, None)
+    return (None, None)
 
 
 def _load_trusted_base_baseline(
@@ -4843,11 +5079,12 @@ def _load_trusted_base_baseline(
         )
 
     default_path = (repo_root / AST_GUARDS_BASELINE_PATH).resolve(strict=False)
-    base_ref = (
-        _discover_trusted_base_ref(repo_root)
-        if target_baseline.resolve(strict=False) == default_path
-        else None
-    )
+    base_ref: str | None = None
+    discover_err: str | None = None
+    if target_baseline.resolve(strict=False) == default_path:
+        base_ref, discover_err = _discover_trusted_base_ref(repo_root)
+    if discover_err is not None:
+        return (None, [discover_err])
     if base_ref is None:
         return (None, [])
     return _read_git_baseline_at_ref(

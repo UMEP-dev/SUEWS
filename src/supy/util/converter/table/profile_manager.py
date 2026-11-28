@@ -382,25 +382,40 @@ class ProfileManager:
         Returns:
             Updated rules DataFrame with validated profile codes
         """
-        profile_fields = list(self.PROFILE_TYPES)
+        rules_df = rules_df.copy()
+        profile_fields = set(self.PROFILE_TYPES)
 
         for idx, row in rules_df.iterrows():
             # Check if this rule involves a profile field
             if row["Variable"] in profile_fields and row["Action"] == "Add":
+                raw_value = row["Value"]
+                if isinstance(raw_value, (bool, np.bool_)) or pd.isna(raw_value):
+                    continue
+                if (
+                    isinstance(raw_value, (float, np.floating))
+                    and not raw_value.is_integer()
+                ):
+                    continue
                 try:
-                    code = int(row["Value"])
-                    is_valid, replacement = self.validate_profile_code(
-                        code, row["Variable"]
-                    )
-                    if not is_valid:
-                        rules_df.at[idx, "Value"] = str(replacement)
-                        logger.debug(
-                            f"Replaced profile {code} with {replacement} "
-                            f"for {row['Variable']}"
-                        )
+                    code = int(raw_value)
                 except (ValueError, TypeError):
                     # Value is not a simple integer code
-                    pass
+                    continue
+
+                is_valid, replacement = self.validate_profile_code(
+                    code, row["Variable"]
+                )
+                if not is_valid:
+                    if not (
+                        rules_df["Value"].dtype == object
+                        or isinstance(rules_df["Value"].dtype, pd.StringDtype)
+                    ):
+                        rules_df["Value"] = rules_df["Value"].astype(object)
+                    rules_df.at[idx, "Value"] = str(replacement)
+                    logger.debug(
+                        f"Replaced profile {code} with {replacement} "
+                        f"for {row['Variable']}"
+                    )
 
         return rules_df
 
@@ -430,7 +445,7 @@ def validate_and_fix_profiles(
 
     # Load and process conversion rules
     if rules_path.exists():
-        rules_df = pd.read_csv(rules_path)
+        rules_df = pd.read_csv(rules_path, dtype=str, keep_default_na=False)
         rules_df = manager.process_conversion_rules(rules_df)
 
         # Save updated rules if changes were made

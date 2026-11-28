@@ -511,6 +511,27 @@ class TestEra5OfflineUtilities:
         assert formatted["iy"].dtype == np.int32
         assert list(formatted["it"]) == [10, 11, 12]
 
+        # Integer-typed flux/pressure/rainfall columns (common from CSV) convert cleanly.
+        raw_int = pd.DataFrame(
+            {
+                "ssrd": np.array([0, 360000, 720000], dtype=np.int64),
+                "strd": np.array([1080000, 1116000, 1152000], dtype=np.int64),
+                "sshf": np.array([-180000, -360000, 72000], dtype=np.int64),
+                "slhf": np.array([-90000, -180000, 36000], dtype=np.int64),
+                "tp": np.array([0, 0, 1], dtype=np.int64),
+                "t_z": [273.15, 293.15, 303.15],
+                "p_z": np.array([101325, 100000, 99500], dtype=np.int64),
+                "uv_z": [2.5, 4.0, 6.25],
+                "RH_z": [50.0, 65.5, 80.0],
+                "alt_z": [100.0, 100.0, 100.0],
+            },
+            index=idx,
+        )
+        formatted_int = format_df_forcing(raw_int)
+        np.testing.assert_allclose(formatted_int["kdown"].values, [0.0, 100.0, 200.0])
+        np.testing.assert_allclose(formatted_int["pres"].values, [101.32, 100.0, 99.5])
+        np.testing.assert_allclose(formatted_int["rain"].values, [0.0, 0.0, 1000.0])
+
     def test_save_forcing_era5_multi_grid_and_year_boundary_single_row(self, tmp_path):
         """save_forcing_era5 splits by grid and year, handling single-row years cleanly."""
         times = pd.DatetimeIndex([
@@ -527,7 +548,7 @@ class TestEra5OfflineUtilities:
             df_g = pd.DataFrame(
                 {
                     "iy": times.year,
-                    "id": times.dayofyear,
+                    "id": times.day_of_year,
                     "it": times.hour,
                     "imin": times.minute,
                     "Tair": temps,

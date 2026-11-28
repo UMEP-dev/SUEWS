@@ -4456,12 +4456,15 @@ fn apply_site_overrides(
 // - `[1]` (`drain_eq`), `[2]` (`drain_coef_1`), `[3]` (`drain_coef_2`), and
 //   `[5]` (`store_cap`): `SUEWS_cal_Water` (`suews_ctrl_driver.f95`) calls
 //   `drainage` for every non-water surface `1..nsurf-1` whenever
-//   `NonWaterFraction > 0` (regardless of individual `sfr == 0`), so any
-//   supplied non-null value on a non-water surface under `NonWaterFraction > 0`
-//   is validated strictly (`parse_optional_i32` for `drain_eq`,
-//   `parse_optional_numeric` for coefficients and `store_cap`). Placeholders
-//   are only relaxed where `drainage` is provably never called (`water` or
-//   `NonWaterFraction == 0.0`, where `NaN`/`Inf` remain rejected).
+//   `NonWaterFraction /= 0`, where `suews_ctrl_type.f95` defines
+//   `NonWaterFraction = 1 - sfr_surf(WaterSurf)` (even when individual
+//   non-water `sfr == 0` or `water.sfr` drifts within the sum tolerance, e.g.
+//   `0.99995`). Any supplied non-null value on a non-water surface while
+//   `(1.0 - water.sfr) != 0.0` is therefore validated strictly
+//   (`parse_optional_i32` for `drain_eq`, `parse_optional_numeric` for
+//   coefficients and `store_cap`). Placeholders are only relaxed where
+//   `drainage` is provably never called (`water` or exact `water.sfr == 1.0`,
+//   where `NaN`/`Inf` remain rejected).
 //   - `[1]` (`drain_eq`): required explicit integer selector on every active
 //     non-water surface (`sfr > 0`, `require_i32`) so placeholder-only blocks
 //     cannot silently retain selector 0.
@@ -4481,7 +4484,9 @@ fn apply_drainage_overrides(
     fractions: &[f64],
 ) -> Result<(), String> {
     let site_at = site_yaml_at(site_root);
-    let non_water_fraction_active = fractions[..6].iter().any(|&f| f > 0.0);
+    // Match `suews_ctrl_type.f95` (`NonWaterFraction = 1 - sfr_surf(WaterSurf)`)
+    // and `suews_ctrl_driver.f95` (`IF (NonWaterFraction /= 0)`).
+    let non_water_fraction_active = (1.0 - fractions[6]) != 0.0;
     for (surface_name, surface_idx) in SURFACE_YAML_ORDER {
         let surface_at = format!("{site_at}.properties.land_cover.{surface_name}");
         let sdp_at = format!("{surface_at}.storage_drain_params");
@@ -4544,9 +4549,9 @@ fn apply_drainage_overrides(
                     require_i32(sdp_root, &["drain_eq"], &sdp_at)? as f64;
             } else if kernel_may_call_drainage {
                 // `SUEWS_cal_Water` invokes `drainage` across all non-water
-                // surfaces whenever `NonWaterFraction > 0`; reject malformed
-                // supplied selectors on zero-area surfaces instead of silently
-                // retaining selector 0.
+                // surfaces whenever `NonWaterFraction = 1 - sfr_surf(WaterSurf) /= 0`;
+                // reject malformed supplied selectors on zero-area surfaces
+                // instead of silently retaining selector 0.
                 if let Some(v) = parse_optional_i32(sdp_root, &["drain_eq"], &sdp_at)? {
                     state.phenology_state.store_drain_prm[surface_idx][1] = v as f64;
                 }
@@ -7754,9 +7759,57 @@ mod tests {
             );
         }
 
-        // All-water site (`NonWaterFraction == 0.0`, where Fortran skips the
-        // `drainage` loop completely) allows non-numeric placeholders on all
-        // non-water drainage leaves while keeping `.nan`/`.inf` rejected.
+        // Fraction-sum drift regression: all six non-water fractions 0.0 with
+        // `water.sfr = 0.99995` passes the 1e-4 sum check without normalising,
+        // so Fortran still evaluates `NonWaterFraction = 1 - 0.99995 != 0` and
+        // invokes `drainage`. Malformed selectors/coefficients on wet zero-area
+        // surfaces must therefore still be rejected.
+        for (block_yaml, expected_field) in [
+            ("{drain_eq: TBD}", "drain_eq"),
+            (
+                "{drain_eq: 2, drain_coef_1: TBD, drain_coef_2: 1}",
+                "drain_coef_1",
+            ),
+        ] {
+            let mut drift_water: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut drift_water).unwrap();
+            for (surface_name, _) in SURFACE_YAML_ORDER {
+                let lc = get_path_mut(site, &["properties", "land_cover", surface_name])
+                    .unwrap()
+                    .as_mapping_mut()
+                    .unwrap();
+                let sfr = if surface_name == "water" {
+                    "0.99995"
+                } else {
+                    "0.0"
+                };
+                lc.insert(
+                    Value::String("sfr".into()),
+                    serde_yaml::from_str(sfr).unwrap(),
+                );
+            }
+            *get_path_mut(
+                site,
+                &["properties", "land_cover", "evetr", "storage_drain_params"],
+            )
+            .unwrap() = serde_yaml::from_str(block_yaml).unwrap();
+            *get_path_mut(site, &["initial_states", "evetr", "state"]).unwrap() =
+                serde_yaml::from_str("{value: 1.0}").unwrap();
+            let err = load_run_config_from_value(&mut drift_water).expect_err(&format!(
+                "drifted water.sfr=0.99995 with wet zero-area evetr {block_yaml} must fail"
+            ));
+            assert!(
+                err.contains(&format!(
+                    "`sites[gridiv=1].properties.land_cover.evetr.storage_drain_params.{expected_field}`"
+                )),
+                "{block_yaml}: {err}"
+            );
+        }
+
+        // Exact all-water site (`water.sfr == 1.0`, `NonWaterFraction == 0.0`,
+        // where Fortran skips the `drainage` loop completely) allows non-numeric
+        // placeholders on all non-water drainage leaves while keeping `.nan`/`.inf`
+        // rejected.
         {
             let mut all_water: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
             let site = first_site_mut(&mut all_water).unwrap();

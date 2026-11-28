@@ -1881,16 +1881,35 @@ def test_ast_guards_baseline_ratchet_detects_new_and_stale_entries(
     assert _run(repo) == 1
     assert "missing AST guards baseline" in capsys.readouterr().err
 
-    # Writing the baseline records both legacy entries and passes immediately.
-    rc_write = check_test_markers.main(
-        ["check_test_markers.py", str(repo), "--write-ast-baseline"]
+    # --write-ast-baseline refuses when no baseline exists yet (requires --init-ast-baseline).
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo), "--write-ast-baseline"]
+        )
+        == 1
     )
-    assert rc_write == 0, capsys.readouterr().err
+    assert "--init-ast-baseline" in capsys.readouterr().err
+
+    # Initialising the baseline records both legacy entries and passes immediately.
+    rc_init = check_test_markers.main(
+        ["check_test_markers.py", str(repo), "--init-ast-baseline"]
+    )
+    assert rc_init == 0, capsys.readouterr().err
     capsys.readouterr()
     assert _run(repo) == 0, capsys.readouterr().err
     capsys.readouterr()
 
-    # Adding a second call in the baselined function (1 -> 2) fails immediately.
+    # Re-running --init-ast-baseline refuses to overwrite an existing baseline.
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo), "--init-ast-baseline"]
+        )
+        == 1
+    )
+    assert "already exists" in capsys.readouterr().err
+
+    # Adding a second call in the baselined function (1 -> 2) fails immediately,
+    # and --write-ast-baseline REFUSES to ratchet the baseline upward.
     increased_src = legacy_src.replace(
         "assert sim is not None", "sim.run()"
     )
@@ -1899,6 +1918,13 @@ def test_ast_guards_baseline_ratchet_detects_new_and_stale_entries(
     err_inc = capsys.readouterr().err
     assert "parametrized-simulation" in err_inc
     assert "(1 -> 2)" in err_inc
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo), "--write-ast-baseline"]
+        )
+        == 1
+    )
+    assert "downward-only" in capsys.readouterr().err
 
     # Fixing the legacy debt without lowering the baseline fails as stale!
     fixed_src = (
@@ -1930,10 +1956,11 @@ def test_ast_guards_baseline_ratchet_detects_new_and_stale_entries(
 
 
 def test_ast_guards_baseline_loader_rejects_malformed_payloads(tmp_path: Path) -> None:
-    """Baseline loader fails closed on wrong schema, unknown keys, bool counts, or bad caps."""
+    """Baseline loader fails closed on wrong schema, bool schema, unknown keys, or bad caps."""
     bad_payloads = [
         '["not-an-object"]',
         '{"schema_version": 99}',
+        '{"schema_version": true}',
         '{"schema_version": 1, "extra_key": 1}',
         '{"schema_version": 1, "parametrized_simulations": {"a::b": true}}',
         '{"schema_version": 1, "unmarked_subprocess_e2e": {"a::b": ["unknown-cli"]}}',
@@ -1945,6 +1972,202 @@ def test_ast_guards_baseline_loader_rejects_malformed_payloads(tmp_path: Path) -
         loaded, errs = check_test_markers.load_ast_guards_baseline(path)
         assert loaded is None, text
         assert errs, text
+
+
+def test_ast_guards_resolve_module_constants_and_scope_pytestmark_caps(
+    tmp_path: Path, capsys
+) -> None:
+    """Module constants and module/class pytestmark parametrisation count toward AST guards."""
+    const_unmarked = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n"
+        "ARGV = ['suews', '--help']\n\n"
+        "def test_const_argv():\n"
+        "    subprocess.run(ARGV)\n"
+    )
+    const_cap = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = [pytest.mark.native, pytest.mark.e2e]\n"
+        "CASES = range(11)\n\n"
+        "@pytest.mark.parametrize('x', CASES)\n"
+        "def test_const_cases(x):\n"
+        "    subprocess.run(['suews', str(x)])\n"
+    )
+    mod_pm_cap = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = [pytest.mark.native, pytest.mark.e2e, pytest.mark.parametrize('x', range(11))]\n\n"
+        "def test_mod_pm(x):\n"
+        "    subprocess.run(['suews-validate', str(x)])\n"
+    )
+    cls_pm_cap = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = [pytest.mark.native, pytest.mark.e2e]\n\n"
+        "class TestClsPm:\n"
+        "    pytestmark = pytest.mark.parametrize('x', range(11))\n"
+        "    def test_cls_pm(self, x):\n"
+        "        subprocess.run(['suews-mcp', str(x)])\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_const_unmarked.py": const_unmarked,
+            "test/core/test_const_cap.py": const_cap,
+            "test/core/test_mod_pm_cap.py": mod_pm_cap,
+            "test/core/test_cls_pm_cap.py": cls_pm_cap,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_const_unmarked.py::test_const_argv" in err
+    assert "`suews` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+    assert "`suews-validate` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+    assert "`suews-mcp` has 11 @pytest.mark.e2e subprocess test node(s)" in err
+
+
+def test_ast_guards_statement_order_branches_multi_hop_helpers_and_bindings(
+    tmp_path: Path, capsys
+) -> None:
+    """Statement-order bindings, branches, multi-hop helpers, binding-based .run(), and python -m."""
+    reassigned_and_branched = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "def _invoke(argv):\n"
+        "    return subprocess.run(argv)\n\n"
+        "def _help():\n"
+        "    return _invoke(['suews', '--help'])\n\n"
+        "def test_later_reassign_cannot_hide():\n"
+        "    argv = ['suews']\n"
+        "    subprocess.run(argv)\n"
+        "    argv = ['git']\n\n"
+        "def test_branch_retained(flag):\n"
+        "    if flag:\n"
+        "        argv = ['suews-validate']\n"
+        "    else:\n"
+        "        argv = ['git']\n"
+        "    subprocess.run(argv)\n\n"
+        "def test_multi_hop_helper():\n"
+        "    _help()\n"
+    )
+    binding_based_sim = (
+        "import subprocess\n"
+        "from unittest import TextTestRunner as TR\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.physics\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_runner_var_not_exempt(x):\n"
+        "    runner = SUEWSSimulation(x)\n"
+        "    runner.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_shadowed_subprocess_not_exempt(x):\n"
+        "    subprocess = SUEWSSimulation(x)\n"
+        "    subprocess.run()\n\n"
+        "@pytest.mark.parametrize('x', [1, 2])\n"
+        "def test_aliased_non_sim_runner_and_echo_dash_m_allowed(x):\n"
+        "    TR().run(x)\n"
+        "    tr = TR()\n"
+        "    tr.run(x)\n"
+        "    subprocess.run(['echo', '-m', 'supy'])\n"
+        "    subprocess.run('echo -m supy', shell=True)\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_flow.py": reassigned_and_branched,
+            "test/core/test_bindings.py": binding_based_sim,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "test/core/test_flow.py::test_later_reassign_cannot_hide" in err
+    assert "test/core/test_flow.py::test_branch_retained" in err
+    assert "test/core/test_flow.py::test_multi_hop_helper" in err
+    assert "test/core/test_bindings.py::test_runner_var_not_exempt" in err
+    assert "test/core/test_bindings.py::test_shadowed_subprocess_not_exempt" in err
+    assert "test_aliased_non_sim_runner_and_echo_dash_m_allowed" not in err
+
+
+def test_ast_baseline_symlink_containment_and_incomplete_discovery(
+    tmp_path: Path, capsys
+) -> None:
+    """Symlinked baseline leaf/parent and unreadable test dirs fail closed on read/write."""
+    external = tmp_path / "external"
+    external.mkdir()
+    outside_file = external / "outside.json"
+    outside_file.write_text("UNTOUCHED", encoding="utf-8")
+
+    # 1) Symlinked baseline leaf refuses --init-ast-baseline and does not clobber target.
+    repo_leaf = _make_repo(
+        tmp_path / "repo_leaf",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_ok.py": UNIT_TEST_SOURCE,
+        },
+    )
+    (repo_leaf / "scripts" / "lint").mkdir(parents=True)
+    _create_symlink(
+        repo_leaf / "scripts" / "lint" / "test_ast_guards_baseline.json",
+        outside_file,
+    )
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo_leaf), "--init-ast-baseline"]
+        )
+        == 1
+    )
+    assert "symlink" in capsys.readouterr().err
+    assert outside_file.read_text(encoding="utf-8") == "UNTOUCHED"
+    assert _run(repo_leaf) == 1
+    assert "symlink" in capsys.readouterr().err
+
+    # 2) Symlinked parent directory (scripts/lint -> external) fails closed on read & write.
+    repo_parent = _make_repo(
+        tmp_path / "repo_parent",
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_ok.py": UNIT_TEST_SOURCE,
+        },
+    )
+    (repo_parent / "scripts").mkdir()
+    _create_symlink(
+        repo_parent / "scripts" / "lint", external, target_is_directory=True
+    )
+    assert (
+        check_test_markers.main(
+            ["check_test_markers.py", str(repo_parent), "--init-ast-baseline"]
+        )
+        == 1
+    )
+    assert "symlink" in capsys.readouterr().err
+    assert _run(repo_parent) == 1
+    assert "symlink" in capsys.readouterr().err
+
+    # 3) Unreadable test directory blocks --init-ast-baseline / --write-ast-baseline.
+    if sys.platform != "win32" and (not hasattr(os, "geteuid") or os.geteuid() != 0):
+        repo_unreadable = _make_repo(
+            tmp_path / "repo_unreadable",
+            {
+                "test/test_surface.py": UNIT_TEST_SOURCE,
+                "test/core/test_ok.py": UNIT_TEST_SOURCE,
+                "test/unreadable_dir/test_hidden.py": UNIT_TEST_SOURCE,
+            },
+        )
+        blocked = repo_unreadable / "test" / "unreadable_dir"
+        blocked.chmod(0o000)
+        try:
+            rc = check_test_markers.main(
+                ["check_test_markers.py", str(repo_unreadable), "--init-ast-baseline"]
+            )
+        finally:
+            blocked.chmod(0o755)
+        assert rc == 1
+        assert "discovery" in capsys.readouterr().err
 
 
 def test_live_ast_guards_baseline_is_valid() -> None:

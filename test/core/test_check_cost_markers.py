@@ -857,7 +857,98 @@ def test_baseline_metrics_and_budget_warn_report_delta_without_failing(
     payload_default = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload_default["budget_delta"]["exceeded"] is False
 
-    # Invalid thresholds fail closed with exit code 2.
-    assert checker.main([str(tmp_path / "curr"), "--parametrize-budget-seconds", "0"]) == 2
-    assert checker.main([str(tmp_path / "curr"), "--budget-warn", "-1"]) == 2
-    capsys.readouterr()
+    # Invalid advisory thresholds and unreadable/unsupported --baseline-metrics
+    # are strictly warn-only: exit code stays 0 and normal JSON output is still written.
+    bad_opt_json = tmp_path / "bad_opt.json"
+    assert (
+        checker.main([
+            str(tmp_path / "curr"),
+            "--parametrize-budget-seconds",
+            "0",
+            "--budget-warn",
+            "-1",
+            "--baseline-metrics",
+            str(tmp_path / "does-not-exist.json"),
+            "--json",
+            str(bad_opt_json),
+        ])
+        == 0
+    )
+    bad_opt_out = capsys.readouterr().out
+    assert "[OK]" in bad_opt_out
+    assert "[WARN] advisory budget diagnostic unavailable (warn-only):" in bad_opt_out
+    bad_opt_payload = json.loads(bad_opt_json.read_text(encoding="utf-8"))
+    assert bad_opt_payload["ok"] is True
+    assert len(bad_opt_payload["advisory_errors"]) == 3
+
+    # Unsupported schema or malformed records in --baseline-metrics also stay warn-only.
+    bad_schema_base = tmp_path / "bad_schema_base.json"
+    bad_schema_base.write_text(
+        json.dumps({"schema_version": 99, "tests": []}), encoding="utf-8"
+    )
+    assert (
+        checker.main([
+            str(tmp_path / "curr"),
+            "--baseline-metrics",
+            str(bad_schema_base),
+            "--json",
+            str(bad_opt_json),
+        ])
+        == 0
+    )
+    assert "advisory budget diagnostic unavailable" in capsys.readouterr().out
+    assert json.loads(bad_opt_json.read_text(encoding="utf-8"))["advisory_errors"]
+
+
+def test_non_ascii_explosion_warning_stays_ascii_safe(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Explosion warnings sanitise non-ASCII node IDs so ASCII stdout/Markdown never fails."""
+    artefact = _artefact(
+        tmp_path / "unit.json",
+        [
+            _record("test/test_caf\u00e9.py::test_x[0]", call=11.0),
+            _record("test/test_caf\u00e9.py::test_x[1]", call=11.0),
+        ],
+    )
+    md_path = tmp_path / "summary.md"
+    out_json = tmp_path / "out.json"
+    assert (
+        checker.main([
+            str(artefact),
+            "--markdown",
+            str(md_path),
+            "--json",
+            str(out_json),
+        ])
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert out.isascii()
+    assert "[WARN] 1 parametrised non-slow function(s)" in out
+    md = md_path.read_text(encoding="utf-8")
+    assert md.isascii()
+    assert out_json.is_file()
+
+
+def test_per_axis_cpu_summary_preserves_dual_lane_measurements(
+    tmp_path: Path,
+) -> None:
+    """Dual-lane node measured in both `api` and `physics` keeps both axis totals."""
+    tests = [
+        checker.TestCost(
+            "test/core/test_dual.py::test_x", ("api", "physics"), 4.0, 5.0, "api.json", axis="api"
+        ),
+        checker.TestCost(
+            "test/core/test_dual.py::test_x", ("api", "physics"), 6.0, 8.0, "physics.json", axis="physics"
+        ),
+    ]
+    report = checker.check_costs(tests)
+    # Global deduplication retains 1 test (max=6.0) for marker classification.
+    assert len(report.tests) == 1
+    assert report.tests[0].cpu_seconds == pytest.approx(6.0)
+    # Per-axis summary retains both axes without losing the smaller api reading.
+    by_axis = {row.axis: row for row in report.axis_summary}
+    assert set(by_axis) == {"api", "physics"}
+    assert by_axis["api"].total_cpu_seconds == pytest.approx(4.0)
+    assert by_axis["physics"].total_cpu_seconds == pytest.approx(6.0)

@@ -187,9 +187,14 @@ class FunctionExplosionWarning:
 
     def line(self) -> str:
         """Render a single plain-text diagnostic line for this explosion warning."""
-        axis_note = f"; axis={self.axis}" if self.axis is not None else ""
+        safe_func = _sanitise_diagnostic(self.function_id)
+        axis_note = (
+            f"; axis={_sanitise_diagnostic(self.axis)}"
+            if self.axis is not None
+            else ""
+        )
         return (
-            f"  - {self.function_id}: {self.node_count} nodes x "
+            f"  - {safe_func}: {self.node_count} nodes x "
             f"{self.median_node_cpu:.2f} median = {self.estimated_cpu_seconds:.1f} "
             f"CPU-s > {self.threshold_seconds:g} CPU-s "
             f"(total {self.total_call_cpu:.1f} CPU-s{axis_note}; warn-only)"
@@ -270,6 +275,7 @@ class Report:
     explosion_warnings: list[FunctionExplosionWarning] = field(default_factory=list)
     axis_summary: list[AxisCpuSummary] = field(default_factory=list)
     budget_delta: BudgetDelta | None = None
+    advisory_errors: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -367,6 +373,7 @@ class Report:
                 for warn in self.explosion_warnings
             ],
             "budget_delta": budget_payload,
+            "advisory_errors": list(self.advisory_errors),
         }
 
     def message(self) -> str:
@@ -388,7 +395,7 @@ class Report:
             )
         if self.axis_summary:
             axis_parts = [
-                f"{row.axis}={row.total_cpu_seconds:.1f} CPU-s ({row.test_count})"
+                f"{_sanitise_diagnostic(row.axis)}={row.total_cpu_seconds:.1f} CPU-s ({row.test_count})"
                 for row in self.axis_summary
             ]
             lines.append(f"Axis {self.phase} CPU summary: {', '.join(axis_parts)}.")
@@ -400,13 +407,19 @@ class Report:
             )
             lines.extend(warn.line() for warn in self.explosion_warnings)
         if self.budget_delta is not None:
-            lines.append(self.budget_delta.summary_line())
+            lines.append(_sanitise_diagnostic(self.budget_delta.summary_line()))
             for row in self.budget_delta.per_axis:
+                safe_axis = _sanitise_diagnostic(row.axis)
                 lines.append(
-                    f"  - axis {row.axis}: {row.current_cpu_seconds:.1f} CPU-s "
+                    f"  - axis {safe_axis}: {row.current_cpu_seconds:.1f} CPU-s "
                     f"(baseline {row.baseline_cpu_seconds:.1f}, "
                     f"delta {row.delta_cpu_seconds:+.1f} CPU-s)"
                 )
+        for err in self.advisory_errors:
+            lines.append(
+                f"[WARN] advisory budget diagnostic unavailable (warn-only): "
+                f"{_sanitise_diagnostic(err)}"
+            )
         return "\n".join(lines)
 
     def markdown(self) -> str:
@@ -437,8 +450,9 @@ class Report:
                 "|---|---:|---:|---:|",
             ])
             for row in self.axis_summary:
+                safe_axis = _sanitise_diagnostic(row.axis)
                 lines.append(
-                    f"| `{row.axis}` | {row.test_count} | "
+                    f"| `{safe_axis}` | {row.test_count} | "
                     f"{row.total_cpu_seconds:.1f} | {row.total_wall_seconds:.1f} |"
                 )
         if self.explosion_warnings:
@@ -450,17 +464,19 @@ class Report:
                 "|---|---:|---:|---:|---:|---|",
             ])
             for warn in self.explosion_warnings:
+                safe_func = _sanitise_diagnostic(warn.function_id)
+                safe_axis = _sanitise_diagnostic(warn.axis) if warn.axis else "-"
                 lines.append(
-                    f"| `{warn.function_id}` | {warn.node_count} | "
+                    f"| `{safe_func}` | {warn.node_count} | "
                     f"{warn.median_node_cpu:.2f} | {warn.estimated_cpu_seconds:.1f} | "
-                    f"{warn.total_call_cpu:.1f} | {warn.axis or '-'} |"
+                    f"{warn.total_call_cpu:.1f} | {safe_axis} |"
                 )
         if self.budget_delta is not None:
             lines.extend([
                 "",
                 "### PR CPU budget delta (warn-only)",
                 "",
-                self.budget_delta.summary_line(),
+                _sanitise_diagnostic(self.budget_delta.summary_line()),
             ])
             if self.budget_delta.per_axis:
                 lines.extend([
@@ -469,10 +485,15 @@ class Report:
                     "|---|---:|---:|---:|",
                 ])
                 for row in self.budget_delta.per_axis:
+                    safe_axis = _sanitise_diagnostic(row.axis)
                     lines.append(
-                        f"| `{row.axis}` | {row.current_cpu_seconds:.1f} | "
+                        f"| `{safe_axis}` | {row.current_cpu_seconds:.1f} | "
                         f"{row.baseline_cpu_seconds:.1f} | {row.delta_cpu_seconds:+.1f} |"
                     )
+        if self.advisory_errors:
+            lines.extend(["", "### Advisory budget diagnostics (warn-only)", ""])
+            for err in self.advisory_errors:
+                lines.append(f"- {_sanitise_diagnostic(err)}")
         lines.extend(["", "### Distribution", "", *histogram_lines(self.tests), ""])
         return "\n".join(lines)
 
@@ -753,12 +774,23 @@ def _ordered_axes(axes: Iterable[str]) -> list[str]:
     return [*ordered, *extras]
 
 
+def largest_per_axis_node(tests: Iterable[TestCost]) -> list[TestCost]:
+    """Keep one measurement per ``(axis, node_id)``: the largest CPU cost seen."""
+    best: dict[tuple[str | None, str], TestCost] = {}
+    for test in tests:
+        key = (test.axis, test.node_id)
+        current = best.get(key)
+        if current is None or test.cpu_seconds > current.cpu_seconds:
+            best[key] = test
+    return [best[key] for key in sorted(best, key=lambda item: (item[0] or "", item[1]))]
+
+
 def summarise_axis_cpu(tests: Iterable[TestCost]) -> list[AxisCpuSummary]:
-    """Summarise measured CPU and wall seconds per axis (Schema-2 or Schema-1 fallback)."""
+    """Summarise measured CPU and wall seconds per axis (deduplicated within each axis)."""
     counts: dict[str, int] = {}
     cpu_totals: dict[str, float] = {}
     wall_totals: dict[str, float] = {}
-    for test in tests:
+    for test in largest_per_axis_node(tests):
         if not test.measured:
             continue
         axis = test.axis if test.axis is not None else "unattributed"
@@ -789,10 +821,13 @@ def compute_budget_delta(
     ):
         raise ValueError("the budget warning threshold must be finite and non-negative")
 
-    curr_measured = [t for t in largest_per_node(current_tests) if t.measured]
+    curr_raw = list(current_tests)
+    curr_measured = [t for t in largest_per_node(curr_raw) if t.measured]
     curr_total = float(sum(t.cpu_seconds for t in curr_measured))
     curr_by_axis: dict[str, float] = {}
-    for test in curr_measured:
+    for test in largest_per_axis_node(curr_raw):
+        if not test.measured:
+            continue
         axis = test.axis if test.axis is not None else "unattributed"
         curr_by_axis[axis] = curr_by_axis.get(axis, 0.0) + test.cpu_seconds
 
@@ -819,11 +854,14 @@ def compute_budget_delta(
             per_axis=per_axis,
         )
 
-    base_measured = [t for t in largest_per_node(baseline_tests) if t.measured]
+    base_raw = list(baseline_tests)
+    base_measured = [t for t in largest_per_node(base_raw) if t.measured]
     base_total = float(sum(t.cpu_seconds for t in base_measured))
     base_nodes = {t.node_id for t in base_measured}
     base_by_axis: dict[str, float] = {}
-    for test in base_measured:
+    for test in largest_per_axis_node(base_raw):
+        if not test.measured:
+            continue
         axis = test.axis if test.axis is not None else "unattributed"
         base_by_axis[axis] = base_by_axis.get(axis, 0.0) + test.cpu_seconds
 
@@ -948,12 +986,14 @@ def check_costs(
         sources=list(sources),
         explosion_threshold_seconds=explosion_seconds,
     )
+    raw_tests = list(tests)
+    raw_baseline = None if baseline_tests is None else list(baseline_tests)
     if test_files is not None:
         report.restricted_to = tuple(sorted({_posix_path(path) for path in test_files}))
-        tests = restrict_to_files(tests, report.restricted_to)
-        if baseline_tests is not None:
-            baseline_tests = restrict_to_files(baseline_tests, report.restricted_to)
-    all_tests = largest_per_node(tests)
+        raw_tests = restrict_to_files(raw_tests, report.restricted_to)
+        if raw_baseline is not None:
+            raw_baseline = restrict_to_files(raw_baseline, report.restricted_to)
+    all_tests = largest_per_node(raw_tests)
     report.tests = [test for test in all_tests if test.measured]
     report.unmeasured = len(all_tests) - len(report.tests)
     for test in report.tests:
@@ -962,14 +1002,14 @@ def check_costs(
         )
         if finding is not None:
             report.findings.append(finding)
-    report.axis_summary = summarise_axis_cpu(report.tests)
+    report.axis_summary = summarise_axis_cpu(raw_tests)
     report.explosion_warnings = detect_parametrize_explosions(
         report.tests, threshold_seconds=explosion_seconds
     )
-    if baseline_tests is not None or budget_warn_seconds is not None:
+    if raw_baseline is not None or budget_warn_seconds is not None:
         report.budget_delta = compute_budget_delta(
-            report.tests,
-            baseline_tests=baseline_tests,
+            raw_tests,
+            baseline_tests=raw_baseline,
             budget_seconds=budget_warn_seconds,
         )
     return report
@@ -1105,7 +1145,7 @@ def _load_optional_baseline_tests(
     baseline_paths: list[Path] | None,
     phase: str,
 ) -> tuple[list[TestCost] | None, str | None]:
-    """Load optional ``--baseline-metrics`` artefacts, returning ``(tests, error)``."""
+    """Load optional ``--baseline-metrics`` artefacts, isolating all advisory failures."""
     if not baseline_paths:
         return None, None
     baseline_skipped: list[str] = []
@@ -1113,13 +1153,47 @@ def _load_optional_baseline_tests(
         baseline_tests, _ = load_tests(
             baseline_paths, phase=phase, skipped=baseline_skipped
         )
-    except UnsupportedMetricsSchema as exc:
+    except (UnsupportedMetricsSchema, KeyError, TypeError, ValueError, OSError) as exc:
         return None, f"baseline metrics: {exc}"
     for path in baseline_skipped:
-        print(f"[skip] baseline {path}: not a metrics artefact with per-test records")
+        print(
+            f"[skip] baseline {_sanitise_diagnostic(path)}: "
+            "not a metrics artefact with per-test records"
+        )
     if not baseline_tests:
         return None, "no per-test records found in --baseline-metrics"
     return baseline_tests, None
+
+
+def _resolve_advisory_budget_options(
+    args: argparse.Namespace,
+) -> tuple[float, list[TestCost] | None, float | None, list[str]]:
+    """Validate optional warn-only budget inputs without ever altering the exit code."""
+    advisory_errors: list[str] = []
+    explosion_seconds = args.parametrize_budget_seconds
+    if not math.isfinite(explosion_seconds) or explosion_seconds <= 0.0:
+        advisory_errors.append(
+            f"invalid --parametrize-budget-seconds {explosion_seconds!r} "
+            f"(must be finite and positive; falling back to "
+            f"{PARAMETRISE_EXPLOSION_CPU_SECONDS:g})"
+        )
+        explosion_seconds = PARAMETRISE_EXPLOSION_CPU_SECONDS
+
+    budget_warn = args.budget_warn
+    if budget_warn is not None and (not math.isfinite(budget_warn) or budget_warn < 0.0):
+        advisory_errors.append(
+            f"invalid --budget-warn {budget_warn!r} "
+            "(must be finite and non-negative; ignoring advisory budget threshold)"
+        )
+        budget_warn = None
+
+    baseline_tests, baseline_err = _load_optional_baseline_tests(
+        args.baseline_paths, args.phase
+    )
+    if baseline_err is not None:
+        advisory_errors.append(baseline_err)
+
+    return explosion_seconds, baseline_tests, budget_warn, advisory_errors
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1136,12 +1210,6 @@ def main(argv: list[str] | None = None) -> int:
     if not tests:
         print("[X] no per-test records found; pass ci-metrics-*-cp312-manylinux-x86_64 artefacts")
         return 2
-    baseline_tests, baseline_err = _load_optional_baseline_tests(
-        args.baseline_paths, args.phase
-    )
-    if baseline_err is not None:
-        print(f"[X] {baseline_err}")
-        return 2
     if args.require_axes:
         missing = missing_required_axes(tests, args.require_axes)
         if missing:
@@ -1152,22 +1220,22 @@ def main(argv: list[str] | None = None) -> int:
                 f"(measured axes present: {found_str})"
             )
             return 2
-    try:
-        report = check_costs(
-            tests,
-            medium_seconds=args.medium_seconds,
-            slow_seconds=args.slow_seconds,
-            band=args.band,
-            phase=args.phase,
-            sources=sources,
-            test_files=args.test_files,
-            explosion_seconds=args.parametrize_budget_seconds,
-            baseline_tests=baseline_tests,
-            budget_warn_seconds=args.budget_warn,
-        )
-    except ValueError as exc:
-        print(f"[X] {exc}")
-        return 2
+    explosion_seconds, baseline_tests, budget_warn, advisory_errors = (
+        _resolve_advisory_budget_options(args)
+    )
+    report = check_costs(
+        tests,
+        medium_seconds=args.medium_seconds,
+        slow_seconds=args.slow_seconds,
+        band=args.band,
+        phase=args.phase,
+        sources=sources,
+        test_files=args.test_files,
+        explosion_seconds=explosion_seconds,
+        baseline_tests=baseline_tests,
+        budget_warn_seconds=budget_warn,
+    )
+    report.advisory_errors.extend(advisory_errors)
     print(report.message())
     if args.histogram:
         print()

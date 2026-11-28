@@ -152,16 +152,26 @@ _NON_SIMULATION_RUN_MODULES: frozenset[str] = frozenset({
     "sched",
     "unittest",
     "click",
+    "contextvars",
 })
-_NON_SIMULATION_RUN_RECEIVERS: frozenset[str] = _NON_SIMULATION_RUN_MODULES | frozenset({
+_NON_SIMULATION_RUN_CLASSES: frozenset[str] = frozenset({
     "TextTestRunner",
     "CliRunner",
-    "runner",
-    "cli_runner",
-    "loop",
-    "context",
-    "ctx",
+    "Runner",
+    "Context",
+    "Profile",
+    "Pdb",
+    "Bdb",
+    "scheduler",
 })
+_PYTHON_EXE_RE = re.compile(r"^(?:python(?:\d+(?:\.\d+)*)?|pypy3?|py)(?:\.exe)?$")
+_PYTHON_EXE_VAR_TOKENS: tuple[str, ...] = (
+    "python",
+    "py_exe",
+    "env_exe",
+    "executable",
+)
+_MAX_BRANCH_BINDINGS: int = 8
 _ENGINE_BIN_VAR_NAMES: frozenset[str] = frozenset({
     "engine_bin",
     "engine_exe",
@@ -1560,34 +1570,147 @@ def _root_name_of_expr(node: ast.AST) -> str | None:
     return None
 
 
-def _is_non_simulation_run_receiver(
-    recv: ast.AST, non_sim_aliases: frozenset[str]
+def _collect_mutated_ast_names(tree: ast.Module) -> set[str]:
+    """Return variable names mutated, deleted, or reassigned outside top-level decls."""
+    top_stmts = set(tree.body)
+    mutated: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and node not in top_stmts:
+            for target in node.targets:
+                mutated.update(_iter_assigned_names(target))
+        elif (
+            isinstance(node, ast.AnnAssign) and node not in top_stmts
+        ) or isinstance(node, ast.AugAssign):
+            mutated.update(_iter_assigned_names(node.target))
+        elif isinstance(node, ast.Delete):
+            for target in node.targets:
+                mutated.update(_iter_assigned_names(target))
+                if isinstance(target, ast.Subscript) and isinstance(
+                    target.value, ast.Name
+                ):
+                    mutated.add(target.value.id)
+        elif (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.ctx, ast.Store)
+            and isinstance(node.value, ast.Name)
+        ):
+            mutated.add(node.value.id)
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.attr in _MUTATING_LIST_METHODS
+        ):
+            mutated.add(node.func.value.id)
+    return mutated
+
+
+def _build_ast_value_env(tree: ast.Module) -> dict[str, ast.AST]:
+    """Map single-assigned, unmutated top-level constants to their RHS expressions.
+
+    Unlike ``_build_single_assign_env``, ordinary read-only references in
+    ``subprocess.run(ARGV)`` or ``@pytest.mark.parametrize('x', CASES)`` are
+    retained rather than treated as escapes.
+    """
+    counts: dict[str, int] = {}
+    values: dict[str, ast.AST] = {}
+    for stmt in tree.body:
+        if isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                if isinstance(target, ast.Name):
+                    counts[target.id] = counts.get(target.id, 0) + 1
+                    values[target.id] = stmt.value
+                else:
+                    for name in _iter_assigned_names(target):
+                        counts[name] = counts.get(name, 0) + 2
+        elif (
+            isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and stmt.value is not None
+        ):
+            counts[stmt.target.id] = counts.get(stmt.target.id, 0) + 1
+            values[stmt.target.id] = stmt.value
+        elif isinstance(stmt, ast.AugAssign):
+            for name in _iter_assigned_names(stmt.target):
+                counts[name] = counts.get(name, 0) + 2
+    mutated = _collect_mutated_ast_names(tree)
+    return {
+        name: values[name]
+        for name, count in counts.items()
+        if count == 1 and name not in mutated
+    }
+
+
+def _extract_scope_pytestmark_exprs(stmts: list[ast.stmt]) -> list[ast.AST]:
+    """Return marker AST expressions declared by ``pytestmark`` in ``stmts``."""
+    exprs: list[ast.AST] = []
+    for stmt in stmts:
+        if not isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+            continue
+        if not _stmt_targets_name(stmt, "pytestmark") or stmt.value is None:
+            continue
+        if isinstance(stmt.value, (ast.List, ast.Tuple)):
+            exprs.extend(stmt.value.elts)
+        else:
+            exprs.append(stmt.value)
+    return exprs
+
+
+def _is_non_sim_constructor_call(
+    node: ast.AST,
+    non_sim_mods: frozenset[str],
+    non_sim_classes: frozenset[str],
+    shadowed: frozenset[str],
 ) -> bool:
-    """Return True when ``<recv>.run(...)`` clearly targets a non-simulation runner."""
+    """Return True when ``node`` instantiates a known non-simulation runner class."""
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id in non_sim_classes and func.id not in shadowed
+    if isinstance(func, ast.Attribute):
+        root = _root_name_of_expr(func)
+        return (
+            func.attr in _NON_SIMULATION_RUN_CLASSES
+            and root is not None
+            and root in non_sim_mods
+            and root not in shadowed
+        )
+    return False
+
+
+def _is_non_simulation_run_receiver(
+    recv: ast.AST,
+    non_sim_mods: frozenset[str],
+    non_sim_classes: frozenset[str],
+    local_non_sim_vars: frozenset[str],
+    shadowed: frozenset[str],
+) -> bool:
+    """Return True only when ``<recv>.run(...)`` is provably bound to a non-sim runner."""
     if isinstance(recv, ast.Name):
-        return recv.id in non_sim_aliases
+        if recv.id in local_non_sim_vars:
+            return True
+        return recv.id in non_sim_mods and recv.id not in shadowed
     if isinstance(recv, ast.Attribute):
         root = _root_name_of_expr(recv)
-        return root is not None and root in non_sim_aliases
-    if isinstance(recv, ast.Call):
-        func = recv.func
-        if isinstance(func, ast.Name) and func.id in _NON_SIMULATION_RUN_RECEIVERS:
-            return True
-        if isinstance(func, ast.Attribute):
-            if func.attr in _NON_SIMULATION_RUN_RECEIVERS:
-                return True
-            root = _root_name_of_expr(func)
-            return root is not None and root in non_sim_aliases
-    return False
+        return (
+            root is not None
+            and root in non_sim_mods
+            and root not in shadowed
+        )
+    return _is_non_sim_constructor_call(
+        recv, non_sim_mods, non_sim_classes, shadowed
+    )
 
 
 def _collect_import_aliases(
     tree: ast.Module,
-) -> tuple[set[str], set[str], frozenset[str]]:
-    """Collect subprocess aliases, direct subprocess imports, and non-sim `.run` aliases."""
+) -> tuple[set[str], set[str], frozenset[str], frozenset[str]]:
+    """Collect subprocess aliases, direct subprocess funcs, non-sim modules, and runner classes."""
     subproc_aliases: set[str] = {"subprocess"}
     subproc_funcs: set[str] = set()
-    non_sim_aliases: set[str] = set(_NON_SIMULATION_RUN_RECEIVERS)
+    non_sim_mods: set[str] = set()
+    non_sim_classes: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1596,46 +1719,121 @@ def _collect_import_aliases(
                 if alias.name == "subprocess":
                     subproc_aliases.add(local_name)
                 if root_mod in _NON_SIMULATION_RUN_MODULES:
-                    non_sim_aliases.add(local_name)
+                    non_sim_mods.add(local_name)
         elif isinstance(node, ast.ImportFrom):
             if node.module == "subprocess":
                 for alias in node.names:
                     if alias.name in _SUBPROCESS_CALL_METHODS:
                         subproc_funcs.add(alias.asname or alias.name)
-            elif node.module and node.module.split(".", 1)[0] in _NON_SIMULATION_RUN_MODULES:
+            elif (
+                node.module
+                and node.module.split(".", 1)[0] in _NON_SIMULATION_RUN_MODULES
+            ):
                 for alias in node.names:
-                    if alias.name != "*":
-                        non_sim_aliases.add(alias.asname or alias.name)
-    return (subproc_aliases, subproc_funcs, frozenset(non_sim_aliases))
+                    if alias.name in _NON_SIMULATION_RUN_CLASSES:
+                        non_sim_classes.add(alias.asname or alias.name)
+    return (
+        subproc_aliases,
+        subproc_funcs,
+        frozenset(non_sim_mods),
+        frozenset(non_sim_classes),
+    )
 
 
-def _flatten_argv_expr(
+def _is_python_token(token: str) -> bool:
+    """Return True when executable token names a Python interpreter."""
+    cleaned = token.strip().strip("\"'")
+    if not cleaned:
+        return False
+    basename = cleaned.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    return bool(_PYTHON_EXE_RE.fullmatch(basename))
+
+
+def _is_python_executable_expr(
     node: ast.AST,
-    env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
     *,
     seen: frozenset[str] = frozenset(),
     depth: int = 0,
-) -> list[ast.AST]:
-    """Flatten a literal/concatenated/starred argv list expression."""
+) -> bool:
+    """Return True when ``argv[0]`` represents a Python interpreter executable."""
     if depth > 6:
-        return [node]
+        return False
+    unwrapped = _unwrap_path_conversion(node)
+    text = _leading_str_constant(unwrapped)
+    matched = False
+    if text is not None:
+        matched = _is_python_token(text)
+    elif isinstance(unwrapped, ast.Attribute):
+        matched = (
+            isinstance(unwrapped.value, ast.Name)
+            and unwrapped.value.id == "sys"
+            and unwrapped.attr == "executable"
+        ) or any(tok in unwrapped.attr.lower() for tok in _PYTHON_EXE_VAR_TOKENS)
+    elif isinstance(unwrapped, ast.BinOp) and isinstance(unwrapped.op, ast.Div):
+        rhs = _leading_str_constant(unwrapped.right)
+        matched = rhs is not None and _is_python_token(rhs)
+    elif isinstance(unwrapped, ast.Name):
+        if unwrapped.id in env and unwrapped.id not in seen:
+            matched = any(
+                _is_python_executable_expr(
+                    cand, env, seen=seen | {unwrapped.id}, depth=depth + 1
+                )
+                for cand in env[unwrapped.id]
+            )
+        else:
+            matched = any(
+                tok in unwrapped.id.lower() for tok in _PYTHON_EXE_VAR_TOKENS
+            )
+    return matched
+
+
+def _flatten_argv_variants(
+    node: ast.AST,
+    env: Mapping[str, list[ast.AST]],
+    *,
+    seen: frozenset[str] = frozenset(),
+    depth: int = 0,
+) -> list[list[ast.AST]]:
+    """Expand an argv expression into candidate flattened element lists."""
+    if depth > 6:
+        return [[node]]
     if isinstance(node, ast.Name) and node.id in env and node.id not in seen:
-        return _flatten_argv_expr(
-            env[node.id], env, seen=seen | {node.id}, depth=depth + 1
-        )
+        variants: list[list[ast.AST]] = []
+        for cand in env[node.id]:
+            variants.extend(
+                _flatten_argv_variants(
+                    cand, env, seen=seen | {node.id}, depth=depth + 1
+                )
+            )
+        return variants[:_MAX_BRANCH_BINDINGS]
     if isinstance(node, (ast.List, ast.Tuple)):
-        out: list[ast.AST] = []
+        variants = [[]]
         for elt in node.elts:
             if isinstance(elt, ast.Starred):
-                out.extend(_flatten_argv_expr(elt.value, env, seen=seen, depth=depth + 1))
+                part_variants = _flatten_argv_variants(
+                    elt.value, env, seen=seen, depth=depth + 1
+                )
+                variants = [
+                    [*base, *part]
+                    for base in variants
+                    for part in part_variants
+                ][:_MAX_BRANCH_BINDINGS]
             else:
-                out.append(elt)
-        return out
+                for base in variants:
+                    base.append(elt)
+        return variants
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        return _flatten_argv_expr(
+        left_variants = _flatten_argv_variants(
             node.left, env, seen=seen, depth=depth + 1
-        ) + _flatten_argv_expr(node.right, env, seen=seen, depth=depth + 1)
-    return [node]
+        )
+        right_variants = _flatten_argv_variants(
+            node.right, env, seen=seen, depth=depth + 1
+        )
+        return [
+            [*left, *right] for left in left_variants for right in right_variants
+        ][:_MAX_BRANCH_BINDINGS]
+    return [[node]]
 
 
 def _unwrap_path_conversion(node: ast.AST) -> ast.AST:
@@ -1660,38 +1858,42 @@ def _unwrap_path_conversion(node: ast.AST) -> ast.AST:
 def _detect_cli_from_helper_args(
     call: ast.Call,
     elems: list[ast.AST],
-    env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
     *,
     seen: frozenset[str],
     depth: int,
-) -> str:
-    """Resolve CLI command from arguments to a SUEWS CLI helper call."""
+) -> set[str]:
+    """Resolve CLI command(s) from arguments to a SUEWS CLI helper call."""
+    found: set[str] = set()
     for arg in call.args:
         arg_s = _leading_str_constant(arg)
         if arg_s is not None:
             exe = _normalise_cli_executable(arg_s)
             if exe is not None:
-                return exe
-        if isinstance(arg, ast.Name) and arg.id in env and arg.id not in seen:
-            resolved = _detect_suews_cli_in_expr(
-                env[arg.id], env, seen=seen | {arg.id}, depth=depth + 1
-            )
-            if resolved is not None:
-                return resolved
+                found.add(exe)
+        elif isinstance(arg, ast.Name) and arg.id in env and arg.id not in seen:
+            for cand in env[arg.id]:
+                found.update(
+                    _detect_suews_clis_in_expr(
+                        cand, env, seen=seen | {arg.id}, depth=depth + 1
+                    )
+                )
+    if found:
+        return found
     if len(elems) >= 2 and _leading_str_constant(elems[1]) == "validate":
-        return "suews-validate"
-    return "suews"
+        return {"suews-validate"}
+    return {"suews"}
 
 
 def _detect_cli_from_call_expr(
     call: ast.Call,
     elems: list[ast.AST],
-    env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
     *,
     seen: frozenset[str],
     depth: int,
-) -> str | None:
-    """Identify a SUEWS CLI executable returned by a helper call expression."""
+) -> set[str]:
+    """Identify SUEWS CLI executable(s) returned by a helper call expression."""
     func = call.func
     fname = (
         func.id
@@ -1699,37 +1901,42 @@ def _detect_cli_from_call_expr(
         else (func.attr if isinstance(func, ast.Attribute) else "")
     )
     fl = fname.lower()
-    result: str | None = None
+    result: set[str] = set()
     if fl == "which":
         arg_s = _leading_str_constant(call.args[0]) if call.args else None
-        result = _normalise_cli_executable(arg_s) if arg_s is not None else None
+        exe = _normalise_cli_executable(arg_s) if arg_s is not None else None
+        if exe is not None:
+            result.add(exe)
     elif "suews_engine" in fl or fl in {"_locate_engine", "locate_engine"}:
-        result = "suews-engine"
+        result.add("suews-engine")
     elif "suews_validate" in fl:
-        result = "suews-validate"
+        result.add("suews-validate")
     elif "suews_mcp" in fl:
-        result = "suews-mcp"
+        result.add("suews-mcp")
     elif "suews_cli" in fl or "entry_point" in fl or "suews_cmd" in fl:
-        result = _detect_cli_from_helper_args(
-            call, elems, env, seen=seen, depth=depth
+        result.update(
+            _detect_cli_from_helper_args(
+                call, elems, env, seen=seen, depth=depth
+            )
         )
     return result
 
 
-def _detect_cli_from_string(text: str) -> str | None:
+def _detect_cli_from_string(text: str) -> set[str]:
     """Detect a SUEWS CLI or ``python -m supy...`` invocation in a command string."""
     tokens = text.split()
     if not tokens:
-        return None
+        return set()
     exe = _normalise_cli_executable(tokens[0])
     if exe is not None:
-        return exe
-    for idx, tok in enumerate(tokens[:-1]):
-        if tok == "-m" and (
-            tokens[idx + 1] == "supy" or tokens[idx + 1].startswith("supy.")
-        ):
-            return PYTHON_M_SUPY_COMMAND
-    return None
+        return {exe}
+    if _is_python_token(tokens[0]):
+        for idx, tok in enumerate(tokens[1:-1], start=1):
+            if tok == "-m" and (
+                tokens[idx + 1] == "supy" or tokens[idx + 1].startswith("supy.")
+            ):
+                return {PYTHON_M_SUPY_COMMAND}
+    return set()
 
 
 _CLI_NAME_SUBSTRINGS: tuple[tuple[str, str], ...] = (
@@ -1745,38 +1952,46 @@ _CLI_NAME_SUBSTRINGS: tuple[tuple[str, str], ...] = (
 def _detect_cli_from_name(
     first: ast.Name,
     elems: list[ast.AST],
-    env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
     *,
     seen: frozenset[str],
     depth: int,
-) -> str | None:
-    """Detect a SUEWS CLI from a variable or fixture name in ``argv[0]``."""
+) -> set[str]:
+    """Detect SUEWS CLI command(s) from a variable or fixture name in ``argv[0]``."""
+    found: set[str] = set()
     if first.id in env and first.id not in seen:
-        resolved = _detect_suews_cli_in_expr(
-            env[first.id], env, seen=seen | {first.id}, depth=depth + 1
-        )
-        if resolved is not None:
-            return resolved
+        for cand in env[first.id]:
+            found.update(
+                _detect_suews_clis_in_expr(
+                    cand, env, seen=seen | {first.id}, depth=depth + 1
+                )
+            )
+        if found:
+            return found
     low = first.id.lower()
     for needle, command in _CLI_NAME_SUBSTRINGS:
         if needle in low:
-            return command
+            return {command}
     if low in _ENGINE_BIN_VAR_NAMES or (
         low in _GENERIC_ENGINE_RUN_VARS
         and len(elems) >= 2
         and _leading_str_constant(elems[1]) == "run"
     ):
-        return "suews-engine"
+        return {"suews-engine"}
     if low in _SUEWS_EXE_VAR_NAMES:
         if len(elems) >= 2 and _leading_str_constant(elems[1]) == "validate":
-            return "suews-validate"
-        return "suews"
-    return None
+            return {"suews-validate"}
+        return {"suews"}
+    return set()
 
 
-def _has_python_m_supy(elems: list[ast.AST]) -> bool:
-    """Return True when argv elements include ``-m supy`` or ``-m supy.<...>``."""
-    for idx, elem in enumerate(elems[:-1]):
+def _has_python_m_supy(
+    elems: list[ast.AST], env: Mapping[str, list[ast.AST]]
+) -> bool:
+    """Return True when ``elems`` invokes a Python executable with ``-m supy...``."""
+    if len(elems) < 3 or not _is_python_executable_expr(elems[0], env):
+        return False
+    for idx, elem in enumerate(elems[1:-1], start=1):
         if _leading_str_constant(elem) == "-m":
             mod_str = _leading_str_constant(elems[idx + 1])
             if mod_str is not None and (
@@ -1786,38 +2001,32 @@ def _has_python_m_supy(elems: list[ast.AST]) -> bool:
     return False
 
 
-def _detect_suews_cli_in_expr(
-    expr: ast.AST,
-    env: Mapping[str, ast.AST],
+def _detect_suews_clis_in_argv(
+    elems: list[ast.AST],
+    env: Mapping[str, list[ast.AST]],
     *,
-    seen: frozenset[str] = frozenset(),
-    depth: int = 0,
-) -> str | None:
-    """Return canonical SUEWS CLI command invoked by ``expr``, or ``None``."""
-    if depth > 6:
-        return None
-    direct_str = _leading_str_constant(expr)
-    if direct_str is not None:
-        return _detect_cli_from_string(direct_str)
-
-    elems = _flatten_argv_expr(expr, env, seen=seen, depth=depth + 1)
-    if _has_python_m_supy(elems):
-        return PYTHON_M_SUPY_COMMAND
+    seen: frozenset[str],
+    depth: int,
+) -> set[str]:
+    """Classify one flattened argv candidate list into SUEWS CLI command name(s)."""
     if not elems:
-        return None
-
+        return set()
+    if _has_python_m_supy(elems, env):
+        return {PYTHON_M_SUPY_COMMAND}
     first = _unwrap_path_conversion(elems[0])
-    result: str | None = None
+    result: set[str] = set()
     first_str = _leading_str_constant(first)
     if first_str is not None:
-        result = _normalise_cli_executable(first_str)
+        exe = _normalise_cli_executable(first_str)
+        if exe is not None:
+            result.add(exe)
     elif isinstance(first, ast.BinOp) and isinstance(first.op, ast.Div):
         rhs = _leading_str_constant(first.right)
-        result = _normalise_cli_executable(rhs) if rhs is not None else None
+        exe = _normalise_cli_executable(rhs) if rhs is not None else None
+        if exe is not None:
+            result.add(exe)
     elif isinstance(first, ast.Name):
-        result = _detect_cli_from_name(
-            first, elems, env, seen=seen, depth=depth
-        )
+        result = _detect_cli_from_name(first, elems, env, seen=seen, depth=depth)
     elif isinstance(first, ast.Call):
         result = _detect_cli_from_call_expr(
             first, elems, env, seen=seen, depth=depth + 1
@@ -1825,33 +2034,158 @@ def _detect_suews_cli_in_expr(
     return result
 
 
-def _build_local_expr_env(
-    fn: ast.FunctionDef | ast.AsyncFunctionDef,
-    mod_env: Mapping[str, ast.AST],
-) -> dict[str, ast.AST]:
-    """Build a best-effort local variable -> expression map for a function body."""
-    env: dict[str, ast.AST] = dict(mod_env)
-    for stmt in fn.body:
-        for node in ast.walk(stmt):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        env[target.id] = node.value
-            elif (
-                isinstance(node, ast.AnnAssign)
-                and isinstance(node.target, ast.Name)
-                and node.value is not None
-            ):
-                env[node.target.id] = node.value
-            elif (
-                isinstance(node, ast.AugAssign)
-                and isinstance(node.op, ast.Add)
-                and isinstance(node.target, ast.Name)
-                and node.target.id in env
-            ):
-                env[node.target.id] = ast.BinOp(
-                    left=env[node.target.id], op=ast.Add(), right=node.value
-                )
+def _detect_suews_clis_in_expr(
+    expr: ast.AST,
+    env: Mapping[str, list[ast.AST]],
+    *,
+    seen: frozenset[str] = frozenset(),
+    depth: int = 0,
+) -> set[str]:
+    """Return canonical SUEWS CLI command(s) invoked by ``expr``."""
+    if depth > 6:
+        return set()
+    direct_str = _leading_str_constant(expr)
+    if direct_str is not None:
+        return _detect_cli_from_string(direct_str)
+    found: set[str] = set()
+    for elems in _flatten_argv_variants(expr, env, seen=seen, depth=depth + 1):
+        found.update(_detect_suews_clis_in_argv(elems, env, seen=seen, depth=depth))
+    return found
+
+
+def _clone_binding_env(
+    env: Mapping[str, list[ast.AST]],
+) -> dict[str, list[ast.AST]]:
+    """Return a shallow copy of a multi-value variable binding map."""
+    return {k: list(v) for k, v in env.items()}
+
+
+def _merge_binding_envs(
+    first: Mapping[str, list[ast.AST]],
+    second: Mapping[str, list[ast.AST]],
+) -> dict[str, list[ast.AST]]:
+    """Conservatively union candidate bindings from two control-flow branches."""
+    merged: dict[str, list[ast.AST]] = {}
+    for key in set(first) | set(second):
+        combined: list[ast.AST] = []
+        seen_ids: set[int] = set()
+        for src in (first.get(key, ()), second.get(key, ())):
+            for node in src:
+                if id(node) not in seen_ids:
+                    seen_ids.add(id(node))
+                    combined.append(node)
+        merged[key] = combined[:_MAX_BRANCH_BINDINGS]
+    return merged
+
+
+def _record_calls_in_expr(
+    expr: ast.AST,
+    env: Mapping[str, list[ast.AST]],
+    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+) -> None:
+    """Record every ``ast.Call`` inside expression ``expr`` with current ``env``."""
+    snap = _clone_binding_env(env)
+    for node in ast.walk(expr):
+        if isinstance(node, ast.Call):
+            recorded.append((node, snap))
+
+
+def _record_calls_in_stmt_order(
+    stmts: list[ast.stmt],
+    env: dict[str, list[ast.AST]],
+    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+) -> dict[str, list[ast.AST]]:
+    """Walk statements in execution order, recording calls with point-in-time bindings."""
+    cur = _clone_binding_env(env)
+    for stmt in stmts:
+        cur = _step_single_stmt(stmt, cur, recorded)
+    return cur
+
+
+def _step_compound_stmt(
+    stmt: ast.stmt,
+    env: dict[str, list[ast.AST]],
+    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+) -> dict[str, list[ast.AST]]:
+    """Handle control-flow compound statements while preserving branch bindings."""
+    if isinstance(stmt, ast.If):
+        _record_calls_in_expr(stmt.test, env, recorded)
+        then_env = _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
+        else_env = (
+            _record_calls_in_stmt_order(stmt.orelse, _clone_binding_env(env), recorded)
+            if stmt.orelse
+            else env
+        )
+        return _merge_binding_envs(then_env, else_env)
+    if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+        header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
+        _record_calls_in_expr(header, env, recorded)
+        body_env = _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
+        merged = _merge_binding_envs(env, body_env)
+        if stmt.orelse:
+            else_env = _record_calls_in_stmt_order(stmt.orelse, _clone_binding_env(merged), recorded)
+            merged = _merge_binding_envs(merged, else_env)
+        return merged
+    if isinstance(stmt, (ast.With, ast.AsyncWith)):
+        for item in stmt.items:
+            _record_calls_in_expr(item.context_expr, env, recorded)
+        return _record_calls_in_stmt_order(stmt.body, env, recorded)
+    if isinstance(stmt, ast.Try):
+        body_env = _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
+        merged = _merge_binding_envs(env, body_env)
+        for handler in stmt.handlers:
+            h_env = _record_calls_in_stmt_order(handler.body, _clone_binding_env(merged), recorded)
+            merged = _merge_binding_envs(merged, h_env)
+        if stmt.orelse:
+            merged = _record_calls_in_stmt_order(stmt.orelse, merged, recorded)
+        if stmt.finalbody:
+            merged = _record_calls_in_stmt_order(stmt.finalbody, merged, recorded)
+        return merged
+    if isinstance(stmt, ast.Match):
+        _record_calls_in_expr(stmt.subject, env, recorded)
+        merged = _clone_binding_env(env)
+        for case in stmt.cases:
+            c_env = _record_calls_in_stmt_order(case.body, _clone_binding_env(env), recorded)
+            merged = _merge_binding_envs(merged, c_env)
+        return merged
+    return env
+
+
+def _step_single_stmt(
+    stmt: ast.stmt,
+    env: dict[str, list[ast.AST]],
+    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+) -> dict[str, list[ast.AST]]:
+    """Process one statement in order, updating ``env`` without clobbering across scopes."""
+    if isinstance(stmt, ast.Assign):
+        _record_calls_in_expr(stmt.value, env, recorded)
+        for target in stmt.targets:
+            if isinstance(target, ast.Name):
+                env[target.id] = [stmt.value]
+    elif isinstance(stmt, ast.AnnAssign):
+        if stmt.value is not None:
+            _record_calls_in_expr(stmt.value, env, recorded)
+            if isinstance(stmt.target, ast.Name):
+                env[stmt.target.id] = [stmt.value]
+    elif isinstance(stmt, ast.AugAssign):
+        _record_calls_in_expr(stmt.value, env, recorded)
+        if isinstance(stmt.op, ast.Add) and isinstance(stmt.target, ast.Name):
+            prev = env.get(stmt.target.id)
+            if prev:
+                env[stmt.target.id] = [
+                    ast.BinOp(left=p, op=ast.Add(), right=stmt.value)
+                    for p in prev[:_MAX_BRANCH_BINDINGS]
+                ]
+    elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        # Inspect nested scopes with a copy so inner reassignments never clobber outer env.
+        _record_calls_in_stmt_order(stmt.body, _clone_binding_env(env), recorded)
+    elif isinstance(
+        stmt,
+        (ast.If, ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith, ast.Try, ast.Match),
+    ):
+        return _step_compound_stmt(stmt, env, recorded)
+    else:
+        _record_calls_in_expr(stmt, env, recorded)
     return env
 
 
@@ -1884,22 +2218,22 @@ def _extract_subprocess_cmd_arg(call: ast.Call) -> ast.AST | None:
 
 def _extract_forwarded_param_names(
     cmd_arg: ast.AST,
-    env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
     param_names: set[str],
 ) -> set[str]:
     """Return parameter names of a helper that flow into ``subprocess`` ``argv[0]``."""
     forwarded: set[str] = set()
-    elems = _flatten_argv_expr(cmd_arg, env)
-    if not elems:
-        return forwarded
-    first = _unwrap_path_conversion(elems[0])
-    if isinstance(first, ast.Name) and first.id in param_names:
-        forwarded.add(first.id)
-    elif isinstance(first, ast.Call):
-        for arg in first.args:
-            unwrapped = _unwrap_path_conversion(arg)
-            if isinstance(unwrapped, ast.Name) and unwrapped.id in param_names:
-                forwarded.add(unwrapped.id)
+    for elems in _flatten_argv_variants(cmd_arg, env):
+        if not elems:
+            continue
+        first = _unwrap_path_conversion(elems[0])
+        if isinstance(first, ast.Name) and first.id in param_names:
+            forwarded.add(first.id)
+        elif isinstance(first, ast.Call):
+            for arg in first.args:
+                unwrapped = _unwrap_path_conversion(arg)
+                if isinstance(unwrapped, ast.Name) and unwrapped.id in param_names:
+                    forwarded.add(unwrapped.id)
     return forwarded
 
 
@@ -1920,87 +2254,126 @@ def _collect_helper_return_exprs(tree: ast.Module) -> dict[str, ast.AST]:
     return return_exprs
 
 
-def _resolve_subprocess_cli(
+def _resolve_subprocess_clis(
     cmd_arg: ast.AST,
-    env: Mapping[str, ast.AST],
-    mod_env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
+    mod_binding_env: Mapping[str, list[ast.AST]],
     helper_return_exprs: Mapping[str, ast.AST],
-) -> str | None:
-    """Resolve the canonical SUEWS CLI invoked by ``cmd_arg``."""
-    cli = _detect_suews_cli_in_expr(cmd_arg, env)
-    if cli is not None:
-        return cli
+) -> set[str]:
+    """Resolve canonical SUEWS CLI command(s) invoked by ``cmd_arg``."""
+    clis = _detect_suews_clis_in_expr(cmd_arg, env)
+    if clis:
+        return clis
     if (
         isinstance(cmd_arg, ast.Call)
         and isinstance(cmd_arg.func, ast.Name)
         and cmd_arg.func.id in helper_return_exprs
     ):
-        return _detect_suews_cli_in_expr(helper_return_exprs[cmd_arg.func.id], mod_env)
-    return None
+        return _detect_suews_clis_in_expr(
+            helper_return_exprs[cmd_arg.func.id], mod_binding_env
+        )
+    return set()
 
 
 def _scan_single_helper(
     stmt: ast.FunctionDef | ast.AsyncFunctionDef,
-    mod_env: Mapping[str, ast.AST],
+    mod_binding_env: Mapping[str, list[ast.AST]],
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_return_exprs: Mapping[str, ast.AST],
-) -> tuple[dict[str, int], set[str], set[str], list[ast.Call]]:
-    """Inspect one module-level helper for direct CLI calls and forwarded params."""
+) -> tuple[
+    dict[str, int],
+    set[str],
+    set[str],
+    set[str],
+    list[tuple[ast.Call, dict[str, list[ast.AST]]]],
+]:
+    """Inspect one module-level helper in statement order for CLI calls and forwarded params."""
     pos_args = [
         *(arg.arg for arg in stmt.args.posonlyargs),
         *(arg.arg for arg in stmt.args.args),
     ]
     param_pos = {name: idx for idx, name in enumerate(pos_args)}
     all_params = set(param_pos) | {arg.arg for arg in stmt.args.kwonlyargs}
-    env = _build_local_expr_env(stmt, mod_env)
+    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]] = []
+    _record_calls_in_stmt_order(stmt.body, _clone_binding_env(mod_binding_env), recorded)
+
     clis: set[str] = set()
     forwarded: set[str] = set()
-    calls: list[ast.Call] = []
-
-    for body_stmt in stmt.body:
-        for node in ast.walk(body_stmt):
-            if not isinstance(node, ast.Call):
+    helper_calls: list[tuple[ast.Call, dict[str, list[ast.AST]]]] = []
+    for call, call_env in recorded:
+        if _is_subprocess_call(call, subproc_aliases, subproc_funcs):
+            cmd_arg = _extract_subprocess_cmd_arg(call)
+            if cmd_arg is None:
                 continue
-            if _is_subprocess_call(node, subproc_aliases, subproc_funcs):
-                cmd_arg = _extract_subprocess_cmd_arg(node)
-                if cmd_arg is None:
-                    continue
-                cli = _resolve_subprocess_cli(
-                    cmd_arg, env, mod_env, helper_return_exprs
+            clis.update(
+                _resolve_subprocess_clis(
+                    cmd_arg, call_env, mod_binding_env, helper_return_exprs
                 )
-                if cli is not None:
-                    clis.add(cli)
-                forwarded.update(
-                    _extract_forwarded_param_names(cmd_arg, env, all_params)
-                )
-            elif isinstance(node.func, ast.Name):
-                calls.append(node)
-    return (param_pos, clis, forwarded, calls)
+            )
+            forwarded.update(
+                _extract_forwarded_param_names(cmd_arg, call_env, all_params)
+            )
+        elif isinstance(call.func, ast.Name):
+            helper_calls.append((call, call_env))
+    return (param_pos, all_params, clis, forwarded, helper_calls)
+
+
+def _bound_call_arg(
+    call: ast.Call, param_name: str, param_pos: Mapping[str, int]
+) -> ast.AST | None:
+    """Return the argument AST expression bound to ``param_name`` at ``call``."""
+    idx = param_pos.get(param_name)
+    if idx is not None and idx < len(call.args):
+        return call.args[idx]
+    for kw in call.keywords:
+        if kw.arg == param_name:
+            return kw.value
+    return None
 
 
 def _propagate_helper_clis(
     helper_clis: dict[str, set[str]],
-    helper_calls: Mapping[str, list[ast.Call]],
+    helper_forwarded: dict[str, set[str]],
+    helper_param_positions: Mapping[str, dict[str, int]],
+    helper_all_params: Mapping[str, set[str]],
+    helper_calls: Mapping[str, list[tuple[ast.Call, dict[str, list[ast.AST]]]]],
 ) -> None:
-    """Propagate SUEWS CLI sets transitively across intra-module helper calls."""
+    """Propagate SUEWS CLI sets and forwarded-parameter edges across helper chains."""
     changed = True
     while changed:
         changed = False
         for helper_name, calls in helper_calls.items():
-            for call in calls:
+            for call, call_env in calls:
                 callee = call.func.id if isinstance(call.func, ast.Name) else ""
                 if callee not in helper_clis:
                     continue
-                before = len(helper_clis[helper_name])
+                before_clis = len(helper_clis[helper_name])
+                before_fwd = len(helper_forwarded[helper_name])
                 helper_clis[helper_name].update(helper_clis[callee])
-                if len(helper_clis[helper_name]) > before:
+                callee_pos = helper_param_positions.get(callee, {})
+                for param_name in helper_forwarded.get(callee, ()):
+                    arg_expr = _bound_call_arg(call, param_name, callee_pos)
+                    if arg_expr is None:
+                        continue
+                    helper_clis[helper_name].update(
+                        _detect_suews_clis_in_expr(arg_expr, call_env)
+                    )
+                    helper_forwarded[helper_name].update(
+                        _extract_forwarded_param_names(
+                            arg_expr, call_env, helper_all_params[helper_name]
+                        )
+                    )
+                if (
+                    len(helper_clis[helper_name]) > before_clis
+                    or len(helper_forwarded[helper_name]) > before_fwd
+                ):
                     changed = True
 
 
 def _analyse_module_helpers(
     tree: ast.Module,
-    mod_env: Mapping[str, ast.AST],
+    mod_binding_env: Mapping[str, list[ast.AST]],
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_return_exprs: Mapping[str, ast.AST],
@@ -2014,36 +2387,44 @@ def _analyse_module_helpers(
     Returns ``(helper_direct_clis, helper_param_positions, helper_forwarded_params)``.
     """
     helper_clis: dict[str, set[str]] = {}
-    helper_calls: dict[str, list[ast.Call]] = {}
+    helper_calls: dict[str, list[tuple[ast.Call, dict[str, list[ast.AST]]]]] = {}
     helper_param_positions: dict[str, dict[str, int]] = {}
+    helper_all_params: dict[str, set[str]] = {}
     helper_forwarded: dict[str, set[str]] = {}
 
     for stmt in tree.body:
         if isinstance(
             stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
         ) and not stmt.name.startswith("test_"):
-            param_pos, clis, forwarded, calls = _scan_single_helper(
-                stmt, mod_env, subproc_aliases, subproc_funcs, helper_return_exprs
+            param_pos, all_params, clis, forwarded, calls = _scan_single_helper(
+                stmt, mod_binding_env, subproc_aliases, subproc_funcs, helper_return_exprs
             )
             helper_param_positions[stmt.name] = param_pos
+            helper_all_params[stmt.name] = all_params
             helper_clis[stmt.name] = clis
             helper_forwarded[stmt.name] = forwarded
             helper_calls[stmt.name] = calls
 
-    _propagate_helper_clis(helper_clis, helper_calls)
+    _propagate_helper_clis(
+        helper_clis,
+        helper_forwarded,
+        helper_param_positions,
+        helper_all_params,
+        helper_calls,
+    )
     return (helper_clis, helper_param_positions, helper_forwarded)
 
 
 def _count_parametrize_nodes(
     decorators: list[ast.AST],
-    mod_env: Mapping[str, ast.AST],
+    ast_value_env: Mapping[str, ast.AST],
 ) -> int:
     """Return statically counted node expansion factor for ``@pytest.mark.parametrize``."""
     total = 1
     for dec in decorators:
         resolved = dec
-        if isinstance(resolved, ast.Name) and resolved.id in mod_env:
-            resolved = mod_env[resolved.id]
+        if isinstance(resolved, ast.Name) and resolved.id in ast_value_env:
+            resolved = ast_value_env[resolved.id]
         if not isinstance(resolved, ast.Call):
             continue
         if _direct_pytest_marker_name(resolved) != "parametrize":
@@ -2056,8 +2437,8 @@ def _count_parametrize_nodes(
                 if kw.arg == "argvalues":
                     argvalues = kw.value
                     break
-        if isinstance(argvalues, ast.Name) and argvalues.id in mod_env:
-            argvalues = mod_env[argvalues.id]
+        if isinstance(argvalues, ast.Name) and argvalues.id in ast_value_env:
+            argvalues = ast_value_env[argvalues.id]
         if isinstance(argvalues, (ast.List, ast.Tuple, ast.Set)) and argvalues.elts:
             total *= len(argvalues.elts)
         elif (
@@ -2080,54 +2461,217 @@ def _count_parametrize_nodes(
     return total
 
 
+def _count_sim_calls_in_expr(
+    expr: ast.AST,
+    non_sim_mods: frozenset[str],
+    non_sim_classes: frozenset[str],
+    local_non_sim_vars: frozenset[str],
+    shadowed: frozenset[str],
+) -> int:
+    """Count simulation ``from_sample_data`` and ``.run`` calls in an expression."""
+    count = 0
+    for node in ast.walk(expr):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr == "from_sample_data" or (
+            node.func.attr == "run"
+            and not _is_non_simulation_run_receiver(
+                node.func.value,
+                non_sim_mods,
+                non_sim_classes,
+                local_non_sim_vars,
+                shadowed,
+            )
+        ):
+            count += 1
+    return count
+
+
+def _walk_sim_calls_in_block(
+    stmts: list[ast.stmt],
+    non_sim_mods: frozenset[str],
+    non_sim_classes: frozenset[str],
+    local_non_sim_vars: set[str],
+    shadowed: set[str],
+) -> int:
+    """Count simulation calls in statement order with binding-aware shadowing."""
+    count = 0
+    for stmt in stmts:
+        if isinstance(stmt, ast.Assign):
+            count += _count_sim_calls_in_expr(
+                stmt.value,
+                non_sim_mods,
+                non_sim_classes,
+                frozenset(local_non_sim_vars),
+                frozenset(shadowed),
+            )
+            is_non_sim_ctor = _is_non_sim_constructor_call(
+                stmt.value, non_sim_mods, non_sim_classes, frozenset(shadowed)
+            )
+            for target in stmt.targets:
+                for name in _iter_assigned_names(target):
+                    if is_non_sim_ctor and isinstance(target, ast.Name):
+                        local_non_sim_vars.add(name)
+                        shadowed.discard(name)
+                    else:
+                        local_non_sim_vars.discard(name)
+                        shadowed.add(name)
+        elif isinstance(stmt, ast.AnnAssign):
+            if stmt.value is not None:
+                count += _count_sim_calls_in_expr(
+                    stmt.value,
+                    non_sim_mods,
+                    non_sim_classes,
+                    frozenset(local_non_sim_vars),
+                    frozenset(shadowed),
+                )
+                if isinstance(stmt.target, ast.Name):
+                    if _is_non_sim_constructor_call(
+                        stmt.value, non_sim_mods, non_sim_classes, frozenset(shadowed)
+                    ):
+                        local_non_sim_vars.add(stmt.target.id)
+                        shadowed.discard(stmt.target.id)
+                    else:
+                        local_non_sim_vars.discard(stmt.target.id)
+                        shadowed.add(stmt.target.id)
+        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            count += _walk_sim_calls_in_block(
+                stmt.body,
+                non_sim_mods,
+                non_sim_classes,
+                set(local_non_sim_vars),
+                set(shadowed),
+            )
+        else:
+            count += _walk_sim_calls_in_compound(
+                stmt, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+            )
+    return count
+
+
+def _walk_sim_calls_in_compound(
+    stmt: ast.stmt,
+    non_sim_mods: frozenset[str],
+    non_sim_classes: frozenset[str],
+    local_non_sim_vars: set[str],
+    shadowed: set[str],
+) -> int:
+    """Walk compound statements for simulation calls, intersecting safe non-sim vars."""
+    if isinstance(stmt, ast.If):
+        cnt = _count_sim_calls_in_expr(
+            stmt.test,
+            non_sim_mods,
+            non_sim_classes,
+            frozenset(local_non_sim_vars),
+            frozenset(shadowed),
+        )
+        t_vars, t_shad = set(local_non_sim_vars), set(shadowed)
+        e_vars, e_shad = set(local_non_sim_vars), set(shadowed)
+        cnt += _walk_sim_calls_in_block(
+            stmt.body, non_sim_mods, non_sim_classes, t_vars, t_shad
+        )
+        if stmt.orelse:
+            cnt += _walk_sim_calls_in_block(
+                stmt.orelse, non_sim_mods, non_sim_classes, e_vars, e_shad
+            )
+        local_non_sim_vars.intersection_update(t_vars & e_vars)
+        shadowed.update(t_shad | e_shad)
+        return cnt
+    if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+        header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
+        cnt = _count_sim_calls_in_expr(
+            header,
+            non_sim_mods,
+            non_sim_classes,
+            frozenset(local_non_sim_vars),
+            frozenset(shadowed),
+        )
+        cnt += _walk_sim_calls_in_block(
+            stmt.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+        )
+        if stmt.orelse:
+            cnt += _walk_sim_calls_in_block(
+                stmt.orelse, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+            )
+        return cnt
+    if isinstance(stmt, (ast.With, ast.AsyncWith)):
+        cnt = sum(
+            _count_sim_calls_in_expr(
+                item.context_expr,
+                non_sim_mods,
+                non_sim_classes,
+                frozenset(local_non_sim_vars),
+                frozenset(shadowed),
+            )
+            for item in stmt.items
+        )
+        return cnt + _walk_sim_calls_in_block(
+            stmt.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+        )
+    if isinstance(stmt, ast.Try):
+        cnt = _walk_sim_calls_in_block(
+            stmt.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+        )
+        for handler in stmt.handlers:
+            cnt += _walk_sim_calls_in_block(
+                handler.body, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+            )
+        if stmt.orelse:
+            cnt += _walk_sim_calls_in_block(
+                stmt.orelse, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+            )
+        if stmt.finalbody:
+            cnt += _walk_sim_calls_in_block(
+                stmt.finalbody, non_sim_mods, non_sim_classes, local_non_sim_vars, shadowed
+            )
+        return cnt
+    return _count_sim_calls_in_expr(
+        stmt,
+        non_sim_mods,
+        non_sim_classes,
+        frozenset(local_non_sim_vars),
+        frozenset(shadowed),
+    )
+
+
 def _count_param_simulation_calls(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
-    non_sim_aliases: frozenset[str],
+    non_sim_mods: frozenset[str],
+    non_sim_classes: frozenset[str],
 ) -> int:
     """Count direct ``from_sample_data(...)`` and simulation ``.run(...)`` calls in ``fn``."""
-    count = 0
-    for stmt in fn.body:
-        for node in ast.walk(stmt):
-            if not isinstance(node, ast.Call) or not isinstance(
-                node.func, ast.Attribute
-            ):
-                continue
-            if node.func.attr == "from_sample_data" or (
-                node.func.attr == "run"
-                and not _is_non_simulation_run_receiver(
-                    node.func.value, non_sim_aliases
-                )
-            ):
-                count += 1
-    return count
+    param_names = {
+        *(arg.arg for arg in fn.args.posonlyargs),
+        *(arg.arg for arg in fn.args.args),
+        *(arg.arg for arg in fn.args.kwonlyargs),
+    }
+    if fn.args.vararg is not None:
+        param_names.add(fn.args.vararg.arg)
+    if fn.args.kwarg is not None:
+        param_names.add(fn.args.kwarg.arg)
+    return _walk_sim_calls_in_block(
+        fn.body, non_sim_mods, non_sim_classes, set(), set(param_names)
+    )
 
 
 def _resolve_forwarded_helper_clis(
     call: ast.Call,
     forwarded_params: set[str],
     param_pos: Mapping[str, int],
-    env: Mapping[str, ast.AST],
+    env: Mapping[str, list[ast.AST]],
 ) -> set[str]:
     """Detect SUEWS CLI commands passed through forwarded helper parameters."""
     found: set[str] = set()
-    kw_map = {kw.arg: kw.value for kw in call.keywords if kw.arg is not None}
     for param_name in forwarded_params:
-        idx = param_pos.get(param_name)
-        arg_expr = (
-            call.args[idx]
-            if idx is not None and idx < len(call.args)
-            else kw_map.get(param_name)
-        )
+        arg_expr = _bound_call_arg(call, param_name, param_pos)
         if arg_expr is not None:
-            cli = _detect_suews_cli_in_expr(arg_expr, env)
-            if cli is not None:
-                found.add(cli)
+            found.update(_detect_suews_clis_in_expr(arg_expr, env))
     return found
 
 
 def _collect_test_subprocess_clis(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
-    mod_env: Mapping[str, ast.AST],
+    mod_binding_env: Mapping[str, list[ast.AST]],
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_clis: Mapping[str, set[str]],
@@ -2136,34 +2680,170 @@ def _collect_test_subprocess_clis(
     helper_return_exprs: Mapping[str, ast.AST],
 ) -> set[str]:
     """Collect canonical SUEWS CLI commands invoked via subprocess by ``fn``."""
-    env = _build_local_expr_env(fn, mod_env)
+    recorded: list[tuple[ast.Call, dict[str, list[ast.AST]]]] = []
+    _record_calls_in_stmt_order(fn.body, _clone_binding_env(mod_binding_env), recorded)
     found: set[str] = set()
-    for stmt in fn.body:
-        for node in ast.walk(stmt):
-            if not isinstance(node, ast.Call):
-                continue
-            if _is_subprocess_call(node, subproc_aliases, subproc_funcs):
-                cmd_arg = _extract_subprocess_cmd_arg(node)
-                if cmd_arg is not None:
-                    cli = _resolve_subprocess_cli(
-                        cmd_arg, env, mod_env, helper_return_exprs
+    for call, call_env in recorded:
+        if _is_subprocess_call(call, subproc_aliases, subproc_funcs):
+            cmd_arg = _extract_subprocess_cmd_arg(call)
+            if cmd_arg is not None:
+                found.update(
+                    _resolve_subprocess_clis(
+                        cmd_arg, call_env, mod_binding_env, helper_return_exprs
                     )
-                    if cli is not None:
-                        found.add(cli)
-            elif isinstance(node.func, ast.Name) and node.func.id in helper_clis:
-                callee = node.func.id
-                found.update(helper_clis[callee])
-                forwarded = helper_forwarded.get(callee)
-                if forwarded:
-                    found.update(
-                        _resolve_forwarded_helper_clis(
-                            node,
-                            forwarded,
-                            helper_param_positions.get(callee, {}),
-                            env,
-                        )
+                )
+        elif isinstance(call.func, ast.Name) and call.func.id in helper_clis:
+            callee = call.func.id
+            found.update(helper_clis[callee])
+            forwarded = helper_forwarded.get(callee)
+            if forwarded:
+                found.update(
+                    _resolve_forwarded_helper_clis(
+                        call,
+                        forwarded,
+                        helper_param_positions.get(callee, {}),
+                        call_env,
                     )
+                )
     return found
+
+
+class _FileAstGuardContext:
+    """Precomputed module-level analysis context for inspecting one test file."""
+
+    def __init__(
+        self,
+        rel_posix: str,
+        tree: ast.Module,
+        extra_markers: Mapping[str, tuple[str, ...]],
+    ) -> None:
+        """Build module marker, alias, and helper tables from ``tree``."""
+        self.rel_posix = rel_posix
+        self.mod_env = _build_single_assign_env(tree)
+        self.ast_value_env = _build_ast_value_env(tree)
+        self.mod_binding_env = {k: [v] for k, v in self.ast_value_env.items()}
+        mod_markers, _ = _extract_scope_pytestmark(tree.body)
+        self.mod_pm_exprs = _extract_scope_pytestmark_exprs(tree.body)
+        self.file_e2e = ("e2e" in mod_markers) or (
+            "e2e" in extra_markers.get(rel_posix, ())
+        )
+        self.file_param = "parametrize" in mod_markers
+        (
+            self.subproc_aliases,
+            self.subproc_funcs,
+            self.non_sim_mods,
+            self.non_sim_classes,
+        ) = _collect_import_aliases(tree)
+        self.helper_return_exprs = _collect_helper_return_exprs(tree)
+        (
+            self.helper_clis,
+            self.helper_param_positions,
+            self.helper_forwarded,
+        ) = _analyse_module_helpers(
+            tree,
+            self.mod_binding_env,
+            self.subproc_aliases,
+            self.subproc_funcs,
+            self.helper_return_exprs,
+        )
+
+
+def _visit_ast_guard_function(
+    ctx: _FileAstGuardContext,
+    snapshot: AstGuardsSnapshot,
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    class_chain: tuple[str, ...],
+    enclosing_decs: list[ast.AST],
+    *,
+    inherited_param: bool,
+    inherited_e2e: bool,
+) -> None:
+    """Record AST guard hits for a single test function or method."""
+    if not fn.name.startswith("test_") or any(
+        _is_fixture_decorator(dec) for dec in fn.decorator_list
+    ):
+        return
+    fn_marks: set[str] = set()
+    for dec in fn.decorator_list:
+        d_names, _ = _inspect_decorator_expr(dec, ctx.mod_env)
+        fn_marks.update(d_names)
+    is_param = ctx.file_param or inherited_param or ("parametrize" in fn_marks)
+    is_e2e = ctx.file_e2e or inherited_e2e or ("e2e" in fn_marks)
+    node_id = "::".join((ctx.rel_posix, *class_chain, fn.name))
+    if is_param:
+        sim_calls = _count_param_simulation_calls(
+            fn, ctx.non_sim_mods, ctx.non_sim_classes
+        )
+        if sim_calls > 0:
+            snapshot.parametrized_simulations[node_id] = sim_calls
+    clis = _collect_test_subprocess_clis(
+        fn,
+        ctx.mod_binding_env,
+        ctx.subproc_aliases,
+        ctx.subproc_funcs,
+        ctx.helper_clis,
+        ctx.helper_param_positions,
+        ctx.helper_forwarded,
+        ctx.helper_return_exprs,
+    )
+    if not clis:
+        return
+    if not is_e2e:
+        snapshot.unmarked_subprocess_e2e[node_id] = sorted(clis)
+    else:
+        nodes = _count_parametrize_nodes(
+            [*ctx.mod_pm_exprs, *enclosing_decs, *fn.decorator_list],
+            ctx.ast_value_env,
+        )
+        for cli in clis:
+            snapshot.e2e_command_nodes[cli] = (
+                snapshot.e2e_command_nodes.get(cli, 0) + nodes
+            )
+
+
+def _visit_ast_guard_class(
+    ctx: _FileAstGuardContext,
+    snapshot: AstGuardsSnapshot,
+    cls: ast.ClassDef,
+    class_chain: tuple[str, ...],
+    enclosing_decs: list[ast.AST],
+    *,
+    inherited_param: bool,
+    inherited_e2e: bool,
+) -> None:
+    """Recursively inspect test methods and nested classes inside ``cls``."""
+    cls_marks: set[str] = set()
+    for dec in cls.decorator_list:
+        d_names, _ = _inspect_decorator_expr(dec, ctx.mod_env)
+        cls_marks.update(d_names)
+    cls_pm, _ = _extract_scope_pytestmark(cls.body)
+    cls_pm_exprs = _extract_scope_pytestmark_exprs(cls.body)
+    cls_marks.update(cls_pm)
+    next_chain = (*class_chain, cls.name)
+    next_decs = [*enclosing_decs, *cls.decorator_list, *cls_pm_exprs]
+    next_param = inherited_param or ("parametrize" in cls_marks)
+    next_e2e = inherited_e2e or ("e2e" in cls_marks)
+    for item in cls.body:
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            _visit_ast_guard_function(
+                ctx,
+                snapshot,
+                item,
+                next_chain,
+                next_decs,
+                inherited_param=next_param,
+                inherited_e2e=next_e2e,
+            )
+        elif isinstance(item, ast.ClassDef):
+            _visit_ast_guard_class(
+                ctx,
+                snapshot,
+                item,
+                next_chain,
+                next_decs,
+                inherited_param=next_param,
+                inherited_e2e=next_e2e,
+            )
 
 
 def inspect_file_ast_guards(
@@ -2194,90 +2874,17 @@ def inspect_file_ast_guards(
     except SyntaxError:
         return None
 
-    mod_env = _build_single_assign_env(tree)
-    mod_markers, _ = _extract_scope_pytestmark(tree.body)
-    file_e2e = ("e2e" in mod_markers) or ("e2e" in extra_markers.get(rel_posix, ()))
-    file_param = "parametrize" in mod_markers
-    subproc_aliases, subproc_funcs, non_sim_aliases = _collect_import_aliases(tree)
-    helper_return_exprs = _collect_helper_return_exprs(tree)
-    helper_clis, helper_param_positions, helper_forwarded = _analyse_module_helpers(
-        tree, mod_env, subproc_aliases, subproc_funcs, helper_return_exprs
-    )
+    ctx = _FileAstGuardContext(rel_posix, tree, extra_markers)
     snapshot = AstGuardsSnapshot()
-
-    def _visit_function(
-        fn: ast.FunctionDef | ast.AsyncFunctionDef,
-        class_chain: tuple[str, ...],
-        enclosing_decs: list[ast.AST],
-        inherited_param: bool,
-        inherited_e2e: bool,
-    ) -> None:
-        if not fn.name.startswith("test_") or any(
-            _is_fixture_decorator(dec) for dec in fn.decorator_list
-        ):
-            return
-        fn_marks: set[str] = set()
-        for dec in fn.decorator_list:
-            d_names, _ = _inspect_decorator_expr(dec, mod_env)
-            fn_marks.update(d_names)
-        is_param = file_param or inherited_param or ("parametrize" in fn_marks)
-        is_e2e = file_e2e or inherited_e2e or ("e2e" in fn_marks)
-        node_id = "::".join((rel_posix, *class_chain, fn.name))
-        if is_param:
-            sim_calls = _count_param_simulation_calls(fn, non_sim_aliases)
-            if sim_calls > 0:
-                snapshot.parametrized_simulations[node_id] = sim_calls
-        clis = _collect_test_subprocess_clis(
-            fn,
-            mod_env,
-            subproc_aliases,
-            subproc_funcs,
-            helper_clis,
-            helper_param_positions,
-            helper_forwarded,
-            helper_return_exprs,
-        )
-        if not clis:
-            return
-        if not is_e2e:
-            snapshot.unmarked_subprocess_e2e[node_id] = sorted(clis)
-        else:
-            nodes = _count_parametrize_nodes(
-                [*enclosing_decs, *fn.decorator_list], mod_env
-            )
-            for cli in clis:
-                snapshot.e2e_command_nodes[cli] = (
-                    snapshot.e2e_command_nodes.get(cli, 0) + nodes
-                )
-
-    def _visit_class(
-        cls: ast.ClassDef,
-        class_chain: tuple[str, ...],
-        enclosing_decs: list[ast.AST],
-        inherited_param: bool,
-        inherited_e2e: bool,
-    ) -> None:
-        cls_marks: set[str] = set()
-        for dec in cls.decorator_list:
-            d_names, _ = _inspect_decorator_expr(dec, mod_env)
-            cls_marks.update(d_names)
-        cls_pm, _ = _extract_scope_pytestmark(cls.body)
-        cls_marks.update(cls_pm)
-        next_chain = (*class_chain, cls.name)
-        next_decs = [*enclosing_decs, *cls.decorator_list]
-        next_param = inherited_param or ("parametrize" in cls_marks)
-        next_e2e = inherited_e2e or ("e2e" in cls_marks)
-        for item in cls.body:
-            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                _visit_function(item, next_chain, next_decs, next_param, next_e2e)
-            elif isinstance(item, ast.ClassDef):
-                _visit_class(item, next_chain, next_decs, next_param, next_e2e)
-
     for stmt in tree.body:
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            _visit_function(stmt, (), [], False, False)
+            _visit_ast_guard_function(
+                ctx, snapshot, stmt, (), [], inherited_param=False, inherited_e2e=False
+            )
         elif isinstance(stmt, ast.ClassDef):
-            _visit_class(stmt, (), [], False, False)
+            _visit_ast_guard_class(
+                ctx, snapshot, stmt, (), [], inherited_param=False, inherited_e2e=False
+            )
     return snapshot
 
 
@@ -2425,7 +3032,11 @@ def load_ast_guards_baseline(
         errors.append(f"unknown baseline keys: {', '.join(unknown_keys)}")
 
     version = raw.get("schema_version")
-    if version != AST_GUARDS_BASELINE_SCHEMA_VERSION:
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version != AST_GUARDS_BASELINE_SCHEMA_VERSION
+    ):
         errors.append(
             f"unsupported baseline schema_version {version!r} "
             f"(expected {AST_GUARDS_BASELINE_SCHEMA_VERSION})"
@@ -2576,6 +3187,74 @@ def compare_ast_guards_baseline(
     return (violations, stale)
 
 
+def _validate_baseline_path(
+    baseline_path: Path,
+    repo_root: Path,
+    *,
+    allow_external: bool,
+) -> str | None:
+    """Validate symlink/junction safety and repository containment for a baseline path."""
+    if _is_link_or_junction(baseline_path):
+        return (
+            "AST guards baseline path must not be a symlink or junction: "
+            f"{baseline_path.as_posix()}"
+        )
+    if allow_external:
+        return None
+
+    resolved_root = repo_root.resolve()
+    try:
+        rel_parts = baseline_path.relative_to(resolved_root).parts
+    except ValueError:
+        return (
+            "AST guards baseline path escapes repository root: "
+            f"{baseline_path.as_posix()}"
+        )
+    cur = resolved_root
+    for part in rel_parts:
+        cur /= part
+        if _is_link_or_junction(cur):
+            rel_label = cur.relative_to(resolved_root).as_posix()
+            return (
+                "AST guards baseline path traverses a symlink or junction: "
+                f"{rel_label}"
+            )
+    error: str | None = None
+    try:
+        resolved_target = baseline_path.resolve(strict=False)
+        if not resolved_target.is_relative_to(resolved_root):
+            error = (
+                "AST guards baseline resolved path escapes repository root: "
+                f"{baseline_path.as_posix()}"
+            )
+    except (OSError, RuntimeError) as exc:
+        error = f"unable to resolve AST guards baseline path: {exc}"
+    return error
+
+
+def _resolve_explicit_baseline(
+    explicit_baseline: Path,
+    repo_root: Path,
+    *,
+    default_cap: int,
+) -> tuple[dict[str, object] | None, list[str]]:
+    """Validate and load an explicitly requested ``--ast-baseline`` file."""
+    path_err = _validate_baseline_path(
+        explicit_baseline, repo_root, allow_external=True
+    )
+    if path_err is not None:
+        return (None, [path_err])
+    if not explicit_baseline.is_file():
+        return (
+            None,
+            [
+                "AST guards baseline not found at "
+                f"{explicit_baseline.as_posix()}"
+            ],
+        )
+    return load_ast_guards_baseline(explicit_baseline, default_cap=default_cap)
+
+
 def _resolve_ast_baseline(
     repo_root: Path,
     explicit_baseline: Path | None,
@@ -2584,20 +3263,14 @@ def _resolve_ast_baseline(
 ) -> tuple[dict[str, object] | None, list[str]]:
     """Resolve and load the AST guards baseline for ``repo_root``."""
     if explicit_baseline is not None:
-        if not explicit_baseline.is_file():
-            return (
-                None,
-                [
-                    "AST guards baseline not found at "
-                    f"{explicit_baseline.as_posix()}"
-                ],
-            )
-        return load_ast_guards_baseline(explicit_baseline, default_cap=default_cap)
+        return _resolve_explicit_baseline(
+            explicit_baseline, repo_root, default_cap=default_cap
+        )
 
     default_path = repo_root / AST_GUARDS_BASELINE_PATH
-    link_error = _check_baseline_symlink(default_path, repo_root)
-    if link_error is not None:
-        return (None, [link_error])
+    path_err = _validate_baseline_path(default_path, repo_root, allow_external=False)
+    if path_err is not None:
+        return (None, [path_err])
     if default_path.is_file():
         return load_ast_guards_baseline(default_path, default_cap=default_cap)
     if (repo_root / "scripts" / "lint").is_dir():
@@ -2605,27 +3278,11 @@ def _resolve_ast_baseline(
             None,
             [
                 "missing AST guards baseline "
-                f"{AST_GUARDS_BASELINE_PATH.as_posix()}; regenerate with "
-                "`python scripts/lint/check_test_markers.py --write-ast-baseline`"
+                f"{AST_GUARDS_BASELINE_PATH.as_posix()}; initialise with "
+                "`python scripts/lint/check_test_markers.py --init-ast-baseline`"
             ],
         )
     return (_empty_ast_guards_baseline(default_cap=default_cap), [])
-
-
-def _check_baseline_symlink(default_path: Path, repo_root: Path) -> str | None:
-    """Reject a broken or escaping symlink at the default baseline path."""
-    if not _is_link_or_junction(default_path):
-        return None
-    try:
-        target = default_path.resolve(strict=True)
-    except (OSError, RuntimeError) as exc:
-        return f"invalid AST guards baseline symlink: {exc}"
-    if not target.is_relative_to(repo_root):
-        return (
-            "AST guards baseline symlink escapes repository root: "
-            f"{AST_GUARDS_BASELINE_PATH.as_posix()}"
-        )
-    return None
 
 
 def _print_error_block(header: str, items: list[str], footer: str | None = None) -> bool:
@@ -2709,18 +3366,56 @@ def _emit_lint_failures(
     return failed
 
 
+def _check_monotonic_write_allowed(
+    target_baseline: Path,
+    ast_snapshot: AstGuardsSnapshot,
+    *,
+    init_mode: bool,
+    default_cap: int,
+) -> list[str]:
+    """Verify baseline creation or downward-only regeneration preconditions."""
+    exists = target_baseline.exists()
+    if init_mode:
+        if exists:
+            return [
+                f"baseline already exists at {target_baseline.as_posix()}; "
+                "use --write-ast-baseline to lower existing debt"
+            ]
+        return []
+    if not exists:
+        return [
+            f"baseline not found at {target_baseline.as_posix()}; "
+            "use --init-ast-baseline for initial creation"
+        ]
+    existing, load_errors = load_ast_guards_baseline(
+        target_baseline, default_cap=default_cap
+    )
+    if existing is None:
+        return load_errors
+    increases, _ = compare_ast_guards_baseline(
+        ast_snapshot, existing, default_cap=default_cap
+    )
+    if increases:
+        return [
+            "refusing to increase AST guards baseline via --write-ast-baseline "
+            "(ratchet is downward-only):",
+            *increases,
+        ]
+    return []
+
+
 def _write_baseline_mode(
     repo_root: Path,
     args: argparse.Namespace,
     ast_snapshot: AstGuardsSnapshot,
     *,
-    has_parse_errors: bool,
+    has_incomplete_discovery: bool,
 ) -> int:
-    """Execute ``--write-ast-baseline`` mode and return exit code."""
-    if has_parse_errors:
+    """Execute ``--init-ast-baseline`` or downward-only ``--write-ast-baseline``."""
+    if has_incomplete_discovery:
         print(
             "[X] gh#2349 AST guard lint: cannot write baseline while test "
-            "files fail to read or parse.",
+            "discovery, layout, read, or parse errors are present.",
             file=sys.stderr,
         )
         return 1
@@ -2729,6 +3424,23 @@ def _write_baseline_mode(
         if args.ast_baseline is not None
         else repo_root / AST_GUARDS_BASELINE_PATH
     )
+    path_err = _validate_baseline_path(
+        target_baseline, repo_root, allow_external=(args.ast_baseline is not None)
+    )
+    if path_err is not None:
+        print(_to_ascii(f"[X] gh#2349 AST guard lint: {path_err}"), file=sys.stderr)
+        return 1
+
+    guard_errors = _check_monotonic_write_allowed(
+        target_baseline,
+        ast_snapshot,
+        init_mode=args.init_ast_baseline,
+        default_cap=args.e2e_cap,
+    )
+    if guard_errors:
+        _print_error_block("[X] gh#2349 AST guard lint:", guard_errors)
+        return 1
+
     write_ast_guards_baseline(target_baseline, ast_snapshot, default_cap=args.e2e_cap)
     overrides = sum(
         1 for n in ast_snapshot.e2e_command_nodes.values() if n > args.e2e_cap
@@ -2768,10 +3480,22 @@ def _parse_cli_args(argv: list[str]) -> argparse.Namespace:
             f"(defaults to {AST_GUARDS_BASELINE_PATH.as_posix()})."
         ),
     )
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--write-ast-baseline",
         action="store_true",
-        help="Rewrite the AST guards baseline JSON from the current tree and exit 0.",
+        help=(
+            "Lower an existing AST guards baseline JSON from the current tree "
+            "(downward-only ratchet) and exit 0."
+        ),
+    )
+    mode_group.add_argument(
+        "--init-ast-baseline",
+        action="store_true",
+        help=(
+            "Create an initial AST guards baseline JSON when none exists yet "
+            "and exit 0."
+        ),
     )
     parser.add_argument(
         "--e2e-cap",
@@ -2852,12 +3576,12 @@ def main(argv: list[str]) -> int:
     )
     ast_snapshot, ast_skipped = scan_repo_ast_guards(repo_root, test_files)
 
-    if args.write_ast_baseline:
+    if args.write_ast_baseline or args.init_ast_baseline:
         return _write_baseline_mode(
             repo_root,
             args,
             ast_snapshot,
-            has_parse_errors=bool(read_errors or ast_skipped),
+            has_incomplete_discovery=bool(lane_errors or read_errors or ast_skipped),
         )
 
     ast_checks = _evaluate_ast_guards(repo_root, args, ast_snapshot, ast_skipped)

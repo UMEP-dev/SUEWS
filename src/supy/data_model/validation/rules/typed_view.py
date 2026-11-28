@@ -33,6 +33,7 @@ from ..pipeline.document import (
     site_gridid,
     unwrap_entry,
 )
+from ..pipeline.style_ledger import _forbid_reinit
 from ..required_fields import BUILDING_PRESENT_SFR_TOL
 from .hard_invariants import SPARTACUS_METHODS
 
@@ -110,7 +111,8 @@ def method_code(value: Any, field_name: str | None = None) -> int | None:
     return _coerce_numeric_method_code(value)
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class ControlView:
     """Deeply immutable typed view over ``model.control``."""
 
@@ -146,7 +148,8 @@ class ControlView:
         return None
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class PhysicsView:
     """Deeply immutable typed view over ``model.physics``."""
 
@@ -217,7 +220,8 @@ class PhysicsView:
         return get_value_safe(self.stebbs_block, key, default)
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class SurfaceView:
     """Deeply immutable typed view over one land-cover surface mapping."""
 
@@ -243,7 +247,8 @@ class SurfaceView:
         return get_value_safe(self.raw, key, default)
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class LandCoverView:
     """Deeply immutable typed view over ``site.properties.land_cover``."""
 
@@ -295,7 +300,8 @@ class LandCoverView:
         return tuple(active)
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class VerticalLayersView:
     """Deeply immutable typed view over ``site.properties.vertical_layers``."""
 
@@ -365,7 +371,8 @@ class VerticalLayersView:
         return last_nz
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class SiteView:
     """Deeply immutable typed view over one entry in ``sites``."""
 
@@ -471,16 +478,12 @@ class SiteView:
         return as_float(self.scalar(self.properties, "z"))
 
     @staticmethod
-    def scalar(
-        section: Mapping[str, Any], key: str, default: Any = None
-    ) -> Any:
+    def scalar(section: Mapping[str, Any], key: str, default: Any = None) -> Any:
         """Read a rename-aware unwrapped scalar from *section*."""
         return get_value_safe(section, key, default)
 
     @staticmethod
-    def exact_scalar(
-        section: Mapping[str, Any], key: str, default: Any = None
-    ) -> Any:
+    def exact_scalar(section: Mapping[str, Any], key: str, default: Any = None) -> Any:
         """Read an exact-key unwrapped scalar from *section*."""
         return read_scalar(section, key, default)
 
@@ -556,7 +559,8 @@ class SiteView:
 _UNSET_CONTROL: Any = object()
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class TypedConfigView:
     """Deeply immutable typed view over a full SUEWS YAML configuration."""
 
@@ -606,13 +610,11 @@ class TypedConfigView:
                             SiteView(index=idx, raw=site_data, name=str(site_key))
                         )
                     else:
-                        structure_errors.append(
-                            (
-                                idx,
-                                f"sites.{site_key}",
-                                f"sites.{site_key} must be a mapping, got {type(site_data).__name__}.",
-                            )
-                        )
+                        structure_errors.append((
+                            idx,
+                            f"sites.{site_key}",
+                            f"sites.{site_key} must be a mapping, got {type(site_data).__name__}.",
+                        ))
             elif isinstance(sites_raw, (list, tuple)):
                 for idx, site_data in enumerate(sites_raw):
                     if isinstance(site_data, Mapping):
@@ -620,21 +622,17 @@ class TypedConfigView:
                         name = str(raw_name) if raw_name is not None else "Unknown"
                         site_views.append(SiteView(index=idx, raw=site_data, name=name))
                     else:
-                        structure_errors.append(
-                            (
-                                idx,
-                                f"sites[{idx}]",
-                                f"sites[{idx}] must be a mapping, got {type(site_data).__name__}.",
-                            )
-                        )
+                        structure_errors.append((
+                            idx,
+                            f"sites[{idx}]",
+                            f"sites[{idx}] must be a mapping, got {type(site_data).__name__}.",
+                        ))
             else:
-                structure_errors.append(
-                    (
-                        None,
-                        "sites",
-                        f"sites must be a list or mapping of site definitions, got {type(sites_raw).__name__}.",
-                    )
-                )
+                structure_errors.append((
+                    None,
+                    "sites",
+                    f"sites must be a list or mapping of site definitions, got {type(sites_raw).__name__}.",
+                ))
 
         return cls(
             raw=root,
@@ -650,9 +648,7 @@ class TypedConfigView:
         return cls.from_mapping(document.data)
 
     @classmethod
-    def from_config(
-        cls, config: BaseModel | ReadOnlyModelProxy
-    ) -> TypedConfigView:
+    def from_config(cls, config: BaseModel | ReadOnlyModelProxy) -> TypedConfigView:
         """Construct a deeply immutable ``TypedConfigView`` from a ``SUEWSConfig`` or proxy."""
         from .readonly_model import freeze_model  # noqa: PLC0415
 

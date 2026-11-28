@@ -9,27 +9,39 @@ caller.
 
 from __future__ import annotations
 
+import builtins
 from collections import Counter, OrderedDict, defaultdict, deque
 from collections.abc import Mapping, Sequence, Set as AbstractSet
-from dataclasses import dataclass, fields as dc_fields, is_dataclass
+from dataclasses import (
+    dataclass,
+    field as dc_field,
+    fields as dc_fields,
+    is_dataclass,
+    make_dataclass,
+)
 import datetime
 from enum import Enum, Flag
 import functools
+import operator
 from types import (
     BuiltinMethodType,
     FunctionType,
+    GenericAlias,
     MappingProxyType,
     MemberDescriptorType,
     MethodType,
     MethodWrapperType,
     ModuleType,
+    UnionType,
 )
-from typing import Any
+import typing
+from typing import Any, ForwardRef, TypeVar, Union, get_args, get_origin
 import weakref
 
 import numpy as np
 from pydantic import BaseModel
-from pydantic_core import PydanticUndefinedType
+from pydantic._internal._model_construction import make_hash_func
+from pydantic_core import PydanticUndefinedType, SchemaSerializer
 
 from ..pipeline.document import (
     _ENUM_INTERNAL_ATTRS,
@@ -45,6 +57,7 @@ from ..pipeline.document import (
     _FrozenSliceSpec,
     _get_instance_dict_descriptor,
     _is_copy_on_read_scalar,
+    _is_descriptor,
     _is_exact_immutable_scalar,
     _is_immutable_enum,
     _materialise_frozen,
@@ -56,6 +69,7 @@ from ..pipeline.document import (
     _validate_safe_numpy_dtype,
     _write_instance_dict,
 )
+from ..pipeline.style_ledger import _forbid_reinit
 
 _ALLOWED_READONLY_METHODS = frozenset({"model_dump"})
 _PARTIAL_IN_PROGRESS = object()
@@ -176,6 +190,38 @@ def _find_class_attr(cls: type[Any], name: str) -> tuple[bool, Any]:
     return False, None
 
 
+def _has_raw_attr(
+    cls: type[Any], inst_dict: Mapping[Any, Any] | None, name: str
+) -> bool:
+    """Return True if *name* exists in *cls* MRO or *inst_dict* without invoking hooks."""
+    return _find_class_attr(cls, name)[0] or (
+        inst_dict is not None and name in inst_dict
+    )
+
+
+def _detach_attr_mapping(
+    mapping: Mapping[Any, Any],
+    memo: dict[int, Any],
+    *,
+    reject_enums: bool,
+    wrap_enums: Mapping[int, Any] | None,
+) -> dict[Any, Any]:
+    """Detach an instance attribute dict, detaching non-exact string keys as well as values."""
+    out: dict[Any, Any] = {}
+    for k, v in mapping.items():
+        if type(k) is str:
+            detached_key: Any = k
+        else:
+            _assert_safe_hashable_key(k)
+            detached_key = _detach_snapshot_tree(
+                k, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+        out[detached_key] = _detach_snapshot_tree(
+            v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+    return out
+
+
 def _read_stored_field(target: Any, name: str) -> Any:
     """Read a declared field directly from instance storage/slots without executing hooks."""
     cls = type(target)
@@ -183,7 +229,7 @@ def _read_stored_field(target: Any, name: str) -> Any:
     found_cls_attr, raw_cls_attr = _find_class_attr(cls, name)
     if (
         found_cls_attr
-        and hasattr(raw_cls_attr, "__get__")
+        and _is_descriptor(raw_cls_attr)
         and not isinstance(raw_cls_attr, MemberDescriptorType)
     ):
         raise TypeError(
@@ -239,12 +285,9 @@ def _clone_base_model(
         )
     cloned = object.__new__(model_cls)
     memo[id(value)] = cloned
-    cloned_dict = {}
-    for k, v in src_dict.items():
-        _assert_safe_hashable_key(k)
-        cloned_dict[k] = _detach_snapshot_tree(
-            v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-        )
+    cloned_dict = _detach_attr_mapping(
+        src_dict, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+    )
     _write_instance_dict(cloned, cloned_dict)
     fields_set = _read_pydantic_internal(value, "__pydantic_fields_set__")
     if fields_set is not None:
@@ -272,12 +315,9 @@ def _clone_base_model(
     if private is None:
         _write_pydantic_internal(cloned, "__pydantic_private__", None)
     else:
-        cloned_private: dict[Any, Any] = {}
-        for k, v in private.items():
-            _assert_safe_hashable_key(k)
-            cloned_private[k] = _detach_snapshot_tree(
-                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-            )
+        cloned_private = _detach_attr_mapping(
+            private, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
         _write_pydantic_internal(cloned, "__pydantic_private__", cloned_private)
     _copy_slots(
         value,
@@ -303,14 +343,11 @@ def _clone_dataclass(
     src_dict = _read_instance_dict(value)
     cloned_dc = object.__new__(dc_cls)
     memo[id(value)] = cloned_dc
-    cloned_dict: dict[str, Any] | None = None
+    cloned_dict: dict[Any, Any] | None = None
     if src_dict is not None:
-        cloned_dict = {}
-        for k, v in src_dict.items():
-            _assert_safe_hashable_key(k)
-            cloned_dict[k] = _detach_snapshot_tree(
-                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-            )
+        cloned_dict = _detach_attr_mapping(
+            src_dict, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
         _write_instance_dict(cloned_dc, cloned_dict)
     _copy_slots(
         value,
@@ -320,14 +357,14 @@ def _clone_dataclass(
         reject_enums=reject_enums,
         wrap_enums=wrap_enums,
     )
-    for dc_field in dc_fields(dc_cls):
-        fname = dc_field.name
+    for dc_field_obj in dc_fields(dc_cls):
+        fname = dc_field_obj.name
         if cloned_dict is not None and fname in cloned_dict:
             continue
         found_cls_attr, raw_cls_attr = _find_class_attr(dc_cls, fname)
         if not found_cls_attr or isinstance(raw_cls_attr, MemberDescriptorType):
             continue
-        if hasattr(raw_cls_attr, "__get__"):
+        if _is_descriptor(raw_cls_attr):
             raise TypeError(
                 f"Cannot safely detach dataclass field {fname!r} backed by "
                 f"unvetted descriptor on {dc_cls.__name__!r}"
@@ -381,6 +418,12 @@ def _detach_callable(
     if type(value) is functools.partial:
         memo[obj_id] = _PARTIAL_IN_PROGRESS
         try:
+            detached_kw = _detach_attr_mapping(
+                value.keywords,
+                memo,
+                reject_enums=reject_enums,
+                wrap_enums=wrap_enums,
+            )
             out_partial = functools.partial(
                 _detach_snapshot_tree(
                     value.func, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
@@ -391,27 +434,19 @@ def _detach_callable(
                     )
                     for arg in value.args
                 ),
-                **{
-                    k: _detach_snapshot_tree(
-                        v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                    )
-                    for k, v in value.keywords.items()
-                },
+                **detached_kw,
             )
             extra_dict = _read_instance_dict(value)
             if extra_dict:
-                for attr_name, attr_val in extra_dict.items():
-                    _assert_safe_hashable_key(attr_name)
-                    setattr(
-                        out_partial,
-                        attr_name,
-                        _detach_snapshot_tree(
-                            attr_val,
-                            memo,
-                            reject_enums=reject_enums,
-                            wrap_enums=wrap_enums,
-                        ),
-                    )
+                _write_instance_dict(
+                    out_partial,
+                    _detach_attr_mapping(
+                        extra_dict,
+                        memo,
+                        reject_enums=reject_enums,
+                        wrap_enums=wrap_enums,
+                    ),
+                )
         except Exception:
             memo.pop(obj_id, None)
             raise
@@ -538,7 +573,7 @@ def _detach_sequence_or_set(
         result = memo[obj_id] if obj_id in memo else tuple(items)
     elif (
         isinstance(value, tuple)
-        and hasattr(type(value), "_fields")
+        and _find_class_attr(type(value), "_fields")[0]
         and type(value).__iter__ is tuple.__iter__
         and _get_instance_dict_descriptor(type(value)) is None
         and not _iter_custom_slots(type(value), frozenset({"__dict__", "__weakref__"}))
@@ -589,29 +624,31 @@ def _detach_plain_instance(
 ) -> tuple[bool, Any]:
     """Detach plain Python class instances preserving ``__dict__``, ``__slots__``, and cycles."""
     skip = frozenset({"__dict__", "__weakref__"})
+    val_cls = type(value)
     if (
         isinstance(value, type)
-        or type(value).__new__ is not object.__new__
-        or type(value).__getattribute__ is not object.__getattribute__
-        or hasattr(value, "__deepcopy__")
-        or hasattr(value, "__copy__")
-        or type(value).__reduce_ex__ is not object.__reduce_ex__
+        or val_cls.__new__ is not object.__new__
+        or val_cls.__getattribute__ is not object.__getattribute__
+        or val_cls.__reduce_ex__ is not object.__reduce_ex__
     ):
         return False, None
     src_dict = _read_instance_dict(value)
-    has_slots = bool(_iter_custom_slots(type(value), skip))
+    if _has_raw_attr(val_cls, src_dict, "__deepcopy__") or _has_raw_attr(
+        val_cls, src_dict, "__copy__"
+    ):
+        return False, None
+    has_slots = bool(_iter_custom_slots(val_cls, skip))
     if src_dict is None and not has_slots:
         return False, None
-    cloned_obj = object.__new__(type(value))
+    cloned_obj = object.__new__(val_cls)
     memo[id(value)] = cloned_obj
     if src_dict is not None:
-        cloned_inst_dict: dict[str, Any] = {}
-        for k, v in src_dict.items():
-            _assert_safe_hashable_key(k)
-            cloned_inst_dict[k] = _detach_snapshot_tree(
-                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-            )
-        _write_instance_dict(cloned_obj, cloned_inst_dict)
+        _write_instance_dict(
+            cloned_obj,
+            _detach_attr_mapping(
+                src_dict, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            ),
+        )
     _copy_slots(
         value,
         cloned_obj,
@@ -657,25 +694,25 @@ def _detach_primitive_subclass(
     val_cls = type(value)
     for base in _PRIMITIVE_SUBCLASS_BASES:
         if issubclass(val_cls, base) and val_cls is not base:
-            if (
-                val_cls.__new__ is not base.__new__
-                or val_cls.__getattribute__
-                not in {object.__getattribute__, base.__getattribute__}
-                or hasattr(value, "__deepcopy__")
-                or hasattr(value, "__copy__")
-            ):
+            if val_cls.__new__ is not base.__new__ or val_cls.__getattribute__ not in {
+                object.__getattribute__,
+                base.__getattribute__,
+            }:
                 return False, None
             src_dict = _read_instance_dict(value)
+            if _has_raw_attr(val_cls, src_dict, "__deepcopy__") or _has_raw_attr(
+                val_cls, src_dict, "__copy__"
+            ):
+                return False, None
             cloned_sub = _clone_primitive_base_value(val_cls, base, value)
             memo[id(value)] = cloned_sub
             if src_dict is not None:
-                cloned_sub_dict: dict[str, Any] = {}
-                for k, v in src_dict.items():
-                    _assert_safe_hashable_key(k)
-                    cloned_sub_dict[k] = _detach_snapshot_tree(
-                        v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                    )
-                _write_instance_dict(cloned_sub, cloned_sub_dict)
+                _write_instance_dict(
+                    cloned_sub,
+                    _detach_attr_mapping(
+                        src_dict, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+                    ),
+                )
             _copy_slots(
                 value,
                 cloned_sub,
@@ -1272,7 +1309,8 @@ class ReadOnlyEnumProxy:
         return self
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class ReadOnlyTypeInfo:
     """Deeply immutable type descriptor exposing class identity without the live class object."""
 
@@ -1284,23 +1322,135 @@ class ReadOnlyTypeInfo:
         """Return the qualified name of the described type."""
         return self.qualname
 
+    def __copy__(self) -> ReadOnlyTypeInfo:
+        """Return ``self`` because ``ReadOnlyTypeInfo`` is deeply immutable."""
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> ReadOnlyTypeInfo:
+        """Return ``self`` because ``ReadOnlyTypeInfo`` is deeply immutable."""
+        return self
+
+
+def _safe_type_str_attr(cls: type[Any], attr: str) -> str:
+    """Extract a type string attribute as an exact builtin ``str`` without user hooks."""
+    raw = type.__getattribute__(cls, attr)
+    if type(raw) is str:
+        return raw
+    if isinstance(raw, str):
+        return str.__str__(raw)
+    return f"<{type(raw).__name__}>"
+
 
 def _freeze_type_info(cls: type[Any]) -> ReadOnlyTypeInfo:
     """Build an immutable :class:`ReadOnlyTypeInfo` for *cls*."""
     return ReadOnlyTypeInfo(
-        name=cls.__name__,
-        qualname=cls.__qualname__,
-        module=cls.__module__,
+        name=_safe_type_str_attr(cls, "__name__"),
+        qualname=_safe_type_str_attr(cls, "__qualname__"),
+        module=_safe_type_str_attr(cls, "__module__"),
     )
 
 
+_EXACT_ANNOTATION_PRIMITIVES: frozenset[type[Any]] = frozenset({
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+})
+_STDLIB_ALIAS_TYPES: frozenset[type[Any]] = frozenset(
+    t
+    for t in (
+        GenericAlias,
+        UnionType,
+        getattr(typing, "_BaseGenericAlias", None),
+        getattr(typing, "_GenericAlias", None),
+        getattr(typing, "_CallableGenericAlias", None),
+        getattr(typing, "_TupleType", None),
+        getattr(typing, "_UnionGenericAlias", None),
+        getattr(typing, "_LiteralGenericAlias", None),
+        getattr(typing, "_AnnotatedAlias", None),
+        getattr(typing, "_SpecialGenericAlias", None),
+        getattr(typing, "_CallableType", None),
+        getattr(typing, "_SpecialForm", None),
+        getattr(typing, "_LiteralSpecialForm", None),
+    )
+    if isinstance(t, type)
+)
+
+
+def _render_annotation_origin(origin: Any) -> str:
+    """Render a stdlib typing alias origin name without executing user ``__repr__``."""
+    if isinstance(origin, type):
+        return _safe_type_str_attr(origin, "__qualname__")
+    for attr in ("_name", "__name__"):
+        raw = getattr(origin, attr, None)
+        if isinstance(raw, str):
+            return str.__str__(raw)
+    return f"<{type(origin).__name__}>"
+
+
+def _render_annotation_alias(annotation: Any, active: set[int]) -> str:
+    """Render a stdlib typing/types generic alias or union structurally."""
+    obj_id = id(annotation)
+    if obj_id in active:
+        return "..."
+    active.add(obj_id)
+    try:
+        origin = get_origin(annotation)
+        args = get_args(annotation)
+        if origin is None:
+            return _render_annotation_origin(annotation)
+        rendered_args = [_render_safe_annotation(arg, active) for arg in args]
+        if origin in {Union, UnionType}:
+            return " | ".join(rendered_args)
+        origin_name = _render_annotation_origin(origin)
+        return f"{origin_name}[{', '.join(rendered_args)}]" if args else origin_name
+    finally:
+        active.discard(obj_id)
+
+
+def _render_annotation_atom(annotation: Any) -> str | None:
+    """Render atomic typing tokens without triggering user ``__repr__`` hooks."""
+    if annotation is None or annotation is type(None):
+        return "None"
+    if annotation is Ellipsis:
+        return "..."
+    if isinstance(annotation, type):
+        return _safe_type_str_attr(annotation, "__qualname__")
+    if type(annotation) in _EXACT_ANNOTATION_PRIMITIVES:
+        return repr(annotation)
+    if isinstance(annotation, Enum):
+        return _safe_enum_label(annotation)
+    return None
+
+
+def _render_safe_annotation(annotation: Any, active: set[int]) -> str:
+    """Render a typing annotation structurally without invoking unvetted ``__repr__`` hooks."""
+    atom = _render_annotation_atom(annotation)
+    if atom is not None:
+        return atom
+    if type(annotation) is ForwardRef:
+        fwd = object.__getattribute__(annotation, "__forward_arg__")
+        return repr(str.__str__(fwd)) if isinstance(fwd, str) else "<ForwardRef>"
+    if type(annotation) is TypeVar:
+        tv_name = object.__getattribute__(annotation, "__name__")
+        return str.__str__(tv_name) if isinstance(tv_name, str) else "<TypeVar>"
+    if type(annotation) in {list, tuple}:
+        open_ch, close_ch = ("[", "]") if type(annotation) is list else ("(", ")")
+        return f"{open_ch}{', '.join(_render_safe_annotation(a, active) for a in annotation)}{close_ch}"
+    if type(annotation) in _STDLIB_ALIAS_TYPES:
+        return _render_annotation_alias(annotation, active)
+    return f"<{type(annotation).__name__}>"
+
+
 def _freeze_annotation(annotation: Any) -> ReadOnlyTypeInfo | str | None:
-    """Snapshot a Pydantic field annotation without exposing live class objects."""
+    """Snapshot a Pydantic field annotation without exposing live class objects or running user ``repr``."""
     if annotation is None:
         return None
     if isinstance(annotation, type):
         return _freeze_type_info(annotation)
-    return repr(annotation)
+    return _render_safe_annotation(annotation, set())
 
 
 _FIELD_INFO_ATTRS = (
@@ -1317,7 +1467,8 @@ _FIELD_INFO_ATTRS = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class ReadOnlyFieldInfo:
     """Deeply immutable snapshot of a Pydantic ``FieldInfo`` declaration."""
 
@@ -1363,11 +1514,14 @@ class ReadOnlyFieldInfo:
 
 
 def _iter_instance_state_children(obj: Any, skip: frozenset[str]) -> list[Any]:
-    """Return values from ``__dict__`` and custom ``__slots__`` on *obj*."""
+    """Return values (and non-exact-str keys) from ``__dict__`` and custom ``__slots__`` on *obj*."""
     out: list[Any] = []
     inst_dict = _read_instance_dict(obj)
     if inst_dict is not None:
-        out.extend(inst_dict.values())
+        for k, v in inst_dict.items():
+            if type(k) is not str:
+                out.append(k)
+            out.append(v)
     for base, _slot_name, slot_desc in _iter_custom_slots(type(obj), skip):
         try:
             out.append(slot_desc.__get__(obj, base))
@@ -1440,14 +1594,16 @@ def _iter_snapshot_children(
             _iter_instance_state_children(obj, frozenset({"__dict__", "__weakref__"}))
         )
         inst_dict = _read_instance_dict(obj)
-        for dc_field in dc_fields(type(obj)):
-            if inst_dict is not None and dc_field.name in inst_dict:
+        for dc_field_obj in dc_fields(type(obj)):
+            if inst_dict is not None and dc_field_obj.name in inst_dict:
                 continue
-            found_cls_attr, raw_cls_attr = _find_class_attr(type(obj), dc_field.name)
+            found_cls_attr, raw_cls_attr = _find_class_attr(
+                type(obj), dc_field_obj.name
+            )
             if (
                 found_cls_attr
                 and not isinstance(raw_cls_attr, MemberDescriptorType)
-                and not hasattr(raw_cls_attr, "__get__")
+                and not _is_descriptor(raw_cls_attr)
             ):
                 children.append(raw_cls_attr)
     elif isinstance(obj, Mapping):
@@ -1464,15 +1620,168 @@ def _iter_snapshot_children(
     return children
 
 
+_CodeSig = tuple[Any, ...]
+_DATACLASS_REF_CODE_CACHE: dict[
+    tuple[str, tuple[tuple[str, bool, bool | None], ...]], _CodeSig
+] = {}
+
+
+def _code_signature(fn: FunctionType) -> _CodeSig:
+    """Return a bytecode-and-binding structural signature for *fn*."""
+    code = fn.__code__
+    return (
+        code.co_code,
+        code.co_consts,
+        code.co_names,
+        code.co_varnames,
+        code.co_freevars,
+        code.co_cellvars,
+        code.co_argcount,
+        code.co_posonlyargcount,
+        code.co_kwonlyargcount,
+        code.co_flags,
+    )
+
+
+def _globals_safe_for_names(fn: FunctionType, required: dict[str, Any]) -> bool:
+    """Verify *fn*'s global and builtins namespaces do not shadow *required* symbols."""
+    fn_globals = fn.__globals__
+    raw_builtins = fn_globals.get("__builtins__")
+    if (
+        raw_builtins is not None
+        and raw_builtins is not builtins
+        and raw_builtins is not builtins.__dict__
+    ):
+        return False
+    return all(
+        fn_globals.get(name, expected) is expected
+        for name, expected in required.items()
+    )
+
+
+def _reference_dataclass_code_sig(
+    hook_name: str,
+    field_specs: tuple[tuple[str, bool, bool | None], ...],
+) -> _CodeSig:
+    """Return the exact stdlib ``dataclasses`` bytecode signature for *hook_name* and *field_specs*."""
+    cache_key = (hook_name, field_specs)
+    cached = _DATACLASS_REF_CODE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    ref_cls = make_dataclass(
+        "_RefDC",
+        [
+            (name, object, dc_field(compare=cmp_flag, hash=hash_flag))
+            for name, cmp_flag, hash_flag in field_specs
+        ],
+        eq=True,
+        frozen=(hook_name == "__hash__"),
+        unsafe_hash=(hook_name == "__hash__"),
+    )
+    sig = _code_signature(getattr(ref_cls, hook_name))
+    _DATACLASS_REF_CODE_CACHE[cache_key] = sig
+    return sig
+
+
+def _dataclass_fields_have_no_custom_descriptors(cls: type[Any]) -> bool:
+    """Return True iff *cls* has standard attribute access and no descriptor-backed dataclass fields."""
+    if cls.__getattribute__ not in {
+        object.__getattribute__,
+        tuple.__getattribute__,
+        BaseModel.__getattribute__,
+    }:
+        return False
+    if _find_class_attr(cls, "__getattr__")[0]:
+        return False
+    for f in dc_fields(cls):
+        found, raw_attr = _find_class_attr(cls, f.name)
+        if (
+            found
+            and _is_descriptor(raw_attr)
+            and not isinstance(raw_attr, MemberDescriptorType)
+        ):
+            return False
+    return True
+
+
 def _is_standard_dataclass_hook(cls: type[Any], hook_name: str) -> bool:
-    """Return True when *cls* uses the compiler-generated dataclass ``__eq__``/``__hash__``."""
-    hook = getattr(cls, hook_name, None)
-    if hook is None:
+    """Verify *cls*'s dataclass ``__eq__``/``__hash__`` matches stdlib bytecode, globals, and fields."""
+    owner_cls: type[Any] | None = None
+    hook: Any = None
+    for base in cls.__mro__:
+        if hook_name in base.__dict__:
+            owner_cls = base
+            hook = base.__dict__[hook_name]
+            break
+    if hook is None or hook is getattr(object, hook_name, None):
         return True
-    if hook is getattr(object, hook_name, None):
-        return True
-    code = getattr(hook, "__code__", None)
-    return code is not None and code.co_filename == "<string>"
+    if (
+        owner_cls is None
+        or not is_dataclass(owner_cls)
+        or not isinstance(hook, FunctionType)
+        or hook.__defaults__ is not None
+        or hook.__kwdefaults__ is not None
+        or hook.__closure__
+        or not _dataclass_fields_have_no_custom_descriptors(cls)
+    ):
+        return False
+    required_globals = (
+        {"NotImplemented": NotImplemented} if hook_name == "__eq__" else {"hash": hash}
+    )
+    if not _globals_safe_for_names(hook, required_globals):
+        return False
+    field_specs = tuple((f.name, f.compare, f.hash) for f in dc_fields(owner_cls))
+    return _code_signature(hook) == _reference_dataclass_code_sig(
+        hook_name, field_specs
+    )
+
+
+class _RefPydanticFieldModel(BaseModel):
+    """Minimal concrete model for capturing Pydantic's ``make_hash_func`` bytecode."""
+
+    x: int
+
+
+class _RefPydanticEmptyModel(BaseModel):
+    """Minimal empty model for capturing Pydantic's zero-field hash getter bytecode."""
+
+
+_PYDANTIC_REF_HASH_SIG = _code_signature(make_hash_func(_RefPydanticFieldModel))
+_PYDANTIC_REF_EMPTY_HASH_FN = make_hash_func(_RefPydanticEmptyModel)
+_PYDANTIC_REF_EMPTY_GETTER_SIG: _CodeSig | None = (
+    _code_signature(_PYDANTIC_REF_EMPTY_HASH_FN.__closure__[0].cell_contents)
+    if _PYDANTIC_REF_EMPTY_HASH_FN.__closure__
+    and isinstance(
+        _PYDANTIC_REF_EMPTY_HASH_FN.__closure__[0].cell_contents, FunctionType
+    )
+    else None
+)
+
+
+def _is_standard_pydantic_hash(hook: Any) -> bool:
+    """Verify a Pydantic ``BaseModel`` ``__hash__`` matches ``make_hash_func`` bytecode and closure."""
+    if (
+        not isinstance(hook, FunctionType)
+        or hook.__defaults__ is not None
+        or hook.__kwdefaults__ is not None
+        or not hook.__closure__
+        or len(hook.__closure__) != 1
+    ):
+        return False
+    getter = hook.__closure__[0].cell_contents
+    getter_ok = isinstance(getter, operator.itemgetter) or (
+        _PYDANTIC_REF_EMPTY_GETTER_SIG is not None
+        and isinstance(getter, FunctionType)
+        and getter.__defaults__ is None
+        and getter.__kwdefaults__ is None
+        and not getter.__closure__
+        and _code_signature(getter) == _PYDANTIC_REF_EMPTY_GETTER_SIG
+    )
+    return (
+        getter_ok
+        and _globals_safe_for_names(hook, {"hash": hash})
+        and _code_signature(hook) == _PYDANTIC_REF_HASH_SIG
+    )
 
 
 _STD_EQ_METHODS = frozenset({
@@ -1575,14 +1884,8 @@ def _has_custom_dunder(root: Any, dunder: str) -> bool:
         visited.add(obj_id)
         cls = type(obj)
         if isinstance(obj, BaseModel):
-            hook = getattr(cls, dunder, None)
-            is_pydantic_hash = (
-                dunder == "__hash__"
-                and getattr(hook, "__module__", None)
-                == "pydantic._internal._model_construction"
-                and getattr(hook, "__qualname__", "")
-                == "make_hash_func.<locals>.hash_func"
-            )
+            hook = _find_class_attr(cls, dunder)[1]
+            is_pydantic_hash = dunder == "__hash__" and _is_standard_pydantic_hash(hook)
             if (
                 hook is not std_model_hook
                 and hook is not std_ref_hook
@@ -1678,20 +1981,71 @@ def _schema_has_disallowed_hook(
     return False
 
 
+_PROTECTED_MODEL_DUMP_ATTRS: frozenset[str] = frozenset({
+    "model_dump",
+    "model_dump_json",
+    "__pydantic_serializer__",
+    "__pydantic_core_schema__",
+    "__pydantic_decorators__",
+    "model_fields",
+    "model_computed_fields",
+})
+
+
+def _model_instance_has_shadowed_dump_attrs(obj: BaseModel) -> bool:
+    """Return True if *obj* shadows dump or serializer attributes in instance storage or slots."""
+    inst_dict = _read_instance_dict(obj)
+    if inst_dict is not None and any(
+        attr in inst_dict for attr in _PROTECTED_MODEL_DUMP_ATTRS
+    ):
+        return True
+    for base, slot_name, slot_desc in _iter_custom_slots(
+        type(obj), _PYDANTIC_INTERNAL_SLOTS
+    ):
+        if slot_name in _PROTECTED_MODEL_DUMP_ATTRS:
+            try:
+                slot_desc.__get__(obj, base)
+            except AttributeError:
+                continue
+            return True
+    return False
+
+
+def _base_model_has_disallowed_dump_setup(cls: type[Any]) -> bool:
+    """Return True if a ``BaseModel`` class overrides ``model_dump``, serializer, or field descriptors."""
+    from ...core.type import RefValue  # noqa: PLC0415
+
+    raw_dump = _find_class_attr(cls, "model_dump")[1]
+    if raw_dump not in {
+        BaseModel.__dict__["model_dump"],
+        RefValue.__dict__["model_dump"],
+    }:
+        return True
+    raw_ser = _find_class_attr(cls, "__pydantic_serializer__")[1]
+    if not isinstance(raw_ser, SchemaSerializer):
+        return True
+    raw_fields = _find_class_attr(cls, "model_fields")[1]
+    if isinstance(raw_fields, Mapping):
+        for fname in raw_fields:
+            found_f, desc_f = _find_class_attr(cls, fname)
+            if (
+                found_f
+                and _is_descriptor(desc_f)
+                and not isinstance(desc_f, MemberDescriptorType)
+            ):
+                return True
+    return False
+
+
 def _pydantic_type_has_disallowed_hooks(
     cls: type[Any],
     allowed_sers: frozenset[Any],
     allowed_computed: frozenset[tuple[type[Any], str]],
 ) -> bool:
     """Return True if a Pydantic model or dataclass defines disallowed serializers, dump overrides, or computed fields."""
-    from ...core.type import RefValue  # noqa: PLC0415
-
-    if issubclass(cls, BaseModel) and cls.model_dump not in {
-        BaseModel.model_dump,
-        RefValue.model_dump,
-    }:
+    if issubclass(cls, BaseModel) and _base_model_has_disallowed_dump_setup(cls):
         return True
-    decorators = getattr(cls, "__pydantic_decorators__", None)
+    decorators = _find_class_attr(cls, "__pydantic_decorators__")[1]
     if decorators is not None:
         if any(
             getattr(dec.func, "__func__", dec.func) not in allowed_sers
@@ -1706,13 +2060,13 @@ def _pydantic_type_has_disallowed_hooks(
             for name in getattr(decorators, "computed_fields", {})
         ):
             return True
-    computed_fields = getattr(cls, "model_computed_fields", None)
+    computed_fields = _find_class_attr(cls, "model_computed_fields")[1]
     if isinstance(computed_fields, Mapping) and any(
         (cls, name) not in allowed_computed for name in computed_fields
     ):
         return True
     return _schema_has_disallowed_hook(
-        getattr(cls, "__pydantic_core_schema__", None),
+        _find_class_attr(cls, "__pydantic_core_schema__")[1],
         allowed_sers,
         allowed_computed,
     )
@@ -1747,6 +2101,11 @@ def _validate_enum_dump_isolation(root: BaseModel, *, has_user_fallback: bool) -
         if obj_id in visited:
             continue
         visited.add(obj_id)
+        if isinstance(obj, BaseModel) and _model_instance_has_shadowed_dump_attrs(obj):
+            raise TypeError(
+                f"Cannot safely run model_dump on {type(obj).__name__!r} with "
+                "instance-shadowed dump or serializer attributes"
+            )
         if (
             isinstance(obj, BaseModel)
             or (is_dataclass(obj) and not isinstance(obj, type))
@@ -2382,6 +2741,8 @@ class ReadOnlyModelProxy:
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return a fresh detached dictionary serialisation of a working model copy."""
+        from ...core.type import RefValue  # noqa: PLC0415
+
         target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
         _validate_enum_dump_isolation(
             target, has_user_fallback=kwargs.get("fallback") is not None
@@ -2392,7 +2753,13 @@ class ReadOnlyModelProxy:
                 "_name_ or _value_ was mutated externally"
             )
         working_copy = _safe_snapshot_copy(target)
-        dumped = working_copy.model_dump(*args, **kwargs)
+        raw_dump = _find_class_attr(type(working_copy), "model_dump")[1]
+        dump_fn = (
+            RefValue.model_dump
+            if raw_dump is RefValue.__dict__["model_dump"]
+            else BaseModel.model_dump
+        )
+        dumped = dump_fn(working_copy, *args, **kwargs)
         return _safe_snapshot_copy(dumped, wrap_enums=enum_snapshots)
 
     def unwrap_copy(self) -> BaseModel:

@@ -4371,3 +4371,219 @@ def test_r14_key_hash_dict_prop_tuple_sub_key_redeclared_slot_slotted_default_an
         {"m": {dt_a: 1}},
     )
     assert len(norm_tz_key) == 1
+
+
+def test_r15_yaml_merge_override_frozen_reinit_and_numpy_metadata_isolation() -> None:
+    """Cover Astra R5 M1, M2, M5: YAML merge override provenance, one-time init, and NumPy metadata hooks."""
+    # M1: YAML merge + explicit override preserves winning ref metadata across delete + reinsert.
+    for yaml_text in (
+        "defaults: &d {x: {value: 1, ref: {ID: base}}, y: 10}\n"
+        "section: {<<: *d, x: {value: 2, ref: {ID: override}}}\n",
+        "defaults: &d {x: {value: 1, ref: {ID: base}}, y: 10}\n"
+        "section: {x: {value: 2, ref: {ID: override}}, <<: *d}\n",
+    ):
+        doc = ConfigDocument.from_dict(
+            yaml.safe_load(yaml_text), raw_text=yaml_text, normalise=False
+        )
+        assert doc.style_ledger.ref_metadata("section.x") == {"ID": "override"}
+        updated = doc.apply_patches([
+            ConfigPatch("section.x", "delete"),
+            ConfigPatch("section.x", "set", 3),
+        ])
+        assert updated.data["section"]["x"] == {"value": 3, "ref": {"ID": "override"}}
+
+    # M2: Frozen metadata, ledger, typed view, and patch objects forbid repeated __init__.
+    class _MetaModel(BaseModel):
+        x: int = 1
+
+    ro_meta = freeze_model(_MetaModel())
+    field_info = ro_meta.model_fields["x"]
+    with pytest.raises(TypeError, match="cannot be re-initialised"):
+        field_info.__init__("x", int, [99], False, None, None, None, None, (), None)
+    assert field_info.default == 1
+    with pytest.raises(TypeError, match="cannot be re-initialised"):
+        ro_meta.model_type.__init__("Evil", "Evil", "evil")
+    doc_reinit = ConfigDocument.from_dict({"a": {"value": 1, "ref": {"ID": "k"}}})
+    clone_reinit = doc_reinit.clone()
+    with pytest.raises(TypeError, match="cannot be re-initialised"):
+        doc_reinit.style_ledger.__init__()
+    assert clone_reinit.style_ledger.ref_metadata("a") == {"ID": "k"}
+    path_style = doc_reinit.style_ledger.get("a")
+    assert path_style is not None
+    with pytest.raises(TypeError, match="cannot be re-initialised"):
+        path_style.__init__()
+    tview = doc_reinit.typed_view()
+    with pytest.raises(TypeError, match="cannot be re-initialised"):
+        tview.__init__(tview.raw, tview.physics, tview.sites)
+
+    # M5: NumPy dtype metadata rejects custom dict subclasses before items() or __deepcopy__.
+    meta_events: list[str] = []
+
+    class _SpyDict(dict):  # type: ignore[type-arg]
+        def items(self):  # type: ignore[override]
+            meta_events.append("items")
+            return super().items()
+
+    class _StickyDict(dict):  # type: ignore[type-arg]
+        def __deepcopy__(self, _memo: object) -> _StickyDict:
+            return self
+
+    for bad_meta in (_SpyDict({"k": 1}), _StickyDict({"k": 1})):
+        bad_dt = np.dtype(np.int64, metadata={"nested": bad_meta})
+        bad_arr = np.array([1, 2], dtype=bad_dt)
+        with pytest.raises(TypeError, match="NumPy dtype"):
+            deep_freeze(bad_arr)
+    assert meta_events == []
+    good_dt = np.dtype(np.int64, metadata={"nested": {"k": (1, 2)}})
+    good_frozen = deep_freeze(np.array([1, 2], dtype=good_dt))
+    assert good_frozen.dtype.metadata["nested"] == {"k": (1, 2)}
+
+
+def test_r15_copy_hooks_dump_overrides_and_literal_repr() -> None:
+    """Cover Astra R5 M3, M4, M6: copy hooks without __getattr__/property, dump shadowing, Literal repr."""
+    from typing import Literal  # noqa: PLC0415
+
+    # M3: Plain object and str subclass with custom __getattr__ / property copy hooks do not fire on freeze.
+    getattr_events: list[str] = []
+
+    class _SpyAttrObj:
+        def __init__(self) -> None:
+            self.items = [1]
+
+        def __getattr__(self, name: str) -> object:
+            getattr_events.append(name)
+            raise AttributeError(name)
+
+    class _PropCopyStr(str):
+        pass
+
+    _PropCopyStr.__deepcopy__ = property(  # type: ignore[assignment]
+        lambda self: getattr_events.append("prop_deepcopy") or (lambda _m: self)
+    )
+
+    class _Holder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        a: object
+        b: object = None
+
+    ro_attr = freeze_model(_Holder(a=_SpyAttrObj()))
+    assert ro_attr.unwrap_copy().a.items == [1]
+    with pytest.raises(TypeError, match="opaque or custom copy semantics"):
+        freeze_model(_Holder(a=_PropCopyStr("x")))
+    assert getattr_events == []
+
+    # M4: Instance-shadowed model_dump and __pydantic_serializer__ are blocked without executing hooks.
+    dump_events: list[str] = []
+
+    class _EvilCallable:
+        def __init__(self, log: list[str]) -> None:
+            self.log = log
+
+        def __call__(self, *_args: object, **_kwargs: object) -> dict[str, int]:
+            self.log.append("called")
+            return {"evil": 1}
+
+    m_dump = _Holder(a=1)
+    object.__setattr__(m_dump, "model_dump", _EvilCallable(dump_events))
+    with pytest.raises(TypeError, match="instance-shadowed dump"):
+        freeze_model(m_dump).model_dump()
+    m_ser = _Holder(a=1)
+    object.__setattr__(m_ser, "__pydantic_serializer__", _EvilCallable(dump_events))
+    with pytest.raises(TypeError, match="instance-shadowed dump"):
+        freeze_model(m_ser).model_dump()
+    assert dump_events == []
+
+    # M6: Literal[Enum] annotation renders structurally without invoking Enum.__repr__.
+    repr_events: list[str] = []
+
+    class _ReprEnum(Enum):
+        ITEM = 1
+
+        def __repr__(self) -> str:
+            repr_events.append("repr")
+            return "EVIL"
+
+    class _LitModel(BaseModel):
+        mode: Literal[_ReprEnum.ITEM] = _ReprEnum.ITEM
+
+    lit_inst = _LitModel()
+    repr_events.clear()
+    ro_lit = freeze_model(lit_inst)
+    assert repr_events == []
+    assert ro_lit.model_fields["mode"].annotation == "Literal[_ReprEnum.ITEM]"
+
+
+def test_r15_exec_forged_dataclass_hooks_and_detached_attr_dict_keys() -> None:
+    """Cover Astra R5 M7 & M8: exec()-forged dataclass/Pydantic hooks and detached str-subclass dict keys."""
+    from pydantic import PrivateAttr  # noqa: PLC0415
+
+    class _Holder(BaseModel):
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+        a: object
+        _priv: int = PrivateAttr(default=1)
+
+    # M7: exec()-forged dataclass __hash__/__eq__ are rejected without executing; genuine frozen DC passes.
+    exec_events: list[object] = []
+    ns: dict[str, object] = {"exec_events": exec_events}
+    exec(
+        "def __hash__(self):\n    exec_events.append(self)\n    return hash((self.x,))\n"
+        "def __eq__(self, other):\n    exec_events.append(self)\n    return self.x == other.x\n",
+        ns,
+    )
+
+    @dataclass(frozen=True)
+    class _ForgedHashDC:
+        x: int
+
+    _ForgedHashDC.__hash__ = ns["__hash__"]  # type: ignore[method-assign]
+    h_forged = _Holder(a={_ForgedHashDC(1): "v"})
+    exec_events.clear()
+    with pytest.raises(TypeError, match="unvetted __hash__"):
+        freeze_model(h_forged)
+
+    @dataclass
+    class _ForgedEqDC:
+        x: int
+
+    _ForgedEqDC.__eq__ = ns["__eq__"]  # type: ignore[method-assign]
+    ro_feq = ReadOnlyDataclassProxy(_ForgedEqDC(1))
+    with pytest.raises(TypeError, match="unvetted custom __eq__"):
+        _ = ro_feq == _ForgedEqDC(1)
+    assert exec_events == []
+
+    @dataclass(frozen=True)
+    class _GoodDC:
+        x: int
+
+    assert freeze_model(_Holder(a={_GoodDC(7): "ok"})).a[_GoodDC(7)] == "ok"
+
+    # M8: str-subclass keys in model __dict__, __pydantic_private__, dataclass, and plain object are detached.
+    class _TaggedStr(str):
+        pass
+
+    def _tagged(name: str) -> _TaggedStr:
+        k = _TaggedStr(name)
+        k.tags = ["orig"]  # type: ignore[attr-defined]
+        return k
+
+    tk_model, tk_priv, tk_dc = _tagged("a"), _tagged("_priv"), _tagged("x")
+    m_key = _Holder(a=1)
+    m_key.__dict__.pop("a")
+    m_key.__dict__[tk_model] = 1
+    m_key.__pydantic_private__.pop("_priv")  # type: ignore[union-attr]
+    m_key.__pydantic_private__[tk_priv] = 2  # type: ignore[index]
+    ro_key = freeze_model(m_key)
+    tk_model.tags.append("mut")  # type: ignore[attr-defined]
+    tk_priv.tags.append("mut")  # type: ignore[attr-defined]
+    unwrapped_m = ro_key.unwrap_copy()
+    uk_m = next(iter(unwrapped_m.__dict__.keys()))
+    uk_p = next(iter(unwrapped_m.__pydantic_private__.keys()))  # type: ignore[union-attr]
+    assert uk_m is not tk_model and uk_m.tags == ["orig"]  # type: ignore[attr-defined]
+    assert uk_p is not tk_priv and uk_p.tags == ["orig"]  # type: ignore[attr-defined]
+    dc_inst = _GoodDC(1)
+    dc_inst.__dict__.pop("x")
+    dc_inst.__dict__[tk_dc] = 1
+    ro_dc_k = ReadOnlyDataclassProxy(dc_inst)
+    tk_dc.tags.append("mut")  # type: ignore[attr-defined]
+    uk_dc = next(iter(ro_dc_k.unwrap_copy().__dict__.keys()))
+    assert uk_dc is not tk_dc and uk_dc.tags == ["orig"]  # type: ignore[attr-defined]

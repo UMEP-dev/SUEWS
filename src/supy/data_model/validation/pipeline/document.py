@@ -51,6 +51,7 @@ from .style_ledger import (
     PathStyle,
     StyleLedger,
     WrapperStyle,
+    _forbid_reinit,
     _join_key_path,
     dump_yaml_with_style,
 )
@@ -80,6 +81,7 @@ _VALID_PATH_RE = re.compile(
 )
 
 
+@_forbid_reinit
 @dataclass(frozen=True)
 class MappingKey:
     """Explicit mapping-key path token preserving non-string keys and punctuation."""
@@ -247,6 +249,11 @@ _STD_ENUM_GETATTRIBUTES = frozenset({
 })
 
 
+def _is_descriptor(obj: Any) -> bool:
+    """Return True iff *obj*'s class hierarchy defines ``__get__`` without invoking hooks."""
+    return any("__get__" in base.__dict__ for base in type(obj).__mro__)
+
+
 def _enum_has_standard_accessors(member: Enum) -> bool:
     """Return True when *member* uses standard ``__getattribute__``, ``name``, and ``value``."""
     cls = type(member)
@@ -264,9 +271,7 @@ def _enum_has_standard_accessors(member: Enum) -> bool:
         for base in cls.__mro__:
             if internal in base.__dict__:
                 desc = base.__dict__[internal]
-                if hasattr(desc, "__get__") and not isinstance(
-                    desc, MemberDescriptorType
-                ):
+                if _is_descriptor(desc) and not isinstance(desc, MemberDescriptorType):
                     return False
                 break
     return True
@@ -398,58 +403,85 @@ def _is_immutable_enum(member: Enum) -> bool:
     return _is_deeply_immutable_payload(member, set())
 
 
-def _is_deeply_immutable_metadata_value(value: Any, active: set[int]) -> bool:
-    """Return True when a NumPy dtype metadata value contains only pure immutable non-Enum data."""
+_UNSAFE_DTYPE_META_MSG = (
+    "Cannot safely freeze or detach NumPy dtype carrying mutable or Enum metadata"
+)
+
+
+def _clone_safe_metadata_value(value: Any, active: set[int]) -> Any:
+    """Validate and reconstruct a NumPy dtype metadata value using only exact builtin containers."""
     if isinstance(value, Enum):
-        return False
+        raise TypeError(_UNSAFE_DTYPE_META_MSG)
     if _is_exact_immutable_scalar(value):
-        return True
-    if type(value) is slice:
-        return all(
-            _is_deeply_immutable_metadata_value(bound, active)
-            for bound in (value.start, value.stop, value.step)
+        return value
+    val_type = type(value)
+    if val_type is slice:
+        return slice(
+            _clone_safe_metadata_value(value.start, active),
+            _clone_safe_metadata_value(value.stop, active),
+            _clone_safe_metadata_value(value.step, active),
         )
-    if type(value) in {tuple, frozenset}:
+    if val_type in {tuple, frozenset, dict, MappingProxyType}:
         obj_id = id(value)
         if obj_id in active:
-            return False
+            raise TypeError(_UNSAFE_DTYPE_META_MSG)
         active.add(obj_id)
         try:
-            return all(
-                _is_deeply_immutable_metadata_value(item, active) for item in value
-            )
-        finally:
-            active.discard(obj_id)
-    if isinstance(value, Mapping):
-        obj_id = id(value)
-        if obj_id in active:
-            return False
-        active.add(obj_id)
-        try:
-            return all(
-                _is_deeply_immutable_metadata_value(k, active)
-                and _is_deeply_immutable_metadata_value(v, active)
+            if val_type is tuple:
+                return tuple(_clone_safe_metadata_value(item, active) for item in value)
+            if val_type is frozenset:
+                return frozenset(
+                    _clone_safe_metadata_value(item, active) for item in value
+                )
+            return {
+                _clone_safe_metadata_value(k, active): _clone_safe_metadata_value(
+                    v, active
+                )
                 for k, v in value.items()
-            )
+            }
         finally:
             active.discard(obj_id)
-    return False
+    raise TypeError(_UNSAFE_DTYPE_META_MSG)
+
+
+def _clone_safe_metadata_mapping(metadata: Any) -> dict[Any, Any] | None:
+    """Validate and reconstruct a NumPy dtype's top-level metadata dict without user copy hooks."""
+    if metadata is None:
+        return None
+    if type(metadata) not in {dict, MappingProxyType}:
+        raise TypeError(_UNSAFE_DTYPE_META_MSG)
+    cloned = _clone_safe_metadata_value(metadata, set())
+    return cloned if isinstance(cloned, dict) else dict(cloned)
 
 
 def _validate_safe_numpy_dtype(dtype: np.dtype[Any]) -> np.dtype[Any]:
-    """Ensure *dtype* (and nested field/subarray dtypes) carry no Enum or mutable metadata."""
-    if dtype.metadata is not None and not _is_deeply_immutable_metadata_value(
-        dtype.metadata, set()
-    ):
-        raise TypeError(
-            "Cannot safely freeze or detach NumPy dtype carrying mutable or Enum metadata"
-        )
-    if dtype.fields is not None:
-        for field_info in dtype.fields.values():
-            _validate_safe_numpy_dtype(field_info[0])
+    """Ensure *dtype* (and nested field/subarray dtypes) carry clean reconstructed metadata."""
+    clean_meta = _clone_safe_metadata_mapping(dtype.metadata)
+    meta_kwargs: dict[str, Any] = (
+        {"metadata": clean_meta} if clean_meta is not None else {}
+    )
     if dtype.subdtype is not None:
-        _validate_safe_numpy_dtype(dtype.subdtype[0])
-    return deepcopy(dtype)
+        sub_dt, sub_shape = dtype.subdtype
+        return np.dtype((_validate_safe_numpy_dtype(sub_dt), sub_shape), **meta_kwargs)
+    if dtype.fields is not None and dtype.names is not None:
+        names = list(dtype.names)
+        formats = [_validate_safe_numpy_dtype(dtype.fields[n][0]) for n in names]
+        offsets = [dtype.fields[n][1] for n in names]
+        titles = [
+            dtype.fields[n][2] if len(dtype.fields[n]) > 2 else None for n in names
+        ]
+        spec: dict[str, Any] = {
+            "names": names,
+            "formats": formats,
+            "offsets": offsets,
+            "itemsize": dtype.itemsize,
+        }
+        if any(t is not None for t in titles):
+            spec["titles"] = titles
+        return np.dtype(spec, align=dtype.isalignedstruct, **meta_kwargs)
+    if clean_meta is not None:
+        return np.dtype(dtype, metadata=clean_meta)
+    return dtype
 
 
 class _FrozenArraySpec:
@@ -472,7 +504,7 @@ class _FrozenArraySpec:
     def materialise(self) -> np.ndarray[Any, Any]:
         """Return a fresh zero-copy read-only NumPy view over immutable bytes."""
         buf, dtype, shape = _FROZEN_ARRAY_STATE[id(self)]
-        detached_dtype = deepcopy(dtype)
+        detached_dtype = _validate_safe_numpy_dtype(dtype)
         if detached_dtype.itemsize == 0:
             arr: np.ndarray[Any, Any] = np.empty(shape, dtype=detached_dtype)
             arr.setflags(write=False)
@@ -1771,6 +1803,7 @@ def apply_nullify_tree_at_path(
     )
 
 
+@_forbid_reinit
 @dataclass(frozen=True)
 class ConfigPatch:
     """Declarative mutation planned against a :class:`ConfigDocument`.

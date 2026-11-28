@@ -15,9 +15,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+import functools
 import io
 from types import MappingProxyType
 from typing import Any, Literal
+import weakref
 
 import yaml
 
@@ -29,6 +31,28 @@ _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 _ALLOWED_STR_SCALAR_STYLES = frozenset({None, "", "'", '"', "|", ">"})
 _YAML_STR_TAG = "tag:yaml.org,2002:str"
 _YAML_MERGE_TAG = "tag:yaml.org,2002:merge"
+_INITIALISED_FROZEN_IDS: set[int] = set()
+
+
+def _forbid_reinit(cls: type[Any]) -> type[Any]:
+    """Prevent calling ``__init__`` again on an already-initialised immutable object."""
+    orig_init = cls.__init__
+
+    @functools.wraps(orig_init)
+    def _guarded_init(self: Any, *args: Any, **kwargs: Any) -> None:
+        key = id(self)
+        if key in _INITIALISED_FROZEN_IDS:
+            raise TypeError(f"{type(self).__name__} instances cannot be re-initialised")
+        _INITIALISED_FROZEN_IDS.add(key)
+        try:
+            orig_init(self, *args, **kwargs)
+        except BaseException:
+            _INITIALISED_FROZEN_IDS.discard(key)
+            raise
+        weakref.finalize(self, _INITIALISED_FROZEN_IDS.discard, key)
+
+    cls.__init__ = _guarded_init  # type: ignore[method-assign]
+    return cls
 
 
 def _freeze_value(value: Any) -> Any:
@@ -107,23 +131,38 @@ def _construct_node_value(loader: yaml.SafeLoader, node: yaml.Node) -> Any:
     return loader.construct_object(node, deep=True)
 
 
-def _classify_mapping_node(
+def _resolve_yaml_mapping_pairs(
     node: yaml.MappingNode,
     loader: yaml.SafeLoader | None = None,
-) -> tuple[WrapperStyle | None, yaml.Node | None, yaml.Node | None, tuple[Any, ...]]:
-    """Classify a PyYAML mapping node as ``ref_value``, ``ref_only``, or plain section."""
+) -> list[tuple[Any, yaml.Node]]:
+    """Resolve YAML merge keys and duplicate-key overrides using SafeLoader semantics."""
     if loader is not None and any(
         isinstance(key_node, yaml.ScalarNode) and key_node.tag == _YAML_MERGE_TAG
         for key_node, _ in node.value
     ):
         loader.flatten_mapping(node)
-    keys: list[Any] = []
-    value_node: yaml.Node | None = None
-    ref_node: yaml.Node | None = None
+    effective: dict[Any, yaml.Node] = {}
     for key_node, val_node in node.value:
         typed_key = _node_typed_key(key_node, loader)
         if typed_key is _NON_SCALAR_KEY:
             continue
+        try:
+            effective[typed_key] = val_node
+        except TypeError:
+            continue
+    return list(effective.items())
+
+
+def _classify_mapping_node(
+    node: yaml.MappingNode,
+    loader: yaml.SafeLoader | None = None,
+) -> tuple[WrapperStyle | None, yaml.Node | None, yaml.Node | None, tuple[Any, ...]]:
+    """Classify a PyYAML mapping node as ``ref_value``, ``ref_only``, or plain section."""
+    effective_pairs = _resolve_yaml_mapping_pairs(node, loader)
+    keys: list[Any] = []
+    value_node: yaml.Node | None = None
+    ref_node: yaml.Node | None = None
+    for typed_key, val_node in effective_pairs:
         keys.append(typed_key)
         if isinstance(typed_key, str):
             if typed_key == "value":
@@ -245,7 +284,8 @@ def _parse_yaml_entries(raw_text: str) -> dict[str, PathStyle] | None:
         loader.dispose()
 
 
-@dataclass(frozen=True, slots=True)
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class PathStyle:
     """Recorded authoring style for one canonical YAML path."""
 
@@ -271,8 +311,17 @@ class PathStyle:
         elif not isinstance(self.key_order, tuple):
             object.__setattr__(self, "key_order", ())
 
+    def __copy__(self) -> PathStyle:
+        """Return ``self`` because ``PathStyle`` is deeply immutable."""
+        return self
 
-@dataclass(frozen=True, slots=True)
+    def __deepcopy__(self, _memo: dict[int, Any]) -> PathStyle:
+        """Return ``self`` because ``PathStyle`` is deeply immutable."""
+        return self
+
+
+@_forbid_reinit
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class StyleLedger:
     """Immutable ledger of per-path YAML authoring style and provenance."""
 
@@ -286,6 +335,14 @@ class StyleLedger:
             object.__setattr__(self, "entries", MappingProxyType(dict(self.entries)))
         if not isinstance(self.leading_comments, tuple):
             object.__setattr__(self, "leading_comments", tuple(self.leading_comments))
+
+    def __copy__(self) -> StyleLedger:
+        """Return ``self`` because ``StyleLedger`` is deeply immutable."""
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> StyleLedger:
+        """Return ``self`` because ``StyleLedger`` is deeply immutable."""
+        return self
 
     @classmethod
     def empty(cls) -> StyleLedger:
@@ -621,14 +678,11 @@ def _walk_yaml_mapping(
         source_line=line,
         is_container=bool(prefix),
     )
-    yaml_children: list[tuple[str, yaml.Node]] = []
-    for key_node, child_node in node.value:
-        typed_key = _node_typed_key(key_node, val_loader)
-        if typed_key is _NON_SCALAR_KEY or (
-            isinstance(typed_key, str) and typed_key == "ref"
-        ):
-            continue
-        yaml_children.append((_join_key_path(prefix, typed_key), child_node))
+    yaml_children: list[tuple[str, yaml.Node]] = [
+        (_join_key_path(prefix, typed_key), child_node)
+        for typed_key, child_node in _resolve_yaml_mapping_pairs(node, val_loader)
+        if not (isinstance(typed_key, str) and typed_key == "ref")
+    ]
     yaml_counts: dict[str, int] = {}
     for child_path, _child_node in yaml_children:
         yaml_counts[child_path] = yaml_counts.get(child_path, 0) + 1

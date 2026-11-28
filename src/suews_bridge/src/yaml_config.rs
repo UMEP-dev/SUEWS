@@ -1332,8 +1332,10 @@ fn set_ohm_coef_for_season(target: &mut crate::ohm_coef_lc::OhmCoefLc, season: &
 ///   7 surfaces under `StorageHeatMethod` in `{1, 3, 8}` (`6` and `7` overwrite
 ///   `OHM_coef(1..7, :, :)` with DyOHM/zero values before calling `OHM_coef_cal`,
 ///   and `0` / `5` never call `OHM`).
-/// - Explicit non-null values are still validated when inactive so malformed
-///   input never passes silently (#2002).
+/// - When inactive, non-numeric scalar placeholders are ignored (leaving
+///   defaults; #2363), while non-finite IEEE inputs (`NaN`/`Inf`) and
+///   malformed structural parent mappings (`ohm_coef`, season blocks) still
+///   fail cleanly.
 fn apply_ohm_overrides(
     ohm: &mut crate::ohm_prm::OhmPrm,
     lc_root: &Value,
@@ -1406,9 +1408,9 @@ fn apply_ohm_overrides(
 /// `OHM_coef(nsurf + 1, 3, 1:3)` (`winter_wet` `a1`/`a2`/`a3`) when
 /// `SnowUse == 1`. Those three active coefficients must therefore be finite
 /// numbers whenever `snow_ohm_is_read(snow_use, storage_heat_method)` holds
-/// (BR-02). Unused snow OHM keys may be absent or null (BR-03), while any
-/// explicitly supplied non-null value is still validated strictly as a finite
-/// number so malformed or non-finite inputs are never silently dropped.
+/// (BR-02). Unused snow OHM keys may be absent, null, or carry non-numeric
+/// placeholders (BR-03, #2363), while non-finite IEEE inputs (`NaN`/`Inf`)
+/// and malformed structural parent mappings still fail cleanly.
 fn apply_snow_ohm_overrides(
     ohm: &mut crate::ohm_prm::OhmPrm,
     site_root: &Value,
@@ -1778,8 +1780,10 @@ fn apply_waterdist_overrides(
 ///   while explicit `lai_max == 0.0` on `sfr == 0.0` remains permitted.
 /// - `lai_power` (all four entries) and integer `lai_type` are only read inside
 ///   `calculate_lai` when `laimethod != 0`, across all three vegetated surfaces
-///   regardless of `sfr`; they may be omitted/null only when `laimethod == 0`,
-///   while explicit non-null malformed values still fail cleanly (#2002).
+///   regardless of `sfr`; when `laimethod == 0`, omission, null, and
+///   non-numeric scalar placeholders are accepted (leaving defaults; #2363),
+///   while non-finite IEEE inputs (`NaN`/`Inf`) and malformed structural
+///   parent mappings still fail cleanly.
 /// - `gdd_base` and `sdd_base` (the degree-day thresholds for the onset of
 ///   leaf growth and leaf off) follow the same `laimethod != 0` gate as
 ///   `lai_power` in resolved YAML (Python `config_to_engine_yaml` supplies the
@@ -1894,8 +1898,9 @@ fn apply_lai_overrides(
 ///   `EmissionsMethod >= 11`, required when `veg_frac_sum > REAL(0.01)` and
 ///   `sfr > REAL(0.005)` (matching Fortran's promoted single-precision literals
 ///   `0.01` and `0.005` in `suews_phys_biogenco2.f95`).
-/// - Explicit non-null values are still validated when inactive so malformed
-///   input never passes silently (#2002).
+/// - When inactive, non-numeric scalar placeholders are ignored (leaving
+///   defaults; #2363), while non-finite IEEE inputs (`NaN`/`Inf`) still fail
+///   cleanly.
 fn apply_bioco2_overrides(
     bioco2: &mut crate::bioco2::BioCo2Prm,
     lc_root: &Value,
@@ -2466,8 +2471,9 @@ fn require_if_active_i32(
 ///   required when `paved.sfr > 0` and `bldgs.sfr > 0` respectively
 ///   (`suews_phys_snow.f95::snow_removal`), and `snowpack_limit` is required on
 ///   active non-water surfaces (`sfr > 0`, skipping `water`).
-/// - Explicit non-null values and parent mappings are still validated when
-///   inactive so malformed input never passes silently (#2002).
+/// - When inactive, non-numeric scalar placeholders are ignored (leaving
+///   defaults; #2363), while non-finite IEEE inputs (`NaN`/`Inf`) and
+///   malformed structural parent mappings still fail cleanly.
 fn apply_snow_overrides(
     site: &mut SuewsSite,
     site_root: &Value,
@@ -2865,8 +2871,10 @@ fn apply_irrigation_overrides(
 /// Surface area fractions (`sfr`) are copied from the already-validated
 /// `sfr_surf` slice ("one read, one source"). Every other scalar is required
 /// whenever the selected physics options and surface fractions make the
-/// Fortran kernel consume it, and otherwise permits omission/null while
-/// rejecting malformed or non-finite values with the canonical YAML path:
+/// Fortran kernel consume it, and otherwise permits omission, null, or
+/// non-numeric scalar placeholders (#2363) while rejecting non-finite IEEE
+/// inputs (`NaN`/`Inf`) and malformed parent mappings with the canonical YAML
+/// path:
 /// - `emis`: active across all 7 surfaces when `net_radiation_method > 0`
 ///   (`NARP`), `snow_use != 0` (`NARP` snow branch), or `storage_heat_method == 3`
 ///   (`AnOHM`); `paved.emis` and `bldgs.emis` are also read by `BEERS_cal_main`
@@ -3335,8 +3343,9 @@ fn apply_conductance_overrides(
 ///   - Detailed methods (`sub` in `{4, 5, 6}`): additionally require
 ///     `co2.traffic_rate` and `co2.type_traffic_rate` (unused on `sub` in
 ///     `{1, 2, 3}`).
-/// - Explicit non-null values and parent mappings are still validated when
-///   inactive so malformed input never passes silently (#2002).
+/// - When inactive, non-numeric scalar placeholders are ignored (leaving
+///   defaults; #2363), while non-finite IEEE inputs (`NaN`/`Inf`) and
+///   malformed structural parent mappings still fail cleanly.
 fn apply_anthro_emis_overrides(
     site: &mut SuewsSite,
     site_root: &Value,
@@ -4441,19 +4450,22 @@ fn apply_site_overrides(
 //
 // Active-consumer gating (matches Fortran `StoreDrainPrm(6, nsurf)` reads):
 // - `[0]` (`store_min`) and `[4]` (`store_max`): unread in Fortran; optional
-//   when absent/null, validated as finite numbers when present. `store_min`
-//   retains the legacy fallback to `state_limit` when still `0.0`.
-// - `[1]` (`drain_eq`): integer selector when given on an active non-water
-//   surface (`require_i32`); optional finite number otherwise.
+//   when absent/null/non-numeric placeholder (#2363), validated as finite
+//   numbers when numeric (rejecting NaN/Inf). `store_min` retains the legacy
+//   fallback to `state_limit` when still `0.0`.
+// - `[1]` (`drain_eq`): required explicit integer selector on every active
+//   non-water surface (`require_i32`) so placeholder-only blocks cannot
+//   silently retain selector 0; optional otherwise (non-numeric placeholders
+//   ignored, NaN/Inf rejected).
 // - `[2]` (`drain_coef_1`) and `[3]` (`drain_coef_2`): required on active
-//   non-water surfaces using drainage equations 1, 2 or 3; optional finite
-//   numbers otherwise (preserving ignored inputs and explicit zero).
+//   non-water surfaces using drainage equations 1, 2 or 3; optional otherwise
+//   (preserving ignored inputs and explicit zero, rejecting NaN/Inf).
 // - `[5]` (`store_cap`): required whenever Fortran reads `StoreDrainPrm(6, is)`
 //   on a contributing surface — `drainage` (`active && drain_eq == 1`),
 //   Rutter evaporation (`sfr > 0 && evap_method == 1`), AnOHM
 //   (`sfr > 0 && storage_heat_method == 3`), or EHC building soil-store
 //   scaling (`bldgs` with `sfr > 0 && storage_heat_method == 5 &&
-//   net_radiation_method > 1000`); optional finite number otherwise.
+//   net_radiation_method > 1000`); optional otherwise (rejecting NaN/Inf).
 fn apply_drainage_overrides(
     state: &mut SuewsState,
     site_root: &Value,
@@ -4512,10 +4524,12 @@ fn apply_drainage_overrides(
             if let Some(v) = require_if_active_numeric(sdp_root, &["store_min"], &sdp_at, false)? {
                 state.phenology_state.store_drain_prm[surface_idx][0] = v;
             }
-            if active && get_path(sdp_root, &["drain_eq"]).is_some() {
-                // Python declares an integer selector. Do not let native-only
-                // fractional input evade the coefficient check and then be
-                // truncated by Fortran INT(DrainEq). Whole floats remain valid.
+            if active {
+                // Python declares an integer selector. Every active non-water
+                // surface must supply an explicit integer `drain_eq` so neither
+                // a fractional input nor a placeholder-only block (e.g.
+                // `{store_min: TBD}`) can silently retain selector 0 and bypass
+                // coefficient checks. Whole floats remain valid.
                 state.phenology_state.store_drain_prm[surface_idx][1] =
                     require_i32(sdp_root, &["drain_eq"], &sdp_at)? as f64;
             } else if let Some(v) =
@@ -7629,6 +7643,61 @@ mod tests {
                     "{field}={bad}: {err}"
                 );
             }
+        }
+
+        // Active non-water surface with a placeholder-only or selector-less
+        // `storage_drain_params` block must fail loudly on `drain_eq` rather
+        // than retaining selector 0 and bypassing drainage coefficient checks,
+        // while zero-area surfaces and water remain accepted.
+        for block_yaml in [
+            "{store_min: TBD}",
+            "{store_min: 0.5}",
+            "{store_min: TBD, drain_eq: null}",
+            "{store_min: TBD, drain_eq: TBD}",
+        ] {
+            let mut active_root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut active_root).unwrap();
+            let paved = get_path_mut(site, &["properties", "land_cover", "paved"])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            paved.insert(
+                Value::String("storage_drain_params".into()),
+                serde_yaml::from_str(block_yaml).unwrap(),
+            );
+            let err = load_run_config_from_value(&mut active_root)
+                .expect_err(&format!("active paved {block_yaml} must reject missing/invalid drain_eq"));
+            assert!(
+                err.contains(
+                    "`sites[gridiv=1].properties.land_cover.paved.storage_drain_params.drain_eq`"
+                ),
+                "block={block_yaml}: {err}"
+            );
+        }
+
+        for inactive_surface in ["evetr", "water"] {
+            let mut inactive_root: Value = serde_yaml::from_str(sample_fixture_yaml()).unwrap();
+            let site = first_site_mut(&mut inactive_root).unwrap();
+            let lc = get_path_mut(site, &["properties", "land_cover", inactive_surface])
+                .unwrap()
+                .as_mapping_mut()
+                .unwrap();
+            if inactive_surface == "evetr" {
+                lc.insert(
+                    Value::String("sfr".into()),
+                    serde_yaml::from_str("0.0").unwrap(),
+                );
+            }
+            lc.insert(
+                Value::String("storage_drain_params".into()),
+                serde_yaml::from_str("{store_min: TBD}").unwrap(),
+            );
+            if inactive_surface == "evetr" {
+                rebalance_sfr(site, "paved");
+            }
+            load_run_config_from_value(&mut inactive_root).unwrap_or_else(|e| {
+                panic!("inactive {inactive_surface} placeholder-only drainage block must succeed: {e}")
+            });
         }
 
         // Fallback: omitting store_min falls back to state_limit.

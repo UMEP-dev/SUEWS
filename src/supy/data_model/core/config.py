@@ -50,6 +50,7 @@ from .model import (
 from .profile import (
     _CANONICAL_HOUR_KEY_SET,
     DAY_NIGHT_HOURLY_PROFILE_NAMES,
+    TenMinuteProfile,
     normalise_hourly_profile_mapping,
     normalise_ten_minute_profile_mapping,
     validate_day_night_hourly_profile,
@@ -1193,10 +1194,12 @@ class SUEWSConfig(DataModelBase):
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
         "convection_coefficient_wall_internal",
+        "convection_coefficient_roof_internal",
         "convection_coefficient_internal_mass",
         "convection_coefficient_ground_floor_internal",
         "convection_coefficient_window_internal",
         "convection_coefficient_wall_external",
+        "convection_coefficient_roof_external",
         "convection_coefficient_window_external",
         "depth_ground",
         "thermal_conductivity_ground",
@@ -1265,6 +1268,15 @@ class SUEWSConfig(DataModelBase):
         "transmissivity_wall_external",
         "absorptivity_wall_external",
         "reflectivity_wall_external",
+        "thickness_roof",
+        "conductivity_roof",
+        "density_roof",
+        "specific_heat_capacity_roof",
+        "emissivity_roof_external",
+        "emissivity_roof_internal",
+        "transmissivity_roof_external",
+        "absorptivity_roof_external",
+        "reflectivity_roof_external",
         "thickness_ground_floor",
         "conductivity_ground_floor",
         "density_ground_floor",
@@ -1905,6 +1917,22 @@ class SUEWSConfig(DataModelBase):
                 stebbs_props = getattr(props, "stebbs", None)
                 if stebbs_props is not None:
                     for field_name in StebbsProperties.model_fields:
+                        if field_name in StebbsProperties._STEBBS_PROFILE_FIELDS:
+                            prof = getattr(stebbs_props, field_name, None)
+                            if isinstance(prof, TenMinuteProfile):
+                                for day_key in ("working_day", "holiday"):
+                                    day_map = getattr(prof, day_key, None)
+                                    if isinstance(day_map, Mapping):
+                                        for step_k, step_v in day_map.items():
+                                            if (
+                                                isinstance(step_v, (int, float, np.number))
+                                                and not isinstance(step_v, (bool, np.bool_))
+                                                and not math.isfinite(float(step_v))
+                                            ):
+                                                non_finite_errors.append(
+                                                    f"{site_name}: stebbs.{field_name}.{day_key}[{step_k!r}] ({step_v!r}) must be finite"
+                                                )
+                            continue
                         if field_name in StebbsProperties._STEBBS_NON_SCALAR_FIELDS:
                             continue
                         val = _unwrap_value(getattr(stebbs_props, field_name, None))
@@ -1919,6 +1947,22 @@ class SUEWSConfig(DataModelBase):
                 arch_props = getattr(props, "building_archetype", None)
                 if arch_props is not None:
                     for field_name in ArchetypeProperties.model_fields:
+                        if field_name in ArchetypeProperties._ARCHETYPE_PROFILE_FIELDS:
+                            prof = getattr(arch_props, field_name, None)
+                            if isinstance(prof, TenMinuteProfile):
+                                for day_key in ("working_day", "holiday"):
+                                    day_map = getattr(prof, day_key, None)
+                                    if isinstance(day_map, Mapping):
+                                        for step_k, step_v in day_map.items():
+                                            if (
+                                                isinstance(step_v, (int, float, np.number))
+                                                and not isinstance(step_v, (bool, np.bool_))
+                                                and not math.isfinite(float(step_v))
+                                            ):
+                                                non_finite_errors.append(
+                                                    f"{site_name}: building_archetype.{field_name}.{day_key}[{step_k!r}] ({step_v!r}) must be finite"
+                                                )
+                            continue
                         if field_name in ArchetypeProperties._ARCHETYPE_NON_SCALAR_FIELDS:
                             continue
                         val = _unwrap_value(getattr(arch_props, field_name, None))
@@ -1948,9 +1992,76 @@ class SUEWSConfig(DataModelBase):
                     for field_name in StebbsPhysics.model_fields
                 }
                 try:
-                    StebbsPhysics.model_validate(phys_payload)
+                    validated_phys = StebbsPhysics.model_validate(phys_payload)
                 except (ValidationError, ValueError) as exc:
                     errors.append(f"model.physics.stebbs: {exc}")
+                else:
+                    guard = stebbs_phys._make_stebbs_guard()
+                    for switch_name in StebbsPhysics._STEBBS_SUBORDINATE_SWITCH_ENUMS:
+                        orig_val = getattr(stebbs_phys, switch_name, None)
+                        coerced_val = getattr(validated_phys, switch_name, None)
+                        coerced_inner = (
+                            coerced_val.value
+                            if isinstance(coerced_val, RefValue)
+                            else coerced_val
+                        )
+                        if isinstance(orig_val, RefValue):
+                            synced = RefValue(value=coerced_inner, ref=orig_val.ref)
+                            expected_kind = StebbsPhysics._non_optional_ref_fields.get(
+                                switch_name, "value"
+                            )
+                            synced._bind_non_optional(
+                                switch_name, expected_kind, guard=guard
+                            )
+                            object.__setattr__(stebbs_phys, switch_name, synced)
+                        elif orig_val is not None:
+                            object.__setattr__(stebbs_phys, switch_name, coerced_val)
+
+            def _profile_payload(prof: Any) -> Any:
+                if isinstance(prof, TenMinuteProfile):
+                    payload: dict[str, Any] = {
+                        "working_day": prof.working_day,
+                        "holiday": prof.holiday,
+                    }
+                    if prof.ref is not None:
+                        payload["ref"] = prof.ref
+                    return payload
+                return prof
+
+            def _sync_validated_fields(
+                target: Any,
+                validated: Any,
+                payload_keys: Iterable[str],
+                non_scalar_fields: frozenset[str],
+                guard: Any | None = None,
+            ) -> None:
+                non_opt_fields = getattr(type(target), "_non_optional_ref_fields", {})
+                for field_name in payload_keys:
+                    orig_val = getattr(target, field_name, None)
+                    coerced_val = getattr(validated, field_name, None)
+                    if field_name in non_scalar_fields:
+                        object.__setattr__(target, field_name, coerced_val)
+                        continue
+                    coerced_inner = (
+                        coerced_val.value
+                        if isinstance(coerced_val, RefValue)
+                        else coerced_val
+                    )
+                    if isinstance(orig_val, RefValue):
+                        synced = (
+                            RefValue.model_construct(value=None, ref=orig_val.ref)
+                            if coerced_inner is None
+                            else RefValue(value=coerced_inner, ref=orig_val.ref)
+                        )
+                        if guard is not None and field_name in non_opt_fields:
+                            synced._bind_non_optional(
+                                field_name,
+                                non_opt_fields.get(field_name, "number"),
+                                guard=guard,
+                            )
+                        object.__setattr__(target, field_name, synced)
+                    else:
+                        object.__setattr__(target, field_name, coerced_val)
 
             for i, site in enumerate(self.sites):
                 site_name = getattr(site, "name", f"Site {i}")
@@ -1968,7 +2079,10 @@ class SUEWSConfig(DataModelBase):
                     stebbs_payload: dict[str, Any] = {}
                     for field_name, field_info in StebbsProperties.model_fields.items():
                         cur = getattr(stebbs_props, field_name, None)
-                        if field_name in stebbs_fields_set:
+                        if field_name in StebbsProperties._STEBBS_PROFILE_FIELDS:
+                            if field_name in stebbs_fields_set or cur is not None:
+                                stebbs_payload[field_name] = _profile_payload(cur)
+                        elif field_name in stebbs_fields_set:
                             stebbs_payload[field_name] = (
                                 self._unwrap_ref_for_strict_validation(cur)
                                 if field_name not in StebbsProperties._STEBBS_NON_SCALAR_FIELDS
@@ -1981,9 +2095,17 @@ class SUEWSConfig(DataModelBase):
                                     self._unwrap_ref_for_strict_validation(cur)
                                 )
                     try:
-                        StebbsProperties.model_validate(stebbs_payload)
+                        validated_stebbs = StebbsProperties.model_validate(stebbs_payload)
                     except (ValidationError, ValueError) as exc:
                         errors.append(f"{site_name}: properties.stebbs: {exc}")
+                    else:
+                        _sync_validated_fields(
+                            stebbs_props,
+                            validated_stebbs,
+                            stebbs_payload.keys(),
+                            StebbsProperties._STEBBS_NON_SCALAR_FIELDS,
+                            guard=None,
+                        )
 
                 arch_props = getattr(props, "building_archetype", None)
                 if arch_props is None:
@@ -1995,7 +2117,10 @@ class SUEWSConfig(DataModelBase):
                     arch_payload: dict[str, Any] = {}
                     for field_name, field_info in ArchetypeProperties.model_fields.items():
                         cur = getattr(arch_props, field_name, None)
-                        if (
+                        if field_name in ArchetypeProperties._ARCHETYPE_PROFILE_FIELDS:
+                            if field_name in arch_fields_set or cur is not None:
+                                arch_payload[field_name] = _profile_payload(cur)
+                        elif (
                             field_name in arch_fields_set
                             or field_name in ArchetypeProperties._BRIDGE_ONLY_FIELDS
                         ):
@@ -2011,10 +2136,18 @@ class SUEWSConfig(DataModelBase):
                                     self._unwrap_ref_for_strict_validation(cur)
                                 )
                     try:
-                        ArchetypeProperties.model_validate(arch_payload)
+                        validated_arch = ArchetypeProperties.model_validate(arch_payload)
                     except (ValidationError, ValueError) as exc:
                         errors.append(
                             f"{site_name}: properties.building_archetype: {exc}"
+                        )
+                    else:
+                        _sync_validated_fields(
+                            arch_props,
+                            validated_arch,
+                            arch_payload.keys(),
+                            ArchetypeProperties._ARCHETYPE_NON_SCALAR_FIELDS,
+                            arch_props._make_stebbs_guard(),
                         )
         finally:
             _STEBBS_ACTIVE_CONTEXT.reset(tok)
@@ -2896,10 +3029,9 @@ class SUEWSConfig(DataModelBase):
         """
         Return True if STEBBS should be validated.
 
-        i.e. STEBBS is enabled with default parameters (composed
-        ``stebbsmethod`` == 1).
+        i.e. STEBBS is enabled (composed ``stebbsmethod`` in ``(1, 2)``).
         """
-        return self._composed_stebbsmethod() == 1
+        return self._composed_stebbsmethod() in (1, 2)
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
@@ -3082,6 +3214,41 @@ class SUEWSConfig(DataModelBase):
                 p for p in stebbs_required
                 if p not in STEBBS_SHADING_REQUIRED_MODES or p in shading_required
             ]
+
+        # Enforce capacitance-method (rcmethod) dependent outer-layer / fraction
+        # parameters consumed by gen_building() (suews_phys_stebbs.f95:2687-2697).
+        rcmethod = (
+            getattr(stebbs_physics, "capacitance", None)
+            if stebbs_physics is not None
+            else None
+        )
+        rcmethod_val = _unwrap_value(rcmethod) if rcmethod is not None else None
+        try:
+            rcmethod_val = int(rcmethod_val)
+        except (TypeError, ValueError):
+            rcmethod_val = None
+        if rcmethod_val == 1:
+            archetype_required = [
+                *archetype_required,
+                "fraction_heat_capacity_roof_external",
+            ]
+        elif rcmethod_val == 2:
+            outer_params = [
+                "thickness_roof_outer",
+                "conductivity_roof_outer",
+                "density_roof_outer",
+                "specific_heat_capacity_roof_outer",
+            ]
+            if wwr_val != 1.0:
+                outer_params.extend(
+                    [
+                        "thickness_wall_outer",
+                        "conductivity_wall_outer",
+                        "density_wall_outer",
+                        "specific_heat_capacity_wall_outer",
+                    ]
+                )
+            archetype_required = [*archetype_required, *outer_params]
 
         # Validate stebbs required params
         _check_required(stebbs, stebbs_required)
@@ -7418,6 +7585,12 @@ class SUEWSConfig(DataModelBase):
 
         # Preserve explicit scheme-gated nulls on inactive snow/soil/STEBBS fields so
         # YAML round-tripping does not silently reinstate usable defaults (#2363).
+        def _null_ref_yaml_entry(ref_val: RefValue) -> dict[str, Any]:
+            entry: dict[str, Any] = {"value": None}
+            if ref_val.ref is not None:
+                entry["ref"] = ref_val.ref.model_dump(mode="json", exclude_none=True)
+            return entry
+
         phys_obj = getattr(self.model, "physics", None) if not isinstance(self.model, dict) else None
         stebbs_phys_obj = getattr(phys_obj, "stebbs", None) if phys_obj is not None else None
         if isinstance(stebbs_phys_obj, StebbsPhysics):
@@ -7431,7 +7604,7 @@ class SUEWSConfig(DataModelBase):
                 if raw is None:
                     stebbs_phys_dict[switch_name] = None
                 elif isinstance(raw, RefValue) and raw.value is None:
-                    stebbs_phys_dict[switch_name] = {"value": None}
+                    stebbs_phys_dict[switch_name] = _null_ref_yaml_entry(raw)
 
         sites_out = config_dict.get("sites")
         if (
@@ -7484,7 +7657,7 @@ class SUEWSConfig(DataModelBase):
                             if raw is None:
                                 stebbs_dict[field_name] = None
                             elif isinstance(raw, RefValue) and raw.value is None:
-                                stebbs_dict[field_name] = {"value": None}
+                                stebbs_dict[field_name] = _null_ref_yaml_entry(raw)
                     arch_obj = getattr(props_obj, "building_archetype", None)
                     if arch_obj is None:
                         props_dict["building_archetype"] = None
@@ -7497,7 +7670,7 @@ class SUEWSConfig(DataModelBase):
                             if raw is None:
                                 arch_dict[field_name] = None
                             elif isinstance(raw, RefValue) and raw.value is None:
-                                arch_dict[field_name] = {"value": None}
+                                arch_dict[field_name] = _null_ref_yaml_entry(raw)
 
                 init_obj = getattr(site_obj, "initial_states", None)
                 init_dict = site_dict.get("initial_states")

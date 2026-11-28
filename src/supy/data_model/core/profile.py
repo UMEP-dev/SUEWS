@@ -1,14 +1,28 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 import math
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from .field_renames import RAW_YAML_FIELD_RENAMES
-from .type import DataModelBase, Reference, df_from_cols, is_finite_real_number
+from .type import (
+    _STEBBS_ACTIVE_CONTEXT,
+    DataModelBase,
+    Reference,
+    _coerce_inactive_stebbs_scalar,
+    df_from_cols,
+    is_finite_real_number,
+)
 
 CANONICAL_HOUR_KEYS: tuple[str, ...] = tuple(str(hour) for hour in range(1, 25))
 _CANONICAL_HOUR_KEY_SET: frozenset[str] = frozenset(CANONICAL_HOUR_KEYS)
@@ -843,6 +857,73 @@ class TenMinuteProfile(DataModelBase):
             data = self.__init_default_values__()
         super().__init__(**data)
 
+    @model_validator(mode="wrap")
+    @classmethod
+    def _contextualise_ten_minute_profile(
+        cls, data: Any, handler: Any
+    ) -> "TenMinuteProfile":
+        """Relax non-numeric placeholder slot values when STEBBS is inactive inside SUEWSConfig.
+
+        Key validation (``1``..``144``), ``extra="forbid"``, boolean rejection,
+        and non-finite (``NaN``/``Inf``) rejection stay active even when STEBBS
+        is disabled.
+        """
+        if isinstance(data, TenMinuteProfile):
+            return handler(data)
+        if _STEBBS_ACTIVE_CONTEXT.get() is not False or not isinstance(data, Mapping):
+            return handler(data)
+        unknown_keys = set(data.keys()) - set(cls.model_fields.keys())
+        if unknown_keys:
+            return handler(data)
+
+        fields_set: set[str] = set()
+        normalised_days: dict[str, Any] = {}
+        for day_key in ("working_day", "holiday"):
+            if day_key not in data:
+                return handler(data)
+            fields_set.add(day_key)
+            raw_day = data[day_key]
+            if raw_day is None:
+                normalised_days[day_key] = None
+                continue
+            if not isinstance(raw_day, dict):
+                return handler(data)
+            try:
+                normalised = normalise_ten_minute_profile_mapping(raw_day)
+            except ValueError:
+                return handler(data)
+            out_day: dict[str, Any] = {}
+            for step_key, raw_val in normalised.items():
+                if raw_val is None:
+                    out_day[step_key] = None
+                    continue
+                if isinstance(raw_val, bool):
+                    return handler(data)
+                ok, coerced = _coerce_inactive_stebbs_scalar(
+                    raw_val,
+                    allow_null=True,
+                    allow_string=True,
+                    int_preferred=False,
+                )
+                if not ok:
+                    raise ValueError(
+                        f"Ten-minute profile value for step {step_key!r} must be a finite "
+                        f"number or placeholder string, got {raw_val!r}."
+                    )
+                out_day[step_key] = coerced
+            normalised_days[day_key] = out_day
+
+        stripped: dict[str, Any] = {"working_day": None, "holiday": None}
+        if "ref" in data:
+            stripped["ref"] = data["ref"]
+            fields_set.add("ref")
+
+        inst = handler(stripped)
+        object.__setattr__(inst, "working_day", normalised_days["working_day"])
+        object.__setattr__(inst, "holiday", normalised_days["holiday"])
+        inst.model_fields_set.update(fields_set)
+        return inst
+
     @field_validator("working_day", "holiday", mode="before")
     def convert_keys_to_str(cls, v: Dict) -> Dict[str, Optional[float]]:
         if not isinstance(v, dict):
@@ -861,6 +942,15 @@ class TenMinuteProfile(DataModelBase):
             else:
                 out[k] = float(val)
         return out
+
+    @field_serializer("working_day", "holiday", mode="wrap")
+    def _serialise_ten_minute_profile_day(
+        self, value: Any, handler: Any, info: SerializationInfo
+    ) -> Any:
+        """Emit inactive string slot placeholders without Pydantic type warnings."""
+        if isinstance(value, dict) and any(isinstance(v, str) for v in value.values()):
+            return dict(value)
+        return handler(value)
 
     def _to_df_state_cols(self, grid_id: int, param_name: str) -> dict:
         cols = {("gridiv", "0"): grid_id}
@@ -917,7 +1007,7 @@ class TenMinuteProfile(DataModelBase):
             for i in range(144)
         }
 
-        return cls(working_day=working_day, holiday=holiday)
+        return cls.model_validate({"working_day": working_day, "holiday": holiday})
 
 
 class HeatingSetpointProfile(TenMinuteProfile):

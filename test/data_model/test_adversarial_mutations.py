@@ -1473,10 +1473,11 @@ STRATIFIED_MATRIX: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ),
     ),
     "spartacus_ehc_stebbs": (
-        # Conforming wrapped-array control (building_frac length check -> attributed reject)
+        # Conforming wrapped-array & core roof controls
         ("sites[0].properties.vertical_layers.building_frac[0]", ("omit",)),
-        # Active STEBBS roof, vertical-layer, EHC tsfc, 144-step profile, thermal & veg arrays
         ("sites[0].properties.building_archetype.thickness_roof", ("bare_null",)),
+        # Active STEBBS outer-layer, vertical-layer, EHC tsfc, 144-step profile, thermal & veg arrays
+        ("sites[0].properties.building_archetype.thickness_roof_outer", ("bare_null",)),
         (
             "sites[0].properties.vertical_layers.roofs[0].soil_store_capacity",
             ("omit",),

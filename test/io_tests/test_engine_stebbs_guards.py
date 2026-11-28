@@ -19,7 +19,7 @@ from supy import SUEWSSimulation
 from supy.data_model.core import SUEWSConfig
 
 pytestmark = [
-    pytest.mark.native,
+    pytest.mark.physics,
     pytest.mark.cfg,
     pytest.mark.core,
     pytest.mark.contract("C-VALID", "C-EMIT", "C-RESPONSE"),

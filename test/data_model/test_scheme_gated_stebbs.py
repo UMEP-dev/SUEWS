@@ -716,6 +716,238 @@ def test_live_refvalue_guard_and_deepcopy_isolation(sample_dict: dict) -> None:
         cfg.validate_for_engine()
 
 
+def test_inactive_numeric_strings_preserve_numeric_values_before_and_after_activation(
+    sample_dict: dict,
+) -> None:
+    """Quoted numeric strings remain numeric when inactive and in engine YAML after activation."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["sites"][0]["properties"]["stebbs"]["temperature_air_annual_mean"] = "12.5"
+    data["sites"][0]["properties"]["stebbs"]["depth_ground"] = "4.5"
+    data["sites"][0]["properties"]["stebbs"]["internal_shading"] = "1"
+
+    cfg = SUEWSConfig.from_dict(data)
+    stebbs = cfg.sites[0].properties.stebbs
+    assert stebbs.temperature_air_annual_mean == 12.5
+    assert isinstance(stebbs.temperature_air_annual_mean, float)
+    assert stebbs.deep_soil_temperature == 12.5
+    assert stebbs.depth_ground == 4.5
+    assert isinstance(stebbs.depth_ground, float)
+    assert stebbs.internal_shading == 1
+    assert isinstance(stebbs.internal_shading, int)
+
+    engine_yaml_inactive = yaml.safe_load(
+        config_to_engine_yaml(cfg, for_file_output=False)
+    )
+    assert (
+        engine_yaml_inactive["sites"][0]["properties"]["stebbs"][
+            "temperature_air_annual_mean"
+        ]
+        == 12.5
+    )
+
+    # Even if a numeric string is bypassed onto an inactive RefValue before live activation,
+    # active revalidation syncs the coerced numeric value back onto the live config and YAML.
+    object.__setattr__(stebbs, "depth_ground", RefValue(value="4.5"))
+    stebbs.model_fields_set.add("depth_ground")
+    cfg.model.physics.stebbs.enabled = True
+    cfg.validate_for_engine()
+    assert stebbs.depth_ground.value == 4.5
+    assert isinstance(stebbs.depth_ground.value, float)
+    engine_yaml_active = yaml.safe_load(
+        config_to_engine_yaml(cfg, for_file_output=False)
+    )
+    emitted_depth = engine_yaml_active["sites"][0]["properties"]["stebbs"][
+        "depth_ground"
+    ]
+    emitted_val = (
+        emitted_depth["value"] if isinstance(emitted_depth, dict) else emitted_depth
+    )
+    assert emitted_val == 4.5
+    assert isinstance(emitted_val, float)
+
+
+@pytest.mark.parametrize("parameters", [1, 2])
+@pytest.mark.parametrize(
+    ("section", "field_name"),
+    [
+        ("stebbs", "depth_ground"),
+        ("stebbs", "convection_coefficient_roof_internal"),
+        ("stebbs", "convection_coefficient_roof_external"),
+        ("building_archetype", "thickness_roof"),
+    ],
+)
+def test_active_stebbs_rejects_consumed_nulls_for_both_parameter_sources(
+    sample_dict: dict, parameters: int, section: str, field_name: str
+) -> None:
+    """Consumed STEBBS/roof null parameters are rejected for both parameters=1 and 2."""
+    # Direct active construction
+    data = copy.deepcopy(sample_dict)
+    _enable_stebbs(data, parameters=parameters)
+    data["sites"][0]["properties"][section][field_name] = None
+    with pytest.raises((ValidationError, ValueError), match=field_name):
+        SUEWSConfig.from_dict(data)
+
+    # Inactive load -> live False -> True activation
+    inactive = copy.deepcopy(sample_dict)
+    _disable_stebbs(inactive)
+    inactive["model"]["physics"]["stebbs"]["parameters"] = parameters
+    inactive["sites"][0]["properties"][section][field_name] = None
+    cfg = SUEWSConfig.from_dict(inactive)
+    cfg.validate_for_engine()
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match=field_name):
+        cfg.validate_for_engine()
+
+
+def test_active_stebbs_capacitance_dependent_nulls_rejected(sample_dict: dict) -> None:
+    """Active capacitance=1/2 rejects null roof-fraction / outer-layer parameters."""
+    data_rc1 = copy.deepcopy(sample_dict)
+    _enable_stebbs(data_rc1, parameters=1)
+    data_rc1["model"]["physics"]["stebbs"]["capacitance"] = 1
+    data_rc1["sites"][0]["properties"]["building_archetype"][
+        "fraction_heat_capacity_roof_external"
+    ] = None
+    with pytest.raises(
+        (ValidationError, ValueError), match="fraction_heat_capacity_roof_external"
+    ):
+        SUEWSConfig.from_dict(data_rc1)
+
+    data_rc2 = copy.deepcopy(sample_dict)
+    _enable_stebbs(data_rc2, parameters=2)
+    data_rc2["model"]["physics"]["stebbs"]["capacitance"] = 2
+    data_rc2["sites"][0]["properties"]["building_archetype"]["thickness_roof_outer"] = (
+        None
+    )
+    with pytest.raises((ValidationError, ValueError), match="thickness_roof_outer"):
+        SUEWSConfig.from_dict(data_rc2)
+
+
+@pytest.mark.parametrize(
+    ("section", "profile_field"),
+    [
+        ("stebbs", "profile_flow_hot_water"),
+        ("building_archetype", "profile_metabolism"),
+    ],
+)
+def test_inactive_ten_minute_profile_slot_placeholders_roundtrip_and_reject_on_activation(
+    sample_dict: dict, tmp_path: Path, section: str, profile_field: str
+) -> None:
+    """Inactive 10-minute profiles accept placeholder slot strings, keep key checks, and fail on activation."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    profile = {
+        "working_day": {str(i): (0.0 if i != 1 else "TBD") for i in range(1, 145)},
+        "holiday": {str(i): (0.0 if i != 2 else "0.25") for i in range(1, 145)},
+    }
+    data["sites"][0]["properties"][section][profile_field] = profile
+
+    cfg = SUEWSConfig.from_dict(data)
+    cfg.validate_for_engine()
+    prof_obj = getattr(cfg.sites[0].properties, section)
+    stored_prof = getattr(prof_obj, profile_field)
+    assert stored_prof.working_day["1"] == "TBD"
+    assert stored_prof.holiday["2"] == 0.25
+
+    yaml_path = tmp_path / f"inactive_{profile_field}.yml"
+    cfg.to_yaml(yaml_path)
+    reloaded = SUEWSConfig.from_yaml(yaml_path)
+    reloaded_prof = getattr(
+        getattr(reloaded.sites[0].properties, section), profile_field
+    )
+    assert reloaded_prof.working_day["1"] == "TBD"
+    assert reloaded_prof.holiday["2"] == 0.25
+
+    df_state = cfg.to_df_state()
+    rebuilt = SUEWSConfig.from_df_state(df_state)
+    rebuilt_prof = getattr(getattr(rebuilt.sites[0].properties, section), profile_field)
+    assert rebuilt_prof.working_day["1"] == "TBD"
+
+    # Flipping enabled -> True rejects the placeholder slot inside the 10-minute profile.
+    cfg.model.physics.stebbs.enabled = True
+    with pytest.raises(ValueError, match=profile_field):
+        cfg.validate_for_engine()
+
+    # Non-finite values and invalid keys inside inactive profiles remain rejected.
+    bad_nan = copy.deepcopy(data)
+    bad_nan["sites"][0]["properties"][section][profile_field]["working_day"]["1"] = (
+        "nan"
+    )
+    with pytest.raises((ValidationError, ValueError)):
+        SUEWSConfig.from_dict(bad_nan)
+
+    bad_key = copy.deepcopy(data)
+    bad_key["sites"][0]["properties"][section][profile_field]["working_day"]["145"] = (
+        "TBD"
+    )
+    with pytest.raises(
+        (ValidationError, ValueError), match="Invalid 10-minute profile"
+    ):
+        SUEWSConfig.from_dict(bad_key)
+
+
+def test_standalone_stebbs_physics_refvalue_guard_tracks_enabled_mutations() -> None:
+    """Standalone StebbsPhysics updates subordinate RefValue guards on enabled toggles."""
+    phys = StebbsPhysics(enabled=False, capacitance={"value": 0})
+    phys.enabled = True
+    with pytest.raises(ValueError, match="capacitance"):
+        phys.capacitance.value = None
+
+    phys.enabled = False
+    phys.capacitance.value = None
+    assert phys.capacitance.value is None
+
+
+def test_to_yaml_preserves_ref_metadata_on_inactive_null_refvalues(
+    sample_dict: dict, tmp_path: Path
+) -> None:
+    """YAML null restoration preserves RefValue ``ref`` metadata across switches, stebbs, and archetype."""
+    data = copy.deepcopy(sample_dict)
+    _disable_stebbs(data)
+    data["model"]["physics"]["stebbs"]["capacitance"] = {
+        "value": None,
+        "ref": {"desc": "switch estimate"},
+    }
+    data["sites"][0]["properties"]["stebbs"]["volume_hot_water"] = {
+        "value": None,
+        "ref": {"desc": "site estimate"},
+    }
+    data["sites"][0]["properties"]["building_archetype"]["hhs0"] = {
+        "value": None,
+        "ref": {"desc": "archetype estimate"},
+    }
+
+    cfg = SUEWSConfig.from_dict(data)
+    yaml_path = tmp_path / "null_ref_metadata.yml"
+    cfg.to_yaml(yaml_path)
+    dumped = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+    assert dumped["model"]["physics"]["stebbs"]["capacitance"] == {
+        "value": None,
+        "ref": {"desc": "switch estimate"},
+    }
+    assert dumped["sites"][0]["properties"]["stebbs"]["volume_hot_water"] == {
+        "value": None,
+        "ref": {"desc": "site estimate"},
+    }
+    assert dumped["sites"][0]["properties"]["building_archetype"]["hhs0"] == {
+        "value": None,
+        "ref": {"desc": "archetype estimate"},
+    }
+
+    reloaded = SUEWSConfig.from_yaml(yaml_path)
+    assert reloaded.model.physics.stebbs.capacitance.value is None
+    assert reloaded.model.physics.stebbs.capacitance.ref.desc == "switch estimate"
+    assert reloaded.sites[0].properties.stebbs.volume_hot_water.value is None
+    assert (
+        reloaded.sites[0].properties.stebbs.volume_hot_water.ref.desc == "site estimate"
+    )
+    assert reloaded.sites[0].properties.building_archetype.hhs0.value is None
+    assert (
+        reloaded.sites[0].properties.building_archetype.hhs0.ref.desc
+        == "archetype estimate"
+    )
+
+
 # =============================================================================
 # 7. JSON Schema invariance (zero schema drift)
 # =============================================================================

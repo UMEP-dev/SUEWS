@@ -750,26 +750,22 @@
         "spartacus_ehc_stebbs"
       ],
       "path_patterns": [
-        "sites[0].properties.building_archetype.*_roof",
-        "sites[0].properties.building_archetype.*_roof_external",
-        "sites[0].properties.building_archetype.*_roof_internal",
+        "sites[0].properties.building_archetype.fraction_heat_capacity_roof_external",
         "sites[0].properties.building_archetype.*_roof_outer",
-        "sites[0].properties.building_archetype.*_wall_outer",
-        "sites[0].properties.stebbs.convection_coefficient_roof_external",
-        "sites[0].properties.stebbs.convection_coefficient_roof_internal"
+        "sites[0].properties.building_archetype.*_wall_outer"
       ],
       "mutations": {
         "bare_null": "dropped",
         "wrapped_null": "null_or_empty"
       },
       "category": "active_gap",
-      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor); wall/window/ground STEBBS fields already reject explicit nulls.",
+      "active_condition": "Active when stebbs.enabled=True (spartacus_ehc_stebbs anchor has capacitance=0 so outer/fraction roof fields are not required unless capacitance is 1 or 2); core roof, wall, window, and ground STEBBS fields reject explicit nulls.",
       "owner_issue": "#2309",
       "related_issues": [
         "#1991",
         "#2001"
       ],
-      "rationale": "STEBBS roof and outer-layer archetype fields escape _validate_stebbs required-field null checks even when STEBBS is enabled."
+      "rationale": "Capacitance-dependent roof fraction and outer-layer archetype fields remain nullable when capacitance=0 on spartacus_ehc_stebbs."
     },
     {
       "id": "stebbs-and-archetype-ref-null-inactive",

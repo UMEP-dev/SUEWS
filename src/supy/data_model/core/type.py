@@ -1002,8 +1002,23 @@ def _coerce_inactive_stebbs_scalar(
     if isinstance(inner, str):
         if not allow_string:
             return (False, inner)
-        if inner.strip().lower() in _NON_FINITE_STRINGS:
+        stripped = inner.strip()
+        if stripped.lower() in _NON_FINITE_STRINGS:
             return (False, inner)
+        if stripped and "_" not in stripped:
+            try:
+                fval = float(stripped)
+            except ValueError:
+                return (True, inner)
+            if not math.isfinite(fval):
+                return (False, inner)
+            if (
+                int_preferred
+                and fval.is_integer()
+                and not any(ch in stripped for ch in (".", "e", "E"))
+            ):
+                return (True, int(fval))
+            return (True, fval)
         return (True, inner)
     if isinstance(inner, (int, float)):
         try:

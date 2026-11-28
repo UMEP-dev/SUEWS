@@ -1124,9 +1124,7 @@ class StebbsPhysics(DataModelBase):
         super().__setattr__(name, value)
         if name == "enabled":
             enabled_bool = resolve_stebbs_enabled_bool(getattr(self, "enabled", None))
-            object.__setattr__(
-                self, "_stebbs_validation_active", enabled_bool is not False
-            )
+            self._sync_stebbs_validation_state(active=(enabled_bool is not False))
 
     def validate_non_null_ref_values(self, _path: str = "") -> None:
         """Enforce master switches unconditionally; skip subordinate switches while STEBBS is disabled."""

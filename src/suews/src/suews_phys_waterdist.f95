@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_waterdist
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_is_finite
    USE module_ctrl_const_allocate, ONLY: nsurf, &
                             PavSurf, BldgSurf, &
                             ConifSurf, DecidSurf, GrassSurf, &
@@ -45,11 +46,19 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: drain_is !Drainage of surface type "is" [mm]
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
+      ! Always initialise INTENT(OUT) before branching so unset/unsupported
+      ! selectors (e.g. DrainEq == 0 on a wet zero-area surface) never leave
+      ! drain_is undefined prior to the bounds check below.
+      drain_is = 0.0D0
+
       !If surface is dry, no drainage occurs
       IF (state_is < 0.000000001) THEN
-         drain_is = 0.0
-      ELSE
-         IF (INT(DrainEq) == 1) THEN !Falk and Niemczynowicz (1978): Drainage equation for paved, buildings and irrigated grass
+         drain_is = 0.0D0
+      ELSEIF (ieee_is_finite(DrainEq)) THEN
+         IF (DrainEq < 1.0D0 .OR. DrainEq >= 4.0D0) THEN
+            ! Unset (0) or unsupported drainage selector: no drainage occurs.
+            drain_is = 0.0D0
+         ELSEIF (INT(DrainEq) == 1) THEN !Falk and Niemczynowicz (1978): Drainage equation for paved, buildings and irrigated grass
 
             IF (state_is < StorCap) THEN
                drain_is = 0 !No drainage if state_id is less than storage capacity
@@ -64,6 +73,8 @@ CONTAINS
          ELSEIF (INT(DrainEq) == 3) THEN !Falk and Niemczynowicz (1978)
             drain_is = (DrainCoef1*(state_is**DrainCoef2))/nsh_real
 
+         ELSE
+            drain_is = 0.0D0
          END IF
 
          ! Check value obtained is physically reasonable

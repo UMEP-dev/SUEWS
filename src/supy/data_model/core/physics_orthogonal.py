@@ -8,6 +8,7 @@ family-tag registry because they split one integer code across multiple axes.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from enum import Enum
 from typing import Any
 
 _MISSING = object()
@@ -50,18 +51,35 @@ _EMISSIONS_BIOGENIC_OFFSETS: dict[str, int] = {
     "conductance": 40,
 }
 
-_STORAGE_HEAT_FAMILIES = frozenset(
-    {"observed", "ohm", "anohm", "estm", "ehc", "dyohm", "stebbs", "dyohm_building"}
-)
+_STORAGE_HEAT_FAMILIES = frozenset({
+    "observed",
+    "ohm",
+    "anohm",
+    "estm",
+    "ehc",
+    "dyohm",
+    "stebbs",
+    "dyohm_building",
+})
 _REFVALUE_KEYS = frozenset({"value", "ref"})
 _STORAGE_HEAT_QF_KEYS = ("include_qf", "ohm_inc_qf", "ohmincqf")
 _KDOWN_CONSTANT_FRACTION_KEY = "sw_dn_direct_frac"
+
+
+def _unwrap_enum_scalar(value: Any) -> Any:
+    """Unwrap an ``Enum`` or ``ReadOnlyEnumProxy`` to its underlying scalar value."""
+    if isinstance(value, Enum) or (
+        type(value).__name__ == "ReadOnlyEnumProxy" and hasattr(value, "value")
+    ):
+        return value.value
+    return value
 
 
 def _token(mapping: Mapping[str, Any], key: str, context: str) -> str | None:
     raw = mapping.get(key, _MISSING)
     if raw is _MISSING:
         return None
+    raw = _unwrap_enum_scalar(raw)
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError(f"'{context}.{key}' must be a non-empty string token.")
     return raw.strip().lower()
@@ -72,9 +90,7 @@ def _reject_foreign_keys(
 ) -> None:
     foreign = [repr(key) for key in mapping if key not in allowed]
     if foreign:
-        raise ValueError(
-            f"'{context}' cannot be combined with sibling keys {foreign}."
-        )
+        raise ValueError(f"'{context}' cannot be combined with sibling keys {foreign}.")
 
 
 def fold_storage_heat_ohm_inc_qf(values: dict, class_name: str) -> dict:
@@ -181,8 +197,7 @@ def fold_kdown_split_constant_direct_fraction(
 
     if _KDOWN_CONSTANT_FRACTION_KEY not in block:
         raise ValueError(
-            f"{class_name}: 'kdown_split_method.constant' requires "
-            "'sw_dn_direct_frac'."
+            f"{class_name}: 'kdown_split_method.constant' requires 'sw_dn_direct_frac'."
         )
 
     fraction_value = block.pop(_KDOWN_CONSTANT_FRACTION_KEY)
@@ -264,6 +279,7 @@ def _fold_storage_heat_ohm_block(
 
 def _normalise_include_qf(value: Any, class_name: str) -> Any:
     """Map public ``include_qf`` predicate values to the OHMIncQF selector."""
+    value = _unwrap_enum_scalar(value)
     if isinstance(value, bool):
         return "include" if value else "exclude"
     if isinstance(value, int) and value in {0, 1}:
@@ -296,8 +312,7 @@ def _coerce_net_radiation(value: Mapping[str, Any]) -> dict[str, Any]:
         ldown = _token(value, "ldown", f"net_radiation.{scheme}")
         if ldown is None:
             raise ValueError(
-                f"'net_radiation.{scheme}' requires 'ldown' "
-                "(observed, cloud, or air)."
+                f"'net_radiation.{scheme}' requires 'ldown' (observed, cloud, or air)."
             )
         variant = _token(value, "variant", f"net_radiation.{scheme}") or "standard"
         code = _NARP_CODES.get((ldown, variant))
@@ -313,8 +328,7 @@ def _coerce_net_radiation(value: Mapping[str, Any]) -> dict[str, Any]:
         ldown = _token(value, "ldown", f"net_radiation.{scheme}")
         if ldown is None:
             raise ValueError(
-                f"'net_radiation.{scheme}' requires 'ldown' "
-                "(observed, cloud, or air)."
+                f"'net_radiation.{scheme}' requires 'ldown' (observed, cloud, or air)."
             )
         code = _SPARTACUS_CODES.get(ldown)
         if code is None:
@@ -323,8 +337,7 @@ def _coerce_net_radiation(value: Mapping[str, Any]) -> dict[str, Any]:
             )
     else:
         raise ValueError(
-            "'net_radiation.scheme' must be one of "
-            "'forcing', 'narp', or 'spartacus'."
+            "'net_radiation.scheme' must be one of 'forcing', 'narp', or 'spartacus'."
         )
 
     flat: dict[str, Any] = {"value": code}
@@ -428,12 +441,8 @@ def _coerce_emissions(value: Mapping[str, Any]) -> dict[str, Any]:
     else:
         if not isinstance(raw_co2, Mapping):
             raise ValueError("'emissions.co2' must be a mapping.")
-        _reject_foreign_keys(
-            raw_co2, {"anthropogenic", "biogenic"}, "emissions.co2"
-        )
-        anthropogenic = (
-            _token(raw_co2, "anthropogenic", "emissions.co2") or "none"
-        )
+        _reject_foreign_keys(raw_co2, {"anthropogenic", "biogenic"}, "emissions.co2")
+        anthropogenic = _token(raw_co2, "anthropogenic", "emissions.co2") or "none"
         biogenic = _token(raw_co2, "biogenic", "emissions.co2") or "none"
 
     flat: dict[str, Any] = {"value": _emissions_code(heat, anthropogenic, biogenic)}

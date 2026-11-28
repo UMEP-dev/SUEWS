@@ -23,6 +23,7 @@ target :class:`ConfigDocument` or raw mapping without mutating the target:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import datetime
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any
@@ -200,6 +201,8 @@ def _strict_hashable_key(value: Any) -> Any:
         )
     elif isinstance(value, np.generic):
         result = (val_type, value.dtype.str, value)
+    elif isinstance(value, (datetime.datetime, datetime.time)):
+        result = (val_type, value, value.fold, type(value.tzinfo), value.tzinfo)
     elif val_type is tuple:
         result = (tuple, tuple(_strict_hashable_key(item) for item in value))
     elif val_type is frozenset:
@@ -285,6 +288,14 @@ def _strict_equal(left: Any, right: Any) -> bool:
         return _container_strict_equal(left, right)
     if type(left) is not type(right):
         return False
+    if isinstance(left, (datetime.datetime, datetime.time)):
+        return (
+            bool(left == right)
+            and left.fold == right.fold
+            and (left.tzinfo is None) == (right.tzinfo is None)
+            and type(left.tzinfo) is type(right.tzinfo)
+            and bool(left.tzinfo == right.tzinfo)
+        )
     return bool(left == right)
 
 
@@ -912,6 +923,20 @@ def _assert_no_aliased_containers(value: Any) -> None:
     _walk(value)
 
 
+def _tokens_exact_equal(
+    left: tuple[PathToken, ...], right: tuple[PathToken, ...]
+) -> bool:
+    """Compare path token tuples by exact key representation (distinguishing ``0.0`` vs ``-0.0``)."""
+    if len(left) != len(right):
+        return False
+    return all(
+        _strict_equal(a.key, b.key)
+        if isinstance(a, MappingKey) and isinstance(b, MappingKey)
+        else (type(a) is type(b) and a == b)
+        for a, b in zip(left, right)
+    )
+
+
 def _coalesce_owned_patches(
     owned_patches: list[tuple[int | None, ConfigPatch, Any]],
     style_ledger: StyleLedger | None,
@@ -931,7 +956,10 @@ def _coalesce_owned_patches(
         for idx in range(len(result) - 1, -1, -1):
             _prev_owner, prev, _prev_raw_after = result[idx]
             prev_tokens = result_tokens[idx]
-            if prev_tokens == tokens and prev.action != "nullify_tree":
+            if (
+                _tokens_exact_equal(prev_tokens, tokens)
+                and prev.action != "nullify_tree"
+            ):
                 merge_idx = idx
                 break
             if _tokens_overlap(prev_tokens, tokens):

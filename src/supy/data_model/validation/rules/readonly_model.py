@@ -19,6 +19,7 @@ from types import (
     BuiltinMethodType,
     FunctionType,
     MappingProxyType,
+    MemberDescriptorType,
     MethodType,
     MethodWrapperType,
     ModuleType,
@@ -66,7 +67,7 @@ _DATACLASS_STATE: dict[
         dict[type[BaseModel], Mapping[str, ReadOnlyFieldInfo]],
     ],
 ] = {}
-_ENUM_STATE: dict[int, tuple[Enum, str, Any, int | None, Mapping[str, Any]]] = {}
+_ENUM_STATE: dict[int, tuple[Enum, str | None, Any, int | None, Mapping[str, Any]]] = {}
 
 _MODEL_EXTRA_IMMUTABLE_TYPES: frozenset[type[Any]] = frozenset({
     PydanticUndefinedType,
@@ -133,6 +134,49 @@ def _copy_slots(
         )
 
 
+def _assert_standard_getattribute(cls: type[Any]) -> None:
+    """Reject classes defining unvetted ``__getattribute__`` hooks."""
+    if cls.__getattribute__ not in {
+        object.__getattribute__,
+        BaseModel.__getattribute__,
+    }:
+        raise TypeError(
+            f"Cannot safely freeze or read {cls.__name__!r} with unvetted __getattribute__"
+        )
+
+
+def _find_class_attr(cls: type[Any], name: str) -> tuple[bool, Any]:
+    """Look up *name* directly in *cls* MRO class dictionaries without invoking descriptors."""
+    for base in cls.__mro__:
+        if name in base.__dict__:
+            return True, base.__dict__[name]
+    return False, None
+
+
+def _read_stored_field(target: Any, name: str) -> Any:
+    """Read a declared field directly from instance storage/slots without executing hooks."""
+    cls = type(target)
+    _assert_standard_getattribute(cls)
+    found_cls_attr, raw_cls_attr = _find_class_attr(cls, name)
+    if (
+        found_cls_attr
+        and hasattr(raw_cls_attr, "__get__")
+        and not isinstance(raw_cls_attr, MemberDescriptorType)
+    ):
+        raise TypeError(
+            f"Cannot safely read field {name!r} backed by unvetted descriptor on {cls.__name__!r}"
+        )
+    if hasattr(target, "__dict__"):
+        inst_dict = object.__getattribute__(target, "__dict__")
+        if name in inst_dict:
+            return inst_dict[name]
+    if found_cls_attr and isinstance(raw_cls_attr, MemberDescriptorType):
+        return object.__getattribute__(target, name)
+    if found_cls_attr:
+        return raw_cls_attr
+    raise AttributeError(name)
+
+
 def _clone_base_model(
     value: BaseModel,
     memo: dict[int, Any],
@@ -142,6 +186,7 @@ def _clone_base_model(
 ) -> BaseModel:
     """Clone a Pydantic ``BaseModel`` preserving ``PrivateAttr``, extras, and cycles."""
     model_cls = type(value)
+    _assert_standard_getattribute(model_cls)
     cloned = object.__new__(model_cls)
     memo[id(value)] = cloned
     src_dict = object.__getattribute__(value, "__dict__")
@@ -198,22 +243,21 @@ def _clone_dataclass(
     reject_enums: bool,
     wrap_enums: Mapping[int, ReadOnlyEnumProxy] | None,
 ) -> Any:
-    """Clone a dataclass instance preserving declared fields, extra state, and cycles."""
+    """Clone a dataclass instance preserving declared fields (incl. class-backed defaults), extra state, and cycles."""
     dc_cls = type(value)
+    _assert_standard_getattribute(dc_cls)
     cloned_dc = object.__new__(dc_cls)
     memo[id(value)] = cloned_dc
+    cloned_dict: dict[str, Any] | None = None
     if hasattr(value, "__dict__"):
         src_dict = object.__getattribute__(value, "__dict__")
-        object.__setattr__(
-            cloned_dc,
-            "__dict__",
-            {
-                k: _detach_snapshot_tree(
-                    v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
-                )
-                for k, v in src_dict.items()
-            },
-        )
+        cloned_dict = {
+            k: _detach_snapshot_tree(
+                v, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+            )
+            for k, v in src_dict.items()
+        }
+        object.__setattr__(cloned_dc, "__dict__", cloned_dict)
     _copy_slots(
         value,
         cloned_dc,
@@ -222,6 +266,28 @@ def _clone_dataclass(
         reject_enums=reject_enums,
         wrap_enums=wrap_enums,
     )
+    for dc_field in dc_fields(dc_cls):
+        fname = dc_field.name
+        if cloned_dict is not None and fname in cloned_dict:
+            continue
+        found_cls_attr, raw_cls_attr = _find_class_attr(dc_cls, fname)
+        if not found_cls_attr or isinstance(raw_cls_attr, MemberDescriptorType):
+            continue
+        if hasattr(raw_cls_attr, "__get__"):
+            raise TypeError(
+                f"Cannot safely detach dataclass field {fname!r} backed by "
+                f"unvetted descriptor on {dc_cls.__name__!r}"
+            )
+        detached_default = _detach_snapshot_tree(
+            raw_cls_attr, memo, reject_enums=reject_enums, wrap_enums=wrap_enums
+        )
+        if cloned_dict is not None:
+            cloned_dict[fname] = detached_default
+        elif not _is_exact_immutable_scalar(raw_cls_attr):
+            raise TypeError(
+                f"Cannot safely detach mutable class-backed default for slotted "
+                f"dataclass field {fname!r} on {dc_cls.__name__!r}"
+            )
     return cloned_dc
 
 
@@ -467,6 +533,7 @@ def _detach_plain_instance(
     if (
         isinstance(value, type)
         or type(value).__new__ is not object.__new__
+        or type(value).__getattribute__ is not object.__getattribute__
         or hasattr(value, "__deepcopy__")
         or hasattr(value, "__copy__")
         or type(value).__reduce_ex__ is not object.__reduce_ex__
@@ -795,42 +862,63 @@ _STD_ENUM_HASH_METHODS = frozenset({
 })
 
 
-def _compare_enum_members(
-    left: Enum, left_val: Any, right: Enum, right_val: Any
-) -> bool:
-    """Compare two validated ``Enum`` members purely without custom ``__eq__`` hooks."""
-    left_eq = type(left).__eq__
-    right_eq = type(right).__eq__
-    if right_eq not in _STD_ENUM_EQ_METHODS:
-        raise TypeError(
-            f"Cannot safely compare Enum proxy with custom __eq__ on {type(right).__name__!r}"
-        )
-    if left is right:
-        return True
-    if left_eq is object.__eq__ or right_eq is object.__eq__:
-        return False
-    return bool(left_val == right_val)
-
-
-def _enum_proxy_equals(member: Enum, frozen_value: Any, other: object) -> bool | Any:
-    """Compare an enum proxy safely without passing live singletons to reflected hooks."""
+def _enum_proxy_equals(
+    proxy: ReadOnlyEnumProxy,
+    member: Enum,
+    frozen_name: str | None,
+    frozen_value: Any,
+    frozen_hash: int | None,
+    other: object,
+) -> bool | Any:
+    """Compare an enum proxy consistently with snapshotted hashes without leaking singletons."""
     member_eq = type(member).__eq__
     if member_eq not in _STD_ENUM_EQ_METHODS:
         raise TypeError(
             f"Cannot safely compare Enum proxy with custom __eq__ on {type(member).__name__!r}"
         )
+    result: bool | Any = NotImplemented
     if isinstance(other, ReadOnlyEnumProxy):
-        other_member, _other_name, other_val, _other_hash, _ = _ENUM_STATE[id(other)]
-        return _compare_enum_members(member, frozen_value, other_member, other_val)
-    if isinstance(other, Enum):
-        return _compare_enum_members(member, frozen_value, other, other.value)
-    if _is_exact_immutable_scalar(other):
-        return False if member_eq is object.__eq__ else bool(frozen_value == other)
-    return NotImplemented
+        other_member, other_name, other_val, other_hash, _ = _ENUM_STATE[id(other)]
+        other_eq = type(other_member).__eq__
+        if other_eq not in _STD_ENUM_EQ_METHODS:
+            raise TypeError(
+                f"Cannot safely compare Enum proxy with custom __eq__ on "
+                f"{type(other_member).__name__!r}"
+            )
+        if member is other_member:
+            result = (
+                type(frozen_name) is type(other_name)
+                and frozen_name == other_name
+                and frozen_hash == other_hash
+                and _frozen_values_strict_equal(frozen_value, other_val)
+            )
+        else:
+            result = (
+                False
+                if (member_eq is object.__eq__ or other_eq is object.__eq__)
+                else bool(frozen_value == other_val)
+            )
+    elif isinstance(other, Enum):
+        other_eq = type(other).__eq__
+        if other_eq not in _STD_ENUM_EQ_METHODS:
+            raise TypeError(
+                f"Cannot safely compare Enum proxy with custom __eq__ on {type(other).__name__!r}"
+            )
+        if member is other:
+            result = not _single_enum_drifted(proxy)
+        else:
+            result = (
+                False
+                if (member_eq is object.__eq__ or other_eq is object.__eq__)
+                else bool(frozen_value == other.value)
+            )
+    elif _is_exact_immutable_scalar(other):
+        result = False if member_eq is object.__eq__ else bool(frozen_value == other)
+    return result
 
 
 def _compute_enum_snapshot_hash(
-    member: Enum, frozen_name: str, frozen_value: Any
+    member: Enum, frozen_name: str | None, frozen_value: Any
 ) -> int | None:
     """Compute a snapshotted hash for *member* when its ``__hash__`` is standard."""
     member_hash = type(member).__hash__
@@ -875,7 +963,9 @@ class ReadOnlyEnumProxy:
                 f"Cannot safely freeze Enum member {type(member).__name__}.{member.name} "
                 "with mutable payload"
             )
-        frozen_name = str(member.name)
+        frozen_name: str | None = (
+            member.name if member.name is None else str(member.name)
+        )
         frozen_value = _wrap_readonly(member.value)
         frozen_hash = _compute_enum_snapshot_hash(member, frozen_name, frozen_value)
         extra_attrs = _snapshot_enum_extra_attrs(member)
@@ -895,8 +985,8 @@ class ReadOnlyEnumProxy:
         return _freeze_type_info(type(_ENUM_STATE[id(self)][0]))
 
     @property
-    def name(self) -> str:
-        """Snapshotted name of the wrapped ``Enum`` member."""
+    def name(self) -> str | None:
+        """Snapshotted name (or ``None`` for unnamed Flag combinations) of the wrapped ``Enum``."""
         return _ENUM_STATE[id(self)][1]
 
     @property
@@ -943,8 +1033,10 @@ class ReadOnlyEnumProxy:
 
     def __eq__(self, other: object) -> bool:
         """Compare snapshotted enum equality without leaking the live singleton."""
-        member, _name, frozen_value, _hash, _extra = _ENUM_STATE[id(self)]
-        return _enum_proxy_equals(member, frozen_value, other)
+        member, frozen_name, frozen_value, frozen_hash, _extra = _ENUM_STATE[id(self)]
+        return _enum_proxy_equals(
+            self, member, frozen_name, frozen_value, frozen_hash, other
+        )
 
     def __hash__(self) -> int:
         """Return the snapshotted hash of the wrapped ``Enum`` member without user hooks."""
@@ -1223,6 +1315,21 @@ def _iter_snapshot_children(
         children.extend(
             _iter_instance_state_children(obj, frozenset({"__dict__", "__weakref__"}))
         )
+        inst_dict = (
+            object.__getattribute__(obj, "__dict__")
+            if hasattr(obj, "__dict__")
+            else None
+        )
+        for dc_field in dc_fields(type(obj)):
+            if inst_dict is not None and dc_field.name in inst_dict:
+                continue
+            found_cls_attr, raw_cls_attr = _find_class_attr(type(obj), dc_field.name)
+            if (
+                found_cls_attr
+                and not isinstance(raw_cls_attr, MemberDescriptorType)
+                and not hasattr(raw_cls_attr, "__get__")
+            ):
+                children.append(raw_cls_attr)
     elif isinstance(obj, Mapping):
         for k, v in obj.items():
             children.extend((k, v))
@@ -1594,7 +1701,7 @@ def _format_dataclass_proxy_repr(proxy: ReadOnlyDataclassProxy, seen: set[int]) 
     try:
         parts = [
             f"{dc_field.name}="
-            f"{_format_raw_field_repr(getattr(target, dc_field.name), enum_snapshots, field_snapshots, seen)}"
+            f"{_format_raw_field_repr(_read_stored_field(target, dc_field.name), enum_snapshots, field_snapshots, seen)}"
             for dc_field in dc_fields(type(target))
         ]
         return f"ReadOnlyDataclassProxy({type(target).__name__}({', '.join(parts)}))"
@@ -1613,10 +1720,10 @@ def _format_model_proxy_repr(proxy: ReadOnlyModelProxy, seen: set[int]) -> str:
         model_cls = type(target)
         parts = [
             f"{name}="
-            f"{_format_raw_field_repr(getattr(target, name), enum_snapshots, field_snapshots, seen)}"
+            f"{_format_raw_field_repr(_read_stored_field(target, name), enum_snapshots, field_snapshots, seen)}"
             for name in model_cls.model_fields
         ]
-        extra = getattr(target, "model_extra", None)
+        extra = object.__getattribute__(target, "__pydantic_extra__")
         if isinstance(extra, Mapping):
             parts.extend(
                 f"{k}={_format_raw_field_repr(v, enum_snapshots, field_snapshots, seen)}"
@@ -1728,7 +1835,7 @@ class ReadOnlyDataclassProxy:
         field_names = {field.name for field in dc_fields(dc_type)}
         if name in field_names:
             wrapped = _wrap_readonly(
-                getattr(target, name), enum_snapshots, field_snapshots
+                _read_stored_field(target, name), enum_snapshots, field_snapshots
             )
             cache[name] = wrapped
             return _materialise_readonly(wrapped)
@@ -1763,10 +1870,11 @@ class ReadOnlyDataclassProxy:
         )
 
     def __eq__(self, other: object) -> bool:
-        """Compare underlying dataclass equality on isolated copies preserving shared identities."""
-        target = _DATACLASS_STATE[id(self)][0]
+        """Compare underlying dataclass equality on isolated copies using snapshotted Enums."""
+        target, _cache, enum_snapshots, _fields = _DATACLASS_STATE[id(self)]
+        other_enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None
         if isinstance(other, ReadOnlyDataclassProxy):
-            other_target = _DATACLASS_STATE[id(other)][0]
+            other_target, _oc, other_enum_snapshots, _of = _DATACLASS_STATE[id(other)]
         elif is_dataclass(other) and not isinstance(other, type):
             other_target = other
         else:
@@ -1781,8 +1889,14 @@ class ReadOnlyDataclassProxy:
                 f"on {type(target).__name__!r} (may access shared state or Enum singletons)"
             )
         shared_memo: dict[int, Any] = {}
-        left_copy = _detach_snapshot_tree(target, shared_memo)
-        right_copy = _detach_snapshot_tree(other_target, shared_memo)
+        left_copy = _detach_snapshot_tree(
+            target, shared_memo, wrap_enums=enum_snapshots or None
+        )
+        right_copy = _detach_snapshot_tree(
+            other_target,
+            shared_memo,
+            wrap_enums=other_enum_snapshots or None,
+        )
         return bool(left_copy == right_copy)
 
     def __hash__(self) -> int:
@@ -2131,7 +2245,7 @@ class ReadOnlyModelProxy:
 
         if name in model_cls.model_fields:
             wrapped = _wrap_readonly(
-                getattr(target, name), enum_snapshots, field_snapshots
+                _read_stored_field(target, name), enum_snapshots, field_snapshots
             )
             cache[name] = wrapped
             return _materialise_readonly(wrapped)
@@ -2175,7 +2289,7 @@ class ReadOnlyModelProxy:
                     return _materialise_readonly(wrapped)
                 break
 
-        extra = getattr(target, "model_extra", None)
+        extra = object.__getattribute__(target, "__pydantic_extra__")
         if isinstance(extra, Mapping) and name in extra:
             wrapped = _wrap_readonly(extra[name], enum_snapshots, field_snapshots)
             cache[name] = wrapped
@@ -2203,12 +2317,13 @@ class ReadOnlyModelProxy:
         )
 
     def __eq__(self, other: object) -> bool:
-        """Compare underlying model equality on isolated copies without mutating snapshot."""
+        """Compare underlying model equality on isolated copies using snapshotted Enums."""
         from ...core.type import RefValue  # noqa: PLC0415
 
-        target = _PROXY_STATE[id(self)][0]
+        target, _cache, enum_snapshots, _fields = _PROXY_STATE[id(self)]
+        other_enum_snapshots: dict[int, ReadOnlyEnumProxy] | None = None
         if isinstance(other, ReadOnlyModelProxy):
-            other_target = _PROXY_STATE[id(other)][0]
+            other_target, _oc, other_enum_snapshots, _of = _PROXY_STATE[id(other)]
         elif isinstance(other, BaseModel):
             other_target = other
         elif isinstance(target, RefValue) and (
@@ -2234,8 +2349,14 @@ class ReadOnlyModelProxy:
                 f"on {type(target).__name__!r} (may access shared state or Enum singletons)"
             )
         shared_memo: dict[int, Any] = {}
-        left_copy = _detach_snapshot_tree(target, shared_memo)
-        right_copy = _detach_snapshot_tree(other_target, shared_memo)
+        left_copy = _detach_snapshot_tree(
+            target, shared_memo, wrap_enums=enum_snapshots or None
+        )
+        right_copy = _detach_snapshot_tree(
+            other_target,
+            shared_memo,
+            wrap_enums=other_enum_snapshots or None,
+        )
         return bool(left_copy == right_copy)
 
     def __hash__(self) -> int:
@@ -2312,19 +2433,90 @@ def _stable_composite_hash(
     return hash(_safe_snapshot_copy(target, wrap_enums=enum_snapshots))
 
 
+def _frozen_values_strict_equal(left: Any, right: Any) -> bool:
+    """Compare two already-frozen Enum payload values strictly."""
+    from ..pipeline.patch_normaliser import _strict_equal  # noqa: PLC0415
+
+    if isinstance(left, ReadOnlyEnumProxy) or isinstance(right, ReadOnlyEnumProxy):
+        return (
+            isinstance(left, ReadOnlyEnumProxy)
+            and isinstance(right, ReadOnlyEnumProxy)
+            and bool(left == right)
+        )
+    if type(left) is tuple and type(right) is tuple:
+        return len(left) == len(right) and all(
+            _frozen_values_strict_equal(a, b) for a, b in zip(left, right)
+        )
+    if type(left) is slice and type(right) is slice:
+        return (
+            _frozen_values_strict_equal(left.start, right.start)
+            and _frozen_values_strict_equal(left.stop, right.stop)
+            and _frozen_values_strict_equal(left.step, right.step)
+        )
+    return _strict_equal(left, right)
+
+
+def _frozen_frozenset_matches_live(
+    live_val: frozenset[Any], frozen_val: frozenset[Any]
+) -> bool:
+    """Return True iff every element of *live_val* matches a distinct element of *frozen_val*."""
+    if len(live_val) != len(frozen_val):
+        return False
+    remaining = list(frozen_val)
+    for item in live_val:
+        match_idx = next(
+            (
+                i
+                for i, candidate in enumerate(remaining)
+                if _frozen_value_matches_live(item, candidate)
+            ),
+            None,
+        )
+        if match_idx is None:
+            return False
+        remaining.pop(match_idx)
+    return True
+
+
+def _frozen_value_matches_live(live_val: Any, frozen_val: Any) -> bool:
+    """Return True iff live Enum payload *live_val* matches snapshotted *frozen_val*."""
+    from ..pipeline.patch_normaliser import _strict_equal  # noqa: PLC0415
+
+    if isinstance(frozen_val, ReadOnlyEnumProxy):
+        target_member = _ENUM_STATE[id(frozen_val)][0]
+        return (
+            isinstance(live_val, Enum)
+            and live_val is target_member
+            and not _single_enum_drifted(frozen_val)
+        )
+    if type(live_val) is tuple and type(frozen_val) is tuple:
+        return len(live_val) == len(frozen_val) and all(
+            _frozen_value_matches_live(a, b) for a, b in zip(live_val, frozen_val)
+        )
+    if type(live_val) is frozenset and type(frozen_val) is frozenset:
+        return _frozen_frozenset_matches_live(live_val, frozen_val)
+    if type(live_val) is slice and type(frozen_val) is slice:
+        return (
+            _frozen_value_matches_live(live_val.start, frozen_val.start)
+            and _frozen_value_matches_live(live_val.stop, frozen_val.stop)
+            and _frozen_value_matches_live(live_val.step, frozen_val.step)
+        )
+    return _strict_equal(live_val, frozen_val)
+
+
+def _single_enum_drifted(proxy: ReadOnlyEnumProxy) -> bool:
+    """Return True if *proxy*'s live ``Enum`` singleton drifted in ``_name_`` or ``_value_``."""
+    member, frozen_name, frozen_value, _frozen_hash, _extra = _ENUM_STATE[id(proxy)]
+    if type(member.name) is not type(frozen_name) or member.name != frozen_name:
+        return True
+    return not _frozen_value_matches_live(member.value, frozen_value)
+
+
 def _enum_snapshots_drifted(
     enum_snapshots: Mapping[int, ReadOnlyEnumProxy],
 ) -> bool:
     """Return True if any snapshotted Enum singleton had its live ``_name_`` or ``_value_`` mutated."""
-    from ..pipeline.patch_normaliser import _strict_equal  # noqa: PLC0415
-
-    for proxy in enum_snapshots.values():
-        member, frozen_name, frozen_value, _frozen_hash, _extra = _ENUM_STATE[id(proxy)]
-        if type(member.name) is not str or member.name != frozen_name:
-            return True
-        if not _strict_equal(member.value, frozen_value):
-            return True
-    return False
+    return any(_single_enum_drifted(proxy) for proxy in enum_snapshots.values())
 
 
 def _unwrap_model_for_validation(proxy: ReadOnlyModelProxy) -> BaseModel:

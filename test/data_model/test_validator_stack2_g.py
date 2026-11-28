@@ -3560,3 +3560,153 @@ def test_r10_r9_composite_hash_enum_type_drift_stebbs_intenum_doc_tuples_and_tem
         )
         == 1
     )
+
+
+def test_r10_r10_class_backed_dataclass_defaults_and_getattribute_descriptors() -> None:
+    """Cover R9 M1-M2: class-backed init=False dataclass defaults detached; __getattribute__/descriptors blocked."""
+    from dataclasses import field as dc_field  # noqa: PLC0415
+
+    # M1: Class-backed dataclass default (init=False, default=...) is defensively detached into snapshot.
+    @dataclass(eq=False)
+    class _ChildBag:
+        items: list[int]
+
+    @dataclass
+    class _ParentDefault:
+        child: _ChildBag = dc_field(init=False, default=_ChildBag([1]))
+
+    orig_parent = _ParentDefault()
+    ro_parent = ReadOnlyDataclassProxy(orig_parent)
+    unwrapped_parent = ro_parent.unwrap_copy()
+    unwrapped_parent.child.items.append(2)
+    assert orig_parent.child.items == [1]
+    orig_parent.child.items.append(99)
+    assert ro_parent.child.items == (1,)
+
+    # M2: Custom __getattribute__ and field descriptors cannot execute against stored snapshots.
+    leaked: list[object] = []
+
+    @dataclass
+    class _EvilGetAttrDC:
+        x: int
+        y: int
+
+        def __getattribute__(self, name: str) -> object:
+            if name == "x":
+                leaked.append(self)
+            return object.__getattribute__(self, name)
+
+    with pytest.raises(TypeError, match="__getattribute__"):
+        ReadOnlyDataclassProxy(_EvilGetAttrDC(1, 2))
+    assert leaked == []
+
+    class _LeakDesc:
+        def __get__(self, inst: object, _owner: object = None) -> int:
+            if inst is not None:
+                leaked.append(inst)
+            return 42
+
+    @dataclass
+    class _DescDC:
+        x: int = dc_field(init=False, default=_LeakDesc())  # type: ignore[assignment]
+
+    with pytest.raises(TypeError, match="unvetted descriptor"):
+        ReadOnlyDataclassProxy(_DescDC())
+    assert leaked == []
+
+
+def test_r10_r10_dst_fold_signed_zero_coalesce_unnamed_flag_nested_enum_and_orthogonal() -> (
+    None
+):
+    """Cover R9 m1-m6: DST fold, signed-zero coalescing, unnamed Flag, nested Enum drift, eq/hash, orthogonal."""
+    import datetime as dt  # noqa: PLC0415
+    from enum import Flag, StrEnum  # noqa: PLC0415
+    from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+    # m1: Distinct DST fold instants are NOT dropped as no-ops.
+    before_dst = dt.datetime(
+        2024, 10, 27, 1, 30, tzinfo=ZoneInfo("Europe/London"), fold=0
+    )
+    after_dst = before_dst.replace(fold=1)
+    dst_norm = normalise_patches(
+        [ConfigPatch("t", "set", after_dst, replace_raw=True)],
+        {"t": before_dst},
+    )
+    assert len(dst_norm) == 1
+
+    # m2: Coalescing preserves delete(0.0) + set(-0.0) key-sign changes.
+    sz_base: dict[str, object] = {"p": {0.0: 1}}
+    sz_patches = [
+        ConfigPatch("p[0.0]", "delete", path_tokens=("p", MappingKey(0.0))),
+        ConfigPatch(
+            "p[-0.0]",
+            "set",
+            1,
+            default_wrapped=False,
+            path_tokens=("p", MappingKey(-0.0)),
+        ),
+    ]
+    sz_norm = normalise_patches(sz_patches, sz_base)
+    sz_replayed = deepcopy(sz_base)
+    apply_patches_in_place(sz_replayed, sz_norm)
+    only_key = next(iter(sz_replayed["p"]))  # type: ignore[arg-type]
+    assert bool(np.signbit(only_key)) is True
+
+    # m3: Unnamed zero-valued Flag keeps name=None, matches hash, and dumps without false drift.
+    class _Bits(Flag):
+        A = 1
+
+    class _BitsModel(BaseModel):
+        b: _Bits = _Bits(0)
+
+    ro_b0 = deep_freeze(_Bits(0))
+    assert ro_b0.name is None
+    assert hash(ro_b0) == hash(_Bits(0))
+    ro_bm = freeze_model(_BitsModel())
+    assert ro_bm.model_dump(mode="json") == {"b": 0}
+
+    # m4: Nested Enum values do not trigger false drift on model_dump.
+    class _InnerE(Enum):
+        ITEM = 1
+
+    class _OuterE(Enum):
+        ITEM = _InnerE.ITEM
+
+    class _NestedEModel(BaseModel):
+        e: _OuterE = _OuterE.ITEM
+
+    ro_ne = freeze_model(_NestedEModel())
+    assert ro_ne.model_dump()["e"] == _OuterE.ITEM
+
+    # m5: Enum snapshots frozen before vs after _name_ mutation disagree consistently on == and hash.
+    class _MutNameE(Enum):
+        ITEM = 1
+
+    p_snap = deep_freeze(_MutNameE.ITEM)
+    _MutNameE.ITEM._name_ = "CHANGED"
+    try:
+        q_snap = deep_freeze(_MutNameE.ITEM)
+        assert p_snap != q_snap
+        assert hash(p_snap) != hash(q_snap)
+    finally:
+        _MutNameE.ITEM._name_ = "ITEM"
+
+    # m6: Orthogonal physics forms accept IntEnum / StrEnum inside frozen PhysicsView.
+    class _YesNo(IntEnum):
+        YES = 1
+
+    class _SchemeName(StrEnum):
+        NARP = "narp"
+
+    assert (
+        PhysicsView({"storage_heat": {"ohm": {"include_qf": _YesNo.YES}}}).code(
+            "storage_heat"
+        )
+        == 1
+    )
+    assert (
+        PhysicsView({
+            "net_radiation": {"scheme": _SchemeName.NARP, "ldown": "air"}
+        }).code("net_radiation")
+        == 3
+    )

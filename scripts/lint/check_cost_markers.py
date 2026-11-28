@@ -1312,6 +1312,24 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _validate_baseline_input_paths(baseline_paths: list[Path]) -> str | None:
+    """Reject missing paths, malformed JSON, or explicitly named non-metrics baseline files."""
+    for raw_path in baseline_paths:
+        if not raw_path.exists():
+            return f"baseline metrics path not found: {raw_path.as_posix()}"
+        is_explicit_file = raw_path.is_file()
+        for file_path in iter_artefact_paths([raw_path]):
+            try:
+                payload = json.loads(file_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, ValueError) as exc:
+                return f"unreadable or malformed baseline metrics JSON {file_path.name}: {exc}"
+            if is_explicit_file and _pytest_payload(payload, file_path) is None:
+                return (
+                    f"baseline metrics file {file_path.name} has no per-test records"
+                )
+    return None
+
+
 def _load_optional_baseline_tests(
     baseline_paths: list[Path] | None,
     phase: str,
@@ -1321,6 +1339,9 @@ def _load_optional_baseline_tests(
         return None, None
     baseline_skipped: list[str] = []
     try:
+        input_err = _validate_baseline_input_paths(baseline_paths)
+        if input_err is not None:
+            return None, input_err
         baseline_tests, _ = load_tests(
             baseline_paths, phase=phase, skipped=baseline_skipped
         )

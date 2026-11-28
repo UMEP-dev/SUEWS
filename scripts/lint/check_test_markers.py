@@ -2851,73 +2851,225 @@ def _record_calls_in_expr(
             recorded.append((node, snap))
 
 
+_MAX_LOOP_FIXPOINT_ITERS: int = 6
+
+
+def _binding_state_signature(
+    state: _BindingState,
+) -> tuple[tuple[str, bool, tuple[str, ...]], ...]:
+    """Return a hashable structural signature of ``state`` for loop convergence."""
+    return tuple(
+        (key, key in state.overflowed, tuple(ast.dump(n) for n in state.env[key]))
+        for key in sorted(state.env)
+    )
+
+
 def _record_calls_in_stmt_order(
     stmts: list[ast.stmt],
     state: _BindingState,
     recorded: list[tuple[ast.Call, _BindingState]],
+    *,
+    exc_accum: list[_BindingState] | None = None,
+    descend_defs: bool = True,
 ) -> _BindingState:
     """Walk statements in execution order, recording calls with point-in-time bindings."""
     cur = state.clone()
     for stmt in stmts:
-        cur = _step_single_stmt(stmt, cur, recorded)
+        cur = _step_single_stmt(
+            stmt, cur, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+        )
+        if exc_accum is not None:
+            exc_accum[0] = _merge_binding_states(exc_accum[0], cur)
     return cur
+
+
+def _step_loop_stmt(
+    stmt: ast.For | ast.AsyncFor | ast.While,
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+    *,
+    exc_accum: list[_BindingState] | None,
+    descend_defs: bool,
+) -> _BindingState:
+    """Compute bounded loop-entry convergence so loop-carried bindings reach calls."""
+    header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
+    _record_calls_in_expr(header, state, recorded)
+    cur_entry = state.clone()
+    elements: list[ast.AST] = []
+    iter_ov = False
+    if isinstance(stmt, (ast.For, ast.AsyncFor)):
+        elements, iter_ov = _expand_iterable_in_state(stmt.iter, state)
+        _bind_for_target(stmt.target, elements, cur_entry, iter_overflowed=iter_ov)
+
+    converged = False
+    prev_sig = _binding_state_signature(cur_entry)
+    for _ in range(_MAX_LOOP_FIXPOINT_ITERS):
+        dry_recorded: list[tuple[ast.Call, _BindingState]] = []
+        body_exit = _record_calls_in_stmt_order(
+            stmt.body,
+            cur_entry.clone(),
+            dry_recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
+        next_entry = _merge_binding_states(cur_entry, body_exit)
+        if isinstance(stmt, (ast.For, ast.AsyncFor)) and elements:
+            _bind_for_target(stmt.target, elements, next_entry, iter_overflowed=iter_ov)
+        next_sig = _binding_state_signature(next_entry)
+        if next_sig == prev_sig:
+            converged = True
+            break
+        cur_entry = next_entry
+        prev_sig = next_sig
+
+    if not converged:
+        # Mark every non-converging variable as overflowed so subprocess checks fail closed.
+        dry_recorded = []
+        body_exit = _record_calls_in_stmt_order(
+            stmt.body,
+            cur_entry.clone(),
+            dry_recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
+        for key in set(cur_entry.env) | set(body_exit.env):
+            before_d = [ast.dump(n) for n in cur_entry.env.get(key, ())]
+            after_d = [ast.dump(n) for n in body_exit.env.get(key, ())]
+            if before_d != after_d:
+                cur_entry.overflowed.add(key)
+
+    body_state = _record_calls_in_stmt_order(
+        stmt.body,
+        cur_entry.clone(),
+        recorded,
+        exc_accum=exc_accum,
+        descend_defs=descend_defs,
+    )
+    merged = _merge_binding_states(state, _merge_binding_states(cur_entry, body_state))
+    if stmt.orelse:
+        else_state = _record_calls_in_stmt_order(
+            stmt.orelse,
+            merged.clone(),
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
+        merged = _merge_binding_states(merged, else_state)
+    return merged
+
+
+def _step_try_stmt(
+    stmt: ast.Try,
+    state: _BindingState,
+    recorded: list[tuple[ast.Call, _BindingState]],
+    *,
+    exc_accum: list[_BindingState] | None,
+    descend_defs: bool,
+) -> _BindingState:
+    """Preserve intermediate bindings from ``try.body`` for ``except``/``finally`` handlers."""
+    try_exc: list[_BindingState] = [state.clone()]
+    body_end = _record_calls_in_stmt_order(
+        stmt.body,
+        state.clone(),
+        recorded,
+        exc_accum=try_exc,
+        descend_defs=descend_defs,
+    )
+    handler_entry = try_exc[0]
+    if exc_accum is not None:
+        exc_accum[0] = _merge_binding_states(exc_accum[0], handler_entry)
+
+    normal_exit = (
+        _record_calls_in_stmt_order(
+            stmt.orelse,
+            body_end.clone(),
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
+        if stmt.orelse
+        else body_end
+    )
+    merged = normal_exit
+    for handler in stmt.handlers:
+        h_state = _record_calls_in_stmt_order(
+            handler.body,
+            handler_entry.clone(),
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
+        merged = _merge_binding_states(merged, h_state)
+    if stmt.finalbody:
+        finally_entry = _merge_binding_states(merged, handler_entry)
+        merged = _record_calls_in_stmt_order(
+            stmt.finalbody,
+            finally_entry,
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
+    return merged
 
 
 def _step_compound_stmt(
     stmt: ast.stmt,
     state: _BindingState,
     recorded: list[tuple[ast.Call, _BindingState]],
+    *,
+    exc_accum: list[_BindingState] | None = None,
+    descend_defs: bool = True,
 ) -> _BindingState:
     """Handle control-flow compound statements while preserving branch bindings."""
     if isinstance(stmt, ast.If):
         _record_calls_in_expr(stmt.test, state, recorded)
-        then_state = _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
+        then_state = _record_calls_in_stmt_order(
+            stmt.body,
+            state.clone(),
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
         else_state = (
-            _record_calls_in_stmt_order(stmt.orelse, state.clone(), recorded)
+            _record_calls_in_stmt_order(
+                stmt.orelse,
+                state.clone(),
+                recorded,
+                exc_accum=exc_accum,
+                descend_defs=descend_defs,
+            )
             if stmt.orelse
             else state
         )
         return _merge_binding_states(then_state, else_state)
     if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
-        header = stmt.iter if isinstance(stmt, (ast.For, ast.AsyncFor)) else stmt.test
-        _record_calls_in_expr(header, state, recorded)
-        loop_entry = state.clone()
-        if isinstance(stmt, (ast.For, ast.AsyncFor)):
-            elements, iter_ov = _expand_iterable_in_state(stmt.iter, state)
-            _bind_for_target(
-                stmt.target, elements, loop_entry, iter_overflowed=iter_ov
-            )
-        body_state = _record_calls_in_stmt_order(stmt.body, loop_entry, recorded)
-        merged = _merge_binding_states(state, body_state)
-        if stmt.orelse:
-            else_state = _record_calls_in_stmt_order(
-                stmt.orelse, merged.clone(), recorded
-            )
-            merged = _merge_binding_states(merged, else_state)
-        return merged
+        return _step_loop_stmt(
+            stmt, state, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+        )
     if isinstance(stmt, (ast.With, ast.AsyncWith)):
         for item in stmt.items:
             _record_calls_in_expr(item.context_expr, state, recorded)
-        return _record_calls_in_stmt_order(stmt.body, state, recorded)
+        return _record_calls_in_stmt_order(
+            stmt.body,
+            state,
+            recorded,
+            exc_accum=exc_accum,
+            descend_defs=descend_defs,
+        )
     if isinstance(stmt, ast.Try):
-        body_state = _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
-        merged = _merge_binding_states(state, body_state)
-        for handler in stmt.handlers:
-            h_state = _record_calls_in_stmt_order(
-                handler.body, merged.clone(), recorded
-            )
-            merged = _merge_binding_states(merged, h_state)
-        if stmt.orelse:
-            merged = _record_calls_in_stmt_order(stmt.orelse, merged, recorded)
-        if stmt.finalbody:
-            merged = _record_calls_in_stmt_order(stmt.finalbody, merged, recorded)
-        return merged
+        return _step_try_stmt(
+            stmt, state, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+        )
     if isinstance(stmt, ast.Match):
         _record_calls_in_expr(stmt.subject, state, recorded)
         merged = state.clone()
         for case in stmt.cases:
             c_state = _record_calls_in_stmt_order(
-                case.body, state.clone(), recorded
+                case.body,
+                state.clone(),
+                recorded,
+                exc_accum=exc_accum,
+                descend_defs=descend_defs,
             )
             merged = _merge_binding_states(merged, c_state)
         return merged
@@ -2947,6 +3099,9 @@ def _step_single_stmt(
     stmt: ast.stmt,
     state: _BindingState,
     recorded: list[tuple[ast.Call, _BindingState]],
+    *,
+    exc_accum: list[_BindingState] | None = None,
+    descend_defs: bool = True,
 ) -> _BindingState:
     """Process one statement in order, eagerly substituting assignment-time values."""
     if isinstance(stmt, ast.Assign):
@@ -2973,7 +3128,8 @@ def _step_single_stmt(
                 if rhs_ov or cap_ov:
                     state.overflowed.add(stmt.target.id)
     elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-        _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
+        if descend_defs:
+            _record_calls_in_stmt_order(stmt.body, state.clone(), recorded)
     elif isinstance(
         stmt,
         (
@@ -2987,10 +3143,28 @@ def _step_single_stmt(
             ast.Match,
         ),
     ):
-        return _step_compound_stmt(stmt, state, recorded)
+        return _step_compound_stmt(
+            stmt, state, recorded, exc_accum=exc_accum, descend_defs=descend_defs
+        )
     else:
         _record_calls_in_expr(stmt, state, recorded)
     return state
+
+
+def _build_module_binding_state(
+    tree: ast.Module,
+) -> tuple[_BindingState, dict[str, _BindingState]]:
+    """Evaluate module-level bindings in execution order and snapshot helper def states."""
+    cur = _BindingState()
+    helper_def_states: dict[str, _BindingState] = {}
+    discarded_calls: list[tuple[ast.Call, _BindingState]] = []
+    for stmt in tree.body:
+        if isinstance(
+            stmt, (ast.FunctionDef, ast.AsyncFunctionDef)
+        ) and not stmt.name.startswith("test_"):
+            helper_def_states[stmt.name] = cur.clone()
+        cur = _step_single_stmt(stmt, cur, discarded_calls, descend_defs=False)
+    return (cur, helper_def_states)
 
 
 def _is_subprocess_call(
@@ -3110,6 +3284,7 @@ def _extract_param_defaults(
 def _scan_single_helper(
     stmt: ast.FunctionDef | ast.AsyncFunctionDef,
     mod_state: _BindingState,
+    def_state: _BindingState,
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_return_exprs: Mapping[str, ast.AST],
@@ -3129,7 +3304,7 @@ def _scan_single_helper(
     ]
     param_pos = {name: idx for idx, name in enumerate(pos_args)}
     all_params = set(param_pos) | {arg.arg for arg in stmt.args.kwonlyargs}
-    param_defaults = _extract_param_defaults(stmt, mod_state)
+    param_defaults = _extract_param_defaults(stmt, def_state)
     entry_state = mod_state.clone()
     for p_name in all_params:
         entry_state.env.pop(p_name, None)
@@ -3266,6 +3441,7 @@ def _propagate_helper_clis(
 def _analyse_module_helpers(
     tree: ast.Module,
     mod_state: _BindingState,
+    helper_def_states: Mapping[str, _BindingState],
     subproc_aliases: set[str],
     subproc_funcs: set[str],
     helper_return_exprs: Mapping[str, ast.AST],
@@ -3304,6 +3480,7 @@ def _analyse_module_helpers(
             ) = _scan_single_helper(
                 stmt,
                 mod_state,
+                helper_def_states.get(stmt.name, mod_state),
                 subproc_aliases,
                 subproc_funcs,
                 helper_return_exprs,
@@ -3904,7 +4081,7 @@ class _FileAstGuardContext:
         self.rel_posix = rel_posix
         self.mod_env = _build_single_assign_env(tree)
         self.ast_value_env = _build_ast_value_env(tree)
-        self.mod_state = _BindingState({k: [v] for k, v in self.ast_value_env.items()})
+        self.mod_state, helper_def_states = _build_module_binding_state(tree)
         mod_markers, _ = _extract_scope_pytestmark(tree.body)
         self.mod_pm_exprs = _extract_scope_pytestmark_exprs(tree.body)
         self.file_e2e = ("e2e" in mod_markers) or (
@@ -3927,6 +4104,7 @@ class _FileAstGuardContext:
         ) = _analyse_module_helpers(
             tree,
             self.mod_state,
+            helper_def_states,
             self.subproc_aliases,
             self.subproc_funcs,
             self.helper_return_exprs,
@@ -5021,32 +5199,68 @@ def _try_fetch_origin_base_ref(repo_root: Path, base_branch: str) -> bool:
     return res.returncode == 0 and _git_ref_exists(repo_root, f"origin/{base_branch}")
 
 
-def _discover_github_base_ref(
-    repo_root: Path, env_base: str
+def _read_github_event_base_branch() -> str | None:
+    """Extract target base branch from ``GITHUB_EVENT_PATH`` for PR/merge_group events."""
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "").strip()
+    if not event_path:
+        return None
+    try:
+        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    mg = payload.get("merge_group")
+    if isinstance(mg, dict):
+        base_ref = mg.get("base_ref")
+        if isinstance(base_ref, str) and base_ref:
+            return base_ref.removeprefix("refs/heads/").strip() or None
+    pr = payload.get("pull_request")
+    if isinstance(pr, dict):
+        base = pr.get("base")
+        if isinstance(base, dict) and isinstance(base.get("ref"), str):
+            return base["ref"].strip() or None
+    return None
+
+
+def _discover_ci_base_ref(
+    repo_root: Path, base_candidates: tuple[str, ...], context_label: str
 ) -> tuple[str | None, str | None]:
-    """Resolve an independent trusted base ref when ``GITHUB_BASE_REF`` is set."""
+    """Resolve an independent trusted base ref for CI PR/merge_group checkouts."""
     if not _is_git_repo(repo_root):
         return (None, None)
-    for ref in (f"origin/{env_base}", env_base):
-        if _git_ref_exists(repo_root, ref):
-            return (ref, None)
+    for branch in base_candidates:
+        for ref in (f"origin/{branch}", branch):
+            if _git_ref_exists(repo_root, ref):
+                return (ref, None)
     if _git_ref_exists(repo_root, "HEAD^2") and _git_ref_exists(repo_root, "HEAD^1"):
         return ("HEAD^1", None)
-    if _try_fetch_origin_base_ref(repo_root, env_base):
-        return (f"origin/{env_base}", None)
+    for branch in base_candidates:
+        if _try_fetch_origin_base_ref(repo_root, branch):
+            return (f"origin/{branch}", None)
+    joined = ", ".join(f"origin/{b}" for b in base_candidates)
     return (
         None,
-        f"unable to resolve independent trusted base ref for GITHUB_BASE_REF={env_base!r} "
-        f"(shallow checkout without base history); fetch origin/{env_base} "
+        f"unable to resolve independent trusted base ref for {context_label} "
+        f"(shallow checkout without base history); fetch {joined} "
         "or pass --base-ref / --base-ast-baseline",
     )
 
 
 def _discover_trusted_base_ref(repo_root: Path) -> tuple[str | None, str | None]:
-    """Discover a trusted git base revision; fail closed in shallow PR checkouts."""
+    """Discover a trusted git base revision; fail closed in shallow CI checkouts."""
     env_base = os.environ.get("GITHUB_BASE_REF", "").strip()
     if env_base:
-        return _discover_github_base_ref(repo_root, env_base)
+        return _discover_ci_base_ref(
+            repo_root, (env_base,), f"GITHUB_BASE_REF={env_base!r}"
+        )
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
+    if event_name in {"pull_request", "pull_request_target", "merge_group"}:
+        event_base = _read_github_event_base_branch()
+        branches = (event_base,) if event_base else ("master", "main")
+        return _discover_ci_base_ref(
+            repo_root, branches, f"GITHUB_EVENT_NAME={event_name!r}"
+        )
     for ref in ("origin/master", "origin/main", "master", "main", "HEAD"):
         if _git_ref_exists(repo_root, ref):
             return (ref, None)

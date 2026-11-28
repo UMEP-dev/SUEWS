@@ -991,18 +991,23 @@ def test_advisory_boundary_isolates_malformed_baseline_nonfinite_and_invalid_cli
     assert report.advisory_errors
 
     # 3) Baseline containing [null], huge int (OverflowError), and 1e309 (Infinity)
-    #    must never crash or emit non-standard JSON Infinity.
-    for name, raw_text in (
-        ("null_rec.json", '{"schema_version": 2, "tests": [null]}'),
+    #    must never crash or emit non-standard JSON Infinity, exercising each exact failure path.
+    for name, raw_text, expected_diag in (
+        ("null_rec.json", '{"schema_version": 2, "tests": [null]}', "baseline metrics:"),
         (
             "huge_int.json",
             '{"schema_version": 2, "tests": [{"node_id": "test/a.py::test_x", '
-            '"outcome": "passed", "cpu_seconds": {"call": ' + ("9" * 400) + "}}]}",
+            '"outcome": "passed", "cpu_seconds": {"call": '
+            + ("9" * 400)
+            + '}, "wall_seconds": {"call": 1.0}}]}',
+            "int too large",
         ),
         (
             "inf_rec.json",
             '{"schema_version": 2, "tests": [{"node_id": "test/a.py::test_x", '
-            '"outcome": "passed", "cpu_seconds": {"call": 1e309}}]}',
+            '"outcome": "passed", "cpu_seconds": {"call": 1e309}, '
+            '"wall_seconds": {"call": 1.0}}]}',
+            "non-finite call CPU/wall",
         ),
     ):
         bad_base = tmp_path / name
@@ -1027,7 +1032,77 @@ def test_advisory_boundary_isolates_malformed_baseline_nonfinite_and_invalid_cli
         parsed = json.loads(raw_out)
         assert parsed["ok"] is True
         assert parsed["budget_delta"] is None
-        assert parsed["advisory_errors"]
+        assert any(expected_diag in err for err in parsed["advisory_errors"]), (
+            name,
+            parsed["advisory_errors"],
+        )
+
+
+def test_incomplete_optional_baseline_suppresses_delta_with_advisory_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Valid + missing/corrupt optional baseline suppresses delta; valid JSON sidecars stay allowed."""
+    curr = _artefact(
+        tmp_path / "unit-cp312-linux-x86_64.json",
+        [_record("test/core/test_ok.py::test_fast", call=1.5)],
+    )
+    valid_base = _artefact(
+        tmp_path / "valid_base.json",
+        [_record("test/core/test_ok.py::test_fast", call=1.0)],
+    )
+    corrupt_base = tmp_path / "corrupt_base.json"
+    corrupt_base.write_text("{not valid json", encoding="utf-8")
+    for second_path, diag_frag in (
+        (tmp_path / "missing_base.json", "path not found"),
+        (corrupt_base, "unreadable or malformed"),
+    ):
+        out_partial = tmp_path / f"out_{second_path.stem}.json"
+        assert (
+            checker.main([
+                str(curr),
+                "--baseline-metrics",
+                str(valid_base),
+                "--baseline-metrics",
+                str(second_path),
+                "--budget-warn",
+                "10",
+                "--json",
+                str(out_partial),
+            ])
+            == 0
+        )
+        capsys.readouterr()
+        parsed_partial = json.loads(out_partial.read_text(encoding="utf-8"))
+        assert parsed_partial["ok"] is True
+        assert parsed_partial["budget_delta"] is None
+        assert any(diag_frag in err for err in parsed_partial["advisory_errors"])
+
+    mixed_dir = tmp_path / "mixed_base_dir"
+    mixed_dir.mkdir()
+    _artefact(
+        mixed_dir / "unit-cp312-linux-x86_64.json",
+        [_record("test/core/test_ok.py::test_fast", call=1.0)],
+    )
+    (mixed_dir / "workflow.json").write_text(
+        json.dumps({"workflow": "summary"}), encoding="utf-8"
+    )
+    out_mixed = tmp_path / "out_mixed.json"
+    assert (
+        checker.main([
+            str(curr),
+            "--baseline-metrics",
+            str(mixed_dir),
+            "--budget-warn",
+            "10",
+            "--json",
+            str(out_mixed),
+        ])
+        == 0
+    )
+    capsys.readouterr()
+    parsed_mixed = json.loads(out_mixed.read_text(encoding="utf-8"))
+    assert parsed_mixed["budget_delta"] is not None
+    assert parsed_mixed["advisory_errors"] == []
 
 
 def test_budget_delta_tracks_added_lane_execution_and_call_phase_under_setup_phase(

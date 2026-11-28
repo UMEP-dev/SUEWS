@@ -2697,6 +2697,12 @@ def test_ast_guards_shallow_ci_checkout_fails_closed_without_base_history(
     assert _run(shallow_online) == 1
     assert "increased parametrised-simulation debt" in capsys.readouterr().err
 
+    # 3) Shallow merge_group checkout with GITHUB_BASE_REF unset must ALSO fail closed.
+    monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "merge_group")
+    assert _run(shallow_offline) == 1
+    assert "shallow checkout" in capsys.readouterr().err
+
 
 def test_ast_guards_conditional_marks_diamond_mro_try_intermediate_and_helper_overflow(
     tmp_path: Path, capsys
@@ -2761,3 +2767,69 @@ def test_ast_guards_conditional_marks_diamond_mro_try_intermediate_and_helper_ov
     assert "missing-e2e-marker: test/core/test_r3_edges.py::TestDiamond::test_cli" in err
     assert "parametrised-simulation: test/core/test_r3_edges.py::test_try_intermediate_sim_caught" in err
     assert "subprocess-analysis-overflow: test/core/test_r3_edges.py::test_calls_overflowing_helper" in err
+
+
+def test_ast_guards_loop_carried_try_intermediate_and_module_eager_bindings(
+    tmp_path: Path, capsys
+) -> None:
+    """Loop-carried bindings, intermediate try bindings, and module eager bindings are caught."""
+    src_detect = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "EXE = 'suews'\n"
+        "ARGV = [EXE, '--help']\n"
+        "EXE = 'git'\n\n"
+        "DEF_EXE = 'suews-validate'\n"
+        "def _invoke_default(argv=[DEF_EXE, 'cfg.yml']):\n"
+        "    return subprocess.run(argv)\n"
+        "DEF_EXE = 'git'\n\n"
+        "def test_module_eager_captures_suews():\n"
+        "    subprocess.run(ARGV)\n\n"
+        "def test_module_helper_default_captures_definition_time():\n"
+        "    _invoke_default()\n\n"
+        "def test_loop_carried_suews():\n"
+        "    argv = ['git', '--version']\n"
+        "    for _ in range(2):\n"
+        "        subprocess.run(argv)\n"
+        "        argv = ['suews-mcp', '--help']\n\n"
+        "def test_try_intermediate_suews():\n"
+        "    argv = ['git', '--version']\n"
+        "    try:\n"
+        "        argv = ['suews-run', 'cfg.yml']\n"
+        "        int('bad')\n"
+        "        argv = ['git', '--version']\n"
+        "    except ValueError:\n"
+        "        subprocess.run(argv)\n\n"
+        "def test_non_converging_loop_fails_closed():\n"
+        "    argv = ['git']\n"
+        "    for _ in range(10):\n"
+        "        argv += ['--flag']\n"
+        "    subprocess.run(argv)\n"
+    )
+    src_clean = (
+        "import subprocess\n"
+        "import pytest\n"
+        "pytestmark = pytest.mark.native\n\n"
+        "EXE = 'git'\n"
+        "ARGV = [EXE, '--version']\n"
+        "EXE = 'suews'\n\n"
+        "def test_module_eager_no_false_positive():\n"
+        "    subprocess.run(ARGV)\n"
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "test/test_surface.py": UNIT_TEST_SOURCE,
+            "test/core/test_r4_detect.py": src_detect,
+            "test/core/test_r4_clean.py": src_clean,
+        },
+    )
+    assert _run(repo) == 1
+    err = capsys.readouterr().err
+    assert "missing-e2e-marker: test/core/test_r4_detect.py::test_module_eager_captures_suews" in err
+    assert "missing-e2e-marker: test/core/test_r4_detect.py::test_module_helper_default_captures_definition_time" in err
+    assert "missing-e2e-marker: test/core/test_r4_detect.py::test_loop_carried_suews" in err
+    assert "missing-e2e-marker: test/core/test_r4_detect.py::test_try_intermediate_suews" in err
+    assert "subprocess-analysis-overflow: test/core/test_r4_detect.py::test_non_converging_loop_fails_closed" in err
+    assert "test_module_eager_no_false_positive" not in err

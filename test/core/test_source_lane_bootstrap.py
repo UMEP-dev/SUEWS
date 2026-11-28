@@ -410,16 +410,17 @@ def test_resolve_suews_cli_command_dispatches_python_in_source_lane() -> None:
         env={slb.SOURCE_LANE_ENV_VAR: "1"},
     )
     assert cmd[0] == sys.executable
-    assert cmd[1] == "-c"
-    assert "supy.cmd.suews_cli" in cmd[2]
-    assert "main" in cmd[2]
+    assert cmd[1:3] == ["-P", "-c"]
+    assert "supy.cmd.suews_cli" in cmd[3]
+    assert "main" in cmd[3]
 
     alias_cmd = slb.resolve_suews_cli_command(
         "suews-validate",
         repo_root=REPO_ROOT,
         env={slb.SOURCE_LANE_ENV_VAR: "1"},
     )
-    assert "validate_alias" in alias_cmd[2]
+    assert alias_cmd[1:3] == ["-P", "-c"]
+    assert "validate_alias" in alias_cmd[3]
 
     with pytest.raises(ValueError, match="Unknown SUEWS CLI route"):
         slb.resolve_suews_cli_command(
@@ -476,8 +477,168 @@ def test_configure_source_paths_normalises_relative_pythonpath(
     src_dir, mcp_dir = slb.configure_source_paths(tmp_path)
 
     entries = os.environ["PYTHONPATH"].split(os.pathsep)
-    assert entries[:3] == [str(src_dir), str(mcp_dir), str(extra_rel.resolve())]
+    assert entries[:2] == [str(src_dir), str(mcp_dir)]
+    assert str(extra_rel.resolve()) in entries
     assert all(Path(entry).is_absolute() for entry in entries)
+    assert os.environ[slb.SOURCE_LANE_ROOT_ENV_VAR] == str(tmp_path.resolve())
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_ordinary_child_python_subprocess_inherits_compiled_extension_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ordinary ``python -c`` children inherit ``CompiledExtensionBlocker`` via startup hook."""
+    monkeypatch.setenv(slb.SOURCE_LANE_ENV_VAR, "1")
+    monkeypatch.setenv("PYTHONPATH", "")
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    slb.configure_source_paths(REPO_ROOT)
+
+    proc = subprocess.run(
+        [sys.executable, "-c", "import supy.suews_bridge"],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=30,
+    )
+    assert proc.returncode != 0
+    assert "SourceLaneViolationError" in proc.stderr
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_source_checkout_overrides_editable_finder_and_rejects_conflicting_cache(
+    tmp_path: Path,
+) -> None:
+    """Source mode resolves ``supy`` from ``repo_root``, skips editable rebuilds, and rejects foreign caches."""
+    checkout_a = tmp_path / "checkout_a"
+    pkg_a = checkout_a / "src" / "supy"
+    pkg_a.mkdir(parents=True)
+    (pkg_a / "__init__.py").write_text(
+        "SOURCE_MARKER = 'checkout_a'\n"
+        "try:\n"
+        "    from ._version_scm import __version__\n"
+        "except ModuleNotFoundError:\n"
+        "    __version__ = '0+unknown'\n",
+        encoding="utf-8",
+    )
+
+    foreign_dir = tmp_path / "foreign_supy"
+    foreign_dir.mkdir()
+    foreign_init = foreign_dir / "__init__.py"
+    foreign_init.write_text("SOURCE_MARKER = 'foreign'\n", encoding="utf-8")
+
+    # 1. With a Meson-style editable meta-path finder ahead of PathFinder,
+    #    activate(checkout_a) must disable it and resolve supy from checkout_a
+    #    without invoking the editable finder's build hook.
+    override_script = (
+        "import importlib.abc, importlib.util, pathlib, sys\n"
+        "build_calls = []\n"
+        "class _FakeMesonEditableFinder(importlib.abc.MetaPathFinder):\n"
+        "    __module__ = '_supy_editable_loader'\n"
+        "    def find_spec(self, fullname, path, target=None):\n"
+        "        if fullname == 'supy' or fullname.startswith('supy.'):\n"
+        "            build_calls.append(fullname)\n"
+        "            raise AssertionError('editable loader should not be invoked')\n"
+        "        return None\n"
+        "fake_finder = _FakeMesonEditableFinder()\n"
+        "sys.meta_path.insert(0, fake_finder)\n"
+        f"spec = importlib.util.spec_from_file_location('slb', {str(BOOTSTRAP_PATH)!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        f"mod.activate(pathlib.Path({str(checkout_a)!r}))\n"
+        "assert fake_finder not in sys.meta_path\n"
+        "import supy\n"
+        "from supy import _version_scm\n"
+        "assert supy.SOURCE_MARKER == 'checkout_a', supy.SOURCE_MARKER\n"
+        "assert supy.__version__ == '0+unknown', supy.__version__\n"
+        "assert _version_scm.__commit_hash__ == 'unknown'\n"
+        "assert build_calls == [], build_calls\n"
+        "mod.uninstall_guards()\n"
+        "assert fake_finder in sys.meta_path\n"
+    )
+    proc_override = subprocess.run(
+        [sys.executable, "-S", "-P", "-c", override_script],
+        cwd=tmp_path,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR}
+        },
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert proc_override.returncode == 0, proc_override.stdout + proc_override.stderr
+
+    # 2. If a foreign `supy` is already cached in sys.modules before activate(),
+    #    activate(checkout_a) fails loudly with SourceLaneViolationError.
+    conflict_script = (
+        "import importlib.util, pathlib, sys, types; "
+        "foreign = types.ModuleType('supy'); "
+        f"foreign.__file__ = {str(foreign_init)!r}; "
+        f"foreign.__path__ = [{str(foreign_dir)!r}]; "
+        "sys.modules['supy'] = foreign; "
+        f"spec = importlib.util.spec_from_file_location('slb', {str(BOOTSTRAP_PATH)!r}); "
+        "mod = importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(mod); "
+        f"mod.activate(pathlib.Path({str(checkout_a)!r}))"
+    )
+    proc_conflict = subprocess.run(
+        [sys.executable, "-S", "-P", "-c", conflict_script],
+        cwd=tmp_path,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR}
+        },
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert proc_conflict.returncode != 0
+    assert "SourceLaneViolationError" in proc_conflict.stderr
+
+
+@pytest.mark.e2e
+@pytest.mark.os_compat
+def test_resolved_source_cli_command_resists_cwd_shadow_modules(
+    tmp_path: Path,
+) -> None:
+    """``resolve_suews_cli_command`` uses ``-P`` so CWD ``pathlib.py``/``click.py`` cannot shadow imports."""
+    (tmp_path / "pathlib.py").write_text(
+        "raise RuntimeError('cwd pathlib.py shadowed stdlib')\n", encoding="utf-8"
+    )
+    (tmp_path / "click.py").write_text(
+        "raise RuntimeError('cwd click.py shadowed dependency')\n", encoding="utf-8"
+    )
+    cmd = slb.resolve_suews_cli_command(
+        "suews",
+        repo_root=REPO_ROOT,
+        env={slb.SOURCE_LANE_ENV_VAR: "1"},
+    )
+    child_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"PYTHONPATH", slb.SOURCE_LANE_ENV_VAR}
+    }
+    proc = subprocess.run(
+        [*cmd, "--help"],
+        cwd=tmp_path,
+        env=child_env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "SUEWS unified command-line interface" in proc.stdout
 
 
 @pytest.mark.e2e

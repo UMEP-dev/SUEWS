@@ -4,8 +4,11 @@
 Activated by ``test/conftest.py`` when ``SUEWS_SOURCE_LANE_ONLY=1`` is set.
 Enables running the ``tooling`` and ``unit`` pytest axes directly from a clean
 source checkout (without building or installing a compiled ``supy`` wheel),
-while actively blocking accidental imports of compiled Rust/Fortran extensions
-and refusing to execute ``native`` or ``physics`` tests in source lanes.
+while actively blocking accidental imports of compiled Rust/Fortran extensions,
+resolving ``supy`` and ``suews_mcp`` authoritatively from the requested
+checkout (superseding installed wheels and Meson editable loaders), propagating
+startup guards to ordinary child Python subprocesses, and refusing to execute
+``native`` or ``physics`` tests in source lanes.
 
 When ``SUEWS_SOURCE_LANE_ONLY`` is unset or falsy, this module performs no
 process mutations so normal wheel and editable test runs stay unchanged.
@@ -24,6 +27,7 @@ import sysconfig
 from typing import Any
 
 SOURCE_LANE_ENV_VAR = "SUEWS_SOURCE_LANE_ONLY"
+SOURCE_LANE_ROOT_ENV_VAR = "SUEWS_SOURCE_LANE_ROOT"
 _TRUTHY_VALUES: frozenset[str] = frozenset({"1", "true", "yes", "on"})
 _FALSY_VALUES: frozenset[str] = frozenset({"0", "false", "no", "off"})
 
@@ -62,7 +66,12 @@ _CLI_ENTRY_POINTS: dict[str, tuple[str, str]] = {
     "suews-inspect": ("supy.cmd.suews_cli", "inspect_alias"),
 }
 
-_STATE: dict[str, Path | None] = {"repo_root": None}
+_SITE_BOOTSTRAP_DIR = Path(__file__).resolve().parent / "source_lane_site"
+
+_STATE: dict[str, Any] = {
+    "repo_root": None,
+    "disabled_finders": [],
+}
 
 
 class SourceLaneViolationError(RuntimeError):
@@ -168,12 +177,155 @@ class VersionScmFallbackFinder(importlib.abc.MetaPathFinder, importlib.abc.Loade
         module.commit_hash = "unknown"
 
 
+class SourceCheckoutFinder(importlib.abc.MetaPathFinder):
+    """Resolve ``supy`` and ``suews_mcp`` authoritatively from one source checkout.
+
+    Installed right after :class:`CompiledExtensionBlocker` (ahead of Meson
+    editable finders and ``PathFinder``) so source-lane imports always bind to
+    the requested checkout and never trigger editable rebuilds or load an
+    installed wheel from another path.
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        """Record the checkout's ``src/`` and ``mcp/src/`` roots."""
+        self.repo_root = repo_root.resolve()
+        self._package_roots: dict[str, Path] = {}
+        src_dir = self.repo_root / "src"
+        mcp_src_dir = self.repo_root / "mcp" / "src"
+        if (src_dir / "supy").is_dir():
+            self._package_roots["supy"] = src_dir
+        if (mcp_src_dir / "suews_mcp").is_dir():
+            self._package_roots["suews_mcp"] = mcp_src_dir
+        self._version_fallback = VersionScmFallbackFinder()
+
+    def find_spec(
+        self,
+        fullname: str,
+        path: Sequence[str] | None,
+        target: Any = None,
+    ) -> importlib.machinery.ModuleSpec | None:
+        """Resolve ``supy`` and ``suews_mcp`` modules from ``self.repo_root``."""
+        top = fullname.split(".", 1)[0]
+        pkg_root = self._package_roots.get(top)
+        if pkg_root is None:
+            return None
+
+        parts = fullname.split(".")
+        if len(parts) == 1:
+            search_paths = [str(pkg_root)]
+        else:
+            parent_dir = pkg_root.joinpath(*parts[:-1])
+            search_paths = [str(parent_dir)] if parent_dir.is_dir() else []
+
+        spec = (
+            importlib.machinery.PathFinder.find_spec(fullname, search_paths, target)
+            if search_paths
+            else None
+        )
+        if spec is not None:
+            return spec
+        if fullname in _FALLBACK_VERSION_MODULES:
+            return importlib.machinery.ModuleSpec(fullname, self._version_fallback)
+        del path
+        return None
+
+
+def _is_editable_loader_finder(finder: Any) -> bool:
+    """Return True when ``finder`` is a Meson/editable meta-path finder for ``supy``."""
+    if isinstance(
+        finder,
+        (CompiledExtensionBlocker, SourceCheckoutFinder, VersionScmFallbackFinder),
+    ):
+        return False
+    cls = finder if isinstance(finder, type) else type(finder)
+    mod_name = getattr(cls, "__module__", "") or ""
+    cls_name = getattr(cls, "__name__", "") or ""
+    if "editable_loader" in mod_name and ("supy" in mod_name or "suews" in mod_name):
+        return True
+    if "mesonpy" in mod_name.lower() or "editablefinder" in cls_name.lower():
+        project = str(
+            getattr(finder, "_project", "")
+            or getattr(finder, "_name", "")
+            or getattr(finder, "name", "")
+            or mod_name
+        ).lower()
+        if "supy" in project or "suews" in project:
+            return True
+    return False
+
+
+def _owned_package_roots(repo_root: Path) -> dict[str, Path]:
+    """Return ``{pkg_name: pkg_dir}`` for packages present under ``repo_root``."""
+    resolved_root = repo_root.resolve()
+    roots: dict[str, Path] = {}
+    supy_dir = resolved_root / "src" / "supy"
+    mcp_dir = resolved_root / "mcp" / "src" / "suews_mcp"
+    if supy_dir.is_dir():
+        roots["supy"] = supy_dir
+    if mcp_dir.is_dir():
+        roots["suews_mcp"] = mcp_dir
+    return roots
+
+
+def _module_is_within(module: Any, expected_dir: Path) -> bool:
+    """Return True if ``module`` originates under ``expected_dir`` or is synthetic."""
+    spec = getattr(module, "__spec__", None)
+    if spec is not None and isinstance(spec.loader, VersionScmFallbackFinder):
+        return True
+
+    raw_file = getattr(module, "__file__", None)
+    raw_path = getattr(module, "__path__", None)
+    if raw_file:
+        candidates = [raw_file]
+    elif raw_path is not None:
+        candidates = list(raw_path)
+        if not candidates:
+            return False
+    else:
+        return True
+
+    try:
+        return all(Path(p).resolve().is_relative_to(expected_dir) for p in candidates)
+    except OSError:
+        return False
+
+
+def _assert_no_conflicting_loaded_packages(repo_root: Path | None) -> None:
+    """Reject already-cached ``supy``/``suews_mcp`` modules from outside ``repo_root``."""
+    if repo_root is None:
+        return
+    expected_roots = _owned_package_roots(repo_root)
+    if not expected_roots:
+        return
+
+    conflicts: list[str] = []
+    for name, module in list(sys.modules.items()):
+        if module is None:
+            continue
+        top = name.split(".", 1)[0]
+        expected_dir = expected_roots.get(top)
+        if expected_dir is None:
+            continue
+        if not _module_is_within(module, expected_dir):
+            origin = getattr(module, "__file__", None) or getattr(
+                module, "__path__", "<unknown>"
+            )
+            conflicts.append(f"{name} ({origin})")
+    if conflicts:
+        raise SourceLaneViolationError(
+            f"Conflicting cached package module(s) loaded outside requested "
+            f"source checkout {repo_root.resolve()} under "
+            f"{SOURCE_LANE_ENV_VAR}=1: {', '.join(sorted(conflicts))}"
+        )
+
+
 def configure_source_paths(repo_root: Path) -> tuple[Path, Path]:
-    """Ensure ``src`` and ``mcp/src`` are absolute entries on ``sys.path`` and ``PYTHONPATH``.
+    """Ensure ``src``, ``mcp/src``, and startup hook are absolute on ``sys.path``/``PYTHONPATH``.
 
     Normalising relative ``PYTHONPATH`` entries (such as ``PYTHONPATH=src:mcp/src``)
-    to absolute paths ensures child subprocesses launched with ``cwd=tmp_path``
-    continue resolving the source checkout cleanly.
+    to absolute paths and exporting ``source_lane_site`` ensures child
+    subprocesses launched with ``cwd=tmp_path`` resolve the source checkout
+    cleanly and inherit the compiled-extension guards at interpreter startup.
 
     Parameters
     ----------
@@ -192,8 +344,9 @@ def configure_source_paths(repo_root: Path) -> tuple[Path, Path]:
 
     for path in reversed(source_dirs):
         path_str = str(path)
-        if path_str not in sys.path:
-            sys.path.insert(0, path_str)
+        if path_str in sys.path:
+            sys.path.remove(path_str)
+        sys.path.insert(0, path_str)
 
     cwd = Path.cwd()
     raw_pythonpath = os.environ.get("PYTHONPATH", "")
@@ -215,12 +368,17 @@ def configure_source_paths(repo_root: Path) -> tuple[Path, Path]:
         path_str = str(path)
         if path_str not in combined:
             combined.append(path_str)
+    if _SITE_BOOTSTRAP_DIR.is_dir():
+        site_dir_str = str(_SITE_BOOTSTRAP_DIR.resolve())
+        if site_dir_str not in combined:
+            combined.append(site_dir_str)
     for entry in existing_entries:
         if entry not in combined:
             combined.append(entry)
 
     if combined:
         os.environ["PYTHONPATH"] = os.pathsep.join(combined)
+    os.environ[SOURCE_LANE_ROOT_ENV_VAR] = str(resolved_root)
 
     return src_dir, mcp_src_dir
 
@@ -239,13 +397,37 @@ def _assert_no_loaded_compiled_modules() -> None:
         )
 
 
-def install_guards() -> None:
-    """Install the compiled-extension blocker and ``_version_scm`` fallback finder."""
+def install_guards(repo_root: Path | None = None) -> None:
+    """Install the compiled-extension blocker, checkout finder, and version fallback."""
     _assert_no_loaded_compiled_modules()
+    _assert_no_conflicting_loaded_packages(repo_root)
+
+    # Temporarily disable any installed Meson editable meta-path finder for supy
+    # so it cannot trigger compilation or resolve another checkout in source mode.
+    kept_finders: list[Any] = []
+    for finder in sys.meta_path:
+        if _is_editable_loader_finder(finder):
+            if finder not in _STATE["disabled_finders"]:
+                _STATE["disabled_finders"].append(finder)
+            continue
+        if isinstance(finder, SourceCheckoutFinder):
+            continue
+        kept_finders.append(finder)
+    sys.meta_path[:] = kept_finders
+
     if not any(
         isinstance(finder, CompiledExtensionBlocker) for finder in sys.meta_path
     ):
         sys.meta_path.insert(0, CompiledExtensionBlocker())
+
+    if repo_root is not None:
+        blocker_idx = next(
+            idx
+            for idx, finder in enumerate(sys.meta_path)
+            if isinstance(finder, CompiledExtensionBlocker)
+        )
+        sys.meta_path.insert(blocker_idx + 1, SourceCheckoutFinder(repo_root))
+
     if not any(
         isinstance(finder, VersionScmFallbackFinder) for finder in sys.meta_path
     ):
@@ -253,12 +435,19 @@ def install_guards() -> None:
 
 
 def uninstall_guards() -> None:
-    """Remove source-lane meta-path finders installed by :func:`install_guards`."""
+    """Remove source-lane meta-path finders and restore any disabled editable finders."""
     sys.meta_path[:] = [
         finder
         for finder in sys.meta_path
-        if not isinstance(finder, (CompiledExtensionBlocker, VersionScmFallbackFinder))
+        if not isinstance(
+            finder,
+            (CompiledExtensionBlocker, SourceCheckoutFinder, VersionScmFallbackFinder),
+        )
     ]
+    for finder in reversed(_STATE["disabled_finders"]):
+        if finder not in sys.meta_path:
+            sys.meta_path.insert(0, finder)
+    _STATE["disabled_finders"].clear()
 
 
 def activate(repo_root: Path | None = None) -> Path:
@@ -280,7 +469,7 @@ def activate(repo_root: Path | None = None) -> Path:
         else Path(__file__).resolve().parents[2]
     )
     configure_source_paths(resolved_root)
-    install_guards()
+    install_guards(resolved_root)
     _STATE["repo_root"] = resolved_root
     return resolved_root
 
@@ -361,9 +550,10 @@ def resolve_suews_cli_command(
     and raises ``AssertionError`` if absent (preserving existing test contracts).
 
     In wheel-free source lanes (``SUEWS_SOURCE_LANE_ONLY=1``), returns a
-    ``sys.executable -c ...`` command that activates source-lane guards and
-    dispatches directly to the matching pure-Python entry point in
-    ``supy.cmd.suews_cli``.
+    ``sys.executable -P -c ...`` command (omitting the current working directory
+    from ``sys.path`` to prevent CWD shadowing while retaining ``PYTHONPATH``)
+    that activates source-lane guards deterministically and dispatches directly
+    to the matching pure-Python entry point in ``supy.cmd.suews_cli``.
 
     Parameters
     ----------
@@ -409,4 +599,4 @@ def resolve_suews_cli_command(
         f"sys.argv[0] = {route!r}; "
         f"getattr(importlib.import_module({module_name!r}), {func_name!r})()"
     )
-    return [sys.executable, "-c", snippet]
+    return [sys.executable, "-P", "-c", snippet]

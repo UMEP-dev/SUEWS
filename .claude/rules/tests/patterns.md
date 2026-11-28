@@ -86,65 +86,42 @@ with pytest.raises(ValueError, match="must be positive"):
 
 ## Pytest Markers
 
-Markers sit on two orthogonal axes (gh#1300). Every new test file under
-`test/` **must** declare the nature axis at module level; tier markers compose
-on top as per-test decorators. The standalone exceptions outside `test/` (see
-"Test File Locations") are exempt: `benchmark/tests/` and the stdlib-only
-`.claude/scripts/test_*.py` carry no nature marker. [fact: git grep -n 'test_root = repo_root / "test"' scripts/lint/check_test_markers.py && git grep -n "python -m unittest discover -s .claude/scripts" .github/workflows/validate-claude-md.yml]
+Markers sit on orthogonal axes (gh#1300, gh#2349). Every pytest-discoverable
+file under `test/` (except `test/umep/`, which receives its markers
+automatically) **must** declare one primary dependency axis at module level;
+orthogonal cross-axis slices (`os_compat`, `e2e`) and importance/cost markers
+compose on top. The standalone exceptions outside `test/` (see "Test File
+Locations") are exempt: `benchmark/tests/` and the stdlib-only
+`.claude/scripts/test_*.py` carry no dependency-axis marker. [fact: git grep -n 'test_root = repo_root / "test"' scripts/lint/check_test_markers.py && git grep -n "python -m unittest discover -s .claude/scripts" .github/workflows/validate-claude-md.yml]
 
-### Nature axis -- REQUIRED on every file under `test/`
+### Dependency axes (4+1) -- REQUIRED on every file under `test/`
 
-Pick exactly one (or both, rarely) and declare at module level:
+Pick **exactly one** primary dependency axis -- named for the cheapest thing
+the test needs in order to run -- and declare it at module level via
+`pytestmark`: [decision: software maintainer, 2026-11-26]
 
 ```python
 import pytest
 
-pytestmark = pytest.mark.api  # Python wrapper surface
+pytestmark = pytest.mark.unit  # pure Python in supy/suews_mcp (runs from source)
 # or:
-pytestmark = pytest.mark.physics  # numerical / binary correctness
-# or (file straddles both):
-pytestmark = [pytest.mark.physics, pytest.mark.api]
+pytestmark = pytest.mark.tooling  # repo scripts, lints, CI helpers, docs checks
+# or:
+pytestmark = pytest.mark.native  # compiled extension or suews-engine contract/guard
+# or:
+pytestmark = pytest.mark.physics  # model output values from a compiled run
+# with orthogonal slice(s) when needed:
+pytestmark = [pytest.mark.native, pytest.mark.e2e]
 ```
 
-- `physics` -- outputs determined by the compiled artefact + CPU
-  floating-point. CI runs these once per `(OS, arch)` on the build
-  Python. Typical: mass/energy balance, DailyState accumulation, Fortran
-  state persistence.
-- `api` -- exercises the pandas / numpy / pydantic / click surface. CI
-  runs these across `(platform x Python)` because the dependency
-  surface varies per interpreter. Typical: config validation, CLI, YAML
-  round-trip, `SUEWSSimulation` methods.
-
-When unsure, pick `api` -- it's the broader coverage axis and safer if
-the test is genuinely mixed.
-
-UMEP tests (`test/umep/*.py`) pick up `api` automatically via
-`test/umep/conftest.py`; no file-level declaration needed there. These remain
-needed with the Rust backend because they guard the UMEP/QGIS plugin-facing API
-contracts rather than model physics.
-
-**A static CI lint (`scripts/lint/check_test_markers.py`) and a
-`pytest_collection_finish` hook in `test/conftest.py` both fail any PR
-that introduces a test file without a nature marker.** If you see the
-lint fire, add a `pytestmark = pytest.mark.api` (or physics) line -- do
-not bypass.
-
-### Transition to the 4+1 dependency axes (#2349)
-
-The marker lint currently accepts exactly the `physics | api` nature set. [fact: git grep -n 'NATURE_MARKERS = {"physics", "api"}' scripts/lint/check_test_markers.py]
-That nature axis stays the active rule until `pyproject.toml` registers the
-`tooling`, `unit` and `native` markers (#2349 `W1-4`); until then, do not add
-those markers. From the revision where `W1-4` registers them, the axes below
-replace the nature axis without a further edit to this file. [decision: software maintainer, 2026-11-26]
-
-Each file under `test/` then declares exactly one dependency axis, named for the
-cheapest thing the test needs in order to run: [decision: software maintainer, 2026-11-26]
+Primary dependency axes (`AXIS_MARKERS` in `scripts/lint/check_test_markers.py`,
+registered in `pyproject.toml`): [fact: git grep -n 'AXIS_MARKERS.*frozenset({"tooling", "unit", "native", "physics"})' scripts/lint/check_test_markers.py && git grep -n '"tooling:' pyproject.toml]
 
 - `tooling` -- repository scripts, lints, CI helpers and documentation checks;
   needs neither the compiled extension nor a model run. Runs from source.
-- `unit` -- pure Python in `supy` (data model, validator rules through
-  `SUEWSConfig.from_dict()`, converters, helpers); imports no compiled code.
-  Runs from source.
+- `unit` -- pure Python in `supy` / `suews_mcp` (data model, validator rules
+  through `SUEWSConfig.from_dict()`, converters, helpers); imports no compiled
+  code. Runs from source.
 - `native` -- needs compiled native code (the Python extension or the
   standalone `suews-engine` binary) but asserts a contract rather than an
   output value: bridge loading, guard and error witnesses, I/O wiring. An
@@ -153,56 +130,99 @@ cheapest thing the test needs in order to run: [decision: software maintainer, 2
 - `physics` -- asserts model output values from a compiled run (balances,
   oracles, reference outputs).
 
-Two orthogonal markers compose with any axis: `os_compat` marks the slice whose
-behaviour depends on the operating system (paths, encodings, process spawning),
-and `e2e` marks a test that starts a subprocess (the CLI or the `suews-engine`
-binary), whose count the static gate caps (#2349 `W1-8`). When two axes fit,
-pick the more expensive one (`native` over `unit`). The `api` axis is retired
-by `W1-4`; its compatibility shim is removed by `W1-7`. Where each axis runs in
-CI is stated once, in `ci/conventions.md` ("Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-26]
-From the revision where `W1-6` enables that topology, its event selection
-supersedes the event-based statements in "PR/CR placement" below (which tiers
-run on draft, ready and merge-queue runs, and that a `slow` test runs before
-merge only when it also carries `core`); the importance and cost definitions,
-including "Cost thresholds", are unchanged. [decision: software maintainer, 2026-11-26]
+Two orthogonal markers compose with any primary axis: [decision: software maintainer, 2026-11-26]
+
+- `os_compat` -- marks the slice whose behaviour depends on the operating
+  system (paths, encodings, symlinks/junctions, POSIX permissions, process
+  spawning), run on Windows and macOS as well as Linux.
+- `e2e` -- marks a test that starts a subprocess (the CLI entry points or the
+  `suews-engine` binary); a static gate capping subprocess `e2e` counts is
+  planned in #2349 (`W1-8`).
+
+When two primary axes fit a file, pick the more expensive one (`native` over
+`unit`, `physics` over `native`); do not declare two primary axes on one file. [decision: software maintainer, 2026-11-26]
+
+UMEP tests (`test/umep/*.py`) pick up `native`, `os_compat`, and `qgis`
+automatically via `test/umep/conftest.py`; no file-level `pytestmark`
+declaration is needed there (`AUTO_APPLIED_DIRS`). [fact: git grep -n 'AUTO_APPLIED_DIRS' scripts/lint/check_test_markers.py && git grep -n 'item.add_marker(pytest.mark.native)' test/umep/conftest.py]
+These remain needed with the Rust backend because they guard the UMEP/QGIS
+plugin-facing API contracts rather than model physics.
+
+**Enforcement and legacy `api` compatibility shim:**
+
+- **Static AST lint (`scripts/lint/check_test_markers.py`):** checks every
+  pytest-discoverable file under `test/` (outside `AUTO_APPLIED_DIRS`) to
+  enforce exactly one primary axis from
+  `AXIS_MARKERS = frozenset({"tooling", "unit", "native", "physics"})` at
+  module level, reject conflicting nested axis decorators, and reject directly
+  authored `api` markers outside `LOCKED_PR_FILE_AXES`. [fact: git grep -n 'AXIS_MARKERS.*frozenset({"tooling", "unit", "native", "physics"})' scripts/lint/check_test_markers.py && git grep -n "LEGACY_SHIM_MARKER" scripts/lint/check_test_markers.py]
+- **Runtime collection hook (`test/conftest.py::pytest_collection_finish`):**
+  on full-tree pytest runs, enforces primary-axis cardinality per collected
+  item (every collected test carries exactly one marker in `AXIS_MARKERS`). [fact: git grep -n "def pytest_collection_finish" test/conftest.py && git grep -n "if len(axes) == 1:" test/conftest.py]
+- **Locked-PR compatibility mapping (`LOCKED_PR_FILE_AXES`):** exact
+  repo-relative paths for still-open pre-`W1-4` pull requests may keep legacy
+  `pytestmark = pytest.mark.api`; `test/conftest.py::pytest_collection_modifyitems`
+  attaches their mapped primary axis (and any `LOCKED_PR_FILE_EXTRA_MARKERS`)
+  at collection time until those PRs land. [fact: git grep -n 'LOCKED_PR_FILE_AXES' scripts/lint/check_test_markers.py test/conftest.py]
+
+If the lint fires on a new or edited test file, add
+`pytestmark = pytest.mark.<axis>` using one of the four primary axes -- do not
+write `pytest.mark.api` in source files or bypass the lint. [decision: software maintainer, 2026-11-26]
+
+Where each axis runs in CI is stated once, in `.claude/rules/ci/conventions.md`
+("Multi-Axis CI Topology"). [decision: software maintainer, 2026-11-26]
 
 ### Importance and cost -- independent per-test decorators
 
 ```python
-@pytest.mark.smoke   # Critical, fast tests (~60s total)
-@pytest.mark.core    # Essential physics/logic contract
-@pytest.mark.medium  # Test body 10-30 CPU-s on the Linux reference runner
-@pytest.mark.slow    # 30 CPU-s or more, or slow(reason="...") for a non-CPU cause
-@pytest.mark.util    # Utility function tests (non-critical)
-@pytest.mark.cfg     # Config/schema validation tests
+@pytest.mark.smoke         # Critical, fast checks (~60s total)
+@pytest.mark.smoke_bridge  # Minimal bridge-loading subset for abi3_smoke across CPythons
+@pytest.mark.core          # Essential physics/logic contract
+@pytest.mark.medium        # Test body 10-30 CPU-s on the Linux reference runner
+@pytest.mark.slow          # 30 CPU-s or more, or slow(reason="...") for a non-CPU cause
+@pytest.mark.util          # Utility function tests (non-critical)
+@pytest.mark.cfg           # Config/schema validation tests
 ```
 
-Importance and cost compose independently with the nature axis. Absence of a
-cost marker means fast. CI expressions such as `-m "api and smoke and not
-(medium or slow)"` and `-m "physics and (core or not slow)"` select the right
-subset per matrix cell.
+Importance and cost compose independently with the dependency axis. Absence of
+a cost marker means fast. CI lane expressions are defined in
+`scripts/suews/ci_tiers.py` (`--schema 2`), such as
+`-m "unit and (core or not slow) and not qgis"`,
+`-m "native and (core or not slow) and not qgis"`,
+`-m "physics and smoke and not (medium or slow)"`, and
+`-m "smoke_bridge and not (medium or slow) and not qgis"` (`abi3_smoke`). [fact: git grep -n 'SCHEMA_V2_AXES = ("tooling", "unit", "native", "physics")' scripts/suews/ci_tiers.py && git grep -n 'ABI3_SMOKE_EXPRESSION' scripts/suews/ci_tiers.py]
 
 ### PR/CR placement
 
+Importance, cost, and platform-target definitions (see
+`.claude/rules/ci/conventions.md`, "Multi-Axis CI Topology", for which lanes
+and tiers run on each CI event): [decision: software maintainer, 2026-11-26]
+
 - `smoke`: minimal fail-fast checks only. Keep this tier small enough for quick
   wheel validation; smoke selection excludes both `medium` and `slow`.
-- `core`: essential guardrails, independently of cost. Draft `core` selection
-  still excludes `slow`; ready PRs and merge queue use `(core or not slow)`, so
+- `smoke_bridge`: minimal installed-wheel bridge-loading subset run across
+  non-floor CPython versions (`abi3_smoke`).
+- `core`: essential guardrails, independently of cost. Under ready tiers
+  (`(core or not slow)` on non-physics axes, and `standard` when dispatched),
   an essential expensive regression is honestly marked `core` + `slow`.
-- `standard`: all non-slow tests plus essential `core` tests for the relevant
-  nature axis.
 - `medium`: a test body of 10 to 30 CPU seconds on the Linux reference runner
-  (see "Cost thresholds" below). These stay eligible for `standard` and for any
-  importance tier they also carry.
+  (see "Cost thresholds" below). Included by ready non-physics lanes and full
+  primary-axis tiers, and excluded from `smoke`, the fixed `abi3_smoke`
+  expression, and `physics-core` (except the explicitly included
+  exact-reference witness; see `.claude/rules/ci/conventions.md`, "Test Tier
+  Definitions").
 - `slow`: a test body of 30 CPU seconds or more on that runner, or otherwise
-  unsuitable for routine PR runs for a reason other than CPU, which the marker
-  states: `pytest.mark.slow(reason="...")`. A slow test runs before merge only
-  when it also carries `core`; other slow tests belong in `make test-all`,
-  scheduled/release builds, or explicit manual validation.
+  unsuitable for routine fast runs for a reason other than CPU, which the
+  marker states: `pytest.mark.slow(reason="...")`. On non-physics axes, a
+  `slow` test runs in ready tiers only when it also carries `core`; on the
+  `physics` axis, full `-m physics` (including `slow`) runs on the four
+  automatic full-physics triggers in `.claude/rules/ci/conventions.md`. Other
+  `slow` tests belong in `make test-all`, scheduled/release builds, or explicit
+  manual validation.
 - `qgis`: UMEP/QGIS tests only. These target Windows + Python 3.12, which
   matches the current Windows runtime line for both QGIS 3 LTR and QGIS 4.
-  They should stay out of local `make test` and normal PR/CR tiers unless
-  selected explicitly.
+  They stay out of local `make test` and normal PR/merge-queue tiers unless
+  selected explicitly (`all` includes them).
 
 ### Cost thresholds
 
@@ -225,12 +245,16 @@ slowest platform" maps onto the same tests.
 
 Where the numbers come from. The metrics plugin
 (`scripts/suews/pytest_ci_metrics.py`) records wall and CPU seconds per test
-and phase in the `ci-metrics-api-cp312-manylinux-x86_64` and
-`ci-metrics-physics-cp312-manylinux-x86_64` artefacts of every nightly run. The
-reference measurement is dispatch run 34434996759 on PR #1779 (10 September
-2026, release wheel, the branch merged with master up to #1782; 183 physics
-and 2129 api tests ran their body, and the 37 skipped or xfailed nodes carry
-no measurement):
+and phase in the four Linux `cp312` lane artefacts of every nightly run
+(`ci-metrics-tooling-cp312-manylinux-x86_64*`,
+`ci-metrics-unit-cp312-manylinux-x86_64*`,
+`ci-metrics-native-cp312-manylinux-x86_64*`, and
+`ci-metrics-physics-cp312-manylinux-x86_64*`). [fact: git grep -n "ci-metrics-tooling-cp312-manylinux-x86_64" .github/workflows/build-publish_to_pypi.yml && git grep -n -- "--require-axis native" .github/workflows/build-publish_to_pypi.yml]
+The historical reference measurement used to calibrate these thresholds is
+dispatch run 34434996759 on PR #1779 (10 September 2026, release wheel, the
+branch merged with master up to #1782, under the former `physics` and `api`
+lanes; 183 physics and 2129 api tests ran their body, and the 37 skipped or
+xfailed nodes carry no measurement):
 
 | Test body CPU-s | physics tests | api tests |
 |---|---:|---:|
@@ -309,20 +333,22 @@ records the reason and the check accepts it. Skipped and xfailed nodes are
 excluded by outcome and not judged. An artefact whose per-test records carry a
 schema version this lint does not read stops the check with an error rather
 than being skipped, so a schema bump cannot read as no drift. The nightly
-`cost_markers` job in `build-publish_to_pypi.yml` runs the check after the two
-Linux cp312 lanes (also on `workflow_dispatch` with the `cost_markers` input)
-with `continue-on-error`, so drift is reported in the step summary and never
-reddens the run; `report_scheduled_run` prints the drift count in its own
-summary, and drift never counts as a failure. On a pull request that changes
-test files, the `cost_markers_pr` job runs the same check restricted to those
-files (`--test-file`) on the PR's own Linux cp312 metrics and adds the result to
-the CI summary comment; it never gates, and it cannot judge tests the PR tier
-does not run (`slow`, and `medium` on the smoke tier). Run it locally on
-downloaded artefacts:
+`cost_markers` job in `build-publish_to_pypi.yml` runs the check after the four
+Linux `cp312` lanes (`tooling`, `unit`, `native`, `physics`; also on
+`workflow_dispatch` with the `cost_markers` input) with `continue-on-error`, so
+drift is reported in the step summary and never reddens the run;
+`report_scheduled_run` prints the drift count in its own summary, and drift
+never counts as a failure. [fact: git grep -n "cost_markers:" .github/workflows/build-publish_to_pypi.yml && git grep -n -- "--require-axis physics" .github/workflows/build-publish_to_pypi.yml]
+On a pull request that changes test files, the `cost_markers_pr` job runs the
+same check restricted to those files (`--test-file`) on the PR's own Linux
+`cp312` metrics and adds the result to the CI summary comment; it never gates,
+and it cannot judge tests the PR tier does not run (non-core `slow` tests on
+non-physics lanes, or non-smoke physics tests under `physics-core`). [fact: git grep -n "cost_markers_pr:" .github/workflows/build-publish_to_pypi.yml] Run it locally on downloaded artefacts:
 
 ```bash
-gh run download <run-id> -n ci-metrics-api-cp312-manylinux-x86_64 -D ci-metrics/api
-gh run download <run-id> -n ci-metrics-physics-cp312-manylinux-x86_64 -D ci-metrics/physics
+for axis in tooling unit native physics; do
+  gh run download <run-id> -p "ci-metrics-${axis}-cp312-manylinux-x86_64*" -D "ci-metrics/${axis}"
+done
 python scripts/lint/check_cost_markers.py ci-metrics --histogram
 ```
 
@@ -371,8 +397,12 @@ simulation windows to what the assertion actually requires:
 4. **Mark cost honestly by the existing policy.** Assign `medium` and `slow`
    only by measured call-phase CPU seconds or a documented non-CPU cause (see
    "PR/CR placement" and "Cost thresholds" above). Never mark a test `slow`
-   merely to hide it from PR runs; essential `core` tests remain in the PR
-   tier. [decision: software maintainer, 2026-11-22]
+   merely to hide it from PR runs; on non-physics ready lanes (`tooling`,
+   `unit`, `native`, `os_compat`), essential `core` tests remain in the PR tier
+   via `(core or not slow)`, while on the `physics` axis full `-m physics`
+   (including `core` and `slow`) runs on the four automatic full-physics
+   coverage triggers in `.claude/rules/ci/conventions.md` ("Multi-Axis CI
+   Topology") rather than on Python-only `physics-core` PRs. [decision: software maintainer, 2026-11-22; aligned with GATE_AXIS_SCHEMA=2 decision, 2026-11-26]
 
 **How to recognise violations.**
 - *From a diff (reviewers)*: a new `SUEWSSimulation.from_sample_data().run(...)`
@@ -424,22 +454,23 @@ test/
 
 ### Why this is a hard rule, not a preference
 
-Only `test/` is wired into the package's wheel-test machinery: [fact: git grep -n "pytest_ci_metrics test" .github/workflows/test-api-cross-python-reusable.yml]
+Only `test/` is wired into the package's source- and wheel-test machinery: [fact: git grep -n "pytest_ci_metrics test" .github/workflows/test-source-lane-reusable.yml .github/workflows/test-wheel-lane-reusable.yml]
 
-- **Wheel CI runs `pytest test`** (the cross-CPython matrix in
-  `test-api-cross-python-reusable.yml` and physics wheel tests). A `test_*.py`
-  for `src/supy/**` placed outside `test/` runs in **no wheel CI job** -- it
-  silently provides zero package coverage, however green it looks locally. [fact: git grep -n "pytest_ci_metrics test" .github/workflows/test-api-cross-python-reusable.yml]
-- **The nature-marker gate** (`scripts/lint/check_test_markers.py` +
+- **CI test lanes run `pytest test`** (the source lanes in
+  `test-source-lane-reusable.yml`, the wheel-backed lanes in
+  `test-wheel-lane-reusable.yml`, and the physics wheel tests). A `test_*.py`
+  for `src/supy/**` placed outside `test/` runs in **no package CI lane** -- it
+  silently provides zero package coverage, however green it looks locally. [fact: git grep -n "pytest_ci_metrics test" .github/workflows/test-source-lane-reusable.yml .github/workflows/test-wheel-lane-reusable.yml]
+- **The dependency-axis marker gate** (`scripts/lint/check_test_markers.py` +
   `test/conftest.py`) only walks `test/`. Tests placed elsewhere escape the
-  `api` / `physics` marker discipline entirely.
+  `tooling` / `unit` / `native` / `physics` marker discipline entirely.
 - Shared fixtures, conftest helpers, and tier markers (`smoke` / `slow` / ...)
   are all rooted at `test/`.
 
 So a test's *location* determines whether it is actually run and disciplined.
 A test for shipped `src/supy/**` code that lives under `benchmark/` is the
-canonical mistake: it tests core code but is invisible to wheel CI. [fact: git grep -n "pytest benchmark/tests" .github/workflows/benchmark-regression.yml] Move it to
-the matching `test/` subdirectory and give it a nature marker.
+canonical mistake: it tests core code but is invisible to package CI. [fact: git grep -n "pytest benchmark/tests" .github/workflows/benchmark-regression.yml] Move it to
+the matching `test/` subdirectory and give it a dependency-axis marker.
 
 If a fixture lives in a git tag or external source, **vendor a minimal,
 self-contained copy under `test/fixtures/`** rather than fetching at test time
